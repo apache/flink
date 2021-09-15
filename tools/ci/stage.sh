@@ -107,6 +107,7 @@ flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
 flink-connectors/flink-connector-twitter,\
 flink-connectors/flink-connector-kinesis,\
+flink-connectors/flink-connector-aws-kinesis-data-streams,\
 flink-metrics/flink-metrics-dropwizard,\
 flink-metrics/flink-metrics-graphite,\
 flink-metrics/flink-metrics-jmx,\
