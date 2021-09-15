@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.slf4j.Logger;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.Set;
@@ -93,7 +94,15 @@ class TransientBlobCleanupTask extends TimerTask {
                     try {
                         Files.delete(localFile.toPath());
                     } catch (Exception e) {
-                        log.error("Failed to delete local blob " + localFile.getAbsolutePath(), e);
+                        if (e instanceof FileNotFoundException) {
+                            log.info(
+                                    "Local blob {} may have been deleted by other cleaner task",
+                                    localFile.getAbsolutePath());
+                        } else {
+                            log.error(
+                                    "Failed to delete local blob " + localFile.getAbsolutePath(),
+                                    e);
+                        }
                     }
 
                     if (!localFile.exists()) {

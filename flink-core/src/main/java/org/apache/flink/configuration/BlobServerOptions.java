@@ -26,6 +26,12 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @PublicEvolving
 public class BlobServerOptions {
 
+    /** The config parameter defining the type of blobs.*/
+    public static final ConfigOption<String> STORAGE_TYPE =
+            key("blob.storage.type")
+                    .stringType()
+                    .noDefaultValue();
+
     /** The config parameter defining the storage directory to be used by the blob server. */
     public static final ConfigOption<String> STORAGE_DIRECTORY =
             key("blob.storage.directory")

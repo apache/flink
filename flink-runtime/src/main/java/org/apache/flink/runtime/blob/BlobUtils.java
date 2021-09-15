@@ -106,38 +106,21 @@ public class BlobUtils {
      *
      * @param config Flink configuration
      * @return a new local storage directory
-     * @throws IOException thrown if the local file storage cannot be created or is not usable
      */
-    static File initLocalStorageDirectory(Configuration config) throws IOException {
+    static File initLocalStorageDirectory(Configuration config) {
 
         String basePath = config.getString(BlobServerOptions.STORAGE_DIRECTORY);
+        String cacheType = config.getString(BlobServerOptions.STORAGE_TYPE);
 
         File baseDir;
         if (StringUtils.isNullOrWhitespaceOnly(basePath)) {
             final String[] tmpDirPaths = ConfigurationUtils.parseTempDirectories(config);
-            baseDir = new File(tmpDirPaths[RANDOM.nextInt(tmpDirPaths.length)]);
+            baseDir = new File(tmpDirPaths[0]);
         } else {
             baseDir = new File(basePath);
         }
 
-        File storageDir;
-
-        // NOTE: although we will be using UUIDs, there may be collisions
-        int maxAttempts = 10;
-        for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            storageDir =
-                    new File(baseDir, String.format("blobStore-%s", UUID.randomUUID().toString()));
-
-            // Create the storage dir if it doesn't exist. Only return it when the operation was
-            // successful.
-            if (storageDir.mkdirs()) {
-                return storageDir;
-            }
-        }
-
-        // max attempts exceeded to find a storage directory
-        throw new IOException(
-                "Could not create storage directory for BLOB store in '" + baseDir + "'.");
+        return new File(baseDir, String.format("blobStore-%s", cacheType));
     }
 
     /**

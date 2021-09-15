@@ -125,8 +125,9 @@ public class BlobServer extends Thread
      *
      * @param config Configuration to be used to instantiate the BlobServer
      * @param blobStore BlobStore to store blobs persistently
+     *
      * @throws IOException thrown if the BLOB server cannot bind to a free network port or if the
-     *     (local or distributed) file storage cannot be created or is not usable
+     *         (local or distributed) file storage cannot be created or is not usable
      */
     public BlobServer(Configuration config, BlobStore blobStore) throws IOException {
         this.blobServiceConfiguration = checkNotNull(config);
@@ -134,6 +135,7 @@ public class BlobServer extends Thread
         this.readWriteLock = new ReentrantReadWriteLock();
 
         // configure and create the storage directory
+        config.setString(BlobServerOptions.STORAGE_TYPE, BlobPathType.SERVER_PERMANENT.toString());
         this.storageDir = BlobUtils.initLocalStorageDirectory(config);
         LOG.info("Created BLOB server storage directory {}", storageDir);
 
@@ -234,7 +236,9 @@ public class BlobServer extends Thread
      *
      * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
      * @param key identifying the file
+     *
      * @return file handle to the file
+     *
      * @throws IOException if creating the directory fails
      */
     @VisibleForTesting
@@ -246,6 +250,7 @@ public class BlobServer extends Thread
      * Returns a temporary file inside the BLOB server's incoming directory.
      *
      * @return a temporary file inside the BLOB server's incoming directory
+     *
      * @throws IOException if creating the directory fails
      */
     File createTemporaryFilename() throws IOException {
@@ -366,7 +371,9 @@ public class BlobServer extends Thread
      * or a {@link FileNotFoundException} is thrown.
      *
      * @param key blob key associated with the requested file
+     *
      * @return file referring to the local storage location of the BLOB
+     *
      * @throws IOException Thrown if the file retrieval failed.
      */
     @Override
@@ -383,7 +390,9 @@ public class BlobServer extends Thread
      *
      * @param jobId ID of the job this blob belongs to
      * @param key blob key associated with the requested file
+     *
      * @return file referring to the local storage location of the BLOB
+     *
      * @throws IOException Thrown if the file retrieval failed.
      */
     @Override
@@ -401,7 +410,9 @@ public class BlobServer extends Thread
      *
      * @param jobId ID of the job this blob belongs to
      * @param key blob key associated with the requested file
+     *
      * @return The path to the file.
+     *
      * @throws java.io.FileNotFoundException if the BLOB does not exist;
      * @throws IOException if any other error occurs when retrieving the file
      */
@@ -420,7 +431,9 @@ public class BlobServer extends Thread
      *
      * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
      * @param blobKey blob key associated with the requested file
+     *
      * @return file referring to the local storage location of the BLOB
+     *
      * @throws IOException Thrown if the file retrieval failed.
      */
     private File getFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
@@ -449,6 +462,7 @@ public class BlobServer extends Thread
      * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
      * @param blobKey blob key associated with the requested file
      * @param localFile (local) file where the blob is/should be stored
+     *
      * @throws IOException Thrown if the file retrieval failed.
      */
     void getFileInternal(@Nullable JobID jobId, BlobKey blobKey, File localFile)
@@ -548,9 +562,11 @@ public class BlobServer extends Thread
      * @param jobId the ID of the job the BLOB belongs to
      * @param value the buffer to upload
      * @param blobType whether to make the data permanent or transient
+     *
      * @return the computed BLOB key identifying the BLOB on the server
+     *
      * @throws IOException thrown if an I/O error occurs while writing it to a local file, or
-     *     uploading it to the HA store
+     *         uploading it to the HA store
      */
     private BlobKey putBuffer(@Nullable JobID jobId, byte[] value, BlobKey.BlobType blobType)
             throws IOException {
@@ -596,9 +612,11 @@ public class BlobServer extends Thread
      * @param jobId the ID of the job the BLOB belongs to
      * @param inputStream the input stream to read the data from
      * @param blobType whether to make the data permanent or transient
+     *
      * @return the computed BLOB key identifying the BLOB on the server
+     *
      * @throws IOException thrown if an I/O error occurs while reading the data from the input
-     *     stream, writing it to a local file, or uploading it to the HA store
+     *         stream, writing it to a local file, or uploading it to the HA store
      */
     private BlobKey putInputStream(
             @Nullable JobID jobId, InputStream inputStream, BlobKey.BlobType blobType)
@@ -656,9 +674,11 @@ public class BlobServer extends Thread
      * @param jobId ID of the job this blob belongs to or <tt>null</tt> if job-unrelated
      * @param digest BLOB content digest, i.e. hash
      * @param blobType whether this file is a permanent or transient BLOB
+     *
      * @return unique BLOB key that identifies the BLOB on the server
+     *
      * @throws IOException thrown if an I/O error occurs while moving the file or uploading it to
-     *     the HA store
+     *         the HA store
      */
     BlobKey moveTempFileToStore(
             File incomingFile, @Nullable JobID jobId, byte[] digest, BlobKey.BlobType blobType)
@@ -723,8 +743,9 @@ public class BlobServer extends Thread
      * blob server.
      *
      * @param key blob key associated with the file to be deleted
+     *
      * @return <tt>true</tt> if the given blob is successfully deleted or non-existing;
-     *     <tt>false</tt> otherwise
+     *         <tt>false</tt> otherwise
      */
     @Override
     public boolean deleteFromCache(TransientBlobKey key) {
@@ -736,8 +757,9 @@ public class BlobServer extends Thread
      *
      * @param jobId ID of the job this blob belongs to
      * @param key blob key associated with the file to be deleted
+     *
      * @return <tt>true</tt> if the given blob is successfully deleted or non-existing;
-     *     <tt>false</tt> otherwise
+     *         <tt>false</tt> otherwise
      */
     @Override
     public boolean deleteFromCache(JobID jobId, TransientBlobKey key) {
@@ -750,8 +772,9 @@ public class BlobServer extends Thread
      *
      * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
      * @param key blob key associated with the file to be deleted
+     *
      * @return <tt>true</tt> if the given blob is successfully deleted or non-existing;
-     *     <tt>false</tt> otherwise
+     *         <tt>false</tt> otherwise
      */
     boolean deleteInternal(@Nullable JobID jobId, TransientBlobKey key) {
         final File localFile =
@@ -782,9 +805,10 @@ public class BlobServer extends Thread
      *
      * @param jobId ID of the job this blob belongs to
      * @param cleanupBlobStoreFiles True if the corresponding blob store files shall be cleaned up
-     *     as well. Otherwise false.
+     *         as well. Otherwise false.
+     *
      * @return <tt>true</tt> if the job directory is successfully deleted or non-existing;
-     *     <tt>false</tt> otherwise
+     *         <tt>false</tt> otherwise
      */
     public boolean cleanupJob(JobID jobId, boolean cleanupBlobStoreFiles) {
         checkNotNull(jobId);

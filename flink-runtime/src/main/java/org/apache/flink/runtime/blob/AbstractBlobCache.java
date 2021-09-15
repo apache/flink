@@ -31,7 +31,9 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
+import java.nio.channels.FileLock;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -86,6 +88,11 @@ public abstract class AbstractBlobCache implements Closeable {
         this.readWriteLock = new ReentrantReadWriteLock();
 
         // configure and create the storage directory
+        blobClientConfig.setString(
+                BlobServerOptions.STORAGE_TYPE,
+                this instanceof TransientBlobCache
+                        ? BlobPathType.CACHE_TRANSIENT.toString()
+                        : BlobPathType.CACHE_PERMANENT.toString());
         this.storageDir = BlobUtils.initLocalStorageDirectory(blobClientConfig);
         log.info("Created BLOB cache storage directory " + storageDir);
 
@@ -127,73 +134,50 @@ public abstract class AbstractBlobCache implements Closeable {
         checkArgument(blobKey != null, "BLOB key cannot be null.");
 
         final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
-        readWriteLock.readLock().lock();
 
-        try {
-            if (localFile.exists()) {
-                return localFile;
-            }
-        } finally {
-            readWriteLock.readLock().unlock();
-        }
-
-        // first try the distributed blob store (if available)
-        // use a temporary file (thread-safe without locking)
-        File incomingFile = createTemporaryFilename();
-        try {
+        synchronized (storageDir) {
+            FileLock fileLock =
+                    new RandomAccessFile(storageDir.getPath() + "/.blob-lock", "rw")
+                            .getChannel()
+                            .lock();
             try {
-                if (blobView.get(jobId, blobKey, incomingFile)) {
-                    // now move the temp file to our local cache atomically
-                    readWriteLock.writeLock().lock();
+                if (!localFile.exists()) {
                     try {
-                        BlobUtils.moveTempFileToStore(
-                                incomingFile, jobId, blobKey, localFile, log, null);
-                    } finally {
-                        readWriteLock.writeLock().unlock();
+                        log.info("Downloading files from distributed storage.");
+                        if (blobView.get(jobId, blobKey, localFile)) {
+                            return localFile;
+                        }
+                    } catch (Exception e) {
+                        log.info(
+                                "Failed to copy from blob store. Downloading from BLOB server instead.",
+                                e);
                     }
 
-                    return localFile;
+                    final InetSocketAddress currentServerAddress = serverAddress;
+
+                    if (currentServerAddress != null) {
+                        log.info("Downloading file from blob server.");
+                        // fallback: download from the BlobServer
+                        BlobClient.downloadFromBlobServer(
+                                jobId,
+                                blobKey,
+                                localFile,
+                                currentServerAddress,
+                                blobClientConfig,
+                                numFetchRetries);
+                    } else {
+                        throw new IOException(
+                                "Cannot download from BlobServer, because the server address is unknown.");
+                    }
                 }
-            } catch (Exception e) {
-                log.info(
-                        "Failed to copy from blob store. Downloading from BLOB server instead.", e);
-            }
-
-            final InetSocketAddress currentServerAddress = serverAddress;
-
-            if (currentServerAddress != null) {
-                // fallback: download from the BlobServer
-                BlobClient.downloadFromBlobServer(
-                        jobId,
-                        blobKey,
-                        incomingFile,
-                        currentServerAddress,
-                        blobClientConfig,
-                        numFetchRetries);
-
-                readWriteLock.writeLock().lock();
-                try {
-                    BlobUtils.moveTempFileToStore(
-                            incomingFile, jobId, blobKey, localFile, log, null);
-                } finally {
-                    readWriteLock.writeLock().unlock();
+            } finally {
+                log.info("File has been in local path.");
+                if (fileLock != null) {
+                    fileLock.release();
                 }
-            } else {
-                throw new IOException(
-                        "Cannot download from BlobServer, because the server address is unknown.");
-            }
-
-            return localFile;
-        } finally {
-            // delete incomingFile from a failed download
-            if (!incomingFile.delete() && incomingFile.exists()) {
-                log.warn(
-                        "Could not delete the staging file {} for blob key {} and job {}.",
-                        incomingFile,
-                        blobKey,
-                        jobId);
             }
         }
+        return localFile;
     }
 
     /**
