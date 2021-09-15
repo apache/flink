@@ -32,6 +32,7 @@ import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider
 import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
+import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.Http2Configuration;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
@@ -39,6 +40,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.utils.AttributeMap;
 
 import java.net.URI;
 import java.nio.file.Paths;
@@ -48,6 +50,8 @@ import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_REGION;
+import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.HTTP_PROTOCOL_VERSION;
+import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.TRUST_ALL_CERTIFICATES;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.roleArn;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.roleSessionName;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.webIdentityTokenFile;
@@ -73,6 +77,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static software.amazon.awssdk.http.Protocol.HTTP1_1;
 import static software.amazon.awssdk.http.Protocol.HTTP2;
 
 /** Tests for {@link AwsV2Util}. */
@@ -258,7 +263,12 @@ public class AwsV2UtilTest {
 
         AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
-        verify(builder).build();
+        AttributeMap defaultCustomAttribute =
+                AttributeMap.builder()
+                        .put(SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, false)
+                        .build();
+
+        verify(builder).buildWithDefaults(defaultCustomAttribute);
         verify(builder).maxConcurrency(DEFAULT_EFO_HTTP_CLIENT_MAX_CONCURRENCY);
         verify(builder).connectionTimeout(Duration.ofSeconds(10));
         verify(builder).writeTimeout(Duration.ofSeconds(50));
@@ -367,6 +377,37 @@ public class AwsV2UtilTest {
     }
 
     @Test
+    public void testCreateNettyHttpClientTrustAllCertificates() {
+        Properties clientConfiguration = new Properties();
+        clientConfiguration.setProperty(TRUST_ALL_CERTIFICATES, "true");
+
+        NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
+
+        AwsV2Util.createHttpClient(
+                new ClientConfigurationFactory().getConfig(), builder, clientConfiguration);
+
+        AttributeMap defaultCustomAttribute =
+                AttributeMap.builder()
+                        .put(SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, true)
+                        .build();
+
+        verify(builder).buildWithDefaults(defaultCustomAttribute);
+    }
+
+    @Test
+    public void testCreateNettyHttpClientHttpVersion() {
+        Properties clientConfiguration = new Properties();
+        clientConfiguration.setProperty(HTTP_PROTOCOL_VERSION, HTTP1_1.name());
+
+        NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
+
+        AwsV2Util.createHttpClient(
+                new ClientConfigurationFactory().getConfig(), builder, clientConfiguration);
+
+        verify(builder).protocol(HTTP1_1);
+    }
+
+    @Test
     public void testClientOverrideConfigurationWithDefaults() {
         ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
         ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
@@ -377,7 +418,7 @@ public class AwsV2UtilTest {
         verify(builder)
                 .putAdvancedOption(
                         SdkAdvancedClientOption.USER_AGENT_PREFIX,
-                        AWSUtil.formatFlinkUserAgentPrefix());
+                        AWSGeneralUtil.formatFlinkUserAgentPrefix());
         verify(builder).putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_SUFFIX, null);
         verify(builder, never()).apiCallAttemptTimeout(any());
         verify(builder, never()).apiCallTimeout(any());
