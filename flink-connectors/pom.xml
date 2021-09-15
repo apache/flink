@@ -54,6 +54,7 @@ under the License.
 		<module>flink-connector-gcp-pubsub</module>
 		<module>flink-connector-aws-base</module>
 		<module>flink-connector-kinesis</module>
+		<module>flink-connector-aws-kinesis-data-streams</module>
 		<module>flink-connector-base</module>
 		<module>flink-file-sink-common</module>
 		<module>flink-connector-files</module>
