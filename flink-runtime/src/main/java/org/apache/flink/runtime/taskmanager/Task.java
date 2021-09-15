@@ -796,18 +796,15 @@ public class Task
                     if (current == ExecutionState.RUNNING
                             || current == ExecutionState.INITIALIZING
                             || current == ExecutionState.DEPLOYING) {
-                        if (t instanceof CancelTaskException) {
-                            if (transitionState(current, ExecutionState.CANCELED)) {
+                        if (ExceptionUtils.findThrowable(t, CancelTaskException.class)
+                                .isPresent()) {
+                            if (transitionState(current, ExecutionState.CANCELED, t)) {
                                 cancelInvokable(invokable);
                                 break;
                             }
                         } else {
                             if (transitionState(current, ExecutionState.FAILED, t)) {
-                                // proper failure of the task. record the exception as the root
-                                // cause
-                                failureCause = t;
                                 cancelInvokable(invokable);
-
                                 break;
                             }
                         }
@@ -1101,7 +1098,24 @@ public class Task
                         executionId,
                         currentState,
                         newState);
+            } else if (ExceptionUtils.findThrowable(cause, CancelTaskException.class).isPresent()) {
+                LOG.info(
+                        "{} ({}) switched from {} to {} due to CancelTaskException.",
+                        taskNameWithSubtask,
+                        executionId,
+                        currentState,
+                        newState);
+                LOG.debug(
+                        "{} ({}) switched from {} to {} due to CancelTaskException: {}",
+                        taskNameWithSubtask,
+                        executionId,
+                        currentState,
+                        newState,
+                        ExceptionUtils.stringifyException(cause));
             } else {
+                // proper failure of the task. record the exception as the root
+                // cause
+                failureCause = cause;
                 LOG.warn(
                         "{} ({}) switched from {} to {} with failure cause: {}",
                         taskNameWithSubtask,
@@ -1183,7 +1197,6 @@ public class Task
                 if (transitionState(current, targetState, cause)) {
                     // if we manage this state transition, then the invokable gets never called
                     // we need not call cancel on it
-                    this.failureCause = cause;
                     return;
                 }
             } else if (current == ExecutionState.INITIALIZING
@@ -1196,8 +1209,6 @@ public class Task
                     final TaskInvokable invokable = this.invokable;
 
                     if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
-                        this.failureCause = cause;
-
                         LOG.info(
                                 "Triggering cancellation of task code {} ({}).",
                                 taskNameWithSubtask,
