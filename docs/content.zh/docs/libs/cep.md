@@ -1677,10 +1677,8 @@ val alerts = patternStream.select(createAlert(_))
 
 ## 从旧版本迁移（1.5之前）
 
-### Migrating from Flink <= 1.5
+### 从旧版本迁移Flink <= 1.5
 
-In Flink 1.13 we dropped direct savepoint backward compatibility with Flink <= 1.5. If you want to restore
-from a savepoint taken from an older version, migrate it first to a newer version (1.6-1.12), take a savepoint
-and then use that savepoint to restore with Flink >= 1.13.
+在Flink 1.13中，我们放弃了与Flink <= 1.5直接向后兼容的`savepoint`。如果想从旧版本的`savepoint`恢复，请先将其迁移到Flink(1.6-1.12)，在该版本下生成一个`savepoint`，然后升级至Flink >= 1.13，再使用该`savepoint`使用进行恢复。
 
 {{< top >}}
