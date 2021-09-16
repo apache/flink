@@ -137,7 +137,7 @@ public class KafkaSingleTopicExternalContext implements ExternalContext<String> 
     }
 
     @Override
-    public SourceSplitDataWriter<String> createSourceSplitDataWriter() {
+    public SourceSplitDataWriter<String> createSourceSplitDataWriter(String destination) {
         if (numSplits == 0) {
             createTopic(topicName, 1, (short) 1);
             numSplits++;

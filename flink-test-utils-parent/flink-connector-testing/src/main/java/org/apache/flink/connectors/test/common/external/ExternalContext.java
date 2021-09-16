@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.Collection;
 
@@ -52,9 +54,11 @@ public interface ExternalContext<T> extends Serializable, AutoCloseable {
     /**
      * Create a new split in the external system and a data writer corresponding to the new split.
      *
+     * @param destination a generic optional marker that can be used to distinguish between multiple
+     *     write destinations within the context.
      * @return A data writer for the created split.
      */
-    SourceSplitDataWriter<T> createSourceSplitDataWriter();
+    SourceSplitDataWriter<T> createSourceSplitDataWriter(@Nullable String destination);
 
     /**
      * Generate test data.

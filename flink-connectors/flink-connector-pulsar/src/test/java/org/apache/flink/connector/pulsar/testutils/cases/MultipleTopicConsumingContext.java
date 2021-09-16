@@ -82,7 +82,7 @@ public class MultipleTopicConsumingContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public SourceSplitDataWriter<String> createSourceSplitDataWriter() {
+    public SourceSplitDataWriter<String> createSourceSplitDataWriter(String destination) {
         String topicName = topicPattern.replace("[0-9]+", String.valueOf(numTopics));
         operator.createTopic(topicName, 1);
 

@@ -78,7 +78,7 @@ public class SingleTopicConsumingContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public SourceSplitDataWriter<String> createSourceSplitDataWriter() {
+    public SourceSplitDataWriter<String> createSourceSplitDataWriter(String destination) {
         if (numSplits == 0) {
             // Create the topic first.
             operator.createTopic(topicName, 1);

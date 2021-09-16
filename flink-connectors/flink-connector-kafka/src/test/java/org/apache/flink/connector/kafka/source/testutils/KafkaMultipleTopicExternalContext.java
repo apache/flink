@@ -57,7 +57,7 @@ public class KafkaMultipleTopicExternalContext extends KafkaSingleTopicExternalC
     }
 
     @Override
-    public SourceSplitDataWriter<String> createSourceSplitDataWriter() {
+    public SourceSplitDataWriter<String> createSourceSplitDataWriter(String destination) {
         String topicName = getTopicName();
         createTopic(topicName, 1, (short) 1);
         final KafkaPartitionDataWriter splitWriter =

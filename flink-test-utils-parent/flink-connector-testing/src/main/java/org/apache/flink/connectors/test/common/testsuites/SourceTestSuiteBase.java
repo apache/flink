@@ -220,7 +220,7 @@ public abstract class SourceTestSuiteBase<T> {
                 externalContext.generateTestData(
                         splitIndex, ThreadLocalRandom.current().nextLong());
         final SourceSplitDataWriter<T> sourceSplitDataWriter =
-                externalContext.createSourceSplitDataWriter();
+                externalContext.createSourceSplitDataWriter("");
         sourceSplitDataWriter.writeRecords(testRecordsBeforeFailure);
 
         final StreamExecutionEnvironment env = testEnv.createExecutionEnvironment();
@@ -234,7 +234,7 @@ public abstract class SourceTestSuiteBase<T> {
                         .setParallelism(1);
 
         // Since DataStream API doesn't expose job client for executeAndCollect(), we have
-        // to reuse these part of code to get both job client and result iterator :-(
+        // to reuse this part of code to get both job client and result iterator :-(
         // ------------------------------------ START ---------------------------------------------
         TypeSerializer<T> serializer = dataStreamSource.getType().createSerializer(env.getConfig());
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID();
@@ -298,7 +298,7 @@ public abstract class SourceTestSuiteBase<T> {
                 externalContext.generateTestData(
                         splitIndex, ThreadLocalRandom.current().nextLong());
         LOG.debug("Writing {} records to external system", testRecordCollection.size());
-        externalContext.createSourceSplitDataWriter().writeRecords(testRecordCollection);
+        externalContext.createSourceSplitDataWriter("").writeRecords(testRecordCollection);
         return testRecordCollection;
     }
 }
