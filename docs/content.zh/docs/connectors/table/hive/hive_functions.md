@@ -39,7 +39,7 @@ For detailed information, please refer to [HiveModule]({{< ref "docs/dev/table/m
 String name            = "myhive";
 String version         = "2.3.4";
 
-tableEnv.loadModue(name, new HiveModule(version));
+tableEnv.loadModule(name, new HiveModule(version));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -48,7 +48,7 @@ tableEnv.loadModue(name, new HiveModule(version));
 val name            = "myhive"
 val version         = "2.3.4"
 
-tableEnv.loadModue(name, new HiveModule(version));
+tableEnv.loadModule(name, new HiveModule(version));
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
