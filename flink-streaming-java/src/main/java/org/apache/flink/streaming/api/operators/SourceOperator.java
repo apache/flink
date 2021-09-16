@@ -137,7 +137,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private OperatingMode operatingMode;
 
     private final CompletableFuture<Void> finished = new CompletableFuture<>();
-    private final CompletableFuture<Void> forcedStop = new CompletableFuture<>();
+    private final SourceOperatorAvailabilityHelper availabilityHelper =
+            new SourceOperatorAvailabilityHelper();
 
     private enum OperatingMode {
         READING,
@@ -312,7 +313,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             case OUTPUT_NOT_INITIALIZED:
             case READING:
                 this.operatingMode = OperatingMode.SOURCE_STOPPED;
-                forcedStop.complete(null);
+                availabilityHelper.forceStop();
                 break;
         }
         return finished;
@@ -391,10 +392,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         switch (operatingMode) {
             case OUTPUT_NOT_INITIALIZED:
             case READING:
-                CompletableFuture<Void> sourceReaderAvailable = sourceReader.isAvailable();
-                return sourceReaderAvailable == AvailabilityProvider.AVAILABLE
-                        ? sourceReaderAvailable
-                        : CompletableFuture.anyOf(sourceReaderAvailable, forcedStop);
+                return availabilityHelper.update(sourceReader.isAvailable());
             case SOURCE_STOPPED:
             case DATA_FINISHED:
                 return AvailabilityProvider.AVAILABLE;
@@ -456,5 +454,28 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @VisibleForTesting
     ListState<SplitT> getReaderState() {
         return readerState;
+    }
+
+    private static class SourceOperatorAvailabilityHelper {
+        private final CompletableFuture<Void> forcedStopFuture = new CompletableFuture<>();
+        private CompletableFuture<Void> currentReaderFuture;
+        private CompletableFuture<?> currentCombinedFuture;
+
+        public CompletableFuture<?> update(CompletableFuture<Void> sourceReaderFuture) {
+            if (sourceReaderFuture == AvailabilityProvider.AVAILABLE) {
+                return sourceReaderFuture;
+            } else if (sourceReaderFuture == currentReaderFuture) {
+                return currentCombinedFuture;
+            } else {
+                currentReaderFuture = sourceReaderFuture;
+                currentCombinedFuture =
+                        CompletableFuture.anyOf(forcedStopFuture, sourceReaderFuture);
+                return currentCombinedFuture;
+            }
+        }
+
+        public void forceStop() {
+            this.forcedStopFuture.complete(null);
+        }
     }
 }
