@@ -21,8 +21,8 @@ package org.apache.flink.connector.jdbc.dialect;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * A factory to create different {@link JdbcDialect JdbcDialect's}. This factory is used with Java's
- * Service Provider Interfaces (SPI) for discovering.
+ * A factory to create a specific {@link JdbcDialect}. This factory is used with Java's Service
+ * Provider Interfaces (SPI) for discovering.
  *
  * <p>Classes that implement this interface can be added to the
  * "META_INF/services/org.apache.flink.connector.jdbc.dialect.JdbcDialectFactory" file of a JAR file
