@@ -26,6 +26,8 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 
 import static org.apache.flink.configuration.HeartbeatManagerOptions.HEARTBEAT_INTERVAL;
@@ -40,7 +42,11 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
     private final String[] jarPath;
 
     public FlinkContainerTestEnvironment(
-            int numTaskManagers, int numSlotsPerTaskManager, String... jarPath) {
+            int numTaskManagers,
+            int numSlotsPerTaskManager,
+            @Nullable Mount mount,
+            boolean deleteOnExit,
+            String... jarPath) {
 
         Configuration flinkConfiguration = flinkConfiguration();
         flinkConfiguration.set(NUM_TASK_SLOTS, numSlotsPerTaskManager);
@@ -49,7 +55,10 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
                 FlinkContainer.builder()
                         .numTaskManagers(numTaskManagers)
                         .withFlinkConfiguration(flinkConfiguration)
+                        .withMount(mount)
+                        .deleteOnExit(deleteOnExit)
                         .build();
+
         this.jarPath = jarPath;
     }
 
@@ -118,5 +127,38 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
         flinkConfiguration.set(SLOT_REQUEST_TIMEOUT, 10000L);
 
         return flinkConfiguration;
+    }
+
+    public static class EnvironmentBuilder {
+        private final int numTaskManagers;
+        private final int numSlotsPerTaskManager;
+        private Mount mount;
+        private boolean deleteOnExit = true;
+        private String[] jarPath;
+
+        public EnvironmentBuilder(int numTaskManagers, int numSlotsPerTaskManager) {
+            this.numTaskManagers = numTaskManagers;
+            this.numSlotsPerTaskManager = numSlotsPerTaskManager;
+        }
+
+        public EnvironmentBuilder withJarPath(String... jarPath) {
+            this.jarPath = jarPath;
+            return this;
+        }
+
+        public EnvironmentBuilder withMount(Mount mount) {
+            this.mount = mount;
+            return this;
+        }
+
+        public EnvironmentBuilder deleteOnExit(boolean deleteOnExit) {
+            this.deleteOnExit = deleteOnExit;
+            return this;
+        }
+
+        public FlinkContainerTestEnvironment build() {
+            return new FlinkContainerTestEnvironment(
+                    numTaskManagers, numSlotsPerTaskManager, mount, deleteOnExit, jarPath);
+        }
     }
 }

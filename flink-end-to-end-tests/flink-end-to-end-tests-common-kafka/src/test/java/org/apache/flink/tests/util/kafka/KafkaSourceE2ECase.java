@@ -27,6 +27,7 @@ import org.apache.flink.connectors.test.common.junit.annotations.TestEnv;
 import org.apache.flink.connectors.test.common.testsuites.SourceTestSuiteBase;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment;
+import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment.EnvironmentBuilder;
 
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -39,11 +40,13 @@ public class KafkaSourceE2ECase extends SourceTestSuiteBase<String> {
     // Defines TestEnvironment
     @TestEnv
     FlinkContainerTestEnvironment flink =
-            new FlinkContainerTestEnvironment(
-                    1,
-                    6,
-                    TestUtils.getResource("kafka-connector.jar").toAbsolutePath().toString(),
-                    TestUtils.getResource("kafka-clients.jar").toAbsolutePath().toString());
+            new EnvironmentBuilder(1, 6)
+                    .withJarPath(
+                            TestUtils.getResource("kafka-connector.jar")
+                                    .toAbsolutePath()
+                                    .toString(),
+                            TestUtils.getResource("kafka-clients.jar").toAbsolutePath().toString())
+                    .build();
 
     // Defines ConnectorExternalSystem
     @ExternalSystem
