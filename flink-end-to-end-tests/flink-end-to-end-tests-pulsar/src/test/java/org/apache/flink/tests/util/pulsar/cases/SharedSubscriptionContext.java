@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.testutils.cases;
+package org.apache.flink.tests.util.pulsar.cases;
 
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -29,38 +29,33 @@ import org.apache.flink.connector.pulsar.testutils.PulsarTestContext;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
 
+import org.apache.pulsar.client.api.RegexSubscriptionMode;
+import org.apache.pulsar.client.api.SubscriptionType;
+
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.List;
 
 import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.pulsarSchema;
+import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_ADMIN_URL;
+import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_SERVICE_URL;
 import static org.apache.pulsar.client.api.Schema.STRING;
-import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
 
-/**
- * A Pulsar external context that will create only one topic and use partitions in that topic as
- * source splits.
- */
-public class SingleTopicConsumingContext extends PulsarTestContext<String> {
-    private static final long serialVersionUID = 2754642285356345741L;
+/** We would consuming from test splits by using {@link SubscriptionType#Shared} subscription. */
+public class SharedSubscriptionContext extends PulsarTestContext<String> {
+    private static final long serialVersionUID = -2798707923661295245L;
 
-    private static final String TOPIC_NAME_PREFIX = "pulsar-single-topic";
-    private final String topicName;
-    private final Map<Integer, SourceSplitDataWriter<String>> partitionToSplitWriter =
-            new HashMap<>();
+    private int index = 0;
 
-    private int numSplits = 0;
+    private final List<PulsarPartitionDataWriter> writers = new ArrayList<>();
 
-    public SingleTopicConsumingContext(PulsarTestEnvironment environment) {
+    public SharedSubscriptionContext(PulsarTestEnvironment environment) {
         super(environment);
-        this.topicName =
-                TOPIC_NAME_PREFIX + "-" + ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
     }
 
     @Override
     protected String displayName() {
-        return "consuming message on single topic";
+        return "consuming message by Shared";
     }
 
     @Override
@@ -68,14 +63,13 @@ public class SingleTopicConsumingContext extends PulsarTestContext<String> {
         PulsarSourceBuilder<String> builder =
                 PulsarSource.builder()
                         .setDeserializationSchema(pulsarSchema(STRING))
-                        .setServiceUrl(operator.serviceUrl())
-                        .setAdminUrl(operator.adminUrl())
-                        .setTopics(topicName)
-                        .setSubscriptionType(Exclusive)
-                        .setSubscriptionName("pulsar-single-topic");
+                        .setServiceUrl(PULSAR_SERVICE_URL)
+                        .setAdminUrl(PULSAR_ADMIN_URL)
+                        .setTopicPattern("pulsar-[0-9]+-shared", RegexSubscriptionMode.AllTopics)
+                        .setSubscriptionType(SubscriptionType.Shared)
+                        .setSubscriptionName("pulsar-shared");
         if (boundedness == Boundedness.BOUNDED) {
             // Using latest stop cursor for making sure the source could be stopped.
-            // This is required for SourceTestSuiteBase.
             builder.setBoundedStopCursor(StopCursor.latest());
         }
 
@@ -84,18 +78,13 @@ public class SingleTopicConsumingContext extends PulsarTestContext<String> {
 
     @Override
     public SourceSplitDataWriter<String> createSourceSplitDataWriter() {
-        if (numSplits == 0) {
-            // Create the topic first.
-            operator.createTopic(topicName, 1);
-            numSplits++;
-        } else {
-            numSplits++;
-            operator.increaseTopicPartitions(topicName, numSplits);
-        }
+        String topicName = "pulsar-" + index + "-shared";
+        operator.createTopic(topicName, 1);
+        index++;
 
-        String partitionName = TopicNameUtils.topicNameWithPartition(topicName, numSplits - 1);
+        String partitionName = TopicNameUtils.topicNameWithPartition(topicName, 0);
         PulsarPartitionDataWriter writer = new PulsarPartitionDataWriter(operator, partitionName);
-        partitionToSplitWriter.put(numSplits - 1, writer);
+        writers.add(writer);
 
         return writer;
     }
@@ -106,12 +95,10 @@ public class SingleTopicConsumingContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public void close() throws Exception {
-        // Close writer.
-        for (SourceSplitDataWriter<String> writer : partitionToSplitWriter.values()) {
+    public void close() {
+        for (PulsarPartitionDataWriter writer : writers) {
             writer.close();
         }
-
-        partitionToSplitWriter.clear();
+        writers.clear();
     }
 }

@@ -18,13 +18,14 @@
 
 package org.apache.flink.connector.pulsar.testutils.runtime.container;
 
+import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
-import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeProvider;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.BindMode;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PulsarContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
@@ -36,13 +37,22 @@ import java.time.Duration;
 import static org.apache.flink.util.DockerImageVersions.PULSAR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.testcontainers.containers.PulsarContainer.BROKER_HTTP_PORT;
+import static org.testcontainers.containers.PulsarContainer.BROKER_PORT;
 
 /**
- * {@link PulsarRuntimeProvider} implementation, use the TestContainers as the backend. We would
- * start a pulsar container by this provider.
+ * {@link PulsarRuntime} implementation, use the TestContainers as the backend. We would start a
+ * pulsar container by this provider.
  */
-public class PulsarContainerProvider implements PulsarRuntimeProvider {
-    private static final Logger LOG = LoggerFactory.getLogger(PulsarContainerProvider.class);
+public class PulsarContainerRuntime implements PulsarRuntime {
+    private static final Logger LOG = LoggerFactory.getLogger(PulsarContainerRuntime.class);
+    private static final String PULSAR_INTERNAL_HOSTNAME = "pulsar";
+
+    // This url is used on the container side.
+    public static final String PULSAR_SERVICE_URL =
+            String.format("pulsar://%s:%d", PULSAR_INTERNAL_HOSTNAME, BROKER_PORT);
+    // This url is used on the container side.
+    public static final String PULSAR_ADMIN_URL =
+            String.format("http://%s:%d", PULSAR_INTERNAL_HOSTNAME, BROKER_HTTP_PORT);
 
     /**
      * Create a pulsar container provider by a predefined version, this constance {@link
@@ -51,6 +61,14 @@ public class PulsarContainerProvider implements PulsarRuntimeProvider {
     private final PulsarContainer container = new PulsarContainer(DockerImageName.parse(PULSAR));
 
     private PulsarRuntimeOperator operator;
+
+    public PulsarContainerRuntime bindWithFlinkContainer(GenericContainer<?> flinkContainer) {
+        this.container
+                .withNetworkAliases(PULSAR_INTERNAL_HOSTNAME)
+                .dependsOn(flinkContainer)
+                .withNetwork(flinkContainer.getNetwork());
+        return this;
+    }
 
     @Override
     public void startUp() {
