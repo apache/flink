@@ -78,13 +78,19 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
     private final int numTaskManagers;
 
     private FlinkContainer(
-            ImageFromDockerfile image, int numTaskManagers, @Nullable Path logBackupDir) {
+            ImageFromDockerfile image,
+            int numTaskManagers,
+            @Nullable Mount mount,
+            @Nullable Path logBackupDir) {
         super(image);
         this.logBackupDir = logBackupDir;
         this.numTaskManagers = numTaskManagers;
         withExposedPorts(JOB_MANAGER_REST_PORT);
         // Create a network for connecting with other containers
         withNetwork(Network.newNetwork());
+        if (mount != null) {
+            withFileSystemBind(mount.from(), mount.to());
+        }
         waitingFor(
                 new HttpWaitStrategy()
                         .forPort(JOB_MANAGER_REST_PORT)
@@ -254,6 +260,8 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
         private Configuration flinkConfiguration;
         private String javaVersion;
         private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        private Mount mount;
+        private boolean deleteOnExit = true;
 
         /**
          * The expected number of TaskManagers to start. All TaskManagers are created in the same
@@ -272,6 +280,22 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
          */
         public FlinkContainerBuilder withFlinkConfiguration(Configuration flinkConfiguration) {
             this.flinkConfiguration = flinkConfiguration;
+            return this;
+        }
+
+        /**
+         * Mount a local file or folder from the local filesystem into the container.
+         *
+         * @param mount mount representation
+         * @return Builder itself
+         */
+        public FlinkContainerBuilder withMount(Mount mount) {
+            this.mount = mount;
+            return this;
+        }
+
+        public FlinkContainerBuilder deleteOnExit(boolean deleteOnExit) {
+            this.deleteOnExit = deleteOnExit;
             return this;
         }
 
@@ -336,7 +360,7 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
                             DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
                 }
                 return new FlinkContainer(
-                        configuredImage, numTaskManagers, logBackupDirectory.orElse(null));
+                        configuredImage, numTaskManagers, mount, logBackupDirectory.orElse(null));
             } catch (Exception e) {
                 temporaryFolder.delete();
                 throw new RuntimeException("Could not build the flink-dist image", e);
@@ -345,7 +369,7 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
 
         private ImageFromDockerfile buildConfiguredImage(
                 Path workersFile, Path configurationFile, String baseImage) {
-            return new ImageFromDockerfile("flink-dist-configured")
+            return new ImageFromDockerfile("flink-dist-configured", deleteOnExit)
                     .withDockerfileFromBuilder(
                             builder ->
                                     builder.from(baseImage)
@@ -367,7 +391,7 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
         private String buildBaseImage(Path flinkDist) throws java.util.concurrent.TimeoutException {
             String baseImage = "flink-dist-base";
             if (!imageExists(baseImage)) {
-                new ImageFromDockerfile(baseImage)
+                new ImageFromDockerfile(baseImage, deleteOnExit)
                         .withDockerfileFromBuilder(
                                 builder ->
                                         builder.from("openjdk:" + getJavaVersionSuffix())
