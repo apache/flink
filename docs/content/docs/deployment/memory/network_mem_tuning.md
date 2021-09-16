@@ -67,7 +67,7 @@ firing windowed aggregations or joins), you might need to adjust the following s
 Consult the [configuration]({{< ref "docs/deployment/config" >}}#full-taskmanageroptions) documentation for more details and additional parameters.
 
 Here are [metrics]({{< ref "docs/ops/metrics" >}}#io) you can use to monitor the current buffer size:
-* `estimatedTimeToConsumerBuffersMs` - total time to consume data from all input channels
+* `estimatedTimeToConsumeBuffersMs` - total time to consume data from all input channels
 * `debloatedBufferSize` - current buffer size
 
 ### Limitations
