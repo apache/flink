@@ -26,6 +26,19 @@ These release notes discuss important aspects, such as configuration, behavior, 
 that changed between Flink 1.13 and Flink 1.14. Please read these notes carefully if you are
 planning to upgrade your Flink version to 1.14.
 
+### Known Issues
+
+#### Memory leak with Pulsar connector on Java 11
+
+Netty, that Pulsar client uses underneath, allocates memory differently on Java 11 and 8. With Java
+11 it will allocate memory from the pool of Java Direct Memory and is affected by the
+MaxDirectMemory limit. Current Pulsar client has no configuration for controlling the memory limits,
+which can lead to OOM(s).
+
+Users are advised to use Pulsar connector with Java 8 or overprovision memory for Flink. See 
+[here]({{< ref "docs/deployment/memory/mem_setup_tm" >}}) for documentation how to configure memory
+for Flink. The proper solution can be tracked in [FLINK-24302](https://issues.apache.org/jira/browse/FLINK-24302).
+
 ### Table & SQL
 
 #### Use pipeline name consistently across DataStream API and Table API
