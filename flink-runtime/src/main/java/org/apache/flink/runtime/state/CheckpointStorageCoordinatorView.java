@@ -66,7 +66,7 @@ public interface CheckpointStorageCoordinatorView {
      * @throws IOException Thrown, if these base storage locations cannot be initialized due to an
      *     I/O exception.
      */
-    void initializeBaseLocations() throws IOException;
+    void initializeBaseLocationsForCheckpoint() throws IOException;
 
     /**
      * Initializes a storage location for new checkpoint with the given ID.

@@ -325,7 +325,7 @@ public class CheckpointCoordinator {
             this.checkpointStorageView = checkpointStorage.createCheckpointStorage(job);
 
             if (isPeriodicCheckpointingConfigured()) {
-                checkpointStorageView.initializeBaseLocations();
+                checkpointStorageView.initializeBaseLocationsForCheckpoint();
             }
         } catch (IOException e) {
             throw new FlinkRuntimeException(
