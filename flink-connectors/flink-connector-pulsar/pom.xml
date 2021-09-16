@@ -169,6 +169,12 @@ under the License.
 			<groupId>org.apache.pulsar</groupId>
 			<artifactId>pulsar-client-all</artifactId>
 			<version>${pulsar.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.pulsar</groupId>
+					<artifactId>pulsar-package-core</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 
@@ -254,6 +260,47 @@ under the License.
 									${project.build.directory}/generated-test-sources/protobuf/java
 								</source>
 							</sources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/testutils/**</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
+							</includes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>attach-test-sources</id>
+						<goals>
+							<goal>test-jar-no-fork</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<!-- Globally exclude maven metadata, because it may accidentally bundle files we don't intend to -->
+								<addMavenDescriptor>false</addMavenDescriptor>
+							</archive>
+							<includes>
+								<include>**/testutils/**</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
+							</includes>
 						</configuration>
 					</execution>
 				</executions>

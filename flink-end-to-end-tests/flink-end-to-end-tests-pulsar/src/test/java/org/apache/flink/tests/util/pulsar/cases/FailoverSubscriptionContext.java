@@ -16,35 +16,46 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.testutils.cases;
+package org.apache.flink.tests.util.pulsar.cases;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
+import org.apache.flink.connector.pulsar.testutils.cases.MultipleTopicTemplateContext;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
-/**
- * Pulsar external context that will create multiple topics with only one partitions as source
- * splits.
- */
-public class MultipleTopicConsumingContext extends MultipleTopicTemplateContext {
-    private static final long serialVersionUID = -3855336888090886528L;
+import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_ADMIN_URL;
+import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_SERVICE_URL;
 
-    public MultipleTopicConsumingContext(PulsarTestEnvironment environment) {
+/** We would consuming from test splits by using {@link SubscriptionType#Failover} subscription. */
+public class FailoverSubscriptionContext extends MultipleTopicTemplateContext {
+    private static final long serialVersionUID = 6238209089442257487L;
+
+    public FailoverSubscriptionContext(PulsarTestEnvironment environment) {
         super(environment);
     }
 
     @Override
     protected String displayName() {
-        return "consuming message on multiple topic";
+        return "consuming message by Failover";
     }
 
     @Override
     protected String subscriptionName() {
-        return "flink-pulsar-multiple-topic-test";
+        return "pulsar-failover-subscription";
     }
 
     @Override
     protected SubscriptionType subscriptionType() {
-        return SubscriptionType.Exclusive;
+        return SubscriptionType.Failover;
+    }
+
+    @Override
+    protected String serviceUrl() {
+        return PULSAR_SERVICE_URL;
+    }
+
+    @Override
+    protected String adminUrl() {
+        return PULSAR_ADMIN_URL;
     }
 }
