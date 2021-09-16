@@ -41,6 +41,12 @@ public class KafkaSourceOptions {
                             "The interval in milliseconds for the Kafka source to discover "
                                     + "the new partitions. A non-positive value disables the partition discovery.");
 
+    public static final ConfigOption<Boolean> COMMIT_OFFSETS_ON_CHECKPOINT =
+            ConfigOptions.key("commit.offsets.on.checkpoint")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription("Whether to commit consuming offset on checkpoint.");
+
     @SuppressWarnings("unchecked")
     public static <T> T getOption(
             Properties props, ConfigOption configOption, Function<String, T> parser) {
