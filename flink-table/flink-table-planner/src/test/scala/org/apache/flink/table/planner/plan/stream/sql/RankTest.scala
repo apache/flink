@@ -780,7 +780,7 @@ class RankTest extends TableTestBase {
   }
 
   @Test
-  def testUpdatabletRankWithDeduplicate(): Unit = {
+  def testUpdatableRankWithDeduplicate(): Unit = {
     util.tableEnv.executeSql(
       """
         |CREATE VIEW v0 AS
