@@ -98,8 +98,20 @@ trait FileSystemITCaseBase {
 
     tableEnv.executeSql(
       s"""
-         |create table hasDecimalFieldTable (
-         |  x decimal(10,0), y int
+         |create table hasDecimalFieldWithPrecisionTenAndZeroTable (
+         |  x decimal(10, 0), y int
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+       """.stripMargin
+    )
+
+    tableEnv.executeSql(
+      s"""
+         |create table hasDecimalFieldWithPrecisionThreeAndTwoTable (
+         |  x decimal(3, 2), y int
          |) with (
          |  'connector' = 'filesystem',
          |  'path' = '$resultPath',
@@ -112,12 +124,12 @@ trait FileSystemITCaseBase {
   @Test
   def testSelectDecimalWithPrecisionTenAndZeroFromFileSystem(): Unit={
     tableEnv.executeSql(
-      "insert into hasDecimalFieldTable(x,y) " +
-        "values(cast(2113554011 as decimal(10,0)),1), " +
-        "(cast(2113554022 as decimal(10,0)),2)").await()
+      "insert into hasDecimalFieldWithPrecisionTenAndZeroTable(x, y) " +
+        "values(cast(2113554011 as decimal(10, 0)), 1), " +
+        "(cast(2113554022 as decimal(10,0)), 2)").await()
 
     check(
-      "select x, y from hasDecimalFieldTable",
+      "select x, y from hasDecimalFieldWithPrecisionTenAndZeroTable",
       Seq(
         row(2113554011, 1),
         row(2113554022, 2)
@@ -127,12 +139,12 @@ trait FileSystemITCaseBase {
   @Test
   def testSelectDecimalWithPrecisionThreeAndTwoFromFileSystem(): Unit={
     tableEnv.executeSql(
-      "insert into hasDecimalFieldTable(x,y) " +
-        "values(cast(1.32 as decimal(3,2)),1), " +
-        "(cast(2.64 as decimal(3,2)),2)").await()
+      "insert into hasDecimalFieldWithPrecisionThreeAndTwoTable(x,y) " +
+        "values(cast(1.32 as decimal(3, 2)), 1), " +
+        "(cast(2.64 as decimal(3, 2)), 2)").await()
 
     check(
-      "select x, y from hasDecimalFieldTable",
+      "select x, y from hasDecimalFieldWithPrecisionThreeAndTwoTable",
       Seq(
         row(1.32, 1),
         row(2.64, 2)
