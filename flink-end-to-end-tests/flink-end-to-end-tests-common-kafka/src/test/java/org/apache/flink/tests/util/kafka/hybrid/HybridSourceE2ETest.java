@@ -15,15 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.tests.util.kafka;
+package org.apache.flink.tests.util.kafka.hybrid;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.connector.kafka.source.testutils.hybrid.HybridKafkaAndFileExternalContext;
-import org.apache.flink.connector.kafka.source.testutils.hybrid.HybridKafkaAndFileExternalContext.Destination;
 import org.apache.flink.connectors.test.common.environment.ClusterControllable;
 import org.apache.flink.connectors.test.common.environment.TestEnvironment;
 import org.apache.flink.connectors.test.common.external.DefaultContainerizedExternalSystem;
@@ -46,6 +44,7 @@ import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment;
 import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment.EnvironmentBuilder;
 import org.apache.flink.tests.util.flink.Mount;
+import org.apache.flink.tests.util.kafka.hybrid.HybridKafkaAndFileExternalContext.Destination;
 import org.apache.flink.util.CloseableIterator;
 
 import org.junit.jupiter.api.DisplayName;
@@ -281,8 +280,6 @@ public class HybridSourceE2ETest {
 
         List<Collection<String>> parts = divide(testRecordCollection, fraction);
 
-        // This is currently just a sanity check, without any proper data generation for sources
-        // "handover"
         externalContext
                 .createSourceSplitDataWriter(Destination.FILE.toString())
                 .writeRecords(parts.get(0));
