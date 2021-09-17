@@ -231,7 +231,7 @@ public class SourceStreamTask<
 
     private void interruptSourceThread(boolean interrupt) {
         // Nothing need to do if the source is finished on restore
-        if (operatorChain != null && operatorChain.isFinishedOnRestore()) {
+        if (operatorChain != null && operatorChain.isTaskDeployedAsFinished()) {
             return;
         }
 
@@ -316,7 +316,7 @@ public class SourceStreamTask<
         @Override
         public void run() {
             try {
-                if (!operatorChain.isFinishedOnRestore()) {
+                if (!operatorChain.isTaskDeployedAsFinished()) {
                     LOG.debug(
                             "Legacy source {} skip execution since the task is finished on restore",
                             getTaskNameWithSubtaskAndId());
