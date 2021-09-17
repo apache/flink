@@ -94,7 +94,7 @@ GROUP BY user_region;
 Available Metadata
 ------------------
 
-See the [regular Kafka connector]({% link dev/connectors/kafka.zh.md %}#available-metadata) for a list
+See the [regular Kafka connector]({% link dev/table/connectors/kafka.zh.md %}#available-metadata) for a list-kafka.md
 of all available metadata fields.
 
 连接器参数

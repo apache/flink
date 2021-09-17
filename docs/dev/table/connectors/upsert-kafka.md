@@ -103,7 +103,7 @@ GROUP BY user_region;
 Available Metadata
 ------------------
 
-See the [regular Kafka connector]({% link dev/connectors/kafka.md %}#available-metadata) for a list
+See the [regular Kafka connector]({% link dev/table/connectors/kafka.md %}#available-metadata) for a list-kafka.md
 of all available metadata fields.
 
 Connector Options
