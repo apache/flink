@@ -31,14 +31,17 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.typeutils.MapDataSerializerTest.CustomMapData
-import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
+import org.apache.flink.table.types.logical.{BigIntType, BooleanType, IntType, VarCharType}
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
-import java.util
 import org.junit.Assert._
 import org.junit._
+
+import java.time.Instant
+import java.util
+
 import scala.collection.JavaConversions._
 import scala.collection.Seq
 
@@ -46,6 +49,80 @@ class CalcITCase extends StreamingTestBase {
 
   @Rule
   def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+
+  @Test
+  def testCastNumericToBooleanInProjection(): Unit ={
+    val sqlQuery =
+      "SELECT CAST(1 AS BOOLEAN), CAST(0 AS BOOLEAN), CAST(1.1 AS BOOLEAN), CAST(0.00 AS BOOLEAN)"
+
+    val outputType = InternalTypeInfo.ofFields(
+      new BooleanType(),
+      new BooleanType(),
+      new BooleanType(),
+      new BooleanType()
+    )
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
+    val sink = new TestingAppendRowDataSink(outputType)
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "+I(true,false,true,false)"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCastNumericToBooleanInCondition(): Unit ={
+    val sqlQuery =
+      s"""
+         | SELECT * FROM MyTableRow WHERE b = CAST(1 AS BOOLEAN)
+         | UNION ALL
+         | SELECT * FROM MyTableRow WHERE b = CAST(0 AS BOOLEAN)
+         | UNION ALL
+         | SELECT * FROM MyTableRow WHERE b = CAST(1.1 AS BOOLEAN)
+         | UNION ALL
+         | SELECT * FROM MyTableRow WHERE b = CAST(0.0 AS BOOLEAN)
+         |""".stripMargin
+
+    val rowData1: GenericRowData = new GenericRowData(2)
+    rowData1.setField(0, 1)
+    rowData1.setField(1, true)
+
+    val rowData2: GenericRowData = new GenericRowData(2)
+    rowData2.setField(0, 2)
+    rowData2.setField(1, false)
+
+    val data = List(rowData1,rowData2)
+
+    implicit val dataType: TypeInformation[GenericRowData] =
+      InternalTypeInfo.ofFields(
+        new IntType(),
+        new BooleanType()).asInstanceOf[TypeInformation[GenericRowData]]
+
+    val ds = env.fromCollection(data)
+
+    val t = ds.toTable(tEnv, 'a, 'b)
+    tEnv.registerTable("MyTableRow", t)
+
+    val outputType = InternalTypeInfo.ofFields(
+      new IntType(),
+      new BooleanType())
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
+    val sink = new TestingAppendRowDataSink(outputType)
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "+I(1,true)",
+      "+I(2,false)",
+      "+I(1,true)",
+      "+I(2,false)"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 
   @Test
   def testGenericRowAndRowData(): Unit = {
