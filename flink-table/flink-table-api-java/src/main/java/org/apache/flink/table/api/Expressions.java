@@ -43,6 +43,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.objectToExpr
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECT;
 
 /**
@@ -594,6 +595,10 @@ public final class Expressions {
      * <p>This function returns a JSON string. The {@link JsonOnNull onNull} behavior defines how to
      * treat {@code NULL} values.
      *
+     * <p>Values which are created from another JSON construction function call ({@code jsonObject},
+     * {@code jsonArray}) are inserted directly rather than as a string. This allows building nested
+     * JSON structures.
+     *
      * <p>Examples:
      *
      * <pre>{@code
@@ -613,12 +618,52 @@ public final class Expressions {
      * // {"K1":{"K2":"V"}}
      * jsonObject(JsonOnNull.NULL, "K1", jsonObject(JsonOnNull.NULL, "K2", "V"))
      * }</pre>
+     *
+     * @see #jsonArray(JsonOnNull, Object...)
      */
     public static ApiExpression jsonObject(JsonOnNull onNull, Object... keyValues) {
         final Object[] arguments =
                 Stream.concat(Stream.of(onNull), Arrays.stream(keyValues)).toArray(Object[]::new);
 
         return apiCall(JSON_OBJECT, arguments);
+    }
+
+    /**
+     * Builds a JSON array string from a list of values.
+     *
+     * <p>This function returns a JSON string. The values can be arbitrary expressions. The {@link
+     * JsonOnNull onNull} behavior defines how to treat {@code NULL} values.
+     *
+     * <p>Elements which are created from another JSON construction function call ({@code
+     * jsonObject}, {@code jsonArray}) are inserted directly rather than as a string. This allows
+     * building nested JSON structures.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // "[]"
+     * jsonArray(JsonOnNull.NULL)
+     * // "[1,\"2\"]"
+     * jsonArray(JsonOnNull.NULL, 1, "2")
+     *
+     * // Expressions as values
+     * jsonArray(JsonOnNull.NULL, $("orderId"))
+     *
+     * // ON NULL
+     * jsonArray(JsonOnNull.NULL, nullOf(DataTypes.STRING()))   // "[null]"
+     * jsonArray(JsonOnNull.ABSENT, nullOf(DataTypes.STRING())) // "[]"
+     *
+     * // "[[1]]"
+     * jsonArray(JsonOnNull.NULL, jsonArray(JsonOnNull.NULL, 1))
+     * }</pre>
+     *
+     * @see #jsonObject(JsonOnNull, Object...)
+     */
+    public static ApiExpression jsonArray(JsonOnNull onNull, Object... values) {
+        final Object[] arguments =
+                Stream.concat(Stream.of(onNull), Arrays.stream(values)).toArray(Object[]::new);
+
+        return apiCall(JSON_ARRAY, arguments);
     }
 
     /**

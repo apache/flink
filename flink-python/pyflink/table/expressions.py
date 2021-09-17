@@ -30,7 +30,7 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_object',
-           'call', 'call_sql', 'source_watermark']
+           'json_array', 'call', 'call_sql', 'source_watermark']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -619,6 +619,10 @@ def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
 
     This function returns a JSON string. The `on_null` behavior defines how to treat `NULL` values.
 
+    Values which are created from another JSON construction function call (`json_object`,
+    `json_array`) are inserted directly rather than as a string. This allows building nested JSON
+    structures.
+
     Examples:
     ::
 
@@ -633,8 +637,40 @@ def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
 
         >>> # '{"K1":{"K2":"V"}}'
         >>> json_object(JsonOnNull.NULL, "K1", json_object(JsonOnNull.NULL, "K2", "V"))
+
+    .. seealso:: :func:`~pyflink.table.expressions.json_array`
     """
     return _varargs_op("jsonObject", *(on_null._to_j_json_on_null(), *args))
+
+
+def json_array(on_null: JsonOnNull = JsonOnNull.ABSENT, *args) -> Expression:
+    """
+    Builds a JSON array string from a list of values.
+
+    This function returns a JSON string. The values can be arbitrary expressions. The `on_null`
+    behavior defines how to treat `NULL` values.
+
+    Elements which are created from another JSON construction function call (`json_object`,
+    `json_array`) are inserted directly rather than as a string. This allows building nested JSON
+    structures.
+
+    Examples:
+    ::
+
+        >>> json_array() # '[]'
+        >>> json_array(JsonOnNull.NULL, 1, "2") # '[1,"2"]'
+
+        >>> # Expressions as values
+        >>> json_array(JsonOnNull.NULL, col("orderId"))
+
+        >>> json_array(JsonOnNull.NULL, null_of(DataTypes.STRING()))   # '[null]'
+        >>> json_array(JsonOnNull.ABSENT, null_of(DataTypes.STRING())) # '[]'
+
+        >>> json_array(JsonOnNull.NULL, json_array(JsonOnNull.NULL, 1)) # '[[1]]'
+
+    .. seealso:: :func:`~pyflink.table.expressions.json_object`
+    """
+    return _varargs_op("jsonArray", *(on_null._to_j_json_on_null(), *args))
 
 
 def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:

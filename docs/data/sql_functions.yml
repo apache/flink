@@ -739,6 +739,10 @@ json:
       This function returns a JSON string. The `ON NULL` behavior defines how to treat `NULL`
       values. If omitted, `NULL ON NULL` is assumed by default.
 
+      Values which are created from another JSON construction function call (`JSON_OBJECT`,
+      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
+      structures.
+
       ```
       -- '{}'
       JSON_OBJECT()
@@ -761,6 +765,35 @@ json:
           VALUE 'V'
         )
       )
+      ```
+  - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
+    table: jsonArray(JsonOnNull, values...)
+    description: |
+      Builds a JSON array string from a list of values.
+
+      This function returns a JSON string. The values can be arbitrary expressions. The `ON NULL`
+      behavior defines how to treat `NULL` values. If omitted, `ABSENT ON NULL` is assumed by
+      default.
+
+      Elements which are created from another JSON construction function call (`JSON_OBJECT`,
+      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
+      structures.
+
+      ```
+      -- '[]'
+      JSON_ARRAY()
+      -- '[1,"2"]'
+      JSON_ARRAY(1, '2')
+
+      -- Expressions as values
+      JSON_ARRAY(orders.orderId)
+
+      -- ON NULL
+      JSON_ARRAY(CAST(NULL AS STRING) NULL ON NULL) -- '[null]'
+      JSON_ARRAY(CAST(NULL AS STRING) ABSENT ON NULL) -- '[]'
+
+      -- '[[1]]'
+      JSON_ARRAY(JSON_ARRAY(1))
       ```
 
 valueconstruction:
