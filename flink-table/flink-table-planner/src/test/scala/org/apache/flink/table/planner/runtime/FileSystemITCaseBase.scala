@@ -110,7 +110,7 @@ trait FileSystemITCaseBase {
   }
 
   @Test
-  def testSelectDecimalFromFileSystem1(): Unit={
+  def testSelectDecimalWithPrecisionTenAndZeroFromFileSystem(): Unit={
     tableEnv.executeSql(
       "insert into hasDecimalFieldTable(x,y) " +
         "values(cast(2113554011 as decimal(10,0)),1), " +
@@ -125,7 +125,7 @@ trait FileSystemITCaseBase {
   }
 
   @Test
-  def testSelectDecimalFromFileSystem2(): Unit={
+  def testSelectDecimalWithPrecisionThreeAndTwoFromFileSystem(): Unit={
     tableEnv.executeSql(
       "insert into hasDecimalFieldTable(x,y) " +
         "values(cast(1.32 as decimal(3,2)),1), " +
