@@ -25,6 +25,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
@@ -41,6 +42,11 @@ public class SqlJsonUtils {
     /** Returns a new {@link ObjectNode}. */
     public static ObjectNode createObjectNode() {
         return MAPPER.createObjectNode();
+    }
+
+    /** Returns a new {@link ArrayNode}. */
+    public static ArrayNode createArrayNode() {
+        return MAPPER.createArrayNode();
     }
 
     /** Serializes the given {@link JsonNode} to a JSON string. */

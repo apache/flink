@@ -19,10 +19,7 @@
 package org.apache.flink.table.planner.expressions.converter.converters;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
@@ -33,29 +30,23 @@ import org.apache.calcite.sql.SqlJsonConstructorNullClause;
 import java.util.LinkedList;
 import java.util.List;
 
-/** Conversion for {@link BuiltInFunctionDefinitions#JSON_OBJECT}. */
+/** Conversion for {@link BuiltInFunctionDefinitions#JSON_ARRAY}. */
 @Internal
-class JsonObjectConverter extends CustomizedConverter {
+class JsonArrayConverter extends CustomizedConverter {
     @Override
     public RexNode convert(CallExpression call, CallExpressionConvertRule.ConvertContext context) {
-        checkArgument(call, (call.getChildren().size() - 1) % 2 == 0);
+        checkArgument(call, call.getChildren().size() >= 1);
         final List<RexNode> operands = new LinkedList<>();
 
         final SqlJsonConstructorNullClause onNull = JsonConverterUtil.getOnNullArgument(call, 0);
         operands.add(context.getRelBuilder().getRexBuilder().makeFlag(onNull));
 
         for (int i = 1; i < call.getChildren().size(); i++) {
-            final Expression operand = call.getChildren().get(i);
-            if (i % 2 == 1 && !(operand instanceof ValueLiteralExpression)) {
-                throw new TableException(
-                        String.format("Argument at position %s must be a string literal.", i));
-            }
-
-            operands.add(context.toRexNode(operand));
+            operands.add(context.toRexNode(call.getChildren().get(i)));
         }
 
         return context.getRelBuilder()
                 .getRexBuilder()
-                .makeCall(FlinkSqlOperatorTable.JSON_OBJECT, operands);
+                .makeCall(FlinkSqlOperatorTable.JSON_ARRAY, operands);
     }
 }

@@ -36,6 +36,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.logical
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.repeatingSequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.symbol;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 
 /**
  * Entry point for specific input type strategies not covered in {@link InputTypeStrategies}.
@@ -75,6 +76,18 @@ public final class SpecificInputTypeStrategies {
                                             logical(LogicalTypeFamily.CONSTRUCTED),
                                             logical(LogicalTypeRoot.BOOLEAN),
                                             logical(LogicalTypeFamily.NUMERIC))));
+
+    /** Input strategy for {@link BuiltInFunctionDefinitions#JSON_ARRAY}. */
+    public static final InputTypeStrategy JSON_ARRAY =
+            varyingSequence(
+                    symbol(JsonOnNull.class),
+                    or(
+                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                            logical(LogicalTypeFamily.BINARY_STRING),
+                            logical(LogicalTypeFamily.TIMESTAMP),
+                            logical(LogicalTypeFamily.CONSTRUCTED),
+                            logical(LogicalTypeRoot.BOOLEAN),
+                            logical(LogicalTypeFamily.NUMERIC)));
 
     // --------------------------------------------------------------------------------------------
     // Strategies composed of other strategies

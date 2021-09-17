@@ -25,7 +25,7 @@ import org.apache.flink.table.data.{DecimalData, GenericRowData, TimestampData}
 import org.apache.flink.table.functions.{ConstantFunctionContext, FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.JSON_OBJECT
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.types.DataType
@@ -55,6 +55,8 @@ class ExpressionReducer(
   private val EMPTY_ROW_TYPE = RowType.of()
   private val EMPTY_ROW = new GenericRowData(0)
 
+  private val nonReducibleJsonFunctions = Seq(JSON_OBJECT, JSON_ARRAY)
+
   override def reduce(
       rexBuilder: RexBuilder,
       constExprs: java.util.List[RexNode],
@@ -81,7 +83,7 @@ class ExpressionReducer(
 
       // Exclude some JSON functions which behave differently when called as an argument of another
       // call of one of these functions.
-      case (_, call: RexCall) if call.getOperator == JSON_OBJECT => None
+      case (_, call: RexCall) if nonReducibleJsonFunctions.contains(call.getOperator) => None
 
       case (_, e) => Some(e)
     }
@@ -146,7 +148,7 @@ class ExpressionReducer(
         // if contains python function then just insert the original expression.
         reducedValues.add(unreduced)
       } else unreduced match {
-        case call: RexCall if call.getOperator == JSON_OBJECT =>
+        case call: RexCall if nonReducibleJsonFunctions.contains(call.getOperator) =>
           reducedValues.add(unreduced)
         case _ =>
           unreduced.getType.getSqlTypeName match {
