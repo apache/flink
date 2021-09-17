@@ -751,18 +751,6 @@ public class Task
             // by the time we switched to running.
             this.invokable = invokable;
 
-            // switch to the INITIALIZING state, if that fails, we have been canceled/failed in the
-            // meantime
-            if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.INITIALIZING)) {
-                throw new CancelTaskException();
-            }
-
-            taskManagerActions.updateTaskExecutionState(
-                    new TaskExecutionState(executionId, ExecutionState.INITIALIZING));
-
-            // make sure the user code classloader is accessible thread-locally
-            executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
-
             restoreAndInvoke(invokable);
 
             // make sure, we enter the catch block if the task leaves the invoke() method due
@@ -924,6 +912,18 @@ public class Task
 
     private void restoreAndInvoke(TaskInvokable finalInvokable) throws Exception {
         try {
+            // switch to the INITIALIZING state, if that fails, we have been canceled/failed in the
+            // meantime
+            if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.INITIALIZING)) {
+                throw new CancelTaskException();
+            }
+
+            taskManagerActions.updateTaskExecutionState(
+                    new TaskExecutionState(executionId, ExecutionState.INITIALIZING));
+
+            // make sure the user code classloader is accessible thread-locally
+            executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
+
             runWithSystemExitMonitoring(finalInvokable::restore);
 
             if (!transitionState(ExecutionState.INITIALIZING, ExecutionState.RUNNING)) {
