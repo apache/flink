@@ -340,27 +340,22 @@ class CountAndSumAggregateFunction(AggregateFunction):
 class Top2(TableAggregateFunction):
 
     def emit_value(self, accumulator):
-        yield accumulator[0]
-        yield accumulator[1]
+        accumulator.sort()
+        accumulator.reverse()
+        size = len(accumulator)
+        if size > 1:
+            yield accumulator[0]
+        if size > 2:
+            yield accumulator[1]
 
     def create_accumulator(self):
-        return [None, None]
+        return []
 
     def accumulate(self, accumulator, *args):
-        if args[0][0] is not None:
-            if accumulator[0] is None or args[0][0] > accumulator[0]:
-                accumulator[1] = accumulator[0]
-                accumulator[0] = args[0][0]
-            elif accumulator[1] is None or args[0][0] > accumulator[1]:
-                accumulator[1] = args[0][0]
+        accumulator.append(args[0][0])
 
     def retract(self, accumulator, *args):
-        accumulator[0] = accumulator[0] - 1
-
-    def merge(self, accumulator, accumulators):
-        for other_acc in accumulators:
-            self.accumulate(accumulator, other_acc[0])
-            self.accumulate(accumulator, other_acc[1])
+        accumulator.remove(args[0][0])
 
     def get_accumulator_type(self):
         return DataTypes.ARRAY(DataTypes.BIGINT())
