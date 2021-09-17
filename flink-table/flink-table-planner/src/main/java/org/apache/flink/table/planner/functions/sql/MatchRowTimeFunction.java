@@ -82,13 +82,10 @@ public class MatchRowTimeFunction extends SqlFunction {
             SqlNode operand = callBinding.operand(0);
             if (operand.getKind() != SqlKind.IDENTIFIER) {
                 if (throwOnFailure) {
-                    ValidationException exception =
-                            new ValidationException(
-                                    String.format(
-                                            "The function %s requires a field reference as argument, but actual argument is '%s'.",
-                                            callBinding.getOperator().getName(),
-                                            operand.getKind()));
-                    throw exception;
+                    throw new ValidationException(
+                            String.format(
+                                    "The function %s requires a field reference as argument, but actual argument is not a simple field reference.",
+                                    callBinding.getOperator().getName()));
                 } else {
                     return false;
                 }
@@ -98,12 +95,10 @@ public class MatchRowTimeFunction extends SqlFunction {
                 return true;
             } else {
                 if (throwOnFailure) {
-                    ValidationException exception =
-                            new ValidationException(
-                                    String.format(
-                                            "The function %s requires argument to be a row time attribute type, but is '%s'.",
-                                            callBinding.getOperator().getName(), operandType));
-                    throw exception;
+                    throw new ValidationException(
+                            String.format(
+                                    "The function %s requires argument to be a row time attribute type, but is '%s'.",
+                                    callBinding.getOperator().getName(), operandType));
                 } else {
                     return false;
                 }

@@ -106,7 +106,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     false);
 
     /**
-     * Function used to access a event time attribute with TIMESTAMP or TIMESTAMP_LTZ type from
+     * Function used to access an event time attribute with TIMESTAMP or TIMESTAMP_LTZ type from
      * MATCH_RECOGNIZE.
      */
     public static final SqlFunction MATCH_ROWTIME = new MatchRowTimeFunction();

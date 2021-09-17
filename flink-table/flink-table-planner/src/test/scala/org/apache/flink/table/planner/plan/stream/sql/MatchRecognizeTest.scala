@@ -112,6 +112,7 @@ class MatchRecognizeTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  @Test
   def testWindowTVFOnMatchRecognizeOnRowtimeLTZ(): Unit = {
     val sqlQuery =
       s"""
@@ -321,7 +322,7 @@ class MatchRecognizeTest extends TableTestBase {
   def testMatchRowtimeWithRexCallAsArg(): Unit = {
     thrown.expectMessage(
       "The function MATCH_ROWTIME requires a field reference as argument, " +
-        "but actual argument is 'PLUS'.")
+        "but actual argument is not a simple field reference.")
     thrown.expect(classOf[ValidationException])
 
     val sqlQuery =
