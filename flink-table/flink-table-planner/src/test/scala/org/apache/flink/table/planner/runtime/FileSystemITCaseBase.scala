@@ -95,6 +95,48 @@ trait FileSystemITCaseBase {
          |)
        """.stripMargin
     )
+
+    tableEnv.executeSql(
+      s"""
+         |create table hasDecimalFieldTable (
+         |  x decimal(10,0), y int
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+       """.stripMargin
+    )
+  }
+
+  @Test
+  def testSelectDecimalFromFileSystem1(): Unit={
+    tableEnv.executeSql(
+      "insert into hasDecimalFieldTable(x,y) " +
+        "values(cast(2113554011 as decimal(10,0)),1), " +
+        "(cast(2113554022 as decimal(10,0)),2)").await()
+
+    check(
+      "select x, y from hasDecimalFieldTable",
+      Seq(
+        row(2113554011, 1),
+        row(2113554022, 2)
+      ))
+  }
+
+  @Test
+  def testSelectDecimalFromFileSystem2(): Unit={
+    tableEnv.executeSql(
+      "insert into hasDecimalFieldTable(x,y) " +
+        "values(cast(1.32 as decimal(3,2)),1), " +
+        "(cast(2.64 as decimal(3,2)),2)").await()
+
+    check(
+      "select x, y from hasDecimalFieldTable",
+      Seq(
+        row(1.32, 1),
+        row(2.64, 2)
+      ))
   }
 
   @Test
