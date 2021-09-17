@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -58,6 +59,7 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
@@ -82,6 +84,7 @@ import org.mockito.verification.VerificationMode;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -3605,6 +3608,32 @@ public class CheckpointCoordinatorTest extends TestLogger {
         assertTrue(result.isCompletedExceptionally());
 
         assertEquals(completedCheckpointId, reportedCheckpointId.get());
+    }
+
+    @Test
+    public void testBaseLocationsNotInitialized() throws Exception {
+        File checkpointDir = tmpFolder.newFolder();
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTransitToRunning(false)
+                        .build();
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setExecutionGraph(graph)
+                        .setCheckpointCoordinatorConfiguration(
+                                CheckpointCoordinatorConfiguration.builder()
+                                        .setCheckpointInterval(Long.MAX_VALUE)
+                                        .build())
+                        .setCheckpointStorage(new FsStateBackend(checkpointDir.toURI()))
+                        .build();
+        Path jobCheckpointPath =
+                new Path(checkpointDir.getAbsolutePath(), graph.getJobID().toString());
+        FileSystem fs = FileSystem.get(checkpointDir.toURI());
+
+        // directory will not be created if checkpointing is disabled
+        Assert.assertFalse(fs.exists(jobCheckpointPath));
     }
 
     private CheckpointCoordinator getCheckpointCoordinator(ExecutionGraph graph) throws Exception {

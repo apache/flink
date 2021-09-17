@@ -323,7 +323,10 @@ public class CheckpointCoordinator {
 
         try {
             this.checkpointStorageView = checkpointStorage.createCheckpointStorage(job);
-            checkpointStorageView.initializeBaseLocations();
+
+            if (isPeriodicCheckpointingConfigured()) {
+                checkpointStorageView.initializeBaseLocationsForCheckpoint();
+            }
         } catch (IOException e) {
             throw new FlinkRuntimeException(
                     "Failed to create checkpoint storage at checkpoint coordinator side.", e);
