@@ -318,7 +318,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         snapshotFutures,
                         metadata,
                         metrics,
-                        operatorChain.isFinishedOnRestore(),
+                        operatorChain.isTaskDeployedAsFinished(),
                         isOperatorsFinished,
                         isRunning);
             } else {
@@ -545,7 +545,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             Map<OperatorID, OperatorSnapshotFutures> snapshotFutures,
             CheckpointMetaData metadata,
             CheckpointMetricsBuilder metrics,
-            boolean isFinishedOnRestore,
+            boolean isTaskDeployedAsFinished,
             boolean isOperatorsFinished,
             Supplier<Boolean> isRunning)
             throws IOException {
@@ -559,7 +559,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         unregisterConsumer(),
                         env,
                         asyncExceptionHandler,
-                        isFinishedOnRestore,
+                        isTaskDeployedAsFinished,
                         isOperatorsFinished,
                         isRunning);
 

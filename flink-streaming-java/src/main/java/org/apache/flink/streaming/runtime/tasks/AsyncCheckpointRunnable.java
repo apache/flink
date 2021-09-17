@@ -52,7 +52,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
     public static final Logger LOG = LoggerFactory.getLogger(AsyncCheckpointRunnable.class);
     private final String taskName;
     private final Consumer<AsyncCheckpointRunnable> unregisterConsumer;
-    private final boolean isFinishedOnRestore;
+    private final boolean isTaskDeployedAsFinished;
     private final boolean isOperatorsFinished;
     private final Supplier<Boolean> isTaskRunning;
     private final Environment taskEnvironment;
@@ -85,7 +85,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             Consumer<AsyncCheckpointRunnable> unregister,
             Environment taskEnvironment,
             AsyncExceptionHandler asyncExceptionHandler,
-            boolean isFinishedOnRestore,
+            boolean isTaskDeployedAsFinished,
             boolean isOperatorsFinished,
             Supplier<Boolean> isTaskRunning) {
 
@@ -97,7 +97,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         this.unregisterConsumer = unregister;
         this.taskEnvironment = checkNotNull(taskEnvironment);
         this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
-        this.isFinishedOnRestore = isFinishedOnRestore;
+        this.isTaskDeployedAsFinished = isTaskDeployedAsFinished;
         this.isOperatorsFinished = isOperatorsFinished;
         this.isTaskRunning = isTaskRunning;
     }
@@ -116,7 +116,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         try {
 
             SnapshotsFinalizeResult snapshotsFinalizeResult =
-                    isFinishedOnRestore
+                    isTaskDeployedAsFinished
                             ? new SnapshotsFinalizeResult(
                                     TaskStateSnapshot.FINISHED_ON_RESTORE,
                                     TaskStateSnapshot.FINISHED_ON_RESTORE,

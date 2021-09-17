@@ -663,7 +663,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         LOG.debug("Initializing {}.", getName());
 
         operatorChain =
-                getEnvironment().getTaskStateManager().isFinishedOnRestore()
+                getEnvironment().getTaskStateManager().isTaskDeployedAsFinished()
                         ? new FinishedOperatorChain<>(this, recordWriter)
                         : new RegularOperatorChain<>(this, recordWriter);
         mainOperator = operatorChain.getMainOperator();

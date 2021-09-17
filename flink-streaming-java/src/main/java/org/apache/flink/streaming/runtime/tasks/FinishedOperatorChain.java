@@ -38,7 +38,7 @@ import java.util.function.Supplier;
 
 /**
  * The {@link OperatorChain} that is used for restoring tasks that are {@link
- * TaskStateManager#isFinishedOnRestore()}.
+ * TaskStateManager#isTaskDeployedAsFinished()}.
  */
 @Internal
 public class FinishedOperatorChain<OUT, OP extends StreamOperator<OUT>>
@@ -51,7 +51,7 @@ public class FinishedOperatorChain<OUT, OP extends StreamOperator<OUT>>
     }
 
     @Override
-    public boolean isFinishedOnRestore() {
+    public boolean isTaskDeployedAsFinished() {
         return true;
     }
 
