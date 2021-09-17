@@ -140,6 +140,44 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSimpleConditionWithCastToFalse">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE CAST(0 AS BOOLEAN)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[CAST(0):BOOLEAN NOT NULL])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[false])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleConditionWithCastToTrue">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE CAST(200 AS BOOLEAN)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[CAST(200):BOOLEAN NOT NULL])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[true])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSimplifyConditionInSubQuery1">
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE (d = 1 AND e = 2) OR (NOT (d <> 1) AND e = 3)) AND true]]>

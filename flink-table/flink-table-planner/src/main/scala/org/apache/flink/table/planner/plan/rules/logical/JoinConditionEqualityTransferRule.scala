@@ -92,7 +92,10 @@ class JoinConditionEqualityTransferRule extends RelOptRule(
     }
 
     val newJoinFilter = builder.and(remainFilters :+
-      FlinkRexUtil.simplify(rexBuilder, builder.and(newEquiJoinFilters)))
+      FlinkRexUtil.simplify(
+        rexBuilder,
+        builder.and(newEquiJoinFilters),
+        join.getCluster.getPlanner.getExecutor))
     val newJoin = join.copy(
       join.getTraitSet,
       newJoinFilter,

@@ -87,7 +87,10 @@ class JoinConditionTypeCoerceRule extends RelOptRule(
     }
 
     val newCondExp = builder.and(
-      FlinkRexUtil.simplify(rexBuilder, builder.and(newJoinFilters)))
+      FlinkRexUtil.simplify(
+        rexBuilder,
+        builder.and(newJoinFilters),
+        join.getCluster.getPlanner.getExecutor))
 
     val newJoin = join.copy(
       join.getTraitSet,

@@ -127,8 +127,10 @@ class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
       val converter = new ExpressionConverter(relBuilder)
       val remainingConditions = remainingPredicates.map(_.accept(converter)) ++ unconvertedRexNodes
       val remainingCondition = remainingConditions.reduce((l, r) => relBuilder.and(l, r))
-      val simplifiedRemainingCondition =
-        FlinkRexUtil.simplify(relBuilder.getRexBuilder, remainingCondition)
+      val simplifiedRemainingCondition = FlinkRexUtil.simplify(
+        relBuilder.getRexBuilder,
+        remainingCondition,
+        filter.getCluster.getPlanner.getExecutor)
       val newFilter = filter.copy(filter.getTraitSet, newScan, simplifiedRemainingCondition)
       call.transformTo(newFilter)
     }

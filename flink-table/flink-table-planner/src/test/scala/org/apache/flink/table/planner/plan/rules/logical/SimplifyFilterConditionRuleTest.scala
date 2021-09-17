@@ -58,6 +58,18 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
   }
 
   @Test
+  def testSimpleConditionWithCastToTrue(): Unit = {
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE CAST(200 AS BOOLEAN)")
+  }
+
+  @Test
+  def testSimpleConditionWithCastToFalse(): Unit = {
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE CAST(0 AS BOOLEAN)")
+  }
+
+  @Test
   def testSimplifyConditionInSubQuery1(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE EXISTS " +
       "(SELECT * FROM y WHERE (d = 1 AND e = 2) OR (NOT (d <> 1) AND e = 3)) AND true"
