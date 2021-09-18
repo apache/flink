@@ -326,7 +326,7 @@ public class KubernetesResourceManagerDriver
                         });
     }
 
-    private Optional<KubernetesWatch> watchTaskManagerPods() {
+    private Optional<KubernetesWatch> watchTaskManagerPods() throws Exception {
         return Optional.of(
                 flinkKubeClient.watchPodsAndDoCallback(
                         KubernetesUtils.getTaskManagerLabels(clusterId),
@@ -368,7 +368,11 @@ public class KubernetesResourceManagerDriver
                                     if (running) {
                                         podsWatchOpt.ifPresent(KubernetesWatch::close);
                                         log.info("Creating a new watch on TaskManager pods.");
-                                        podsWatchOpt = watchTaskManagerPods();
+                                        try {
+                                            podsWatchOpt = watchTaskManagerPods();
+                                        } catch (Exception e) {
+                                            getResourceEventHandler().onError(e);
+                                        }
                                     }
                                 });
             } else {
