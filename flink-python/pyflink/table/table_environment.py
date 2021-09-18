@@ -1695,12 +1695,14 @@ class TableEnvironment(object):
         jar_urls = self.get_config().get_configuration().get_string(config_key, None)
         if jar_urls is not None:
             # normalize and remove duplicates
-            jar_urls_set = set([jvm.java.net.URL(url).toString() for url in jar_urls.split(";")])
+            # do not use set, because set does not guarantee order.
+            jar_urls_list = [jvm.java.net.URL(url).toString() for url in jar_urls.split(";")]
             j_configuration = get_j_env_configuration(self._get_j_env())
             if j_configuration.containsKey(config_key):
                 for url in j_configuration.getString(config_key, "").split(";"):
-                    jar_urls_set.add(url)
-            j_configuration.setString(config_key, ";".join(jar_urls_set))
+                    if url != "" and url not in jar_urls_list:
+                        jar_urls_list.append(url)
+            j_configuration.setString(config_key, ";".join(jar_urls_list))
 
     def _get_j_env(self):
         return self._j_tenv.getPlanner().getExecEnv()
