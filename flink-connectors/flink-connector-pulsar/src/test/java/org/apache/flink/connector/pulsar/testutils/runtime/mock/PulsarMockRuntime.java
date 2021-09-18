@@ -146,8 +146,8 @@ public class PulsarMockRuntime implements PulsarRuntime {
 
         configuration.setWebSocketServiceEnabled(false);
         // Binding Ports
-        configuration.setBrokerServicePort(Optional.of(findAvailablePort()));
-        configuration.setWebServicePort(Optional.of(findAvailablePort()));
+        configuration.setBrokerServicePort(Optional.of(0));
+        configuration.setWebServicePort(Optional.of(0));
 
         // Enable transaction with in memory.
         configuration.setTransactionCoordinatorEnabled(true);
