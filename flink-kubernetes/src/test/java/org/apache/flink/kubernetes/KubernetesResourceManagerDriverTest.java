@@ -32,6 +32,7 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriverTestBase;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -223,6 +224,48 @@ public class KubernetesResourceManagerDriverTest
         };
     }
 
+    @Test(expected = ExpectedTestException.class)
+    public void testThrowExceptionWhenWatchPodsFailInInitializing() throws Exception {
+        new Context() {
+            {
+                flinkKubeClientBuilder.setWatchPodsAndDoCallbackFunction(
+                        (ignore1, ignore2) -> {
+                            throw new ExpectedTestException();
+                        });
+                runTest(() -> {});
+            }
+        };
+    }
+
+    @Test
+    public void testThrowExceptionWhenWatchPodsFailInHandlingError() throws Exception {
+        new Context() {
+            {
+                final CompletableFuture<Throwable> onErrorFuture = new CompletableFuture<>();
+                resourceEventHandlerBuilder.setOnErrorConsumer(onErrorFuture::complete);
+                final CompletableFuture<Void> initWatchFuture = new CompletableFuture<>();
+                final ExpectedTestException testingError = new ExpectedTestException();
+                flinkKubeClientBuilder.setWatchPodsAndDoCallbackFunction(
+                        (ignore, handler) -> {
+                            if (initWatchFuture.isDone()) {
+                                throw testingError;
+                            } else {
+                                initWatchFuture.complete(null);
+                                getSetWatchPodsAndDoCallbackFuture().complete(handler);
+                                return new TestingFlinkKubeClient.MockKubernetesWatch();
+                            }
+                        });
+                runTest(
+                        () -> {
+                            getPodCallbackHandler().handleError(testingError);
+                            assertThat(
+                                    onErrorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    is(testingError));
+                        });
+            }
+        };
+    }
+
     @Override
     protected ResourceManagerDriverTestBase<KubernetesWorkerNode>.Context createContext() {
         return new Context();
@@ -291,6 +334,11 @@ public class KubernetesResourceManagerDriverTest
 
         List<TestingFlinkKubeClient.MockKubernetesWatch> getPodsWatches() {
             return podsWatches;
+        }
+
+        CompletableFuture<WatchCallbackHandler<KubernetesPod>>
+                getSetWatchPodsAndDoCallbackFuture() {
+            return setWatchPodsAndDoCallbackFuture;
         }
 
         @Override

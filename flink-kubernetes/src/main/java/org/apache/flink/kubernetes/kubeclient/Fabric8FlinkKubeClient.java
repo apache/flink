@@ -219,12 +219,26 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
     @Override
     public KubernetesWatch watchPodsAndDoCallback(
-            Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler) {
-        return new KubernetesWatch(
-                this.internalClient
-                        .pods()
-                        .withLabels(labels)
-                        .watch(new KubernetesPodsWatcher(podCallbackHandler)));
+            Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler)
+            throws Exception {
+        return FutureUtils.retry(
+                        () ->
+                                CompletableFuture.supplyAsync(
+                                        () ->
+                                                new KubernetesWatch(
+                                                        this.internalClient
+                                                                .pods()
+                                                                .withLabels(labels)
+                                                                .watch(
+                                                                        new KubernetesPodsWatcher(
+                                                                                podCallbackHandler))),
+                                        kubeClientExecutorService),
+                        maxRetryAttempts,
+                        t ->
+                                ExceptionUtils.findThrowable(t, KubernetesClientException.class)
+                                        .isPresent(),
+                        kubeClientExecutorService)
+                .get();
     }
 
     @Override
