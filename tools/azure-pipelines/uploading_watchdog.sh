@@ -57,7 +57,7 @@ function timeout_watchdog() {
   if [[ $secondsToKill -lt 0 ]]; then
     secondsToKill=0
   fi
-  sleep $(secondsToKill)
+  sleep ${secondsToKill}
   print_stacktraces | tee "$DEBUG_FILES_OUTPUT_DIR/jps-traces.1"
 
   echo "============================="
