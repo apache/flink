@@ -776,38 +776,14 @@ public class Task
                 throw new CancelTaskException();
             }
         } catch (Throwable t) {
-
-            // unwrap wrapped exceptions to make stack traces more compact
-            if (t instanceof WrappingRuntimeException) {
-                t = ((WrappingRuntimeException) t).unwrap();
-            }
-
             // ----------------------------------------------------------------
             // the execution failed. either the invokable code properly failed, or
             // an exception was thrown as a side effect of cancelling
             // ----------------------------------------------------------------
 
-            TaskManagerExceptionUtils.tryEnrichTaskManagerError(t);
+            t = preProcessException(t);
 
             try {
-                // check if the exception is unrecoverable
-                if (ExceptionUtils.isJvmFatalError(t)
-                        || (t instanceof OutOfMemoryError
-                                && taskManagerConfig.shouldExitJvmOnOutOfMemoryError())) {
-
-                    // terminate the JVM immediately
-                    // don't attempt a clean shutdown, because we cannot expect the clean shutdown
-                    // to complete
-                    try {
-                        LOG.error(
-                                "Encountered fatal error {} - terminating the JVM",
-                                t.getClass().getName(),
-                                t);
-                    } finally {
-                        Runtime.getRuntime().halt(-1);
-                    }
-                }
-
                 // transition into our final state. we should be either in DEPLOYING, INITIALIZING,
                 // RUNNING, CANCELING, or FAILED
                 // loop for multiple retries during concurrent state changes via calls to cancel()
@@ -908,6 +884,36 @@ public class Task
                         t);
             }
         }
+    }
+
+    /** Unwrap, enrich and handle fatal errors. */
+    private Throwable preProcessException(Throwable t) {
+        // unwrap wrapped exceptions to make stack traces more compact
+        if (t instanceof WrappingRuntimeException) {
+            t = ((WrappingRuntimeException) t).unwrap();
+        }
+
+        TaskManagerExceptionUtils.tryEnrichTaskManagerError(t);
+
+        // check if the exception is unrecoverable
+        if (ExceptionUtils.isJvmFatalError(t)
+                || (t instanceof OutOfMemoryError
+                        && taskManagerConfig.shouldExitJvmOnOutOfMemoryError())) {
+
+            // terminate the JVM immediately
+            // don't attempt a clean shutdown, because we cannot expect the clean shutdown
+            // to complete
+            try {
+                LOG.error(
+                        "Encountered fatal error {} - terminating the JVM",
+                        t.getClass().getName(),
+                        t);
+            } finally {
+                Runtime.getRuntime().halt(-1);
+            }
+        }
+
+        return t;
     }
 
     private void restoreAndInvoke(TaskInvokable finalInvokable) throws Exception {
@@ -1159,6 +1165,8 @@ public class Task
 
     @VisibleForTesting
     void cancelOrFailAndCancelInvokableInternal(ExecutionState targetState, Throwable cause) {
+        cause = preProcessException(cause);
+
         while (true) {
             ExecutionState current = executionState;
 
