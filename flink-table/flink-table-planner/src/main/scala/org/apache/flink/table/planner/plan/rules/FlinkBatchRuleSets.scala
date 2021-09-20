@@ -19,10 +19,9 @@
 package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.rules.logical._
+import org.apache.flink.table.planner.plan.rules.logical.{RemoveUnreachableCoalesceArgumentsRule, _}
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.batch._
-
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.logical.{LogicalIntersect, LogicalMinus, LogicalUnion}
 import org.apache.calcite.rel.rules._
@@ -77,6 +76,16 @@ object FlinkBatchRuleSets {
     CoreRules.JOIN_REDUCE_EXPRESSIONS
   )
 
+  /**
+   * RuleSet to simplify coalesce invocations
+   */
+  private val SIMPLIFY_COALESCE_RULES: RuleSet = RuleSets.ofList(
+    RemoveUnreachableCoalesceArgumentsRule.PROJECT_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.FILTER_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.JOIN_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE
+  )
+
   private val LIMIT_RULES: RuleSet = RuleSets.ofList(
     //push down localLimit
     PushLimitIntoTableSourceScanRule.INSTANCE,
@@ -97,6 +106,7 @@ object FlinkBatchRuleSets {
     */
   val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
     PREDICATE_SIMPLIFY_EXPRESSION_RULES.asScala ++
+      SIMPLIFY_COALESCE_RULES.asScala ++
       REDUCE_EXPRESSION_RULES.asScala ++
       List(
         // Transform window to LogicalWindowAggregate
