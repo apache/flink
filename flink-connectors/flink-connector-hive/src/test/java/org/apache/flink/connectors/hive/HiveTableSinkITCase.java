@@ -59,7 +59,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -161,15 +160,15 @@ public class HiveTableSinkITCase {
 
     @Test
     public void testDefaultSerPartStreamingWrite() throws Exception {
-        testStreamingWrite(true, false, "textfile", this::checkPartitionCommitSuccessfully);
+        testStreamingWrite(true, false, "textfile", this::checkSuccessFiles);
     }
 
     @Test
     public void testPartStreamingWrite() throws Exception {
-        testStreamingWrite(true, false, "parquet", this::checkPartitionCommitSuccessfully);
+        testStreamingWrite(true, false, "parquet", this::checkSuccessFiles);
         // disable vector orc writer test for hive 2.x due to dependency conflict
         if (!hiveCatalog.getHiveVersion().startsWith("2.")) {
-            testStreamingWrite(true, false, "orc", this::checkPartitionCommitSuccessfully);
+            testStreamingWrite(true, false, "orc", this::checkSuccessFiles);
         }
     }
 
@@ -184,10 +183,10 @@ public class HiveTableSinkITCase {
 
     @Test
     public void testPartStreamingMrWrite() throws Exception {
-        testStreamingWrite(true, true, "parquet", this::checkPartitionCommitSuccessfully);
+        testStreamingWrite(true, true, "parquet", this::checkSuccessFiles);
         // doesn't support writer 2.0 orc table
         if (!hiveCatalog.getHiveVersion().startsWith("2.0")) {
-            testStreamingWrite(true, true, "orc", this::checkPartitionCommitSuccessfully);
+            testStreamingWrite(true, true, "orc", this::checkSuccessFiles);
         }
     }
 
@@ -269,7 +268,6 @@ public class HiveTableSinkITCase {
                             + "'streaming-source.consume-order'='partition-time'"
                             + ")");
 
-            String customCommitPolicyClassName = CustomCommitPolicy.class.getName();
             tEnv.executeSql(
                     "create external table sink_table ("
                             + " a int,"
@@ -283,11 +281,8 @@ public class HiveTableSinkITCase {
                             + " 'sink.partition-commit.trigger'='partition-time',"
                             + " 'sink.partition-commit.delay'='30min',"
                             + " 'sink.partition-commit.watermark-time-zone'='Asia/Shanghai',"
-                            + " 'sink.partition-commit.policy.kind'='metastore,success-file,custom',"
+                            + " 'sink.partition-commit.policy.kind'='metastore,success-file',"
                             + " 'sink.partition-commit.success-file.name'='_MY_SUCCESS',"
-                            + " 'sink.partition-commit.policy.class'='"
-                            + customCommitPolicyClassName
-                            + "',"
                             + " 'streaming-source.enable'='true',"
                             + " 'streaming-source.monitor-interval'='1s',"
                             + " 'streaming-source.consume-order'='partition-time'"
@@ -388,7 +383,7 @@ public class HiveTableSinkITCase {
                             .commit(testPartition.get(i));
                 }
             }
-            this.checkPartitionCommitSuccessfully(
+            this.checkSuccessFiles(
                     URI.create(
                                     hiveCatalog
                                             .getHiveTable(ObjectPath.fromString("db1.sink_table"))
@@ -438,12 +433,7 @@ public class HiveTableSinkITCase {
         String customCommitPolicyClassName = "NotExistPartitionCommitPolicyClass";
 
         try {
-            testStreamingWrite(
-                    true,
-                    false,
-                    "textfile",
-                    this::checkPartitionCommitSuccessfully,
-                    customCommitPolicyClassName);
+            testStreamingWriteWithCustomPartitionCommitPolicy(customCommitPolicyClassName);
             fail("ExecutionException expected");
         } catch (Exception e) {
             assertTrue(
@@ -453,6 +443,11 @@ public class HiveTableSinkITCase {
                                             + customCommitPolicyClassName)
                             .isPresent());
         }
+    }
+
+    @Test
+    public void testCustomPartitionCommitPolicy() throws Exception {
+        testStreamingWriteWithCustomPartitionCommitPolicy(TestCustomCommitPolicy.class.getName());
     }
 
     private static List<String> fetchRows(Iterator<Row> iter, int size) {
@@ -465,46 +460,109 @@ public class HiveTableSinkITCase {
         return strings;
     }
 
-    private void checkPartitionCommitSuccessfully(String path) {
-        List<String> partitionKVs = Lists.newArrayList("e=7", "e=8", "e=9", "e=10", "e=11");
-
-        // check success files for SuccessFileCommitPolicy
+    private void checkSuccessFiles(String path) {
         File basePath = new File(path, "d=2020-05-03");
-        Assert.assertEquals(partitionKVs.size(), Objects.requireNonNull(basePath.list()).length);
-        partitionKVs.forEach(
-                partitionKV ->
-                        Assert.assertTrue(
-                                new File(new File(basePath, partitionKV), "_MY_SUCCESS").exists()));
-
-        // check committed partitions for CustomizedCommitPolicy
-        Set<String> committedPaths = CustomCommitPolicy.getCommittedPartitionPathsAndReset();
-        Path base = new Path(path, "d=2020-05-03");
-        partitionKVs.forEach(
-                partitionKV -> {
-                    String partitionPath = new Path(base, partitionKV).toString();
-                    Assert.assertTrue(committedPaths.contains(partitionPath));
-                });
+        Assert.assertEquals(5, basePath.list().length);
+        Assert.assertTrue(new File(new File(basePath, "e=7"), "_MY_SUCCESS").exists());
+        Assert.assertTrue(new File(new File(basePath, "e=8"), "_MY_SUCCESS").exists());
+        Assert.assertTrue(new File(new File(basePath, "e=9"), "_MY_SUCCESS").exists());
+        Assert.assertTrue(new File(new File(basePath, "e=10"), "_MY_SUCCESS").exists());
+        Assert.assertTrue(new File(new File(basePath, "e=11"), "_MY_SUCCESS").exists());
     }
 
-    private void testStreamingWrite(
-            boolean part, boolean useMr, String format, Consumer<String> pathConsumer)
-            throws Exception {
-        String customCommitPolicyClassName = CustomCommitPolicy.class.getName();
-        testStreamingWrite(part, useMr, format, pathConsumer, customCommitPolicyClassName);
-    }
-
-    private void testStreamingWrite(
-            boolean part,
-            boolean useMr,
-            String format,
-            Consumer<String> pathConsumer,
-            String customCommitPolicyClassName)
-            throws Exception {
+    private void testStreamingWriteWithCustomPartitionCommitPolicy(
+            String customPartitionCommitPolicyClassName) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(100);
         // avoid the job to restart infinitely
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 1_000));
+
+        StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvInStreamingMode(env);
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+        tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+
+        try {
+            tEnv.executeSql("create database db1");
+            tEnv.useDatabase("db1");
+
+            // prepare source
+            List<Row> data =
+                    Arrays.asList(
+                            Row.of(1, "a", "b", "2020-05-03", "7"),
+                            Row.of(2, "p", "q", "2020-05-03", "8"),
+                            Row.of(3, "x", "y", "2020-05-03", "9"),
+                            Row.of(4, "x", "y", "2020-05-03", "10"),
+                            Row.of(5, "x", "y", "2020-05-03", "11"));
+            DataStream<Row> stream =
+                    env.addSource(
+                            new FiniteTestSource<>(data),
+                            new RowTypeInfo(
+                                    Types.INT,
+                                    Types.STRING,
+                                    Types.STRING,
+                                    Types.STRING,
+                                    Types.STRING));
+            tEnv.createTemporaryView("my_table", stream, $("a"), $("b"), $("c"), $("d"), $("e"));
+
+            // DDL
+            tEnv.executeSql(
+                    "create external table sink_table (a int,b string,c string"
+                            + ") "
+                            + "partitioned by (d string,e string) "
+                            + " stored as textfile"
+                            + " TBLPROPERTIES ("
+                            + "'"
+                            + PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key()
+                            + "'='$d $e:00:00',"
+                            + "'"
+                            + SINK_PARTITION_COMMIT_DELAY.key()
+                            + "'='1h',"
+                            + "'"
+                            + SINK_PARTITION_COMMIT_POLICY_KIND.key()
+                            + "'='metastore,custom',"
+                            + "'"
+                            + SINK_PARTITION_COMMIT_POLICY_CLASS.key()
+                            + "'='"
+                            + customPartitionCommitPolicyClassName
+                            + "'"
+                            + ")");
+
+            // hive dialect only works with hive tables at the moment, switch to default dialect
+            tEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+            tEnv.sqlQuery("select * from my_table").executeInsert("sink_table").await();
+
+            // check committed partitions for CustomizedCommitPolicy
+            Set<String> committedPaths =
+                    TestCustomCommitPolicy.getCommittedPartitionPathsAndReset();
+            String base =
+                    URI.create(
+                                    hiveCatalog
+                                            .getHiveTable(ObjectPath.fromString("db1.sink_table"))
+                                            .getSd()
+                                            .getLocation())
+                            .getPath();
+            List<String> partitionKVs = Lists.newArrayList("e=7", "e=8", "e=9", "e=10", "e=11");
+            partitionKVs.forEach(
+                    partitionKV -> {
+                        String partitionPath =
+                                new Path(new Path(base, "d=2020-05-03"), partitionKV).toString();
+                        Assert.assertTrue(
+                                String.join("", committedPaths),
+                                committedPaths.contains(partitionPath));
+                    });
+        } finally {
+            tEnv.executeSql("drop database db1 cascade");
+        }
+    }
+
+    private void testStreamingWrite(
+            boolean part, boolean useMr, String format, Consumer<String> pathConsumer)
+            throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
 
         StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvInStreamingMode(env);
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
@@ -560,15 +618,10 @@ public class HiveTableSinkITCase {
                             + "'='1h',"
                             + "'"
                             + SINK_PARTITION_COMMIT_POLICY_KIND.key()
-                            + "'='metastore,success-file,custom',"
+                            + "'='metastore,success-file',"
                             + "'"
                             + SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.key()
-                            + "'='_MY_SUCCESS',"
-                            + "'"
-                            + SINK_PARTITION_COMMIT_POLICY_CLASS.key()
-                            + "'='"
-                            + customCommitPolicyClassName
-                            + "'"
+                            + "'='_MY_SUCCESS'"
                             + ")");
 
             // hive dialect only works with hive tables at the moment, switch to default dialect

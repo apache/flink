@@ -24,18 +24,18 @@ import java.util.HashSet;
 import java.util.Set;
 
 /** A custom PartitionCommitPolicy for test. */
-public class CustomCommitPolicy implements PartitionCommitPolicy {
+public class TestCustomCommitPolicy implements PartitionCommitPolicy {
 
     private static Set<String> committedPartitionPaths = new HashSet<>();
 
     @Override
     public void commit(PartitionCommitPolicy.Context context) throws Exception {
-        CustomCommitPolicy.committedPartitionPaths.add(context.partitionPath().getPath());
+        TestCustomCommitPolicy.committedPartitionPaths.add(context.partitionPath().getPath());
     }
 
     static Set<String> getCommittedPartitionPathsAndReset() {
-        Set<String> paths = CustomCommitPolicy.committedPartitionPaths;
-        CustomCommitPolicy.committedPartitionPaths = new HashSet<>();
+        Set<String> paths = TestCustomCommitPolicy.committedPartitionPaths;
+        TestCustomCommitPolicy.committedPartitionPaths = new HashSet<>();
         return paths;
     }
 }
