@@ -255,6 +255,26 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     }
 
     @Test
+    public void testFailJobWhenExceptionThrownFromEnumeratorCreation() throws Exception {
+        final RuntimeException failureReason = new RuntimeException("Artificial Exception");
+
+        final SourceCoordinator<?, ?> coordinator =
+                new SourceCoordinator<>(
+                        OPERATOR_NAME,
+                        coordinatorExecutor,
+                        new EnumeratorCreatingSource<>(
+                                () -> {
+                                    throw failureReason;
+                                }),
+                        context);
+
+        coordinator.start();
+
+        assertTrue(operatorCoordinatorContext.isJobFailed());
+        assertEquals(failureReason, operatorCoordinatorContext.getJobFailureReason());
+    }
+
+    @Test
     public void testErrorThrownFromSplitEnumerator() throws Exception {
         final Error error = new Error("Test Error");
 
