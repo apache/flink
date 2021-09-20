@@ -24,7 +24,6 @@ import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -70,22 +69,6 @@ public class ConnectionUtilsTest {
         final InetAddress loopbackAddress = Inet4Address.getByName("127.0.0.1");
         Thread socketServerThread;
         try (ServerSocket socket = new ServerSocket(0, 1, loopbackAddress)) {
-            // Make sure that the thread will eventually die even if something else goes wrong
-            socket.setSoTimeout(10_000);
-            socketServerThread =
-                    new Thread(
-                            new Runnable() {
-                                @Override
-                                public void run() {
-                                    try {
-                                        socket.accept();
-                                    } catch (IOException e) {
-                                        // ignore
-                                    }
-                                }
-                            });
-            socketServerThread.start();
-
             final InetSocketAddress socketAddress =
                     new InetSocketAddress(loopbackAddress, socket.getLocalPort());
             final InetAddress address =
