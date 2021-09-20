@@ -136,7 +136,8 @@ module.exports = {
         'prettier/prettier': [
           'error',
           {
-            parser: 'angular'
+            parser: 'angular',
+            endOfLine: 'auto'
           }
         ]
       }
