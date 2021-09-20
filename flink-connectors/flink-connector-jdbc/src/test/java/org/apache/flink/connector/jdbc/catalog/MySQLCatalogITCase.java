@@ -20,6 +20,10 @@ package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CollectionUtil;
@@ -33,12 +37,14 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.text.ParseException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** E2E test for {@link MySQLCatalog}. */
 public class MySQLCatalogITCase extends MySQLCatalogTestBase {
@@ -63,27 +69,19 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
                             "enum2",
                             -9.1f,
                             9.1f,
-                            null,
-                            null,
                             -1,
                             1L,
                             -1,
                             1L,
                             "{\"k1\": \"v1\"}",
                             null,
-                            null,
                             "col_longtext",
                             null,
                             -1,
                             1,
                             "col_mediumtext",
-                            null,
-                            null,
-                            null,
                             new BigDecimal(-99),
                             new BigDecimal(99),
-                            null,
-                            null,
                             -1.0d,
                             1.0d,
                             "set_ele1",
@@ -97,7 +95,6 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
                             Byte.parseByte("1"),
                             null,
                             "col_varchar",
-                            Date.valueOf("1999-01-01").toLocalDate(),
                             Timestamp.valueOf("2021-08-04 01:54:16.463").toLocalDateTime(),
                             Time.valueOf("09:33:43").toLocalTime(),
                             Timestamp.valueOf("2021-08-04 01:54:16.463").toLocalDateTime(),
@@ -120,27 +117,19 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
                             "enum2",
                             -9.1f,
                             9.1f,
-                            null,
-                            null,
                             -1,
                             1L,
                             -1,
                             1L,
                             "{\"k1\": \"v1\"}",
                             null,
-                            null,
                             "col_longtext",
                             null,
                             -1,
                             1,
                             "col_mediumtext",
-                            null,
-                            null,
-                            null,
                             new BigDecimal(-99),
                             new BigDecimal(99),
-                            null,
-                            null,
                             -1.0d,
                             1.0d,
                             "set_ele1,set_ele12",
@@ -154,7 +143,6 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
                             Byte.parseByte("1"),
                             null,
                             "col_varchar",
-                            Date.valueOf("1999-01-01").toLocalDate(),
                             Timestamp.valueOf("2021-08-04 01:53:19.098").toLocalDateTime(),
                             Time.valueOf("09:33:43").toLocalTime(),
                             Timestamp.valueOf("2021-08-04 01:53:19.098").toLocalDateTime(),
@@ -173,6 +161,91 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
         tEnv.registerCatalog(TEST_CATALOG_NAME, catalog);
         tEnv.useCatalog(TEST_CATALOG_NAME);
     }
+
+    // ------ databases ------
+
+    @Test
+    public void testGetDb_DatabaseNotExistException() throws Exception {
+        String databaseNotExist = "nonexistent";
+        exception.expect(DatabaseNotExistException.class);
+        exception.expectMessage(
+                String.format("Database %s does not exist in Catalog", databaseNotExist));
+        catalog.getDatabase(databaseNotExist);
+    }
+
+    @Test
+    public void testListDatabases() {
+        List<String> actual = catalog.listDatabases();
+        assertEquals(Collections.singletonList(TEST_DB), actual);
+    }
+
+    @Test
+    public void testDbExists() throws Exception {
+        String databaseNotExist = "nonexistent";
+        assertFalse(catalog.databaseExists(databaseNotExist));
+        assertTrue(catalog.databaseExists(TEST_DB));
+    }
+
+    // ------ tables ------
+
+    @Test
+    public void testListTables() throws DatabaseNotExistException {
+        List<String> actual = catalog.listTables(TEST_DB);
+        assertEquals(
+                Arrays.asList(
+                        TEST_TABLE_ALL_TYPES,
+                        TEST_SINK_TABLE_ALL_TYPES,
+                        TEST_TABLE_SINK_FROM_GROUPED_BY),
+                actual);
+    }
+
+    @Test
+    public void testListTables_DatabaseNotExistException() throws DatabaseNotExistException {
+        String anyDatabase = "anyDatabase";
+        exception.expect(DatabaseNotExistException.class);
+        exception.expectMessage(
+                String.format("Database %s does not exist in Catalog", anyDatabase));
+        catalog.listTables(anyDatabase);
+    }
+
+    @Test
+    public void testTableExists() {
+        String tableNotExist = "nonexist";
+        assertFalse(catalog.tableExists(new ObjectPath(TEST_DB, tableNotExist)));
+        assertTrue(catalog.tableExists(new ObjectPath(TEST_DB, TEST_TABLE_ALL_TYPES)));
+    }
+
+    @Test
+    public void testGetTables_TableNotExistException() throws TableNotExistException {
+        String anyTableNotExist = "anyTable";
+        exception.expect(TableNotExistException.class);
+        exception.expectMessage(
+                String.format(
+                        "Table (or view) %s.%s does not exist in Catalog",
+                        TEST_DB, anyTableNotExist));
+        catalog.getTable(new ObjectPath(TEST_DB, anyTableNotExist));
+    }
+
+    @Test
+    public void testGetTables_TableNotExistException_NoDb() throws TableNotExistException {
+        String databaseNotExist = "nonexistdb";
+        String tableNotExist = "anyTable";
+        exception.expect(TableNotExistException.class);
+        exception.expectMessage(
+                String.format(
+                        "Table (or view) %s.%s does not exist in Catalog",
+                        databaseNotExist, tableNotExist));
+        catalog.getTable(new ObjectPath(databaseNotExist, tableNotExist));
+    }
+
+    @Test
+    public void testGetTable() throws TableNotExistException {
+        // Test `test`.`t_without_geo_types`
+        CatalogBaseTable table = catalog.getTable(new ObjectPath(TEST_DB, TEST_TABLE_ALL_TYPES));
+        assertEquals(TABLE_SCHEMA, table.getUnresolvedSchema());
+    }
+
+    // ------ test select query. ------
 
     @Test
     public void testSelectField() {
@@ -211,7 +284,7 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
     }
 
     @Test
-    public void testFullPath() throws ParseException {
+    public void testFullPath() {
         List<Row> results =
                 CollectionUtil.iteratorToList(
                         tEnv.sqlQuery(
@@ -226,34 +299,20 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
     }
 
     @Test
-    public void testSelectToInsertWithoutYearType() throws Exception {
+    public void testSelectToInsert() throws Exception {
 
         String sql =
                 String.format(
                         "insert into `%s` select * from `%s`",
-                        TEST_SINK_TABLE_ALL_TYPES_WITHOUT_YEAR_TYPE, TEST_TABLE_ALL_TYPES);
+                        TEST_SINK_TABLE_ALL_TYPES, TEST_TABLE_ALL_TYPES);
         tEnv.executeSql(sql).await();
 
         List<Row> results =
                 CollectionUtil.iteratorToList(
-                        tEnv.sqlQuery(
-                                        String.format(
-                                                "select * from %s",
-                                                TEST_SINK_TABLE_ALL_TYPES_WITHOUT_YEAR_TYPE))
+                        tEnv.sqlQuery(String.format("select * from %s", TEST_SINK_TABLE_ALL_TYPES))
                                 .execute()
                                 .collect());
         assertEquals(ALL_TYPES_ROWS, results);
-    }
-
-    @Test
-    public void testSelectToInsertWithYearType() throws Exception {
-        exception.expect(ExecutionException.class);
-        exception.expectMessage("TableException: Failed to wait job finish");
-        String sql =
-                String.format(
-                        "insert into `%s` select * from `%s`",
-                        TEST_SINK_TABLE_ALL_TYPES_WITH_YEAR_TYPE, TEST_TABLE_ALL_TYPES);
-        tEnv.executeSql(sql).await();
     }
 
     @Test
@@ -261,7 +320,8 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
         // Changes primary key for the next record.
         tEnv.executeSql(
                         String.format(
-                                "insert into `%s` select max(`pid`) `pid`, `col_bigint` from `%s` group by `col_bigint` ",
+                                "insert into `%s` select max(`pid`) `pid`, `col_bigint` from `%s` "
+                                        + "group by `col_bigint` ",
                                 TEST_TABLE_SINK_FROM_GROUPED_BY, TEST_TABLE_ALL_TYPES))
                 .await();
 

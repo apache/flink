@@ -342,7 +342,7 @@ JDBC Catalog
 
 `JdbcCatalog` 允许用户通过 JDBC 协议将 Flink 连接到关系数据库。
 
-目前，`PostgresCatalog` 和 `MySQLCatalog` 是 JDBC Catalog 已有的两个实现，`JdbcCatalog` 只支持有限的 `Catalog` 方法，包括：
+目前，JDBC Catalog 有两个实现，即 Postgres Catalog 和 MySQL Catalog。目前支持如下 catalog 方法。其他方法目前尚不支持。
 
 ```java
 // Postgres Catalog & MySQL Catalog 支持的方法
@@ -360,17 +360,17 @@ tableExists(ObjectPath tablePath);
 
 ### JDBC Catalog 的使用
 
-本小节主要描述如果创建并使用 `PostgresCatalog` 或 `MySQLCatalog`。
-请参阅 [Dependencies](#dependencies) 部分了解如何配置 JDBC 连接器和 Postgres/MySQL 驱动。
+本小节主要描述如果创建并使用 Postgres Catalog 或 MySQL Catalog。
+请参阅 [Dependencies](#dependencies) 部分了解如何配置 JDBC 连接器和相应的驱动。
 
-Postgres/MySQL catalog 支持以下参数:
+JDBC catalog 支持以下参数:
 - `name`：必填，catalog 的名称。
 - `default-database`：必填，默认要连接的数据库。
 - `username`：必填，Postgres/MySQL 账户的用户名。
 - `password`：必填，账户的密码。
-- `base-url`：必填，
-  - `在创建 PostgresCatalog 时：`应该符合 `"jdbc:postgresql://<ip>:<port>"` 的格式，同时这里不应该包含数据库名。
-  - `在创建 MySQLCatalog 时：`应该符合 `"jdbc:mysql://<ip>:<port>"` 的格式，同时这里不应该包含数据库名。
+- `base-url`：必填，（不应该包含数据库名）
+  - 对于 Postgres Catalog `base-url` 应为 `"jdbc:postgresql://<ip>:<port>"` 的格式。
+  - 对于 MySQL Catalog `base-url` 应为 `"jdbc:mysql://<ip>:<port>"` 的格式。
 
 {{< tabs "10bd8bfb-674c-46aa-8a36-385537df5791" >}}
 {{< tab "SQL" >}}
@@ -465,7 +465,7 @@ catalogs:
 
 <a name="jdbc-catalog-for-postgresql"></a>
 
-### Jdbc Catalog for PostgreSQL
+### JDBC Catalog for PostgreSQL
 
 <a name="postgresql-metaspace-mapping"></a>
 
@@ -500,14 +500,14 @@ SELECT * FROM `custom_schema.test_table2`;
 ```
 <a name="jdbc-catalog-for-mysql"></a>
 
-### Jdbc Catalog for MySQL
+### JDBC Catalog for MySQL
 
 <a name="mysql-metaspace-mapping"></a>
 
 #### MySQL 元空间映射
 
-`MySQL` 实例中的数据库与 `MySQLCatalog` 注册的 catalog 下的数据库处于同一个映射层级。一个 MySQL 实例可以拥有多个数据库，每个数据库可以包含多张表。
-在 Flink 中，当查询由 MySQL catalog 注册的表时，用户可以使用 `database.table_name` 或只使用 `table_name`，其中 `database` 是可选的，默认值为创建 `MySQLCatalog` 时指定的默认数据库。
+MySQL 实例中的数据库与 MySQL Catalog 注册的 catalog 下的数据库处于同一个映射层级。一个 MySQL 实例可以拥有多个数据库，每个数据库可以包含多张表。
+在 Flink 中，当查询由 MySQL catalog 注册的表时，用户可以使用 `database.table_name` 或只使用 `table_name`，其中 `database` 是可选的，默认值为创建 MySQL Catalog 时指定的默认数据库。
 
 因此，Flink Catalog 和 MySQL catalog 之间的元空间映射如下：
 
@@ -528,11 +528,11 @@ SELECT * FROM mydb.test_table;
 SELECT * FROM test_table;
 
 -- 扫描 'given_database' 数据库中的 'test_table2' 表，
-SELECT * FROM mysql_catalog.given_database.test_table2
+SELECT * FROM mysql_catalog.given_database.test_table2;
 SELECT * FROM given_database.test_table2;
 ```
 
-<span class="label label-danger">Attention</span> 目前，从表中读取数据时，`YEAR` 类型默认读取为 `DATE` 类型，但 `MySQLCatalog` 尚不支持写入 `YEAR` 类型数据。`GEOMETRY` 类型的读写也有相同的限制。从表中读取数据时，`GEOMETRY` 类型字段将默认读取为 `BYTES` 类型，但在向表中写入数据时 `MySQLCatalog` 尚不支持写入 `GEOMETRY` 类型的数据。
+<span class="label label-danger">Attention</span> 目前，从表中读取数据时，`YEAR` 类型默认读取为 `DATE` 类型，但 MySQL Catalog 尚不支持写入 `YEAR` 类型数据。`GEOMETRY` 类型的读写也有相同的限制。从表中读取数据时，`GEOMETRY` 类型字段将默认读取为 `BYTES` 类型，但在向表中写入数据时 MySQL Catalog 尚不支持写入 `GEOMETRY` 类型的数据。
 
 <a name="data-type-mapping"></a>
 

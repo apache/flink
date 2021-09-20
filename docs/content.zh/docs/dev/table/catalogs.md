@@ -42,7 +42,7 @@ Catalog 提供了元数据信息，例如数据库、表、分区、视图以及
 
 ### JdbcCatalog
 
-`JdbcCatalog` 使得用户可以将 Flink 通过 JDBC 协议连接到关系数据库。`PostgresCatalog` 和 `MySQLCatalog` 是目前 JDBC Catalog 仅有的两种实现。
+`JdbcCatalog` 使得用户可以将 Flink 通过 JDBC 协议连接到关系数据库。Postgres Catalog 和 MySQL Catalog 是目前 JDBC Catalog 仅有的两种实现。
 参考 [JdbcCatalog 文档]({{< ref "docs/connectors/table/jdbc" >}}) 获取关于配置 JDBC catalog 的详细信息。
 
 ### HiveCatalog

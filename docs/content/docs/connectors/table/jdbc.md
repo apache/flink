@@ -322,7 +322,7 @@ JDBC Catalog
 
 The `JdbcCatalog` enables users to connect Flink to relational databases over JDBC protocol.
 
-Currently, `PostgresCatalog` and `MySQLCatalog` are the two implementations of JDBC Catalog at the moment, `JdbcCatalog` only supports limited `Catalog` methods include:
+Currently, there are two JDBC catalog implementations, Postgres Catalog and MySQL Catalog. They support the following catalog methods. Other methods are currently not supported.
 
 ```java
 // The supported methods by Postgres & MySQL Catalog.
@@ -338,17 +338,17 @@ Other `Catalog` methods are currently not supported.
 
 ### Usage of JDBC Catalog
 
-The section mainly describes how to create and use a `PostgresCatalog` or `MySQLCatalog`.
-Please refer to [Dependencies](#dependencies) section for how to setup a JDBC connector and Postgres/MySQL driver.
+The section mainly describes how to create and use a Postgres Catalog or MySQL Catalog.
+Please refer to [Dependencies](#dependencies) section for how to setup a JDBC connector and the corresponding driver.
 
-Postgres/MySQL catalog supports the following options:
+The JDBC catalog supports the following options:
 - `name`: required, name of the catalog.
 - `default-database`: required, default database to connect to.
 - `username`: required, username of Postgres/MySQL account.
 - `password`: required, password of the account.
-- `base-url`: required,
-  - `in PostgresCatalog case:` should be of format `"jdbc:postgresql://<ip>:<port>"`, and should not contain database name here.
-  - `in MySQLCatalog case:` should be of format `"jdbc:mysql://<ip>:<port>"`, and should not contain database name here.
+- `base-url`: required (should not contain the database name)
+  - for Postgres Catalog this should be `"jdbc:postgresql://<ip>:<port>"`
+  - for MySQL Catalog this should be `"jdbc:mysql://<ip>:<port>"`
 
 {{< tabs "10bd8bfb-674c-46aa-8a36-385537df5791" >}}
 {{< tab "SQL" >}}
@@ -441,7 +441,7 @@ catalogs:
 {{< /tab >}}
 {{< /tabs >}}
 
-### Jdbc Catalog for PostgreSQL
+### JDBC Catalog for PostgreSQL
 
 #### PostgreSQL Metaspace Mapping
 
@@ -473,14 +473,14 @@ SELECT * FROM mydb.`custom_schema.test_table2`;
 SELECT * FROM `custom_schema.test_table2`;
 ```
 
-### Jdbc Catalog for MySQL
+### JDBC Catalog for MySQL
 
 #### MySQL Metaspace Mapping
 
-The databases in a `MySQL` instance are at the same mapping level as the databases under the catalog registered with `MySQLCatalog`. A MySQL instance can have multiple databases, each database can have multiple tables.
-In Flink, when querying tables registered by MySQL catalog, users can use either `database.table_name` or just `table_name`. The default value is the default database specified when `MySQLCatalog` was created.
+The databases in a MySQL instance are at the same mapping level as the databases under the catalog registered with MySQL Catalog. A MySQL instance can have multiple databases, each database can have multiple tables.
+In Flink, when querying tables registered by MySQL catalog, users can use either `database.table_name` or just `table_name`. The default value is the default database specified when MySQL Catalog was created.
 
-Therefore, the metaspace mapping between Flink Catalog and MySQLCatalog is as following:
+Therefore, the metaspace mapping between Flink Catalog and MySQL Catalog is as following:
 
 | Flink Catalog Metaspace Structure    |   MySQL Metaspace Structure         |
 | :------------------------------------| :-----------------------------------|
@@ -499,11 +499,11 @@ SELECT * FROM mydb.test_table;
 SELECT * FROM test_table;
 
 -- scan table 'test_table' with the given database.
-SELECT * FROM mysql_catalog.given_database.test_table2
+SELECT * FROM mysql_catalog.given_database.test_table2;
 SELECT * FROM given_database.test_table2;
 ```
 
-<span class="label label-danger">Attention</span> At present, when reading data from a table, the `YEAR` type is read as the `DATE` type by default, but writing data in `YEAR` type is not supported by `MySQLCatalog` yet. The same restrictions apply to the reading and writing of the `GEOMETRY` type. The `GEOMETRY` type fields will be read as the `BYTES` type by default in reading data from a table, but the writing of the `GEOMETRY` data type is not supported by `MySQLCatalog` when writing data into a table.
+<span class="label label-danger">Attention</span> At present, when reading data from a table, the `YEAR` type is read as the `DATE` type by default, but writing data in `YEAR` type is not supported by MySQL Catalog yet. The same restrictions apply to the reading and writing of the `GEOMETRY` type. The `GEOMETRY` type fields will be read as the `BYTES` type by default in reading data from a table, but the writing of the `GEOMETRY` data type is not supported by MySQL Catalog when writing data into a table.
 
 Data Type Mapping
 ----------------

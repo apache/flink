@@ -55,27 +55,19 @@ CREATE TABLE `t_all_types` (
   `col_enum` enum('enum1','enum2','enum11') DEFAULT NULL,
   `col_float` float DEFAULT NULL,
   `col_float_unsigned` float unsigned DEFAULT NULL,
-  `col_geometry` geometry DEFAULT NULL,
-  `col_geometrycollection` geometrycollection DEFAULT NULL,
   `col_int` int(11) DEFAULT NULL,
   `col_int_unsigned` int(10) unsigned DEFAULT NULL,
   `col_integer` int(11) DEFAULT NULL,
   `col_integer_unsigned` int(10) unsigned DEFAULT NULL,
   `col_json` json DEFAULT NULL,
-  `col_linestring` linestring DEFAULT NULL,
   `col_longblob` longblob,
   `col_longtext` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
   `col_mediumblob` mediumblob,
   `col_mediumint` mediumint(9) DEFAULT NULL,
   `col_mediumint_unsigned` mediumint(8) unsigned DEFAULT NULL,
   `col_mediumtext` mediumtext,
-  `col_multilinestring` multilinestring DEFAULT NULL,
-  `col_multipoint` multipoint DEFAULT NULL,
-  `col_multipolygon` multipolygon DEFAULT NULL,
   `col_numeric` decimal(10,0) DEFAULT NULL,
   `col_numeric_unsigned` decimal(10,0) unsigned DEFAULT NULL,
-  `col_polygon` polygon DEFAULT NULL,
-  `col_point` point DEFAULT NULL,
   `col_real` double DEFAULT NULL,
   `col_real_unsigned` double unsigned DEFAULT NULL,
   `col_set` set('set_ele1','set_ele12') DEFAULT NULL,
@@ -89,10 +81,9 @@ CREATE TABLE `t_all_types` (
   `col_tinyint_unsinged` tinyint(255) unsigned DEFAULT NULL,
   `col_tinyblob` tinyblob,
   `col_varchar` varchar(255) DEFAULT NULL,
-  `col_year` year(4) DEFAULT NULL,
-  `col_datetime_p3` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'Test for precision  value in default and user define precison',
-  `col_time_p3` time(3) DEFAULT NULL COMMENT 'Test for precision  value in default and user define precison',
-  `col_timestamp_p3` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'Test for precision  value in default and user define precison',
+  `col_datetime_p3` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'Test for precision  value in default and user define precision',
+  `col_time_p3` time(3) DEFAULT NULL COMMENT 'Test for precision  value in default and user define precision',
+  `col_timestamp_p3` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'Test for precision  value in default and user define precision',
   `col_varbinary` varbinary(255) DEFAULT NULL,
   PRIMARY KEY (`pid`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
@@ -100,16 +91,12 @@ CREATE TABLE `t_all_types` (
 -- ----------------------------
 -- Records of t_all_types
 -- ----------------------------
-INSERT INTO `t_all_types` VALUES (1, -1, 1, null, b'1', null, 'hello', '2021-08-04', '2021-08-04 01:54:16', -1, 1, -1, 1, 'enum2', -9.1, 9.1, null, null, -1, 1, -1, 1, '{\"k1\": \"v1\"}', null, null, 'col_longtext', null, -1, 1, 'col_mediumtext', null, null, null, -99, 99, null, null, -1, 1, 'set_ele1', -1, 1, 'col_text', '10:32:34', '2021-08-04 01:54:16', 'col_tinytext', -1, 1, null, 'col_varchar', 1999, '2021-08-04 01:54:16.463', '09:33:43.000', '2021-08-04 01:54:16.463', null);
-INSERT INTO `t_all_types` VALUES (2, -1, 1, null, b'1', null, 'hello', '2021-08-04', '2021-08-04 01:53:19', -1, 1, -1, 1, 'enum2', -9.1, 9.1, null, null, -1, 1, -1, 1, '{\"k1\": \"v1\"}', null, null, 'col_longtext', null, -1, 1, 'col_mediumtext', null, null, null, -99, 99, null, null, -1, 1, 'set_ele1,set_ele12', -1, 1, 'col_text', '10:32:34', '2021-08-04 01:53:19', 'col_tinytext', -1, 1, null, 'col_varchar', 1999, '2021-08-04 01:53:19.098', '09:33:43.000', '2021-08-04 01:53:19.098', null);
+INSERT INTO `t_all_types` VALUES (1, -1, 1, null, b'1', null, 'hello', '2021-08-04', '2021-08-04 01:54:16', -1, 1, -1, 1, 'enum2', -9.1, 9.1, -1, 1, -1, 1, '{\"k1\": \"v1\"}', null, 'col_longtext', null, -1, 1, 'col_mediumtext', -99, 99, -1, 1, 'set_ele1', -1, 1, 'col_text', '10:32:34', '2021-08-04 01:54:16', 'col_tinytext', -1, 1, null, 'col_varchar', '2021-08-04 01:54:16.463', '09:33:43.000', '2021-08-04 01:54:16.463', null);
+INSERT INTO `t_all_types` VALUES (2, -1, 1, null, b'1', null, 'hello', '2021-08-04', '2021-08-04 01:53:19', -1, 1, -1, 1, 'enum2', -9.1, 9.1, -1, 1, -1, 1, '{\"k1\": \"v1\"}', null, 'col_longtext', null, -1, 1, 'col_mediumtext', -99, 99, -1, 1, 'set_ele1,set_ele12', -1, 1, 'col_text', '10:32:34', '2021-08-04 01:53:19', 'col_tinytext', -1, 1, null, 'col_varchar', '2021-08-04 01:53:19.098', '09:33:43.000', '2021-08-04 01:53:19.098', null);
 
 -- Create test table t_all_types_sink.
-DROP TABLE IF EXISTS `t_all_types_sink_without_year_type`;
-CREATE TABLE `t_all_types_sink_without_year_type` select * from t_all_types where 1=2;
-ALTER TABLE `t_all_types_sink_without_year_type` modify col_year date DEFAULT NULL;
-
-DROP TABLE IF EXISTS `t_all_types_sink_with_year_type`;
-CREATE TABLE `t_all_types_sink_with_year_type` select * from t_all_types where 1=2;
+DROP TABLE IF EXISTS `t_all_types_sink`;
+CREATE TABLE `t_all_types_sink` select * from t_all_types where 1=2;
 
 -- Create test table t_grouped_by_sink.
 DROP TABLE IF EXISTS `t_grouped_by_sink`;

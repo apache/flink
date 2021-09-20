@@ -19,7 +19,9 @@
 package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -45,10 +47,7 @@ public class MySQLCatalogTestBase {
     protected static final String TEST_PWD = "mysql";
     protected static final String TEST_DB = "test";
     protected static final String TEST_TABLE_ALL_TYPES = "t_all_types";
-    protected static final String TEST_SINK_TABLE_ALL_TYPES_WITHOUT_YEAR_TYPE =
-            "t_all_types_sink_without_year_type";
-    protected static final String TEST_SINK_TABLE_ALL_TYPES_WITH_YEAR_TYPE =
-            "t_all_types_sink_with_year_type";
+    protected static final String TEST_SINK_TABLE_ALL_TYPES = "t_all_types_sink";
     protected static final String TEST_TABLE_SINK_FROM_GROUPED_BY = "t_grouped_by_sink";
     protected static final String MYSQL_INIT_SCRIPT = "mysql-scripts/catalog-init-for-test.sql";
     protected static final Map<String, String> DEFAULT_CONTAINER_ENV_MAP =
@@ -58,64 +57,55 @@ public class MySQLCatalogTestBase {
                 }
             };
 
-    protected static final TableSchema TABLESCHEMA =
-            TableSchema.builder()
-                    .field("pid", DataTypes.BIGINT().notNull())
-                    .field("col_bigint", DataTypes.BIGINT())
-                    .field("col_bigint_unsigned", DataTypes.DECIMAL(20, 0))
-                    .field("col_binary", DataTypes.BYTES())
-                    .field("col_bit", DataTypes.BOOLEAN())
-                    .field("col_blob", DataTypes.BYTES())
-                    .field("col_char", DataTypes.STRING())
-                    .field("col_date", DataTypes.DATE())
-                    .field("col_datetime", DataTypes.TIMESTAMP(0))
-                    .field("col_decimal", DataTypes.DECIMAL(10, 0))
-                    .field("col_decimal_unsigned", DataTypes.DECIMAL(10, 0))
-                    .field("col_double", DataTypes.DOUBLE())
-                    .field("col_double_unsigned", DataTypes.DOUBLE())
-                    .field("col_enum", DataTypes.STRING())
-                    .field("col_float", DataTypes.FLOAT())
-                    .field("col_float_unsigned", DataTypes.FLOAT())
-                    .field("col_geometry", DataTypes.BYTES())
-                    .field("col_geometrycollection", DataTypes.BYTES())
-                    .field("col_int", DataTypes.INT())
-                    .field("col_int_unsigned", DataTypes.BIGINT())
-                    .field("col_integer", DataTypes.INT())
-                    .field("col_integer_unsigned", DataTypes.BIGINT())
-                    .field("col_json", DataTypes.STRING())
-                    .field("col_linestring", DataTypes.BYTES())
-                    .field("col_longblob", DataTypes.BYTES())
-                    .field("col_longtext", DataTypes.STRING())
-                    .field("col_mediumblob", DataTypes.BYTES())
-                    .field("col_mediumint", DataTypes.INT())
-                    .field("col_mediumint_unsigned", DataTypes.INT())
-                    .field("col_mediumtext", DataTypes.STRING())
-                    .field("col_multilinestring", DataTypes.BYTES())
-                    .field("col_multipoint", DataTypes.BYTES())
-                    .field("col_multipolygon", DataTypes.BYTES())
-                    .field("col_numeric", DataTypes.DECIMAL(10, 0))
-                    .field("col_numeric_unsigned", DataTypes.DECIMAL(10, 0))
-                    .field("col_polygon", DataTypes.BYTES())
-                    .field("col_point", DataTypes.BYTES())
-                    .field("col_real", DataTypes.DOUBLE())
-                    .field("col_real_unsigned", DataTypes.DOUBLE())
-                    .field("col_set", DataTypes.STRING())
-                    .field("col_smallint", DataTypes.SMALLINT())
-                    .field("col_smallint_unsigned", DataTypes.INT())
-                    .field("col_text", DataTypes.STRING())
-                    .field("col_time", DataTypes.TIME(0))
-                    .field("col_timestamp", DataTypes.TIMESTAMP(0))
-                    .field("col_tinytext", DataTypes.STRING())
-                    .field("col_tinyint", DataTypes.TINYINT())
-                    .field("col_tinyint_unsinged", DataTypes.TINYINT())
-                    .field("col_tinyblob", DataTypes.BYTES())
-                    .field("col_varchar", DataTypes.STRING())
-                    .field("col_year", DataTypes.DATE())
-                    .field("col_datetime_p3", DataTypes.TIMESTAMP(3).notNull())
-                    .field("col_time_p3", DataTypes.TIME(3))
-                    .field("col_timestamp_p3", DataTypes.TIMESTAMP(3))
-                    .field("col_varbinary", DataTypes.BYTES())
-                    .primaryKey("PRIMARY", new String[] {"pid"})
+    protected static final Schema TABLE_SCHEMA =
+            Schema.newBuilder()
+                    .column("pid", DataTypes.BIGINT().notNull())
+                    .column("col_bigint", DataTypes.BIGINT())
+                    .column("col_bigint_unsigned", DataTypes.DECIMAL(20, 0))
+                    .column("col_binary", DataTypes.BYTES())
+                    .column("col_bit", DataTypes.BOOLEAN())
+                    .column("col_blob", DataTypes.BYTES())
+                    .column("col_char", DataTypes.STRING())
+                    .column("col_date", DataTypes.DATE())
+                    .column("col_datetime", DataTypes.TIMESTAMP(0))
+                    .column("col_decimal", DataTypes.DECIMAL(10, 0))
+                    .column("col_decimal_unsigned", DataTypes.DECIMAL(10, 0))
+                    .column("col_double", DataTypes.DOUBLE())
+                    .column("col_double_unsigned", DataTypes.DOUBLE())
+                    .column("col_enum", DataTypes.STRING())
+                    .column("col_float", DataTypes.FLOAT())
+                    .column("col_float_unsigned", DataTypes.FLOAT())
+                    .column("col_int", DataTypes.INT())
+                    .column("col_int_unsigned", DataTypes.BIGINT())
+                    .column("col_integer", DataTypes.INT())
+                    .column("col_integer_unsigned", DataTypes.BIGINT())
+                    .column("col_json", DataTypes.STRING())
+                    .column("col_longblob", DataTypes.BYTES())
+                    .column("col_longtext", DataTypes.STRING())
+                    .column("col_mediumblob", DataTypes.BYTES())
+                    .column("col_mediumint", DataTypes.INT())
+                    .column("col_mediumint_unsigned", DataTypes.INT())
+                    .column("col_mediumtext", DataTypes.STRING())
+                    .column("col_numeric", DataTypes.DECIMAL(10, 0))
+                    .column("col_numeric_unsigned", DataTypes.DECIMAL(10, 0))
+                    .column("col_real", DataTypes.DOUBLE())
+                    .column("col_real_unsigned", DataTypes.DOUBLE())
+                    .column("col_set", DataTypes.STRING())
+                    .column("col_smallint", DataTypes.SMALLINT())
+                    .column("col_smallint_unsigned", DataTypes.INT())
+                    .column("col_text", DataTypes.STRING())
+                    .column("col_time", DataTypes.TIME(0))
+                    .column("col_timestamp", DataTypes.TIMESTAMP(0))
+                    .column("col_tinytext", DataTypes.STRING())
+                    .column("col_tinyint", DataTypes.TINYINT())
+                    .column("col_tinyint_unsinged", DataTypes.TINYINT())
+                    .column("col_tinyblob", DataTypes.BYTES())
+                    .column("col_varchar", DataTypes.STRING())
+                    .column("col_datetime_p3", DataTypes.TIMESTAMP(3).notNull())
+                    .column("col_time_p3", DataTypes.TIME(3))
+                    .column("col_timestamp_p3", DataTypes.TIMESTAMP(3))
+                    .column("col_varbinary", DataTypes.BYTES())
+                    .primaryKeyNamed("PRIMARY", Lists.newArrayList("pid"))
                     .build();
 
     public static final MySQLContainer<?> MYSQL_CONTAINER =
@@ -134,7 +124,6 @@ public class MySQLCatalogTestBase {
     @BeforeClass
     public static void launchContainer() {
         MYSQL_CONTAINER.start();
-        // Constructs the baseUrl.
         baseUrl =
                 MYSQL_CONTAINER
                         .getJdbcUrl()
