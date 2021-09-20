@@ -35,7 +35,6 @@ import java.util.Optional;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
-import static org.apache.flink.connector.pulsar.testutils.runtime.mock.PortBindingUtils.findAvailablePort;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Providing a mocked pulsar server. */
