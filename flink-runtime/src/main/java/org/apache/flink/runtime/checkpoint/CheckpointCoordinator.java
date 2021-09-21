@@ -866,7 +866,13 @@ public class CheckpointCoordinator {
                 getCheckpointException(
                         CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, throwable);
         onCompletionPromise.completeExceptionally(checkpointException);
-        onTriggerFailure((PendingCheckpoint) null, checkpointException);
+        onTriggerFailure((PendingCheckpoint) null, onCompletionPromise.props, checkpointException);
+    }
+
+    private void onTriggerFailure(PendingCheckpoint checkpoint, Throwable throwable) {
+        checkArgument(checkpoint != null, "Pending checkpoint can not be null.");
+
+        onTriggerFailure(checkpoint, checkpoint.getProps(), throwable);
     }
 
     /**
@@ -876,13 +882,20 @@ public class CheckpointCoordinator {
      *     prematurely without a proper initialization.
      * @param throwable the reason of trigger failure
      */
-    private void onTriggerFailure(@Nullable PendingCheckpoint checkpoint, Throwable throwable) {
+    private void onTriggerFailure(
+            @Nullable PendingCheckpoint checkpoint,
+            CheckpointProperties checkpointProperties,
+            Throwable throwable) {
         // beautify the stack trace a bit
         throwable = ExceptionUtils.stripCompletionException(throwable);
 
         try {
             coordinatorsToCheckpoint.forEach(
                     OperatorCoordinatorCheckpointContext::abortCurrentTriggering);
+
+            final CheckpointException cause =
+                    getCheckpointException(
+                            CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, throwable);
 
             if (checkpoint != null && !checkpoint.isDisposed()) {
                 int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
@@ -892,9 +905,7 @@ public class CheckpointCoordinator {
                         job,
                         numUnsuccessful,
                         throwable);
-                final CheckpointException cause =
-                        getCheckpointException(
-                                CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, throwable);
+
                 synchronized (lock) {
                     abortPendingCheckpoint(checkpoint, cause);
                 }
@@ -903,6 +914,9 @@ public class CheckpointCoordinator {
                         "Failed to trigger checkpoint for job {} because {}",
                         job,
                         throwable.getMessage());
+
+                failureManager.handleCheckpointException(
+                        checkpoint, checkpointProperties, cause, null);
             }
         } finally {
             isTriggering = false;
@@ -1930,16 +1944,11 @@ public class CheckpointCoordinator {
                         executor,
                         getStatsCallback(pendingCheckpoint));
 
-                if (pendingCheckpoint.getProps().isSavepoint()
-                        && pendingCheckpoint.getProps().isSynchronous()) {
-                    failureManager.handleSynchronousSavepointFailure(exception);
-                } else if (executionAttemptID != null) {
-                    failureManager.handleTaskLevelCheckpointException(
-                            exception, pendingCheckpoint.getCheckpointId(), executionAttemptID);
-                } else {
-                    failureManager.handleJobLevelCheckpointException(
-                            exception, pendingCheckpoint.getCheckpointId());
-                }
+                failureManager.handleCheckpointException(
+                        pendingCheckpoint,
+                        pendingCheckpoint.getProps(),
+                        exception,
+                        executionAttemptID);
             } finally {
                 sendAbortedMessages(
                         pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),
