@@ -17,6 +17,7 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.AvailabilityProvider.AvailabilityHelper;
 
@@ -94,13 +95,16 @@ class BatchingStateChangeUploader implements StateChangeUploader {
     @GuardedBy("lock")
     private final UploadThrottle uploadThrottle;
 
+    private final Histogram uploadBatchSizes;
+
     BatchingStateChangeUploader(
             long persistDelayMs,
             long sizeThresholdBytes,
             RetryPolicy retryPolicy,
             StateChangeUploader delegate,
             int numUploadThreads,
-            long maxBytesInFlight) {
+            long maxBytesInFlight,
+            ChangelogStorageMetricGroup metricGroup) {
         this(
                 persistDelayMs,
                 sizeThresholdBytes,
@@ -108,7 +112,8 @@ class BatchingStateChangeUploader implements StateChangeUploader {
                 retryPolicy,
                 delegate,
                 SchedulerFactory.create(1, "ChangelogUploadScheduler", LOG),
-                new RetryingExecutor(numUploadThreads));
+                new RetryingExecutor(numUploadThreads, metricGroup.getAttemptsPerUpload()),
+                metricGroup);
     }
 
     BatchingStateChangeUploader(
@@ -118,7 +123,8 @@ class BatchingStateChangeUploader implements StateChangeUploader {
             RetryPolicy retryPolicy,
             StateChangeUploader delegate,
             ScheduledExecutorService scheduler,
-            RetryingExecutor retryingExecutor) {
+            RetryingExecutor retryingExecutor,
+            ChangelogStorageMetricGroup metricGroup) {
         checkArgument(
                 sizeThresholdBytes <= maxBytesInFlight,
                 "sizeThresholdBytes (%s) must not exceed maxBytesInFlight (%s)",
@@ -134,6 +140,13 @@ class BatchingStateChangeUploader implements StateChangeUploader {
         this.uploadThrottle = new UploadThrottle(maxBytesInFlight);
         this.availabilityHelper = new AvailabilityHelper();
         this.availabilityHelper.resetAvailable();
+        this.uploadBatchSizes = metricGroup.getUploadBatchSizes();
+        metricGroup.registerUploadQueueSizeGauge(
+                () -> {
+                    synchronized (scheduled) {
+                        return scheduled.size();
+                    }
+                });
     }
 
     @Override
@@ -211,6 +224,7 @@ class BatchingStateChangeUploader implements StateChangeUploader {
                 tasks.forEach(task -> task.fail(error));
                 return;
             }
+            uploadBatchSizes.update(tasks.size());
             retryingExecutor.execute(retryPolicy, () -> delegate.upload(tasks));
         } catch (Throwable t) {
             tasks.forEach(task -> task.fail(t));
