@@ -43,6 +43,7 @@ import java.util.stream.Collectors;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.flink.changelog.fs.UnregisteredChangelogStorageMetricGroup.createUnregisteredChangelogStorageMetricGroup;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.rethrow;
 import static org.junit.Assert.assertEquals;
@@ -152,7 +153,11 @@ public class BatchingStateChangeUploaderTest {
                             }
                         },
                         new DirectScheduledExecutorService(),
-                        new RetryingExecutor(new DirectScheduledExecutorService()))) {
+                        new RetryingExecutor(
+                                new DirectScheduledExecutorService(),
+                                createUnregisteredChangelogStorageMetricGroup()
+                                        .getAttemptsPerUpload()),
+                        createUnregisteredChangelogStorageMetricGroup())) {
             CompletableFuture<List<UploadResult>> completionFuture = new CompletableFuture<>();
             store.upload(
                     new UploadTask(
@@ -176,7 +181,11 @@ public class BatchingStateChangeUploaderTest {
                         RetryPolicy.NONE,
                         probe,
                         scheduler,
-                        new RetryingExecutor(5))) {
+                        new RetryingExecutor(
+                                5,
+                                createUnregisteredChangelogStorageMetricGroup()
+                                        .getAttemptsPerUpload()),
+                        createUnregisteredChangelogStorageMetricGroup())) {
             scheduler.shutdown();
             upload(store, getChanges(4));
         }
@@ -194,7 +203,11 @@ public class BatchingStateChangeUploaderTest {
                         RetryPolicy.NONE,
                         probe,
                         scheduler,
-                        new RetryingExecutor(retryScheduler))
+                        new RetryingExecutor(
+                                retryScheduler,
+                                createUnregisteredChangelogStorageMetricGroup()
+                                        .getAttemptsPerUpload()),
+                        createUnregisteredChangelogStorageMetricGroup())
                 .close();
         assertTrue(probe.isClosed());
         assertTrue(scheduler.isShutdown());
@@ -295,7 +308,11 @@ public class BatchingStateChangeUploaderTest {
                         RetryPolicy.NONE,
                         probe,
                         scheduler,
-                        new RetryingExecutor(new DirectScheduledExecutorService()))) {
+                        new RetryingExecutor(
+                                new DirectScheduledExecutorService(),
+                                createUnregisteredChangelogStorageMetricGroup()
+                                        .getAttemptsPerUpload()),
+                        createUnregisteredChangelogStorageMetricGroup())) {
             test.accept(store, probe);
         }
     }
