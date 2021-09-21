@@ -175,7 +175,8 @@ public class KafkaSource<OUT>
                 startingOffsetsInitializer,
                 stoppingOffsetsInitializer,
                 props,
-                enumContext);
+                enumContext,
+                boundedness);
     }
 
     @Override
@@ -189,6 +190,7 @@ public class KafkaSource<OUT>
                 stoppingOffsetsInitializer,
                 props,
                 enumContext,
+                boundedness,
                 checkpoint.assignedPartitions());
     }
 
