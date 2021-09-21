@@ -676,13 +676,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testTriggerCheckpointAfterIOException() throws Exception {
         // given: Checkpoint coordinator which fails on initializeLocationForCheckpoint.
+        TestFailJobCallback failureCallback = new TestFailJobCallback();
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
+                        .setFailureManager(new CheckpointFailureManager(0, failureCallback))
                         .setCheckpointStorage(new IOExceptionCheckpointStorage())
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .build();
         // when: The checkpoint is triggered.
         testTriggerCheckpoint(checkpointCoordinator, IO_EXCEPTION);
+
+        // then: Failure manager should fail the job.
+        assertEquals(1, failureCallback.getInvokeCounter());
     }
 
     @Test
