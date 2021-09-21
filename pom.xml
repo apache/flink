@@ -149,7 +149,7 @@ under the License.
 		<generated.docs.dir>./docs/layouts/shortcodes/generated</generated.docs.dir>
 		<hive.version>2.3.4</hive.version>
 		<hive-2.2.0-orc-version>1.4.3</hive-2.2.0-orc-version>
-		<orc.version>1.6.10</orc.version>
+		<orc.version>1.7.0</orc.version>
 		<!--
 			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
