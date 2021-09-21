@@ -822,28 +822,36 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     protected CleanupJobState jobReachedTerminalState(ExecutionGraphInfo executionGraphInfo) {
         final ArchivedExecutionGraph archivedExecutionGraph =
                 executionGraphInfo.getArchivedExecutionGraph();
+        final JobStatus terminalJobStatus = archivedExecutionGraph.getState();
         Preconditions.checkArgument(
-                archivedExecutionGraph.getState().isTerminalState(),
+                terminalJobStatus.isTerminalState(),
                 "Job %s is in state %s which is not terminal.",
                 archivedExecutionGraph.getJobID(),
-                archivedExecutionGraph.getState());
+                terminalJobStatus);
 
-        if (archivedExecutionGraph.getFailureInfo() != null) {
+        // the failureInfo contains the reason for why job was failed/suspended, but for
+        // finished/canceled jobs it may contain the last cause of a restart (if there were any)
+        // for finished/canceled jobs we don't want to print it because it is misleading
+        final boolean isFailureInfoRelatedToJobTermination =
+                terminalJobStatus == JobStatus.SUSPENDED || terminalJobStatus == JobStatus.FAILED;
+
+        if (archivedExecutionGraph.getFailureInfo() != null
+                && isFailureInfoRelatedToJobTermination) {
             log.info(
                     "Job {} reached terminal state {}.\n{}",
                     archivedExecutionGraph.getJobID(),
-                    archivedExecutionGraph.getState(),
+                    terminalJobStatus,
                     archivedExecutionGraph.getFailureInfo().getExceptionAsString().trim());
         } else {
             log.info(
                     "Job {} reached terminal state {}.",
                     archivedExecutionGraph.getJobID(),
-                    archivedExecutionGraph.getState());
+                    terminalJobStatus);
         }
 
         archiveExecutionGraph(executionGraphInfo);
 
-        return archivedExecutionGraph.getState().isGloballyTerminalState()
+        return terminalJobStatus.isGloballyTerminalState()
                 ? CleanupJobState.GLOBAL
                 : CleanupJobState.LOCAL;
     }
