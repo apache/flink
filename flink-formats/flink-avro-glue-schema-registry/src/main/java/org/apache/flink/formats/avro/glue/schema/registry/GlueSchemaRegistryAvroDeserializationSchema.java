@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro.glue.schema.registry;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.formats.avro.RegistryAvroDeserializationSchema;
 import org.apache.flink.formats.avro.SchemaCoder;
 
@@ -35,6 +36,7 @@ import java.util.Map;
  *
  * @param <T> type of record it produces
  */
+@PublicEvolving
 public class GlueSchemaRegistryAvroDeserializationSchema<T>
         extends RegistryAvroDeserializationSchema<T> {
 
