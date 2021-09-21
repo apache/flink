@@ -356,6 +356,10 @@ With the introduction of `state.backend.rocksdb.memory.managed` and `state.backe
 
 {{< generated/expert_cluster_section >}}
 
+### Advanced JobManager Options
+
+{{< generated/expert_jobmanager_section >}}
+
 ### Advanced Scheduling Options
 
 *These parameters can help with fine-tuning scheduling for specific situations.*

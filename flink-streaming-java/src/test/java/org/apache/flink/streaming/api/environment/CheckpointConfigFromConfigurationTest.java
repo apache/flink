@@ -69,12 +69,6 @@ public class CheckpointConfigFromConfigurationTest {
                         .viaSetter(CheckpointConfig::setMinPauseBetweenCheckpoints)
                         .getterVia(CheckpointConfig::getMinPauseBetweenCheckpoints)
                         .nonDefaultValue(100L),
-                TestSpec.testValue(true)
-                        .whenSetFromFile(
-                                "execution.checkpointing.prefer-checkpoint-for-recovery", "true")
-                        .viaSetter(CheckpointConfig::setPreferCheckpointForRecovery)
-                        .getterVia(CheckpointConfig::isPreferCheckpointForRecovery)
-                        .nonDefaultValue(true),
                 TestSpec.testValue(
                                 CheckpointConfig.ExternalizedCheckpointCleanup
                                         .RETAIN_ON_CANCELLATION)

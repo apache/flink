@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter.converters;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule;
@@ -32,6 +33,7 @@ import static org.apache.flink.table.planner.expressions.converter.ExpressionCon
 import static org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isTimeInterval;
 
 /** Conversion for {@link BuiltInFunctionDefinitions#TEMPORAL_OVERLAPS}. */
+@Internal
 class TemporalOverlapsConverter extends CustomizedConverter {
     @Override
     public RexNode convert(CallExpression call, CallExpressionConvertRule.ConvertContext context) {

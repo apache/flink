@@ -202,6 +202,39 @@ public class KafkaPartitionSplitReaderTest {
         }
     }
 
+    @Test
+    public void testAssignEmptySplit() throws Exception {
+        KafkaPartitionSplitReader<Integer> reader = createReader();
+        final KafkaPartitionSplit normalSplit =
+                new KafkaPartitionSplit(
+                        new TopicPartition(TOPIC1, 0),
+                        KafkaPartitionSplit.EARLIEST_OFFSET,
+                        KafkaPartitionSplit.NO_STOPPING_OFFSET);
+        final KafkaPartitionSplit emptySplit =
+                new KafkaPartitionSplit(
+                        new TopicPartition(TOPIC2, 0),
+                        KafkaPartitionSplit.LATEST_OFFSET,
+                        KafkaPartitionSplit.LATEST_OFFSET);
+        reader.handleSplitsChanges(new SplitsAddition<>(Arrays.asList(normalSplit, emptySplit)));
+
+        // Fetch and check empty splits is added to finished splits
+        RecordsWithSplitIds<Tuple3<Integer, Long, Long>> recordsWithSplitIds = reader.fetch();
+        assertTrue(recordsWithSplitIds.finishedSplits().contains(emptySplit.splitId()));
+
+        // Assign another valid split to avoid consumer.poll() blocking
+        final KafkaPartitionSplit anotherNormalSplit =
+                new KafkaPartitionSplit(
+                        new TopicPartition(TOPIC1, 1),
+                        KafkaPartitionSplit.EARLIEST_OFFSET,
+                        KafkaPartitionSplit.NO_STOPPING_OFFSET);
+        reader.handleSplitsChanges(
+                new SplitsAddition<>(Collections.singletonList(anotherNormalSplit)));
+
+        // Fetch again and check empty split set is cleared
+        recordsWithSplitIds = reader.fetch();
+        assertTrue(recordsWithSplitIds.finishedSplits().isEmpty());
+    }
+
     // ------------------
 
     private void assignSplitsAndFetchUntilFinish(

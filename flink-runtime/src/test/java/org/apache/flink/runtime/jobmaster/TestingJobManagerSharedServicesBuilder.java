@@ -31,7 +31,9 @@ import java.util.concurrent.ScheduledExecutorService;
 /** Builder for the {@link JobManagerSharedServices}. */
 public class TestingJobManagerSharedServicesBuilder {
 
-    private ScheduledExecutorService scheduledExecutorService;
+    private ScheduledExecutorService futureExecutor;
+
+    private ScheduledExecutorService ioExecutor;
 
     private LibraryCacheManager libraryCacheManager;
 
@@ -40,15 +42,21 @@ public class TestingJobManagerSharedServicesBuilder {
     private BlobWriter blobWriter;
 
     public TestingJobManagerSharedServicesBuilder() {
-        scheduledExecutorService = TestingUtils.defaultExecutor();
+        futureExecutor = TestingUtils.defaultExecutor();
+        ioExecutor = TestingUtils.defaultExecutor();
         libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
         shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
         blobWriter = VoidBlobWriter.getInstance();
     }
 
-    public TestingJobManagerSharedServicesBuilder setScheduledExecutorService(
-            ScheduledExecutorService scheduledExecutorService) {
-        this.scheduledExecutorService = scheduledExecutorService;
+    public TestingJobManagerSharedServicesBuilder futureExecutor(
+            ScheduledExecutorService futureExecutor) {
+        this.futureExecutor = futureExecutor;
+        return this;
+    }
+
+    public TestingJobManagerSharedServicesBuilder ioExecutor(ScheduledExecutorService ioExecutor) {
+        this.ioExecutor = ioExecutor;
         return this;
     }
 
@@ -69,6 +77,6 @@ public class TestingJobManagerSharedServicesBuilder {
 
     public JobManagerSharedServices build() {
         return new JobManagerSharedServices(
-                scheduledExecutorService, libraryCacheManager, shuffleMaster, blobWriter);
+                futureExecutor, ioExecutor, libraryCacheManager, shuffleMaster, blobWriter);
     }
 }

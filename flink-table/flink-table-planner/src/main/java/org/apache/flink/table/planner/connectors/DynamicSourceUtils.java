@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -348,7 +349,7 @@ public final class DynamicSourceUtils {
                         tableSource,
                         !isBatchMode,
                         catalogTable,
-                        new String[0],
+                        ShortcutUtils.unwrapContext(relBuilder),
                         new SourceAbilitySpec[0]);
 
         final LogicalTableScan scan =

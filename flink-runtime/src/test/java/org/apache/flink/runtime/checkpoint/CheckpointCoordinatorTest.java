@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -58,6 +59,7 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
@@ -82,6 +84,7 @@ import org.mockito.verification.VerificationMode;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -3608,77 +3611,29 @@ public class CheckpointCoordinatorTest extends TestLogger {
     }
 
     @Test
-    public void testNotReportRestoredCompletedCheckpointIdWithAbort() throws Exception {
+    public void testBaseLocationsNotInitialized() throws Exception {
+        File checkpointDir = tmpFolder.newFolder();
         JobVertexID jobVertexID = new JobVertexID();
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexID)
                         .setTransitToRunning(false)
                         .build();
-
-        ExecutionVertex task = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
-        AtomicLong reportedCheckpointId = new AtomicLong(Long.MIN_VALUE);
-        LogicalSlot slot =
-                new TestingLogicalSlotBuilder()
-                        .setTaskManagerGateway(
-                                new SimpleAckingTaskManagerGateway() {
-                                    @Override
-                                    public void notifyCheckpointAborted(
-                                            ExecutionAttemptID executionAttemptID,
-                                            JobID jobId,
-                                            long checkpointId,
-                                            long latestCompletedCheckpointId,
-                                            long timestamp) {
-                                        reportedCheckpointId.set(latestCompletedCheckpointId);
-                                    }
-                                })
-                        .createTestingLogicalSlot();
-        ExecutionGraphTestUtils.setVertexResource(task, slot);
-        task.getCurrentExecutionAttempt().transitionState(ExecutionState.RUNNING);
-
-        CompletedCheckpoint restoredCheckpoint =
-                new CompletedCheckpoint(
-                        graph.getJobID(),
-                        5,
-                        5,
-                        5,
-                        Collections.emptyMap(),
-                        null,
-                        CheckpointProperties.forCheckpoint(
-                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation());
-        CompletedCheckpointStore completedCheckpointStore =
-                new StandaloneCompletedCheckpointStore(10);
-        completedCheckpointStore.addCheckpoint(
-                restoredCheckpoint, new CheckpointsCleaner(), () -> {});
-        StandaloneCheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
-        checkpointIDCounter.setCount(6);
-
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
                         .setExecutionGraph(graph)
-                        .setTimer(manuallyTriggeredScheduledExecutor)
-                        .setCompletedCheckpointStore(completedCheckpointStore)
-                        .setCheckpointIDCounter(checkpointIDCounter)
-                        .setAllowCheckpointsAfterTasksFinished(true)
+                        .setCheckpointCoordinatorConfiguration(
+                                CheckpointCoordinatorConfiguration.builder()
+                                        .setCheckpointInterval(Long.MAX_VALUE)
+                                        .build())
+                        .setCheckpointStorage(new FsStateBackend(checkpointDir.toURI()))
                         .build();
-        checkpointCoordinator.restoreLatestCheckpointedStateToSubtasks(
-                new HashSet<>(graph.getAllVertices().values()));
+        Path jobCheckpointPath =
+                new Path(checkpointDir.getAbsolutePath(), graph.getJobID().toString());
+        FileSystem fs = FileSystem.get(checkpointDir.toURI());
 
-        CompletableFuture<?> result = checkpointCoordinator.triggerCheckpoint(false);
-        manuallyTriggeredScheduledExecutor.triggerAll();
-        long abortedCheckpointId =
-                checkpointCoordinator.getPendingCheckpoints().entrySet().iterator().next().getKey();
-        checkpointCoordinator.receiveDeclineMessage(
-                new DeclineCheckpoint(
-                        graph.getJobID(),
-                        task.getCurrentExecutionAttempt().getAttemptId(),
-                        abortedCheckpointId,
-                        new CheckpointException(CHECKPOINT_EXPIRED)),
-                "localhost");
-        assertTrue(result.isCompletedExceptionally());
-
-        assertEquals(0, reportedCheckpointId.get());
+        // directory will not be created if checkpointing is disabled
+        Assert.assertFalse(fs.exists(jobCheckpointPath));
     }
 
     private CheckpointCoordinator getCheckpointCoordinator(ExecutionGraph graph) throws Exception {

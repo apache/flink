@@ -25,7 +25,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.CumulativeWindowSpec;
 import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
-import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowSpec;
@@ -120,10 +119,6 @@ public class StreamExecWindowTableFunction extends ExecNodeBase<RowData>
                                     + "3. join with join condition contains window starts equality of input tables "
                                     + "and window ends equality of input tables.\n",
                             windowSummary));
-        } else if (windowingStrategy.getWindow() instanceof SessionWindowSpec) {
-            // WindowTableFunctionOperator is not suitable for Session Window because can't do
-            // state-less window assigning for input row per record for Session Window.
-            throw new TableException("Session Window TableFunction is not supported yet.");
         } else if (!windowingStrategy.isRowtime()) {
             throw new TableException("Processing time Window TableFunction is not supported yet.");
         }

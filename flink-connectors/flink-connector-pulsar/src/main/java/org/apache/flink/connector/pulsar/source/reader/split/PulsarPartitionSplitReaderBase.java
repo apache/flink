@@ -26,8 +26,6 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.CursorPosition;
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
@@ -42,7 +40,6 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.slf4j.Logger;
@@ -56,7 +53,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
-import static org.apache.flink.connector.pulsar.source.config.CursorVerification.FAIL_ON_MISMATCH;
 import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.createConsumerBuilder;
 
 /**
@@ -201,26 +197,6 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     protected abstract void startConsumer(PulsarPartitionSplit split, Consumer<byte[]> consumer);
 
     // --------------------------- Helper Methods -----------------------------
-
-    protected void initialStartPosition(PulsarPartitionSplit split, Consumer<byte[]> consumer) {
-        StartCursor startCursor = split.getStartCursor();
-        // Seek start consuming position for assigned split.
-        CursorPosition position = startCursor.position(split);
-
-        // Set position for current consumer. We don't need to use
-        // consumer.redeliverUnacknowledgedMessages()
-        try {
-            position.seekPosition(consumer);
-        } catch (PulsarClientException e) {
-            if (sourceConfiguration.getVerifyInitialOffsets() == FAIL_ON_MISMATCH) {
-                throw new IllegalArgumentException(e);
-            } else {
-                // WARN_ON_MISMATCH would just print this warning message.
-                // No need to print the stacktrace.
-                LOG.warn(e.getMessage());
-            }
-        }
-    }
 
     protected boolean isNotWakeup() {
         return !wakeup.get();

@@ -695,6 +695,54 @@ public class ResultPartitionTest {
     }
 
     @Test
+    public void testDynamicBufferSizeForBroadcast() throws IOException {
+        // given: Configured pipelined result with 2 subpartitions.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
+
+        ResultSubpartition[] subpartitions = bufferWritingResultPartition.subpartitions;
+        assertEquals(2, subpartitions.length);
+
+        PipelinedSubpartition subpartition0 = (PipelinedSubpartition) subpartitions[0];
+        PipelinedSubpartition subpartition1 = (PipelinedSubpartition) subpartitions[1];
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(6);
+        subpartition1.bufferSize(10);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(6));
+
+        // then: The buffer less or equal to configured.
+        assertEquals(6, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(6, subpartition1.pollBuffer().buffer().getSize());
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(4);
+        subpartition1.bufferSize(12);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(10));
+
+        // then: The buffer less or equal to configured.
+        assertEquals(4, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(6, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(4, subpartition1.pollBuffer().buffer().getSize());
+        assertEquals(6, subpartition1.pollBuffer().buffer().getSize());
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(8);
+        subpartition1.bufferSize(5);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(3));
+
+        // then: The buffer less or equal to configured.
+        assertEquals(3, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(3, subpartition1.pollBuffer().buffer().getSize());
+    }
+
+    @Test
     public void testBufferSizeNotChanged() throws IOException {
         // given: Configured pipelined result with 2 subpartitions.
         BufferWritingResultPartition bufferWritingResultPartition =

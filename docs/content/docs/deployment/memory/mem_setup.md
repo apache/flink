@@ -31,7 +31,7 @@ under the License.
 Apache Flink provides efficient workloads on top of the JVM by tightly controlling the memory usage of its various components.
 While the community strives to offer sensible defaults to all configurations, the full breadth of applications
 that users deploy on Flink means this isn't always possible. To provide the most production value to our users,
-Flink allows both high level and fine-grained tuning of memory allocation within clusters.
+Flink allows both high-level and fine-grained tuning of memory allocation within clusters. To optimize memory requirements, check the [network memory tuning guide]({{< ref "docs/deployment/memory/network_mem_tuning" >}}). 
 
 The further described memory configuration is applicable starting with the release version *1.10* for TaskManager and
 *1.11* for JobManager processes. If you upgrade Flink from earlier versions, check the [migration guide]({{< ref "docs/deployment/memory/mem_migration" >}})

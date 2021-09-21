@@ -25,6 +25,8 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
+import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
+import org.apache.flink.connector.kafka.source.KafkaSourceTestUtils;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
@@ -48,6 +50,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -55,10 +59,15 @@ import org.junit.Test;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
+import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.COMMITS_SUCCEEDED_METRIC_COUNTER;
@@ -69,10 +78,10 @@ import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderM
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP;
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.PARTITION_GROUP;
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.TOPIC_GROUP;
+import static org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv.NUM_PARTITIONS;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Unit tests for {@link KafkaSourceReader}. */
 public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSplit> {
@@ -83,7 +92,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
         KafkaSourceTestEnv.setup();
         try (AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
             adminClient.createTopics(
-                    Collections.singleton(new NewTopic(TOPIC, NUM_SPLITS, (short) 1)));
+                    Collections.singleton(new NewTopic(TOPIC, NUM_PARTITIONS, (short) 1)));
             // Use the admin client to trigger the creation of internal __consumer_offsets topic.
             // This makes sure that we won't see unavailable coordinator in the tests.
             waitUtil(
@@ -108,6 +117,10 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     @AfterClass
     public static void tearDown() throws Exception {
         KafkaSourceTestEnv.tearDown();
+    }
+
+    protected int getNumSplits() {
+        return NUM_PARTITIONS;
     }
 
     // -----------------------------------------
@@ -190,7 +203,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                 (KafkaSourceReader<Integer>)
                         createReader(Boundedness.CONTINUOUS_UNBOUNDED, groupId)) {
             reader.addSplits(
-                    getSplits(NUM_SPLITS, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED));
+                    getSplits(numSplits, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED));
             ValidatingSourceOutput output = new ValidatingSourceOutput();
             long checkpointId = 0;
             do {
@@ -198,7 +211,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                 reader.pollNext(output);
                 // Create a checkpoint for each message consumption, but not complete them.
                 reader.snapshotState(checkpointId);
-            } while (output.count() < TOTAL_NUM_RECORDS);
+            } while (output.count() < totalNumRecords);
 
             // The completion of the last checkpoint should subsume all the previous checkpoitns.
             assertEquals(checkpointId, reader.getOffsetsToCommit().size());
@@ -217,7 +230,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                             .listConsumerGroupOffsets(groupId)
                             .partitionsToOffsetAndMetadata()
                             .get();
-            assertEquals(NUM_SPLITS, committedOffsets.size());
+            assertEquals(numSplits, committedOffsets.size());
             committedOffsets.forEach(
                     (tp, offsetAndMetadata) ->
                             assertEquals(NUM_RECORDS_PER_SPLIT, offsetAndMetadata.offset()));
@@ -235,6 +248,32 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
             reader.snapshotState(checkpointId);
             assertEquals(1, reader.getOffsetsToCommit().size());
             assertTrue(reader.getOffsetsToCommit().get(checkpointId).isEmpty());
+        }
+    }
+
+    @Test
+    public void testDisableOffsetCommit() throws Exception {
+        final Properties properties = new Properties();
+        properties.setProperty(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT.key(), "false");
+        try (KafkaSourceReader<Integer> reader =
+                (KafkaSourceReader<Integer>)
+                        createReader(
+                                Boundedness.CONTINUOUS_UNBOUNDED,
+                                new TestingReaderContext(),
+                                (ignore) -> {},
+                                properties)) {
+            reader.addSplits(
+                    getSplits(numSplits, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED));
+            ValidatingSourceOutput output = new ValidatingSourceOutput();
+            long checkpointId = 0;
+            do {
+                checkpointId++;
+                reader.pollNext(output);
+                // Create a checkpoint for each message consumption, but not complete them.
+                reader.snapshotState(checkpointId);
+                // Offsets to commit should be always empty because offset commit is disabled
+                assertEquals(0, reader.getOffsetsToCommit().size());
+            } while (output.count() < totalNumRecords);
         }
     }
 
@@ -305,6 +344,41 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
         }
     }
 
+    @Test
+    public void testAssigningEmptySplits() throws Exception {
+        // Normal split with NUM_RECORDS_PER_SPLIT records
+        final KafkaPartitionSplit normalSplit =
+                new KafkaPartitionSplit(
+                        new TopicPartition(TOPIC, 0), 0, KafkaPartitionSplit.LATEST_OFFSET);
+        // Empty split with no record
+        final KafkaPartitionSplit emptySplit =
+                new KafkaPartitionSplit(
+                        new TopicPartition(TOPIC, 1), NUM_RECORDS_PER_SPLIT, NUM_RECORDS_PER_SPLIT);
+        // Split finished hook for listening finished splits
+        final Set<String> finishedSplits = new HashSet<>();
+        final Consumer<Collection<String>> splitFinishedHook = finishedSplits::addAll;
+
+        try (final KafkaSourceReader<Integer> reader =
+                (KafkaSourceReader<Integer>)
+                        createReader(
+                                Boundedness.BOUNDED,
+                                "KafkaSourceReaderTestGroup",
+                                new TestingReaderContext(),
+                                splitFinishedHook)) {
+            reader.addSplits(Arrays.asList(normalSplit, emptySplit));
+            pollUntil(
+                    reader,
+                    new TestingReaderOutput<>(),
+                    () -> reader.getNumAliveFetchers() == 0,
+                    "The split fetcher did not exit before timeout.");
+            MatcherAssert.assertThat(
+                    finishedSplits,
+                    Matchers.containsInAnyOrder(
+                            KafkaPartitionSplit.toSplitId(normalSplit.getTopicPartition()),
+                            KafkaPartitionSplit.toSplitId(emptySplit.getTopicPartition())));
+        }
+    }
+
     // ------------------------------------------
 
     @Override
@@ -340,7 +414,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
     private SourceReader<Integer, KafkaPartitionSplit> createReader(
             Boundedness boundedness, String groupId) throws Exception {
-        return createReader(boundedness, groupId, new TestingReaderContext());
+        return createReader(boundedness, groupId, new TestingReaderContext(), (ignore) -> {});
     }
 
     private SourceReader<Integer, KafkaPartitionSplit> createReader(
@@ -349,11 +423,27 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                 boundedness,
                 groupId,
                 new TestingReaderContext(
-                        new Configuration(), InternalSourceReaderMetricGroup.mock(metricGroup)));
+                        new Configuration(), InternalSourceReaderMetricGroup.mock(metricGroup)),
+                (ignore) -> {});
     }
 
     private SourceReader<Integer, KafkaPartitionSplit> createReader(
-            Boundedness boundedness, String groupId, SourceReaderContext context) throws Exception {
+            Boundedness boundedness,
+            String groupId,
+            SourceReaderContext context,
+            Consumer<Collection<String>> splitFinishedHook)
+            throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        return createReader(boundedness, context, splitFinishedHook, properties);
+    }
+
+    private SourceReader<Integer, KafkaPartitionSplit> createReader(
+            Boundedness boundedness,
+            SourceReaderContext context,
+            Consumer<Collection<String>> splitFinishedHook,
+            Properties props)
+            throws Exception {
         KafkaSourceBuilder<Integer> builder =
                 KafkaSource.<Integer>builder()
                         .setClientIdPrefix("KafkaSourceReaderTest")
@@ -364,14 +454,14 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                         .setProperty(
                                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
                                 KafkaSourceTestEnv.brokerConnectionStrings)
-                        .setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId)
-                        .setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-
+                        .setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
+                        .setProperties(props);
         if (boundedness == Boundedness.BOUNDED) {
             builder.setBounded(OffsetsInitializer.latest());
         }
 
-        return builder.build().createReader(context);
+        return KafkaSourceTestUtils.createReaderWithFinishedSplitHook(
+                builder.build(), context, splitFinishedHook);
     }
 
     private void pollUntil(
@@ -385,10 +475,9 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                     try {
                         reader.pollNext(output);
                     } catch (Exception exception) {
-                        fail(
-                                String.format(
-                                        "Caught unexpected exception %s when polling from the reader.",
-                                        exception));
+                        throw new RuntimeException(
+                                "Caught unexpected exception when polling from the reader",
+                                exception);
                     }
                     return condition.get();
                 },
@@ -434,7 +523,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
     private static List<ProducerRecord<String, Integer>> getRecords() {
         List<ProducerRecord<String, Integer>> records = new ArrayList<>();
-        for (int part = 0; part < NUM_SPLITS; part++) {
+        for (int part = 0; part < NUM_PARTITIONS; part++) {
             for (int i = 0; i < NUM_RECORDS_PER_SPLIT; i++) {
                 records.add(
                         new ProducerRecord<>(

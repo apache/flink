@@ -19,6 +19,7 @@ package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -48,6 +49,8 @@ import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
+
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
@@ -58,7 +61,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -115,6 +117,7 @@ public class KafkaSinkITCase extends TestLogger {
     private static final int ZK_TIMEOUT_MILLIS = 30000;
     private static final short TOPIC_REPLICATION_FACTOR = 1;
     private static final Duration CONSUMER_POLL_DURATION = Duration.ofSeconds(1);
+    private static final RecordSerializer serializer = new RecordSerializer();
     private static AdminClient admin;
 
     private String topic;
@@ -189,6 +192,7 @@ public class KafkaSinkITCase extends TestLogger {
     public void testRecoveryWithAtLeastOnceGuarantee() throws Exception {
         testRecoveryWithAssertion(
                 DeliveryGuarantee.AT_LEAST_ONCE,
+                1,
                 (records) ->
                         assertThat(records, hasItems(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L)));
     }
@@ -197,12 +201,28 @@ public class KafkaSinkITCase extends TestLogger {
     public void testRecoveryWithExactlyOnceGuarantee() throws Exception {
         testRecoveryWithAssertion(
                 DeliveryGuarantee.EXACTLY_ONCE,
+                1,
                 (records) ->
-                        assertEquals(
+                        assertThat(
                                 records,
-                                LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
-                                        .boxed()
-                                        .collect(Collectors.toList())));
+                                contains(
+                                        LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
+                                                .boxed()
+                                                .toArray())));
+    }
+
+    @Test
+    public void testRecoveryWithExactlyOnceGuaranteeAndConcurrentCheckpoints() throws Exception {
+        testRecoveryWithAssertion(
+                DeliveryGuarantee.EXACTLY_ONCE,
+                2,
+                (records) ->
+                        assertThat(
+                                records,
+                                contains(
+                                        LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
+                                                .boxed()
+                                                .toArray())));
     }
 
     @Test
@@ -278,6 +298,7 @@ public class KafkaSinkITCase extends TestLogger {
             Configuration config,
             @Nullable String transactionalIdPrefix)
             throws Exception {
+        config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
         final StreamExecutionEnvironment env = new LocalStreamEnvironment(config);
         env.enableCheckpointing(100L);
         env.setRestartStrategy(RestartStrategies.noRestart());
@@ -287,7 +308,11 @@ public class KafkaSinkITCase extends TestLogger {
                 new KafkaSinkBuilder<Long>()
                         .setDeliverGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
-                        .setRecordSerializer(new RecordSerializer(topic));
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setTopic(topic)
+                                        .setValueSerializationSchema(new RecordSerializer())
+                                        .build());
         if (transactionalIdPrefix == null) {
             transactionalIdPrefix = "kafka-sink";
         }
@@ -298,10 +323,15 @@ public class KafkaSinkITCase extends TestLogger {
     }
 
     private void testRecoveryWithAssertion(
-            DeliveryGuarantee guarantee, java.util.function.Consumer<List<Long>> recordsAssertion)
+            DeliveryGuarantee guarantee,
+            int maxConcurrentCheckpoints,
+            java.util.function.Consumer<List<Long>> recordsAssertion)
             throws Exception {
-        final StreamExecutionEnvironment env = new LocalStreamEnvironment();
+        Configuration config = new Configuration();
+        config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
+        final StreamExecutionEnvironment env = new LocalStreamEnvironment(config);
         env.enableCheckpointing(300L);
+        env.getCheckpointConfig().setMaxConcurrentCheckpoints(maxConcurrentCheckpoints);
         DataStreamSource<Long> source = env.fromSequence(1, 10);
         DataStream<Long> stream =
                 source.map(new FailingCheckpointMapper(failed, lastCheckpointedRecord));
@@ -310,7 +340,11 @@ public class KafkaSinkITCase extends TestLogger {
                 new KafkaSinkBuilder<Long>()
                         .setDeliverGuarantee(guarantee)
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
-                        .setRecordSerializer(new RecordSerializer(topic))
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setTopic(topic)
+                                        .setValueSerializationSchema(new RecordSerializer())
+                                        .build())
                         .setTransactionalIdPrefix("kafka-sink")
                         .build());
         env.execute();
@@ -336,7 +370,11 @@ public class KafkaSinkITCase extends TestLogger {
                 new KafkaSinkBuilder<Long>()
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
                         .setDeliverGuarantee(deliveryGuarantee)
-                        .setRecordSerializer(new RecordSerializer(topic))
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setTopic(topic)
+                                        .setValueSerializationSchema(new RecordSerializer())
+                                        .build())
                         .setTransactionalIdPrefix("kafka-sink")
                         .build());
         env.execute();
@@ -422,20 +460,13 @@ public class KafkaSinkITCase extends TestLogger {
         return collectedRecords;
     }
 
-    private static class RecordSerializer implements KafkaRecordSerializationSchema<Long> {
-
-        private final String topic;
-
-        public RecordSerializer(String topic) {
-            this.topic = topic;
-        }
+    private static class RecordSerializer implements SerializationSchema<Long> {
 
         @Override
-        public ProducerRecord<byte[], byte[]> serialize(
-                Long element, KafkaSinkContext context, Long timestamp) {
+        public byte[] serialize(Long element) {
             final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
             buffer.putLong(element);
-            return new ProducerRecord<>(topic, 0, null, null, buffer.array());
+            return buffer.array();
         }
     }
 
@@ -588,12 +619,34 @@ public class KafkaSinkITCase extends TestLogger {
         public void initializeState(FunctionInitializationContext context) throws Exception {}
     }
 
-    private void checkProducerLeak() {
-        for (Thread t : Thread.getAllStackTraces().keySet()) {
-            if (t.getName().contains("kafka-producer-network-thread")) {
-                fail("Detected producer leak. Thread name: " + t.getName());
+    private void checkProducerLeak() throws InterruptedException {
+        List<Map.Entry<Thread, StackTraceElement[]>> leaks = null;
+        for (int tries = 0; tries < 10; tries++) {
+            leaks =
+                    Thread.getAllStackTraces().entrySet().stream()
+                            .filter(this::findAliveKafkaThread)
+                            .collect(Collectors.toList());
+            if (leaks.isEmpty()) {
+                return;
             }
+            Thread.sleep(1000);
         }
+
+        for (Map.Entry<Thread, StackTraceElement[]> leak : leaks) {
+            leak.getKey().stop();
+        }
+        fail(
+                "Detected producer leaks:\n"
+                        + leaks.stream().map(this::format).collect(Collectors.joining("\n\n")));
+    }
+
+    private String format(Map.Entry<Thread, StackTraceElement[]> leak) {
+        return leak.getKey().getName() + ":\n" + Joiner.on("\n").join(leak.getValue());
+    }
+
+    private boolean findAliveKafkaThread(Map.Entry<Thread, StackTraceElement[]> threadStackTrace) {
+        return threadStackTrace.getKey().getState() != Thread.State.TERMINATED
+                && threadStackTrace.getKey().getName().contains("kafka-producer-network-thread");
     }
 
     /**

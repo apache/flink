@@ -153,7 +153,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         configuration,
                         executor,
                         AddressResolution.NO_ADDRESS_RESOLUTION,
-                        rpcSystem);
+                        rpcSystem,
+                        this);
 
         JMXService.startInstance(configuration.getString(JMXServerOptions.JMX_SERVER_PORT));
 

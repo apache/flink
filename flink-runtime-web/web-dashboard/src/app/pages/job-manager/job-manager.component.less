@@ -18,17 +18,18 @@
 @import "theme";
 
 :host {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  border: 1px solid @border-color-split;
+  border-radius: 2px;
+  background: @body-background;
+  font-size: 14px;
+  line-height: 1.5;
+
   flink-navigation {
     ::ng-deep .ant-tabs-nav-wrap {
       margin: 0 @margin-md;
     }
   }
-  display: block;
-  font-size: 14px;
-  line-height: 1.5;
-  box-sizing: border-box;
-  border: 1px solid @border-color-split;
-  background: @body-background;
-  border-radius: 2px;
-  position: relative;
 }

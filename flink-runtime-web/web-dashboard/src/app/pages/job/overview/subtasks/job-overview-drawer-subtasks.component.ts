@@ -19,10 +19,12 @@
 import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { deepFind } from 'utils';
+
+import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+
 import { JobSubTaskInterface } from 'interfaces';
 import { JobService } from 'services';
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+import { deepFind } from 'utils';
 
 @Component({
   selector: 'flink-job-overview-drawer-subtasks',
@@ -53,13 +55,13 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
       deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }
 
-  trackTaskBy(_: number, node: JobSubTaskInterface) {
+  trackTaskBy(_: number, node: JobSubTaskInterface): number {
     return node.subtask;
   }
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
@@ -78,7 +80,7 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
       );
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

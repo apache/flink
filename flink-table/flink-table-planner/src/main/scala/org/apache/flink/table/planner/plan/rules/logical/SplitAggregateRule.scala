@@ -22,7 +22,6 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkLogicalRelFactories, FlinkRelBuilder}
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction}
-import org.apache.flink.table.planner.plan.logical.SessionWindowSpec
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
@@ -139,18 +138,11 @@ class SplitAggregateRule extends RelOptRule(
     val windowProps = fmq.getRelWindowProperties(agg.getInput)
     val isWindowAgg = WindowUtil.groupingContainsWindowStartEnd(agg.getGroupSet, windowProps)
     val isProctimeWindowAgg = isWindowAgg && !windowProps.isRowtime
-
-    // disable distinct split for session window,
-    // otherwise window assigner results may be different
-    val isSessionWindowAgg = isWindowAgg &&
-      windowProps.getWindowSpec.isInstanceOf[SessionWindowSpec]
-
     // TableAggregate is not supported. see also FLINK-21923.
     val isTableAgg = AggregateUtil.isTableAggregate(agg.getAggCallList)
 
     agg.partialFinalType == PartialFinalType.NONE && agg.containsDistinctCall() &&
-      splitDistinctAggEnabled && isAllAggSplittable && !isProctimeWindowAgg &&
-      !isTableAgg && !isSessionWindowAgg
+      splitDistinctAggEnabled && isAllAggSplittable && !isProctimeWindowAgg && !isTableAgg
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

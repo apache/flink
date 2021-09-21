@@ -520,7 +520,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
                     return Acknowledge.get();
                 },
-                jobManagerSharedServices.getScheduledExecutorService());
+                jobManagerSharedServices.getIoExecutor());
     }
 
     @Override

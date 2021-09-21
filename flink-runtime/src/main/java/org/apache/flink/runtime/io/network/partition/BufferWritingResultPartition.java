@@ -330,9 +330,15 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     private void createBroadcastBufferConsumers(BufferBuilder buffer, int partialRecordBytes)
             throws IOException {
         try (final BufferConsumer consumer = buffer.createBufferConsumerFromBeginning()) {
+            int desirableBufferSize = Integer.MAX_VALUE;
             for (ResultSubpartition subpartition : subpartitions) {
-                subpartition.add(consumer.copy(), partialRecordBytes);
+                int subPartitionBufferSize = subpartition.add(consumer.copy(), partialRecordBytes);
+                desirableBufferSize =
+                        subPartitionBufferSize > 0
+                                ? Math.min(desirableBufferSize, subPartitionBufferSize)
+                                : desirableBufferSize;
             }
+            buffer.trim(desirableBufferSize);
         }
     }
 

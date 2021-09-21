@@ -86,6 +86,113 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   }
 
   @Test
+  def testDependentConditionDerivationInnerJoin(): Unit = {
+    val data1 = List(
+      (0, 1),
+      (1, 2),
+      (2, 3)
+    )
+
+    val data2 = List(
+      (3, 4),
+      (4, 5),
+      (5, 6)
+    )
+
+    val leftTable = failingDataSource(data1).toTable(tEnv, 'a1, 'a2)
+    val rightTable = failingDataSource(data2).toTable(tEnv, 'b1, 'b2)
+
+    val joinedTable = leftTable.join(rightTable)
+      .where(('a1 === 0 && 'b1 === 3) || ('a1 === 1 && 'b2 === 5))
+      .select('a1, 'a2, 'b1, 'b2)
+
+
+    val sink = new TestingAppendSink
+    joinedTable.toAppendStream[Row].addSink(sink)
+
+    env.execute()
+
+    val expected = Seq(
+      "0,1,3,4",
+        "1,2,4,5"
+    )
+
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testDependentConditionDerivationInnerJoinWithTrue(): Unit = {
+    val data1 = List(
+      (0, 1),
+      (1, 2),
+      (2, 3)
+    )
+
+    val data2 = List(
+      (3, 4),
+      (4, 5),
+      (5, 6)
+    )
+
+    val leftTable = failingDataSource(data1).toTable(tEnv, 'a1, 'a2)
+    val rightTable = failingDataSource(data2).toTable(tEnv, 'b1, 'b2)
+
+    val joinedTable = leftTable.join(rightTable)
+      .where(('a1 === 0 && 'b1 === 3) || ('a1 === 1 && true))
+      .select('a1, 'a2, 'b1, 'b2)
+
+
+    val sink = new TestingAppendSink
+    joinedTable.toAppendStream[Row].addSink(sink)
+
+    env.execute()
+
+    val expected = Seq(
+      "0,1,3,4",
+      "1,2,3,4",
+      "1,2,4,5",
+      "1,2,5,6"
+    )
+
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testDependentConditionDerivationInnerJoinWithNull(): Unit = {
+    val data1 = List(
+      (0, 1, "hi a1"),
+      (1, 2, "hi a2"),
+      (2, 3, "hi a3")
+    )
+
+    val data2 = List(
+      (3, 4, "hi b1"),
+      (4, 5, null),
+      (5, 6, "hi b3")
+    )
+
+    val leftTable = failingDataSource(data1).toTable(tEnv, 'a1, 'a2, 'a3)
+    val rightTable = failingDataSource(data2).toTable(tEnv, 'b1, 'b2, 'b3)
+
+    val joinedTable = leftTable.join(rightTable)
+      .where(('a1 === 0 && 'b1 === 3) || ('a1 === 1 && 'b3.isNull))
+      .select('a1, 'a2, 'a3, 'b1, 'b2, 'b3)
+
+
+    val sink = new TestingAppendSink
+    joinedTable.toAppendStream[Row].addSink(sink)
+
+    env.execute()
+
+    val expected = Seq(
+      "0,1,hi a1,3,4,hi b1",
+      "1,2,hi a2,4,5,null"
+    )
+
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
   def testInnerJoinOutputWithPk(): Unit = {
     // data input
     val data1 = List(

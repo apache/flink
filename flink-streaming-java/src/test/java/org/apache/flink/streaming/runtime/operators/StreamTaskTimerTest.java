@@ -38,15 +38,17 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
-import javax.annotation.Nullable;
-
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 /** Tests for the timer service of {@link org.apache.flink.streaming.runtime.tasks.StreamTask}. */
 @SuppressWarnings("serial")
@@ -107,26 +109,29 @@ public class StreamTaskTimerTest extends TestLogger {
 
     @Test
     public void checkScheduledTimestamps() throws Exception {
-        final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+        ValidatingProcessingTimeCallback.numInSequence = 0;
+        long currentTimeMillis = System.currentTimeMillis();
+        ArrayList<ValidatingProcessingTimeCallback> timeCallbacks = new ArrayList<>();
 
-        final long t1 = System.currentTimeMillis();
-        final long t2 = System.currentTimeMillis() - 200;
-        final long t3 = System.currentTimeMillis() + 100;
-        final long t4 = System.currentTimeMillis() + 200;
+        /*
+         It is not possible to test registering timer for currentTimeMillis or value slightly greater than
+         currentTimeMillis because if the during registerTimer the internal currentTime is equal
+         to this value then according to current logic the time will be increased for 1ms while
+         `currentTimeMillis - 200` is always transform to 0, so it can lead to reordering. See
+         comment in {@link ProcessingTimeServiceUtil#getRecordProcessingTimeDelay(long, long)}.
+        */
+        timeCallbacks.add(new ValidatingProcessingTimeCallback(currentTimeMillis - 1, 0));
+        timeCallbacks.add(new ValidatingProcessingTimeCallback(currentTimeMillis - 200, 1));
+        timeCallbacks.add(new ValidatingProcessingTimeCallback(currentTimeMillis + 100, 2));
+        timeCallbacks.add(new ValidatingProcessingTimeCallback(currentTimeMillis + 200, 3));
 
-        timeService.registerTimer(t1, new ValidatingProcessingTimeCallback(errorRef, t1, 0));
-        timeService.registerTimer(t2, new ValidatingProcessingTimeCallback(errorRef, t2, 1));
-        timeService.registerTimer(t3, new ValidatingProcessingTimeCallback(errorRef, t3, 2));
-        timeService.registerTimer(t4, new ValidatingProcessingTimeCallback(errorRef, t4, 3));
-
-        long deadline = System.currentTimeMillis() + 20000;
-        while (errorRef.get() == null
-                && ValidatingProcessingTimeCallback.numInSequence < 4
-                && System.currentTimeMillis() < deadline) {
-            Thread.sleep(100);
+        for (ValidatingProcessingTimeCallback timeCallback : timeCallbacks) {
+            timeService.registerTimer(timeCallback.expectedTimestamp, timeCallback);
         }
 
-        verifyNoException(errorRef.get());
+        for (ValidatingProcessingTimeCallback timeCallback : timeCallbacks) {
+            timeCallback.assertExpectedValues();
+        }
         assertEquals(4, ValidatingProcessingTimeCallback.numInSequence);
     }
 
@@ -134,16 +139,12 @@ public class StreamTaskTimerTest extends TestLogger {
 
         static int numInSequence;
 
-        private final AtomicReference<Throwable> errorRef;
+        private final CompletableFuture<Void> finished = new CompletableFuture<>();
 
         private final long expectedTimestamp;
         private final int expectedInSequence;
 
-        private ValidatingProcessingTimeCallback(
-                AtomicReference<Throwable> errorRef,
-                long expectedTimestamp,
-                int expectedInSequence) {
-            this.errorRef = errorRef;
+        private ValidatingProcessingTimeCallback(long expectedTimestamp, int expectedInSequence) {
             this.expectedTimestamp = expectedTimestamp;
             this.expectedInSequence = expectedInSequence;
         }
@@ -154,16 +155,15 @@ public class StreamTaskTimerTest extends TestLogger {
                 assertEquals(expectedTimestamp, timestamp);
                 assertEquals(expectedInSequence, numInSequence);
                 numInSequence++;
+                finished.complete(null);
             } catch (Throwable t) {
-                errorRef.compareAndSet(null, t);
+                finished.completeExceptionally(t);
             }
         }
-    }
 
-    private static void verifyNoException(@Nullable Throwable exception) {
-        if (exception != null) {
-            exception.printStackTrace();
-            fail(exception.getMessage());
+        private void assertExpectedValues()
+                throws ExecutionException, InterruptedException, TimeoutException {
+            finished.get(20, TimeUnit.SECONDS);
         }
     }
 

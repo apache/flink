@@ -204,7 +204,6 @@ object CodeGenUtils {
     case ARRAY => className[ArrayData]
     case MULTISET | MAP => className[MapData]
     case ROW | STRUCTURED_TYPE => className[RowData]
-    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[TimestampData]
     case DISTINCT_TYPE => boxedTypeTermForType(t.asInstanceOf[DistinctType].getSourceType)
     case NULL => className[JObject] // special case for untyped null literals
     case RAW => className[BinaryRawValueData[_]]

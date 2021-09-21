@@ -23,7 +23,7 @@
   <div class="status">
     <div class="field">
       <div>Last Heartbeat:</div>
-      <div>{{ taskManagerDetail.timeSinceLastHeartbeat | date:'yyyy-MM-dd HH:mm:ss' }}</div>
+      <div>{{ taskManagerDetail.timeSinceLastHeartbeat | date: 'yyyy-MM-dd HH:mm:ss' }}</div>
     </div>
     <nz-divider [nzType]="'vertical'"></nz-divider>
     <div class="field">
@@ -63,4 +63,9 @@
   </div>
   <flink-navigation [listOfNavigation]="listOfNavigation"></flink-navigation>
 </div>
-<nz-skeleton [nzActive]="true" *ngIf="isLoading" [nzTitle]="false" [nzParagraph]="{ rows: 4 }"></nz-skeleton>
+<nz-skeleton
+  [nzActive]="true"
+  *ngIf="isLoading"
+  [nzTitle]="false"
+  [nzParagraph]="{ rows: 4 }"
+></nz-skeleton>

@@ -50,7 +50,8 @@ public class KvStateChangeLoggerImplTest extends StateChangeLoggerTestBase<Strin
                 writer,
                 metaInfo,
                 StateTtlConfig.DISABLED,
-                "default");
+                "default",
+                Short.MIN_VALUE);
     }
 
     @Override

@@ -21,7 +21,7 @@ export interface JobExceptionInterface {
   timestamp: number;
   truncated: boolean;
   'all-exceptions': JobExceptionItemInterface[];
-  'exceptionHistory': JobExceptionHistoryInterface;
+  exceptionHistory: JobExceptionHistoryInterface;
 }
 
 export interface JobExceptionItemInterface {

@@ -148,7 +148,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private final HeartbeatServices heartbeatServices;
 
-    private final ScheduledExecutorService scheduledExecutorService;
+    private final ScheduledExecutorService futureExecutor;
+
+    private final Executor ioExecutor;
 
     private final OnCompletionActions jobCompletionActions;
 
@@ -276,7 +278,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
         this.highAvailabilityServices = checkNotNull(highAvailabilityService);
         this.blobWriter = jobManagerSharedServices.getBlobWriter();
-        this.scheduledExecutorService = jobManagerSharedServices.getScheduledExecutorService();
+        this.futureExecutor = jobManagerSharedServices.getFutureExecutor();
+        this.ioExecutor = jobManagerSharedServices.getIoExecutor();
         this.jobCompletionActions = checkNotNull(jobCompletionActions);
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
         this.userCodeLoader = checkNotNull(userCodeLoader);
@@ -343,10 +346,10 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                 slotPoolServiceSchedulerFactory.createScheduler(
                         log,
                         jobGraph,
-                        scheduledExecutorService,
+                        ioExecutor,
                         jobMasterConfiguration.getConfiguration(),
                         slotPoolService,
-                        scheduledExecutorService,
+                        futureExecutor,
                         userCodeLoader,
                         highAvailabilityServices.getCheckpointRecoveryFactory(),
                         rpcTimeout,
@@ -999,7 +1002,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                     });
 
             final ExecutionGraphInfo executionGraphInfo = schedulerNG.requestJob();
-            scheduledExecutorService.execute(
+            futureExecutor.execute(
                     () -> jobCompletionActions.jobReachedGloballyTerminalState(executionGraphInfo));
         }
     }
@@ -1056,7 +1059,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         getFencingToken(),
                         resourceManagerAddress.getAddress(),
                         resourceManagerAddress.getResourceManagerId(),
-                        scheduledExecutorService);
+                        futureExecutor);
 
         resourceManagerConnection.start();
     }

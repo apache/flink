@@ -34,7 +34,8 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServicesFactory;
+import org.apache.flink.runtime.highavailability.DefaultClientHighAvailabilityServicesFactory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -169,13 +170,13 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                             .isPresent();
 
     public RestClusterClient(Configuration config, T clusterId) throws Exception {
-        this(config, clusterId, HighAvailabilityServicesUtils.createClientHAService(config));
+        this(config, clusterId, DefaultClientHighAvailabilityServicesFactory.INSTANCE);
     }
 
     public RestClusterClient(
-            Configuration config, T clusterId, ClientHighAvailabilityServices clientHAServices)
+            Configuration config, T clusterId, ClientHighAvailabilityServicesFactory factory)
             throws Exception {
-        this(config, null, clusterId, new ExponentialWaitStrategy(10L, 2000L), clientHAServices);
+        this(config, null, clusterId, new ExponentialWaitStrategy(10L, 2000L), factory);
     }
 
     @VisibleForTesting
@@ -190,7 +191,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 restClient,
                 clusterId,
                 waitStrategy,
-                HighAvailabilityServicesUtils.createClientHAService(configuration));
+                DefaultClientHighAvailabilityServicesFactory.INSTANCE);
     }
 
     private RestClusterClient(
@@ -198,7 +199,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             @Nullable RestClient restClient,
             T clusterId,
             WaitStrategy waitStrategy,
-            ClientHighAvailabilityServices clientHAServices)
+            ClientHighAvailabilityServicesFactory clientHAServicesFactory)
             throws Exception {
         this.configuration = checkNotNull(configuration);
 
@@ -214,7 +215,15 @@ public class RestClusterClient<T> implements ClusterClient<T> {
         this.waitStrategy = checkNotNull(waitStrategy);
         this.clusterId = checkNotNull(clusterId);
 
-        this.clientHAServices = checkNotNull(clientHAServices);
+        this.clientHAServices =
+                clientHAServicesFactory.create(
+                        configuration,
+                        exception ->
+                                webMonitorLeaderRetriever.handleError(
+                                        new FlinkException(
+                                                "Fatal error happened with client HA "
+                                                        + "services.",
+                                                exception)));
 
         this.webMonitorRetrievalService = clientHAServices.getClusterRestEndpointLeaderRetriever();
         this.retryExecutorService =

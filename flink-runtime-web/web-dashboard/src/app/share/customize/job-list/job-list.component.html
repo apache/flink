@@ -36,11 +36,15 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let job of table.data; trackBy:trackJobBy;" (click)="navigateToJob(job)" class="clickable">
+      <tr
+        *ngFor="let job of table.data; trackBy: trackJobBy"
+        (click)="navigateToJob(job)"
+        class="clickable"
+      >
         <td>{{ job.name }}</td>
-        <td>{{ job["start-time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+        <td>{{ job['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
         <td>{{ job.duration | humanizeDuration }}</td>
-        <td>{{ job["end-time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+        <td>{{ job['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
         <td>
           <flink-task-badge [tasks]="job.tasks"></flink-task-badge>
         </td>

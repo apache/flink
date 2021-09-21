@@ -82,25 +82,7 @@ class WindowRankTest extends TableTestBase {
   }
 
   @Test
-  def testUnsupportedWindowTVF_Session(): Unit = {
-    val sql =
-      """
-        |SELECT window_start, window_end, window_time, a, b, c, d, e
-        |FROM (
-        |SELECT *,
-        |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY b DESC) as rownum
-        |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE))
-        |)
-        |WHERE rownum <= 3
-      """.stripMargin
-
-    thrown.expectMessage("Session Window TableFunction is not supported yet.")
-    thrown.expect(classOf[TableException])
-    util.verifyExplain(sql)
-  }
-
-  @Test
-  def testUnsupportedWindowTVF_Proctime(): Unit = {
+  def testUnsupportedWindowTVF_TumbleOnProctime(): Unit = {
     val sql =
       """
         |SELECT window_start, window_end, window_time, a, b, c, d, e
@@ -397,65 +379,6 @@ class WindowRankTest extends TableTestBase {
         |  FROM TABLE(
         |    CUMULATE(
         |      TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
-        |  GROUP BY a, window_start, window_end, window_time
-        |  )
-        |)
-        |WHERE rownum <= 3
-      """.stripMargin
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Processing time Window TopN is not supported yet.")
-    util.verifyExplain(sql)
-  }
-
-  @Test
-  def testOnSessionWindowAggregate(): Unit = {
-    val sql =
-      """
-        |SELECT window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, uv
-        |FROM (
-        |SELECT *,
-        |   ROW_NUMBER() OVER(PARTITION BY window_start, window_end ORDER BY cnt DESC) as rownum
-        |FROM (
-        |  SELECT
-        |    a,
-        |    window_start,
-        |    window_end,
-        |    window_time,
-        |    count(*) as cnt,
-        |    sum(d) as sum_d,
-        |    max(d) filter (where b > 1000) as max_d,
-        |    weightedAvg(b, e) AS wAvg,
-        |    count(distinct c) AS uv
-        |  FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
-        |  GROUP BY a, window_start, window_end, window_time
-        |  )
-        |)
-        |WHERE rownum <= 3
-      """.stripMargin
-    util.verifyRelPlan(sql)
-  }
-
-  @Test
-  def testOnSessionWindowAggregateOnProctime(): Unit = {
-    val sql =
-      """
-        |SELECT window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, uv
-        |FROM (
-        |SELECT *,
-        |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY cnt DESC) as rownum
-        |FROM (
-        |  SELECT
-        |    a,
-        |    window_start,
-        |    window_end,
-        |    window_time,
-        |    count(*) as cnt,
-        |    sum(d) as sum_d,
-        |    max(d) filter (where b > 1000) as max_d,
-        |    weightedAvg(b, e) AS wAvg,
-        |    count(distinct c) AS uv
-        |  FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
         |  GROUP BY a, window_start, window_end, window_time
         |  )
         |)

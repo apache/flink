@@ -23,16 +23,11 @@ import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.pulsar.testutils.cases.MultipleTopicConsumingContext;
 import org.apache.flink.connector.pulsar.testutils.cases.SingleTopicConsumingContext;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
-import org.apache.flink.connectors.test.common.environment.ClusterControllable;
 import org.apache.flink.connectors.test.common.environment.MiniClusterTestEnvironment;
-import org.apache.flink.connectors.test.common.environment.TestEnvironment;
-import org.apache.flink.connectors.test.common.external.ExternalContext;
 import org.apache.flink.connectors.test.common.junit.annotations.ExternalContextFactory;
 import org.apache.flink.connectors.test.common.junit.annotations.ExternalSystem;
 import org.apache.flink.connectors.test.common.junit.annotations.TestEnv;
 import org.apache.flink.connectors.test.common.testsuites.SourceTestSuiteBase;
-
-import org.junit.jupiter.api.Disabled;
 
 /** Unite test class for {@link PulsarSource}. */
 @SuppressWarnings("unused")
@@ -42,7 +37,7 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
     @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
 
     // Defines pulsar running environment
-    @ExternalSystem PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.MOCK);
+    @ExternalSystem PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
 
     // Defines a external context Factories,
     // so test cases will be invoked using this external contexts.
@@ -53,21 +48,4 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
     @ExternalContextFactory
     PulsarTestContextFactory<String, MultipleTopicConsumingContext> multipleTopic =
             new PulsarTestContextFactory<>(pulsar, MultipleTopicConsumingContext::new);
-
-    @Disabled
-    @Override
-    public void testMultipleSplits(TestEnvironment testEnv, ExternalContext<String> externalContext)
-            throws Exception {
-        super.testMultipleSplits(testEnv, externalContext);
-    }
-
-    @Disabled
-    @Override
-    public void testTaskManagerFailure(
-            TestEnvironment testEnv,
-            ExternalContext<String> externalContext,
-            ClusterControllable controller)
-            throws Exception {
-        super.testTaskManagerFailure(testEnv, externalContext, controller);
-    }
 }

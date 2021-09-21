@@ -21,13 +21,13 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.ObjectIdentifier
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
-import org.apache.flink.table.planner.plan.nodes.{ExpressionFormat, FlinkRelNode}
+import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
-import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, LookupJoinUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.{ExpressionFormat, FlinkRexUtil, JoinTypeUtil, LookupJoinUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
@@ -141,7 +141,10 @@ abstract class CommonPhysicalLookupJoin(
     val resultFieldNames = getRowType.getFieldNames.asScala.toArray
     val whereString = calcOnTemporalTable match {
       case Some(calc) =>
-        RelExplainUtil.conditionToString(calc, getExpressionString, preferExpressionFormat(pw))
+        RelExplainUtil.conditionToString(
+          calc,
+          FlinkRexUtil.getExpressionString,
+          preferExpressionFormat(pw))
       case None => ""
     }
     val lookupKeys = allLookupKeys.map {
@@ -154,7 +157,7 @@ abstract class CommonPhysicalLookupJoin(
       case Some(calc) =>
         val rightSelect = RelExplainUtil.selectionToString(
           calc,
-          getExpressionString,
+          FlinkRexUtil.getExpressionString,
           preferExpressionFormat(pw))
         inputFieldNames.mkString(", ") + ", " + rightSelect
       case None =>
@@ -346,7 +349,11 @@ abstract class CommonPhysicalLookupJoin(
       joinCondition: Option[RexNode],
       expressionFormat: ExpressionFormat = ExpressionFormat.Prefix): String = joinCondition match {
     case Some(condition) =>
-      getExpressionString(condition, resultFieldNames.toList, None, expressionFormat)
+      FlinkRexUtil.getExpressionString(
+        condition,
+        resultFieldNames.toList,
+        None,
+        expressionFormat)
     case None => "N/A"
   }
 }

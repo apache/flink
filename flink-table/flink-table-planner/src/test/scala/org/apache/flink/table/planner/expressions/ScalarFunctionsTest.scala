@@ -1379,10 +1379,22 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "0.4")
 
     testAllApis(
+      'f29.truncate(),
+      "f29.truncate()",
+      "truncate(f29)",
+      "0.0")
+
+    testAllApis(
       'f31.truncate('f7),
       "f31.truncate(f7)",
       "truncate(f31, f7)",
       "-0.123")
+
+    testAllApis(
+      'f31.truncate(),
+      "f31.truncate()",
+      "truncate(f31)",
+      "0")
 
     testAllApis(
       'f4.truncate('f32),
@@ -1391,26 +1403,46 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "40")
 
     testAllApis(
+      'f4.truncate(),
+      "f4.truncate()",
+      "truncate(f4)",
+      "44")
+
+    testAllApis(
       'f28.cast(DataTypes.DOUBLE).truncate(1),
       "f28.cast(DOUBLE).truncate(1)",
       "truncate(cast(f28 as DOUBLE), 1)",
       "0.4")
 
+    testAllApis(
+      'f28.cast(DataTypes.DOUBLE).truncate(),
+      "f28.cast(DOUBLE).truncate()",
+      "truncate(cast(f28 as DOUBLE))",
+      "0.0")
+
     // TODO: ignore TableApiTest for cast to DECIMAL(p, s) is not support now.
     //  see https://issues.apache.org/jira/browse/FLINK-13651
-//    testAllApis(
-//      'f31.cast(DataTypes.DECIMAL(38, 18)).truncate(2),
-//      "f31.cast(DECIMAL(10, 10)).truncate(2)",
-//      "truncate(cast(f31 as decimal(38, 18)), 2)",
-//      "-0.12")
-//
-//    testAllApis(
-//      'f36.cast(DataTypes.DECIMAL(38, 18)).truncate(),
-//      "f36.cast(DECIMAL(10, 10)).truncate()",
-//      "truncate(42.324)",
-//      "42")
+    //    testAllApis(
+    //      'f31.cast(DataTypes.DECIMAL(38, 18)).truncate(2),
+    //      "f31.cast(DECIMAL(10, 10)).truncate(2)",
+    //      "truncate(cast(f31 as decimal(38, 18)), 2)",
+    //      "-0.12")
+    //
+    //    testAllApis(
+    //      'f36.cast(DataTypes.DECIMAL(38, 18)).truncate(),
+    //      "f36.cast(DECIMAL(10, 10)).truncate()",
+    //      "truncate(42.324)",
+    //      "42")
 
     testSqlApi("truncate(cast(f31 as decimal(38, 18)), 2)", "-0.12")
+
+    testSqlApi("truncate(cast(f31 as decimal(38, 18)))", "0")
+
+    testAllApis(
+      'f28.cast(DataTypes.FLOAT).truncate(1),
+      "f28.cast(FLOAT).truncate(1)",
+      "truncate(cast(f28 as float), 1)",
+      "0.4")
 
     testAllApis(
       'f5.cast(DataTypes.FLOAT).truncate(),
@@ -1429,6 +1461,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "42.truncate(-3)",
       "truncate(42, -3)",
       "0")
+
+    testAllApis(
+      42.truncate(),
+      "42.truncate()",
+      "truncate(42)",
+      "42")
 
     //    The validation parameter is null
     testAllApis(
@@ -1460,6 +1498,14 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f33.cast(DOUBLE).truncate()",
       "truncate(cast(null as double))",
       "null")
+
+    // TODO: ignore TableApiTest for cast to DECIMAL(p, s) is not support now.
+    //  see https://issues.apache.org/jira/browse/FLINK-13651
+    //    testAllApis(
+    //      'f33.cast(DataTypes.DECIMAL(10, 5)).truncate(),
+    //      "f33.cast(DECIMAL(10, 5)).truncate()",
+    //      "truncate(cast(null as decimal(10, 5)))",
+    //      "null")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -2367,6 +2413,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testRound(): Unit = {
+    // behavior test
     testAllApis(
       'f29.round('f30),
       "f29.round(f30)",
@@ -2394,6 +2441,122 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "ROUND(1.4, 1)",
       "1.4")
+
+    // type test
+    testAllApis(
+      123.cast(DataTypes.TINYINT).round(-2),
+      "123.cast(BYTE).round(-2)",
+      "ROUND(CAST(123 AS TINYINT), -2)",
+      "100")
+    testSqlApi("ROUND(CAST(123 AS TINYINT))", "123")
+    testAllApis(
+      nullOf(DataTypes.TINYINT).round(-2),
+      "nullOf(BYTE).round(-2)",
+      "ROUND(CAST(NULL AS TINYINT), -2)",
+      "null")
+    testAllApis(
+      123.cast(DataTypes.TINYINT).round(nullOf(DataTypes.INT)),
+      "123.cast(BYTE).round(nullOf(INT))",
+      "ROUND(CAST(123 AS TINYINT), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS TINYINT))", "null")
+
+    testAllApis(
+      123.cast(DataTypes.SMALLINT).round(-2),
+      "123.cast(SHORT).round(-2)",
+      "ROUND(CAST(123 AS SMALLINT), -2)",
+      "100")
+    testSqlApi("ROUND(CAST(123 AS SMALLINT))", "123")
+    testAllApis(
+      nullOf(DataTypes.SMALLINT).round(-2),
+      "nullOf(SHORT).round(-2)",
+      "ROUND(CAST(NULL AS SMALLINT), -2)",
+      "null")
+    testAllApis(
+      123.cast(DataTypes.SMALLINT).round(nullOf(DataTypes.INT)),
+      "123.cast(SHORT).round(nullOf(INT))",
+      "ROUND(CAST(123 AS SMALLINT), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS SMALLINT))", "null")
+
+    testAllApis(
+      123.cast(DataTypes.INT).round(-2),
+      "123.cast(INT).round(-2)",
+      "ROUND(CAST(123 AS INT), -2)",
+      "100")
+    testSqlApi("ROUND(CAST(123 AS INT))", "123")
+    testAllApis(
+      nullOf(DataTypes.INT).round(-2),
+      "nullOf(INT).round(-2)",
+      "ROUND(CAST(NULL AS INT), -2)",
+      "null")
+    testAllApis(
+      123.cast(DataTypes.INT).round(nullOf(DataTypes.INT)),
+      "123.cast(INT).round(nullOf(INT))",
+      "ROUND(CAST(123 AS INT), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS INT))", "null")
+
+    testAllApis(
+      123.cast(DataTypes.BIGINT).round(-2),
+      "123.cast(LONG).round(-2)",
+      "ROUND(CAST(123 AS BIGINT), -2)",
+      "100")
+    testSqlApi("ROUND(CAST(123 AS BIGINT))", "123")
+    testAllApis(
+      nullOf(DataTypes.BIGINT).round(-2),
+      "nullOf(LONG).round(-2)",
+      "ROUND(CAST(NULL AS BIGINT), -2)",
+      "null")
+    testAllApis(
+      123.cast(DataTypes.BIGINT).round(nullOf(DataTypes.INT)),
+      "123.cast(LONG).round(nullOf(INT))",
+      "ROUND(CAST(123 AS BIGINT), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS BIGINT))", "null")
+
+    testAllApis(
+      1.2345.cast(DataTypes.FLOAT).round(3),
+      "1.2345.cast(FLOAT).round(3)",
+      "ROUND(CAST(1.2345 AS FLOAT), 3)",
+      "1.235")
+    testSqlApi("ROUND(CAST(1.2345 AS FLOAT))", "1.0")
+    testAllApis(
+      nullOf(DataTypes.FLOAT).round(3),
+      "nullOf(FLOAT).round(3)",
+      "ROUND(CAST(NULL AS FLOAT), 3)",
+      "null")
+    testAllApis(
+      1.2345.cast(DataTypes.FLOAT).round(nullOf(DataTypes.INT)),
+      "1.2345.cast(FLOAT).round(nullOf(INT))",
+      "ROUND(CAST(1.2345 AS FLOAT), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS FLOAT))", "null")
+
+    testAllApis(
+      1.2345.cast(DataTypes.DOUBLE).round(3),
+      "1.2345.cast(DOUBLE).round(3)",
+      "ROUND(CAST(1.2345 AS DOUBLE), 3)",
+      "1.235")
+    testSqlApi("ROUND(CAST(1.2345 AS DOUBLE))", "1.0")
+    testAllApis(
+      nullOf(DataTypes.DOUBLE).round(3),
+      "nullOf(DOUBLE).round(3)",
+      "ROUND(CAST(NULL AS DOUBLE), 3)",
+      "null")
+    testAllApis(
+      1.2345.cast(DataTypes.DOUBLE).round(nullOf(DataTypes.INT)),
+      "1.2345.cast(DOUBLE).round(nullOf(INT))",
+      "ROUND(CAST(1.2345 AS DOUBLE), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS DOUBLE))", "null")
+
+    // table api string currently does not support decimal type
+    testSqlApi("ROUND(CAST(1.2345 AS DECIMAL(5, 4)), 3)", "1.235")
+    testSqlApi("ROUND(CAST(1.2345 AS DECIMAL(5, 4)))", "1")
+    testSqlApi("ROUND(CAST(NULL AS DECIMAL(5, 4)), 3)", "null")
+    testSqlApi("ROUND(CAST(1.2345 AS DECIMAL(5, 4)), CAST(NULL AS INT))", "null")
+    testSqlApi("ROUND(CAST(NULL AS DECIMAL(5, 4)))", "null")
   }
 
   @Test

@@ -115,6 +115,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -135,6 +136,7 @@ import static org.apache.flink.util.ExceptionUtils.assertThrowableWithMessage;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -511,6 +513,50 @@ public class SavepointITCase extends TestLogger {
             assertThrowableWithMessage(e, graph.getJobID().toString());
             assertThrowableWithMessage(e, "is not a streaming job");
         } finally {
+            cluster.after();
+        }
+    }
+
+    @Test
+    public void testTriggerSavepointWithoutCheckpointBaseLocations() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.getCheckpointConfig().disableCheckpointing();
+        env.setParallelism(1);
+
+        env.addSource(new IntegerStreamSource()).addSink(new DiscardingSink<>());
+
+        JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+
+        Configuration config = getFileBasedCheckpointsConfig();
+        config.addAll(jobGraph.getJobConfiguration());
+
+        MiniClusterWithClientResource cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(config)
+                                .setNumberTaskManagers(1)
+                                .setNumberSlotsPerTaskManager(1)
+                                .build());
+        cluster.before();
+        ClusterClient<?> client = cluster.getClusterClient();
+
+        String savepointPath = null;
+        try {
+            client.submitJob(jobGraph).get();
+
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
+
+            savepointPath = client.triggerSavepoint(jobGraph.getJobID(), null).get();
+
+            assertNotNull(savepointPath);
+
+            client.cancel(jobGraph.getJobID()).get();
+            // checkpoint directory should not be initialized
+            assertEquals(0, Objects.requireNonNull(checkpointDir.listFiles()).length);
+        } finally {
+            if (null != savepointPath) {
+                client.disposeSavepoint(savepointPath);
+            }
             cluster.after();
         }
     }

@@ -17,7 +17,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" 
+<project xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
@@ -109,13 +109,6 @@ under the License.
 		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-statebackend-changelog</artifactId>
-			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -260,7 +253,7 @@ under the License.
 			<plugin>
 				<groupId>com.github.eirslett</groupId>
 				<artifactId>frontend-maven-plugin</artifactId>
-				<version>1.6</version>
+				<version>1.9.1</version>
 				<executions>
 					<execution>
 						<id>install node and npm</id>
@@ -269,6 +262,7 @@ under the License.
 						</goals>
 						<configuration>
 							<nodeVersion>v12.14.1</nodeVersion>
+							<npmVersion>6.13.4</npmVersion>
 						</configuration>
 					</execution>
 					<execution>
@@ -284,12 +278,12 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
-						<id>npm run build</id>
+						<id>npm run ci-check</id>
 						<goals>
 							<goal>npm</goal>
 						</goals>
 						<configuration>
-							<arguments>run build</arguments>
+							<arguments>run ci-check</arguments>
 						</configuration>
 					</execution>
 				</executions>

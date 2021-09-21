@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.logical
 
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, isTimestampLtzIndicatorType}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.utils.MatchUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
@@ -27,9 +29,11 @@ import org.apache.calcite.rel.core.Match
 import org.apache.calcite.rel.logical.LogicalMatch
 import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rex.RexNode
-import org.apache.calcite.util.ImmutableBitSet
+import org.apache.calcite.util.{ImmutableBitSet, Litmus}
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 class FlinkLogicalMatch(
     cluster: RelOptCluster,
@@ -64,6 +68,28 @@ class FlinkLogicalMatch(
     orderKeys,
     interval)
   with FlinkLogicalRel {
+
+  override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
+    val inputContainsRowTimeLtz = input.getRowType.getFieldList.exists { field =>
+      isRowtimeIndicatorType(field.getType) && isTimestampLtzIndicatorType(field.getType)
+    }
+    if (inputContainsRowTimeLtz) {
+      val containMatchRowTimeWithoutArgs = getMeasures.values().exists(
+        MatchUtil.isFinalOnMatchRowTimeWithoutArgs)
+      if (containMatchRowTimeWithoutArgs) {
+        litmus.fail(
+          "MATCH_ROWTIME(rowtimeField) should be used when input stream contains " +
+            "rowtime attribute with TIMESTAMP_LTZ type.\n" +
+            "Please pass rowtime attribute field as input argument of " +
+            "MATCH_ROWTIME(rowtimeField) function.")
+      } else {
+        litmus.succeed()
+      }
+    } else {
+      litmus.succeed()
+    }
+  }
+
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new FlinkLogicalMatch(

@@ -56,4 +56,11 @@ public interface SourceAbilitySpec {
      */
     @JsonIgnore
     Optional<RowType> getProducedType();
+
+    /**
+     * Additional digests to generate when this spec is applied to the source.
+     *
+     * @param context The context about the source.
+     */
+    String getDigests(SourceAbilityContext context);
 }

@@ -18,10 +18,11 @@
 
 import { HttpClient, HttpRequest, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BASE_URL } from 'config';
-import { JarListInterface, NodesItemCorrectInterface, PlanInterface, VerticesLinkInterface } from 'interfaces';
-import { of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+
+import { BASE_URL } from 'config';
+import { JarListInterface, NodesItemCorrectInterface, PlanInterface, SafeAny, VerticesLinkInterface } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -30,7 +31,7 @@ export class JarService {
   /**
    * Get uploaded jar list
    */
-  loadJarList() {
+  loadJarList(): Observable<JarListInterface> {
     return this.httpClient.get<JarListInterface>(`${BASE_URL}/jars`).pipe(
       catchError(() => {
         return of({
@@ -44,9 +45,10 @@ export class JarService {
 
   /**
    * Upload jar
+   *
    * @param fd
    */
-  uploadJar(fd: File) {
+  uploadJar(fd: File): Observable<SafeAny> {
     const formData = new FormData();
     formData.append('jarfile', fd, fd.name);
     const req = new HttpRequest('POST', `${BASE_URL}/jars/upload`, formData, {
@@ -57,14 +59,16 @@ export class JarService {
 
   /**
    * Delete jar
+   *
    * @param jarId
    */
-  deleteJar(jarId: string) {
+  deleteJar(jarId: string): Observable<SafeAny> {
     return this.httpClient.delete(`${BASE_URL}/jars/${jarId}`);
   }
 
   /**
    * Run job
+   *
    * @param jarId
    * @param entryClass
    * @param parallelism
@@ -79,7 +83,7 @@ export class JarService {
     programArgs: string,
     savepointPath: string,
     allowNonRestoredState: string
-  ) {
+  ): Observable<{ jobid: string }> {
     const requestParam = { entryClass, parallelism, programArgs, savepointPath, allowNonRestoredState };
     let params = new HttpParams();
     if (entryClass) {
@@ -102,12 +106,18 @@ export class JarService {
 
   /**
    * Get plan json from jar
+   *
    * @param jarId
    * @param entryClass
    * @param parallelism
    * @param programArgs
    */
-  getPlan(jarId: string, entryClass: string, parallelism: string, programArgs: string) {
+  getPlan(
+    jarId: string,
+    entryClass: string,
+    parallelism: string,
+    programArgs: string
+  ): Observable<{ nodes: NodesItemCorrectInterface[]; links: VerticesLinkInterface[] }> {
     let params = new HttpParams();
     if (entryClass) {
       params = params.append('entry-class', entryClass);
@@ -118,28 +128,30 @@ export class JarService {
     if (programArgs) {
       params = params.append('program-args', programArgs);
     }
-    return this.httpClient.get<PlanInterface>(`${BASE_URL}/jars/${jarId}/plan`, { params }).pipe(
-      map(data => {
-        const links: VerticesLinkInterface[] = [];
-        let nodes: NodesItemCorrectInterface[] = [];
-        if (data.plan.nodes.length) {
-          nodes = data.plan.nodes.map(node => {
-            return {
-              ...node,
-              detail: undefined
-            };
-          });
-          nodes.forEach(node => {
-            if (node.inputs && node.inputs.length) {
-              node.inputs.forEach(input => {
-                links.push({ ...input, source: input.id, target: node.id, id: `${input.id}-${node.id}` });
-              });
-            }
-          });
-        }
-        return { nodes, links };
-      })
-    );
+    return this.httpClient
+      .get<PlanInterface>(`${BASE_URL}/jars/${jarId}/plan`, { params })
+      .pipe(
+        map(data => {
+          const links: VerticesLinkInterface[] = [];
+          let nodes: NodesItemCorrectInterface[] = [];
+          if (data.plan.nodes.length) {
+            nodes = data.plan.nodes.map(node => {
+              return {
+                ...node,
+                detail: undefined
+              };
+            });
+            nodes.forEach(node => {
+              if (node.inputs && node.inputs.length) {
+                node.inputs.forEach(input => {
+                  links.push({ ...input, source: input.id, target: node.id, id: `${input.id}-${node.id}` });
+                });
+              }
+            });
+          }
+          return { nodes, links };
+        })
+      );
   }
 
   constructor(private httpClient: HttpClient) {}

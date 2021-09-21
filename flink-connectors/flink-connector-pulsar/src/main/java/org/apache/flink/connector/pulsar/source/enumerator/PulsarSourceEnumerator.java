@@ -23,24 +23,40 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.KeySharedPolicy.KeySharedPolicySticky;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.createAdmin;
+import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.createClient;
+import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
+import static org.apache.flink.connector.pulsar.source.config.CursorVerification.FAIL_ON_MISMATCH;
+import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.createConsumerBuilder;
 
 /** The enumerator class for pulsar source. */
 @Internal
@@ -49,10 +65,10 @@ public class PulsarSourceEnumerator
 
     private static final Logger LOG = LoggerFactory.getLogger(PulsarSourceEnumerator.class);
 
-    /** The admin interface for pulsar. */
     private final PulsarAdmin pulsarAdmin;
-
+    private final PulsarClient pulsarClient;
     private final PulsarSubscriber subscriber;
+    private final StartCursor startCursor;
     private final RangeGenerator rangeGenerator;
     private final Configuration configuration;
     private final SourceConfiguration sourceConfiguration;
@@ -61,13 +77,16 @@ public class PulsarSourceEnumerator
 
     public PulsarSourceEnumerator(
             PulsarSubscriber subscriber,
+            StartCursor startCursor,
             RangeGenerator rangeGenerator,
             Configuration configuration,
             SourceConfiguration sourceConfiguration,
             SplitEnumeratorContext<PulsarPartitionSplit> context,
             SplitsAssignmentState assignmentState) {
         this.pulsarAdmin = createAdmin(configuration);
+        this.pulsarClient = createClient(configuration);
         this.subscriber = subscriber;
+        this.startCursor = startCursor;
         this.rangeGenerator = rangeGenerator;
         this.configuration = configuration;
         this.sourceConfiguration = sourceConfiguration;
@@ -148,8 +167,55 @@ public class PulsarSourceEnumerator
      * @return Set of subscribed {@link TopicPartition}s
      */
     private Set<TopicPartition> getSubscribedTopicPartitions() {
-        return subscriber.getSubscribedTopicPartitions(
-                pulsarAdmin, rangeGenerator, context.currentParallelism());
+        int parallelism = context.currentParallelism();
+        Set<TopicPartition> partitions =
+                subscriber.getSubscribedTopicPartitions(pulsarAdmin, rangeGenerator, parallelism);
+
+        // Seek start position for given partitions.
+        seekStartPosition(partitions);
+
+        return partitions;
+    }
+
+    private void seekStartPosition(Set<TopicPartition> partitions) {
+        ConsumerBuilder<byte[]> consumerBuilder = consumerBuilder();
+        Set<String> seekedTopics = new HashSet<>();
+
+        for (TopicPartition partition : partitions) {
+            String topicName = partition.getFullTopicName();
+            if (!assignmentState.containsTopic(topicName) && seekedTopics.add(topicName)) {
+                try (Consumer<byte[]> consumer =
+                        sneakyClient(() -> consumerBuilder.clone().topic(topicName).subscribe())) {
+                    startCursor.seekPosition(
+                            partition.getTopic(), partition.getPartitionId(), consumer);
+                } catch (PulsarClientException e) {
+                    if (sourceConfiguration.getVerifyInitialOffsets() == FAIL_ON_MISMATCH) {
+                        throw new IllegalArgumentException(e);
+                    } else {
+                        // WARN_ON_MISMATCH would just print this warning message.
+                        // No need to print the stacktrace.
+                        LOG.warn(
+                                "Failed to set initial consuming position for partition {}",
+                                partition,
+                                e);
+                    }
+                }
+            }
+        }
+    }
+
+    private ConsumerBuilder<byte[]> consumerBuilder() {
+        ConsumerBuilder<byte[]> builder =
+                createConsumerBuilder(pulsarClient, Schema.BYTES, configuration);
+        if (sourceConfiguration.getSubscriptionType() == SubscriptionType.Key_Shared) {
+            Range range = TopicRange.createFullRange().toPulsarRange();
+            KeySharedPolicySticky keySharedPolicy = KeySharedPolicy.stickyHashRange().ranges(range);
+            // Force this consume use sticky hash range in Key_Shared subscription.
+            // Pulsar won't remove old message dispatcher before 2.8.2 release.
+            builder.keySharedPolicy(keySharedPolicy);
+        }
+
+        return builder;
     }
 
     /**

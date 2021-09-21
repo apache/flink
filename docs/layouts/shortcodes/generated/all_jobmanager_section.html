@@ -45,6 +45,18 @@
             <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery/#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
         </tr>
         <tr>
+            <td><h5>jobmanager.future-pool.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The size of the future thread pool to execute future callbacks for all spawned JobMasters. If no value is specified, then Flink defaults to the number of available CPU cores.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.io-pool.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The size of the IO thread pool to run blocking operations for all spawned JobMasters. This includes recovery and completion of checkpoints. Increase this value if you experience slow checkpoint operations when running many jobs. If no value is specified, then Flink defaults to the number of available CPU cores.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.retrieve-taskmanager-hostname</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

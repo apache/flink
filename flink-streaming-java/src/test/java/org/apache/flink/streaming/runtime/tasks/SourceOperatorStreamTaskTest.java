@@ -260,13 +260,13 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
             CompletableFuture<Boolean> triggerResult =
                     testHarness.streamTask.triggerCheckpointAsync(
-                            new CheckpointMetaData(1, 1),
+                            new CheckpointMetaData(2, 2),
                             CheckpointOptions.alignedNoTimeout(
                                     SAVEPOINT_TERMINATE,
                                     CheckpointStorageLocationReference.getDefault()));
             checkpointCompleted.whenComplete(
                     (ignored, exception) ->
-                            testHarness.streamTask.notifyCheckpointCompleteAsync(1));
+                            testHarness.streamTask.notifyCheckpointCompleteAsync(2));
             testHarness.waitForTaskCompletion();
             testHarness.finishProcessing();
 

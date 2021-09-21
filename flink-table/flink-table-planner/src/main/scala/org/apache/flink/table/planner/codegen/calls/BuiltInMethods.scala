@@ -24,7 +24,8 @@ import org.apache.flink.table.runtime.functions._
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
-import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonValueEmptyOrErrorBehavior}
+import org.apache.calcite.sql.{SqlJsonConstructorNullClause, SqlJsonExistsErrorBehavior,
+  SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
 
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
@@ -150,6 +151,12 @@ object BuiltInMethods {
     classOf[Int])
   val ROUND_INT = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[Int], classOf[Int])
   val ROUND_LONG = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[Long], classOf[Int])
+  val ROUND_BYTE = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
+    classOf[Byte], classOf[Int])
+  val ROUND_SHORT = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
+    classOf[Short], classOf[Int])
+  val ROUND_FLOAT = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
+    classOf[Float], classOf[Int])
   val ROUND_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
     classOf[DecimalData], classOf[Int])
 
@@ -159,6 +166,12 @@ object BuiltInMethods {
     Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Int])
   val ROUND_LONG_0 =
     Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Long])
+  val ROUND_BYTE_0 =
+    Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Byte])
+  val ROUND_SHORT_0 =
+    Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Short])
+  val ROUND_FLOAT_0 =
+    Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Float])
   val ROUND_DEC_0 =
     Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[DecimalData])
 
@@ -496,4 +509,11 @@ object BuiltInMethods {
     classOf[SqlJsonValueEmptyOrErrorBehavior], classOf[Any],
     classOf[SqlJsonValueEmptyOrErrorBehavior], classOf[Any]
   )
+
+  val JSON_QUERY = Types.lookupMethod(classOf[JsonFunctions], "jsonQuery",
+    classOf[String], classOf[String], classOf[SqlJsonQueryWrapperBehavior],
+    classOf[SqlJsonQueryEmptyOrErrorBehavior], classOf[SqlJsonQueryEmptyOrErrorBehavior])
+
+  val JSON_OBJECT = Types.lookupMethod(classOf[JsonFunctions], "jsonObject",
+    classOf[SqlJsonConstructorNullClause], classOf[Array[Any]])
 }

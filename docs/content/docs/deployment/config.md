@@ -358,6 +358,10 @@ With the introduction of `state.backend.rocksdb.memory.managed` and `state.backe
 
 {{< generated/expert_cluster_section >}}
 
+### Advanced JobManager Options
+
+{{< generated/expert_jobmanager_section >}}
+
 ### Advanced Scheduling Options
 
 *These parameters can help with fine-tuning scheduling for specific situations.*
@@ -407,6 +411,8 @@ These configuration keys control basic Resource Manager behavior, independent of
 {{< generated/resource_manager_configuration >}}
 
 ### Full TaskManagerOptions
+
+Please refer to the [network memory tuning guide]({{< ref "docs/deployment/memory/network_mem_tuning" >}}) for details on how to use the `taskmanager.network.memory.buffer-debloat.*` configuration.
 
 {{< generated/all_taskmanager_section >}}
 

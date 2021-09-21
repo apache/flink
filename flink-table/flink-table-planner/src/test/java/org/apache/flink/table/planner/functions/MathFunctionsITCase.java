@@ -115,6 +115,14 @@ public class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").round(2),
                                 "ROUND(f0, 2)",
                                 new BigDecimal("12345.12"),
-                                DataTypes.DECIMAL(8, 2).notNull()));
+                                DataTypes.DECIMAL(8, 2).notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.TRUNCATE)
+                        .onFieldsWithData(new BigDecimal("123.456"))
+                        // TRUNCATE(DECIMAL(6, 3) NOT NULL, 2) => DECIMAL(6, 2) NOT NULL
+                        .testResult(
+                                $("f0").truncate(2),
+                                "TRUNCATE(f0, 2)",
+                                new BigDecimal("123.45"),
+                                DataTypes.DECIMAL(6, 2).notNull()));
     }
 }

@@ -41,6 +41,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * This class is the default implementation of {@link TaskStateManager} and collaborates with the
@@ -161,6 +162,16 @@ public class TaskStateManagerImpl implements TaskStateManager {
         }
 
         return jobManagerTaskRestore.getTaskStateSnapshot().isFinishedOnRestore();
+    }
+
+    @Override
+    public Optional<Long> getRestoreCheckpointId() {
+        if (jobManagerTaskRestore == null) {
+            // This happens only if no checkpoint to restore.
+            return Optional.empty();
+        }
+
+        return Optional.of(jobManagerTaskRestore.getRestoreCheckpointId());
     }
 
     @Override

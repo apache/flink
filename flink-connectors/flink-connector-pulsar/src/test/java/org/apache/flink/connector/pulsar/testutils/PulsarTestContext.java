@@ -29,15 +29,14 @@ import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 
 /** Common test context for pulsar based test. */
 public abstract class PulsarTestContext<T> implements ExternalContext<T> {
+    private static final long serialVersionUID = 4717940854368532130L;
 
     private static final int NUM_RECORDS_UPPER_BOUND = 500;
     private static final int NUM_RECORDS_LOWER_BOUND = 100;
 
-    private final String displayName;
     protected final PulsarRuntimeOperator operator;
 
-    protected PulsarTestContext(String displayName, PulsarTestEnvironment environment) {
-        this.displayName = displayName;
+    protected PulsarTestContext(PulsarTestEnvironment environment) {
         this.operator = environment.operator();
     }
 
@@ -58,8 +57,10 @@ public abstract class PulsarTestContext<T> implements ExternalContext<T> {
         return records;
     }
 
+    protected abstract String displayName();
+
     @Override
     public String toString() {
-        return displayName;
+        return displayName();
     }
 }

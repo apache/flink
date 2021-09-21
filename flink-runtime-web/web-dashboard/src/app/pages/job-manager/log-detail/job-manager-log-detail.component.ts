@@ -19,8 +19,10 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs/operators';
-import { JobManagerService } from 'services';
+
 import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+
+import { JobManagerService } from 'services';
 
 @Component({
   selector: 'flink-job-manager-log-detail',
@@ -44,7 +46,7 @@ export class JobManagerLogDetailComponent implements OnInit {
     private activatedRoute: ActivatedRoute
   ) {}
 
-  reload() {
+  reload(): void {
     this.isLoading = true;
     this.cdr.markForCheck();
     this.jobManagerService
@@ -66,12 +68,12 @@ export class JobManagerLogDetailComponent implements OnInit {
     setTimeout(() => this.monacoEditorComponent.layout());
   }
 
-  toggleFullScreen(fullScreen: boolean) {
+  toggleFullScreen(fullScreen: boolean): void {
     this.isFullScreen = fullScreen;
     this.layoutEditor();
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.logName = this.activatedRoute.snapshot.params.logName;
     this.reload();
   }

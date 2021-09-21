@@ -17,6 +17,7 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+
 import { JobManagerService } from 'services';
 
 @Component({
@@ -30,7 +31,7 @@ export class JobManagerConfigurationComponent implements OnInit {
 
   constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobManagerService.loadConfig().subscribe(data => {
       this.listOfConfig = data.sort((pre, next) => (pre.key > next.key ? 1 : -1));
       this.cdr.markForCheck();

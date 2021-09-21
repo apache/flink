@@ -1,6 +1,6 @@
 ---
 title: Kinesis
-weight: 4
+weight: 5
 type: docs
 aliases:
   - /zh/dev/connectors/kinesis.html

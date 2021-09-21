@@ -29,6 +29,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.TestLogger;
@@ -191,9 +192,9 @@ public class KafkaWriterITCase extends TestLogger {
 
         // create two lingering transactions
         failedWriter.prepareCommit(false);
-        failedWriter.snapshotState(0);
-        failedWriter.prepareCommit(false);
         failedWriter.snapshotState(1);
+        failedWriter.prepareCommit(false);
+        failedWriter.snapshotState(2);
 
         try (final KafkaWriter<Integer> recoveredWriter =
                 createWriterWithConfiguration(
@@ -201,7 +202,7 @@ public class KafkaWriterITCase extends TestLogger {
             recoveredWriter.write(1, SINK_WRITER_CONTEXT);
 
             List<KafkaCommittable> committables = recoveredWriter.prepareCommit(false);
-            recoveredWriter.snapshotState(0);
+            recoveredWriter.snapshotState(1);
             assertThat(committables, hasSize(1));
             assertThat(committables.get(0).getProducer().isPresent(), equalTo(true));
 
@@ -248,7 +249,7 @@ public class KafkaWriterITCase extends TestLogger {
             assertThat(writer.getProducerPool(), hasSize(0));
 
             List<KafkaCommittable> committables0 = writer.prepareCommit(false);
-            writer.snapshotState(0);
+            writer.snapshotState(1);
             assertThat(committables0, hasSize(1));
             assertThat(committables0.get(0).getProducer().isPresent(), equalTo(true));
 
@@ -266,7 +267,7 @@ public class KafkaWriterITCase extends TestLogger {
             assertThat(writer.getProducerPool(), hasSize(1));
 
             List<KafkaCommittable> committables1 = writer.prepareCommit(false);
-            writer.snapshotState(1);
+            writer.snapshotState(2);
             assertThat(committables1, hasSize(1));
             assertThat(committables1.get(0).getProducer().isPresent(), equalTo(true));
 
@@ -371,7 +372,7 @@ public class KafkaWriterITCase extends TestLogger {
 
         @Override
         public MailboxExecutor getMailboxExecutor() {
-            throw new UnsupportedOperationException("Not implemented");
+            return new SyncMailboxExecutor();
         }
 
         @Override

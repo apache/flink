@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.source.enumerator.subscriber.impl;
 
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -47,8 +48,10 @@ public class TopicListSubscriber extends BasePulsarSubscriber {
                 .map(topic -> queryTopicMetadata(pulsarAdmin, topic))
                 .filter(Objects::nonNull)
                 .flatMap(
-                        metadata ->
-                                toTopicPartitions(metadata, parallelism, rangeGenerator).stream())
+                        metadata -> {
+                            List<TopicRange> ranges = rangeGenerator.range(metadata, parallelism);
+                            return toTopicPartitions(metadata, ranges).stream();
+                        })
                 .collect(toSet());
     }
 }

@@ -27,7 +27,6 @@ import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.sink.KafkaSinkBuilder;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -357,20 +356,6 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 
     private boolean hasMetadata() {
         return metadataKeys.size() > 0;
-    }
-
-    private static FlinkKafkaProducer.Semantic getSemantic(DeliveryGuarantee deliveryGuarantee) {
-        switch (deliveryGuarantee) {
-            case NONE:
-                return FlinkKafkaProducer.Semantic.NONE;
-            case AT_LEAST_ONCE:
-                return FlinkKafkaProducer.Semantic.AT_LEAST_ONCE;
-            case EXACTLY_ONCE:
-                return FlinkKafkaProducer.Semantic.EXACTLY_ONCE;
-            default:
-                throw new IllegalStateException(
-                        "Unsupported delivery guarantee " + deliveryGuarantee);
-        }
     }
 
     private RowData.FieldGetter[] getFieldGetters(

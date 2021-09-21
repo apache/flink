@@ -624,12 +624,16 @@ class DataStreamTests(object):
                 state_ttl_config = StateTtlConfig \
                     .new_builder(Time.seconds(1)) \
                     .set_update_type(StateTtlConfig.UpdateType.OnReadAndWrite) \
+                    .set_state_visibility(
+                        StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp) \
                     .disable_cleanup_in_background() \
                     .build()
                 map_state_descriptor.enable_time_to_live(state_ttl_config)
                 self.map_state = runtime_context.get_map_state(map_state_descriptor)
 
             def process_element(self, value, ctx):
+                import time
+                time.sleep(1)
                 current_value = self.value_state.value()
                 self.value_state.update(value[0])
                 current_list = [_ for _ in self.list_state.get()]
@@ -737,7 +741,7 @@ class DataStreamTests(object):
                 descriptor = AggregatingStateDescriptor(
                     'aggregating_state', MyAggregateFunction(), Types.INT())
                 state_ttl_config = StateTtlConfig \
-                    .new_builder(Time.milliseconds(1)) \
+                    .new_builder(Time.seconds(1)) \
                     .set_update_type(StateTtlConfig.UpdateType.OnReadAndWrite) \
                     .disable_cleanup_in_background() \
                     .build()
@@ -756,10 +760,7 @@ class DataStreamTests(object):
             .add_sink(self.test_sink)
         self.env.execute('test_aggregating_state')
         results = self.test_sink.get_results()
-        if isinstance(self, PyFlinkBatchTestCase):
-            expected = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
-        else:
-            expected = ['(1,hi)', '(2,hello)', '(3,hi)', '(4,hello)', '(5,hi)', '(6,hello)']
+        expected = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
         self.assert_equals_sorted(expected, results)
 
     def test_count_window(self):
