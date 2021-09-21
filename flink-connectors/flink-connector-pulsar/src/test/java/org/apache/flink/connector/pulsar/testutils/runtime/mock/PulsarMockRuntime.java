@@ -144,7 +144,7 @@ public class PulsarMockRuntime implements PulsarRuntime {
         configuration.setBrokerDeleteInactiveTopicsEnabled(false);
 
         configuration.setWebSocketServiceEnabled(false);
-        // Use runtime dynamic Ports
+        // Use runtime dynamic ports
         configuration.setBrokerServicePort(Optional.of(0));
         configuration.setWebServicePort(Optional.of(0));
 
