@@ -224,6 +224,8 @@ public class CheckpointCoordinator {
 
     private final ExecutionAttemptMappingProvider attemptMappingProvider;
 
+    private boolean baseLocationsForCheckpointInitialized = false;
+
     // --------------------------------------------------------------------------------------------
 
     public CheckpointCoordinator(
@@ -325,7 +327,7 @@ public class CheckpointCoordinator {
             this.checkpointStorageView = checkpointStorage.createCheckpointStorage(job);
 
             if (isPeriodicCheckpointingConfigured()) {
-                checkpointStorageView.initializeBaseLocationsForCheckpoint();
+                initializeBaseLocationsForCheckpoint();
             }
         } catch (IOException e) {
             throw new FlinkRuntimeException(
@@ -348,6 +350,11 @@ public class CheckpointCoordinator {
                         this.minPauseBetweenCheckpoints,
                         this.pendingCheckpoints::size,
                         this.checkpointsCleaner::getNumberOfCheckpointsToClean);
+    }
+
+    private void initializeBaseLocationsForCheckpoint() throws IOException {
+        checkpointStorageView.initializeBaseLocationsForCheckpoint();
+        baseLocationsForCheckpointInitialized = true;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -733,11 +740,18 @@ public class CheckpointCoordinator {
         // with external services (in HA mode) and may block for a while.
         long checkpointID = checkpointIdCounter.getAndIncrement();
 
-        CheckpointStorageLocation checkpointStorageLocation =
-                props.isSavepoint()
-                        ? checkpointStorageView.initializeLocationForSavepoint(
-                                checkpointID, externalSavepointLocation)
-                        : checkpointStorageView.initializeLocationForCheckpoint(checkpointID);
+        final CheckpointStorageLocation checkpointStorageLocation;
+        if (props.isSavepoint()) {
+            checkpointStorageLocation =
+                    checkpointStorageView.initializeLocationForSavepoint(
+                            checkpointID, externalSavepointLocation);
+        } else {
+            if (!baseLocationsForCheckpointInitialized) {
+                initializeBaseLocationsForCheckpoint();
+            }
+            checkpointStorageLocation =
+                    checkpointStorageView.initializeLocationForCheckpoint(checkpointID);
+        }
 
         return new CheckpointIdAndStorageLocation(checkpointID, checkpointStorageLocation);
     }
