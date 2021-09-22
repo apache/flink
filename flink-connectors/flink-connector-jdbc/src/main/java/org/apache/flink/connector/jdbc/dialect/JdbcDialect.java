@@ -151,8 +151,7 @@ public interface JdbcDialect extends Serializable {
             String username,
             String pwd,
             String baseUrl) {
-        JdbcDialect dialect = JdbcDialectLoader.load(baseUrl);
         throw new UnsupportedOperationException(
-                String.format("Catalog for '%s' is not supported yet.", dialect));
+                String.format("Catalog for '%s' is not supported yet.", dialectName()));
     }
 }
