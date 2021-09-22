@@ -629,7 +629,7 @@ public final class BuiltInFunctionDefinitions {
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
                     .build();
 
     public static final BuiltInFunctionDefinition FROM_BASE64 =
@@ -1555,6 +1555,15 @@ public final class BuiltInFunctionDefinitions {
                                     symbol(JsonQueryOnEmptyOrError.class),
                                     symbol(JsonQueryOnEmptyOrError.class)))
                     .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
+                    .runtimeDeferred()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_OBJECT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_OBJECT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.JSON_OBJECT)
+                    .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
                     .runtimeDeferred()
                     .build();
 

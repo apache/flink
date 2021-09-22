@@ -23,7 +23,7 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.pulsar.source.PulsarSource;
 import org.apache.flink.connector.pulsar.source.PulsarSourceBuilder;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
-import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.testutils.PulsarPartitionDataWriter;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContext;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
@@ -34,7 +34,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.createFullRange;
 import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.pulsarSchema;
 import static org.apache.pulsar.client.api.Schema.STRING;
 import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
@@ -44,6 +43,7 @@ import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
  * source splits.
  */
 public class SingleTopicConsumingContext extends PulsarTestContext<String> {
+    private static final long serialVersionUID = 2754642285356345741L;
 
     private static final String TOPIC_NAME_PREFIX = "pulsar-single-topic";
     private final String topicName;
@@ -53,9 +53,14 @@ public class SingleTopicConsumingContext extends PulsarTestContext<String> {
     private int numSplits = 0;
 
     public SingleTopicConsumingContext(PulsarTestEnvironment environment) {
-        super("consuming message on single topic", environment);
+        super(environment);
         this.topicName =
                 TOPIC_NAME_PREFIX + "-" + ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
+    }
+
+    @Override
+    protected String displayName() {
+        return "consuming message on single topic";
     }
 
     @Override
@@ -88,9 +93,8 @@ public class SingleTopicConsumingContext extends PulsarTestContext<String> {
             operator.increaseTopicPartitions(topicName, numSplits);
         }
 
-        TopicPartition partition = new TopicPartition(topicName, numSplits - 1, createFullRange());
-        PulsarPartitionDataWriter writer =
-                new PulsarPartitionDataWriter(operator.client(), partition);
+        String partitionName = TopicNameUtils.topicNameWithPartition(topicName, numSplits - 1);
+        PulsarPartitionDataWriter writer = new PulsarPartitionDataWriter(operator, partitionName);
         partitionToSplitWriter.put(numSplits - 1, writer);
 
         return writer;

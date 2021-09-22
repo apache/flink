@@ -230,7 +230,7 @@ public class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorage
         assertFalse(baseDir.exists());
 
         // mkdirs would only be called when initializeBaseLocations
-        storage.initializeBaseLocations();
+        storage.initializeBaseLocationsForCheckpoint();
         assertTrue(baseDir.exists());
 
         // mkdir would not be called when resolveCheckpointStorageLocation

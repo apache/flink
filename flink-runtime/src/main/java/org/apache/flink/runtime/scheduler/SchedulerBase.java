@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.KvStateID;
@@ -825,22 +824,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
-        if (checkpointCoordinator == null) {
-            throw new IllegalStateException(
-                    String.format("Job %s is not a streaming job.", jobGraph.getJobID()));
-        } else if (targetDirectory == null
-                && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
-            log.info(
-                    "Trying to cancel job {} with savepoint, but no savepoint directory configured.",
-                    jobGraph.getJobID());
-
-            throw new IllegalStateException(
-                    "No savepoint directory configured. You can either specify a directory "
-                            + "while cancelling via -s :targetDirectory or configure a cluster-wide "
-                            + "default via key '"
-                            + CheckpointingOptions.SAVEPOINT_DIRECTORY.key()
-                            + "'.");
-        }
+        StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
+                checkpointCoordinator, targetDirectory, getJobId(), log);
 
         log.info(
                 "Triggering {}savepoint for job {}.",
@@ -933,7 +918,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
 
-        StopWithSavepointTerminationManager.checkStopWithSavepointPreconditions(
+        StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
                 checkpointCoordinator, targetDirectory, executionGraph.getJobID(), log);
 
         log.info("Triggering stop-with-savepoint for job {}.", jobGraph.getJobID());

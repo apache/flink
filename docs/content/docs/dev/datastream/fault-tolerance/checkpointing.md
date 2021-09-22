@@ -81,7 +81,9 @@ Other parameters for checkpointing include:
 
   - *externalized checkpoints*: You can configure periodic checkpoints to be persisted externally. Externalized checkpoints write their meta data out to persistent storage and are *not* automatically cleaned up when the job fails. This way, you will have a checkpoint around to resume from if your job fails. There are more details in the [deployment notes on externalized checkpoints]({{< ref "docs/ops/state/checkpoints" >}}#externalized-checkpoints).
 
-  - *unaligned checkpoints*: You can enable [unaligned checkpoints]({{< ref "docs/ops/state/unaligned_checkpoints" >}}) to greatly reduce checkpointing times under backpressure. Only works for exactly-once checkpoints and with number of concurrent checkpoints of 1.
+  - *unaligned checkpoints*: You can enable [unaligned checkpoints]({{< ref "docs/ops/state/unaligned_checkpoints" >}}) to greatly reduce checkpointing times under backpressure. This only works for exactly-once checkpoints and with number of concurrent checkpoints of 1.
+
+  - *checkpoints with finished tasks*: You can enable an experimental feature to continue performing checkpoints even if parts of the DAG have finished processing all of their records. Before doing so, please read through some [important considerations](#checkpointing-with-parts-of-the-graph-finished).
 
 {{< tabs "4b9c6a74-8a45-4ad2-9e80-52fe44a85991" >}}
 {{< tab "Java" >}}
@@ -118,6 +120,11 @@ env.getCheckpointConfig().enableUnalignedCheckpoints();
 
 // sets the checkpoint storage where checkpoint snapshots will be written
 env.getCheckpointConfig().setCheckpointStorage("hdfs:///my/checkpoint/dir")
+
+// enable checkpointing with finished tasks
+Configuration config = new Configuration();
+config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
+env.configure(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -154,6 +161,11 @@ env.getCheckpointConfig.enableUnalignedCheckpoints()
 
 // sets the checkpoint storage where checkpoint snapshots will be written
 env.getCheckpointConfig.setCheckpointStorage("hdfs:///my/checkpoint/dir")
+
+// enable checkpointing with finished tasks
+val config = new Configuration()
+config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true)
+env.configure(config)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -217,5 +229,46 @@ See [checkpoint storage]({{< ref "docs/ops/state/checkpoints#checkpoint-storage"
 Flink currently only provides processing guarantees for jobs without iterations. Enabling checkpointing on an iterative job causes an exception. In order to force checkpointing on an iterative program the user needs to set a special flag when enabling checkpointing: `env.enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE, force = true)`.
 
 Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
+
+## Checkpointing with parts of the graph finished *(BETA)*
+
+Starting from Flink 1.14 it is possible to continue performing checkpoints even if parts of the job
+graph have finished processing all data, which might happen if it contains bounded sources. This
+feature must be enabled via a feature flag:
+
+```java
+Configuration config = new Configuration();
+config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+```
+
+Once the tasks/subtasks are finished, they do not contribute to the checkpoints any longer. This is an
+an important consideration when implementing any custom operators or UDFs (User-Defined Functions).
+
+In order to support checkpointing with tasks that finished, we adjusted the [task lifecycle]({{<ref "docs/internals/task_lifecycle" >}}) 
+and introduced the {{< javadoc file="org/apache/flink/streaming/api/operators/StreamOperator.html#finish--" name="StreamOperator#finish" >}} method. 
+This method is expected to be a clear cutoff point for flushing
+any remaining buffered state. All checkpoints taken after the finish method has been called should
+be empty (in most cases) and should not contain any buffered data since there will be no way to emit
+this data. One notable exception is if your operator has some pointers to transactions in external
+systems (i.e. order to implement the exactly-once semantic). In such a case, checkpoints taken after
+invoking the `finish()` method should keep a pointer to the last transaction(s) that will be committed
+in the final checkpoint before the operator is closed. A good built-in example of this are
+exactly-once sinks and the `TwoPhaseCommitSinkFunction`.
+
+### How does this impact the operator state?
+
+There is a special handling for `UnionListState`, which has often been used to implement a global
+view over offsets in an external system (i.e. storing current offsets of Kafka partitions). If we
+had discarded a state for a single subtask that had its `finish` method called, we would have lost
+the offsets for partitions that it had been assigned. In order to work around this problem, we let
+checkpoints succeed only if none or all subtasks that use `UnionListState` are finished.
+
+We have not seen `ListState` used in a similar way, but you should be aware that any state
+checkpointed after the `finish` method will be discarded and not be available after a restore.
+
+Any operator that is prepared to be rescaled should work well with tasks that partially finish.
+Restoring from a checkpoint where only a subset of tasks finished is equivalent to restoring such a
+task with the number of new subtasks equal to the number of finished tasks.
 
 {{< top >}}

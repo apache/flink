@@ -20,16 +20,14 @@ package org.apache.flink.connector.kafka.sink;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheLoader;
-import org.apache.flink.shaded.guava30.com.google.common.cache.LoadingCache;
-
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Configurable;
 import org.apache.kafka.common.serialization.Serializer;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.function.Function;
@@ -119,7 +117,7 @@ public class KafkaRecordSerializationSchemaBuilder<IN> {
      * @return {@code this}
      */
     public <T extends IN> KafkaRecordSerializationSchemaBuilder<T> setTopicSelector(
-            Function<? super T, String> topicSelector) {
+            TopicSelector<? super T> topicSelector) {
         checkState(this.topicSelector == null, "Topic selector already set.");
         KafkaRecordSerializationSchemaBuilder<T> self = self();
         self.topicSelector = new CachingTopicSelector<>(checkNotNull(topicSelector));
@@ -252,34 +250,25 @@ public class KafkaRecordSerializationSchemaBuilder<IN> {
         checkState(keySerializationSchema == null, "Key serializer already set.");
     }
 
-    private static class CachingTopicSelector<IN> implements Function<IN, String> {
+    private static class CachingTopicSelector<IN> implements Function<IN, String>, Serializable {
 
-        private final LoadingCache<IN, String> cache;
+        private static final int CACHE_RESET_SIZE = 5;
+        private final Map<IN, String> cache;
+        private final TopicSelector<IN> topicSelector;
 
-        CachingTopicSelector(Function<IN, String> topicSelector) {
-            this.cache =
-                    CacheBuilder.newBuilder()
-                            .maximumSize(5)
-                            .build(new TopicSelectorCacheLoader<>(topicSelector));
+        CachingTopicSelector(TopicSelector<IN> topicSelector) {
+            this.topicSelector = topicSelector;
+            this.cache = new HashMap<>();
         }
 
         @Override
         public String apply(IN in) {
-            return cache.getUnchecked(in);
-        }
-    }
-
-    private static class TopicSelectorCacheLoader<IN> extends CacheLoader<IN, String> {
-
-        private final Function<IN, String> topicSelector;
-
-        TopicSelectorCacheLoader(Function<IN, String> topicSelector) {
-            this.topicSelector = topicSelector;
-        }
-
-        @Override
-        public String load(IN in) throws Exception {
-            return topicSelector.apply(in);
+            final String topic = cache.getOrDefault(in, topicSelector.apply(in));
+            cache.put(in, topic);
+            if (cache.size() == CACHE_RESET_SIZE) {
+                cache.clear();
+            }
+            return topic;
         }
     }
 

@@ -49,15 +49,11 @@ from pyflink.util.java_utils import get_j_env_configuration
 class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def setUp(self):
-        self.env = self.create_new_env()
+        os.environ['_python_worker_execution_mode'] = "loopback"
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        os.environ['_python_worker_execution_mode'] = "process"
+        self.env.set_parallelism(2)
         self.test_sink = DataStreamTestSinkFunction()
-
-    @staticmethod
-    def create_new_env(execution_mode='process'):
-        env = StreamExecutionEnvironment.get_execution_environment()
-        env.set_parallelism(2)
-        env._execution_mode = execution_mode
-        return env
 
     def test_get_config(self):
         execution_config = self.env.get_config()
@@ -358,7 +354,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_add_python_file(self):
         import uuid
-        env = self.create_new_env("loopback")
+        env = self.env
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_dep1.py")
@@ -409,7 +405,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_add_python_file_2(self):
         import uuid
-        env = self.create_new_env("loopback")
+        env = self.env
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_dep1.py")
@@ -446,7 +442,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         from pyflink.table.expressions import col
         add_three = udf(plus_three, result_type=DataTypes.BIGINT())
 
-        tab = t_env.from_data_stream(ds, 'a') \
+        tab = t_env.from_data_stream(ds, col('a')) \
                    .select(add_three(col('a')))
         result = [i[0] for i in tab.execute().collect()]
         expected = [6, 7, 8, 9, 10]
@@ -477,7 +473,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
     def test_set_requirements_with_cached_directory(self):
         import uuid
         tmp_dir = self.tempdir
-        env = self.create_new_env("loopback")
+        env = self.env
         requirements_txt_path = os.path.join(tmp_dir, "requirements_txt_" + str(uuid.uuid4()))
         with open(requirements_txt_path, 'w') as f:
             f.write("python-package1==0.0.0")
@@ -523,7 +519,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         import uuid
         import shutil
         tmp_dir = self.tempdir
-        env = self.create_new_env("loopback")
+        env = self.env
         archive_dir_path = os.path.join(tmp_dir, "archive_" + str(uuid.uuid4()))
         os.mkdir(archive_dir_path)
         with open(os.path.join(archive_dir_path, "data.txt"), 'w') as f:
@@ -550,7 +546,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         import sys
         python_exec = sys.executable
         tmp_dir = self.tempdir
-        env = self.create_new_env("loopback")
+        env = self.env
         python_exec_link_path = os.path.join(tmp_dir, "py_exec")
         os.symlink(python_exec, python_exec_link_path)
         env.set_python_executable(python_exec_link_path)

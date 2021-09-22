@@ -109,7 +109,7 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
     }
 
     @Override
-    public void initializeBaseLocations() throws IOException {
+    public void initializeBaseLocationsForCheckpoint() throws IOException {
         fileSystem.mkdirs(sharedStateDirectory);
         fileSystem.mkdirs(taskOwnedStateDirectory);
         baseLocationsInitialized = true;

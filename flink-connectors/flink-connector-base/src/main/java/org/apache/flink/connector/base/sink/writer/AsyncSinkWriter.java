@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * A generic sink writer that handles the general behaviour of a sink such as batching and flushing,
@@ -56,6 +57,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     private final int maxBatchSize;
     private final int maxInFlightRequests;
     private final int maxBufferedRequests;
+    private final long flushOnBufferSizeInBytes;
+    private final long maxTimeInBufferMS;
 
     /**
      * The ElementConverter provides a mapping between for the elements of a stream to request
@@ -67,7 +70,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     private final ElementConverter<InputT, RequestEntryT> elementConverter;
 
     /**
-     * Buffer to hold request entries that should be persisted into the destination.
+     * Buffer to hold request entries that should be persisted into the destination, along with its
+     * size in bytes.
      *
      * <p>A request entry contain all relevant details to make a call to the destination. Eg, for
      * Kinesis Data Streams a request entry contains the payload and partition key.
@@ -78,7 +82,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * construct a new (retry) request entry from the response and add that back to the queue for
      * later retry.
      */
-    private final Deque<RequestEntryT> bufferedRequestEntries = new ArrayDeque<>();
+    private final Deque<RequestEntryWrapper<RequestEntryT>> bufferedRequestEntries =
+            new ArrayDeque<>();
 
     /**
      * Tracks all pending async calls that have been executed since the last checkpoint. Calls that
@@ -94,6 +99,14 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * fail, which could then lead to data loss.
      */
     private int inFlightRequestsCount;
+
+    /**
+     * Tracks the cumulative size of all elements in {@code bufferedRequestEntries} to facilitate
+     * the criterion for flushing after {@code flushOnBufferSizeInBytes} is reached.
+     */
+    private double bufferedRequestEntriesTotalSizeInBytes;
+
+    private boolean existsActiveTimerCallback = false;
 
     /**
      * This method specifies how to persist buffered request entries into the destination. It is
@@ -118,12 +131,25 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     protected abstract void submitRequestEntries(
             List<RequestEntryT> requestEntries, Consumer<Collection<RequestEntryT>> requestResult);
 
+    /**
+     * This method allows the getting of the size of a {@code RequestEntryT} in bytes. The size in
+     * this case is measured as the total bytes that is written to the destination as a result of
+     * persisting this particular {@code RequestEntryT} rather than the serialized length (which may
+     * be the same).
+     *
+     * @param requestEntry the requestEntry for which we want to know the size
+     * @return the size of the requestEntry, as defined previously
+     */
+    protected abstract long getSizeInBytes(RequestEntryT requestEntry);
+
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,
             Sink.InitContext context,
             int maxBatchSize,
             int maxInFlightRequests,
-            int maxBufferedRequests) {
+            int maxBufferedRequests,
+            long flushOnBufferSizeInBytes,
+            long maxTimeInBufferMS) {
         this.elementConverter = elementConverter;
         this.mailboxExecutor = context.getMailboxExecutor();
         this.timeService = context.getProcessingTimeService();
@@ -132,6 +158,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         Preconditions.checkArgument(maxBatchSize > 0);
         Preconditions.checkArgument(maxBufferedRequests > 0);
         Preconditions.checkArgument(maxInFlightRequests > 0);
+        Preconditions.checkArgument(flushOnBufferSizeInBytes > 0);
+        Preconditions.checkArgument(maxTimeInBufferMS > 0);
         Preconditions.checkArgument(
                 maxBufferedRequests > maxBatchSize,
                 "The maximum number of requests that may be buffered should be strictly"
@@ -139,21 +167,40 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         this.maxBatchSize = maxBatchSize;
         this.maxInFlightRequests = maxInFlightRequests;
         this.maxBufferedRequests = maxBufferedRequests;
+        this.flushOnBufferSizeInBytes = flushOnBufferSizeInBytes;
+        this.maxTimeInBufferMS = maxTimeInBufferMS;
+
+        this.inFlightRequestsCount = 0;
+        this.bufferedRequestEntriesTotalSizeInBytes = 0;
+    }
+
+    private void registerCallback() {
+        Sink.ProcessingTimeService.ProcessingTimeCallback ptc =
+                instant -> {
+                    existsActiveTimerCallback = false;
+                    while (!bufferedRequestEntries.isEmpty()) {
+                        flush();
+                    }
+                };
+        timeService.registerProcessingTimer(
+                timeService.getCurrentProcessingTime() + maxTimeInBufferMS, ptc);
+        existsActiveTimerCallback = true;
     }
 
     @Override
     public void write(InputT element, Context context) throws IOException, InterruptedException {
         while (bufferedRequestEntries.size() >= maxBufferedRequests) {
-            mailboxExecutor.yield();
+            mailboxExecutor.tryYield();
         }
 
-        bufferedRequestEntries.add(elementConverter.apply(element, context));
+        addEntryToBuffer(elementConverter.apply(element, context), false);
 
-        flushIfFull();
+        flushIfAble();
     }
 
-    private void flushIfFull() throws InterruptedException {
-        while (bufferedRequestEntries.size() >= maxBatchSize) {
+    private void flushIfAble() {
+        while (bufferedRequestEntries.size() >= maxBatchSize
+                || bufferedRequestEntriesTotalSizeInBytes >= flushOnBufferSizeInBytes) {
             flush();
         }
     }
@@ -164,16 +211,18 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      *
      * <p>The method blocks if too many async requests are in flight.
      */
-    private void flush() throws InterruptedException {
+    private void flush() {
         while (inFlightRequestsCount >= maxInFlightRequests) {
-            mailboxExecutor.yield();
+            mailboxExecutor.tryYield();
         }
 
         List<RequestEntryT> batch = new ArrayList<>(maxBatchSize);
 
         int batchSize = Math.min(maxBatchSize, bufferedRequestEntries.size());
         for (int i = 0; i < batchSize; i++) {
-            batch.add(bufferedRequestEntries.remove());
+            RequestEntryWrapper<RequestEntryT> elem = bufferedRequestEntries.remove();
+            batch.add(elem.getRequestEntry());
+            bufferedRequestEntriesTotalSizeInBytes -= elem.getSize();
         }
 
         if (batch.size() == 0) {
@@ -199,7 +248,24 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      */
     private void completeRequest(Collection<RequestEntryT> failedRequestEntries) {
         inFlightRequestsCount--;
-        failedRequestEntries.forEach(bufferedRequestEntries::addFirst);
+        failedRequestEntries.forEach(failedEntry -> addEntryToBuffer(failedEntry, true));
+    }
+
+    private void addEntryToBuffer(RequestEntryT entry, boolean insertAtHead) {
+        if (bufferedRequestEntries.isEmpty() && !existsActiveTimerCallback) {
+            registerCallback();
+        }
+
+        RequestEntryWrapper<RequestEntryT> wrappedEntry =
+                new RequestEntryWrapper<>(entry, getSizeInBytes(entry));
+
+        if (insertAtHead) {
+            bufferedRequestEntries.addFirst(wrappedEntry);
+        } else {
+            bufferedRequestEntries.add(wrappedEntry);
+        }
+
+        bufferedRequestEntriesTotalSizeInBytes += wrappedEntry.getSize();
     }
 
     /**
@@ -211,9 +277,9 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * <p>To this end, all in-flight requests need to completed before proceeding with the commit.
      */
     @Override
-    public List<Void> prepareCommit(boolean flush) throws InterruptedException {
+    public List<Void> prepareCommit(boolean flush) {
         while (inFlightRequestsCount > 0 || bufferedRequestEntries.size() > 0) {
-            mailboxExecutor.yield();
+            mailboxExecutor.tryYield();
             if (flush) {
                 flush();
             }
@@ -230,7 +296,10 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      */
     @Override
     public List<Collection<RequestEntryT>> snapshotState() {
-        return Arrays.asList(bufferedRequestEntries);
+        return Arrays.asList(
+                bufferedRequestEntries.stream()
+                        .map(RequestEntryWrapper::getRequestEntry)
+                        .collect(Collectors.toList()));
     }
 
     @Override

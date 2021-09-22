@@ -1258,7 +1258,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
         if (checkpointStorageLocation == null) {
             CheckpointStorageAccess checkpointStorageAccess =
                     getCheckpointStorage().createCheckpointStorage(new JobID());
-            checkpointStorageAccess.initializeBaseLocations();
+            checkpointStorageAccess.initializeBaseLocationsForCheckpoint();
             checkpointStorageLocation = checkpointStorageAccess.initializeLocationForCheckpoint(1L);
         }
         return checkpointStorageLocation;

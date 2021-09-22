@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -49,6 +48,7 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.KvStateHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -224,22 +224,8 @@ abstract class StateWithExecutionGraph implements State {
     CompletableFuture<String> triggerSavepoint(String targetDirectory, boolean cancelJob) {
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
-        if (checkpointCoordinator == null) {
-            throw new IllegalStateException(
-                    String.format("Job %s is not a streaming job.", executionGraph.getJobID()));
-        } else if (targetDirectory == null
-                && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
-            logger.info(
-                    "Trying to cancel job {} with savepoint, but no savepoint directory configured.",
-                    executionGraph.getJobID());
-
-            throw new IllegalStateException(
-                    "No savepoint directory configured. You can either specify a directory "
-                            + "while cancelling via -s :targetDirectory or configure a cluster-wide "
-                            + "default via key '"
-                            + CheckpointingOptions.SAVEPOINT_DIRECTORY.key()
-                            + "'.");
-        }
+        StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
+                checkpointCoordinator, targetDirectory, getJobId(), logger);
 
         logger.info(
                 "Triggering {}savepoint for job {}.",

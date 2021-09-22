@@ -60,6 +60,8 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.changelog.restore.FunctionDelegationHelper;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,6 +142,7 @@ public class ChangelogKeyedStateBackend<K>
     private final TtlTimeProvider ttlTimeProvider;
 
     private final StateChangelogWriter<ChangelogStateHandle> stateChangelogWriter;
+    private final Closer closer = Closer.create();
 
     private long lastCheckpointId = -1L;
 
@@ -190,6 +193,13 @@ public class ChangelogKeyedStateBackend<K>
 
     private final ExecutorService asyncOperationsThreadPool;
 
+    /**
+     * Provides a unique ID for each state created by this backend instance. A mapping from this ID
+     * to state name is written once along with metadata; afterwards, only ID is written with each
+     * state change for efficiency.
+     */
+    private short lastCreatedStateId = -1;
+
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
             ExecutionConfig executionConfig,
@@ -209,6 +219,7 @@ public class ChangelogKeyedStateBackend<K>
         this.mainMailboxExecutor = checkNotNull(mainMailboxExecutor);
         this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
         this.completeRestore(initialState);
+        this.closer.register(keyedStateBackend);
     }
 
     // -------------------- CheckpointableKeyedStateBackend --------------------------------
@@ -219,7 +230,7 @@ public class ChangelogKeyedStateBackend<K>
 
     @Override
     public void close() throws IOException {
-        keyedStateBackend.close();
+        closer.close();
     }
 
     @Override
@@ -379,7 +390,9 @@ public class ChangelogKeyedStateBackend<K>
                             keyedStateBackend.getKeyContext(),
                             stateChangelogWriter,
                             new RegisteredPriorityQueueStateBackendMetaInfo<>(
-                                    stateName, byteOrderedElementSerializer));
+                                    stateName, byteOrderedElementSerializer),
+                            ++lastCreatedStateId);
+            closer.register(priorityQueueStateChangeLogger);
             queue =
                     new ChangelogKeyGroupedPriorityQueue<>(
                             keyedStateBackend.create(stateName, byteOrderedElementSerializer),
@@ -506,7 +519,9 @@ public class ChangelogKeyedStateBackend<K>
                         stateChangelogWriter,
                         meta,
                         stateDesc.getTtlConfig(),
-                        stateDesc.getDefaultValue());
+                        stateDesc.getDefaultValue(),
+                        ++lastCreatedStateId);
+        closer.register(kvStateChangeLogger);
         IS is =
                 stateFactory.create(
                         state,

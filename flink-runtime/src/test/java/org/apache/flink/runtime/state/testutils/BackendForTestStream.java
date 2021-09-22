@@ -89,7 +89,7 @@ public class BackendForTestStream extends MemoryStateBackend {
         }
 
         @Override
-        public void initializeBaseLocations() {
+        public void initializeBaseLocationsForCheckpoint() {
             throw new UnsupportedOperationException();
         }
 

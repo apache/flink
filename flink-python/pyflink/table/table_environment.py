@@ -48,7 +48,7 @@ from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, uda
 from pyflink.table.utils import to_expression_jarray
 from pyflink.util import java_utils
 from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr, to_jarray, get_field, get_field_value
+    to_j_explain_detail_arr, to_jarray, get_field
 
 __all__ = [
     'StreamTableEnvironment',
@@ -96,6 +96,7 @@ class TableEnvironment(object):
         # python.executable.
         self._set_python_executable_for_local_executor()
         self._config_chaining_optimization()
+        self._open()
 
     @staticmethod
     def create(environment_settings: EnvironmentSettings) -> 'TableEnvironment':
@@ -1747,33 +1748,6 @@ class TableEnvironment(object):
         self._add_jars_to_j_env_config(jars_key)
         self._add_jars_to_j_env_config(classpaths_key)
 
-        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
-        def startup_loopback_server():
-            from pyflink.fn_execution.beam.beam_worker_pool_service import \
-                BeamFnLoopbackWorkerPoolServicer
-
-            j_env = jvm.System.getenv()
-            get_field_value(j_env, "m").put(
-                'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
-
-        python_worker_execution_mode = None
-        if hasattr(self, "_python_worker_execution_mode"):
-            python_worker_execution_mode = getattr(self, "_python_worker_execution_mode")
-
-        if python_worker_execution_mode is None:
-            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
-                startup_loopback_server()
-        elif python_worker_execution_mode == 'loopback':
-            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
-                startup_loopback_server()
-            else:
-                raise ValueError("Loopback mode is enabled, however the job wasn't configured to "
-                                 "run in local deployment mode")
-        elif python_worker_execution_mode != 'process':
-            raise ValueError(
-                "It only supports to execute the Python worker in 'loopback' mode and 'process' "
-                "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
-
     def _wrap_aggregate_function_if_needed(self, function) -> UserDefinedFunctionWrapper:
         if isinstance(function, AggregateFunction):
             function = udaf(function,
@@ -1793,6 +1767,34 @@ class TableEnvironment(object):
         exec_env_field = get_field(self._j_tenv.getClass(), "execEnv")
         exec_env_field.set(self._j_tenv,
                            JChainingOptimizingExecutor(exec_env_field.get(self._j_tenv)))
+
+    def _open(self):
+        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
+        def startup_loopback_server():
+            from pyflink.common import Configuration
+            from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                BeamFnLoopbackWorkerPoolServicer
+
+            j_configuration = get_j_env_configuration(self._get_j_env())
+            config = Configuration(j_configuration=j_configuration)
+            config.set_string(
+                "PYFLINK_LOOPBACK_SERVER_ADDRESS", BeamFnLoopbackWorkerPoolServicer().start())
+
+        python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
+
+        if python_worker_execution_mode is None:
+            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
+                startup_loopback_server()
+        elif python_worker_execution_mode == 'loopback':
+            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
+                startup_loopback_server()
+            else:
+                raise ValueError("Loopback mode is enabled, however the job wasn't configured to "
+                                 "run in local deployment mode")
+        elif python_worker_execution_mode != 'process':
+            raise ValueError(
+                "It only supports to execute the Python worker in 'loopback' mode and 'process' "
+                "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
 
 
 class StreamTableEnvironment(TableEnvironment):

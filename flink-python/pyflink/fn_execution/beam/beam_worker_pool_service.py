@@ -24,6 +24,10 @@ import threading
 import traceback
 
 import grpc
+
+# In order to remove confusing infos produced by beam.
+logging.getLogger().setLevel(logging.WARNING)
+
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -125,8 +129,11 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
 
             # Send all logs to the runner.
             fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-            logging.getLogger().setLevel(logging.ERROR)
+            logging.getLogger().setLevel(logging.INFO)
+            # Remove all the built-in log handles
+            logging.getLogger().handlers = []
             logging.getLogger().addHandler(fn_log_handler)
+            logging.info("Starting up Python worker in loopback mode.")
         except Exception:
             _LOGGER.error(
                 "Failed to set up logging handler, continuing without.",
