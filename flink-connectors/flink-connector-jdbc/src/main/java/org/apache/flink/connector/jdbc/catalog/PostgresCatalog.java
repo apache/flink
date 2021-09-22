@@ -88,7 +88,7 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
                 }
             };
 
-    protected PostgresCatalog(
+    public PostgresCatalog(
             String catalogName,
             String defaultDatabase,
             String username,

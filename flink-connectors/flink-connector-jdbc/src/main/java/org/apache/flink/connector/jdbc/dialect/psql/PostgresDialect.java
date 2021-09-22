@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.jdbc.dialect.psql;
 
+import org.apache.flink.connector.jdbc.catalog.AbstractJdbcCatalog;
+import org.apache.flink.connector.jdbc.catalog.PostgresCatalog;
 import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
 import org.apache.flink.connector.jdbc.internal.converter.PostgresRowConverter;
@@ -127,5 +129,15 @@ public class PostgresDialect extends AbstractDialect {
                 LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
                 LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
                 LogicalTypeRoot.ARRAY);
+    }
+
+    @Override
+    public AbstractJdbcCatalog createCatalog(
+            String catalogName,
+            String defaultDatabase,
+            String username,
+            String pwd,
+            String baseUrl) {
+        return new PostgresCatalog(catalogName, defaultDatabase, username, pwd, baseUrl);
     }
 }

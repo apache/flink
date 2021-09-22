@@ -19,6 +19,7 @@
 package org.apache.flink.connector.jdbc.dialect;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.jdbc.catalog.AbstractJdbcCatalog;
 import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.RowType;
@@ -142,4 +143,16 @@ public interface JdbcDialect extends Serializable {
      */
     String getSelectFromStatement(
             String tableName, String[] selectFields, String[] conditionFields);
+
+    /** Create catalog instance. */
+    default AbstractJdbcCatalog createCatalog(
+            String catalogName,
+            String defaultDatabase,
+            String username,
+            String pwd,
+            String baseUrl) {
+        JdbcDialect dialect = JdbcDialectLoader.load(baseUrl);
+        throw new UnsupportedOperationException(
+                String.format("Catalog for '%s' is not supported yet.", dialect));
+    }
 }
