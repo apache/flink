@@ -35,7 +35,6 @@ import java.util.Optional;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
-import static org.apache.flink.connector.pulsar.testutils.runtime.mock.PortBindingUtils.findAvailablePort;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Providing a mocked pulsar server. */
@@ -145,9 +144,9 @@ public class PulsarMockRuntime implements PulsarRuntime {
         configuration.setBrokerDeleteInactiveTopicsEnabled(false);
 
         configuration.setWebSocketServiceEnabled(false);
-        // Binding Ports
-        configuration.setBrokerServicePort(Optional.of(findAvailablePort()));
-        configuration.setWebServicePort(Optional.of(findAvailablePort()));
+        // Use runtime dynamic ports
+        configuration.setBrokerServicePort(Optional.of(0));
+        configuration.setWebServicePort(Optional.of(0));
 
         // Enable transaction with in memory.
         configuration.setTransactionCoordinatorEnabled(true);
