@@ -18,21 +18,29 @@
 
 package org.apache.flink.streaming.api.operators.source;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
+import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.util.MockOutput;
+import org.apache.flink.streaming.util.MockStreamConfig;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -242,6 +250,19 @@ public class SourceOperatorEventTimeTest {
         final SourceOperator<T, MockSourceSplit> sourceOperator =
                 new TestingSourceOperator<>(
                         reader, watermarkStrategy, timeService, emitProgressiveWatermarks);
+
+        sourceOperator.setup(
+                new SourceOperatorStreamTask<Integer>(
+                        new StreamMockEnvironment(
+                                new Configuration(),
+                                new Configuration(),
+                                new ExecutionConfig(),
+                                1L,
+                                new MockInputSplitProvider(),
+                                1,
+                                new TestTaskStateManager())),
+                new MockStreamConfig(new Configuration(), 1),
+                new MockOutput<>(new ArrayList<>()));
         sourceOperator.initializeState(stateContext);
         sourceOperator.open();
 
