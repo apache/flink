@@ -125,9 +125,18 @@ public class KafkaSourceReader<T>
             return;
         }
 
+        Map<TopicPartition, OffsetAndMetadata> committedPartitions =
+                offsetsToCommit.get(checkpointId);
+        if (committedPartitions == null) {
+            LOG.debug(
+                    "Offsets for checkpoint {} either do not exist or have already been committed.",
+                    checkpointId);
+            return;
+        }
+
         ((KafkaSourceFetcherManager<T>) splitFetcherManager)
                 .commitOffsets(
-                        offsetsToCommit.get(checkpointId),
+                        committedPartitions,
                         (ignored, e) -> {
                             // The offset commit here is needed by the external monitoring. It won't
                             // break Flink job's correctness if we fail to commit the offset here.
@@ -144,8 +153,6 @@ public class KafkaSourceReader<T>
                                 kafkaSourceReaderMetrics.recordSucceededCommit();
                                 // If the finished topic partition has been committed, we remove it
                                 // from the offsets of the finished splits map.
-                                Map<TopicPartition, OffsetAndMetadata> committedPartitions =
-                                        offsetsToCommit.get(checkpointId);
                                 committedPartitions.forEach(
                                         (tp, offset) ->
                                                 kafkaSourceReaderMetrics.recordCommittedOffset(
