@@ -22,7 +22,6 @@ import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
-
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
@@ -30,12 +29,12 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.sql.{SqlAsOperator, SqlKind}
+import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
 import org.apache.calcite.util.{ControlFlowException, ImmutableBitSet, Sarg, Util}
 
 import java.lang.{Iterable => JIterable}
 import java.util
-
+import java.util.function.Predicate
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
@@ -534,6 +533,29 @@ object FlinkRexUtil {
       case _ =>
         throw new IllegalArgumentException(s"Unknown expression type '${expr.getClass}': $expr")
     }
+  }
+
+  /**
+   * Similar to [[RexUtil#findOperatorCall(SqlOperator, RexNode)]],
+   * but with a broader predicate support and returning a boolean.
+   */
+  def hasOperatorCallMatching(expr: RexNode, predicate: Predicate[SqlOperator]): Boolean = {
+    try {
+      val visitor = new RexVisitorImpl[Void](true) {
+        override def visitCall(call: RexCall): Void = {
+          if (predicate.test(call.getOperator)) {
+            throw new Util.FoundOne(call)
+          }
+          super.visitCall(call)
+        }
+      }
+      expr.accept(visitor)
+    } catch {
+      case e: Util.FoundOne =>
+        Util.swallow(e, null)
+        return true
+    }
+    false
   }
 }
 

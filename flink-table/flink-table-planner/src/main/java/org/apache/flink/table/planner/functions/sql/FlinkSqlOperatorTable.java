@@ -1088,7 +1088,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction ABS = SqlStdOperatorTable.ABS;
     public static final SqlFunction EXP = SqlStdOperatorTable.EXP;
     public static final SqlFunction NULLIF = SqlStdOperatorTable.NULLIF;
-    public static final SqlFunction COALESCE = SqlStdOperatorTable.COALESCE;
     public static final SqlFunction FLOOR = SqlStdOperatorTable.FLOOR;
     public static final SqlFunction CEIL = SqlStdOperatorTable.CEIL;
     public static final SqlFunction LOCALTIME = SqlStdOperatorTable.LOCALTIME;

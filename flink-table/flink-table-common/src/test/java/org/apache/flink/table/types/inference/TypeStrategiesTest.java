@@ -31,6 +31,7 @@ import java.util.Optional;
 import static org.apache.flink.table.types.inference.TypeStrategies.MISSING;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
+import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAllArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 
@@ -119,6 +120,17 @@ public class TypeStrategiesTest extends TypeStrategiesTestBase {
                                 DataTypes.BIGINT().notNull(),
                                 DataTypes.VARCHAR(2).notNull())
                         .expectDataType(DataTypes.BOOLEAN().notNull()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Cascading to not null because one argument is not null",
+                                nullableIfAllArgs(TypeStrategies.COMMON))
+                        .inputTypes(DataTypes.VARCHAR(2).notNull(), DataTypes.VARCHAR(2).nullable())
+                        .expectDataType(DataTypes.VARCHAR(2).notNull()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Cascading to nullable because all args are nullable",
+                                nullableIfAllArgs(TypeStrategies.COMMON))
+                        .inputTypes(
+                                DataTypes.VARCHAR(2).nullable(), DataTypes.VARCHAR(2).nullable())
+                        .expectDataType(DataTypes.VARCHAR(2).nullable()),
                 TypeStrategiesTestBase.TestSpec.forStrategy(
                                 "Find a common type", TypeStrategies.COMMON)
                         .inputTypes(

@@ -70,6 +70,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.first;
 import static org.apache.flink.table.types.inference.TypeStrategies.forceNullable;
 import static org.apache.flink.table.types.inference.TypeStrategies.matchFamily;
+import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAllArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
@@ -123,6 +124,16 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(SpecificTypeStrategies.SOURCE_WATERMARK)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.SourceWatermarkFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition COALESCE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("COALESCE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(varyingSequence(COMMON_ARG_NULLABLE, COMMON_ARG_NULLABLE))
+                    .outputTypeStrategy(nullableIfAllArgs(COMMON))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.CoalesceFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------

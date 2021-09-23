@@ -727,6 +727,28 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Returns the first argument that is not NULL.
+   *
+   * If all arguments are NULL, it returns NULL as well. The return type is the least
+   * restrictive, common type of all of its arguments. The return type is nullable if all
+   * arguments are nullable as well.
+   *
+   * Examples:
+   * {{{
+   * // Returns "default"
+   * coalesce(null, "default")
+   *
+   * // Returns the first non-null value among f0 and f1, or "default" if f0 and f1 are both null
+   * coalesce($"f0", $"f1", "default")
+   * }}}
+   *
+   * @param args the input expressions.
+   */
+  def coalesce(args: Expression*): Expression = {
+    Expressions.coalesce(args: _*)
+  }
+
+  /**
     * Creates an expression that selects a range of columns. It can be used wherever an array of
     * expression is accepted such as function calls, projections, or groupings.
     *
