@@ -102,6 +102,12 @@ The file system connector supports multiple formats:
  - Canal-JSON: [canal-json]({{< ref "docs/connectors/table/formats/canal" >}}).
  - Raw: [raw]({{< ref "docs/connectors/table/formats/raw" >}}).
 
+## Source
+
+The file system connector can be used to read single files or entire directories into a single table.
+
+When using a directory as the source path, there is **no defined order of ingestion** for the files inside the directory.
+
 ## Streaming Sink
 
 The file system connector supports streaming writes, based on Flink's [Streaming File Sink]({{< ref "docs/connectors/datastream/streamfile_sink" >}})
