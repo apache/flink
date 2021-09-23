@@ -280,8 +280,8 @@ object AggregateUtil extends Enumeration {
       isBounded = false)
   }
 
-  def deriveSumAndCountFromAvg(
-      avgAggFunction: UserDefinedFunction): (Sum0AggFunction, CountAggFunction) = {
+  def deriveSumAndCountFromAvg(avgAggFunction: UserDefinedFunction
+                              ): (Sum0AggFunction, CountAggFunction) = {
     avgAggFunction match {
       case _: ByteAvgAggFunction => (new ByteSum0AggFunction, new CountAggFunction)
       case _: ShortAvgAggFunction => (new ShortSum0AggFunction, new CountAggFunction)
@@ -289,10 +289,9 @@ object AggregateUtil extends Enumeration {
       case _: LongAvgAggFunction => (new LongSum0AggFunction, new CountAggFunction)
       case _: FloatAvgAggFunction => (new FloatSum0AggFunction, new CountAggFunction)
       case _: DoubleAvgAggFunction => (new DoubleSum0AggFunction, new CountAggFunction)
-      case _ => {
+      case _ =>
         throw new TableException(s"Avg aggregate function does not support: ''$avgAggFunction''" +
           s"Please re-check the function or data type.")
-      }
     }
   }
 

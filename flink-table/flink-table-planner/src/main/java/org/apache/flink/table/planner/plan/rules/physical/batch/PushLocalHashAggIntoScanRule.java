@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch;
 
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalExchange;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalGroupAggregateBase;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLocalHashAggregate;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalTableSourceScan;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 
@@ -29,15 +30,15 @@ import org.apache.calcite.plan.RelOptRuleCall;
 /**
  * Planner rule that tries to push a local hash or sort aggregate which without sort into a {@link
  * BatchPhysicalTableSourceScan} which table is a {@link TableSourceTable}. And the table source in
- * the table is a {@link SupportsAggregatePushDown}.
+ * the table is a {@link SupportsAggregatePushDown}. The {@link
+ * OptimizerConfigOptions#TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED} need to be true.
  *
- * <p>When the {@code OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED} is
- * true, we have the original physical plan:
+ * <p>Suppose we have the original physical plan:
  *
  * <pre>{@code
  * BatchPhysicalHashAggregate (global)
  * +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
- *    +- BatchPhysicalGroupAggregateBase (local)
+ *    +- BatchPhysicalLocalHashAggregate (local)
  *       +- BatchPhysicalTableSourceScan
  * }</pre>
  *
@@ -49,31 +50,29 @@ import org.apache.calcite.plan.RelOptRuleCall;
  *    +- BatchPhysicalTableSourceScan (with local aggregate pushed down)
  * }</pre>
  */
-public class PushLocalAggWithoutSortIntoTableSourceScanRule
-        extends PushLocalAggIntoTableSourceScanRuleBase {
-    public static final PushLocalAggWithoutSortIntoTableSourceScanRule INSTANCE =
-            new PushLocalAggWithoutSortIntoTableSourceScanRule();
+public class PushLocalHashAggIntoScanRule extends PushLocalAggIntoScanRuleBase {
+    public static final PushLocalHashAggIntoScanRule INSTANCE = new PushLocalHashAggIntoScanRule();
 
-    public PushLocalAggWithoutSortIntoTableSourceScanRule() {
+    public PushLocalHashAggIntoScanRule() {
         super(
                 operand(
                         BatchPhysicalExchange.class,
                         operand(
-                                BatchPhysicalGroupAggregateBase.class,
+                                BatchPhysicalLocalHashAggregate.class,
                                 operand(BatchPhysicalTableSourceScan.class, none()))),
-                "PushLocalAggWithoutSortIntoTableSourceScanRule");
+                "PushLocalHashAggIntoScanRule");
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
-        BatchPhysicalGroupAggregateBase localAggregate = call.rel(1);
+        BatchPhysicalLocalHashAggregate localAggregate = call.rel(1);
         BatchPhysicalTableSourceScan tableSourceScan = call.rel(2);
         return isMatch(call, localAggregate, tableSourceScan);
     }
 
     @Override
     public void onMatch(RelOptRuleCall call) {
-        BatchPhysicalGroupAggregateBase localHashAgg = call.rel(1);
+        BatchPhysicalLocalHashAggregate localHashAgg = call.rel(1);
         BatchPhysicalTableSourceScan oldScan = call.rel(2);
         pushLocalAggregateIntoScan(call, localHashAgg, oldScan);
     }

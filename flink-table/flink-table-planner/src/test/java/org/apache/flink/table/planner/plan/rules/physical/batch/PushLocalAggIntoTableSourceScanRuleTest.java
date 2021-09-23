@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.planner.functions.aggfunctions.CollectAggFunction;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
@@ -27,8 +30,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Test for {@link PushLocalAggWithoutSortIntoTableSourceScanRule} and {@link
- * PushLocalAggWithSortIntoTableSourceScanRule}.
+ * Test for {@link PushLocalHashAggIntoScanRule}, {@link PushLocalSortAggWithSortIntoScanRule} and
+ * {@link PushLocalSortAggWithoutSortIntoScanRule}.
  */
 public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     protected BatchTableTestUtil util = batchTestUtil(new TableConfig());
@@ -43,10 +46,10 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
                         true);
         String ddl =
                 "CREATE TABLE inventory (\n"
-                        + "  id INT,\n"
+                        + "  id BIGINT,\n"
                         + "  name STRING,\n"
-                        + "  amount INT,\n"
-                        + "  price DOUBLE,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT,\n"
                         + "  type STRING\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
@@ -57,7 +60,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCanPushDownWithGroup() {
+    public void testCanPushDownLocalHashAggWithGroup() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  sum(amount),\n"
@@ -68,16 +71,163 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCanPushDownWithoutGroup() {
+    public void testDisablePushDownLocalAgg() {
+        // disable push down local agg
+        util.getTableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setBoolean(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED,
+                        false);
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM inventory\n"
+                        + "  group by name, type");
+
+        // reset config
+        util.getTableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setBoolean(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED,
+                        true);
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggWithoutGroup() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  min(id),\n"
                         + "  max(amount),\n"
-                        + "  max(name),\n"
                         + "  sum(price),\n"
                         + "  avg(price),\n"
                         + "  count(id)\n"
                         + "FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalSortAggWithoutSort() {
+        // enable sort agg
+        util.getTableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  min(id),\n"
+                        + "  max(amount),\n"
+                        + "  sum(price),\n"
+                        + "  avg(price),\n"
+                        + "  count(id)\n"
+                        + "FROM inventory");
+
+        // reset config
+        util.getTableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "");
+    }
+
+    @Test
+    public void testCanPushDownLocalSortAggWithSort() {
+        // enable sort agg
+        util.getTableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM inventory\n"
+                        + "  group by name, type");
+
+        // reset config
+        util.getTableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "");
+    }
+
+    @Test
+    public void testCanPushDownLocalAggWithAuxGrouping() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  name,\n"
+                        + "  a,\n"
+                        + "  p,\n"
+                        + "  count(*)\n"
+                        + "FROM (\n"
+                        + "  SELECT\n"
+                        + "    name,\n"
+                        + "    sum(amount) as a,\n"
+                        + "    max(price) as p\n"
+                        + "  FROM inventory\n"
+                        + "    group by name\n"
+                        + ") t\n"
+                        + "  group by name, a, p");
+    }
+
+    @Test
+    public void testCanPushDownLocalAggAfterFilterPushDown() {
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM inventory\n"
+                        + "  where id = 123\n"
+                        + "  group by name, type");
+    }
+
+    @Test
+    public void testCannotPushDownLocalAggAfterLimitPushDown() {
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM (\n"
+                        + "  SELECT\n"
+                        + "    *\n"
+                        + "  FROM inventory\n"
+                        + "  LIMIT 100\n"
+                        + ") t\n"
+                        + "  group by name, type");
+    }
+
+    @Test
+    public void testCannotPushDownLocalAggWithUDAF() {
+        // add udf
+        util.addTemporarySystemFunction(
+                "udaf_collect", new CollectAggFunction<>(DataTypes.BIGINT().getLogicalType()));
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  udaf_collect(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM inventory\n"
+                        + "  group by name, type");
+    }
+
+    @Test
+    public void testCannotPushDownLocalAggWithUnsupportedDataTypes() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  max(name),\n"
+                        + "  type\n"
+                        + "FROM inventory\n"
+                        + "  group by type");
     }
 
     @Test

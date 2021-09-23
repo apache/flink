@@ -18,18 +18,17 @@
 
 package org.apache.flink.table.planner.plan.schema
 
+import java.util
+
+import com.google.common.collect.ImmutableList
+import org.apache.calcite.plan.RelOptSchema
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.table.catalog.{ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.connector.source.DynamicTableSource
 import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils
 import org.apache.flink.table.planner.plan.abilities.source.{SourceAbilityContext, SourceAbilitySpec}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-
-import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.RelOptSchema
-import org.apache.calcite.rel.`type`.RelDataType
-
-import java.util
 
 /**
  * A [[FlinkPreparingTableBase]] implementation which defines the context variables

@@ -22,6 +22,14 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.expressions.AggregateExpression;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.CountAggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction;
+import org.apache.flink.table.planner.plan.utils.AggregateInfo;
+import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
+import org.apache.flink.table.planner.plan.utils.AggregateUtil;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -30,56 +38,100 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.commons.lang3.ArrayUtils;
+
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import scala.Tuple2;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A sub-class of {@link SourceAbilitySpec} that can not only serialize/deserialize the aggregation
- * to/from JSON, but also can push the filter into a {@link SupportsAggregatePushDown}.
+ * to/from JSON, but also can push the local aggregate into a {@link SupportsAggregatePushDown}.
  */
 @JsonTypeName("AggregatePushDown")
 public class AggregatePushDownSpec extends SourceAbilitySpecBase {
 
+    public static final String FIELD_NAME_INPUT_TYPE = "inputType";
+
     public static final String FIELD_NAME_GROUPING_SETS = "groupingSets";
 
-    public static final String FIELD_NAME_AGGREGATE_EXPRESSIONS = "aggregateExpressions";
+    public static final String FIELD_NAME_AGGREGATE_CALLS = "aggregateCalls";
+
+    @JsonProperty(FIELD_NAME_INPUT_TYPE)
+    private final RowType inputType;
 
     @JsonProperty(FIELD_NAME_GROUPING_SETS)
     private final List<int[]> groupingSets;
 
-    @JsonProperty(FIELD_NAME_AGGREGATE_EXPRESSIONS)
-    private final List<AggregateExpression> aggregateExpressions;
+    @JsonProperty(FIELD_NAME_AGGREGATE_CALLS)
+    private final List<AggregateCall> aggregateCalls;
 
     @JsonCreator
     public AggregatePushDownSpec(
+            @JsonProperty(FIELD_NAME_INPUT_TYPE) RowType inputType,
             @JsonProperty(FIELD_NAME_GROUPING_SETS) List<int[]> groupingSets,
-            @JsonProperty(FIELD_NAME_AGGREGATE_EXPRESSIONS)
-                    List<AggregateExpression> aggregateExpressions,
+            @JsonProperty(FIELD_NAME_AGGREGATE_CALLS) List<AggregateCall> aggregateCalls,
             @JsonProperty(FIELD_NAME_PRODUCED_TYPE) RowType producedType) {
         super(producedType);
+
+        this.inputType = inputType;
         this.groupingSets = new ArrayList<>(checkNotNull(groupingSets));
-        this.aggregateExpressions = new ArrayList<>(checkNotNull(aggregateExpressions));
+        this.aggregateCalls = aggregateCalls;
     }
 
     @Override
     public void apply(DynamicTableSource tableSource, SourceAbilityContext context) {
         checkArgument(getProducedType().isPresent());
-        apply(groupingSets, aggregateExpressions, getProducedType().get(), tableSource);
+        apply(inputType, groupingSets, aggregateCalls, getProducedType().get(), tableSource);
     }
 
     @Override
     public String getDigests(SourceAbilityContext context) {
-        return null;
+        String extraDigest;
+        String groupingStr = "";
+        int[] grouping = ArrayUtils.addAll(groupingSets.get(0), groupingSets.get(1));
+        if (grouping.length > 0) {
+            groupingStr =
+                    Arrays.stream(grouping)
+                            .mapToObj(index -> inputType.getFieldNames().get(index))
+                            .collect(Collectors.joining(","));
+        }
+        String aggFunctionsStr = "";
+
+        List<AggregateExpression> aggregateExpressions =
+                buildAggregateExpressions(inputType, aggregateCalls);
+        if (aggregateExpressions.size() > 0) {
+            aggFunctionsStr =
+                    aggregateExpressions.stream()
+                            .map(AggregateExpression::asSummaryString)
+                            .collect(Collectors.joining(","));
+        }
+        extraDigest =
+                "aggregates=[grouping=["
+                        + groupingStr
+                        + "], aggFunctions=["
+                        + aggFunctionsStr
+                        + "]]";
+        return extraDigest;
     }
 
     public static boolean apply(
+            RowType inputType,
             List<int[]> groupingSets,
-            List<AggregateExpression> aggregateExpressions,
+            List<AggregateCall> aggregateCalls,
             RowType producedType,
             DynamicTableSource tableSource) {
+        List<AggregateExpression> aggregateExpressions =
+                buildAggregateExpressions(inputType, aggregateCalls);
+
         if (tableSource instanceof SupportsAggregatePushDown) {
             DataType producedDataType = TypeConversions.fromLogicalToDataType(producedType);
             return ((SupportsAggregatePushDown) tableSource)
@@ -90,5 +142,66 @@ public class AggregatePushDownSpec extends SourceAbilitySpecBase {
                             "%s does not support SupportsAggregatePushDown.",
                             tableSource.getClass().getName()));
         }
+    }
+
+    private static List<AggregateExpression> buildAggregateExpressions(
+            RowType inputType, List<AggregateCall> aggregateCalls) {
+        AggregateInfoList aggInfoList =
+                AggregateUtil.transformToBatchAggregateInfoList(
+                        inputType, JavaScalaConversionUtil.toScala(aggregateCalls), null, null);
+        if (aggInfoList.aggInfos().length == 0) {
+            // no agg function need to be pushed down
+            return Collections.emptyList();
+        }
+
+        List<AggregateExpression> aggExpressions = new ArrayList<>();
+        for (AggregateInfo aggInfo : aggInfoList.aggInfos()) {
+            List<FieldReferenceExpression> arguments = new ArrayList<>(1);
+            for (int argIndex : aggInfo.argIndexes()) {
+                DataType argType =
+                        TypeConversions.fromLogicalToDataType(
+                                inputType.getFields().get(argIndex).getType());
+                FieldReferenceExpression field =
+                        new FieldReferenceExpression(
+                                inputType.getFieldNames().get(argIndex), argType, 0, argIndex);
+                arguments.add(field);
+            }
+            if (aggInfo.function() instanceof AvgAggFunction) {
+                Tuple2<Sum0AggFunction, CountAggFunction> sum0AndCountFunction =
+                        AggregateUtil.deriveSumAndCountFromAvg(aggInfo.function());
+                AggregateExpression sum0Expression =
+                        new AggregateExpression(
+                                sum0AndCountFunction._1(),
+                                arguments,
+                                null,
+                                aggInfo.externalResultType(),
+                                aggInfo.agg().isDistinct(),
+                                aggInfo.agg().isApproximate(),
+                                aggInfo.agg().ignoreNulls());
+                aggExpressions.add(sum0Expression);
+                AggregateExpression countExpression =
+                        new AggregateExpression(
+                                sum0AndCountFunction._2(),
+                                arguments,
+                                null,
+                                aggInfo.externalResultType(),
+                                aggInfo.agg().isDistinct(),
+                                aggInfo.agg().isApproximate(),
+                                aggInfo.agg().ignoreNulls());
+                aggExpressions.add(countExpression);
+            } else {
+                AggregateExpression aggregateExpression =
+                        new AggregateExpression(
+                                aggInfo.function(),
+                                arguments,
+                                null,
+                                aggInfo.externalResultType(),
+                                aggInfo.agg().isDistinct(),
+                                aggInfo.agg().isApproximate(),
+                                aggInfo.agg().ignoreNulls());
+                aggExpressions.add(aggregateExpression);
+            }
+        }
+        return aggExpressions;
     }
 }

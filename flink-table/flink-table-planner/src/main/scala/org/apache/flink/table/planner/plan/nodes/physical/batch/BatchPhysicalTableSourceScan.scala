@@ -18,6 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
+import java.util
+
+import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.hint.RelHint
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecTableSourceScan
@@ -25,13 +31,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpe
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.hint.RelHint
-import org.apache.calcite.rel.metadata.RelMetadataQuery
-
-import java.util
 
 /**
   * Batch physical RelNode to read data from an external source defined by a
@@ -50,8 +49,8 @@ class BatchPhysicalTableSourceScan(
   }
 
   def copy(
-      traitSet: RelTraitSet,
-      tableSourceTable: TableSourceTable): BatchPhysicalTableSourceScan = {
+            traitSet: RelTraitSet,
+            tableSourceTable: TableSourceTable): BatchPhysicalTableSourceScan = {
     new BatchPhysicalTableSourceScan(cluster, traitSet, getHints, tableSourceTable)
   }
 

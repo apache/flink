@@ -88,6 +88,7 @@ import org.apache.flink.table.planner.runtime.utils.FailingCollectionSource;
 import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -1059,7 +1060,8 @@ public final class TestValuesTableFactory
                 List<AggregateExpression> aggregateExpressions,
                 DataType producedDataType) {
             // this TestValuesScanTableSource only support simple group type ar present.
-            if (groupingSets.size() > 1) {
+            // auxGrouping is not supported.
+            if (groupingSets.size() > 1 && groupingSets.get(1).length > 0) {
                 return false;
             }
             List<AggregateExpression> aggExpressions = new ArrayList<>();
@@ -1078,6 +1080,19 @@ public final class TestValuesTableFactory
                         || aggExpression.isDistinct()) {
                     return false;
                 }
+
+                // only Long data type is supported in this unit test expect count()
+                if (aggExpression.getArgs().stream()
+                        .anyMatch(
+                                field ->
+                                        !(field.getOutputDataType().getLogicalType()
+                                                        instanceof BigIntType)
+                                                && !(functionDefinition instanceof CountAggFunction
+                                                        || functionDefinition
+                                                                instanceof Count1AggFunction))) {
+                    return false;
+                }
+
                 aggExpressions.add(aggExpression);
             }
             this.groupingSet = groupingSets.get(0);

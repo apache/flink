@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testCanPushDownWithGroup">
+  <TestCase name="testCanPushDownLocalHashAggWithGroup">
     <Resource name="sql">
       <![CDATA[SELECT
   sum(amount),
@@ -38,16 +38,42 @@ LogicalProject(EXPR$0=[$2], name=[$0], type=[$1])
 Calc(select=[EXPR$0, name, type])
 +- HashAggregate(isMerge=[true], groupBy=[name, type], select=[name, type, Final_SUM(sum$0) AS EXPR$0])
    +- Exchange(distribution=[hash[name, type]])
-      +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, type, amount], aggregates=[grouping=[name,type], aggFunctions=[IntSumAggFunction(amount)]]]], fields=[name, type, sum$0])
+      +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, type, amount], metadata=[], aggregates=[grouping=[name,type], aggFunctions=[LongSumAggFunction(amount)]]]], fields=[name, type, sum$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCanPushDownWithoutGroup">
+  <TestCase name="testDisablePushDownLocalAgg">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  sum(amount),
+  name,
+  type
+FROM inventory
+  group by name, type]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2], name=[$0], type=[$1])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
+   +- LogicalProject(name=[$1], type=[$4], amount=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, inventory]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0, name, type])
++- HashAggregate(isMerge=[true], groupBy=[name, type], select=[name, type, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[name, type]])
+      +- LocalHashAggregate(groupBy=[name, type], select=[name, type, Partial_SUM(amount) AS sum$0])
+         +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, type, amount], metadata=[]]], fields=[name, type, amount])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCanPushDownLocalHashAggWithoutGroup">
     <Resource name="sql">
       <![CDATA[SELECT
   min(id),
   max(amount),
-  max(name),
   sum(price),
   avg(price),
   count(id)
@@ -55,16 +81,225 @@ FROM inventory]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MAX($1)], EXPR$2=[MAX($2)], EXPR$3=[SUM($3)], EXPR$4=[AVG($3)], EXPR$5=[COUNT($0)])
-+- LogicalProject(id=[$0], amount=[$2], name=[$1], price=[$3])
+LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)], EXPR$3=[AVG($2)], EXPR$4=[COUNT($0)])
++- LogicalProject(id=[$0], amount=[$2], price=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, inventory]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1, Final_MAX(max$2) AS EXPR$2, Final_SUM(sum$3) AS EXPR$3, Final_AVG(sum$4, count$5) AS EXPR$4, Final_COUNT(count$6) AS EXPR$5])
+HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1, Final_SUM(sum$2) AS EXPR$2, Final_AVG(sum$3, count$4) AS EXPR$3, Final_COUNT(count$5) AS EXPR$4])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[id, amount, name, price], aggregates=[grouping=[null], aggFunctions=[IntMinAggFunction(id),IntMaxAggFunction(amount),StringMaxAggFunction(name),DoubleSumAggFunction(price),DoubleSum0AggFunction(price),CountAggFunction(price),CountAggFunction(id)]]]], fields=[min$0, max$1, max$2, sum$3, sum$4, count$5, count$6])
+   +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[id, amount, price], metadata=[], aggregates=[grouping=[], aggFunctions=[LongMinAggFunction(id),LongMaxAggFunction(amount),LongSumAggFunction(price),LongSum0AggFunction(price),CountAggFunction(price),CountAggFunction(id)]]]], fields=[min$0, max$1, sum$2, sum$3, count$4, count$5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCanPushDownLocalSortAggWithoutSort">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  min(id),
+  max(amount),
+  sum(price),
+  avg(price),
+  count(id)
+FROM inventory]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)], EXPR$3=[AVG($2)], EXPR$4=[COUNT($0)])
++- LogicalProject(id=[$0], amount=[$2], price=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, inventory]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1, Final_SUM(sum$2) AS EXPR$2, Final_AVG(sum$3, count$4) AS EXPR$3, Final_COUNT(count$5) AS EXPR$4])
++- Exchange(distribution=[single])
+   +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[id, amount, price], metadata=[], aggregates=[grouping=[], aggFunctions=[LongMinAggFunction(id),LongMaxAggFunction(amount),LongSumAggFunction(price),LongSum0AggFunction(price),CountAggFunction(price),CountAggFunction(id)]]]], fields=[min$0, max$1, sum$2, sum$3, count$4, count$5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCanPushDownLocalSortAggWithSort">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  sum(amount),
+  name,
+  type
+FROM inventory
+  group by name, type]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2], name=[$0], type=[$1])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
+   +- LogicalProject(name=[$1], type=[$4], amount=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, inventory]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0, name, type])
++- SortAggregate(isMerge=[true], groupBy=[name, type], select=[name, type, Final_SUM(sum$0) AS EXPR$0])
+   +- Sort(orderBy=[name ASC, type ASC])
+      +- Exchange(distribution=[hash[name, type]])
+         +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, type, amount], metadata=[], aggregates=[grouping=[name,type], aggFunctions=[LongSumAggFunction(amount)]]]], fields=[name, type, sum$0])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCanPushDownLocalAggWithAuxGrouping">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  name,
+  a,
+  p,
+  count(*)
+FROM (
+  SELECT
+    name,
+    sum(amount) as a,
+    max(price) as p
+  FROM inventory
+    group by name
+) t
+  group by name, a, p]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()])
++- LogicalAggregate(group=[{0}], a=[SUM($1)], p=[MAX($2)])
+   +- LogicalProject(name=[$1], amount=[$2], price=[$3])
+      +- LogicalTableScan(table=[[default_catalog, default_database, inventory]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[name], auxGrouping=[a, p], select=[name, a, p, COUNT(*) AS EXPR$3])
++- HashAggregate(isMerge=[true], groupBy=[name], select=[name, Final_SUM(sum$0) AS a, Final_MAX(max$1) AS p])
+   +- Exchange(distribution=[hash[name]])
+      +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, amount, price], metadata=[], aggregates=[grouping=[name], aggFunctions=[LongSumAggFunction(amount),LongMaxAggFunction(price)]]]], fields=[name, sum$0, max$1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCanPushDownLocalAggAfterFilterPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  sum(amount),
+  name,
+  type
+FROM inventory
+  where id = 123
+  group by name, type]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2], name=[$0], type=[$1])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
+   +- LogicalProject(name=[$1], type=[$4], amount=[$2])
+      +- LogicalFilter(condition=[=($0, 123)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, inventory]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0, name, type])
++- HashAggregate(isMerge=[true], groupBy=[name, type], select=[name, type, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[name, type]])
+      +- TableSourceScan(table=[[default_catalog, default_database, inventory, filter=[=(id, 123:BIGINT)], project=[name, type, amount], metadata=[], aggregates=[grouping=[name,type], aggFunctions=[LongSumAggFunction(amount)]]]], fields=[name, type, sum$0])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCannotPushDownLocalAggAfterLimitPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  sum(amount),
+  name,
+  type
+FROM (
+  SELECT
+    *
+  FROM inventory
+  LIMIT 100
+) t
+  group by name, type]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2], name=[$0], type=[$1])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
+   +- LogicalProject(name=[$1], type=[$4], amount=[$2])
+      +- LogicalSort(fetch=[100])
+         +- LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], type=[$4])
+            +- LogicalTableScan(table=[[default_catalog, default_database, inventory]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0, name, type])
++- HashAggregate(isMerge=[true], groupBy=[name, type], select=[name, type, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[name, type]])
+      +- LocalHashAggregate(groupBy=[name, type], select=[name, type, Partial_SUM(amount) AS sum$0])
+         +- Calc(select=[name, type, amount])
+            +- Limit(offset=[0], fetch=[100], global=[true])
+               +- Exchange(distribution=[single])
+                  +- Limit(offset=[0], fetch=[100], global=[false])
+                     +- TableSourceScan(table=[[default_catalog, default_database, inventory, limit=[100]]], fields=[id, name, amount, price, type])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCannotPushDownLocalAggWithUDAF">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  udaf_collect(amount),
+  name,
+  type
+FROM inventory
+  group by name, type]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2], name=[$0], type=[$1])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[udaf_collect($2)])
+   +- LogicalProject(name=[$1], type=[$4], amount=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, inventory]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0, name, type])
++- SortAggregate(isMerge=[true], groupBy=[name, type], select=[name, type, Final_udaf_collect(EXPR$0) AS EXPR$0])
+   +- Sort(orderBy=[name ASC, type ASC])
+      +- Exchange(distribution=[hash[name, type]])
+         +- LocalSortAggregate(groupBy=[name, type], select=[name, type, Partial_udaf_collect(amount) AS EXPR$0])
+            +- Sort(orderBy=[name ASC, type ASC])
+               +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, type, amount], metadata=[]]], fields=[name, type, amount])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCannotPushDownLocalAggWithUnsupportedDataTypes">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  max(name),
+  type
+FROM inventory
+  group by type]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], type=[$0])
++- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
+   +- LogicalProject(type=[$4], name=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, inventory]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0, type])
++- SortAggregate(isMerge=[true], groupBy=[type], select=[type, Final_MAX(max$0) AS EXPR$0])
+   +- Sort(orderBy=[type ASC])
+      +- Exchange(distribution=[hash[type]])
+         +- LocalSortAggregate(groupBy=[type], select=[type, Partial_MAX(name) AS max$0])
+            +- Sort(orderBy=[type ASC])
+               +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[type, name], metadata=[]]], fields=[type, name])
 ]]>
     </Resource>
   </TestCase>
@@ -94,7 +329,7 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3, name])
    +- Exchange(distribution=[hash[name]])
       +- LocalHashAggregate(groupBy=[name], select=[name, Partial_MIN($f1) AS min$0, Partial_MAX(amount) AS max$1, Partial_SUM(price) AS sum$2, Partial_COUNT(id) AS count$3])
          +- Calc(select=[name, +(amount, price) AS $f1, amount, price, id])
-            +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, amount, price, id]]], fields=[name, amount, price, id])
+            +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, amount, price, id], metadata=[]]], fields=[name, amount, price, id])
 ]]>
     </Resource>
   </TestCase>
@@ -128,7 +363,7 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3, name])
                +- Exchange(distribution=[hash[name, id, $e]])
                   +- LocalHashAggregate(groupBy=[name, id, $e], select=[name, id, $e, Partial_MIN(id_0) AS min$0, Partial_MAX(amount) AS max$1, Partial_SUM(price) AS sum$2])
                      +- Expand(projects=[{name, id, amount, price, 0 AS $e, id AS id_0}, {name, null AS id, amount, price, 1 AS $e, id AS id_0}])
-                        +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, id, amount, price]]], fields=[name, id, amount, price])
+                        +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, id, amount, price], metadata=[]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
   </TestCase>
@@ -143,17 +378,17 @@ FROM inventory]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], amount=[$2], EXPR$2=[CASE(>(COUNT($3) OVER (PARTITION BY $1), 0), $SUM0($3) OVER (PARTITION BY $1), null:DOUBLE)], name=[$1])
+LogicalProject(id=[$0], amount=[$2], EXPR$2=[CASE(>(COUNT($3) OVER (PARTITION BY $1), 0), $SUM0($3) OVER (PARTITION BY $1), null:BIGINT)], name=[$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, inventory]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[id, amount, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:DOUBLE) AS EXPR$2, name])
+Calc(select=[id, amount, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT) AS EXPR$2, name])
 +- OverAggregate(partitionBy=[name], window#0=[COUNT(price) AS w0$o0, $SUM0(price) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[id, name, amount, price, w0$o0, w0$o1])
    +- Sort(orderBy=[name ASC])
       +- Exchange(distribution=[hash[name]])
-         +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[id, name, amount, price]]], fields=[id, name, amount, price])
+         +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[id, name, amount, price], metadata=[]]], fields=[id, name, amount, price])
 ]]>
     </Resource>
   </TestCase>
@@ -183,7 +418,7 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3, name])
    +- Exchange(distribution=[hash[name]])
       +- LocalHashAggregate(groupBy=[name], select=[name, Partial_MIN(id) AS min$0, Partial_MAX(amount) AS max$1, Partial_SUM(price) AS sum$2, Partial_COUNT(id) FILTER $f4 AS count$3])
          +- Calc(select=[name, id, amount, price, IS TRUE(>(id, 100)) AS $f4])
-            +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, id, amount, price]]], fields=[name, id, amount, price])
+            +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, id, amount, price], metadata=[]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
   </TestCase>
