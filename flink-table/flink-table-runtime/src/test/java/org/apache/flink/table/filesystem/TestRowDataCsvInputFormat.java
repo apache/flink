@@ -92,10 +92,10 @@ public class TestRowDataCsvInputFormat extends FileInputFormat<RowData> {
                         .map(name -> fieldTypes.get(fieldNames.indexOf(name)))
                         .collect(Collectors.toList());
         RowTypeInfo rowType = (RowTypeInfo) schema.toRowType();
-        List<TypeInformation> fieldTypeInfos = Arrays.asList(rowType.getFieldTypes());
+        TypeInformation[] fieldTypeInfos = rowType.getFieldTypes();
         List<TypeInformation> csvSelectTypeInfos =
                 csvSelectFieldNames.stream()
-                        .map(name -> fieldTypeInfos.get(fieldNames.indexOf(name)))
+                        .map(name -> fieldTypeInfos[fieldNames.indexOf(name)])
                         .collect(Collectors.toList());
         this.csvSelectConverters =
                 csvSelectTypes.stream()
