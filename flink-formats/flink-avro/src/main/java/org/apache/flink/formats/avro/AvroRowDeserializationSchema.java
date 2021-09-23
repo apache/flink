@@ -243,16 +243,18 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
             case UNION:
                 final List<Schema> types = schema.getTypes();
                 final int size = types.size();
+                final Schema actualSchema;
                 if (size == 2 && types.get(0).getType() == Schema.Type.NULL) {
-                    return convertAvroType(types.get(1), info, object);
+                    actualSchema = types.get(1);
                 } else if (size == 2 && types.get(1).getType() == Schema.Type.NULL) {
-                    return convertAvroType(types.get(0), info, object);
+                    actualSchema = types.get(0);
                 } else if (size == 1) {
-                    return convertAvroType(types.get(0), info, object);
+                    actualSchema = types.get(0);
                 } else {
                     // generic type
                     return object;
                 }
+                return convertAvroType(actualSchema, info, object);
             case FIXED:
                 final byte[] fixedBytes = ((GenericFixed) object).bytes();
                 if (info == Types.BIG_DEC) {
