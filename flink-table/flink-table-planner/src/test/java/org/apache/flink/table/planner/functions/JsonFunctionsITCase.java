@@ -88,71 +88,74 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         return TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_EXISTS)
                 .onFieldsWithData(jsonValue)
                 .andDataTypes(STRING())
+                .testResult(
+                        // NULL
+                        resultSpec(
+                                nullOf(STRING()).jsonExists("lax $"),
+                                "JSON_EXISTS(CAST(NULL AS STRING), 'lax $')",
+                                null,
+                                BOOLEAN()),
 
-                // NULL
-                .testResult(
-                        nullOf(STRING()).jsonExists("lax $"),
-                        "JSON_EXISTS(CAST(NULL AS STRING), 'lax $')",
-                        null,
-                        BOOLEAN())
+                        // Path variants
+                        resultSpec(
+                                $("f0").jsonExists("lax $"),
+                                "JSON_EXISTS(f0, 'lax $')",
+                                true,
+                                BOOLEAN()),
+                        resultSpec(
+                                $("f0").jsonExists("lax $.type"),
+                                "JSON_EXISTS(f0, 'lax $.type')",
+                                true,
+                                BOOLEAN()),
+                        resultSpec(
+                                $("f0").jsonExists("lax $.author.address.city"),
+                                "JSON_EXISTS(f0, 'lax $.author.address.city')",
+                                true,
+                                BOOLEAN()),
+                        resultSpec(
+                                $("f0").jsonExists("lax $.metadata.tags[0]"),
+                                "JSON_EXISTS(f0, 'lax $.metadata.tags[0]')",
+                                true,
+                                BOOLEAN()),
+                        resultSpec(
+                                $("f0").jsonExists("lax $.metadata.tags[3]"),
+                                "JSON_EXISTS(f0, 'lax $.metadata.tags[3]')",
+                                false,
+                                BOOLEAN()),
+                        // This should pass, but is broken due to
+                        // https://issues.apache.org/jira/browse/CALCITE-4717.
+                        // new TestSpecColumn(
+                        //        $("f0").jsonExists("lax $.metadata.references.url"),
+                        //        "JSON_EXISTS(f0, 'lax $.metadata.references.url')",
+                        //        true,
+                        //        DataTypes.BOOLEAN())
+                        resultSpec(
+                                $("f0").jsonExists("lax $.metadata.references[0].url"),
+                                "JSON_EXISTS(f0, 'lax $.metadata.references[0].url')",
+                                true,
+                                BOOLEAN()),
+                        resultSpec(
+                                $("f0").jsonExists("lax $.metadata.references[0].invalid"),
+                                "JSON_EXISTS(f0, 'lax $.metadata.references[0].invalid')",
+                                false,
+                                BOOLEAN()),
 
-                // Path variants
-                .testResult(
-                        $("f0").jsonExists("lax $"), "JSON_EXISTS(f0, 'lax $')", true, BOOLEAN())
-                .testResult(
-                        $("f0").jsonExists("lax $.type"),
-                        "JSON_EXISTS(f0, 'lax $.type')",
-                        true,
-                        BOOLEAN())
-                .testResult(
-                        $("f0").jsonExists("lax $.author.address.city"),
-                        "JSON_EXISTS(f0, 'lax $.author.address.city')",
-                        true,
-                        BOOLEAN())
-                .testResult(
-                        $("f0").jsonExists("lax $.metadata.tags[0]"),
-                        "JSON_EXISTS(f0, 'lax $.metadata.tags[0]')",
-                        true,
-                        BOOLEAN())
-                .testResult(
-                        $("f0").jsonExists("lax $.metadata.tags[3]"),
-                        "JSON_EXISTS(f0, 'lax $.metadata.tags[3]')",
-                        false,
-                        BOOLEAN())
-                // This should pass, but is broken due to
-                // https://issues.apache.org/jira/browse/CALCITE-4717.
-                // .testResult(
-                //        $("f0").jsonExists("lax $.metadata.references.url"),
-                //        "JSON_EXISTS(f0, 'lax $.metadata.references.url')",
-                //        true,
-                //        DataTypes.BOOLEAN())
-                .testResult(
-                        $("f0").jsonExists("lax $.metadata.references[0].url"),
-                        "JSON_EXISTS(f0, 'lax $.metadata.references[0].url')",
-                        true,
-                        BOOLEAN())
-                .testResult(
-                        $("f0").jsonExists("lax $.metadata.references[0].invalid"),
-                        "JSON_EXISTS(f0, 'lax $.metadata.references[0].invalid')",
-                        false,
-                        BOOLEAN())
-
-                // ON ERROR
-                .testResult(
-                        $("f0").jsonExists("strict $.invalid", JsonExistsOnError.TRUE),
-                        "JSON_EXISTS(f0, 'strict $.invalid' TRUE ON ERROR)",
-                        true,
-                        BOOLEAN())
-                .testResult(
-                        $("f0").jsonExists("strict $.invalid", JsonExistsOnError.FALSE),
-                        "JSON_EXISTS(f0, 'strict $.invalid' FALSE ON ERROR)",
-                        false,
-                        BOOLEAN())
-                .testResult(
-                        $("f0").jsonExists("strict $.invalid", JsonExistsOnError.UNKNOWN),
-                        "JSON_EXISTS(f0, 'strict $.invalid' UNKNOWN ON ERROR)",
-                        null,
-                        BOOLEAN())
+                        // ON ERROR
+                        resultSpec(
+                                $("f0").jsonExists("strict $.invalid", JsonExistsOnError.TRUE),
+                                "JSON_EXISTS(f0, 'strict $.invalid' TRUE ON ERROR)",
+                                true,
+                                BOOLEAN()),
+                        resultSpec(
+                                $("f0").jsonExists("strict $.invalid", JsonExistsOnError.FALSE),
+                                "JSON_EXISTS(f0, 'strict $.invalid' FALSE ON ERROR)",
+                                false,
+                                BOOLEAN()),
+                        resultSpec(
+                                $("f0").jsonExists("strict $.invalid", JsonExistsOnError.UNKNOWN),
+                                "JSON_EXISTS(f0, 'strict $.invalid' UNKNOWN ON ERROR)",
+                                null,
+                                BOOLEAN()))
                 .testSqlRuntimeError(
                         "JSON_EXISTS(f0, 'strict $.invalid' ERROR ON ERROR)",
                         "No results for path: $['invalid']")
@@ -166,88 +169,85 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         return TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_VALUE)
                 .onFieldsWithData(jsonValue)
                 .andDataTypes(STRING())
+                .testResult(
+                        // NULL and invalid types
+                        resultSpec(
+                                lit(null, STRING()).jsonValue("lax $"),
+                                "JSON_VALUE(CAST(NULL AS STRING), 'lax $')",
+                                null,
+                                STRING(),
+                                VARCHAR(2000)),
 
-                // NULL and invalid types
+                        // RETURNING + Supported Data Types
+                        resultSpec(
+                                $("f0").jsonValue("$.type"),
+                                "JSON_VALUE(f0, '$.type')",
+                                "account",
+                                STRING(),
+                                VARCHAR(2000)),
+                        resultSpec(
+                                $("f0").jsonValue("$.activated", BOOLEAN()),
+                                "JSON_VALUE(f0, '$.activated' RETURNING BOOLEAN)",
+                                true,
+                                BOOLEAN()),
+                        resultSpec(
+                                $("f0").jsonValue("$.age", INT()),
+                                "JSON_VALUE(f0, '$.age' RETURNING INT)",
+                                42,
+                                INT()),
+                        resultSpec(
+                                $("f0").jsonValue("$.balance", DOUBLE()),
+                                "JSON_VALUE(f0, '$.balance' RETURNING DOUBLE)",
+                                13.37,
+                                DOUBLE()),
 
-                .testResult(
-                        lit(null, STRING()).jsonValue("lax $"),
-                        "JSON_VALUE(CAST(NULL AS STRING), 'lax $')",
-                        null,
-                        STRING(),
-                        VARCHAR(2000))
-
-                // RETURNING + Supported Data Types
-
-                .testResult(
-                        $("f0").jsonValue("$.type"),
-                        "JSON_VALUE(f0, '$.type')",
-                        "account",
-                        STRING(),
-                        VARCHAR(2000))
-                .testResult(
-                        $("f0").jsonValue("$.activated", BOOLEAN()),
-                        "JSON_VALUE(f0, '$.activated' RETURNING BOOLEAN)",
-                        true,
-                        BOOLEAN())
-                .testResult(
-                        $("f0").jsonValue("$.age", INT()),
-                        "JSON_VALUE(f0, '$.age' RETURNING INT)",
-                        42,
-                        INT())
-                .testResult(
-                        $("f0").jsonValue("$.balance", DOUBLE()),
-                        "JSON_VALUE(f0, '$.balance' RETURNING DOUBLE)",
-                        13.37,
-                        DOUBLE())
-
-                // ON EMPTY / ON ERROR
-
-                .testResult(
-                        $("f0").jsonValue(
-                                        "lax $.invalid",
-                                        STRING(),
-                                        JsonValueOnEmptyOrError.NULL,
-                                        null,
-                                        JsonValueOnEmptyOrError.ERROR,
-                                        null),
-                        "JSON_VALUE(f0, 'lax $.invalid' NULL ON EMPTY ERROR ON ERROR)",
-                        null,
-                        STRING(),
-                        VARCHAR(2000))
-                .testResult(
-                        $("f0").jsonValue(
-                                        "lax $.invalid",
-                                        INT(),
-                                        JsonValueOnEmptyOrError.DEFAULT,
-                                        42,
-                                        JsonValueOnEmptyOrError.ERROR,
-                                        null),
-                        "JSON_VALUE(f0, 'lax $.invalid' RETURNING INTEGER DEFAULT 42 ON EMPTY ERROR ON ERROR)",
-                        42,
-                        INT())
-                .testResult(
-                        $("f0").jsonValue(
-                                        "strict $.invalid",
-                                        STRING(),
-                                        JsonValueOnEmptyOrError.ERROR,
-                                        null,
-                                        JsonValueOnEmptyOrError.NULL,
-                                        null),
-                        "JSON_VALUE(f0, 'strict $.invalid' ERROR ON EMPTY NULL ON ERROR)",
-                        null,
-                        STRING(),
-                        VARCHAR(2000))
-                .testResult(
-                        $("f0").jsonValue(
-                                        "strict $.invalid",
-                                        INT(),
-                                        JsonValueOnEmptyOrError.NULL,
-                                        null,
-                                        JsonValueOnEmptyOrError.DEFAULT,
-                                        42),
-                        "JSON_VALUE(f0, 'strict $.invalid' RETURNING INTEGER NULL ON EMPTY DEFAULT 42 ON ERROR)",
-                        42,
-                        INT());
+                        // ON EMPTY / ON ERROR
+                        resultSpec(
+                                $("f0").jsonValue(
+                                                "lax $.invalid",
+                                                STRING(),
+                                                JsonValueOnEmptyOrError.NULL,
+                                                null,
+                                                JsonValueOnEmptyOrError.ERROR,
+                                                null),
+                                "JSON_VALUE(f0, 'lax $.invalid' NULL ON EMPTY ERROR ON ERROR)",
+                                null,
+                                STRING(),
+                                VARCHAR(2000)),
+                        resultSpec(
+                                $("f0").jsonValue(
+                                                "lax $.invalid",
+                                                INT(),
+                                                JsonValueOnEmptyOrError.DEFAULT,
+                                                42,
+                                                JsonValueOnEmptyOrError.ERROR,
+                                                null),
+                                "JSON_VALUE(f0, 'lax $.invalid' RETURNING INTEGER DEFAULT 42 ON EMPTY ERROR ON ERROR)",
+                                42,
+                                INT()),
+                        resultSpec(
+                                $("f0").jsonValue(
+                                                "strict $.invalid",
+                                                STRING(),
+                                                JsonValueOnEmptyOrError.ERROR,
+                                                null,
+                                                JsonValueOnEmptyOrError.NULL,
+                                                null),
+                                "JSON_VALUE(f0, 'strict $.invalid' ERROR ON EMPTY NULL ON ERROR)",
+                                null,
+                                STRING(),
+                                VARCHAR(2000)),
+                        resultSpec(
+                                $("f0").jsonValue(
+                                                "strict $.invalid",
+                                                INT(),
+                                                JsonValueOnEmptyOrError.NULL,
+                                                null,
+                                                JsonValueOnEmptyOrError.DEFAULT,
+                                                42),
+                                "JSON_VALUE(f0, 'strict $.invalid' RETURNING INTEGER NULL ON EMPTY DEFAULT 42 ON ERROR)",
+                                42,
+                                INT()));
     }
 
     private static List<TestSpec> isJsonSpec() {
@@ -273,51 +273,55 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("\"a\"")
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN().notNull())
                         .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                true,
-                                BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.SCALAR),
-                                "f0 IS JSON SCALAR",
-                                true,
-                                BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.ARRAY),
-                                "f0 IS JSON ARRAY",
-                                false,
-                                BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.OBJECT),
-                                "f0 IS JSON OBJECT",
-                                false,
-                                BOOLEAN().notNull()),
+                                resultSpec(
+                                        $("f0").isJson(), "f0 IS JSON", true, BOOLEAN().notNull()),
+                                resultSpec(
+                                        $("f0").isJson(JsonType.VALUE),
+                                        "f0 IS JSON VALUE",
+                                        true,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        $("f0").isJson(JsonType.SCALAR),
+                                        "f0 IS JSON SCALAR",
+                                        true,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        $("f0").isJson(JsonType.ARRAY),
+                                        "f0 IS JSON ARRAY",
+                                        false,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        $("f0").isJson(JsonType.OBJECT),
+                                        "f0 IS JSON OBJECT",
+                                        false,
+                                        BOOLEAN().notNull())),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("{}")
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN().notNull())
                         .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                true,
-                                BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.SCALAR),
-                                "f0 IS JSON SCALAR",
-                                false,
-                                BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.ARRAY),
-                                "f0 IS JSON ARRAY",
-                                false,
-                                BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.OBJECT),
-                                "f0 IS JSON OBJECT",
-                                true,
-                                BOOLEAN().notNull()));
+                                resultSpec(
+                                        $("f0").isJson(), "f0 IS JSON", true, BOOLEAN().notNull()),
+                                resultSpec(
+                                        $("f0").isJson(JsonType.VALUE),
+                                        "f0 IS JSON VALUE",
+                                        true,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        $("f0").isJson(JsonType.SCALAR),
+                                        "f0 IS JSON SCALAR",
+                                        false,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        $("f0").isJson(JsonType.ARRAY),
+                                        "f0 IS JSON ARRAY",
+                                        false,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        $("f0").isJson(JsonType.OBJECT),
+                                        "f0 IS JSON OBJECT",
+                                        true,
+                                        BOOLEAN().notNull())));
     }
 
     private static List<TestSpec> jsonQuerySpec() throws Exception {
@@ -445,23 +449,24 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECT)
                         .onFieldsWithData(0)
                         .testResult(
-                                jsonObject(JsonOnNull.NULL),
-                                "JSON_OBJECT()",
-                                "{}",
-                                STRING().notNull(),
-                                VARCHAR(2000).notNull())
-                        .testResult(
-                                jsonObject(JsonOnNull.NULL, "K", nullOf(STRING())),
-                                "JSON_OBJECT(KEY 'K' VALUE CAST(NULL AS STRING) NULL ON NULL)",
-                                "{\"K\":null}",
-                                STRING().notNull(),
-                                VARCHAR(2000).notNull())
-                        .testResult(
-                                jsonObject(JsonOnNull.ABSENT, "K", nullOf(STRING())),
-                                "JSON_OBJECT(KEY 'K' VALUE CAST(NULL AS STRING) ABSENT ON NULL)",
-                                "{}",
-                                STRING().notNull(),
-                                VARCHAR(2000).notNull()),
+                                resultSpec(
+                                        jsonObject(JsonOnNull.NULL),
+                                        "JSON_OBJECT()",
+                                        "{}",
+                                        STRING().notNull(),
+                                        VARCHAR(2000).notNull()),
+                                resultSpec(
+                                        jsonObject(JsonOnNull.NULL, "K", nullOf(STRING())),
+                                        "JSON_OBJECT(KEY 'K' VALUE CAST(NULL AS STRING) NULL ON NULL)",
+                                        "{\"K\":null}",
+                                        STRING().notNull(),
+                                        VARCHAR(2000).notNull()),
+                                resultSpec(
+                                        jsonObject(JsonOnNull.ABSENT, "K", nullOf(STRING())),
+                                        "JSON_OBJECT(KEY 'K' VALUE CAST(NULL AS STRING) ABSENT ON NULL)",
+                                        "{}",
+                                        STRING().notNull(),
+                                        VARCHAR(2000).notNull())),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECT)
                         .onFieldsWithData(
                                 "V",

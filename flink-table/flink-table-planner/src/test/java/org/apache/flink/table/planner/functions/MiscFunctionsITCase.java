@@ -60,20 +60,21 @@ public class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                         .andDataTypes(DataTypes.INT().nullable(), DataTypes.DECIMAL(5, 2).notNull())
                         .withFunction(TakesNotNull.class)
                         .testResult(
-                                $("f0").ifNull($("f0")),
-                                "IFNULL(f0, f0)",
-                                null,
-                                DataTypes.INT().nullable())
-                        .testResult(
-                                $("f0").ifNull($("f1")),
-                                "IFNULL(f0, f1)",
-                                new BigDecimal("123.45"),
-                                DataTypes.DECIMAL(12, 2).notNull())
-                        .testResult(
-                                $("f1").ifNull($("f0")),
-                                "IFNULL(f1, f0)",
-                                new BigDecimal("123.45"),
-                                DataTypes.DECIMAL(12, 2).notNull())
+                                resultSpec(
+                                        $("f0").ifNull($("f0")),
+                                        "IFNULL(f0, f0)",
+                                        null,
+                                        DataTypes.INT().nullable()),
+                                resultSpec(
+                                        $("f0").ifNull($("f1")),
+                                        "IFNULL(f0, f1)",
+                                        new BigDecimal("123.45"),
+                                        DataTypes.DECIMAL(12, 2).notNull()),
+                                resultSpec(
+                                        $("f1").ifNull($("f0")),
+                                        "IFNULL(f1, f0)",
+                                        new BigDecimal("123.45"),
+                                        DataTypes.DECIMAL(12, 2).notNull()))
                         .testSqlValidationError(
                                 "IFNULL(SUBSTR(''), f0)",
                                 "Invalid number of arguments to function 'SUBSTR'.")
