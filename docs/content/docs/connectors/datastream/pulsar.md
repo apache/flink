@@ -35,10 +35,6 @@ For details on Pulsar compatibility, please refer to the [PIP-72](https://github
 
 {{< artifact flink-connector-pulsar withScalaVersion >}}
 
-If you are using Pulsar source, `flink-connector-base` is also required as dependency:
-
-{{< artifact flink-connector-base >}}
-
 Flink's streaming connectors are not currently part of the binary distribution.
 See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
 
@@ -243,6 +239,10 @@ Built-in start cursors include:
   Include or exclude the start message by using the second boolean parameter.
   ```java
   StartCursor.fromMessageId(MessageId, boolean)
+  ```
+- Start from the specified message time by `Message<byte[]>.getEventTime()`.
+  ```java
+  StartCursor.fromMessageTime(long)
   ```
 
 {{< hint info >}}
