@@ -40,23 +40,28 @@ public class CoalesceFunctionITCase extends BuiltInFunctionTestBase {
                         .onFieldsWithData(null, null, 1)
                         .andDataTypes(BIGINT().nullable(), INT().nullable(), INT().notNull())
                         .testResult(
-                                coalesce($("f0"), $("f1")),
-                                "COALESCE(f0, f1)",
-                                null,
-                                BIGINT().nullable())
-                        .testResult(
-                                coalesce($("f0"), $("f2")),
-                                "COALESCE(f0, f2)",
-                                1L,
-                                BIGINT().notNull())
-                        .testResult(
-                                coalesce($("f1"), $("f2")), "COALESCE(f1, f2)", 1, INT().notNull())
-                        .testResult(
-                                coalesce($("f0"), 1),
-                                "COALESCE(f0, 1)",
-                                1L,
-                                // In this case, the return type is not null because we have a
-                                // constant in the function invocation
-                                BIGINT().notNull()));
+                                resultSpec(
+                                        coalesce($("f0"), $("f1")),
+                                        "COALESCE(f0, f1)",
+                                        null,
+                                        BIGINT().nullable()),
+                                resultSpec(
+                                        coalesce($("f0"), $("f2")),
+                                        "COALESCE(f0, f2)",
+                                        1L,
+                                        BIGINT().notNull()),
+                                resultSpec(
+                                        coalesce($("f1"), $("f2")),
+                                        "COALESCE(f1, f2)",
+                                        1,
+                                        INT().notNull()),
+                                resultSpec(
+                                        coalesce($("f0"), 1),
+                                        "COALESCE(f0, 1)",
+                                        1L,
+                                        // In this case, the return type is not null because we have
+                                        // a
+                                        // constant in the function invocation
+                                        BIGINT().notNull())));
     }
 }
