@@ -35,10 +35,6 @@ Flink 当前只提供 [Apache Pulsar](https://pulsar.apache.org) 数据源，用
 
 {{< artifact flink-connector-pulsar withScalaVersion >}}
 
-使用本连接器的同时，记得把 `flink-connector-base` 也加到项目的依赖里面：
-
-{{< artifact flink-connector-base >}}
-
 Flink 的流连接器并不会放到发行文件里面一同发布，阅读[此文档]({{< ref "docs/dev/datastream/project-configuration" >}})，了解如何将连接器添加到集群实例内。
 
 ## Pulsar 数据源
