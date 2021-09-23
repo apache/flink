@@ -327,7 +327,8 @@ public class CheckpointCoordinator {
             this.checkpointStorageView = checkpointStorage.createCheckpointStorage(job);
 
             if (isPeriodicCheckpointingConfigured()) {
-                initializeBaseLocationsForCheckpoint();
+                checkpointStorageView.initializeBaseLocationsForCheckpoint();
+                baseLocationsForCheckpointInitialized = true;
             }
         } catch (IOException e) {
             throw new FlinkRuntimeException(
@@ -350,11 +351,6 @@ public class CheckpointCoordinator {
                         this.minPauseBetweenCheckpoints,
                         this.pendingCheckpoints::size,
                         this.checkpointsCleaner::getNumberOfCheckpointsToClean);
-    }
-
-    private void initializeBaseLocationsForCheckpoint() throws IOException {
-        checkpointStorageView.initializeBaseLocationsForCheckpoint();
-        baseLocationsForCheckpointInitialized = true;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -546,6 +542,9 @@ public class CheckpointCoordinator {
             CompletableFuture<CheckpointPlan> checkpointPlanFuture =
                     checkpointPlanCalculator.calculateCheckpointPlan();
 
+            boolean initializeBaseLocations = !baseLocationsForCheckpointInitialized;
+            baseLocationsForCheckpointInitialized = true;
+
             final CompletableFuture<PendingCheckpoint> pendingCheckpointCompletableFuture =
                     checkpointPlanFuture
                             .thenApplyAsync(
@@ -555,7 +554,8 @@ public class CheckpointCoordinator {
                                                     checkpointIdAndStorageLocation =
                                                             initializeCheckpoint(
                                                                     request.props,
-                                                                    request.externalSavepointLocation);
+                                                                    request.externalSavepointLocation,
+                                                                    initializeBaseLocations);
                                             return new Tuple2<>(
                                                     plan, checkpointIdAndStorageLocation);
                                         } catch (Throwable e) {
@@ -732,7 +732,9 @@ public class CheckpointCoordinator {
      * @return the initialized result, checkpoint id and checkpoint location
      */
     private CheckpointIdAndStorageLocation initializeCheckpoint(
-            CheckpointProperties props, @Nullable String externalSavepointLocation)
+            CheckpointProperties props,
+            @Nullable String externalSavepointLocation,
+            boolean initializeBaseLocations)
             throws Exception {
 
         // this must happen outside the coordinator-wide lock, because it
@@ -746,8 +748,8 @@ public class CheckpointCoordinator {
                     checkpointStorageView.initializeLocationForSavepoint(
                             checkpointID, externalSavepointLocation);
         } else {
-            if (!baseLocationsForCheckpointInitialized) {
-                initializeBaseLocationsForCheckpoint();
+            if (initializeBaseLocations) {
+                checkpointStorageView.initializeBaseLocationsForCheckpoint();
             }
             checkpointStorageLocation =
                     checkpointStorageView.initializeLocationForCheckpoint(checkpointID);
