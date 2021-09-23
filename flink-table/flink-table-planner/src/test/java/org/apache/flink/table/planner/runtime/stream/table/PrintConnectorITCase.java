@@ -98,6 +98,56 @@ public class PrintConnectorITCase extends StreamingTestBase {
                         || arrayOutputStream.toString().equals(expectedLine2 + "\n"));
     }
 
+    @Test
+    public void testWithPartitionedTableAll() throws Exception {
+        createPartitionedTable();
+        tEnv().executeSql("INSERT INTO print_t PARTITION (f0=1,f1=1.1) SELECT 'n1'").await();
+
+        String expectedLine1 =
+                "test_print:f0=1:f1=1.1:1> +I["
+                        + /* 0 */ "1, "
+                        + /* 1 */ "1.1, "
+                        + /* 2 */ "n1"
+                        + "]";
+        String expectedLine2 =
+                "test_print:f0=1:f1=1.1:2> +I["
+                        + /* 0 */ "1, "
+                        + /* 1 */ "1.1, "
+                        + /* 2 */ "n1"
+                        + "]";
+        Assert.assertTrue(
+                arrayOutputStream.toString().equals(expectedLine1 + "\n")
+                        || arrayOutputStream.toString().equals(expectedLine2 + "\n"));
+    }
+
+    @Test
+    public void testWithPartitionedTablePart() throws Exception {
+        createPartitionedTable();
+        tEnv().executeSql("INSERT INTO print_t PARTITION (f0=1) SELECT 1.1, 'n1'").await();
+
+        String expectedLine1 =
+                "test_print:f0=1:1> +I[" + /* 0 */ "1, " + /* 1 */ "1.1, " + /* 2 */ "n1" + "]";
+        String expectedLine2 =
+                "test_print:f0=1:2> +I[" + /* 0 */ "1, " + /* 1 */ "1.1, " + /* 2 */ "n1" + "]";
+        Assert.assertTrue(
+                arrayOutputStream.toString().equals(expectedLine1 + "\n")
+                        || arrayOutputStream.toString().equals(expectedLine2 + "\n"));
+    }
+
+    private void createPartitionedTable() {
+        tEnv().executeSql(
+                        "create table print_t ("
+                                + "f0 int,"
+                                + "f1 double,"
+                                + "f2 string) "
+                                + "PARTITIONED BY (f0, f1) "
+                                + "with ("
+                                + "'connector' = 'print',"
+                                + "'print-identifier' = 'test_print',"
+                                + "'sink.parallelism' = '2',"
+                                + "'standard-error'='false')");
+    }
+
     private void test(boolean standardError) throws Exception {
         tEnv().executeSql(
                         String.format(
