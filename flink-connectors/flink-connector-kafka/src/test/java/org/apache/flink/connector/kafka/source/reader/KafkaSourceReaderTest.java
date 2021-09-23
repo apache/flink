@@ -215,11 +215,21 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
             // The completion of the last checkpoint should subsume all the previous checkpoitns.
             assertEquals(checkpointId, reader.getOffsetsToCommit().size());
-            reader.notifyCheckpointComplete(checkpointId);
-            pollUntil(
-                    reader,
-                    output,
-                    () -> reader.getOffsetsToCommit().isEmpty(),
+
+            long lastCheckpointId = checkpointId;
+            waitUtil(
+                    () -> {
+                        try {
+                            reader.notifyCheckpointComplete(lastCheckpointId);
+                        } catch (Exception exception) {
+                            throw new RuntimeException(
+                                    "Caught unexpected exception when polling from the reader",
+                                    exception);
+                        }
+                        return reader.getOffsetsToCommit().isEmpty();
+                    },
+                    Duration.ofSeconds(60),
+                    Duration.ofSeconds(1),
                     "The offset commit did not finish before timeout.");
         }
 
