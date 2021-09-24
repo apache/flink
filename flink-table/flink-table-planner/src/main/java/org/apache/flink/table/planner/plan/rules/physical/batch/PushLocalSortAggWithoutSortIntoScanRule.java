@@ -29,8 +29,8 @@ import org.apache.calcite.plan.RelOptRuleCall;
 
 /**
  * Planner rule that tries to push a local hash or sort aggregate which without sort into a {@link
- * BatchPhysicalTableSourceScan} which table is a {@link TableSourceTable}. And the table source in
- * the table is a {@link SupportsAggregatePushDown}. The {@link
+ * BatchPhysicalTableSourceScan} whose table is a {@link TableSourceTable} with a source supporting
+ * {@link SupportsAggregatePushDown}. The {@link
  * OptimizerConfigOptions#TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED} need to be true.
  *
  * <p>Suppose we have the original physical plan:

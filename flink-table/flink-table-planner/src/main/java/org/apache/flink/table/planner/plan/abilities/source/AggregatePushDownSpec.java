@@ -95,32 +95,24 @@ public class AggregatePushDownSpec extends SourceAbilitySpecBase {
 
     @Override
     public String getDigests(SourceAbilityContext context) {
-        String extraDigest;
-        String groupingStr = "";
         int[] grouping = ArrayUtils.addAll(groupingSets.get(0), groupingSets.get(1));
-        if (grouping.length > 0) {
-            groupingStr =
-                    Arrays.stream(grouping)
-                            .mapToObj(index -> inputType.getFieldNames().get(index))
-                            .collect(Collectors.joining(","));
-        }
-        String aggFunctionsStr = "";
+        String groupingStr =
+                Arrays.stream(grouping)
+                        .mapToObj(index -> inputType.getFieldNames().get(index))
+                        .collect(Collectors.joining(","));
 
         List<AggregateExpression> aggregateExpressions =
                 buildAggregateExpressions(inputType, aggregateCalls);
-        if (aggregateExpressions.size() > 0) {
-            aggFunctionsStr =
-                    aggregateExpressions.stream()
-                            .map(AggregateExpression::asSummaryString)
-                            .collect(Collectors.joining(","));
-        }
-        extraDigest =
-                "aggregates=[grouping=["
-                        + groupingStr
-                        + "], aggFunctions=["
-                        + aggFunctionsStr
-                        + "]]";
-        return extraDigest;
+        String aggFunctionsStr =
+                aggregateExpressions.stream()
+                        .map(AggregateExpression::asSummaryString)
+                        .collect(Collectors.joining(","));
+
+        return "aggregates=[grouping=["
+                + groupingStr
+                + "], aggFunctions=["
+                + aggFunctionsStr
+                + "]]";
     }
 
     public static boolean apply(

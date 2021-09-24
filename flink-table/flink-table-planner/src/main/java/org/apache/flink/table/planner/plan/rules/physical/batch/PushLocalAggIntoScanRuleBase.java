@@ -44,7 +44,7 @@ import java.util.List;
 
 /**
  * Planner rule that tries to push a local aggregator into an {@link BatchPhysicalTableSourceScan}
- * which table is a {@link TableSourceTable}. And the table source in the table is a {@link
+ * whose table is a {@link TableSourceTable} with a source supporting {@link
  * SupportsAggregatePushDown}.
  *
  * <p>The aggregate push down does not support a number of more complex statements at present:
@@ -138,14 +138,11 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
 
     private FlinkStatistic getNewFlinkStatistic(TableSourceTable tableSourceTable) {
         FlinkStatistic oldStatistic = tableSourceTable.getStatistic();
-        FlinkStatistic newStatistic;
         if (oldStatistic == FlinkStatistic.UNKNOWN()) {
-            newStatistic = oldStatistic;
+            return oldStatistic;
         } else {
-            // Remove tableStats after all of aggregate have been pushed down
-            newStatistic =
-                    FlinkStatistic.builder().statistic(oldStatistic).tableStats(null).build();
+            // Remove tableStats after all aggregates have been pushed down
+            return FlinkStatistic.builder().statistic(oldStatistic).tableStats(null).build();
         }
-        return newStatistic;
     }
 }

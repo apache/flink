@@ -97,11 +97,10 @@ public class OptimizerConfigOptions {
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED =
             key("table.optimizer.source.aggregate-pushdown-enabled")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             "When it is true, the optimizer will push down the local aggregates into "
-                                    + "the TableSource which implements SupportsAggregatePushDown. "
-                                    + "Default value is false.");
+                                    + "the TableSource which implements SupportsAggregatePushDown.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED =
