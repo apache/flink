@@ -255,11 +255,6 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
         }
 
         @Override
-        public void recover() throws Exception {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
         public void addCheckpoint(
                 CompletedCheckpoint checkpoint,
                 CheckpointsCleaner checkpointsCleaner,
@@ -269,8 +264,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
         }
 
         @Override
-        public CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery)
-                throws Exception {
+        public CompletedCheckpoint getLatestCheckpoint() throws Exception {
             throw new UnsupportedOperationException("Not implemented.");
         }
 

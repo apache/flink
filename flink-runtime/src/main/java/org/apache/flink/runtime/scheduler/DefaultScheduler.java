@@ -324,6 +324,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     }
 
     private CompletableFuture<?> cancelTasksAsync(final Set<ExecutionVertexID> verticesToRestart) {
+        // clean up all the related pending requests to avoid that immediately returned slot
+        // is used to fulfill the pending requests of these tasks
+        verticesToRestart.stream().forEach(executionSlotAllocator::cancel);
+
         final List<CompletableFuture<?>> cancelFutures =
                 verticesToRestart.stream()
                         .map(this::cancelExecutionVertex)
@@ -337,7 +341,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
         notifyCoordinatorOfCancellation(vertex);
 
-        executionSlotAllocator.cancel(executionVertexId);
         return executionVertexOperations.cancel(vertex);
     }
 

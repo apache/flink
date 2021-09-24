@@ -59,7 +59,6 @@ public class CheckpointStatsTrackerTest {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
                                 false,
                                 false,
-                                false,
                                 0,
                                 0),
                         null);

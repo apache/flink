@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.hbase2;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
@@ -38,26 +39,27 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.LOOKUP_ASYNC;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.LOOKUP_CACHE_TTL;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.LOOKUP_MAX_RETRIES;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.NULL_STRING_LITERAL;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.SINK_BUFFER_FLUSH_INTERVAL;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_SIZE;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.SINK_PARALLELISM;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.TABLE_NAME;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.ZOOKEEPER_QUORUM;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.ZOOKEEPER_ZNODE_PARENT;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptionsUtil.PROPERTIES_PREFIX;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptionsUtil.getHBaseConfiguration;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptionsUtil.getHBaseLookupOptions;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptionsUtil.getHBaseWriteOptions;
-import static org.apache.flink.connector.hbase.options.HBaseConnectorOptionsUtil.validatePrimaryKey;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_ASYNC;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_CACHE_TTL;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_MAX_RETRIES;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.NULL_STRING_LITERAL;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_INTERVAL;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_SIZE;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_PARALLELISM;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.TABLE_NAME;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.ZOOKEEPER_QUORUM;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.ZOOKEEPER_ZNODE_PARENT;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptionsUtil.PROPERTIES_PREFIX;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptionsUtil.getHBaseConfiguration;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptionsUtil.getHBaseLookupOptions;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptionsUtil.getHBaseWriteOptions;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptionsUtil.validatePrimaryKey;
 import static org.apache.flink.table.factories.FactoryUtil.createTableFactoryHelper;
 
 /** HBase connector factory. */
+@Internal
 public class HBase2DynamicTableFactory
         implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 

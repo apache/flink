@@ -112,7 +112,7 @@ public class MemoryBackendCheckpointStorageAccess extends AbstractFsCheckpointSt
     }
 
     @Override
-    public void initializeBaseLocations() {
+    public void initializeBaseLocationsForCheckpoint() {
         // since 'checkpointDir' which under 'checkpointsDirectory' would be created when calling
         // #initializeLocationForCheckpoint, we could also avoid to call mkdirs for the
         // 'checkpointsDirectory' here.

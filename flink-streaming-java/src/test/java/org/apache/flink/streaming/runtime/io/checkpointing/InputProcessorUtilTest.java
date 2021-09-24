@@ -106,7 +106,8 @@ public class InputProcessorUtilTest {
                                     42,
                                     CheckpointOptions.unaligned(
                                             CheckpointStorageLocationReference.getDefault())),
-                            new InputChannelInfo(inputGate.getGateIndex(), channelId));
+                            new InputChannelInfo(inputGate.getGateIndex(), channelId),
+                            false);
                 }
             }
             assertTrue(barrierHandler.getAllBarriersReceivedFuture(1).isDone());

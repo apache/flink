@@ -18,11 +18,11 @@
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.mailbox.MailboxExecutor;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.io.InputGateUtil;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
-import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler.Cancellable;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
@@ -49,7 +48,7 @@ import java.util.stream.Stream;
 
 /**
  * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode for {@link
- * StreamOneInputProcessor} and {@link StreamTwoInputProcessor}.
+ * StreamOneInputProcessor}.
  */
 @Internal
 public class InputProcessorUtil {
@@ -83,7 +82,7 @@ public class InputProcessorUtil {
     }
 
     public static CheckpointBarrierHandler createCheckpointBarrierHandler(
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             StreamConfig config,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,
@@ -142,7 +141,7 @@ public class InputProcessorUtil {
     }
 
     private static SingleCheckpointBarrierHandler createBarrierHandler(
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             StreamConfig config,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,

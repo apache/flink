@@ -26,7 +26,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
+import java.util.function.LongConsumer;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -94,7 +94,7 @@ final class SharedResources {
      *
      * <p>This method takes an additional hook that is called when the resource is disposed.
      */
-    void release(String type, Object leaseHolder, Consumer<Long> releaser) throws Exception {
+    void release(String type, Object leaseHolder, LongConsumer releaser) throws Exception {
         lock.lock();
         try {
             final LeasedResource<?> resource = reservedResources.get(type);

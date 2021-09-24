@@ -238,7 +238,7 @@ public class RescalingITCase extends TestLogger {
             // clear the CollectionSink set for the restarted job
             CollectionSink.clearElementsSet();
 
-            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID());
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
             CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
 
             final String savepointPath =
@@ -317,7 +317,7 @@ public class RescalingITCase extends TestLogger {
             client.submitJob(jobGraph).get();
 
             // wait until the operator is started
-            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID());
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
             // wait until the operator handles some data
             StateSourceBase.workStartedLatch.await();
 
@@ -418,7 +418,7 @@ public class RescalingITCase extends TestLogger {
             // clear the CollectionSink set for the restarted job
             CollectionSink.clearElementsSet();
 
-            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID());
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
             CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
 
             final String savepointPath =
@@ -542,7 +542,7 @@ public class RescalingITCase extends TestLogger {
             client.submitJob(jobGraph).get();
 
             // wait until the operator is started
-            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID());
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
             // wait until the operator handles some data
             StateSourceBase.workStartedLatch.await();
 

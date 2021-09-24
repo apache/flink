@@ -16,6 +16,10 @@
   ~ limitations under the License.
   -->
 
-<nz-tabset [nzTabBarGutter]="tabBarGutter" [nzSelectedIndex]="navIndex" [nzSize]="size">
-  <nz-tab *ngFor="let nav of listOfNavigation" [nzTitle]="nav.title" (nzClick)="navigateTo(nav.path)"></nz-tab>
+<nz-tabset [nzSelectedIndex]="navIndex" [nzSize]="size">
+  <nz-tab
+    *ngFor="let nav of listOfNavigation"
+    [nzTitle]="nav.title"
+    (nzClick)="navigateTo(nav.path)"
+  ></nz-tab>
 </nz-tabset>

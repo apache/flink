@@ -68,6 +68,8 @@ public class ZooKeeperLeaderElectionDriver
     /** ZooKeeper path of the node which stores the current leader information. */
     private final String connectionInformationPath;
 
+    private final String leaderLatchPath;
+
     private final ConnectionStateListener listener =
             (client, newState) -> handleStateChange(newState);
 
@@ -102,7 +104,8 @@ public class ZooKeeperLeaderElectionDriver
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
         this.leaderContenderDescription = checkNotNull(leaderContenderDescription);
 
-        leaderLatch = new LeaderLatch(client, ZooKeeperUtils.generateLeaderLatchPath(path));
+        leaderLatchPath = ZooKeeperUtils.generateLeaderLatchPath(path);
+        leaderLatch = new LeaderLatch(client, leaderLatchPath);
         this.cache =
                 ZooKeeperUtils.createTreeCache(
                         client,
@@ -271,10 +274,7 @@ public class ZooKeeperLeaderElectionDriver
                 LOG.debug("Connected to ZooKeeper quorum. Leader election can start.");
                 break;
             case SUSPENDED:
-                LOG.warn(
-                        "Connection to ZooKeeper suspended. The contender "
-                                + leaderContenderDescription
-                                + " no longer participates in the leader election.");
+                LOG.warn("Connection to ZooKeeper suspended, waiting for reconnection.");
                 break;
             case RECONNECTED:
                 LOG.info(
@@ -299,11 +299,9 @@ public class ZooKeeperLeaderElectionDriver
 
     @Override
     public String toString() {
-        return "ZooKeeperLeaderElectionDriver{"
-                + "leaderPath='"
-                + connectionInformationPath
-                + '\''
-                + '}';
+        return String.format(
+                "%s{leaderLatchPath='%s', connectionInformationPath='%s'}",
+                getClass().getSimpleName(), leaderLatchPath, connectionInformationPath);
     }
 
     @VisibleForTesting

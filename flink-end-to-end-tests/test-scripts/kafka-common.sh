@@ -95,7 +95,7 @@ function start_kafka_cluster {
 
   start_time=$(date +%s)
   #
-  # Wait for the broker info to appear in ZK. We assume propery registration once an entry
+  # Wait for the broker info to appear in ZK. We assume property registration once an entry
   # similar to this is in ZK: {"listener_security_protocol_map":{"PLAINTEXT":"PLAINTEXT"},"endpoints":["PLAINTEXT://my-host:9092"],"jmx_port":-1,"host":"honorary-pig","timestamp":"1583157804932","port":9092,"version":4}
   #
   while ! [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /brokers/ids/0 2>&1) =~ .*listener_security_protocol_map.* ]]; do

@@ -27,6 +27,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
+import java.util.List;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -58,5 +60,15 @@ public class ProjectPushDownSpec extends SourceAbilitySpecBase {
                             "%s does not support SupportsProjectionPushDown.",
                             tableSource.getClass().getName()));
         }
+    }
+
+    @Override
+    public String getDigests(SourceAbilityContext context) {
+        final List<String> fieldNames =
+                this.getProducedType()
+                        .orElseThrow(() -> new TableException("Produced data type is not present."))
+                        .getFieldNames();
+
+        return String.format("project=[%s]", String.join(", ", fieldNames));
     }
 }

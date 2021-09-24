@@ -39,6 +39,7 @@ import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
@@ -54,6 +55,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -285,6 +287,21 @@ public class RemoteInputChannel extends InputChannel {
         }
     }
 
+    @Override
+    int getBuffersInUseCount() {
+        return getNumberOfQueuedBuffers()
+                + Math.max(0, bufferManager.getNumberOfRequiredBuffers() - initialCredit);
+    }
+
+    @Override
+    void announceBufferSize(int newBufferSize) {
+        try {
+            notifyNewBufferSize(newBufferSize);
+        } catch (Throwable t) {
+            ExceptionUtils.rethrow(t);
+        }
+    }
+
     private void failPartitionRequest() {
         setError(new PartitionNotFoundException(partitionId));
     }
@@ -305,6 +322,12 @@ public class RemoteInputChannel extends InputChannel {
         checkPartitionRequestQueueInitialized();
 
         partitionRequestClient.notifyCreditAvailable(this);
+    }
+
+    private void notifyNewBufferSize(int newBufferSize) throws IOException {
+        checkPartitionRequestQueueInitialized();
+
+        partitionRequestClient.notifyNewBufferSize(this, newBufferSize);
     }
 
     @VisibleForTesting
@@ -526,17 +549,15 @@ public class RemoteInputChannel extends InputChannel {
                         firstPriorityEvent = addPriorityBuffer(announce(sequenceBuffer));
                     }
                 }
-                channelStatePersister
-                        .checkForBarrier(sequenceBuffer.buffer)
-                        .filter(id -> id > lastBarrierId)
-                        .ifPresent(
-                                id -> {
-                                    // checkpoint was not yet started by task thread,
-                                    // so remember the numbers of buffers to spill for the time when
-                                    // it will be started
-                                    lastBarrierId = id;
-                                    lastBarrierSequenceNumber = sequenceBuffer.sequenceNumber;
-                                });
+                final OptionalLong barrierId =
+                        channelStatePersister.checkForBarrier(sequenceBuffer.buffer);
+                if (barrierId.isPresent() && barrierId.getAsLong() > lastBarrierId) {
+                    // checkpoint was not yet started by task thread,
+                    // so remember the numbers of buffers to spill for the time when
+                    // it will be started
+                    lastBarrierId = barrierId.getAsLong();
+                    lastBarrierSequenceNumber = sequenceBuffer.sequenceNumber;
+                }
                 channelStatePersister.maybePersist(buffer);
                 ++expectedSequenceNumber;
             }

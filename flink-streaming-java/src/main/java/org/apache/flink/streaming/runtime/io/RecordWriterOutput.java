@@ -31,8 +31,8 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 
 import java.io.IOException;
@@ -53,7 +53,7 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
     private final WatermarkGauge watermarkGauge = new WatermarkGauge();
 
-    private StreamStatus announcedStatus = StreamStatus.ACTIVE;
+    private WatermarkStatus announcedStatus = WatermarkStatus.ACTIVE;
 
     @SuppressWarnings("unchecked")
     public RecordWriterOutput(
@@ -123,10 +123,10 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
     }
 
     @Override
-    public void emitStreamStatus(StreamStatus streamStatus) {
-        if (!announcedStatus.equals(streamStatus)) {
-            announcedStatus = streamStatus;
-            serializationDelegate.setInstance(streamStatus);
+    public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
+        if (!announcedStatus.equals(watermarkStatus)) {
+            announcedStatus = watermarkStatus;
+            serializationDelegate.setInstance(watermarkStatus);
             try {
                 recordWriter.broadcastEmit(serializationDelegate);
             } catch (Exception e) {

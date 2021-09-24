@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -25,7 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -45,7 +46,7 @@ public abstract class CheckpointBarrierHandler implements Closeable {
     private static final long OUTSIDE_OF_ALIGNMENT = Long.MIN_VALUE;
 
     /** The listener to be notified on complete checkpoints. */
-    private final AbstractInvokable toNotifyOnCheckpoint;
+    private final CheckpointableTask toNotifyOnCheckpoint;
 
     private final Clock clock;
 
@@ -75,7 +76,7 @@ public abstract class CheckpointBarrierHandler implements Closeable {
     private final boolean enableCheckpointAfterTasksFinished;
 
     public CheckpointBarrierHandler(
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             Clock clock,
             boolean enableCheckpointAfterTasksFinished) {
         this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
@@ -91,7 +92,8 @@ public abstract class CheckpointBarrierHandler implements Closeable {
     public void close() throws IOException {}
 
     public abstract void processBarrier(
-            CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws IOException;
+            CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo, boolean isRpcTriggered)
+            throws IOException;
 
     public abstract void processBarrierAnnouncement(
             CheckpointBarrier announcedBarrier, int sequenceNumber, InputChannelInfo channelInfo)
@@ -202,7 +204,8 @@ public abstract class CheckpointBarrierHandler implements Closeable {
         }
     }
 
-    private boolean isDuringAlignment() {
+    @VisibleForTesting
+    boolean isDuringAlignment() {
         return startOfAlignmentTimestamp > OUTSIDE_OF_ALIGNMENT;
     }
 

@@ -17,7 +17,7 @@
 ################################################################################
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['Duration', 'Instant']
+__all__ = ['Duration', 'Instant', 'Time']
 
 
 class Duration(object):
@@ -83,3 +83,42 @@ class Instant(object):
 
     def __repr__(self):
         return 'Instant<{}, {}>'.format(self.seconds, self.nanos)
+
+
+class Time(object):
+    """
+    The definition of a time interval.
+    """
+
+    def __init__(self, milliseconds: int):
+        self._milliseconds = milliseconds
+
+    def to_milliseconds(self) -> int:
+        return self._milliseconds
+
+    @staticmethod
+    def milliseconds(milliseconds: int):
+        return Time(milliseconds)
+
+    @staticmethod
+    def seconds(seconds: int):
+        return Time.milliseconds(seconds * 1000)
+
+    @staticmethod
+    def minutes(minutes: int):
+        return Time.seconds(minutes * 60)
+
+    @staticmethod
+    def hours(hours: int):
+        return Time.minutes(hours * 60)
+
+    @staticmethod
+    def days(days: int):
+        return Time.hours(days * 24)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__ and
+                self._milliseconds == other._milliseconds)
+
+    def __str__(self):
+        return "{} ms".format(self._milliseconds)

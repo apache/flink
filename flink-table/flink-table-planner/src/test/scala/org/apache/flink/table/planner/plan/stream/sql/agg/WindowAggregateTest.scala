@@ -236,7 +236,6 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @Test
   def testTumble_ProjectionPushDown(): Unit = {
-    // TODO: FLINK-21290 [b, c, e, proctime] are never used, should be pruned in source
     val sql =
       """
         |SELECT

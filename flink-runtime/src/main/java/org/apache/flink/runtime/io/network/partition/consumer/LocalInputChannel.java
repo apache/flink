@@ -291,7 +291,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     public void acknowledgeAllRecordsProcessed() throws IOException {
         checkState(!isReleased, "Channel released.");
 
-        subpartitionView.acknowledgeAllRecordsProcessed();
+        subpartitionView.acknowledgeAllDataProcessed();
     }
 
     // ------------------------------------------------------------------------
@@ -334,6 +334,19 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                 subpartitionView = null;
             }
         }
+    }
+
+    @Override
+    void announceBufferSize(int newBufferSize) {
+        checkState(!isReleased, "Channel released.");
+
+        ResultSubpartitionView subpartitionView = checkNotNull(this.subpartitionView);
+        subpartitionView.notifyNewBufferSize(newBufferSize);
+    }
+
+    @Override
+    int getBuffersInUseCount() {
+        return subpartitionView.getNumberOfQueuedBuffers();
     }
 
     @Override

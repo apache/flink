@@ -44,8 +44,8 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -153,11 +153,11 @@ public class SynchronousCheckpointITCase {
         }
 
         @Override
-        public Future<Boolean> triggerCheckpointAsync(
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
                 CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             try {
                 eventQueue.put(Event.PRE_TRIGGER_CHECKPOINT);
-                Future<Boolean> result =
+                CompletableFuture<Boolean> result =
                         super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
                 eventQueue.put(Event.POST_TRIGGER_CHECKPOINT);
                 return result;
@@ -203,7 +203,7 @@ public class SynchronousCheckpointITCase {
         }
 
         @Override
-        protected void cleanup() {}
+        protected void cleanUpInternal() {}
     }
 
     /**
@@ -221,7 +221,7 @@ public class SynchronousCheckpointITCase {
     // --------------------------		Boilerplate tools copied from the TaskAsyncCallTest
     //	--------------------------
 
-    private Task createTask(Class<? extends AbstractInvokable> invokableClass) throws Exception {
+    private Task createTask(Class<? extends TaskInvokable> invokableClass) throws Exception {
 
         ResultPartitionConsumableNotifier consumableNotifier =
                 new NoOpResultPartitionConsumableNotifier();

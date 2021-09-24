@@ -235,6 +235,14 @@ public interface JobMasterGateway
             @RpcTimeout final Time timeout);
 
     /**
+     * Triggers taking a checkpoint of the executed job.
+     *
+     * @param timeout for the rpc call
+     * @return Future which is completed with the checkpoint path once completed
+     */
+    CompletableFuture<String> triggerCheckpoint(@RpcTimeout final Time timeout);
+
+    /**
      * Stops the job with a savepoint.
      *
      * @param targetDirectory to which to write the savepoint data or null if the default savepoint
@@ -291,4 +299,12 @@ public interface JobMasterGateway
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
             @RpcTimeout Time timeout);
+
+    /**
+     * Notifies the {@link org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker}
+     * to stop tracking the target result partitions and release the locally occupied resources on
+     * {@link org.apache.flink.runtime.taskexecutor.TaskExecutor}s if any.
+     */
+    CompletableFuture<?> stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> partitionIds);
 }

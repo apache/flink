@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, TableAgg
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCorrelate, BatchPhysicalGroupAggregateBase}
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, IntermediateRelTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.{WithLower, WithUpper}
 import org.apache.flink.table.planner.{JByte, JDouble, JFloat, JList, JLong, JShort}
 import org.apache.flink.types.RowKind
@@ -47,7 +47,6 @@ import org.apache.calcite.util.Util
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 import java.util.Collections
-
 import scala.collection.JavaConversions._
 
 /**
@@ -71,6 +70,9 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
             new RelModifiedMonotonicity(Array.fill(rel.getRowType.getFieldCount)(NOT_MONOTONIC))
           case _ => null
         }
+      case _: FlinkLogicalIntermediateTableScan | _: StreamPhysicalIntermediateTableScan =>
+        val table = rel.getTable.unwrap(classOf[IntermediateRelTable])
+        table.getStatistic.getRelModifiedMonotonicity
       case _ => null
     }
 
@@ -209,10 +211,15 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       rel: StreamPhysicalDeduplicate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     if (allAppend(mq, rel.getInput)) {
-      val mono = new RelModifiedMonotonicity(
-        Array.fill(rel.getRowType.getFieldCount)(NOT_MONOTONIC))
-      rel.getUniqueKeys.foreach(e => mono.fieldMonotonicities(e) = CONSTANT)
-      mono
+      if (rel.keepLastRow || rel.isRowtime) {
+        val mono = new RelModifiedMonotonicity(
+          Array.fill(rel.getRowType.getFieldCount)(NOT_MONOTONIC))
+        rel.getUniqueKeys.foreach(e => mono.fieldMonotonicities(e) = CONSTANT)
+        mono
+      } else {
+        // FirstRow do not generate updates.
+        new RelModifiedMonotonicity(Array.fill(rel.getRowType.getFieldCount)(CONSTANT))
+      }
     } else {
       null
     }
@@ -248,6 +255,12 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     // for exchange, get correspond from input
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     fmq.getRelModifiedMonotonicity(rel.getInput)
+  }
+
+  def getRelModifiedMonotonicity(
+      rel: StreamPhysicalLookupJoin,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
   }
 
   def getRelModifiedMonotonicity(rel: Aggregate, mq: RelMetadataQuery): RelModifiedMonotonicity = {

@@ -53,6 +53,12 @@ public class FullyFinishedOperatorState extends OperatorState {
     }
 
     @Override
+    public OperatorState copyAndDiscardInFlightData() {
+        return new FullyFinishedOperatorState(
+                getOperatorID(), getParallelism(), getMaxParallelism());
+    }
+
+    @Override
     public int hashCode() {
         return super.hashCode();
     }

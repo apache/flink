@@ -98,7 +98,7 @@ public class FileWriterTest {
         assertEquals(3, fileWriter.getActiveBuckets().size());
 
         fileWriter.prepareCommit(false);
-        List<FileWriterBucketState> states = fileWriter.snapshotState();
+        List<FileWriterBucketState> states = fileWriter.snapshotState(1L);
         assertEquals(3, states.size());
 
         fileWriter =
@@ -131,7 +131,7 @@ public class FileWriterTest {
         firstFileWriter.write("test3", new ContextImpl());
 
         firstFileWriter.prepareCommit(false);
-        List<FileWriterBucketState> firstState = firstFileWriter.snapshotState();
+        List<FileWriterBucketState> firstState = firstFileWriter.snapshotState(1L);
 
         FileWriter<String> secondFileWriter =
                 createWriter(
@@ -143,7 +143,7 @@ public class FileWriterTest {
         secondFileWriter.write("test2", new ContextImpl());
 
         secondFileWriter.prepareCommit(false);
-        List<FileWriterBucketState> secondState = secondFileWriter.snapshotState();
+        List<FileWriterBucketState> secondState = secondFileWriter.snapshotState(1L);
 
         List<FileWriterBucketState> mergedState = new ArrayList<>();
         mergedState.addAll(firstState);
@@ -183,7 +183,7 @@ public class FileWriterTest {
 
         fileWriter.write("test", new ContextImpl());
         fileWriter.prepareCommit(false);
-        fileWriter.snapshotState();
+        fileWriter.snapshotState(1L);
 
         // No more records and another call to prepareCommit will makes it inactive
         fileWriter.prepareCommit(false);
@@ -192,7 +192,7 @@ public class FileWriterTest {
     }
 
     @Test
-    public void testOnProcessingTime() throws IOException {
+    public void testOnProcessingTime() throws IOException, InterruptedException {
         File outDir = TEMP_FOLDER.newFolder();
         Path path = new Path(outDir.toURI());
 
@@ -327,7 +327,7 @@ public class FileWriterTest {
             if (time <= now) {
                 try {
                     processingTimeCallback.onProcessingTime(now);
-                } catch (IOException e) {
+                } catch (IOException | InterruptedException e) {
                     ExceptionUtils.rethrow(e);
                 }
             } else {
@@ -335,7 +335,7 @@ public class FileWriterTest {
             }
         }
 
-        public void advanceTo(long time) throws IOException {
+        public void advanceTo(long time) throws IOException, InterruptedException {
             if (time > now) {
                 now = time;
 

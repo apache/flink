@@ -119,8 +119,8 @@ public abstract class AbstractPythonScalarFunctionOperator
         for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
             builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
         }
-        builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
-        builder.setProfileEnabled(getPythonConfig().isProfileEnabled());
+        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
+        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
         return builder.build();
     }
 

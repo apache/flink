@@ -434,7 +434,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
   }
 
   /**
-    * StreamTableSource must use type info in DataStream, so it will loose precision.
+    * StreamTableSource must use type info in DataStream, so it will lose precision.
     * Just support default precision decimal.
     */
   @Test

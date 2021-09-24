@@ -256,8 +256,8 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
             functionBuilder.setWindowIndex(aggWindowIndex[i]);
             builder.addUdfs(functionBuilder);
         }
-        builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
-        builder.setProfileEnabled(getPythonConfig().isProfileEnabled());
+        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
+        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
         // add windows
         for (int i = 0; i < lowerBoundary.length; i++) {
             FlinkFnApi.OverWindow.Builder windowBuilder = FlinkFnApi.OverWindow.newBuilder();

@@ -43,7 +43,7 @@ from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import (
     PyFlinkBatchTableTestCase, PyFlinkStreamTableTestCase, PyFlinkTestCase,
-    _load_specific_flink_module_jars, invoke_java_object_method)
+    _load_specific_flink_module_jars)
 from pyflink.util.java_utils import get_j_env_configuration
 
 
@@ -246,8 +246,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
         self.t_env = StreamTableEnvironment.create(self.env)
 
         self.env.set_parallelism(2)
-        config = invoke_java_object_method(
-            self.env._j_stream_execution_environment, "getConfiguration")
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("akka.ask.timeout", "20 s")
         self.t_env.get_config().get_configuration().set_string(
             "python.fn-execution.bundle.size", "1")
@@ -296,7 +295,8 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
         expected = ['+I[1, Hi, Hello]', '+I[2, Hello, Hi]']
         self.assert_equals(result, expected)
 
-        ds = ds.map(lambda x: x, Types.ROW([Types.INT(), Types.STRING(), Types.STRING()]))
+        ds = ds.map(lambda x: x, Types.ROW([Types.INT(), Types.STRING(), Types.STRING()])) \
+               .map(lambda x: x, Types.ROW([Types.INT(), Types.STRING(), Types.STRING()]))
         table = t_env.from_data_stream(ds, col('a'), col('b'), col('c'))
         t_env.register_table_sink("ExprSink",
                                   source_sink_utils.TestAppendSink(field_names, field_types))

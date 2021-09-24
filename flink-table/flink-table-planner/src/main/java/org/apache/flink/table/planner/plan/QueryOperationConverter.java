@@ -540,7 +540,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             final FlinkContext flinkContext = ShortcutUtils.unwrapContext(relBuilder);
             final ReadableConfig config = flinkContext.getTableConfig().getConfiguration();
             return DynamicSourceUtils.convertDataStreamToRel(
-                    true,
+                    flinkContext.isBatchMode(),
                     config,
                     relBuilder,
                     identifier,

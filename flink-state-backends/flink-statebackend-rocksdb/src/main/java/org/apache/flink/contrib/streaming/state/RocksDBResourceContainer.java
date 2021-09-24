@@ -183,9 +183,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 
     /** Gets the RocksDB {@link ReadOptions} to be used for read operations. */
     public ReadOptions getReadOptions() {
-        // We ensure total order seek by default to prevent user misuse, see FLINK-17800 for more
-        // details
-        ReadOptions opt = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
+        ReadOptions opt = new ReadOptions();
         handlesToClose.add(opt);
 
         // add user-defined options factory, if specified
@@ -250,7 +248,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
     @VisibleForTesting
     static Filter getFilterFromBlockBasedTableConfig(BlockBasedTableConfig blockBasedTableConfig)
             throws NoSuchFieldException, IllegalAccessException {
-        Field filterField = blockBasedTableConfig.getClass().getDeclaredField("filter_");
+        Field filterField = blockBasedTableConfig.getClass().getDeclaredField("filterPolicy");
         filterField.setAccessible(true);
         Object filter = filterField.get(blockBasedTableConfig);
         filterField.setAccessible(false);

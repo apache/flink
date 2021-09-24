@@ -44,7 +44,7 @@ A request is sent to the database and the `MapFunction` waits until the response
 makes up the vast majority of the function's time.
 
 Asynchronous interaction with the database means that a single parallel function instance can handle many requests concurrently and
-receive the responses concurrently. That way, the waiting time can be overlayed with sending other requests and
+receive the responses concurrently. That way, the waiting time can be overlaid with sending other requests and
 receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cased to much higher
 streaming throughput.
 

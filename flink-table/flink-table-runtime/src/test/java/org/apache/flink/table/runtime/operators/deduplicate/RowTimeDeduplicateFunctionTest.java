@@ -18,24 +18,13 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
-import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.apache.flink.types.RowKind;
 
 import org.junit.Test;
@@ -55,24 +44,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
  * RowTimeMiniBatchDeduplicateFunction}.
  */
 @RunWith(Parameterized.class)
-public class RowTimeDeduplicateFunctionTest {
-
-    private final long miniBatchSize = 4L;
-    private Time minTtlTime = Time.milliseconds(10);
-    private InternalTypeInfo inputRowType =
-            InternalTypeInfo.ofFields(
-                    new VarCharType(VarCharType.MAX_LENGTH), new IntType(), new BigIntType());
-    private TypeSerializer<RowData> serializer = inputRowType.toSerializer();
-    private int rowTimeIndex = 2;
-    private int rowKeyIndex = 0;
-    private RowDataKeySelector rowKeySelector =
-            HandwrittenSelectorUtil.getRowDataSelector(
-                    new int[] {rowKeyIndex}, inputRowType.toRowFieldTypes());
-    private RowDataHarnessAssertor assertor =
-            new RowDataHarnessAssertor(
-                    inputRowType.toRowFieldTypes(),
-                    new GenericRowRecordSortComparator(
-                            rowKeyIndex, inputRowType.toRowFieldTypes()[rowKeyIndex]));
+public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase {
 
     private final boolean miniBatchEnable;
 
@@ -326,18 +298,6 @@ public class RowTimeDeduplicateFunctionTest {
 
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, actualOutput);
         testHarness.close();
-    }
-
-    private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-            KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
-        return new KeyedOneInputStreamOperatorTestHarness<>(
-                operator, rowKeySelector, rowKeySelector.getProducedType());
-    }
-
-    private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-            KeyedMapBundleOperator<RowData, RowData, RowData, RowData> operator) throws Exception {
-        return new KeyedOneInputStreamOperatorTestHarness<>(
-                operator, rowKeySelector, rowKeySelector.getProducedType());
     }
 
     @Parameterized.Parameters(name = "miniBatchEnable = {0}")

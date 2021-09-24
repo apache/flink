@@ -66,7 +66,7 @@
             <td><h5>state.backend.rocksdb.metrics.estimate-live-data-size</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Estimate of the amount of live data in bytes.</td>
+            <td>Estimate of the amount of live data in bytes (usually smaller than sst files size due to space amplification).</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.metrics.estimate-num-keys</h5></td>
@@ -91,6 +91,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Track whether write has been stopped in RocksDB. Returns 1 if write has been stopped, 0 otherwise.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.live-sst-files-size</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total size (bytes) of all SST files belonging to the latest version.WARNING: may slow down online queries if there are too many files.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.metrics.mem-table-flush-pending</h5></td>
@@ -162,7 +168,7 @@
             <td><h5>state.backend.rocksdb.metrics.total-sst-files-size</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Monitor the total size (bytes) of all SST files.WARNING: may slow down online queries if there are too many files.</td>
+            <td>Monitor the total size (bytes) of all SST files of all versions.WARNING: may slow down online queries if there are too many files.</td>
         </tr>
     </tbody>
 </table>

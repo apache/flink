@@ -60,7 +60,7 @@ The remaining sections provide a description of available methods and present se
 Running Gelly Examples
 ----------------------
 
-The Gelly library jars are provided in the [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads")
+The Gelly library jars are provided in the [Flink distribution]({{< downloads >}} "Apache Flink: Downloads")
 in the **opt** directory (for versions older than Flink 1.2 these can be manually downloaded from
 [Maven Central](http://search.maven.org/#search|ga|1|flink%20gelly)). To run the Gelly examples the **flink-gelly** (for
 Java) or **flink-gelly-scala** (for Scala) jar must be copied to Flink's **lib** directory.

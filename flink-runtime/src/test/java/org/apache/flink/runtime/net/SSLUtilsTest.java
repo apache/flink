@@ -521,7 +521,7 @@ public class SSLUtilsTest extends TestLogger {
 
     private static void addSslProviderConfig(Configuration config, String sslProvider) {
         if (sslProvider.equalsIgnoreCase("OPENSSL")) {
-            assertTrue("openSSL not available", OpenSsl.isAvailable());
+            OpenSsl.ensureAvailability();
 
             // Flink's default algorithm set is not available for openSSL - choose a different one:
             config.setString(

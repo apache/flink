@@ -23,6 +23,11 @@ from pyflink.util.java_utils import load_java_class
 
 from pyflink.java_gateway import get_gateway
 
+__all__ = ['SerializationSchema', 'DeserializationSchema', 'SimpleStringSchema',
+           'JsonRowSerializationSchema', 'JsonRowDeserializationSchema',
+           'CsvRowSerializationSchema', 'CsvRowDeserializationSchema',
+           'AvroRowSerializationSchema', 'AvroRowDeserializationSchema', 'Encoder']
+
 
 class SerializationSchema(object):
     """

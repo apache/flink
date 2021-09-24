@@ -59,7 +59,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The HBaseRowDataAsyncLookupFunction is an implemenation to lookup HBase data by rowkey in async
+ * The HBaseRowDataAsyncLookupFunction is an implementation to lookup HBase data by rowkey in async
  * fashion. It looks up the result as {@link RowData}.
  */
 @Internal
@@ -108,7 +108,7 @@ public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
                 Executors.newFixedThreadPool(
                         THREAD_POOL_SIZE,
                         new ExecutorThreadFactory(
-                                "hbase-aysnc-lookup-worker", Threads.LOGGING_EXCEPTION_HANDLER));
+                                "hbase-async-lookup-worker", Threads.LOGGING_EXCEPTION_HANDLER));
         Configuration config = prepareRuntimeConfiguration();
         CompletableFuture<AsyncConnection> asyncConnectionFuture =
                 ConnectionFactory.createAsyncConnection(config);

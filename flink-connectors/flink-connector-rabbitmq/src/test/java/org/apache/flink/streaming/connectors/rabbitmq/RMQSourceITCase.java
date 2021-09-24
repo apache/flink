@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.rest.RestClusterClient;
@@ -31,10 +32,12 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.DockerImageVersions;
 
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -52,7 +55,11 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /** A class containing RabbitMQ source tests against a real RabbiMQ cluster. */
 public class RMQSourceITCase {
@@ -64,6 +71,7 @@ public class RMQSourceITCase {
     private static final int RABBITMQ_PORT = 5672;
     private static final String QUEUE_NAME = "test-queue";
     private static final JobID JOB_ID = new JobID();
+    private static final SimpleStringSchema SCHEMA = new SimpleStringSchema();
 
     private RestClusterClient<?> clusterClient;
     private RMQConnectionConfig config;
@@ -90,24 +98,27 @@ public class RMQSourceITCase {
         final Connection connection = getRMQConnection();
         final Channel channel = connection.createChannel();
         channel.queueDeclare(QUEUE_NAME, true, false, false, null);
+        channel.queuePurge(QUEUE_NAME);
         channel.txSelect();
         clusterClient = flinkCluster.getRestClusterClient();
         config =
                 new RMQConnectionConfig.Builder()
                         .setHost(RMQ_CONTAINER.getHost())
                         .setDeliveryTimeout(500)
+                        .setPrefetchCount(5)
                         .setVirtualHost("/")
                         .setUserName(RMQ_CONTAINER.getAdminUsername())
                         .setPassword(RMQ_CONTAINER.getAdminPassword())
                         .setPort(RMQ_CONTAINER.getMappedPort(RABBITMQ_PORT))
                         .build();
+        CountingSink.reset();
     }
 
     @Test
     public void testStopWithSavepoint() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStreamSource<String> source =
-                env.addSource(new RMQSource<>(config, QUEUE_NAME, new SimpleStringSchema()));
+                env.addSource(new RMQSource<>(config, QUEUE_NAME, SCHEMA));
         source.addSink(new DiscardingSink<>());
         env.enableCheckpointing(500);
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
@@ -128,6 +139,59 @@ public class RMQSourceITCase {
         clusterClient.stopWithSavepoint(JOB_ID, false, tmp.newFolder().getAbsolutePath()).get();
     }
 
+    @Test
+    public void testMessageDelivery() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        List<String> msgs =
+                IntStream.range(0, 10).mapToObj(String::valueOf).collect(Collectors.toList());
+        publishToRMQ(msgs);
+
+        final DataStreamSource<String> source =
+                env.addSource(new RMQSource<>(config, QUEUE_NAME, SCHEMA));
+        source.addSink(CountingSink.getInstance());
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        JobID jobId = clusterClient.submitJob(jobGraph).get();
+        CommonTestUtils.waitUntilCondition(
+                () -> CountingSink.getCount() == msgs.size(),
+                Deadline.fromNow(Duration.ofSeconds(30)),
+                5L);
+        clusterClient.cancel(jobId);
+    }
+
+    @Test
+    public void testAckFailure() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 500));
+        env.enableCheckpointing(500);
+        List<String> msgs =
+                IntStream.range(0, 10).mapToObj(String::valueOf).collect(Collectors.toList());
+        publishToRMQ(msgs);
+
+        RMQSource<String> rmqSource =
+                new RMQSource<String>(config, QUEUE_NAME, true, SCHEMA) {
+                    @Override
+                    protected void acknowledgeSessionIDs(List<Long> sessionIds) {
+                        try {
+                            if (!sessionIds.isEmpty()) {
+                                throw new RuntimeException("Test acknowledge failure");
+                            }
+                            channel.txCommit();
+                        } catch (IOException e) {
+                            throw new RuntimeException("Error while committing transaction", e);
+                        }
+                    }
+                };
+        final DataStreamSource<String> source = env.addSource(rmqSource);
+        source.addSink(CountingSink.getInstance());
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        JobID jobId = clusterClient.submitJob(jobGraph).get();
+        CommonTestUtils.waitUntilCondition(
+                () -> CountingSink.getCount() == msgs.size(),
+                Deadline.fromNow(Duration.ofSeconds(60)),
+                5L);
+        clusterClient.cancel(jobId);
+    }
+
     private static Connection getRMQConnection() throws IOException, TimeoutException {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setUsername(RMQ_CONTAINER.getAdminUsername());
@@ -137,5 +201,39 @@ public class RMQSourceITCase {
         factory.setHost(RMQ_CONTAINER.getHost());
         factory.setPort(RMQ_CONTAINER.getAmqpPort());
         return factory.newConnection();
+    }
+
+    private static void publishToRMQ(Iterable<String> messages)
+            throws IOException, TimeoutException {
+        AMQP.BasicProperties.Builder propertiesBuilder = new AMQP.BasicProperties.Builder();
+        try (Connection rmqConnection = getRMQConnection();
+                Channel channel = rmqConnection.createChannel()) {
+            for (String msg : messages) {
+                AMQP.BasicProperties properties = propertiesBuilder.correlationId(msg).build();
+                channel.basicPublish("", QUEUE_NAME, properties, SCHEMA.serialize(msg));
+            }
+        }
+    }
+
+    private static class CountingSink implements SinkFunction<String> {
+
+        private static final AtomicInteger count = new AtomicInteger();
+
+        public static CountingSink getInstance() {
+            return new CountingSink();
+        }
+
+        public static void reset() {
+            count.set(0);
+        }
+
+        public static int getCount() {
+            return count.get();
+        }
+
+        @Override
+        public void invoke(String value, SinkFunction.Context context) {
+            count.incrementAndGet();
+        }
     }
 }

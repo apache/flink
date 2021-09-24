@@ -42,6 +42,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -127,9 +128,9 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
         partitionRequestQueue.notifyReaderCreated(viewReader);
 
         // Write the message to acknowledge all records are processed to server
-        resultPartition.notifyEndOfUserRecords();
+        resultPartition.notifyEndOfData();
         CompletableFuture<Void> allRecordsProcessedFuture =
-                resultPartition.getAllRecordsProcessedFuture();
+                resultPartition.getAllDataProcessedFuture();
         assertFalse(allRecordsProcessedFuture.isDone());
         channel.writeInbound(new NettyMessage.AckAllUserRecordsProcessed(inputChannelID));
         channel.runPendingTasks();
@@ -138,8 +139,54 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
         assertFalse(allRecordsProcessedFuture.isCompletedExceptionally());
     }
 
+    @Test
+    public void testNewBufferSize() {
+        final InputChannelID inputChannelID = new InputChannelID();
+        final PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
+        final TestViewReader testViewReader =
+                new TestViewReader(inputChannelID, 2, partitionRequestQueue);
+        final PartitionRequestServerHandler serverHandler =
+                new PartitionRequestServerHandler(
+                        new ResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        partitionRequestQueue);
+        final EmbeddedChannel channel = new EmbeddedChannel(serverHandler);
+        partitionRequestQueue.notifyReaderCreated(testViewReader);
+
+        // Write the message of new buffer size to server
+        channel.writeInbound(new NettyMessage.NewBufferSize(666, inputChannelID));
+        channel.runPendingTasks();
+
+        assertEquals(666, testViewReader.bufferSize);
+    }
+
+    @Test
+    public void testReceivingNewBufferSizeBeforeReaderIsCreated() {
+        final InputChannelID inputChannelID = new InputChannelID();
+        final PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
+        final TestViewReader testViewReader =
+                new TestViewReader(inputChannelID, 2, partitionRequestQueue);
+        final PartitionRequestServerHandler serverHandler =
+                new PartitionRequestServerHandler(
+                        new ResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        partitionRequestQueue);
+        final EmbeddedChannel channel = new EmbeddedChannel(serverHandler);
+
+        // Write the message of new buffer size to server without prepared reader.
+        channel.writeInbound(new NettyMessage.NewBufferSize(666, inputChannelID));
+        channel.runPendingTasks();
+
+        // If error happens outbound messages would be not empty.
+        assertTrue(channel.outboundMessages().toString(), channel.outboundMessages().isEmpty());
+
+        // New buffer size should be silently ignored because it is possible situation.
+        assertEquals(-1, testViewReader.bufferSize);
+    }
+
     private static class TestViewReader extends CreditBasedSequenceNumberingViewReader {
         private boolean consumptionResumed = false;
+        private int bufferSize = -1;
 
         TestViewReader(
                 InputChannelID receiverId, int initialCredit, PartitionRequestQueue requestQueue) {
@@ -149,6 +196,11 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
         @Override
         public void resumeConsumption() {
             consumptionResumed = true;
+        }
+
+        @Override
+        public void notifyNewBufferSize(int newBufferSize) {
+            bufferSize = newBufferSize;
         }
     }
 }

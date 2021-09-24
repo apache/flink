@@ -78,6 +78,7 @@
     "org.apache.flink.sql.parser.dql.SqlShowJars"
     "org.apache.flink.sql.parser.dql.SqlShowModules"
     "org.apache.flink.sql.parser.dql.SqlShowTables"
+    "org.apache.flink.sql.parser.dql.SqlShowColumns"
     "org.apache.flink.sql.parser.dql.SqlShowCreateTable"
     "org.apache.flink.sql.parser.dql.SqlShowViews"
     "org.apache.flink.sql.parser.dql.SqlRichDescribeTable"
@@ -107,6 +108,7 @@
     "CATALOGS"
     "CHANGELOG_MODE"
     "COMMENT"
+    "COLUMNS"
     "DATABASES"
     "ENFORCED"
     "ESTIMATED_COST"
@@ -466,6 +468,7 @@
   nonReservedKeywordsToAdd: [
     # not in core, added in Flink
     "CHANGELOG_MODE"
+    "COLUMNS"
     "ENFORCED"
     "ESTIMATED_COST"
     "IF"
@@ -502,6 +505,7 @@
     "SqlAlterFunction()"
     "SqlShowFunctions()"
     "SqlShowTables()"
+    "SqlShowColumns()"
     "SqlShowCreateTable()"
     "SqlRichDescribeTable()"
     "SqlAlterTable()"

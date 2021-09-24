@@ -72,7 +72,7 @@ public class TestingCheckpointStorageAccessCoordinatorView
     }
 
     @Override
-    public void initializeBaseLocations() throws IOException {}
+    public void initializeBaseLocationsForCheckpoint() throws IOException {}
 
     @Override
     public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId)

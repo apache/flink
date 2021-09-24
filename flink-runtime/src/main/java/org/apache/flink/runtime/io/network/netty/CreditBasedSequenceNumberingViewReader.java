@@ -118,7 +118,7 @@ class CreditBasedSequenceNumberingViewReader
 
     @Override
     public void acknowledgeAllRecordsProcessed() {
-        subpartitionView.acknowledgeAllRecordsProcessed();
+        subpartitionView.acknowledgeAllDataProcessed();
     }
 
     @Override
@@ -170,6 +170,11 @@ class CreditBasedSequenceNumberingViewReader
     @Override
     public InputChannelID getReceiverId() {
         return receiverId;
+    }
+
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {
+        subpartitionView.notifyNewBufferSize(newBufferSize);
     }
 
     @VisibleForTesting

@@ -50,6 +50,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test cases for the deployment of Yarn Flink clusters with customized file replication numbers.
@@ -108,6 +109,8 @@ public class YARNFileReplicationITCase extends YarnTestBase {
 
                 ApplicationId applicationId = clusterClient.getClusterId();
 
+                extraVerification(configuration, applicationId);
+
                 final CompletableFuture<JobResult> jobResultCompletableFuture =
                         clusterClient.requestJobResult(jobGraph.getJobID());
 
@@ -124,8 +127,6 @@ public class YARNFileReplicationITCase extends YarnTestBase {
                                                     YARNFileReplicationITCase.class
                                                             .getClassLoader()));
                                 });
-
-                extraVerification(configuration, applicationId);
 
                 waitApplicationFinishedElseKillIt(
                         applicationId,
@@ -162,6 +163,13 @@ public class YARNFileReplicationITCase extends YarnTestBase {
         String suffix = ".flink/" + applicationId.toString() + "/" + flinkUberjar.getName();
 
         Path uberJarHDFSPath = new Path(fs.getHomeDirectory(), suffix);
+
+        assertTrue(
+                "The Flink uber jar needs to exist. If it does not exist, then this "
+                        + "indicates that the Flink cluster has already terminated and Yarn has "
+                        + "already deleted the working directory.",
+                fs.exists(uberJarHDFSPath));
+
         FileStatus fsStatus = fs.getFileStatus(uberJarHDFSPath);
 
         final int flinkFileReplication =

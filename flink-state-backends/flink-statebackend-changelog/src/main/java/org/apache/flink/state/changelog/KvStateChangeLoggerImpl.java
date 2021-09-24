@@ -24,9 +24,11 @@ import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.Collection;
 
 import static org.apache.flink.state.changelog.StateChangeOperation.MERGE_NS;
@@ -39,6 +41,8 @@ class KvStateChangeLoggerImpl<Key, Value, Ns> extends AbstractStateChangeLogger<
     private final TypeSerializer<Ns> namespaceSerializer;
     protected final TypeSerializer<Key> keySerializer;
     private final TypeSerializer<Value> valueSerializer;
+    private final StateTtlConfig ttlConfig;
+    @Nullable private final Value defaultValue;
 
     KvStateChangeLoggerImpl(
             TypeSerializer<Key> keySerializer,
@@ -47,11 +51,15 @@ class KvStateChangeLoggerImpl<Key, Value, Ns> extends AbstractStateChangeLogger<
             InternalKeyContext<Key> keyContext,
             StateChangelogWriter<?> stateChangelogWriter,
             RegisteredStateMetaInfoBase metaInfo,
-            StateTtlConfig ttlConfig) {
-        super(stateChangelogWriter, keyContext, metaInfo, ttlConfig);
+            StateTtlConfig ttlConfig,
+            @Nullable Value defaultValue,
+            short stateId) {
+        super(stateChangelogWriter, keyContext, metaInfo, stateId);
         this.keySerializer = checkNotNull(keySerializer);
         this.valueSerializer = checkNotNull(valueSerializer);
         this.namespaceSerializer = checkNotNull(namespaceSerializer);
+        this.ttlConfig = checkNotNull(ttlConfig);
+        this.defaultValue = defaultValue;
     }
 
     @Override
@@ -77,5 +85,18 @@ class KvStateChangeLoggerImpl<Key, Value, Ns> extends AbstractStateChangeLogger<
     protected void serializeScope(Ns ns, DataOutputViewStreamWrapper out) throws IOException {
         keySerializer.serialize(keyContext.getCurrentKey(), out);
         namespaceSerializer.serialize(ns, out);
+    }
+
+    protected void writeDefaultValueAndTtl(DataOutputViewStreamWrapper out) throws IOException {
+        out.writeBoolean(ttlConfig.isEnabled());
+        if (ttlConfig.isEnabled()) {
+            try (ObjectOutputStream o = new ObjectOutputStream(out)) {
+                o.writeObject(ttlConfig);
+            }
+        }
+        out.writeBoolean(defaultValue != null);
+        if (defaultValue != null) {
+            serializeValue(defaultValue, out);
+        }
     }
 }

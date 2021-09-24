@@ -32,7 +32,8 @@ from pyflink.fn_execution.datastream.window.window_operator import WindowOperato
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.fn_execution.datastream.timerservice_impl import (
     TimerServiceImpl, InternalTimerServiceImpl, NonKeyedTimerServiceImpl)
-from pyflink.fn_execution.datastream.input_handler import RunnerInputHandler, TimerHandler
+from pyflink.fn_execution.datastream.input_handler import (RunnerInputHandler, TimerHandler,
+                                                           _emit_results)
 from pyflink.metrics.metricbase import GenericMetricGroup
 
 
@@ -136,58 +137,73 @@ def extract_stateless_function(user_defined_function_proto, runtime_context: Run
     :param runtime_context: the streaming runtime context
     """
     func_type = user_defined_function_proto.function_type
-    user_defined_func = pickle.loads(user_defined_function_proto.payload)
-    process_element_func = None
-
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
-    if func_type == UserDefinedDataStreamFunction.TIMESTAMP_ASSIGNER:
-        extract_timestamp = user_defined_func.extract_timestamp
 
-        def wrapped_func(value):
-            pre_timestamp = value[0]
-            real_data = value[1]
-            return extract_timestamp(real_data, pre_timestamp)
+    if func_type == UserDefinedDataStreamFunction.REVISE_OUTPUT:
+        def open_func():
+            pass
 
-        process_element_func = wrapped_func
+        def close_func():
+            pass
 
-    elif func_type == UserDefinedDataStreamFunction.PROCESS:
-        process_element = user_defined_func.process_element
-        ctx = InternalProcessFunctionContext(NonKeyedTimerServiceImpl())
-
-        def wrapped_func(value):
+        def revise_output(value):
             # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK, NORMAL_DATA]
-            ctx.set_timestamp(value[0])
-            ctx.timer_service().advance_watermark(value[1])
-            output_result = process_element(value[2], ctx)
-            return output_result
+            timestamp = value[0]
+            element = value[2]
+            yield Row(timestamp, element)
 
-        process_element_func = wrapped_func
+        process_element_func = revise_output
 
-    elif func_type == UserDefinedDataStreamFunction.CO_PROCESS:
-        process_element1 = user_defined_func.process_element1
-        process_element2 = user_defined_func.process_element2
-        ctx = InternalProcessFunctionContext(NonKeyedTimerServiceImpl())
+    else:
+        user_defined_func = pickle.loads(user_defined_function_proto.payload)
 
-        def wrapped_func(value):
-            # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK, [isLeft, leftInput, rightInput]]
-            ctx.set_timestamp(value[0])
-            ctx.timer_service().advance_watermark(value[1])
+        def open_func():
+            if hasattr(user_defined_func, "open"):
+                user_defined_func.open(runtime_context)
 
-            normal_data = value[2]
-            if normal_data[0]:
-                yield from process_element1(normal_data[1], ctx)
-            else:
-                yield from process_element2(normal_data[2], ctx)
+        def close_func():
+            if hasattr(user_defined_func, "close"):
+                user_defined_func.close()
 
-        process_element_func = wrapped_func
+        if func_type == UserDefinedDataStreamFunction.PROCESS:
+            process_element = user_defined_func.process_element
+            ctx = InternalProcessFunctionContext(NonKeyedTimerServiceImpl())
 
-    def open_func():
-        if hasattr(user_defined_func, "open"):
-            user_defined_func.open(runtime_context)
+            def wrapped_func(value):
+                # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK, NORMAL_DATA]
+                timestamp = value[0]
+                watermark = value[1]
+                ctx.set_timestamp(timestamp)
+                ctx.timer_service().advance_watermark(watermark)
+                results = process_element(value[2], ctx)
+                yield from _emit_results(timestamp, watermark, results)
 
-    def close_func():
-        if hasattr(user_defined_func, "close"):
-            user_defined_func.close()
+            process_element_func = wrapped_func
+
+        elif func_type == UserDefinedDataStreamFunction.CO_PROCESS:
+            process_element1 = user_defined_func.process_element1
+            process_element2 = user_defined_func.process_element2
+            ctx = InternalProcessFunctionContext(NonKeyedTimerServiceImpl())
+
+            def wrapped_func(value):
+                # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK, [isLeft, leftInput, rightInput]]
+                timestamp = value[0]
+                watermark = value[1]
+                ctx.set_timestamp(timestamp)
+                ctx.timer_service().advance_watermark(watermark)
+
+                normal_data = value[2]
+                if normal_data[0]:
+                    results = process_element1(normal_data[1], ctx)
+                else:
+                    results = process_element2(normal_data[2], ctx)
+
+                yield from _emit_results(timestamp, watermark, results)
+
+            process_element_func = wrapped_func
+
+        else:
+            raise Exception("Unsupported function_type: " + str(func_type))
 
     return open_func, close_func, process_element_func
 

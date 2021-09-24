@@ -45,12 +45,12 @@ import static org.junit.Assert.assertTrue;
 public abstract class CompletedCheckpointStoreTest extends TestLogger {
 
     /** Creates the {@link CompletedCheckpointStore} implementation to be tested. */
-    protected abstract CompletedCheckpointStore createCompletedCheckpoints(
+    protected abstract CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             int maxNumberOfCheckpointsToRetain, Executor executor) throws Exception;
 
-    protected CompletedCheckpointStore createCompletedCheckpoints(
+    protected CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             int maxNumberOfCheckpointsToRetain) throws Exception {
-        return createCompletedCheckpoints(
+        return createRecoveredCompletedCheckpointStore(
                 maxNumberOfCheckpointsToRetain, Executors.directExecutor());
     }
 
@@ -59,14 +59,14 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     /** Tests that at least one checkpoint needs to be retained. */
     @Test(expected = Exception.class)
     public void testExceptionOnNoRetainedCheckpoints() throws Exception {
-        createCompletedCheckpoints(0);
+        createRecoveredCompletedCheckpointStore(0);
     }
 
     /** Tests adding and getting a checkpoint. */
     @Test
     public void testAddAndGetLatestCheckpoint() throws Exception {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        CompletedCheckpointStore checkpoints = createCompletedCheckpoints(4);
+        CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(4);
 
         // Empty state
         assertEquals(0, checkpoints.getNumberOfRetainedCheckpoints());
@@ -81,11 +81,11 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
         // Add and get latest
         checkpoints.addCheckpoint(expected[0], new CheckpointsCleaner(), () -> {});
         assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
-        verifyCheckpoint(expected[0], checkpoints.getLatestCheckpoint(false));
+        verifyCheckpoint(expected[0], checkpoints.getLatestCheckpoint());
 
         checkpoints.addCheckpoint(expected[1], new CheckpointsCleaner(), () -> {});
         assertEquals(2, checkpoints.getNumberOfRetainedCheckpoints());
-        verifyCheckpoint(expected[1], checkpoints.getLatestCheckpoint(false));
+        verifyCheckpoint(expected[1], checkpoints.getLatestCheckpoint());
     }
 
     /**
@@ -95,7 +95,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     @Test
     public void testAddCheckpointMoreThanMaxRetained() throws Exception {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        CompletedCheckpointStore checkpoints = createCompletedCheckpoints(1);
+        CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(1);
 
         TestCompletedCheckpoint[] expected =
                 new TestCompletedCheckpoint[] {
@@ -123,17 +123,16 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
      * Tests that
      *
      * <ul>
-     *   <li>{@link CompletedCheckpointStore#getLatestCheckpoint(boolean)} returns <code>null</code>
-     *       ,
+     *   <li>{@link CompletedCheckpointStore#getLatestCheckpoint()} returns <code>null</code> ,
      *   <li>{@link CompletedCheckpointStore#getAllCheckpoints()} returns an empty list,
      *   <li>{@link CompletedCheckpointStore#getNumberOfRetainedCheckpoints()} returns 0.
      * </ul>
      */
     @Test
     public void testEmptyState() throws Exception {
-        CompletedCheckpointStore checkpoints = createCompletedCheckpoints(1);
+        CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(1);
 
-        assertNull(checkpoints.getLatestCheckpoint(false));
+        assertNull(checkpoints.getLatestCheckpoint());
         assertEquals(0, checkpoints.getAllCheckpoints().size());
         assertEquals(0, checkpoints.getNumberOfRetainedCheckpoints());
     }
@@ -142,7 +141,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     @Test
     public void testGetAllCheckpoints() throws Exception {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        CompletedCheckpointStore checkpoints = createCompletedCheckpoints(4);
+        CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(4);
 
         TestCompletedCheckpoint[] expected =
                 new TestCompletedCheckpoint[] {
@@ -169,7 +168,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     @Test
     public void testDiscardAllCheckpoints() throws Exception {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        CompletedCheckpointStore checkpoints = createCompletedCheckpoints(4);
+        CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(4);
 
         TestCompletedCheckpoint[] expected =
                 new TestCompletedCheckpoint[] {
@@ -186,7 +185,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
         checkpoints.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
 
         // Empty state
-        assertNull(checkpoints.getLatestCheckpoint(false));
+        assertNull(checkpoints.getLatestCheckpoint());
         assertEquals(0, checkpoints.getAllCheckpoints().size());
         assertEquals(0, checkpoints.getNumberOfRetainedCheckpoints());
 
@@ -201,7 +200,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     @Test
     public void testAcquireLatestCompletedCheckpointId() throws Exception {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        CompletedCheckpointStore checkpoints = createCompletedCheckpoints(1);
+        CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(1);
         assertEquals(0, checkpoints.getLatestCheckpointId());
 
         checkpoints.addCheckpoint(

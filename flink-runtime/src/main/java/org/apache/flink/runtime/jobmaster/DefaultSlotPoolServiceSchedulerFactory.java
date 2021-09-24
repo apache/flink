@@ -50,6 +50,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Default {@link SlotPoolServiceSchedulerFactory} implementation. */
@@ -88,10 +89,10 @@ public final class DefaultSlotPoolServiceSchedulerFactory
     public SchedulerNG createScheduler(
             Logger log,
             JobGraph jobGraph,
-            ScheduledExecutorService scheduledExecutorService,
+            Executor ioExecutor,
             Configuration configuration,
             SlotPoolService slotPoolService,
-            ScheduledExecutorService executorService,
+            ScheduledExecutorService futureExecutor,
             ClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
             Time rpcTimeout,
@@ -109,10 +110,10 @@ public final class DefaultSlotPoolServiceSchedulerFactory
         return schedulerNGFactory.createInstance(
                 log,
                 jobGraph,
-                scheduledExecutorService,
+                ioExecutor,
                 configuration,
                 slotPoolService,
-                executorService,
+                futureExecutor,
                 userCodeLoader,
                 checkpointRecoveryFactory,
                 rpcTimeout,

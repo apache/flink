@@ -214,10 +214,4 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
      */
     @Override
     public void testQueryCluster() {}
-
-    @Override
-    public void testResourceComputation() {}
-
-    @Override
-    public void testfullAlloc() {}
 }

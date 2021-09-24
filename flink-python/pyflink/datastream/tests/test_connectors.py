@@ -24,12 +24,13 @@ from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer, JdbcSink, \
     JdbcConnectionOptions, JdbcExecutionOptions, StreamingFileSink, \
     OutputFileConfig, FileSource, StreamFormat, FileEnumeratorProvider, FileSplitAssignerProvider, \
-    NumberSequenceSource, RollingPolicy, FileSink, BucketAssigner
+    NumberSequenceSource, RollingPolicy, FileSink, BucketAssigner, RMQSink, RMQSource, \
+    RMQConnectionConfig
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase, _load_specific_flink_module_jars, \
-    get_private_field, invoke_java_object_method
-from pyflink.util.java_utils import load_java_class
+    invoke_java_object_method
+from pyflink.util.java_utils import load_java_class, get_field_value
 
 
 class FlinkKafkaTest(PyFlinkTestCase):
@@ -61,22 +62,22 @@ class FlinkKafkaTest(PyFlinkTestCase):
         flink_kafka_consumer.set_start_from_earliest()
         flink_kafka_consumer.set_commit_offsets_on_checkpoints(True)
 
-        j_properties = get_private_field(flink_kafka_consumer.get_java_function(), 'properties')
+        j_properties = get_field_value(flink_kafka_consumer.get_java_function(), 'properties')
         self.assertEqual('localhost:9092', j_properties.getProperty('bootstrap.servers'))
         self.assertEqual('test_group', j_properties.getProperty('group.id'))
-        self.assertTrue(get_private_field(flink_kafka_consumer.get_java_function(),
-                                          'enableCommitOnCheckpoints'))
-        j_start_up_mode = get_private_field(flink_kafka_consumer.get_java_function(), 'startupMode')
+        self.assertTrue(get_field_value(flink_kafka_consumer.get_java_function(),
+                                        'enableCommitOnCheckpoints'))
+        j_start_up_mode = get_field_value(flink_kafka_consumer.get_java_function(), 'startupMode')
 
-        j_deserializer = get_private_field(flink_kafka_consumer.get_java_function(), 'deserializer')
+        j_deserializer = get_field_value(flink_kafka_consumer.get_java_function(), 'deserializer')
         j_deserialize_type_info = invoke_java_object_method(j_deserializer, "getProducedType")
         deserialize_type_info = typeinfo._from_java_type(j_deserialize_type_info)
         self.assertTrue(deserialize_type_info == type_info)
         self.assertTrue(j_start_up_mode.equals(get_gateway().jvm
                                                .org.apache.flink.streaming.connectors
                                                .kafka.config.StartupMode.EARLIEST))
-        j_topic_desc = get_private_field(flink_kafka_consumer.get_java_function(),
-                                         'topicsDescriptor')
+        j_topic_desc = get_field_value(flink_kafka_consumer.get_java_function(),
+                                       'topicsDescriptor')
         j_topics = invoke_java_object_method(j_topic_desc, 'getFixedTopics')
         self.assertEqual(['test_source_topic'], list(j_topics))
 
@@ -86,12 +87,12 @@ class FlinkKafkaTest(PyFlinkTestCase):
         flink_kafka_producer = flink_kafka_producer_clz(sink_topic, serialization_schema, props)
         flink_kafka_producer.set_write_timestamp_to_kafka(False)
 
-        j_producer_config = get_private_field(flink_kafka_producer.get_java_function(),
-                                              'producerConfig')
+        j_producer_config = get_field_value(flink_kafka_producer.get_java_function(),
+                                            'producerConfig')
         self.assertEqual('localhost:9092', j_producer_config.getProperty('bootstrap.servers'))
         self.assertEqual('test_group', j_producer_config.getProperty('group.id'))
-        self.assertFalse(get_private_field(flink_kafka_producer.get_java_function(),
-                                           'writeTimestampToKafka'))
+        self.assertFalse(get_field_value(flink_kafka_producer.get_java_function(),
+                                         'writeTimestampToKafka'))
 
     def tearDown(self):
         # Change the ClassLoader back to the cached ContextClassLoader after the test case finished.
@@ -123,11 +124,11 @@ class FlinkJdbcSinkTest(PyFlinkTestCase):
         ds.add_sink(jdbc_sink).name('jdbc sink')
         plan = eval(self.env.get_execution_plan())
         self.assertEqual('Sink: jdbc sink', plan['nodes'][1]['type'])
-        j_output_format = get_private_field(jdbc_sink.get_java_function(), 'outputFormat')
+        j_output_format = get_field_value(jdbc_sink.get_java_function(), 'outputFormat')
 
         connection_options = JdbcConnectionOptions(
-            get_private_field(get_private_field(j_output_format, 'connectionProvider'),
-                              'jdbcOptions'))
+            get_field_value(get_field_value(j_output_format, 'connectionProvider'),
+                            'jdbcOptions'))
         self.assertEqual(jdbc_connection_options.get_db_url(), connection_options.get_db_url())
         self.assertEqual(jdbc_connection_options.get_driver_name(),
                          connection_options.get_driver_name())
@@ -135,7 +136,7 @@ class FlinkJdbcSinkTest(PyFlinkTestCase):
         self.assertEqual(jdbc_connection_options.get_user_name(),
                          connection_options.get_user_name())
 
-        exec_options = JdbcExecutionOptions(get_private_field(j_output_format, 'executionOptions'))
+        exec_options = JdbcExecutionOptions(get_field_value(j_output_format, 'executionOptions'))
         self.assertEqual(jdbc_execution_options.get_batch_interval_ms(),
                          exec_options.get_batch_interval_ms())
         self.assertEqual(jdbc_execution_options.get_batch_size(),
@@ -146,6 +147,40 @@ class FlinkJdbcSinkTest(PyFlinkTestCase):
     def tearDown(self):
         if self._cxt_clz_loader is not None:
             get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
+
+
+class RMQTest(PyFlinkTestCase):
+    def setUp(self):
+        self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        _load_specific_flink_module_jars('/flink-connectors/flink-sql-connector-rabbitmq')
+
+    def tearDown(self):
+        if self._cxt_clz_loader is not None:
+            get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
+
+    def test_rabbitmq_connectors(self):
+        connection_config = RMQConnectionConfig.Builder() \
+            .set_host('localhost') \
+            .set_port(5672) \
+            .set_virtual_host('/') \
+            .set_user_name('guest') \
+            .set_password('guest') \
+            .build()
+        type_info = Types.ROW([Types.INT(), Types.STRING()])
+        deserialization_schema = JsonRowDeserializationSchema.builder() \
+            .type_info(type_info=type_info).build()
+
+        rmq_source = RMQSource(
+            connection_config, 'source_queue', True, deserialization_schema)
+        self.assertEqual(
+            get_field_value(rmq_source.get_java_function(), 'queueName'), 'source_queue')
+        self.assertTrue(get_field_value(rmq_source.get_java_function(), 'usesCorrelationId'))
+
+        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(type_info) \
+            .build()
+        rmq_sink = RMQSink(connection_config, 'sink_queue', serialization_schema)
+        self.assertEqual(
+            get_field_value(rmq_sink.get_java_function(), 'queueName'), 'sink_queue')
 
 
 class ConnectorTests(PyFlinkTestCase):

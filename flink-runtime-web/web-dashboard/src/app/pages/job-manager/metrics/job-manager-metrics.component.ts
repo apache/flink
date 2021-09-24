@@ -17,9 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { JobManagerService, StatusService } from 'services';
 import { Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
+
+import { JobManagerService, StatusService } from 'services';
 
 @Component({
   selector: 'flink-job-manager-metrics',
@@ -39,7 +40,7 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobManagerService.loadConfig().subscribe(data => {
       for (const item of data) {
         this.config[item.key] = item.value;
@@ -96,7 +97,7 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
         });
     });
   }
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

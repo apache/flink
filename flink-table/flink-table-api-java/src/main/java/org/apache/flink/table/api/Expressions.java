@@ -43,6 +43,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.objectToExpr
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECT;
 
 /**
  * Entry point of the Table API Expression DSL such as: {@code $("myField").plus(10).abs()}
@@ -155,6 +156,26 @@ public final class Expressions {
     public static ApiExpression or(Object predicate0, Object predicate1, Object... predicates) {
         return apiCallAtLeastTwoArgument(
                 BuiltInFunctionDefinitions.OR, predicate0, predicate1, predicates);
+    }
+
+    /**
+     * Inverts a given boolean expression.
+     *
+     * <p>This method supports a three-valued logic by preserving {@code NULL}. This means if the
+     * input expression is {@code NULL}, the result will also be {@code NULL}.
+     *
+     * <p>The resulting type is nullable if and only if the input type is nullable.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * not(lit(true)) // false
+     * not(lit(false)) // true
+     * not(lit(null, DataTypes.BOOLEAN())) // null
+     * }</pre>
+     */
+    public static ApiExpression not(Object expression) {
+        return apiCall(BuiltInFunctionDefinitions.NOT, expression);
     }
 
     /**
@@ -516,6 +537,28 @@ public final class Expressions {
     }
 
     /**
+     * Returns the first argument that is not NULL.
+     *
+     * <p>If all arguments are NULL, it returns NULL as well. The return type is the least
+     * restrictive, common type of all of its arguments. The return type is nullable if all
+     * arguments are nullable as well.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // Returns "default"
+     * coalesce(null, "default")
+     * // Returns the first non-null value among f0 and f1, or "default" if f0 and f1 are both null
+     * coalesce($("f0"), $("f1"), "default")
+     * }</pre>
+     *
+     * @param args the input expressions.
+     */
+    public static ApiExpression coalesce(Object... args) {
+        return apiCall(BuiltInFunctionDefinitions.COALESCE, args);
+    }
+
+    /**
      * Creates an expression that selects a range of columns. It can be used wherever an array of
      * expression is accepted such as function calls, projections, or groupings.
      *
@@ -540,6 +583,42 @@ public final class Expressions {
      */
     public static ApiExpression withoutColumns(Object head, Object... tail) {
         return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.WITHOUT_COLUMNS, head, tail);
+    }
+
+    /**
+     * Builds a JSON object string from a list of key-value pairs.
+     *
+     * <p>{@param keyValues} is an even-numbered list of alternating key/value pairs. Note that keys
+     * must be non-{@code NULL} string literals, while values may be arbitrary expressions.
+     *
+     * <p>This function returns a JSON string. The {@link JsonOnNull onNull} behavior defines how to
+     * treat {@code NULL} values.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // {}
+     * jsonObject(JsonOnNull.NULL)
+     * // "{\"K1\":\"V1\",\"K2\":\"V2\"}"
+     * // {"K1":"V1","K2":"V2"}
+     * jsonObject(JsonOnNull.NULL, "K1", "V1", "K2", "V2")
+     *
+     * // Expressions as values
+     * jsonObject(JsonOnNull.NULL, "orderNo", $("orderId"))
+     *
+     * // ON NULL
+     * jsonObject(JsonOnNull.NULL, "K1", nullOf(DataTypes.STRING()))   // "{\"K1\":null}"
+     * jsonObject(JsonOnNull.ABSENT, "K1", nullOf(DataTypes.STRING())) // "{}"
+     *
+     * // {"K1":{"K2":"V"}}
+     * jsonObject(JsonOnNull.NULL, "K1", jsonObject(JsonOnNull.NULL, "K2", "V"))
+     * }</pre>
+     */
+    public static ApiExpression jsonObject(JsonOnNull onNull, Object... keyValues) {
+        final Object[] arguments =
+                Stream.concat(Stream.of(onNull), Arrays.stream(keyValues)).toArray(Object[]::new);
+
+        return apiCall(JSON_OBJECT, arguments);
     }
 
     /**

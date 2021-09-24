@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.minicluster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
@@ -30,6 +29,8 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
+
+import java.time.Duration;
 
 import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
 
@@ -73,6 +74,11 @@ public class MiniClusterConfiguration {
         // set default io pool size.
         if (!modifiedConfig.contains(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE)) {
             modifiedConfig.set(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE, DEFAULT_IO_POOL_SIZE);
+        }
+
+        // increase the akka.ask.timeout if not set in order to harden tests on slow CI
+        if (!modifiedConfig.contains(AkkaOptions.ASK_TIMEOUT_DURATION)) {
+            modifiedConfig.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(5L));
         }
 
         return new UnmodifiableConfiguration(modifiedConfig);
@@ -120,10 +126,6 @@ public class MiniClusterConfiguration {
         return commonBindAddress != null
                 ? commonBindAddress
                 : configuration.getString(TaskManagerOptions.BIND_HOST, "localhost");
-    }
-
-    public Time getRpcTimeout() {
-        return Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
     }
 
     public UnmodifiableConfiguration getConfiguration() {

@@ -47,7 +47,7 @@ under the License.
 
 	    <!-- Have to use guava directly -->
 	    <suppress
-			files="OverConvertRule.java|CustomizedConvertRule.java"
+			files="OverConvertRule.java|InConverter.java"
 			checks="IllegalImport"/>
 		<!-- Cassandra connectors have to use guava directly -->
 		<suppress
@@ -61,7 +61,11 @@ under the License.
 		<suppress 
 			files="FanOutRecordPublisherTest.java|FanOutShardSubscriber.java|FanOutShardSubscriberTest.java" 
 			checks="IllegalImport"/>
-	 	<!-- Classes copied from Hadoop -->
+		<!-- Pulsar broker required to handle Netty EventLoopGroup -->
+		<suppress
+			files="MockBookKeeperClientFactory.java"
+			checks="IllegalImport"/>
+		<!-- Classes copied from Hadoop -->
 		<suppress
 			files="org[\\/]apache[\\/]hadoop[\\/]conf[\\/]Configuration.java"
 			checks=".*"/>
@@ -82,4 +86,6 @@ under the License.
 		<suppress
 			files="org[\\/]apache[\\/]flink[\\/]formats[\\/]avro[\\/]glue[\\/]schema[\\/]registry[\\/]User.java"
 			checks=".*"/>
+		<!-- suppress check for copied hive code -->
+		<suppress files="org[\\/]apache[\\/]hadoop[\\/]hive[\\/].*.java" checks=".*"/>
 </suppressions>

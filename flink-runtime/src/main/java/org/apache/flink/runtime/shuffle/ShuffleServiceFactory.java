@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.shuffle;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 
@@ -39,10 +38,10 @@ public interface ShuffleServiceFactory<
     /**
      * Factory method to create a specific {@link ShuffleMaster} implementation.
      *
-     * @param configuration Flink configuration
+     * @param shuffleMasterContext shuffle context for shuffle master.
      * @return shuffle manager implementation
      */
-    ShuffleMaster<SD> createShuffleMaster(Configuration configuration);
+    ShuffleMaster<SD> createShuffleMaster(ShuffleMasterContext shuffleMasterContext);
 
     /**
      * Factory method to create a specific local {@link ShuffleEnvironment} implementation.

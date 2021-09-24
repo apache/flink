@@ -49,8 +49,6 @@ class TableSinkITCase extends BatchTestBase {
          |)
        """.stripMargin)
 
-    tEnv.getConfig.getConfiguration.setBoolean(
-      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
     val resultPath = BatchAbstractTestBase.TEMPORARY_FOLDER.newFolder().getAbsolutePath
     tEnv.executeSql(
       s"""

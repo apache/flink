@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -31,21 +32,23 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.mailbox.MailboxExecutor;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -91,8 +94,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * new Thread to execute the Task. Use {@link #waitForTaskCompletion()} to wait for the Task thread
  * to finish.
  *
- * <p>This class id deprecated because of it's threading model. Please use {@link
- * StreamTaskMailboxTestHarness}
+ * @deprecated Please use {@link StreamTaskMailboxTestHarness} and {@link
+ *     StreamTaskMailboxTestHarnessBuilder}. Do not add new code using this test harness.
  */
 @Deprecated
 public class StreamTaskTestHarness<OUT> {
@@ -112,6 +115,7 @@ public class StreamTaskTestHarness<OUT> {
     public Configuration jobConfig;
     public Configuration taskConfig;
     protected StreamConfig streamConfig;
+    protected TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 
     protected TestTaskStateManager taskStateManager;
 
@@ -183,6 +187,10 @@ public class StreamTaskTestHarness<OUT> {
         return taskThread.task.getTimerService();
     }
 
+    public TaskManagerRuntimeInfo getTaskManagerRuntimeInfo() {
+        return taskManagerRuntimeInfo;
+    }
+
     @SuppressWarnings("unchecked")
     public <OP extends StreamOperator<OUT>> OP getHeadOperator() {
         return (OP) taskThread.task.getMainOperator();
@@ -250,14 +258,20 @@ public class StreamTaskTestHarness<OUT> {
     }
 
     public StreamMockEnvironment createEnvironment() {
-        return new StreamMockEnvironment(
-                jobConfig,
-                taskConfig,
-                executionConfig,
-                memorySize,
-                new MockInputSplitProvider(),
-                bufferSize,
-                taskStateManager);
+        StreamMockEnvironment streamMockEnvironment =
+                new StreamMockEnvironment(
+                        jobConfig,
+                        taskConfig,
+                        executionConfig,
+                        memorySize,
+                        new MockInputSplitProvider(),
+                        bufferSize,
+                        taskStateManager);
+        if (taskManagerRuntimeInfo != null) {
+            streamMockEnvironment.setTaskManagerInfo(taskManagerRuntimeInfo);
+        }
+
+        return streamMockEnvironment;
     }
 
     /**
@@ -286,6 +300,9 @@ public class StreamTaskTestHarness<OUT> {
         taskThread.start();
         // Wait until the task is set
         while (taskThread.task == null) {
+            if (taskThread.error != null) {
+                ExceptionUtils.rethrow(taskThread.error);
+            }
             Thread.sleep(10L);
         }
 
@@ -421,7 +438,7 @@ public class StreamTaskTestHarness<OUT> {
                 final CountDownLatch latch = new CountDownLatch(1);
                 mailboxExecutor.execute(
                         () -> {
-                            allInputProcessed.set(mailboxProcessor.isDefaultActionUnavailable());
+                            allInputProcessed.set(!mailboxProcessor.isDefaultActionAvailable());
                             latch.countDown();
                         },
                         "query-whether-processInput-has-suspend-itself");
@@ -462,6 +479,13 @@ public class StreamTaskTestHarness<OUT> {
      * arrive.
      */
     public void endInput(int gateIndex, int channelIndex) {
+        endInput(gateIndex, channelIndex, true);
+    }
+
+    public void endInput(int gateIndex, int channelIndex, boolean emitEndOfData) {
+        if (emitEndOfData) {
+            inputGates[gateIndex].sendEvent(EndOfData.INSTANCE, channelIndex);
+        }
         inputGates[gateIndex].sendEvent(EndOfPartitionEvent.INSTANCE, channelIndex);
     }
 
@@ -511,7 +535,7 @@ public class StreamTaskTestHarness<OUT> {
     }
 
     static TaskMetricGroup createTaskMetricGroup(Map<String, Metric> metrics) {
-        return MetricUtils.createTaskManagerMetricGroup(
+        return TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         new TestMetricRegistry(metrics), "localhost", ResourceID.generate())
                 .addTaskForJob(
                         new JobID(),

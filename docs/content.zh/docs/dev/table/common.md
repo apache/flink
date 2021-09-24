@@ -41,7 +41,7 @@ Table API 和 SQL 程序的结构
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.table.api.*;
-import org.apache.flink.table.factories.DataGenOptions;
+import org.apache.flink.connector.datagen.table.DataGenOptions;
 
 // Create a TableEnvironment for batch or streaming execution.
 // See the "Create a TableEnvironment" section for details.
@@ -71,7 +71,7 @@ TableResult tableResult = table2.executeInsert("SinkTable");
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.api._
-import org.apache.flink.table.factories.DataGenOptions
+import org.apache.flink.connector.datagen.table.DataGenOptions
 
 // Create a TableEnvironment for batch or streaming execution.
 // See the "Create a TableEnvironment" section for details.
@@ -851,7 +851,7 @@ print(table.explain())
 {{< /tabs >}}
 
 上述例子的结果是：
-<div>
+
 ```text
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
@@ -871,7 +871,6 @@ Union(all=[true], union=[count, word])
 :  +- DataStreamScan(table=[[Unregistered_DataStream_1]], fields=[count, word])
 +- DataStreamScan(table=[[Unregistered_DataStream_2]], fields=[count, word])
 ```
-</div>
 
 以下代码展示了一个示例以及使用 `StatementSet.explain()` 的多 sink 计划的相应输出：
 
@@ -1012,7 +1011,7 @@ print(explanation)
 {{< /tabs >}}
 
 多 sink 计划的结果是：
-<div>
+
 ```text
 == Abstract Syntax Tree ==
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
@@ -1049,7 +1048,6 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count,
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
 ```
-</div>
 
 {{< top >}}
 

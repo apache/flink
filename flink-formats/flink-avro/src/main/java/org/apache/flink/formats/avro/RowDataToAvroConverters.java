@@ -67,7 +67,7 @@ public class RowDataToAvroConverters {
     // --------------------------------------------------------------------------------
 
     /**
-     * Creates a runtime converter accroding to the given logical type that converts objects of
+     * Creates a runtime converter according to the given logical type that converts objects of
      * Flink Table & SQL internal data structures to corresponding Avro data structures.
      */
     public static RowDataToAvroConverter createConverter(LogicalType type) {

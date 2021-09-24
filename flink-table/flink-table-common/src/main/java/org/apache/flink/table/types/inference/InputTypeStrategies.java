@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
@@ -33,9 +34,12 @@ import org.apache.flink.table.types.inference.strategies.LiteralArgumentTypeStra
 import org.apache.flink.table.types.inference.strategies.OrArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OutputArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.RepeatingSequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.RootArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SubsequenceInputTypeStrategy.SubsequenceStrategyBuilder;
+import org.apache.flink.table.types.inference.strategies.SymbolArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.TypeLiteralArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.VaryingSequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.WildcardInputTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -102,6 +106,11 @@ public final class InputTypeStrategies {
             String[] argumentNames, ArgumentTypeStrategy[] strategies) {
         return new VaryingSequenceInputTypeStrategy(
                 Arrays.asList(strategies), Arrays.asList(argumentNames));
+    }
+
+    /** Arbitrarily often repeating sequence of argument type strategies. */
+    public static InputTypeStrategy repeatingSequence(ArgumentTypeStrategy... strategies) {
+        return new RepeatingSequenceInputTypeStrategy(Arrays.asList(strategies));
     }
 
     /**
@@ -194,6 +203,10 @@ public final class InputTypeStrategies {
     /** Strategy that checks if an argument is a literal or NULL. */
     public static final LiteralArgumentTypeStrategy LITERAL_OR_NULL =
             new LiteralArgumentTypeStrategy(true);
+
+    /** Strategy that checks if an argument is a type literal. */
+    public static final TypeLiteralArgumentTypeStrategy TYPE_LITERAL =
+            new TypeLiteralArgumentTypeStrategy();
 
     /** Strategy that checks that the argument has a composite type. */
     public static final ArgumentTypeStrategy COMPOSITE = new CompositeArgumentTypeStrategy();
@@ -289,6 +302,12 @@ public final class InputTypeStrategies {
      */
     public static OrArgumentTypeStrategy or(ArgumentTypeStrategy... strategies) {
         return new OrArgumentTypeStrategy(Arrays.asList(strategies));
+    }
+
+    /** Strategy for a symbol argument of a specific {@link TableSymbol} enum. */
+    public static SymbolArgumentTypeStrategy symbol(
+            Class<? extends Enum<? extends TableSymbol>> clazz) {
+        return new SymbolArgumentTypeStrategy(clazz);
     }
 
     /**

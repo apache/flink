@@ -27,16 +27,34 @@
             <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.network.memory.automatic-buffer-adjustment.period</h5></td>
-            <td style="word-wrap: break-word;">500</td>
-            <td>Integer</td>
-            <td>The minimum period of time after which the buffer size will be automatically adjusted to a new value if required. The low value provides a fast reaction to the load fluctuation but can influence the performance.</td>
+            <td><h5>taskmanager.network.memory.buffer-debloat.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>The switch of the automatic buffered debloating feature. If enabled the amount of in-flight data will be adjusted automatically accordingly to the measured throughput.</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.network.memory.automatic-buffer-adjustment.samples</h5></td>
+            <td><h5>taskmanager.network.memory.buffer-debloat.period</h5></td>
+            <td style="word-wrap: break-word;">500 ms</td>
+            <td>Duration</td>
+            <td>The minimum period of time after which the buffer size will be debloated if required. The low value provides a fast reaction to the load fluctuation but can influence the performance.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.samples</h5></td>
             <td style="word-wrap: break-word;">20</td>
             <td>Integer</td>
             <td>The number of the last buffer size values that will be taken for the correct calculation of the new one.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.target</h5></td>
+            <td style="word-wrap: break-word;">1 s</td>
+            <td>Duration</td>
+            <td>The target total time after which buffered in-flight data should be fully consumed. This configuration option will be used, in combination with the measured throughput, to adjust the amount of in-flight data.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffer-debloat.threshold-percentages</h5></td>
+            <td style="word-wrap: break-word;">50</td>
+            <td>Integer</td>
+            <td>The minimum difference in percentage between the newly calculated buffer size and the old one to announce the new value. Can be used to avoid constant back and forth small adjustments.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.buffers-per-channel</h5></td>

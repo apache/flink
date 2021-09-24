@@ -26,7 +26,7 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], ne
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedValue, deepNested.nested2.flag AS nestedFlag, deepNested.nested2.num AS nestedNum])
-+- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested, nested]]], fields=[id, deepNested, nested])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested, nested], metadata=[]]], fields=[id, deepNested, nested])
 ]]>
     </Resource>
   </TestCase>
@@ -60,7 +60,7 @@ LogicalProject(rtime=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
-+- TableSourceScan(table=[[default_catalog, default_database, T, project=[rtime]]], fields=[rtime])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[rtime], metadata=[]]], fields=[rtime])
 ]]>
     </Resource>
   </TestCase>

@@ -199,6 +199,11 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
     }
 
     @Override
+    public void notifyNewBufferSize(RemoteInputChannel inputChannel, int bufferSize) {
+        clientHandler.notifyNewBufferSize(inputChannel, bufferSize);
+    }
+
+    @Override
     public void resumeConsumption(RemoteInputChannel inputChannel) {
         clientHandler.resumeConsumption(inputChannel);
     }

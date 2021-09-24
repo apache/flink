@@ -109,6 +109,14 @@ class CheckpointConfigTests(PyFlinkTestCase):
 
         self.assertFalse(self.checkpoint_config.is_fail_on_checkpointing_errors())
 
+    def test_get_set_tolerable_checkpoint_failure_number(self):
+
+        self.assertEqual(self.checkpoint_config.get_tolerable_checkpoint_failure_number(), 0)
+
+        self.checkpoint_config.set_tolerable_checkpoint_failure_number(2)
+
+        self.assertEqual(self.checkpoint_config.get_tolerable_checkpoint_failure_number(), 2)
+
     def test_get_set_externalized_checkpoints_cleanup(self):
 
         self.assertFalse(self.checkpoint_config.is_externalized_checkpoints_enabled())
@@ -128,14 +136,6 @@ class CheckpointConfigTests(PyFlinkTestCase):
 
         self.assertEqual(self.checkpoint_config.get_externalized_checkpoint_cleanup(),
                          ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION)
-
-    def test_get_set_prefer_checkpoint_for_recovery(self):
-
-        self.assertFalse(self.checkpoint_config.is_prefer_checkpoint_for_recovery())
-
-        self.checkpoint_config.set_prefer_checkpoint_for_recovery(True)
-
-        self.assertTrue(self.checkpoint_config.is_prefer_checkpoint_for_recovery())
 
     def test_is_unaligned_checkpointing_enabled(self):
 

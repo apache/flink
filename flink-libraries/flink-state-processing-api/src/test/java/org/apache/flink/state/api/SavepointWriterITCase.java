@@ -30,6 +30,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.api.functions.BroadcastStateBootstrapFunction;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.functions.StateBootstrapFunction;
@@ -97,6 +99,17 @@ public class SavepointWriterITCase extends AbstractTestBase {
         StateBackend backend =
                 new RocksDBStateBackend(
                         new FsStateBackend(TEMPORARY_FOLDER.newFolder().toURI(), FILE_STATE_SIZE));
+        testStateBootstrapAndModification(backend);
+    }
+
+    @Test
+    public void testHashMapStateBackend() throws Exception {
+        testStateBootstrapAndModification(new HashMapStateBackend());
+    }
+
+    @Test
+    public void testEmbeddedRocksDBStateBackend() throws Exception {
+        StateBackend backend = new EmbeddedRocksDBStateBackend();
         testStateBootstrapAndModification(backend);
     }
 

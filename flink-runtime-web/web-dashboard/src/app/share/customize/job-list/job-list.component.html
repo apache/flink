@@ -17,27 +17,34 @@
   -->
 
 <nz-card [nzBordered]="false" [nzTitle]="title" [nzLoading]="isLoading">
-  <nz-table class="no-border"
+  <nz-table
+    #table
+    class="no-border"
     [nzSize]="'small'"
     [nzData]="listOfJob"
     [nzFrontPagination]="false"
-    [nzShowPagination]="false">
-    <thead (nzSortChange)="sort($event)" nzSingleSort>
+    [nzShowPagination]="false"
+  >
+    <thead>
       <tr>
         <th nzWidth="40%">Job Name</th>
-        <th nzShowSort nzSortKey="start-time">Start Time</th>
-        <th nzShowSort nzSortKey="duration">Duration</th>
-        <th nzShowSort nzSortKey="end-time">End Time</th>
+        <th [nzSortFn]="sortStartTimeFn">Start Time</th>
+        <th [nzSortFn]="sortDurationFn">Duration</th>
+        <th [nzSortFn]="sortEndTimeFn">End Time</th>
         <th>Tasks</th>
-        <th nzShowSort nzSortKey="state">Status</th>
+        <th [nzSortFn]="sortStateFn">Status</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let job of listOfJob; trackBy:trackJobBy;" (click)="navigateToJob(job)" class="clickable">
+      <tr
+        *ngFor="let job of table.data; trackBy: trackJobBy"
+        (click)="navigateToJob(job)"
+        class="clickable"
+      >
         <td>{{ job.name }}</td>
-        <td>{{ job["start-time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+        <td>{{ job['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
         <td>{{ job.duration | humanizeDuration }}</td>
-        <td>{{ job["end-time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+        <td>{{ job['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
         <td>
           <flink-task-badge [tasks]="job.tasks"></flink-task-badge>
         </td>

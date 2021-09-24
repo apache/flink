@@ -86,7 +86,7 @@ where the UDF's logic is invoked, *e.g.* the `map()` method of your `MapFunction
 Finally, in the case of a normal, fault-free termination of the operator (*e.g.* if the stream is
 finite and its end is reached), the `finish()` method is called to perform any final bookkeeping
 action required by the operator's logic (*e.g.* flush any buffered data, or emit data to mark end of
-procesing), and the `close()` is called after that to free any resources held by the operator
+processing), and the `close()` is called after that to free any resources held by the operator
 (*e.g.* open network connections, io streams, or native memory held by the operator's data).
 
 In the case of a termination due to a failure or due to manual cancellation, the execution jumps directly to the `close()`

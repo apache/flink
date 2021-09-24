@@ -32,6 +32,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketOptions;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -113,6 +116,36 @@ public class NetUtils {
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(
                     "The given host:port ('" + hostPort + "') is invalid", e);
+        }
+    }
+
+    /**
+     * Calls {@link ServerSocket#accept()} on the provided server socket, suppressing any thrown
+     * {@link SocketTimeoutException}s. This is a workaround for the underlying JDK-8237858 bug in
+     * JDK 11 that can cause errant SocketTimeoutExceptions to be thrown at unexpected times.
+     *
+     * <p>This method expects the provided ServerSocket has no timeout set (SO_TIMEOUT of 0),
+     * indicating an infinite timeout. It will suppress all SocketTimeoutExceptions, even if a
+     * ServerSocket with a non-zero timeout is passed in.
+     *
+     * @param serverSocket a ServerSocket with {@link SocketOptions#SO_TIMEOUT SO_TIMEOUT} set to 0;
+     *     if SO_TIMEOUT is greater than 0, then this method will suppress SocketTimeoutException;
+     *     must not be null; SO_TIMEOUT option must be set to 0
+     * @return the new Socket
+     * @exception IOException see {@link ServerSocket#accept()}
+     * @see <a href="https://bugs.openjdk.java.net/browse/JDK-8237858">JDK-8237858</a>
+     */
+    public static Socket acceptWithoutTimeout(ServerSocket serverSocket) throws IOException {
+        Preconditions.checkArgument(
+                serverSocket.getSoTimeout() == 0, "serverSocket SO_TIMEOUT option must be 0");
+        while (true) {
+            try {
+                return serverSocket.accept();
+            } catch (SocketTimeoutException exception) {
+                // This should be impossible given that the socket timeout is set to zero
+                // which indicates an infinite timeout. This is due to the underlying JDK-8237858
+                // bug. We retry the accept call indefinitely to replicate the expected behavior.
+            }
         }
     }
 

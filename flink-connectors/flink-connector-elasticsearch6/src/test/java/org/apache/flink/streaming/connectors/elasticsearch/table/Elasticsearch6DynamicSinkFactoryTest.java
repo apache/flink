@@ -24,6 +24,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,7 +36,7 @@ import java.util.Collections;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.TestContext.context;
 
 /** Tests for validation in {@link Elasticsearch6DynamicSinkFactory}. */
-public class Elasticsearch6DynamicSinkFactoryTest {
+public class Elasticsearch6DynamicSinkFactoryTest extends TestLogger {
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test

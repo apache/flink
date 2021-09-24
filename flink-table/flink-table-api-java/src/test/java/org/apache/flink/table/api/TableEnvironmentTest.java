@@ -28,15 +28,10 @@ import org.apache.flink.table.utils.TableEnvironmentMock;
 
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
-import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link TableEnvironment}. */
@@ -92,6 +87,7 @@ public class TableEnvironmentTest {
         assertEquals("Test", catalogTable.getOptions().get("a"));
     }
 
+    @Test
     public void testTableFromDescriptor() {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
 
@@ -113,26 +109,5 @@ public class TableEnvironmentTest {
         assertTrue(lookupResult.isPresent());
 
         assertEquals("fake", lookupResult.get().getTable().getOptions().get("connector"));
-    }
-
-    private static void assertCatalogTable(CatalogTable table) {
-        assertThat(
-                table.getSchema(),
-                equalTo(
-                        TableSchema.builder()
-                                .field("my_field_0", DataTypes.INT())
-                                .field("my_field_1", DataTypes.BOOLEAN())
-                                .field("my_part_1", DataTypes.BIGINT())
-                                .field("my_part_2", DataTypes.STRING())
-                                .build()));
-        assertThat(table.getPartitionKeys(), equalTo(Arrays.asList("my_part_1", "my_part_2")));
-
-        Map<String, String> options = new HashMap<>();
-        options.put("update-mode", "append");
-        options.put("connector.property-version", "1");
-        options.put("format.type", "my_format");
-        options.put("format.property-version", "1");
-        options.put("connector.type", "table-source-factory-mock");
-        assertThat(table.getOptions(), equalTo(options));
     }
 }

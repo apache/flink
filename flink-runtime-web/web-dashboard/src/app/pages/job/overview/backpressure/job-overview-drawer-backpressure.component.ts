@@ -19,6 +19,7 @@
 import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil, tap } from 'rxjs/operators';
+
 import { JobBackpressureInterface, JobBackpressureSubtaskInterface, NodesItemCorrectInterface } from 'interfaces';
 import { JobService } from 'services';
 
@@ -37,20 +38,19 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
   listOfSubTaskBackpressure: JobBackpressureSubtaskInterface[] = [];
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-  trackBackPressureBy(_: number, node: JobBackpressureSubtaskInterface) {
+  trackBackPressureBy(_: number, node: JobBackpressureSubtaskInterface): number {
     return node.subtask;
   }
 
   prettyPrint(value: number): string {
     if (isNaN(value)) {
-      return "N/A"
-    }
-    else {
-      return Math.round(value * 100) + "%";
+      return 'N/A';
+    } else {
+      return `${Math.round(value * 100)}%`;
     }
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
@@ -72,7 +72,7 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
       );
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

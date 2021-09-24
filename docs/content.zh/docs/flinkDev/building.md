@@ -33,7 +33,7 @@ under the License.
 
 ## 构建 Flink
 
-首先需要准备源码。可以[从发布版本下载源码](https://flink.apache.org/downloads.html) 或者[从 Git 库克隆 Flink 源码]({{< github_repo >}})。
+首先需要准备源码。可以[从发布版本下载源码]({{< downloads >}}) 或者[从 Git 库克隆 Flink 源码]({{< github_repo >}})。
 
 还需要准备 **Maven 3** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 8** 或更新的版本来进行构建。
 
@@ -95,22 +95,22 @@ mvn clean install -DskipTests -Dfast
 
 #### 安装
 
-进入 Flink 源码根目录，并执行以下命令，构建 apache-flink 和 apache-flink-libraries 的源码发布包和 wheel 包：
+进入 Flink 源码根目录，并执行以下命令，构建 `apache-flink` 和 `apache-flink-libraries` 的源码发布包和 wheel 包：
 
 ```bash
-cd flink-python; python setup.py sdist bdist_wheel; cd apache-flink-libraries; python setup.py sdist bdist_wheel; cd ..;
+cd flink-python; python setup.py sdist bdist_wheel; cd apache-flink-libraries; python setup.py sdist; cd ..;
 ```
 
-构建好的 apache-flink-libraries 的源码发布包和 wheel 包位于`./flink-python/apache-flink-libraries/dist/`目录下。它们均可使用 pip 安装，比如:
+构建好的 `apache-flink-libraries` 的源码发布包位于 `./flink-python/apache-flink-libraries/dist/` 目录下。可使用 pip 安装，比如:
 
 ```bash
 python -m pip install apache-flink-libraries/dist/*.tar.gz
 ```
 
-构建好的 apache-flink 的源码发布包和 wheel 包位于`./flink-python/dist/`目录下。它们均可使用 pip 安装，比如:
+构建好的 `apache-flink` 的源码发布包和 wheel 包位于 `./flink-python/dist/` 目录下。它们均可使用 pip 安装，比如:
 
 ```bash
-python -m pip install dist/*.tar.gz
+python -m pip install dist/*.whl
 ```
 
 ## 依赖屏蔽
@@ -138,7 +138,9 @@ mvn clean install
 
 ## Scala 版本
 
-{% info %} 只是用 Java 库和 API 的用户可以 *忽略* 这一部分。
+{{< hint info >}}
+只是用 Java 库和 API 的用户可以*忽略*这一部分。
+{{< /hint >}}
 
 Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时模块。使用 Scala API 和库的同学必须配置 Flink 的 Scala 版本和自己的 Flink 版本（因为 Scala 
 并不严格的向后兼容）。

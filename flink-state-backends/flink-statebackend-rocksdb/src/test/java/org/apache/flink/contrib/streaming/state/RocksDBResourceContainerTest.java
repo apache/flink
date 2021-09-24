@@ -173,15 +173,15 @@ public class RocksDBResourceContainerTest {
         }
         Field cacheField = null;
         try {
-            cacheField = BlockBasedTableConfig.class.getDeclaredField("blockCache_");
+            cacheField = BlockBasedTableConfig.class.getDeclaredField("blockCache");
         } catch (NoSuchFieldException e) {
-            fail("blockCache_ is not defined");
+            fail("blockCache is not defined");
         }
         cacheField.setAccessible(true);
         try {
             return (Cache) cacheField.get(blockBasedTableConfig);
         } catch (IllegalAccessException e) {
-            fail("Cannot access blockCache_ field.");
+            fail("Cannot access blockCache field.");
             return null;
         }
     }

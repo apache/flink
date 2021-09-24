@@ -29,7 +29,7 @@ class TableDescriptor(object):
     """
     Describes a CatalogTable representing a source or sink.
 
-    TableDescriptor is a template for creating a CatalogTable} instance. It closely resembles the
+    TableDescriptor is a template for creating a CatalogTable instance. It closely resembles the
     "CREATE TABLE" SQL DDL statement, containing schema, connector options, and other
     characteristics. Since tables in Flink are typically backed by external systems, the
     descriptor describes how a connector (and possibly its format) are configured.

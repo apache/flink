@@ -780,6 +780,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case STREAMRECORD_TIMESTAMP =>
         generateRowtimeAccess(ctx, contextTerm, false)
 
+      case JSON_VALUE => new JsonValueCallGen().generate(ctx, operands, resultType)
+
+      case JSON_OBJECT => new JsonObjectCallGen(call).generate(ctx, operands, resultType)
+
       case _: SqlThrowExceptionFunction =>
         val nullValue = generateNullLiteral(resultType, nullCheck = true)
         val code =

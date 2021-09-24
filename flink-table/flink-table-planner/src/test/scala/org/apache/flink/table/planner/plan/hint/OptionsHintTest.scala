@@ -43,9 +43,6 @@ class OptionsHintTest(param: Param)
 
   @Before
   def before(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED,
-      true)
     util.addTable(
       s"""
          |create table t1(

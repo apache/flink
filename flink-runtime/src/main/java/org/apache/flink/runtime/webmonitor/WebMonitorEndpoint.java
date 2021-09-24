@@ -29,7 +29,6 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
@@ -139,6 +138,7 @@ import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoStats;
 import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker;
 import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTrackerBuilder;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoRequestCoordinator;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FileUtils;
@@ -197,7 +197,6 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     @Nullable private ScheduledFuture<?> executionGraphCleanupTask;
 
     public WebMonitorEndpoint(
-            RestServerEndpointConfiguration endpointConfiguration,
             GatewayRetriever<? extends T> leaderRetriever,
             Configuration clusterConfiguration,
             RestHandlerConfiguration restConfiguration,
@@ -208,8 +207,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
             LeaderElectionService leaderElectionService,
             ExecutionGraphCache executionGraphCache,
             FatalErrorHandler fatalErrorHandler)
-            throws IOException {
-        super(endpointConfiguration);
+            throws IOException, ConfigurationException {
+        super(clusterConfiguration);
         this.leaderRetriever = Preconditions.checkNotNull(leaderRetriever);
         this.clusterConfiguration = Preconditions.checkNotNull(clusterConfiguration);
         this.restConfiguration = Preconditions.checkNotNull(restConfiguration);

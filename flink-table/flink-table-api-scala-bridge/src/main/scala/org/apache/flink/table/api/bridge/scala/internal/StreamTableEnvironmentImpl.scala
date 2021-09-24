@@ -19,7 +19,6 @@ package org.apache.flink.table.api.bridge.scala.internal
 
 import java.util
 import java.util.{Collections, List => JList}
-
 import javax.annotation.Nullable
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -30,13 +29,14 @@ import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala.StreamStatementSet
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog.SchemaTranslator.ProducingResult
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, PlannerFactory}
+import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner}
 import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression}
-import org.apache.flink.table.factories.{ComponentFactoryService, FactoryUtil}
+import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil}
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations._
@@ -292,15 +292,26 @@ class StreamTableEnvironmentImpl (
       table: Table,
       modifyOperation: ModifyOperation)
     : DataStream[T] = {
-    val transformations = planner
-      .translate(Collections.singletonList(modifyOperation))
-    val streamTransformation: Transformation[T] = getTransformation(
-      table,
-      transformations)
-    scalaExecutionEnvironment.getWrappedStreamExecutionEnvironment.addOperator(streamTransformation)
-    new DataStream[T](new JDataStream[T](
-      scalaExecutionEnvironment
-        .getWrappedStreamExecutionEnvironment, streamTransformation))
+    val javaExecutionEnvironment = scalaExecutionEnvironment.getJavaEnv
+
+    val transformations = planner.translate(Collections.singletonList(modifyOperation))
+    val streamTransformation: Transformation[T] = getTransformation(table, transformations)
+    javaExecutionEnvironment.addOperator(streamTransformation)
+
+    // reconfigure whenever planner transformations are added
+    javaExecutionEnvironment.configure(tableConfig.getConfiguration)
+
+    new DataStream[T](new JDataStream[T](javaExecutionEnvironment, streamTransformation))
+  }
+
+  override def createStatementSet(): StreamStatementSet = {
+    new StreamStatementSetImpl(this)
+  }
+
+  private[internal] def attachAsDataStream(modifyOperations: JList[ModifyOperation]) {
+    val javaEnv = scalaExecutionEnvironment.getJavaEnv
+    val transformations = translate(modifyOperations).asScala
+    transformations.foreach(javaEnv.addOperator)
   }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table = {
@@ -460,13 +471,6 @@ object StreamTableEnvironmentImpl {
       tableConfig: TableConfig)
     : StreamTableEnvironmentImpl = {
 
-    tableConfig.addConfiguration(settings.toConfiguration)
-
-    if (!settings.isStreamingMode) {
-      throw new TableException(
-        "StreamTableEnvironment can not run in batch mode for now, please use TableEnvironment.")
-    }
-
     // temporary solution until FLINK-15635 is fixed
     val classLoader = Thread.currentThread.getContextClassLoader
 
@@ -487,14 +491,8 @@ object StreamTableEnvironmentImpl {
 
     val executor = lookupExecutor(classLoader, settings.getExecutor, executionEnvironment)
 
-    val plannerProperties = settings.toPlannerProperties
-    val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
-      .create(
-        plannerProperties,
-        executor,
-        tableConfig,
-        functionCatalog,
-        catalogManager)
+    val planner = PlannerFactoryUtil.createPlanner(settings.getPlanner, executor, tableConfig,
+      catalogManager, functionCatalog)
 
     new StreamTableEnvironmentImpl(
       catalogManager,

@@ -117,13 +117,13 @@ Source 实现应该是可序列化的，因为 Source 实例会在运行时被�
 <a name="SplitEnumerator"></a>
 
 ### SplitEnumerator
-SplitEnumerator 被认为是整个 Source 的”大脑“。SplitEnumerator 的典型实现如下：
+SplitEnumerator 被认为是整个 Source 的“大脑”。SplitEnumerator 的典型实现如下：
 
   - `SourceReader` 的注册处理
   - `SourceReader` 的失败处理
     - `SourceReader` 失败时会调用 `addSplitsBack()` 方法。SplitEnumerator应当收回已经被分配，但尚未被该 `SourceReader` 确认（acknowledged）的分片。
   - `SourceEvent` 的处理
-    - `SourceEvent`s 是 `SplitEnumerator` 和 `SourceReader` 之间来回传递的自定义事件。可以利用此机制来执行复杂的协调任务。
+    - `SourceEvents` 是 `SplitEnumerator` 和 `SourceReader` 之间来回传递的自定义事件。可以利用此机制来执行复杂的协调任务。
   - 分片的发现以及分配
     - `SplitEnumerator` 可以将分片分配到 `SourceReader` 从而响应各种事件，包括发现新的分片，新 `SourceReader` 的注册，`SourceReader` 的失败处理等
 

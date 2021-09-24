@@ -149,13 +149,13 @@ public class ConsumableNotifyingResultPartitionWriterDecorator {
         }
 
         @Override
-        public void notifyEndOfUserRecords() throws IOException {
-            partitionWriter.notifyEndOfUserRecords();
+        public void notifyEndOfData() throws IOException {
+            partitionWriter.notifyEndOfData();
         }
 
         @Override
-        public CompletableFuture<Void> getAllRecordsProcessedFuture() {
-            return partitionWriter.getAllRecordsProcessedFuture();
+        public CompletableFuture<Void> getAllDataProcessedFuture() {
+            return partitionWriter.getAllDataProcessedFuture();
         }
 
         @Override

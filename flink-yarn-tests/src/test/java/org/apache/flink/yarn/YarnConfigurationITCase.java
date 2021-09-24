@@ -32,7 +32,6 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
@@ -126,9 +125,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
                         final ApplicationId clusterId = clusterClient.getClusterId();
 
                         final RestClient restClient =
-                                new RestClient(
-                                        RestClientConfiguration.fromConfiguration(configuration),
-                                        TestingUtils.defaultExecutor());
+                                new RestClient(configuration, TestingUtils.defaultExecutor());
 
                         try {
                             final ApplicationReport applicationReport =

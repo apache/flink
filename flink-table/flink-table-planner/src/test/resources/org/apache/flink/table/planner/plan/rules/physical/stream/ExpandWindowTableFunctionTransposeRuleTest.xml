@@ -56,8 +56,7 @@ Calc(select=[a, window_start, window_end, $f1 AS $f3, $f2 AS $f4, $f3 AS $f5, $f
                      +- Expand(projects=[{a, d, $f4, c, $f6, null AS $f7, 1 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, $f7, 2 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, null AS $f7, 3 AS $e, rowtime}])
                         +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f4, c, MOD(HASH_CODE(d), 1024) AS $f6, MOD(HASH_CODE(c), 1024) AS $f7, rowtime])
                            +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                              +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, d, rowtime], metadata=[]]], fields=[a, b, c, d, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -100,8 +99,7 @@ Calc(select=[a, window_start, window_end, $f1 AS $f3, $f2 AS $f4, $f3 AS $f5, $f
                      +- Expand(projects=[{a, d, $f4, c, $f6, null AS $f7, 1 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, $f7, 2 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, null AS $f7, 3 AS $e, rowtime}])
                         +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f4, c, MOD(HASH_CODE(d), 1024) AS $f6, MOD(HASH_CODE(c), 1024) AS $f7, rowtime])
                            +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                              +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, d, rowtime], metadata=[]]], fields=[a, b, c, d, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -145,8 +143,7 @@ Calc(select=[a, window_start, window_end, $f1 AS $f3, $f2 AS $f4, $f3 AS $f5, $f
                      +- Expand(projects=[{a, d, $f4, c, $f6, null AS $f7, 1 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, $f7, 2 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, null AS $f7, 3 AS $e, rowtime}])
                         +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f4, c, MOD(HASH_CODE(d), 1024) AS $f6, MOD(HASH_CODE(c), 1024) AS $f7, rowtime])
                            +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                              +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, d, rowtime], metadata=[]]], fields=[a, b, c, d, rowtime])
 ]]>
     </Resource>
   </TestCase>

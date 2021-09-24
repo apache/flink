@@ -63,7 +63,7 @@ The reference documentation covers all the details. Some starting points:
 {{< columns >}}
 * [DataStream API]({{< ref "docs/dev/datastream/overview" >}})
 * [Table API & SQL]({{< ref "docs/dev/table/overview" >}})
-* [Stateful Functions](https://ci.apache.org/projects/flink/flink-statefun-docs-stable/)
+* [Stateful Functions](https://nightlies.apache.org/flink/flink-statefun-docs-stable/)
 
 <--->
 
@@ -85,7 +85,7 @@ Release notes cover important changes between Flink versions. Please read them c
 For some reason Hugo will only allow linking to the 
 release notes if there is a leading '/' and file extension.
 -->
-See the release notes for [Flink 1.13]({{< ref "/release-notes/flink-1.13.md" >}}), [Flink 1.12]({{< ref "/release-notes/flink-1.12.md" >}}), [Flink 1.11]({{< ref "/release-notes/flink-1.11.md" >}}), [Flink 1.10]({{< ref "/release-notes/flink-1.10.md" >}}), [Flink 1.9]({{< ref "/release-notes/flink-1.9.md" >}}), [Flink 1.8]({{< ref "/release-notes/flink-1.8.md" >}}), or [Flink 1.7]({{< ref "/release-notes/flink-1.7.md" >}}).
+See the release notes for [Flink 1.14]({{< ref "/release-notes/flink-1.14.md" >}}), [Flink 1.13]({{< ref "/release-notes/flink-1.13.md" >}}), [Flink 1.12]({{< ref "/release-notes/flink-1.12.md" >}}), [Flink 1.11]({{< ref "/release-notes/flink-1.11.md" >}}), [Flink 1.10]({{< ref "/release-notes/flink-1.10.md" >}}), [Flink 1.9]({{< ref "/release-notes/flink-1.9.md" >}}), [Flink 1.8]({{< ref "/release-notes/flink-1.8.md" >}}), or [Flink 1.7]({{< ref "/release-notes/flink-1.7.md" >}}).
 
 {{< /columns >}}
 

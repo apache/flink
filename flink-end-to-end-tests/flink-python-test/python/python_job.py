@@ -35,7 +35,7 @@ def word_count():
 
     t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
 
-    # used to test pipeline.jars and pipleline.classpaths
+    # used to test pipeline.jars and pipeline.classpaths
     config_key = sys.argv[1]
     config_value = sys.argv[2]
     t_env.get_config().get_configuration().set_string(config_key, config_value)

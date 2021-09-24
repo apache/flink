@@ -29,8 +29,9 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Input;
@@ -44,11 +45,11 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.util.Arrays;
 import java.util.List;
@@ -65,7 +66,7 @@ public class StreamMultipleInputProcessorFactory {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static StreamMultipleInputProcessor create(
-            AbstractInvokable ownerTask,
+            TaskInvokable ownerTask,
             CheckpointedInputGate[] checkpointedInputGates,
             StreamConfig.InputConfig[] configuredInputs,
             IOManager ioManager,
@@ -175,7 +176,8 @@ public class StreamMultipleInputProcessorFactory {
                                     ManagedMemoryUseCase.OPERATOR,
                                     taskManagerConfig,
                                     userClassloader),
-                            jobConfig);
+                            jobConfig,
+                            executionConfig);
 
             StreamTaskInput<?>[] sortedInputs = selectableSortingInputs.getSortedInputs();
             StreamTaskInput<?>[] passedThroughInputs =
@@ -199,7 +201,8 @@ public class StreamMultipleInputProcessorFactory {
             if (configuredInput instanceof StreamConfig.NetworkInputConfig) {
                 StreamTaskNetworkOutput dataOutput =
                         new StreamTaskNetworkOutput<>(
-                                operatorInputs.get(i),
+                                operatorChain.getFinishedOnRestoreInputOrDefault(
+                                        operatorInputs.get(i)),
                                 inputWatermarkGauges[i],
                                 mainOperatorRecordsIn,
                                 networkRecordsIn);
@@ -209,14 +212,19 @@ public class StreamMultipleInputProcessorFactory {
             } else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
                 StreamConfig.SourceInputConfig sourceInput =
                         (StreamConfig.SourceInputConfig) configuredInput;
-                WatermarkGaugeExposingOutput<StreamRecord<?>> chainedSourceOutput =
-                        operatorChain.getChainedSourceOutput(sourceInput);
+                OperatorChain.ChainedSource chainedSource =
+                        operatorChain.getChainedSource(sourceInput);
 
                 inputProcessors[i] =
                         new StreamOneInputProcessor(
                                 inputs[i],
                                 new StreamTaskSourceOutput(
-                                        chainedSourceOutput, inputWatermarkGauges[i]),
+                                        chainedSource.getSourceOutput(),
+                                        inputWatermarkGauges[i],
+                                        chainedSource
+                                                .getSourceTaskInput()
+                                                .getOperator()
+                                                .getSourceMetricGroup()),
                                 operatorChain);
             } else {
                 throw new UnsupportedOperationException("Unknown input type: " + configuredInput);
@@ -266,8 +274,8 @@ public class StreamMultipleInputProcessorFactory {
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-            input.processStreamStatus(streamStatus);
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            input.processWatermarkStatus(watermarkStatus);
         }
 
         @Override
@@ -283,14 +291,15 @@ public class StreamMultipleInputProcessorFactory {
 
         public StreamTaskSourceOutput(
                 WatermarkGaugeExposingOutput<StreamRecord<?>> chainedSourceOutput,
-                WatermarkGauge inputWatermarkGauge) {
-            super(chainedSourceOutput, new SimpleCounter(), inputWatermarkGauge);
+                WatermarkGauge inputWatermarkGauge,
+                InternalSourceReaderMetricGroup metricGroup) {
+            super(chainedSourceOutput, metricGroup, inputWatermarkGauge);
             this.chainedOutput = chainedSourceOutput;
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-            chainedOutput.emitStreamStatus(streamStatus);
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
+            chainedOutput.emitWatermarkStatus(watermarkStatus);
         }
     }
 }

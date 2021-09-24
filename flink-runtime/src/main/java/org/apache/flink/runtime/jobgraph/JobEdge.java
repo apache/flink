@@ -43,25 +43,25 @@ public class JobEdge implements java.io.Serializable {
     /** The channel rescaler that should be used for this job edge on upstream side. */
     private SubtaskStateMapper upstreamSubtaskStateMapper = SubtaskStateMapper.ROUND_ROBIN;
 
-    /** The data set at the source of the edge, may be null if the edge is not yet connected */
+    /** The data set at the source of the edge, may be null if the edge is not yet connected. */
     private IntermediateDataSet source;
 
-    /** The id of the source intermediate data set */
+    /** The id of the source intermediate data set. */
     private IntermediateDataSetID sourceId;
 
     /**
      * Optional name for the data shipping strategy (forward, partition hash, rebalance, ...), to be
-     * displayed in the JSON plan
+     * displayed in the JSON plan.
      */
     private String shipStrategyName;
 
     /**
      * Optional name for the pre-processing operation (sort, combining sort, ...), to be displayed
-     * in the JSON plan
+     * in the JSON plan.
      */
     private String preProcessingOperationName;
 
-    /** Optional description of the caching inside an operator, to be displayed in the JSON plan */
+    /** Optional description of the caching inside an operator, to be displayed in the JSON plan. */
     private String operatorLevelCachingDescription;
 
     /**
@@ -141,23 +141,6 @@ public class JobEdge implements java.io.Serializable {
 
     public boolean isIdReference() {
         return this.source == null;
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    public void connectDataSet(IntermediateDataSet dataSet) {
-        if (dataSet == null) {
-            throw new NullPointerException();
-        }
-        if (this.source != null) {
-            throw new IllegalStateException("The edge is already connected.");
-        }
-        if (!dataSet.getId().equals(sourceId)) {
-            throw new IllegalArgumentException(
-                    "The data set to connect does not match the sourceId.");
-        }
-
-        this.source = dataSet;
     }
 
     // --------------------------------------------------------------------------------------------

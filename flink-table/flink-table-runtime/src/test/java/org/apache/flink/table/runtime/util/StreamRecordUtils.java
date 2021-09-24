@@ -104,13 +104,8 @@ public class StreamRecordUtils {
         return new StreamRecord<>(row);
     }
 
-    /**
-     * Receives a object array, generates a RowData based on the array.
-     *
-     * @param fields input object array
-     * @return generated RowData.
-     */
-    public static RowData row(Object... fields) {
+    /** Receives a object array, generates a RowData based on the array. */
+    public static RowData rowOfKind(RowKind rowKind, Object... fields) {
         Object[] objects = new Object[fields.length];
         for (int i = 0; i < fields.length; i++) {
             Object field = fields[i];
@@ -120,7 +115,12 @@ public class StreamRecordUtils {
                 objects[i] = field;
             }
         }
-        return GenericRowData.of(objects);
+        return GenericRowData.ofKind(rowKind, objects);
+    }
+
+    /** Receives a object array, generates a RowData based on the array. */
+    public static RowData row(Object... fields) {
+        return rowOfKind(RowKind.INSERT, fields);
     }
 
     /**

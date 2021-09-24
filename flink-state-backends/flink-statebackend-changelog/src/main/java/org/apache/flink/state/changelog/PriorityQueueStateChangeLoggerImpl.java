@@ -17,7 +17,6 @@
 
 package org.apache.flink.state.changelog;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
@@ -36,8 +35,9 @@ class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger
             TypeSerializer<T> serializer,
             InternalKeyContext<K> keyContext,
             StateChangelogWriter<?> stateChangelogWriter,
-            RegisteredPriorityQueueStateBackendMetaInfo<T> meta) {
-        super(stateChangelogWriter, keyContext, meta, StateTtlConfig.DISABLED);
+            RegisteredPriorityQueueStateBackendMetaInfo<T> meta,
+            short stateId) {
+        super(stateChangelogWriter, keyContext, meta, stateId);
         this.serializer = checkNotNull(serializer);
     }
 

@@ -727,6 +727,28 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Returns the first argument that is not NULL.
+   *
+   * If all arguments are NULL, it returns NULL as well. The return type is the least
+   * restrictive, common type of all of its arguments. The return type is nullable if all
+   * arguments are nullable as well.
+   *
+   * Examples:
+   * {{{
+   * // Returns "default"
+   * coalesce(null, "default")
+   *
+   * // Returns the first non-null value among f0 and f1, or "default" if f0 and f1 are both null
+   * coalesce($"f0", $"f1", "default")
+   * }}}
+   *
+   * @param args the input expressions.
+   */
+  def coalesce(args: Expression*): Expression = {
+    Expressions.coalesce(args: _*)
+  }
+
+  /**
     * Creates an expression that selects a range of columns. It can be used wherever an array of
     * expression is accepted such as function calls, projections, or groupings.
     *
@@ -765,5 +787,54 @@ trait ImplicitExpressionConversions {
    */
   def or(predicate0: Expression, predicate1: Expression, predicates: Expression*): Expression = {
     Expressions.or(predicate0, predicate1, predicates: _*)
+  }
+
+  /**
+   * Inverts a given boolean expression.
+   *
+   * This method supports a three-valued logic by preserving <code>NULL</code>. This means if the
+   * input expression is <code>NULL</code>, the result will also be <code>NULL</code>.
+   *
+   * The resulting type is nullable if and only if the input type is nullable.
+   *
+   * Examples:
+   *
+   * {{{
+   * not(lit(true)) // false
+   * not(lit(false)) // true
+   * not(lit(null, DataTypes.BOOLEAN())) // null
+   * }}}
+   */
+  def not(expression: Expression): Expression = Expressions.not(expression)
+
+  /**
+   * Builds a JSON object string from a list of key-value pairs.
+   *
+   * <code>keyValues</code> is an even-numbered list of alternating key/value pairs. Note that keys
+   * must be string literals, values may be arbitrary expressions.
+   *
+   * This function returns a JSON string. The [[JsonOnNull onNull]] behavior defines how to treat
+   * <code>NULL</code> values.
+   *
+   * Examples:
+   * {{{
+   * // {}
+   * jsonObject(JsonOnNull.NULL)
+   * // {"K1":"V1","K2":"V2"}
+   * jsonObject(JsonOnNull.NULL, "K1", "V1", "K2", "V2")
+   *
+   * // Expressions as values
+   * jsonObject(JsonOnNull.NULL, "orderNo", $("orderId"))
+   *
+   * // ON NULL
+   * jsonObject(JsonOnNull.NULL, "K1", nullOf(DataTypes.STRING()))   // "{\"K1\":null}"
+   * jsonObject(JsonOnNull.ABSENT, "K1", nullOf(DataTypes.STRING())) // '{}'
+   *
+   * // {"K1":{"K2":"V"}}
+   * jsonObject(JsonOnNull.NULL, "K1", jsonObject(JsonOnNull.NULL, "K2", "V"))
+   * }}}
+   */
+  def jsonObject(onNull: JsonOnNull, keyValues: Any*): Expression = {
+    Expressions.jsonObject(onNull, keyValues)
   }
 }

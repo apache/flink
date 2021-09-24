@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.WindowBounds
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 
 import org.apache.calcite.plan.RelOptUtil
@@ -51,24 +52,6 @@ object IntervalJoinUtil {
       pred: RexCall)
 
   protected case class TimeAttributeAccess(isEventTime: Boolean, isLeftInput: Boolean, idx: Int)
-
-  /**
-    * Checks if an expression accesses a time attribute.
-    *
-    * @param expr      The expression to check.
-    * @param inputType The input type of the expression.
-    * @return True, if the expression accesses a time attribute. False otherwise.
-    */
-  def accessesTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
-    expr match {
-      case ref: RexInputRef =>
-        val accessedType = inputType.getFieldList.get(ref.getIndex).getType
-        FlinkTypeFactory.isTimeIndicatorType(accessedType)
-      case c: RexCall =>
-        c.operands.exists(accessesTimeAttribute(_, inputType))
-      case _ => false
-    }
-  }
 
   /**
     * Extracts the window bounds from a join predicate.
@@ -459,4 +442,35 @@ object IntervalJoinUtil {
     (literals.head, literals(1))
   }
 
+  /**
+   * Check whether input join node satisfy preconditions to convert into interval join.
+   *
+   * @param join input join to analyze.
+   * @return True if input join node satisfy preconditions to convert into interval join,
+   *         else false.
+   */
+  def satisfyIntervalJoin(join: FlinkLogicalJoin): Boolean = {
+    // TODO support SEMI/ANTI joinSplitAggregateRuleTest
+    if (!join.getJoinType.projectsRight) {
+      return false
+    }
+    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
+    val (windowBounds, _) = extractWindowBoundsFromPredicate(
+      join.getCondition,
+      join.getLeft.getRowType.getFieldCount,
+      join.getRowType,
+      join.getCluster.getRexBuilder,
+      tableConfig)
+    windowBounds.nonEmpty
+  }
+
+  def extractWindowBounds(join: FlinkLogicalJoin): (Option[WindowBounds], Option[RexNode]) = {
+    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
+    extractWindowBoundsFromPredicate(
+      join.getCondition,
+      join.getLeft.getRowType.getFieldCount,
+      join.getRowType,
+      join.getCluster.getRexBuilder,
+      tableConfig)
+  }
 }

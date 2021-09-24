@@ -61,8 +61,13 @@ public class UnregisteredMetricGroups {
         return new UnregisteredTaskMetricGroup();
     }
 
-    public static OperatorMetricGroup createUnregisteredOperatorMetricGroup() {
+    public static InternalOperatorMetricGroup createUnregisteredOperatorMetricGroup() {
         return new UnregisteredOperatorMetricGroup();
+    }
+
+    private static InternalOperatorMetricGroup createUnregisteredOperatorMetricGroup(
+            TaskMetricGroup parent) {
+        return new UnregisteredOperatorMetricGroup(parent);
     }
 
     /** A safe drop-in replacement for {@link ProcessMetricGroup ProcessMetricGroups}. */
@@ -187,22 +192,22 @@ public class UnregisteredMetricGroups {
         }
 
         @Override
-        public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
-            return createUnregisteredOperatorMetricGroup();
+        public InternalOperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
+            return createUnregisteredOperatorMetricGroup(this);
         }
     }
 
-    /** A safe drop-in replacement for {@link OperatorMetricGroup}s. */
-    public static class UnregisteredOperatorMetricGroup extends OperatorMetricGroup {
+    /** A safe drop-in replacement for {@link InternalOperatorMetricGroup}s. */
+    public static class UnregisteredOperatorMetricGroup extends InternalOperatorMetricGroup {
         private static final OperatorID DEFAULT_OPERATOR_ID = new OperatorID(0, 0);
         private static final String DEFAULT_OPERATOR_NAME = "UnregisteredOperator";
 
         protected UnregisteredOperatorMetricGroup() {
-            super(
-                    NoOpMetricRegistry.INSTANCE,
-                    new UnregisteredTaskMetricGroup(),
-                    DEFAULT_OPERATOR_ID,
-                    DEFAULT_OPERATOR_NAME);
+            this(new UnregisteredTaskMetricGroup());
+        }
+
+        UnregisteredOperatorMetricGroup(TaskMetricGroup parent) {
+            super(NoOpMetricRegistry.INSTANCE, parent, DEFAULT_OPERATOR_ID, DEFAULT_OPERATOR_NAME);
         }
     }
 }

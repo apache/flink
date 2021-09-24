@@ -31,7 +31,7 @@ This page covers how to build Flink {{< version >}} from sources.
 
 ## Build Flink
 
-In order to build Flink you need the source code. Either [download the source of a release](https://flink.apache.org/downloads.html) or [clone the git repository]({{< github_repo >}}).
+In order to build Flink you need the source code. Either [download the source of a release]({{< downloads >}}) or [clone the git repository]({{< github_repo >}}).
 
 In addition you need **Maven 3** and a **JDK** (Java Development Kit). Flink requires **at least Java 8** to build.
 
@@ -89,22 +89,22 @@ mvn clean install -DskipTests -Dfast
 
 #### Installation
 
-Then go to the root directory of flink source code and run this command to build the sdist package and wheel package of apache-flink and apache-flink-libraries:
+Then go to the root directory of flink source code and run this command to build the sdist package and wheel package of `apache-flink` and `apache-flink-libraries`:
 
 ```bash
-cd flink-python; python setup.py sdist bdist_wheel; cd apache-flink-libraries; python setup.py sdist bdist_wheel; cd ..;
+cd flink-python; python setup.py sdist bdist_wheel; cd apache-flink-libraries; python setup.py sdist; cd ..;
 ```
 
-The sdist and wheel packages of will be found under `./flink-python/apache-flink-libraries/dist/`. Either of them could be used for pip installation, such as:
+The sdist package of `apache-flink-libraries` will be found under `./flink-python/apache-flink-libraries/dist/`. It could be installed as following:
 
 ```bash
 python -m pip install apache-flink-libraries/dist/*.tar.gz
 ```
 
-The sdist and wheel packages of will be found under `./flink-python/dist/`. Either of them could be used for pip installation, such as:
+The sdist and wheel packages of `apache-flink` will be found under `./flink-python/dist/`. Either of them could be used for installation, such as:
 
 ```bash
-python -m pip install dist/*.tar.gz
+python -m pip install dist/*.whl
 ```
 
 ## Dependency Shading

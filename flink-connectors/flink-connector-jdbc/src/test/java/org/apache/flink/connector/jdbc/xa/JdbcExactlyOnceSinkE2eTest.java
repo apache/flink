@@ -98,8 +98,8 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbcExactlyOnceSinkE2eTest.class);
 
-    private static final long CHECKPOINT_TIMEOUT_MS = 2000L;
-    private static final long TASK_CANCELLATION_TIMEOUT_MS = 2000L;
+    private static final long CHECKPOINT_TIMEOUT_MS = 20_000L;
+    private static final long TASK_CANCELLATION_TIMEOUT_MS = 20_000L;
 
     // todo: remove after fixing FLINK-22889
     @ClassRule
@@ -213,7 +213,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                                 String.format(INSERT_TEMPLATE, INPUT_TABLE),
                                 JdbcITCase.TEST_ENTRY_JDBC_STATEMENT_BUILDER,
                                 JdbcExecutionOptions.builder().build(),
-                                JdbcExactlyOnceOptions.defaults(),
+                                JdbcExactlyOnceOptions.builder()
+                                        .withTransactionPerConnection(true)
+                                        .build(),
                                 this.dbEnv.getDataSourceSupplier()));
 
         env.execute();
@@ -232,7 +234,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 insertedIds.toString(),
                 insertedIds.size() == expectedIds.size() && expectedIds.containsAll(insertedIds));
         LOG.info(
-                "Test insert for {} finished in {}ms", dbEnv, System.currentTimeMillis() - started);
+                "Test insert for {} finished in {} ms.",
+                dbEnv,
+                System.currentTimeMillis() - started);
     }
 
     @Override

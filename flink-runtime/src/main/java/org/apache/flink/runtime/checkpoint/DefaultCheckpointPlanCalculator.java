@@ -91,9 +91,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
                     try {
                         if (context.hasFinishedTasks() && !allowCheckpointsAfterTasksFinished) {
                             throw new CheckpointException(
-                                    String.format(
-                                            "some tasks of job %s has been finished, abort the checkpoint",
-                                            jobId),
+                                    "Some tasks of the job have already finished and checkpointing with finished tasks is not enabled.",
                                     CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
                         }
 
@@ -165,7 +163,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
 
         List<Execution> tasksToWaitFor = createTaskToWaitFor(allTasks);
 
-        return new CheckpointPlan(
+        return new DefaultCheckpointPlan(
                 Collections.unmodifiableList(executionsToTrigger),
                 Collections.unmodifiableList(tasksToWaitFor),
                 Collections.unmodifiableList(allTasks),
@@ -233,7 +231,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
             }
         }
 
-        return new CheckpointPlan(
+        return new DefaultCheckpointPlan(
                 Collections.unmodifiableList(tasksToTrigger),
                 Collections.unmodifiableList(tasksToWaitFor),
                 Collections.unmodifiableList(tasksToCommitTo),

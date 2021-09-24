@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
@@ -29,7 +30,7 @@ import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,7 +55,7 @@ public abstract class AbstractStreamTaskNetworkInput<
     protected final TypeSerializer<T> inputSerializer;
     protected final Map<InputChannelInfo, R> recordDeserializers;
     protected final Map<InputChannelInfo, Integer> flattenedChannelIndices = new HashMap<>();
-    /** Valve that controls how watermarks and stream statuses are forwarded. */
+    /** Valve that controls how watermarks and watermark statuses are forwarded. */
     protected final StatusWatermarkValve statusWatermarkValve;
 
     protected final int inputIndex;
@@ -136,9 +137,9 @@ public abstract class AbstractStreamTaskNetworkInput<
                     recordOrMark.asWatermark(), flattenedChannelIndices.get(lastChannel), output);
         } else if (recordOrMark.isLatencyMarker()) {
             output.emitLatencyMarker(recordOrMark.asLatencyMarker());
-        } else if (recordOrMark.isStreamStatus()) {
-            statusWatermarkValve.inputStreamStatus(
-                    recordOrMark.asStreamStatus(),
+        } else if (recordOrMark.isWatermarkStatus()) {
+            statusWatermarkValve.inputWatermarkStatus(
+                    recordOrMark.asWatermarkStatus(),
                     flattenedChannelIndices.get(lastChannel),
                     output);
         } else {
@@ -149,12 +150,17 @@ public abstract class AbstractStreamTaskNetworkInput<
     protected DataInputStatus processEvent(BufferOrEvent bufferOrEvent) {
         // Event received
         final AbstractEvent event = bufferOrEvent.getEvent();
-        // TODO: with checkpointedInputGate.isFinished() we might not need to support any events on
-        // this level.
-        if (event.getClass() == EndOfPartitionEvent.class) {
+        if (event.getClass() == EndOfData.class) {
+            if (checkpointedInputGate.hasReceivedEndOfData()) {
+                return DataInputStatus.END_OF_DATA;
+            }
+        } else if (event.getClass() == EndOfPartitionEvent.class) {
             // release the record deserializer immediately,
             // which is very valuable in case of bounded stream
             releaseDeserializer(bufferOrEvent.getChannelInfo());
+            if (checkpointedInputGate.isFinished()) {
+                return DataInputStatus.END_OF_INPUT;
+            }
         } else if (event.getClass() == EndOfChannelStateEvent.class) {
             if (checkpointedInputGate.allChannelsRecovered()) {
                 return DataInputStatus.END_OF_RECOVERY;

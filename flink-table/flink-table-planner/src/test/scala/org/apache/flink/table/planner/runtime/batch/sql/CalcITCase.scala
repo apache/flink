@@ -1069,6 +1069,41 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testTruncate(): Unit = {
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS DOUBLE), 2)",
+      Seq(row(123.45)))
+
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS DOUBLE))",
+      Seq(row(123.0)))
+
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS FLOAT), 2)",
+      Seq(row(123.45f)))
+
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS FLOAT))",
+      Seq(row(123.0f)))
+
+    checkResult(
+      "SELECT TRUNCATE(123, -1)",
+      Seq(row(120)))
+
+    checkResult(
+      "SELECT TRUNCATE(123, -2)",
+      Seq(row(100)))
+
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS DECIMAL(6, 3)), 2)",
+      Seq(row(new java.math.BigDecimal("123.45"))))
+
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS DECIMAL(6, 3)))",
+      Seq(row(new java.math.BigDecimal("123"))))
+  }
+
+  @Test
   def testStringUdf(): Unit = {
     registerFunction("myFunc", MyStringFunc)
     checkResult(

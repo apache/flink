@@ -21,13 +21,10 @@ package org.apache.flink.table.planner.catalog;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogManager.TableLookupResult;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
-import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
@@ -41,7 +38,6 @@ import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
 
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 
 import static java.lang.String.format;
@@ -52,15 +48,15 @@ import static org.apache.flink.table.planner.utils.CatalogTableStatisticsConvert
  * in the schema.
  */
 class DatabaseCalciteSchema extends FlinkSchema {
-    private final String databaseName;
     private final String catalogName;
+    private final String databaseName;
     private final CatalogManager catalogManager;
     // Flag that tells if the current planner should work in a batch or streaming mode.
     private final boolean isStreamingMode;
 
     public DatabaseCalciteSchema(
-            String databaseName,
             String catalogName,
+            String databaseName,
             CatalogManager catalog,
             boolean isStreamingMode) {
         this.databaseName = databaseName;
@@ -71,75 +67,57 @@ class DatabaseCalciteSchema extends FlinkSchema {
 
     @Override
     public Table getTable(String tableName) {
-        ObjectIdentifier identifier = ObjectIdentifier.of(catalogName, databaseName, tableName);
+        final ObjectIdentifier identifier =
+                ObjectIdentifier.of(catalogName, databaseName, tableName);
         return catalogManager
                 .getTable(identifier)
                 .map(
-                        result -> {
-                            ResolvedCatalogBaseTable<?> resolvedBaseTable =
-                                    result.getResolvedTable();
-                            FlinkStatistic statistic =
-                                    getStatistic(
-                                            result.isTemporary(), resolvedBaseTable, identifier);
-                            return new CatalogSchemaTable(
-                                    identifier,
-                                    result,
-                                    statistic,
-                                    catalogManager
-                                            .getCatalog(catalogName)
-                                            .orElseThrow(IllegalStateException::new),
-                                    isStreamingMode);
-                        })
+                        lookupResult ->
+                                new CatalogSchemaTable(
+                                        identifier,
+                                        lookupResult,
+                                        getStatistic(lookupResult, identifier),
+                                        isStreamingMode))
                 .orElse(null);
     }
 
     private FlinkStatistic getStatistic(
-            boolean isTemporary,
-            ResolvedCatalogBaseTable<?> resolvedCatalogBaseTable,
-            ObjectIdentifier tableIdentifier) {
-        if (isTemporary
-                || resolvedCatalogBaseTable.getOrigin() instanceof QueryOperationCatalogView) {
-            return FlinkStatistic.UNKNOWN();
-        }
-        if (resolvedCatalogBaseTable.getOrigin() instanceof CatalogTable) {
-            Catalog catalog = catalogManager.getCatalog(catalogName).get();
-            return FlinkStatistic.builder()
-                    .tableStats(extractTableStats(catalog, tableIdentifier))
-                    // this is a temporary solution, FLINK-15123 will resolve this
-                    .uniqueKeys(extractUniqueKeys(resolvedCatalogBaseTable.getResolvedSchema()))
-                    .build();
-        } else {
-            return FlinkStatistic.UNKNOWN();
+            TableLookupResult lookupResult, ObjectIdentifier identifier) {
+        final ResolvedCatalogBaseTable<?> resolvedBaseTable = lookupResult.getResolvedTable();
+        switch (resolvedBaseTable.getTableKind()) {
+            case TABLE:
+                return FlinkStatistic.builder()
+                        .tableStats(extractTableStats(lookupResult, identifier))
+                        // this is a temporary solution, FLINK-15123 will resolve this
+                        .uniqueKeys(
+                                resolvedBaseTable.getResolvedSchema().getPrimaryKey().orElse(null))
+                        .build();
+            case VIEW:
+            default:
+                return FlinkStatistic.UNKNOWN();
         }
     }
 
-    private static TableStats extractTableStats(
-            Catalog catalog, ObjectIdentifier objectIdentifier) {
-        final ObjectPath tablePath = objectIdentifier.toObjectPath();
+    private TableStats extractTableStats(
+            TableLookupResult lookupResult, ObjectIdentifier identifier) {
+        if (lookupResult.isTemporary()) {
+            return TableStats.UNKNOWN;
+        }
+        final Catalog catalog = lookupResult.getCatalog().orElseThrow(IllegalStateException::new);
+        final ObjectPath tablePath = identifier.toObjectPath();
         try {
-            CatalogTableStatistics tableStatistics = catalog.getTableStatistics(tablePath);
-            CatalogColumnStatistics columnStatistics = catalog.getTableColumnStatistics(tablePath);
+            final CatalogTableStatistics tableStatistics = catalog.getTableStatistics(tablePath);
+            final CatalogColumnStatistics columnStatistics =
+                    catalog.getTableColumnStatistics(tablePath);
             return convertToTableStats(tableStatistics, columnStatistics);
         } catch (TableNotExistException e) {
             throw new ValidationException(
                     format(
                             "Could not get statistic for table: [%s, %s, %s]",
-                            objectIdentifier.getCatalogName(),
+                            identifier.getCatalogName(),
                             tablePath.getDatabaseName(),
                             tablePath.getObjectName()),
                     e);
-        }
-    }
-
-    private static Set<Set<String>> extractUniqueKeys(ResolvedSchema schema) {
-        Optional<UniqueConstraint> primaryKeyConstraint = schema.getPrimaryKey();
-        if (primaryKeyConstraint.isPresent()) {
-            Set<String> primaryKey = new HashSet<>(primaryKeyConstraint.get().getColumns());
-            Set<Set<String>> uniqueKeys = new HashSet<>();
-            uniqueKeys.add(primaryKey);
-            return uniqueKeys;
-        } else {
-            return null;
         }
     }
 

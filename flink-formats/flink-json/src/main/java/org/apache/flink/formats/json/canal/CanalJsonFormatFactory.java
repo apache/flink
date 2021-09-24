@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json.canal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
@@ -54,6 +55,7 @@ import static org.apache.flink.formats.json.canal.CanalJsonFormatOptions.TIMESTA
  * Format factory for providing configured instances of Canal JSON to RowData {@link
  * DeserializationSchema}.
  */
+@Internal
 public class CanalJsonFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 

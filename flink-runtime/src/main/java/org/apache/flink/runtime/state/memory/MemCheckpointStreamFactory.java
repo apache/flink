@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 
 import javax.annotation.Nullable;
 
@@ -59,11 +60,9 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
     static void checkSize(int size, int maxSize) throws IOException {
         if (size > maxSize) {
             throw new IOException(
-                    "Size of the state is larger than the maximum permitted memory-backed state. Size="
-                            + size
-                            + " , maxSize="
-                            + maxSize
-                            + " . Consider using a different state backend, like the File System State backend.");
+                    String.format(
+                            "Size of the state is larger than the maximum permitted memory-backed state. Size=%d, maxSize=%d. Consider using a different checkpoint storage, like the %s.",
+                            size, maxSize, FileSystemCheckpointStorage.class.getSimpleName()));
         }
     }
 

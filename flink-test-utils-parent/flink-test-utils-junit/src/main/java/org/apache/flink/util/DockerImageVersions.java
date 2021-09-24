@@ -35,4 +35,6 @@ public class DockerImageVersions {
     public static final String RABBITMQ = "rabbitmq:3.7.25-management-alpine";
 
     public static final String KINESALITE = "instructure/kinesalite:latest";
+
+    public static final String PULSAR = "apachepulsar/pulsar:2.8.0";
 }

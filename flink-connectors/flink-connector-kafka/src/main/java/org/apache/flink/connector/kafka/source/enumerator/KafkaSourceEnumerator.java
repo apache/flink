@@ -20,6 +20,7 @@ package org.apache.flink.connector.kafka.source.enumerator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
@@ -65,6 +66,7 @@ public class KafkaSourceEnumerator
     private final Properties properties;
     private final long partitionDiscoveryIntervalMs;
     private final SplitEnumeratorContext<KafkaPartitionSplit> context;
+    private final Boundedness boundedness;
 
     /** Partitions that have been assigned to readers. */
     private final Set<TopicPartition> assignedPartitions;
@@ -91,13 +93,15 @@ public class KafkaSourceEnumerator
             OffsetsInitializer startingOffsetInitializer,
             OffsetsInitializer stoppingOffsetInitializer,
             Properties properties,
-            SplitEnumeratorContext<KafkaPartitionSplit> context) {
+            SplitEnumeratorContext<KafkaPartitionSplit> context,
+            Boundedness boundedness) {
         this(
                 subscriber,
                 startingOffsetInitializer,
                 stoppingOffsetInitializer,
                 properties,
                 context,
+                boundedness,
                 Collections.emptySet());
     }
 
@@ -107,12 +111,14 @@ public class KafkaSourceEnumerator
             OffsetsInitializer stoppingOffsetInitializer,
             Properties properties,
             SplitEnumeratorContext<KafkaPartitionSplit> context,
+            Boundedness boundedness,
             Set<TopicPartition> assignedPartitions) {
         this.subscriber = subscriber;
         this.startingOffsetInitializer = startingOffsetInitializer;
         this.stoppingOffsetInitializer = stoppingOffsetInitializer;
         this.properties = properties;
         this.context = context;
+        this.boundedness = boundedness;
 
         this.assignedPartitions = new HashSet<>(assignedPartitions);
         this.pendingPartitionSplitAssignment = new HashMap<>();
@@ -353,7 +359,7 @@ public class KafkaSourceEnumerator
 
         // If periodically partition discovery is disabled and the initializing discovery has done,
         // signal NoMoreSplitsEvent to pending readers
-        if (noMoreNewPartitionSplits) {
+        if (noMoreNewPartitionSplits && boundedness == Boundedness.BOUNDED) {
             LOG.debug(
                     "No more KafkaPartitionSplits to assign. Sending NoMoreSplitsEvent to reader {}"
                             + " in consumer group {}.",

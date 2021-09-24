@@ -26,7 +26,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.clock.Clock;
@@ -101,7 +101,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     public static SingleCheckpointBarrierHandler createUnalignedCheckpointBarrierHandler(
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             Clock clock,
             boolean enableCheckpointsAfterTasksFinish,
             CheckpointableInput... inputs) {
@@ -124,7 +124,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
     public static SingleCheckpointBarrierHandler unaligned(
             String taskName,
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             Clock clock,
             int numOpenChannels,
@@ -146,7 +146,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
     public static SingleCheckpointBarrierHandler aligned(
             String taskName,
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             Clock clock,
             int numOpenChannels,
             BiFunction<Callable<?>, Duration, Cancellable> registerTimer,
@@ -167,7 +167,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
     public static SingleCheckpointBarrierHandler alternating(
             String taskName,
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             Clock clock,
             int numOpenChannels,
@@ -189,7 +189,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
     private SingleCheckpointBarrierHandler(
             String taskName,
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             @Nullable SubtaskCheckpointCoordinator subTaskCheckpointCoordinator,
             Clock clock,
             int numOpenChannels,
@@ -211,7 +211,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     }
 
     @Override
-    public void processBarrier(CheckpointBarrier barrier, InputChannelInfo channelInfo)
+    public void processBarrier(
+            CheckpointBarrier barrier, InputChannelInfo channelInfo, boolean isRpcTriggered)
             throws IOException {
         long barrierId = barrier.getId();
         LOG.debug("{}: Received barrier from channel {} @ {}.", taskName, channelInfo, barrierId);
@@ -227,23 +228,27 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         checkNewCheckpoint(barrier);
         checkState(currentCheckpointId == barrierId);
 
-        alignedChannels.add(channelInfo);
-        if (alignedChannels.size() == 1) {
-            if (targetChannelCount == 1) {
-                markAlignmentStartAndEnd(barrierId, barrier.getTimestamp());
-            } else {
-                markAlignmentStart(barrierId, barrier.getTimestamp());
-            }
-        }
-
-        checkCheckpointAlignedAndTransformState(
-                state -> state.barrierReceived(context, channelInfo, barrier));
+        markCheckpointAlignedAndTransformState(
+                channelInfo,
+                barrier,
+                state -> state.barrierReceived(context, channelInfo, barrier, !isRpcTriggered));
     }
 
-    protected void checkCheckpointAlignedAndTransformState(
+    protected void markCheckpointAlignedAndTransformState(
+            InputChannelInfo alignedChannel,
+            CheckpointBarrier barrier,
             FunctionWithException<BarrierHandlerState, BarrierHandlerState, Exception>
                     stateTransformer)
             throws IOException {
+
+        alignedChannels.add(alignedChannel);
+        if (alignedChannels.size() == 1) {
+            if (targetChannelCount == 1) {
+                markAlignmentStartAndEnd(barrier.getId(), barrier.getTimestamp());
+            } else {
+                markAlignmentStart(barrier.getId(), barrier.getTimestamp());
+            }
+        }
 
         // we must mark alignment end before calling currentState.barrierReceived which might
         // trigger a checkpoint with unfinished future for alignment duration
@@ -403,7 +408,6 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
     @Override
     public void processEndOfPartition(InputChannelInfo channelInfo) throws IOException {
-        alignedChannels.add(channelInfo);
         numOpenChannels--;
 
         if (!isCheckpointAfterTasksFinishedEnabled()) {
@@ -423,7 +427,10 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                     pendingCheckpointBarrier != null,
                     "pending checkpoint barrier should not be null when"
                             + " there is pending checkpoint.");
-            checkCheckpointAlignedAndTransformState(
+
+            markCheckpointAlignedAndTransformState(
+                    channelInfo,
+                    pendingCheckpointBarrier,
                     state -> state.endOfPartitionReceived(context, channelInfo));
         }
     }
@@ -457,7 +464,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     }
 
     public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
-        if (checkpointId < currentCheckpointId) {
+        if (checkpointId < currentCheckpointId || numOpenChannels == 0) {
             return FutureUtils.completedVoidFuture();
         }
         if (checkpointId > currentCheckpointId) {

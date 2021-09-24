@@ -312,10 +312,34 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testOutputToMetadataSchema() {
+    public void testOutputToEmptySchema() {
         final ResolvedSchema tableSchema =
                 ResolvedSchema.of(
                         Column.physical("id", DataTypes.BIGINT()),
+                        Column.metadata("rowtime", DataTypes.TIMESTAMP_LTZ(3), null, false),
+                        Column.physical("name", DataTypes.STRING()));
+
+        final ProducingResult result =
+                SchemaTranslator.createProducingResult(tableSchema, Schema.derived());
+
+        assertEquals(Optional.empty(), result.getProjections());
+
+        assertEquals(
+                Schema.newBuilder()
+                        .column("id", DataTypes.BIGINT())
+                        .column("rowtime", DataTypes.TIMESTAMP_LTZ(3)) // becomes physical
+                        .column("name", DataTypes.STRING())
+                        .build(),
+                result.getSchema());
+
+        assertEquals(Optional.empty(), result.getPhysicalDataType());
+    }
+
+    @Test
+    public void testOutputToPartialSchema() {
+        final ResolvedSchema tableSchema =
+                ResolvedSchema.of(
+                        Column.physical("id", DataTypes.BIGINT().notNull()),
                         Column.physical("name", DataTypes.STRING()),
                         Column.metadata("rowtime", DataTypes.TIMESTAMP_LTZ(3), null, false));
 
@@ -325,14 +349,16 @@ public class SchemaTranslatorTest {
                         Schema.newBuilder()
                                 .columnByExpression("computed", "f1 + 42")
                                 .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
+                                .primaryKey("id")
                                 .build());
 
         assertEquals(
                 Schema.newBuilder()
-                        .column("id", DataTypes.BIGINT())
+                        .column("id", DataTypes.BIGINT().notNull())
                         .column("name", DataTypes.STRING())
                         .columnByExpression("computed", "f1 + 42")
                         .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3)) // becomes metadata
+                        .primaryKey("id")
                         .build(),
                 result.getSchema());
     }

@@ -236,6 +236,9 @@ public abstract class NettyMessage {
                     case AckAllUserRecordsProcessed.ID:
                         decodedMsg = AckAllUserRecordsProcessed.readFrom(msg);
                         break;
+                    case NewBufferSize.ID:
+                        decodedMsg = NewBufferSize.readFrom(msg);
+                        break;
                     default:
                         throw new ProtocolException(
                                 "Received unknown message from producer: " + msg);
@@ -838,6 +841,52 @@ public abstract class NettyMessage {
         @Override
         public String toString() {
             return String.format("BacklogAnnouncement(%d : %s)", backlog, receiverId);
+        }
+    }
+
+    /** Message to notify producer about new buffer size. */
+    static class NewBufferSize extends NettyMessage {
+
+        private static final byte ID = 10;
+
+        final int bufferSize;
+
+        final InputChannelID receiverId;
+
+        NewBufferSize(int bufferSize, InputChannelID receiverId) {
+            checkArgument(bufferSize > 0, "The new buffer size should be greater than 0");
+            this.bufferSize = bufferSize;
+            this.receiverId = receiverId;
+        }
+
+        @Override
+        void write(ChannelOutboundInvoker out, ChannelPromise promise, ByteBufAllocator allocator)
+                throws IOException {
+            ByteBuf result = null;
+
+            try {
+                result =
+                        allocateBuffer(
+                                allocator, ID, Integer.BYTES + InputChannelID.getByteBufLength());
+                result.writeInt(bufferSize);
+                receiverId.writeTo(result);
+
+                out.write(result, promise);
+            } catch (Throwable t) {
+                handleException(result, null, t);
+            }
+        }
+
+        static NewBufferSize readFrom(ByteBuf buffer) {
+            int bufferSize = buffer.readInt();
+            InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
+
+            return new NewBufferSize(bufferSize, receiverId);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("NewBufferSize(%s : %d)", receiverId, bufferSize);
         }
     }
 

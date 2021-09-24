@@ -204,8 +204,9 @@ class SortMergeSubpartitionReader
     }
 
     @Override
-    public void acknowledgeAllRecordsProcessed() {
-        throw new UnsupportedOperationException("Method should never be called.");
+    public void acknowledgeAllDataProcessed() {
+        // in case of bounded partitions there is no upstream to acknowledge, we simply ignore
+        // the ack, as there are no checkpoints
     }
 
     @Override
@@ -234,4 +235,14 @@ class SortMergeSubpartitionReader
     public int unsynchronizedGetNumberOfQueuedBuffers() {
         return Math.max(0, buffersRead.size());
     }
+
+    @Override
+    public int getNumberOfQueuedBuffers() {
+        synchronized (lock) {
+            return buffersRead.size();
+        }
+    }
+
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {}
 }

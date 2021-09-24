@@ -83,7 +83,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
 
         // prepare table source and convert to RelNode
         return DynamicSourceUtils.convertSourceToRel(
-                schemaTable.isStreamingMode(),
+                !schemaTable.isStreamingMode(),
                 context.getTableConfig().getConfiguration(),
                 relBuilder,
                 schemaTable.getTableIdentifier(),
@@ -114,7 +114,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
             FlinkContext context, ResolvedCatalogTable catalogTable) {
         final ReadableConfig config = context.getTableConfig().getConfiguration();
         return FactoryUtil.createTableSource(
-                schemaTable.getCatalog(),
+                schemaTable.getCatalog().orElse(null),
                 schemaTable.getTableIdentifier(),
                 catalogTable,
                 config,

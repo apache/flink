@@ -1634,7 +1634,7 @@ public class DataStreamTest extends TestLogger {
 
     /** Returns the StreamGraph without clearing the transformations. */
     private static StreamGraph getStreamGraph(StreamExecutionEnvironment sEnv) {
-        return sEnv.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false);
+        return sEnv.getStreamGraph(false);
     }
 
     private static Integer createDownStreamId(DataStream<?> dataStream) {

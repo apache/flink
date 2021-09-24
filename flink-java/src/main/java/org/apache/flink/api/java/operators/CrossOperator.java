@@ -205,7 +205,7 @@ public class CrossOperator<I1, I2, OUT>
          * {@link
          * org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectSecond(int...)}.
          *
-         * <p><b>Note: With the current implementation, the Project transformation looses type
+         * <p><b>Note: With the current implementation, the Project transformation loses type
          * information.</b>
          *
          * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the
@@ -236,7 +236,7 @@ public class CrossOperator<I1, I2, OUT>
          * {@link
          * org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectSecond(int...)}.
          *
-         * <p><b>Note: With the current implementation, the Project transformation looses type
+         * <p><b>Note: With the current implementation, the Project transformation loses type
          * information.</b>
          *
          * @param secondFieldIndexes If the second input is a Tuple DataSet, the indexes of the
@@ -339,7 +339,7 @@ public class CrossOperator<I1, I2, OUT>
          * {@link
          * org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectSecond(int...)}.
          *
-         * <p><b>Note: With the current implementation, the Project transformation looses type
+         * <p><b>Note: With the current implementation, the Project transformation loses type
          * information.</b>
          *
          * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the
@@ -372,7 +372,7 @@ public class CrossOperator<I1, I2, OUT>
          * {@link
          * org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectSecond(int...)}.
          *
-         * <p><b>Note: With the current implementation, the Project transformation looses type
+         * <p><b>Note: With the current implementation, the Project transformation loses type
          * information.</b>
          *
          * @param secondFieldIndexes If the second input is a Tuple DataSet, the indexes of the

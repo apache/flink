@@ -27,7 +27,7 @@ import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
-import org.apache.flink.api.common.ShuffleMode
+import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
@@ -46,12 +46,12 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
+import org.apache.flink.table.delegation.{Executor, ExecutorFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.factories.{ComponentFactoryService, FactoryUtil, StreamTableSourceFactory}
+import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil, StreamTableSourceFactory}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
@@ -1000,7 +1000,7 @@ abstract class TableTestUtil(
   val tableEnv: TableEnvironment = testingTableEnv
   tableEnv.getConfig
     .getConfiguration
-    .set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_PIPELINED)
+    .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
 
@@ -1123,9 +1123,7 @@ abstract class JavaTableTestUtil(
   // java env
   val env = new LocalStreamEnvironment()
   // java tableEnv
-  // use impl class instead of interface class to avoid
-  // "Static methods in interface require -target:jvm-1.8"
-  val tableEnv: JavaStreamTableEnv = JavaStreamTableEnvImpl.create(env, setting, new TableConfig)
+  val tableEnv: JavaStreamTableEnv = JavaStreamTableEnv.create(env, setting)
 
   override def getTableEnv: TableEnvironment = tableEnv
 
@@ -1551,10 +1549,8 @@ object TestingTableEnvironment {
       FactoryUtil.discoverFactory(classLoader, classOf[ExecutorFactory], settings.getExecutor)
     val executor = executorFactory.create(tableConfig.getConfiguration)
 
-    val plannerProperties = settings.toPlannerProperties
-    val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
-      .create(plannerProperties, executor, tableConfig, functionCatalog, catalogMgr)
-      .asInstanceOf[PlannerBase]
+    val planner = PlannerFactoryUtil.createPlanner(settings.getPlanner, executor, tableConfig,
+      catalogMgr, functionCatalog).asInstanceOf[PlannerBase]
 
     new TestingTableEnvironment(
       catalogMgr,

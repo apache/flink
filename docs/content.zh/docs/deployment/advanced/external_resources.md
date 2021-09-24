@@ -148,9 +148,9 @@ class ExternalResourceMapFunction extends RichMapFunction[(String, String)] {
 
 `ExternalResourceInfo` 中包含一个或多个键-值对，其键值表示资源的不同维度。你可以通过 `ExternalResourceInfo#getKeys` 获取所有的键。
 
-<div class="alert alert-info">
-     <strong>提示：</strong>目前，RuntimeContext#getExternalResourceInfos 返回的信息对所有算子都是可用的。
-</div>
+{{< hint info >}}
+**提示：** 目前，RuntimeContext#getExternalResourceInfos 返回的信息对所有算子都是可用的。
+{{< /hint >}}
 
 <a name="implement-a-plugin-for-your-custom-resource-type"></a>
 
@@ -230,9 +230,9 @@ class FPGAInfo extends ExternalResourceInfo {
 之后，将 `FPGADriver`，`FPGADriverFactory`，`META-INF/services/` 和所有外部依赖打入 jar 包。在你的 Flink 发行版的 `plugins/` 文件夹中创建一个名为“fpga”的文件夹，将打好的 jar 包放入其中。
 更多细节请查看 [Flink Plugin]({{< ref "docs/deployment/filesystems/plugins" >}})。
 
-<div class="alert alert-info">
-     <strong>提示：</strong> 扩展资源由运行在同一台机器上的所有算子共享。社区可能会在未来的版本中支持外部资源隔离。
-</div>
+{{< hint info >}}
+**提示：** 扩展资源由运行在同一台机器上的所有算子共享。社区可能会在未来的版本中支持外部资源隔离。
+{{< /hint >}}
 
 # 已支持的扩展资源插件
 
@@ -246,9 +246,9 @@ class FPGAInfo extends ExternalResourceInfo {
 
 我们提供了[一个示例程序](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/gpu/MatrixVectorMul.java)，展示了如何在 Flink 中使用 GPU 资源来做矩阵-向量乘法。
 
-<div class="alert alert-info">
-     <strong>提示：</strong>目前，对于所有算子，RuntimeContext#getExternalResourceInfos 会返回同样的资源信息。也即，在同一个 TaskManager 中运行的所有算子都可以访问同一组 GPU 设备。扩展资源目前没有算子级别的隔离。
-</div>
+{{< hint info >}}
+**提示：** 目前，对于所有算子，RuntimeContext#getExternalResourceInfos 会返回同样的资源信息。也即，在同一个 TaskManager 中运行的所有算子都可以访问同一组 GPU 设备。扩展资源目前没有算子级别的隔离。
+{{< /hint >}}
 
 ### 前置准备
 
@@ -326,9 +326,9 @@ external-resource.gpu.kubernetes.config-key: nvidia.com/gpu # for Kubernetes
 
   - `--coordination-file filePath`：用于同步 GPU 资源分配状态的文件路径。默认路径为 `/var/tmp/flink-gpu-coordination`。
 
-<div class="alert alert-info">
-     <strong>提示：</strong>协调模式只确保一个 GPU 设备不会被同一个 Flink 集群的多个 TaskManager 共享。不同 Flink 集群间（具有不同的协调文件）或非 Flink 应用程序仍然可以使用相同的 GPU 设备。
-</div>
+{{< hint info >}}
+**提示：** 协调模式只确保一个 GPU 设备不会被同一个 Flink 集群的多个 TaskManager 共享。不同 Flink 集群间（具有不同的协调文件）或非 Flink 应用程序仍然可以使用相同的 GPU 设备。
+{{< /hint >}}
 
 #### 自定义脚本
 

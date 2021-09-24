@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Overview
+# Time Zone
 
 Flink provides rich data types for Date and Time, including `DATE`, `TIME`, `TIMESTAMP`, `TIMESTAMP_LTZ`, `INTERVAL YEAR TO MONTH`, `INTERVAL DAY TO SECOND` (please see [Date and Time]({{< ref "docs/dev/table/types" >}}#date-and-time) for detailed information).
 Flink supports setting time zone in session level (please see [table.local-time-zone]({{< ref "docs/dev/table/config">}}#table-local-time-zone) for detailed information).

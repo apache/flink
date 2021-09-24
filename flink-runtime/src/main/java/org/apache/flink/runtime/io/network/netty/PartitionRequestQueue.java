@@ -166,15 +166,10 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
             return;
         }
 
-        NetworkSequenceViewReader reader = allReaders.get(receiverId);
-        if (reader != null) {
-            operation.accept(reader);
+        NetworkSequenceViewReader reader = obtainReader(receiverId);
 
-            enqueueAvailableReader(reader);
-        } else {
-            throw new IllegalStateException(
-                    "No reader for receiverId = " + receiverId + " exists.");
-        }
+        operation.accept(reader);
+        enqueueAvailableReader(reader);
     }
 
     void acknowledgeAllRecordsProcessed(InputChannelID receiverId) {
@@ -182,13 +177,32 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
             return;
         }
 
+        obtainReader(receiverId).acknowledgeAllRecordsProcessed();
+    }
+
+    void notifyNewBufferSize(InputChannelID receiverId, int newBufferSize) {
+        if (fatalError) {
+            return;
+        }
+
+        // It is possible to receive new buffer size before the reader would be created since the
+        // downstream task could calculate buffer size even using the data from one channel but it
+        // sends new buffer size into all upstream even if they don't ready yet. In this case, just
+        // ignore the new buffer size.
         NetworkSequenceViewReader reader = allReaders.get(receiverId);
         if (reader != null) {
-            reader.acknowledgeAllRecordsProcessed();
-        } else {
+            reader.notifyNewBufferSize(newBufferSize);
+        }
+    }
+
+    NetworkSequenceViewReader obtainReader(InputChannelID receiverId) {
+        NetworkSequenceViewReader reader = allReaders.get(receiverId);
+        if (reader == null) {
             throw new IllegalStateException(
                     "No reader for receiverId = " + receiverId + " exists.");
         }
+
+        return reader;
     }
 
     /**

@@ -16,7 +16,8 @@
 # limitations under the License.
 ################################################################################
 import datetime
-from collections import Iterable
+from collections.abc import Generator
+
 from functools import partial
 
 from typing import Any, Tuple, Dict, List
@@ -33,31 +34,28 @@ _constant_num = 0
 
 
 def normalize_table_function_result(it):
+    def normalize_one_row(value):
+        if isinstance(value, tuple):
+            # We assume that tuple is a single line output
+            return [*value]
+        elif isinstance(value, Row):
+            # We assume that tuple is a single line output
+            return value._values
+        else:
+            # single field value
+            return [value]
+
     if it is None:
         return []
-    elif isinstance(it, tuple):
-        # We assume that tuple is a single line output
-        return [[*it]]
-    elif isinstance(it, Row):
-        # We assume that tuple is a single line output
-        return [it._values]
-    elif isinstance(it, Iterable):
+
+    if isinstance(it, (list, range, Generator)):
         def func():
             for item in it:
-                if not isinstance(item, Iterable):
-                    # single field value
-                    yield [item]
-                elif isinstance(item, tuple):
-                    yield [*item]
-                elif isinstance(item, Row):
-                    yield item._values
-                else:
-                    yield list(item)
+                yield normalize_one_row(item)
 
         return func()
     else:
-        # single field value
-        return [[it]]
+        return [normalize_one_row(it)]
 
 
 def normalize_pandas_result(it):

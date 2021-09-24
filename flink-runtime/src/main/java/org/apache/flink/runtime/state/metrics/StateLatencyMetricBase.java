@@ -28,6 +28,7 @@ import java.util.function.Supplier;
 
 /** Base class of state latency metric which counts and histogram the state metric. */
 class StateLatencyMetricBase implements AutoCloseable {
+    protected static final String STATE_NAME_KEY = "state_name";
     protected static final String STATE_CLEAR_LATENCY = "stateClearLatency";
     private final MetricGroup metricGroup;
     private final int sampleInterval;
@@ -36,8 +37,15 @@ class StateLatencyMetricBase implements AutoCloseable {
     private int clearCount = 0;
 
     StateLatencyMetricBase(
-            String stateName, MetricGroup metricGroup, int sampleInterval, int historySize) {
-        this.metricGroup = metricGroup.addGroup(stateName);
+            String stateName,
+            MetricGroup metricGroup,
+            int sampleInterval,
+            int historySize,
+            boolean stateNameAsVariable) {
+        this.metricGroup =
+                stateNameAsVariable
+                        ? metricGroup.addGroup(STATE_NAME_KEY, stateName)
+                        : metricGroup.addGroup(stateName);
         this.sampleInterval = sampleInterval;
         this.histogramMetrics = new HashMap<>();
         this.histogramSupplier = () -> new DescriptiveStatisticsHistogram(historySize);

@@ -168,8 +168,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
     // ------------------------------------------------------------------------
 
     /**
-     * Test that ensures the KafkaConsumer is properly failing if the topic doesnt exist and a wrong
-     * broker was specified.
+     * Test that ensures the KafkaConsumer is properly failing if the topic doesn't exist and a
+     * wrong broker was specified.
      *
      * @throws Exception
      */
@@ -1104,8 +1104,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
         getStream(env, topic, schema, props)
                 .map(new PartitionValidatingMapper(numPartitions, 1))
+                // Job only fails after a checkpoint is taken and the necessary number of elements
+                // is seen
                 .map(new FailingIdentityMapper<Integer>(failAfterElements))
-                .addSink(new ValidatingExactlyOnceSink(totalElements))
+                .addSink(new ValidatingExactlyOnceSink(totalElements, true))
                 .setParallelism(1);
 
         FailingIdentityMapper.failedBefore = false;

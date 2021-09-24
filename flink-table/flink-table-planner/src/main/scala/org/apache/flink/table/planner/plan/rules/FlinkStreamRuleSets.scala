@@ -88,14 +88,13 @@ object FlinkStreamRuleSets {
   )
 
   /**
-    * RuleSet to rewrite coalesce to case when
-    */
-  private val REWRITE_COALESCE_RULES: RuleSet = RuleSets.ofList(
-    // rewrite coalesce to case when
-    RewriteCoalesceRule.FILTER_INSTANCE,
-    RewriteCoalesceRule.PROJECT_INSTANCE,
-    RewriteCoalesceRule.JOIN_INSTANCE,
-    RewriteCoalesceRule.CALC_INSTANCE
+   * RuleSet to simplify coalesce invocations
+   */
+  private val SIMPLIFY_COALESCE_RULES: RuleSet = RuleSets.ofList(
+    RemoveUnreachableCoalesceArgumentsRule.PROJECT_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.FILTER_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.JOIN_INSTANCE,
+    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE
   )
 
   /**
@@ -113,7 +112,7 @@ object FlinkStreamRuleSets {
     */
   val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
     PREDICATE_SIMPLIFY_EXPRESSION_RULES.asScala ++
-      REWRITE_COALESCE_RULES.asScala ++
+      SIMPLIFY_COALESCE_RULES.asScala ++
       REDUCE_EXPRESSION_RULES.asScala ++
       List(
         //removes constant keys from an Agg
@@ -158,6 +157,12 @@ object FlinkStreamRuleSets {
     CoreRules.FILTER_SET_OP_TRANSPOSE,
     CoreRules.FILTER_MERGE
   )
+
+  /**
+   * RuleSet to extract sub-condition which can be pushed into join inputs
+   */
+  val JOIN_PREDICATE_REWRITE_RULES: RuleSet = RuleSets.ofList(
+    RuleSets.ofList(JoinDependentConditionDerivationRule.INSTANCE))
 
   /**
     * RuleSet to do predicate pushdown
@@ -215,7 +220,9 @@ object FlinkStreamRuleSets {
     //removes constant keys from an Agg
     CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
     // push project through a Union
-    CoreRules.PROJECT_SET_OP_TRANSPOSE
+    CoreRules.PROJECT_SET_OP_TRANSPOSE,
+    // push a projection to the child of a WindowTableFunctionScan
+    ProjectWindowTableFunctionTransposeRule.INSTANCE
   )
 
   val JOIN_REORDER_PREPARE_RULES: RuleSet = RuleSets.ofList(
@@ -493,6 +500,9 @@ object FlinkStreamRuleSets {
     SimplifyWindowTableFunctionRules.WITH_LEFT_RIGHT_CALC_WINDOW_JOIN,
     SimplifyWindowTableFunctionRules.WITH_LEFT_CALC_WINDOW_JOIN,
     SimplifyWindowTableFunctionRules.WITH_RIGHT_CALC_WINDOW_JOIN,
-    SimplifyWindowTableFunctionRules.WITH_WINDOW_JOIN)
+    SimplifyWindowTableFunctionRules.WITH_WINDOW_JOIN,
+    // optimize ChangelogNormalize
+    PushFilterPastChangelogNormalizeRule.INSTANCE
+  )
 
 }

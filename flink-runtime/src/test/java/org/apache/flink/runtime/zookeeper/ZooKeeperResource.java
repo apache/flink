@@ -71,4 +71,9 @@ public class ZooKeeperResource extends ExternalResource {
         Preconditions.checkNotNull(zooKeeperServer);
         zooKeeperServer.restart();
     }
+
+    public void stop() throws IOException {
+        Preconditions.checkNotNull(zooKeeperServer);
+        zooKeeperServer.stop();
+    }
 }

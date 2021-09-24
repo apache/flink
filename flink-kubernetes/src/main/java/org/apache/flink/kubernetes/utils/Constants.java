@@ -45,6 +45,7 @@ public class Constants {
     public static final String KERBEROS_KRB5CONF_VOLUME = "kerberos-krb5conf-volume";
     public static final String KERBEROS_KRB5CONF_CONFIG_MAP_PREFIX = "kerberos-krb5conf-";
     public static final String KERBEROS_KRB5CONF_MOUNT_DIR = "/etc";
+    public static final String KERBEROS_KRB5CONF_FILE = "krb5.conf";
 
     public static final String FLINK_REST_SERVICE_SUFFIX = "-rest";
 

@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## 概述
+# 时区
 
 Flink 为日期和时间提供了丰富的数据类型， 包括 `DATE`， `TIME`， `TIMESTAMP`， `TIMESTAMP_LTZ`， `INTERVAL YEAR TO MONTH`， `INTERVAL DAY TO SECOND` (更多详情请参考 [Date and Time]({{< ref "docs/dev/table/types" >}}#date-and-time))。
 Flink 支持在 session （会话）级别设置时区（更多详情请参考 [table.local-time-zone]({{< ref "docs/dev/table/config">}}#table-local-time-zone)）。

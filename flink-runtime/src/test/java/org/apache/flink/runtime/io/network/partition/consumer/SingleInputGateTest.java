@@ -222,6 +222,8 @@ public class SingleInputGateTest extends InputGateTestBase {
         inputChannels[0].readBuffer();
         inputChannels[0].readBuffer();
         inputChannels[1].readBuffer();
+        inputChannels[1].readEndOfData();
+        inputChannels[0].readEndOfData();
         inputChannels[1].readEndOfPartitionEvent();
         inputChannels[0].readEndOfPartitionEvent();
 
@@ -232,9 +234,16 @@ public class SingleInputGateTest extends InputGateTestBase {
         verifyBufferOrEvent(inputGate, true, 1, true);
         verifyBufferOrEvent(inputGate, true, 0, true);
         verifyBufferOrEvent(inputGate, false, 1, true);
+        // we have received EndOfData on a single channel only
+        assertFalse(inputGate.hasReceivedEndOfData());
+        verifyBufferOrEvent(inputGate, false, 0, true);
+        assertFalse(inputGate.isFinished());
+        assertTrue(inputGate.hasReceivedEndOfData());
+        verifyBufferOrEvent(inputGate, false, 1, true);
         verifyBufferOrEvent(inputGate, false, 0, false);
 
         // Return null when the input gate has received all end-of-partition events
+        assertTrue(inputGate.hasReceivedEndOfData());
         assertTrue(inputGate.isFinished());
 
         for (TestInputChannel ic : inputChannels) {

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.runtime.io.network.api.EndOfUserRecordsEvent;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.util.function.SupplierWithException;
@@ -193,22 +193,22 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
     }
 
     @Override
-    public void notifyEndOfUserRecords() throws IOException {
+    public void notifyEndOfData() throws IOException {
         synchronized (lock) {
             if (!hasNotifiedEndOfUserRecords) {
-                broadcastEvent(EndOfUserRecordsEvent.INSTANCE, false);
+                broadcastEvent(EndOfData.INSTANCE, false);
                 hasNotifiedEndOfUserRecords = true;
             }
         }
     }
 
     @Override
-    public CompletableFuture<Void> getAllRecordsProcessedFuture() {
+    public CompletableFuture<Void> getAllDataProcessedFuture() {
         return allRecordsProcessedFuture;
     }
 
     @Override
-    public void onSubpartitionAllRecordsProcessed(int subpartition) {
+    public void onSubpartitionAllDataProcessed(int subpartition) {
         synchronized (lock) {
             if (allRecordsProcessedSubpartitions[subpartition]) {
                 return;

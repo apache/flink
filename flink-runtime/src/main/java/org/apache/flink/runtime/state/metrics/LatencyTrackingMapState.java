@@ -51,7 +51,8 @@ class LatencyTrackingMapState<K, N, UK, UV>
                         stateName,
                         latencyTrackingStateConfig.getMetricGroup(),
                         latencyTrackingStateConfig.getSampleInterval(),
-                        latencyTrackingStateConfig.getHistorySize()));
+                        latencyTrackingStateConfig.getHistorySize(),
+                        latencyTrackingStateConfig.isStateNameAsVariable()));
     }
 
     @Override
@@ -243,8 +244,12 @@ class LatencyTrackingMapState<K, N, UK, UV>
         private int iteratorNextCount = 0;
 
         private MapStateLatencyMetrics(
-                String stateName, MetricGroup metricGroup, int sampleInterval, int historySize) {
-            super(stateName, metricGroup, sampleInterval, historySize);
+                String stateName,
+                MetricGroup metricGroup,
+                int sampleInterval,
+                int historySize,
+                boolean stateNameAsVariable) {
+            super(stateName, metricGroup, sampleInterval, historySize, stateNameAsVariable);
         }
 
         int getGetCount() {

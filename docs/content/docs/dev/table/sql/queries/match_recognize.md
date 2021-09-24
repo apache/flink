@@ -1039,9 +1039,10 @@ use [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). To
   <tbody>
     <tr>
       <td>
-        <code>MATCH_ROWTIME()</code><br/>
+        <code>MATCH_ROWTIME([rowtime_field])</code><br/>
       </td>
       <td><p>Returns the timestamp of the last row that was mapped to the given pattern.</p>
+      <p>The function accepts zero or one operand which is a field reference with rowtime attribute. If there is no operand, the function will return rowtime attribute with TIMESTAMP type. Otherwise, the return type will be same with the operand type.</p>
       <p>The resulting attribute is a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">rowtime attribute</a>
          that can be used in subsequent time-based operations such as
          <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over

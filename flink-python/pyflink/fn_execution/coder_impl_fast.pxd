@@ -89,6 +89,19 @@ cdef class RowCoderImpl(FieldCoderImpl):
     cdef list _field_names
     cdef MaskUtils _mask_utils
 
+cdef class ArrowCoderImpl(FieldCoderImpl):
+    cdef object _schema
+    cdef list _field_types
+    cdef object _timezone
+    cdef object _resettable_io
+    cdef object _batch_reader
+
+    cdef list decode_one_batch_from_stream(self, InputStream in_stream, size_t size)
+
+cdef class OverWindowArrowCoderImpl(FieldCoderImpl):
+    cdef ArrowCoderImpl _arrow_coder
+    cdef IntCoderImpl _int_coder
+
 cdef class TinyIntCoderImpl(FieldCoderImpl):
     pass
 

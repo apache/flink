@@ -33,7 +33,7 @@ import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
 import org.apache.calcite.sql.validate.SqlValidator
-import org.apache.calcite.sql.{SqlExplain, SqlKind, SqlNode, SqlOperatorTable}
+import org.apache.calcite.sql.{SqlExplain, SqlInsert, SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 import org.apache.flink.sql.parser.ddl.{SqlReset, SqlSet, SqlUseModules}
@@ -119,7 +119,6 @@ class FlinkPlannerImpl(
       }
       // no need to validate row type for DDL and insert nodes.
       if (sqlNode.getKind.belongsTo(SqlKind.DDL)
-        || sqlNode.getKind == SqlKind.INSERT
         || sqlNode.getKind == SqlKind.CREATE_FUNCTION
         || sqlNode.getKind == SqlKind.DROP_FUNCTION
         || sqlNode.getKind == SqlKind.OTHER_DDL
@@ -133,6 +132,7 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlShowJars]
         || sqlNode.isInstanceOf[SqlShowModules]
         || sqlNode.isInstanceOf[SqlShowViews]
+        || sqlNode.isInstanceOf[SqlShowColumns]
         || sqlNode.isInstanceOf[SqlShowPartitions]
         || sqlNode.isInstanceOf[SqlRichDescribeTable]
         || sqlNode.isInstanceOf[SqlUnloadModule]
@@ -155,6 +155,10 @@ class FlinkPlannerImpl(
           }
           richExplain.setOperand(0, validatedStatement)
           richExplain
+        // Insert requires validation but no row validation
+        case insert: SqlInsert =>
+          validator.validateInsert(insert)
+          insert
         case _ =>
           validator.validate(sqlNode)
       }

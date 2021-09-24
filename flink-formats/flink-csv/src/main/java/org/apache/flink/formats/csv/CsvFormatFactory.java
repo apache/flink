@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.csv;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -56,6 +57,7 @@ import static org.apache.flink.formats.csv.CsvFormatOptions.QUOTE_CHARACTER;
  * Format factory for providing configured instances of CSV to RowData {@link SerializationSchema}
  * and {@link DeserializationSchema}.
  */
+@Internal
 public final class CsvFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 

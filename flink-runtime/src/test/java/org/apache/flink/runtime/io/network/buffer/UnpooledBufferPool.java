@@ -29,6 +29,9 @@ public class UnpooledBufferPool implements BufferPool {
     private static final int SEGMENT_SIZE = 1024;
 
     @Override
+    public void reserveSegments(int numberOfSegmentsToReserve) {}
+
+    @Override
     public void lazyDestroy() {}
 
     @Override

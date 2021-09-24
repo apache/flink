@@ -107,7 +107,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                 SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
                 log);
 
-        final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint(false);
+        final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint();
 
         MatcherAssert.assertThat(savepoint, notNullValue());
 

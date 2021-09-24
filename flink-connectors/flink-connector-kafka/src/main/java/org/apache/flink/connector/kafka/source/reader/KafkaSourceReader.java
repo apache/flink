@@ -26,6 +26,7 @@ import org.apache.flink.connector.base.source.reader.RecordEmitter;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
 import org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics;
 import org.apache.flink.connector.kafka.source.reader.fetcher.KafkaSourceFetcherManager;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
@@ -44,7 +45,6 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.Supplier;
 
 /** The source reader for Kafka partitions. */
 public class KafkaSourceReader<T>
@@ -56,23 +56,26 @@ public class KafkaSourceReader<T>
     private final SortedMap<Long, Map<TopicPartition, OffsetAndMetadata>> offsetsToCommit;
     private final ConcurrentMap<TopicPartition, OffsetAndMetadata> offsetsOfFinishedSplits;
     private final KafkaSourceReaderMetrics kafkaSourceReaderMetrics;
+    private final boolean commitOffsetsOnCheckpoint;
 
     public KafkaSourceReader(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<T, Long, Long>>> elementsQueue,
-            Supplier<KafkaPartitionSplitReader<T>> splitReaderSupplier,
+            KafkaSourceFetcherManager<T> kafkaSourceFetcherManager,
             RecordEmitter<Tuple3<T, Long, Long>, T, KafkaPartitionSplitState> recordEmitter,
             Configuration config,
             SourceReaderContext context,
             KafkaSourceReaderMetrics kafkaSourceReaderMetrics) {
-        super(
-                elementsQueue,
-                new KafkaSourceFetcherManager<>(elementsQueue, splitReaderSupplier::get),
-                recordEmitter,
-                config,
-                context);
+        super(elementsQueue, kafkaSourceFetcherManager, recordEmitter, config, context);
         this.offsetsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
         this.offsetsOfFinishedSplits = new ConcurrentHashMap<>();
         this.kafkaSourceReaderMetrics = kafkaSourceReaderMetrics;
+        this.commitOffsetsOnCheckpoint =
+                config.get(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT);
+        if (!commitOffsetsOnCheckpoint) {
+            LOG.warn(
+                    "Offset commit on checkpoint is disabled. "
+                            + "Consuming offset will not be reported back to Kafka cluster.");
+        }
     }
 
     @Override
@@ -90,6 +93,10 @@ public class KafkaSourceReader<T>
     @Override
     public List<KafkaPartitionSplit> snapshotState(long checkpointId) {
         List<KafkaPartitionSplit> splits = super.snapshotState(checkpointId);
+        if (!commitOffsetsOnCheckpoint) {
+            return splits;
+        }
+
         if (splits.isEmpty() && offsetsOfFinishedSplits.isEmpty()) {
             offsetsToCommit.put(checkpointId, Collections.emptyMap());
         } else {
@@ -114,6 +121,10 @@ public class KafkaSourceReader<T>
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         LOG.debug("Committing offsets for checkpoint {}", checkpointId);
+        if (!commitOffsetsOnCheckpoint) {
+            return;
+        }
+
         ((KafkaSourceFetcherManager<T>) splitFetcherManager)
                 .commitOffsets(
                         offsetsToCommit.get(checkpointId),
@@ -130,6 +141,7 @@ public class KafkaSourceReader<T>
                                 LOG.debug(
                                         "Successfully committed offsets for checkpoint {}",
                                         checkpointId);
+                                kafkaSourceReaderMetrics.recordSucceededCommit();
                                 // If the finished topic partition has been committed, we remove it
                                 // from the offsets of the finished splits map.
                                 Map<TopicPartition, OffsetAndMetadata> committedPartitions =

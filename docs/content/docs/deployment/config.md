@@ -311,9 +311,9 @@ See the [Queryable State Docs]({{< ref "docs/dev/datastream/fault-tolerance/quer
 
 # Debugging & Expert Tuning
 
-<div class="alert alert-warning">
-  The options below here are meant for expert users and for fixing/debugging problems. Most setups should not need to configure these options.
-</div>
+{{< hint warning >}}
+The options below here are meant for expert users and for fixing/debugging problems. Most setups should not need to configure these options.
+{{< /hint >}}
 
 ### Class Loading
 
@@ -343,7 +343,7 @@ Advanced options to tune RocksDB and RocksDB checkpoints.
 
 **RocksDB Configurable Options**
 
-These options give fine-grained control over the behavior and resoures of ColumnFamilies.
+These options give fine-grained control over the behavior and resources of ColumnFamilies.
 With the introduction of `state.backend.rocksdb.memory.managed` and `state.backend.rocksdb.memory.fixed-per-slot` (Apache Flink 1.10), it should be only necessary to use the options here for advanced performance tuning. These options here can also be specified in the application program via `RocksDBStateBackend.setRocksDBOptions(RocksDBOptionsFactory)`.
 
 {{< generated/rocksdb_configurable_configuration >}}
@@ -357,6 +357,10 @@ With the introduction of `state.backend.rocksdb.memory.managed` and `state.backe
 ### Advanced Cluster Options
 
 {{< generated/expert_cluster_section >}}
+
+### Advanced JobManager Options
+
+{{< generated/expert_jobmanager_section >}}
 
 ### Advanced Scheduling Options
 
@@ -407,6 +411,8 @@ These configuration keys control basic Resource Manager behavior, independent of
 {{< generated/resource_manager_configuration >}}
 
 ### Full TaskManagerOptions
+
+Please refer to the [network memory tuning guide]({{< ref "docs/deployment/memory/network_mem_tuning" >}}) for details on how to use the `taskmanager.network.memory.buffer-debloat.*` configuration.
 
 {{< generated/all_taskmanager_section >}}
 
