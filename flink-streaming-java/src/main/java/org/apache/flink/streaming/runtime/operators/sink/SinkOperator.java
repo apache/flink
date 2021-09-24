@@ -171,8 +171,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
         super.prepareSnapshotPreBarrier(checkpointId);
         if (!endOfInput) {
-            emitCommittables(
-                    committerHandler.processCommittables(() -> sinkWriter.prepareCommit(false)));
+            emitCommittables(committerHandler.processCommittables(sinkWriter.prepareCommit(false)));
         }
     }
 
@@ -194,8 +193,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
     @Override
     public void endInput() throws Exception {
         endOfInput = true;
-        emitCommittables(
-                committerHandler.processCommittables(() -> sinkWriter.prepareCommit(true)));
+        emitCommittables(committerHandler.processCommittables(sinkWriter.prepareCommit(true)));
         emitCommittables(committerHandler.endOfInput());
         commitRetrier.retryIndefinitely();
     }
