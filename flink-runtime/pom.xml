@@ -57,6 +57,15 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<!-- provides fallback AkkaRpcSystem loader for the IDE -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-rpc-akka-loader</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
