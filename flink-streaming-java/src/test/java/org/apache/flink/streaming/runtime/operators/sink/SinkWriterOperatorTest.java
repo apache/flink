@@ -54,6 +54,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test stateful and stateless {@link SinkWriterStateHandler} in {@link SinkOperator}. */
 @RunWith(Parameterized.class)
@@ -318,6 +319,58 @@ public class SinkWriterOperatorTest extends TestLogger {
                 containsInAnyOrder(expectedOutput2.toArray()));
     }
 
+    @Test
+    public void receivePreCommitWithoutCommitter() throws Exception {
+        final long initialTime = 0;
+
+        PreBarrierSinkWriter writer = new PreBarrierSinkWriter();
+        final OneInputStreamOperatorTestHarness<Integer, byte[]> testHarness =
+                createTestHarness(writer, false);
+        testHarness.open();
+
+        testHarness.processWatermark(initialTime);
+        testHarness.processElement(1, initialTime + 1);
+        testHarness.processElement(2, initialTime + 2);
+
+        testHarness.prepareSnapshotPreBarrier(1L);
+        // Expect that preCommit was called
+        assertTrue(writer.hasReceivedPreCommit());
+        testHarness.snapshot(1L, 1L);
+
+        assertThat(
+                writer.getElements(),
+                contains(
+                        Tuple3.of(1, initialTime + 1, initialTime).toString(),
+                        Tuple3.of(2, initialTime + 2, initialTime).toString()));
+
+        assertThat(
+                writer.getWatermarks(),
+                contains(new org.apache.flink.api.common.eventtime.Watermark(initialTime)));
+    }
+
+    private static class PreBarrierSinkWriter extends TestSink.DefaultSinkWriter<Integer> {
+
+        private boolean receivedPreCommit = false;
+
+        @Override
+        public List<String> prepareCommit(boolean flush) {
+            receivedPreCommit = true;
+            return Collections.emptyList();
+        }
+
+        public boolean hasReceivedPreCommit() {
+            return receivedPreCommit;
+        }
+
+        public List<org.apache.flink.api.common.eventtime.Watermark> getWatermarks() {
+            return watermarks;
+        }
+
+        public List<String> getElements() {
+            return elements;
+        }
+    }
+
     /** A {@link SinkWriter} buffers elements and snapshots them when asked. */
     private static class SnapshottingBufferingSinkWriter extends BufferingSinkWriter {
         public static final int NOT_SNAPSHOTTED = -1;
@@ -417,8 +470,13 @@ public class SinkWriterOperatorTest extends TestLogger {
 
     private OneInputStreamOperatorTestHarness<Integer, byte[]> createTestHarness(
             TestSink.DefaultSinkWriter<Integer> writer) throws Exception {
+        return createTestHarness(writer, true);
+    }
+
+    private OneInputStreamOperatorTestHarness<Integer, byte[]> createTestHarness(
+            TestSink.DefaultSinkWriter<Integer> writer, boolean withCommitter) throws Exception {
         return new OneInputStreamOperatorTestHarness<>(
-                new SinkOperatorFactory<>(getBuilder(writer).build(), false, true),
+                new SinkOperatorFactory<>(getBuilder(writer).build(), false, withCommitter),
                 IntSerializer.INSTANCE);
     }
 
