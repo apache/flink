@@ -28,7 +28,6 @@ import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -51,6 +50,7 @@ import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import javax.annotation.Nullable;
 
@@ -115,7 +115,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 ((BulkDecodingFormat<RowData>) bulkReaderFormat).applyFilters(filters);
             }
             BulkFormat<RowData, FileSourceSplit> bulkFormat =
-                    bulkReaderFormat.createRuntimeDecoder(scanContext, getProducedDataType());
+                    bulkReaderFormat.createRuntimeDecoder(scanContext, getProjectedDataType());
             return createSourceProvider(bulkFormat);
         } else if (formatFactory != null) {
             // The ContinuousFileMonitoringFunction can not accept multiple paths. Default
@@ -124,15 +124,20 @@ public class FileSystemTableSource extends AbstractFileSystemTable
             return SourceFunctionProvider.of(
                     new InputFormatSourceFunction<>(
                             getInputFormat(),
-                            InternalTypeInfo.of(getProducedDataType().getLogicalType())),
+                            InternalTypeInfo.of(getProjectedDataType().getLogicalType())),
                     true);
         } else if (deserializationFormat != null) {
             // NOTE, we need pass full format types to deserializationFormat
             DeserializationSchema<RowData> decoder =
-                    deserializationFormat.createRuntimeDecoder(scanContext, getFormatDataType());
+                    deserializationFormat.createRuntimeDecoder(
+                            scanContext, getPhysicalDataTypeWithoutPartitionColumns());
             return createSourceProvider(
                     new DeserializationSchemaAdapter(
-                            decoder, schema, readFields(), partitionKeys, defaultPartName));
+                            decoder,
+                            getPhysicalDataType(),
+                            readFields(),
+                            partitionKeys,
+                            defaultPartName));
             // return sourceProvider(wrapDeserializationFormat(deserializationFormat), scanContext);
         } else {
             throw new TableException("Can not find format factory.");
@@ -164,7 +169,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
                     @Override
                     public TableSchema getSchema() {
-                        return schema;
+                        return TableSchemaUtils.getPhysicalSchema(
+                                TableSchema.fromResolvedSchema(schema));
                     }
 
                     @Override
@@ -310,20 +316,18 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
     private int[] readFields() {
         return projectedFields == null
-                ? IntStream.range(0, schema.getFieldCount()).toArray()
+                ? IntStream.range(0, DataType.getFieldCount(getPhysicalDataType())).toArray()
                 : Arrays.stream(projectedFields).mapToInt(array -> array[0]).toArray();
     }
 
-    private DataType getProducedDataType() {
-        int[] fields = readFields();
-        String[] schemaFieldNames = schema.getFieldNames();
-        DataType[] schemaTypes = schema.getFieldDataTypes();
+    private DataType getProjectedDataType() {
+        final DataType physicalDataType = super.getPhysicalDataType();
 
-        return DataTypes.ROW(
-                        Arrays.stream(fields)
-                                .mapToObj(i -> DataTypes.FIELD(schemaFieldNames[i], schemaTypes[i]))
-                                .toArray(DataTypes.Field[]::new))
-                .bridgedTo(RowData.class)
-                .notNull();
+        // If we haven't projected fields, we just return the original physical data type,
+        // otherwise we need to compute the physical data type depending on the projected fields.
+        if (projectedFields == null) {
+            return physicalDataType;
+        }
+        return DataType.projectFields(physicalDataType, projectedFields);
     }
 }
