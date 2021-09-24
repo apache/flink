@@ -514,9 +514,6 @@ public class HiveTableSinkITCase {
                             + " stored as textfile"
                             + " TBLPROPERTIES ("
                             + "'"
-                            + PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key()
-                            + "'='$d $e:00:00',"
-                            + "'"
                             + SINK_PARTITION_COMMIT_DELAY.key()
                             + "'='1h',"
                             + "'"
@@ -549,11 +546,13 @@ public class HiveTableSinkITCase {
                         String partitionPath =
                                 new Path(new Path(base, "d=2020-05-03"), partitionKV).toString();
                         Assert.assertTrue(
-                                String.join("", committedPaths),
+                                "Partition(d=2020-05-03, "
+                                        + partitionKV
+                                        + ") is not committed successfully",
                                 committedPaths.contains(partitionPath));
                     });
         } finally {
-            tEnv.executeSql("drop database db1 cascade");
+            tEnv.executeSql("drop database if exists db1 cascade");
         }
     }
 
