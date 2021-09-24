@@ -38,10 +38,6 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 
 {{< artifact flink-connector-kafka withScalaVersion >}}
 
-if you are using Kafka source, ```flink-connector-base``` is also required as dependency:
-
-{{< artifact flink-connector-base >}}
-
 Flink's streaming connectors are not currently part of the binary distribution.
 See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
 
