@@ -26,14 +26,6 @@ under the License.
 
 # 数据源
 
-
-{{< hint warning >}}
-**注意**: 当前文档所描述的为新的数据源 API，在 Flink 1.11 中作为 [FLIP-27]("https://cwiki.apache.org/confluence/display/FLINK/FLIP-27%3A+Refactor+Source+Interface") 中的一部分引入。
-该新 API 仍处于 **BETA** 阶段。
-
-（从 Flink 1.11 开始）大多数现有的 source 连接器尚未使用此新 API 实现，仍旧使用之前的 API，也就是基于 [SourceFunction]("https://github.com/apache/flink/blob/master/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java") 的实现的 API。
-{{< /hint >}}
-
 当前页面所描述的是 Flink 的 Data Source API 及其背后的概念和架构。
 **如果您对 Flink 中的 Data Source 如何工作感兴趣，或者您想实现一个新的数据 source，请阅读本文。**
 
