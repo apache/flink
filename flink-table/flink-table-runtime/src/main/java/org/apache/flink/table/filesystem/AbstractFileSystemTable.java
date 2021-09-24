@@ -22,11 +22,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.List;
 
@@ -39,7 +39,7 @@ abstract class AbstractFileSystemTable {
     final DynamicTableFactory.Context context;
     final ObjectIdentifier tableIdentifier;
     final Configuration tableOptions;
-    final TableSchema schema;
+    final ResolvedSchema schema;
     final List<String> partitionKeys;
     final Path path;
     final String defaultPartName;
@@ -49,7 +49,7 @@ abstract class AbstractFileSystemTable {
         this.tableIdentifier = context.getObjectIdentifier();
         this.tableOptions = new Configuration();
         context.getCatalogTable().getOptions().forEach(tableOptions::setString);
-        this.schema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+        this.schema = context.getCatalogTable().getResolvedSchema();
         this.partitionKeys = context.getCatalogTable().getPartitionKeys();
         this.path = new Path(tableOptions.get(PATH));
         this.defaultPartName = tableOptions.get(PARTITION_DEFAULT_NAME);
@@ -59,15 +59,14 @@ abstract class AbstractFileSystemTable {
         return new DelegatingConfiguration(tableOptions, identifier + ".");
     }
 
-    DataType getFormatDataType() {
-        TableSchema.Builder builder = TableSchema.builder();
-        schema.getTableColumns()
-                .forEach(
-                        column -> {
-                            if (!partitionKeys.contains(column.getName())) {
-                                builder.add(column);
-                            }
-                        });
-        return builder.build().toRowDataType();
+    DataType getPhysicalDataType() {
+        return this.schema.toPhysicalRowDataType();
+    }
+
+    DataType getPhysicalDataTypeWithoutPartitionColumns() {
+        return DataTypes.ROW(
+                DataType.getFields(getPhysicalDataType()).stream()
+                        .filter(field -> !partitionKeys.contains(field.getName()))
+                        .toArray(DataTypes.Field[]::new));
     }
 }
