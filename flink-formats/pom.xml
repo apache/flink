@@ -98,8 +98,6 @@ under the License.
 					<name>scala-2.12</name>
 				</property>
 			</activation>
-			<!-- Scala Shell doesn't currently work with Scala 2.12 so only include
-			when building for Scala 2.11. -->
 			<modules>
 				<module>flink-avro-glue-schema-registry</module>
 				<module>flink-json-glue-schema-registry</module>
