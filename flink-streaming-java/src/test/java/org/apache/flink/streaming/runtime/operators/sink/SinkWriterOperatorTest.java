@@ -319,7 +319,7 @@ public class SinkWriterOperatorTest extends TestLogger {
     }
 
     /** A {@link SinkWriter} buffers elements and snapshots them when asked. */
-    static class SnapshottingBufferingSinkWriter extends BufferingSinkWriter {
+    private static class SnapshottingBufferingSinkWriter extends BufferingSinkWriter {
         public static final int NOT_SNAPSHOTTED = -1;
         long lastCheckpointId = NOT_SNAPSHOTTED;
 
@@ -335,7 +335,7 @@ public class SinkWriterOperatorTest extends TestLogger {
         }
     }
 
-    static class DummySinkOperator extends AbstractStreamOperator<String>
+    private static class DummySinkOperator extends AbstractStreamOperator<String>
             implements OneInputStreamOperator<String, String> {
 
         static final String DUMMY_SINK_STATE_NAME = "dummy_sink_state";
@@ -375,7 +375,7 @@ public class SinkWriterOperatorTest extends TestLogger {
      * A {@link SinkWriter} that only returns committables from {@link #prepareCommit(boolean)} when
      * {@code flush} is {@code true}.
      */
-    static class BufferingSinkWriter extends TestSink.DefaultSinkWriter<Integer> {
+    private static class BufferingSinkWriter extends TestSink.DefaultSinkWriter<Integer> {
         @Override
         public List<String> prepareCommit(boolean flush) {
             if (!flush) {
@@ -391,7 +391,7 @@ public class SinkWriterOperatorTest extends TestLogger {
      * A {@link SinkWriter} that buffers the committables and send the cached committables per
      * second.
      */
-    static class TimeBasedBufferingSinkWriter extends TestSink.DefaultSinkWriter<Integer>
+    private static class TimeBasedBufferingSinkWriter extends TestSink.DefaultSinkWriter<Integer>
             implements Sink.ProcessingTimeService.ProcessingTimeCallback {
 
         private final List<String> cachedCommittables = new ArrayList<>();
