@@ -880,46 +880,54 @@ public final class TestValuesTableFactory
         }
 
         protected Collection<RowData> convertToRowData(DataStructureConverter converter) {
-            List<Row> resultBuffer = new ArrayList<>();
+            List<RowData> result = new ArrayList<>();
             List<Map<String, String>> keys =
                     allPartitions.isEmpty()
                             ? Collections.singletonList(Collections.emptyMap())
                             : allPartitions;
+
             int numRetained = 0;
-            boolean overLimit = false;
             for (Map<String, String> partition : keys) {
-                for (Row row : data.get(partition)) {
-                    if (resultBuffer.size() >= limit) {
-                        overLimit = true;
-                        break;
+                Collection<Row> rowsInPartition = data.get(partition);
+
+                // handle predicates and projection
+                List<Row> rowsRetained =
+                        rowsInPartition.stream()
+                                .filter(
+                                        row ->
+                                                FilterUtils.isRetainedAfterApplyingFilterPredicates(
+                                                        filterPredicates, getValueGetter(row)))
+                                .map(
+                                        row -> {
+                                            Row projectedRow = projectRow(row);
+                                            projectedRow.setKind(row.getKind());
+                                            return projectedRow;
+                                        })
+                                .collect(Collectors.toList());
+
+                // handle aggregates
+                if (!aggregateExpressions.isEmpty()) {
+                    rowsRetained = applyAggregatesToRows(rowsRetained);
+                }
+
+                // handle row data
+                for (Row row : rowsRetained) {
+                    final RowData rowData = (RowData) converter.toInternal(row);
+                    if (rowData != null) {
+                        if (numRetained >= numElementToSkip) {
+                            rowData.setRowKind(row.getKind());
+                            result.add(rowData);
+                        }
+                        numRetained++;
                     }
-                    boolean isRetained =
-                            FilterUtils.isRetainedAfterApplyingFilterPredicates(
-                                    filterPredicates, getValueGetter(row));
-                    if (isRetained) {
-                        final Row projectedRow = projectRow(row);
-                        resultBuffer.add(projectedRow);
+
+                    // handle limit. No aggregates will be pushed down when there is a limit.
+                    if (result.size() >= limit) {
+                        return result;
                     }
                 }
-                if (overLimit) {
-                    break;
-                }
             }
-            // simulate aggregate operation
-            if (!aggregateExpressions.isEmpty()) {
-                resultBuffer = applyAggregatesToRows(resultBuffer);
-            }
-            List<RowData> result = new ArrayList<>();
-            for (Row row : resultBuffer) {
-                final RowData rowData = (RowData) converter.toInternal(row);
-                if (rowData != null) {
-                    if (numRetained >= numElementToSkip) {
-                        rowData.setRowKind(row.getKind());
-                        result.add(rowData);
-                    }
-                    numRetained++;
-                }
-            }
+
             return result;
         }
 
@@ -1059,7 +1067,7 @@ public final class TestValuesTableFactory
                 List<int[]> groupingSets,
                 List<AggregateExpression> aggregateExpressions,
                 DataType producedDataType) {
-            // this TestValuesScanTableSource only support simple group type ar present.
+            // This TestValuesScanTableSource only supports simple group type ar present.
             // auxGrouping is not supported.
             if (groupingSets.size() > 1 && groupingSets.get(1).length > 0) {
                 return false;
