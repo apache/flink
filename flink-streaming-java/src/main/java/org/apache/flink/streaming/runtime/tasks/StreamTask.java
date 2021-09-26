@@ -1619,7 +1619,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             edge,
                             i,
                             environment,
-                            environment.getTaskInfo().getTaskName(),
+                            environment.getTaskInfo().getTaskNameWithSubtasks(),
                             edge.getBufferTimeout()));
         }
         return recordWriters;
@@ -1630,7 +1630,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             StreamEdge edge,
             int outputIndex,
             Environment environment,
-            String taskName,
+            String taskNameWithSubtask,
             long bufferTimeout) {
 
         StreamPartitioner<OUT> outputPartitioner = null;
@@ -1650,7 +1650,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 "Using partitioner {} for output {} of task {}",
                 outputPartitioner,
                 outputIndex,
-                taskName);
+                taskNameWithSubtask);
 
         ResultPartitionWriter bufferWriter = environment.getWriter(outputIndex);
 
@@ -1666,7 +1666,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 new RecordWriterBuilder<SerializationDelegate<StreamRecord<OUT>>>()
                         .setChannelSelector(outputPartitioner)
                         .setTimeout(bufferTimeout)
-                        .setTaskName(taskName)
+                        .setTaskName(taskNameWithSubtask)
                         .build(bufferWriter);
         output.setMetricGroup(environment.getMetricGroup().getIOMetricGroup());
         return output;
