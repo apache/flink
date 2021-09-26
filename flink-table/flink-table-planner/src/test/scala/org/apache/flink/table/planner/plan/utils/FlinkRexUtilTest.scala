@@ -466,52 +466,32 @@ class FlinkRexUtilTest {
 
     //CAST(1 AS BOOLEAN)
     val predicate21CastFromData = intLiteral(1)
-    val predicate21CastToType = new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.BOOLEAN)
-    val predicate21 = rexBuilder.makeCall(
-      predicate21CastToType,
-      CAST,
-      Collections.singletonList(predicate21CastFromData.asInstanceOf[RexNode]))
-    val newPredicate21 = simplify(rexBuilder, predicate21)
+    val predicate21Cast = makeToBooleanCast(predicate21CastFromData)
+    val newPredicate21 = simplify(rexBuilder, predicate21Cast)
     assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate21.toString)
 
     //CAST(0 AS BOOLEAN)
     val predicate22CastFromData = intLiteral(0)
-    val predicate22CastToType = new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.BOOLEAN)
-    val predicate22 = rexBuilder.makeCall(
-      predicate22CastToType,
-      CAST,
-      Collections.singletonList(predicate22CastFromData.asInstanceOf[RexNode]))
-    val newPredicate22 = simplify(rexBuilder, predicate22)
+    val predicate22Cast = makeToBooleanCast(predicate22CastFromData)
+    val newPredicate22 = simplify(rexBuilder, predicate22Cast)
     assertEquals(rexBuilder.makeLiteral(false).toString, newPredicate22.toString)
 
     //CAST(-1 AS BOOLEAN)
     val predicate23CastFromData = intLiteral(-1)
-    val predicate23CastToType = new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.BOOLEAN)
-    val predicate23 = rexBuilder.makeCall(
-      predicate23CastToType,
-      CAST,
-      Collections.singletonList(predicate23CastFromData.asInstanceOf[RexNode]))
-    val newPredicate23 = simplify(rexBuilder, predicate23)
+    val predicate23Cast = makeToBooleanCast(predicate23CastFromData)
+    val newPredicate23 = simplify(rexBuilder, predicate23Cast)
     assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate23.toString)
 
     //CAST(1.1 AS BOOLEAN)
     val predicate24CastFromData = rexBuilder.makeExactLiteral(BigDecimal.valueOf(1.1))
-    val predicate24CastToType = new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.BOOLEAN)
-    val predicate24 = rexBuilder.makeCall(
-      predicate24CastToType,
-      CAST,
-      Collections.singletonList(predicate24CastFromData.asInstanceOf[RexNode]))
-    val newPredicate24 = simplify(rexBuilder, predicate24)
+    val predicate24Cast = makeToBooleanCast(predicate24CastFromData)
+    val newPredicate24 = simplify(rexBuilder, predicate24Cast)
     assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate24.toString)
 
     //CAST(0.000 AS BOOLEAN)
     val predicate25CastFromData = rexBuilder.makeExactLiteral(BigDecimal.valueOf(0.000))
-    val predicate25CastToType = new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.BOOLEAN)
-    val predicate25 = rexBuilder.makeCall(
-      predicate25CastToType,
-      CAST,
-      Collections.singletonList(predicate25CastFromData.asInstanceOf[RexNode]))
-    val newPredicate25 = simplify(rexBuilder, predicate25)
+    val predicate25Cast = makeToBooleanCast(predicate25CastFromData)
+    val newPredicate25 = simplify(rexBuilder, predicate25Cast)
     assertEquals(rexBuilder.makeLiteral(false).toString, newPredicate25.toString)
   }
 
@@ -520,5 +500,13 @@ class FlinkRexUtilTest {
   def simplify(rexBuilder: RexBuilder, expr: RexNode): RexNode ={
     val expressionReducer = new ExpressionReducer(TableConfig.getDefault, false)
     FlinkRexUtil.simplify(rexBuilder, expr, expressionReducer)
+  }
+
+  def makeToBooleanCast(fromData: RexNode): RexNode ={
+    val booleanType = new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.BOOLEAN)
+    rexBuilder.makeCall(
+      booleanType,
+      CAST,
+      Collections.singletonList(fromData.asInstanceOf[RexNode]))
   }
 }
