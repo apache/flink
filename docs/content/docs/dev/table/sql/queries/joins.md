@@ -109,9 +109,12 @@ Since time attributes are quasi-monotonic increasing, Flink can remove old value
 Temporal Joins
 --------------
 
+A Temporal table is a table that evolves over time - otherwise known in Flink as a [dynamic table]({% link dev/table/streaming/dynamic_tables.md %}). Rows in a temporal table are associated with one or more temporal periods and all Flink tables are temporal(dynamic).
+The temporal table contains one or more versioned table snapshots, it can be a changing history table which tracks the changes(e.g. database changelog, contains all snapshots) or a changing dimensioned table which materializes the changes(e.g. database table which contains the latest snapshot). 
+
 ### Event Time Temporal Join
 
-Temporal joins allow joining against a [versioned table]({{< ref "docs/dev/table/concepts/versioned_tables" >}}).
+Event Time temporal joins allow joining against a [versioned table]({{< ref "docs/dev/table/concepts/versioned_tables" >}}).
 This means a table can be enriched with changing metadata and retrieve its value at a certain point in time. 
 
 Temporal joins take an arbitrary table (left input/probe site) and correlate each row to the corresponding row's relevant version in the versioned table (right input/build side). 
@@ -247,26 +250,48 @@ amount currency     rate   amount*rate
      2 Euro          116          232    <== arrived at time 10:52
 ```
 
-
-With the help of temporal table join, we can express such a query in SQL as:
+Currently, the `FOR SYSTEM_TIME AS OF` syntax used in temporal join with latest version of any view/table is not support yet, you can use temporal table function syntax as following:
 
 ```sql
 SELECT
-  o.amount, o.currency, r.rate, o.amount * r.rate
+  o_amount, r_rate
 FROM
-  Orders AS o
-  JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
-  ON r.currency = o.currency
+  Orders,
+  LATERAL TABLE (Rates(o_proctime))
+WHERE
+  r_currency = o_currency
 ```
 
-Each record from the probe side will be joined with the current version of the build side table.
-In our example, the query uses the processing-time notion, so a newly appended order would always be joined with the most recent version of `LatestRates` when executing the operation.
+**Note** The reason why the `FOR SYSTEM_TIME AS OF` syntax used in temporal join with latest version of any table/view is not support is only the semantic consideration, because the join processing for left stream doesn't wait for the complete snapshot of temporal table, this may mislead users in production environment. The processing-time temporal join by temporal table function also exists same semantic problem, but it has been alive for a long time, thus we support it from the perspective of compatibility.
 
 The result is not deterministic for processing-time.
 The processing-time temporal join is most often used to enrich the stream with an external table (i.e., dimension table).
 
 In contrast to [regular joins](#regular-joins), the previous temporal table results will not be affected despite the changes on the build side.
 Compared to [interval joins](#interval-joins), temporal table joins do not define a time window within which the records join, i.e., old rows are not stored in state.
+
+### Temporal Table Function Join
+
+The syntax to join a table with a [temporal table function]({{< ref "docs/dev/table/concepts/temporal_table_function" >}}) is the same as in Join with [Table Function](#table-function).
+
+Note: Currently only inner join and left outer join with temporal tables are supported.
+
+Assuming Rates is a temporal table function, the join can be expressed in SQL as follows:
+
+```sql
+SELECT
+  o_amount, r_rate
+FROM
+  Orders,
+  LATERAL TABLE (Rates(o_proctime))
+WHERE
+  r_currency = o_currency
+```
+
+The main difference between above Temporal Table DDL and Temporal Table Function are:
+
+- The temporal table DDL can be defined in SQL but temporal table function can not;
+- Both temporal table DDL and temporal table function support temporal join versioned table, but only temporal table function can temporal join the latest version of any table/view.
 
 Lookup Join
 --------------
