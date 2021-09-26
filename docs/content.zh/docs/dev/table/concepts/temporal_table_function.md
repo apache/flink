@@ -1,5 +1,5 @@
 ---
-title: "Legacy Features"
+title: "Temporal Table Function"
 weight: 1002
 type: docs
 aliases:
@@ -24,22 +24,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Legacy Features
-
-As Flink SQL has matured there are some features that have been replaced with more modern and better functioning substitutes.
-These legacy features remain documented here for those users that have not yet or are unable to, upgrade to the more modern variant.
-
 # Temporal Table Function
 
-The temporal table function is the legacy way of defining something akin to a [versioned table]({{< ref "docs/dev/table/concepts/versioned_tables" >}})
-that can be used in a temporal table join.
-Please define temporal joins using [versioned tables]({{< ref "docs/dev/table/concepts/versioned_tables" >}}) in new queries.
+A Temporal table function provides access to the version of a temporal table at a specific point in time.
+In order to access the data in a temporal table, one must pass a [time attribute]({{<ref "docs/dev/table/concepts/time_attributes">}}) that determines the version of the table that will be returned.
+Flink uses the SQL syntax of [table functions]({{<ref "docs/dev/table/functions/udfs" >}}#table-functions) to provide a way to express it.
 
 Unlike a versioned table, temporal table functions can only be defined on top of append-only streams 
 &mdash; it does not support changelog inputs.
 Additionally, a temporal table function cannot be defined in pure SQL DDL. 
-
-#### Defining a Temporal Table Function
+ 
+## Defining a Temporal Table Function
 
 Temporal table functions can be defined on top of append-only streams using the [Table API]({{< ref "docs/dev/table/tableApi" >}}).
 The table is registered with one or more key columns, and a time attribute used for versioning.
@@ -83,7 +78,7 @@ tEnv.registerFunction("rates", rates)
 {{< /tab >}}
 {{< /tabs >}}
 
-#### Temporal Table Function Join
+## Temporal Table Function Join
 
 Once defined, a temporal table function is used as a standard [table function]({{< ref "docs/dev/table/functions/udfs" >}}#table-functions).
 Append-only tables (left input/probe side) can join with a temporal table (right input/build side),
