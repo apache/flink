@@ -89,7 +89,7 @@ Kafka source provide 3 ways of topic-partition subscription:
   ```
 ### Deserializer
 A deserializer is required for parsing Kafka messages. Deserializer (Deserialization schema) can be
-configured by ```setDeserializer(KakfaRecordDeserializationSchema)```, where
+configured by ```setDeserializer(KafkaRecordDeserializationSchema)```, where
 ```KafkaRecordDeserializationSchema``` defines how to deserialize a Kafka ```ConsumerRecord```.
 
 If only the value of Kafka ```ConsumerRecord``` is needed, you can use
