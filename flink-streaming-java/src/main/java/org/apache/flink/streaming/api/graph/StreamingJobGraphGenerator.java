@@ -442,7 +442,9 @@ public class StreamingJobGraphGenerator {
                     createChainedPreferredResources(currentNodeId, chainableOutputs));
 
             OperatorID currentOperatorId =
-                    chainInfo.addNodeToChain(currentNodeId, chainedNames.get(currentNodeId));
+                    chainInfo.addNodeToChain(
+                            currentNodeId,
+                            streamGraph.getStreamNode(currentNodeId).getOperatorName());
 
             if (currentNode.getInputFormat() != null) {
                 getOrCreateFormatContainer(startNodeId)
