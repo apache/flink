@@ -102,7 +102,6 @@ public class CheckpointingOptions {
 
     /** Whether to enable state change log. */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS)
-    @Documentation.ExcludeFromDocumentation("ChangelogBackend is under development")
     public static final ConfigOption<Boolean> ENABLE_STATE_CHANGE_LOG =
             ConfigOptions.key("state.backend.changelog.enabled")
                     .booleanType()
@@ -122,7 +121,6 @@ public class CheckpointingOptions {
      * InMemoryStateChangelogStorageFactory.getIdentifier()}, which is also the default value.
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS)
-    @Documentation.ExcludeFromDocumentation("ChangelogBackend is under development")
     public static final ConfigOption<String> STATE_CHANGE_LOG_STORAGE =
             ConfigOptions.key("state.backend.changelog.storage")
                     .stringType()

@@ -1518,8 +1518,7 @@ under the License.
 							random: enable it randomly, unless explicitly set
 							unset: don't alter the configuration
 						-->
-                        <!-- disable temporarily for 1.14 release -->
-						<checkpointing.changelog>unset</checkpointing.changelog>
+						<checkpointing.changelog>random</checkpointing.changelog>
 						<project.basedir>${project.basedir}</project.basedir>
 						<!--suppress MavenModelInspection -->
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>

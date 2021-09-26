@@ -323,6 +323,57 @@ class StreamExecutionEnvironment(object):
             self._j_stream_execution_environment.setStateBackend(state_backend._j_state_backend)
         return self
 
+    def enable_changelog_state_backend(self, enabled: bool) -> 'StreamExecutionEnvironment':
+        """
+        Enable the change log for current state backend. This change log allows operators to persist
+        state changes in a very fine-grained manner. Currently, the change log only applies to keyed
+        state, so non-keyed operator state and channel state are persisted as usual. The 'state'
+        here refers to 'keyed state'. Details are as follows:
+
+        * Stateful operators write the state changes to that log (logging the state), in addition \
+        to applying them to the state tables in RocksDB or the in-mem Hashtable.
+        * An operator can acknowledge a checkpoint as soon as the changes in the log have reached \
+        the durable checkpoint storage.
+        * The state tables are persisted periodically, independent of the checkpoints. We call \
+        this the materialization of the state on the checkpoint storage.
+        * Once the state is materialized on checkpoint storage, the state changelog can be \
+        truncated to the corresponding point.
+
+        It establish a way to drastically reduce the checkpoint interval for streaming
+        applications across state backends. For more details please check the FLIP-158.
+
+        If this method is not called explicitly, it means no preference for enabling the change
+        log. Configs for change log enabling will override in different config levels
+        (job/local/cluster).
+
+        .. seealso:: :func:`is_changelog_state_backend_enabled`
+
+
+        :param enabled: True if enable the change log for state backend explicitly, otherwise
+                        disable the change log.
+        :return: This object.
+
+        .. versionadded:: 1.14.0
+        """
+        self._j_stream_execution_environment = \
+            self._j_stream_execution_environment.enableChangelogStateBackend(enabled)
+        return self
+
+    def is_changelog_state_backend_enabled(self) -> Optional[bool]:
+        """
+        Gets the enable status of change log for state backend.
+
+        .. seealso:: :func:`enable_changelog_state_backend`
+
+        :return: An :class:`Optional[bool]` for the enable status of change log for state backend.
+                 Could be None if user never specify this by calling
+                 :func:`enable_changelog_state_backend`.
+
+        .. versionadded:: 1.14.0
+        """
+        j_ternary_boolean = self._j_stream_execution_environment.isChangelogStateBackendEnabled()
+        return j_ternary_boolean.getAsBoolean()
+
     def set_default_savepoint_directory(self, directory: str) -> 'StreamExecutionEnvironment':
         """
         Sets the default savepoint directory, where savepoints will be written to if none
