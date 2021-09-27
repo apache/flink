@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.factories.Factory;
+import org.apache.flink.table.module.ModuleManager;
 
 /**
  * Factory that creates {@link Planner}.
@@ -50,6 +51,9 @@ public interface PlannerFactory extends Factory {
         /** The configuration of the planner to use. */
         TableConfig getTableConfig();
 
+        /** The module manager. */
+        ModuleManager getModuleManager();
+
         /** The catalog manager to look up tables and views. */
         CatalogManager getCatalogManager();
 
@@ -61,16 +65,19 @@ public interface PlannerFactory extends Factory {
     class DefaultPlannerContext implements Context {
         private final Executor executor;
         private final TableConfig tableConfig;
+        private final ModuleManager moduleManager;
         private final CatalogManager catalogManager;
         private final FunctionCatalog functionCatalog;
 
         public DefaultPlannerContext(
                 Executor executor,
                 TableConfig tableConfig,
+                ModuleManager moduleManager,
                 CatalogManager catalogManager,
                 FunctionCatalog functionCatalog) {
             this.executor = executor;
             this.tableConfig = tableConfig;
+            this.moduleManager = moduleManager;
             this.catalogManager = catalogManager;
             this.functionCatalog = functionCatalog;
         }
@@ -83,6 +90,11 @@ public interface PlannerFactory extends Factory {
         @Override
         public TableConfig getTableConfig() {
             return tableConfig;
+        }
+
+        @Override
+        public ModuleManager getModuleManager() {
+            return moduleManager;
         }
 
         @Override

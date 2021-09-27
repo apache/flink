@@ -23,6 +23,7 @@ import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, Table
 import org.apache.flink.table.catalog.{CatalogTable, Column, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkContextImpl, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
@@ -251,6 +252,7 @@ object MetadataTestUtil {
   private val flinkContext = new FlinkContextImpl(
     false,
     TableConfig.getDefault,
+    new ModuleManager,
     null,
     CatalogManagerMocks.createEmptyCatalogManager,
     null)

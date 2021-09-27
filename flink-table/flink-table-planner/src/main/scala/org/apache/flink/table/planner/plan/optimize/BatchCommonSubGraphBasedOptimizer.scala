@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.optimize
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.{FlinkContext, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
@@ -93,6 +94,8 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 
       override def getCatalogManager: CatalogManager = planner.catalogManager
+
+      override def getModuleManager: ModuleManager = planner.moduleManager
 
       override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
         context.getSqlExprToRexConverterFactory

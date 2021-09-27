@@ -57,12 +57,14 @@ public final class DefaultPlannerFactory implements PlannerFactory {
                 return new StreamPlanner(
                         context.getExecutor(),
                         context.getTableConfig(),
+                        context.getModuleManager(),
                         context.getFunctionCatalog(),
                         context.getCatalogManager());
             case BATCH:
                 return new BatchPlanner(
                         context.getExecutor(),
                         context.getTableConfig(),
+                        context.getModuleManager(),
                         context.getFunctionCatalog(),
                         context.getCatalogManager());
             default:

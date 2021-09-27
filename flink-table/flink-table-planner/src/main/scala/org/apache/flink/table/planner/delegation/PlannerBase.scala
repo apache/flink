@@ -29,6 +29,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.descriptors.{ConnectorDescriptorValidator, DescriptorProperties}
 import org.apache.flink.table.factories.{FactoryUtil, TableFactoryUtil}
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.planner.JMap
@@ -75,6 +76,7 @@ import _root_.scala.collection.JavaConversions._
   *                        [[StreamExecutionEnvironment]] for
   *                        [[org.apache.flink.table.sources.StreamTableSource.getDataStream]]
   * @param config          mutable configuration passed from corresponding [[TableEnvironment]]
+  * @param moduleManager   manager for modules
   * @param functionCatalog catalog of functions
   * @param catalogManager  manager of catalog meta objects such as tables, views, databases etc.
   * @param isStreamingMode Determines if the planner should work in a batch (false}) or
@@ -83,6 +85,7 @@ import _root_.scala.collection.JavaConversions._
 abstract class PlannerBase(
     executor: Executor,
     config: TableConfig,
+    val moduleManager: ModuleManager,
     val functionCatalog: FunctionCatalog,
     val catalogManager: CatalogManager,
     isStreamingMode: Boolean)
@@ -103,6 +106,7 @@ abstract class PlannerBase(
     new PlannerContext(
       !isStreamingMode,
       config,
+      moduleManager,
       functionCatalog,
       catalogManager,
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
