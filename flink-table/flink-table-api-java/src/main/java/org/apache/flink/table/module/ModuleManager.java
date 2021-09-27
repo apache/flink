@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.module;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -44,15 +45,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Responsible for loading/unloading modules, managing their life cycles, and resolving module
  * objects.
  */
+@Internal
 public class ModuleManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(ModuleManager.class);
 
     /** To keep {@link #listFullModules()} deterministic. */
-    private LinkedHashMap<String, Module> loadedModules;
+    private final LinkedHashMap<String, Module> loadedModules;
 
     /** Keep tracking used modules with resolution order. */
-    private List<String> usedModules;
+    private final List<String> usedModules;
 
     public ModuleManager() {
         this.loadedModules = new LinkedHashMap<>();
