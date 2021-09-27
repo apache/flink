@@ -1052,7 +1052,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 FatalErrorHandler fatalErrorHandler,
                 long initializationTimestamp)
                 throws Exception {
-            return new BlockingTerminationJobMangerService(
+            return new BlockingTerminationJobManagerService(
                     jobIdToBlock,
                     future,
                     new DefaultJobMasterServiceProcessFactory(
@@ -1075,13 +1075,13 @@ public class DispatcherTest extends AbstractDispatcherTest {
         }
     }
 
-    private static final class BlockingTerminationJobMangerService
+    private static final class BlockingTerminationJobManagerService
             extends JobMasterServiceLeadershipRunner {
 
         private final JobID jobIdToBlock;
         private final CompletableFuture<Void> future;
 
-        public BlockingTerminationJobMangerService(
+        public BlockingTerminationJobManagerService(
                 JobID jobIdToBlock,
                 CompletableFuture<Void> future,
                 JobMasterServiceProcessFactory jobMasterServiceProcessFactory,
