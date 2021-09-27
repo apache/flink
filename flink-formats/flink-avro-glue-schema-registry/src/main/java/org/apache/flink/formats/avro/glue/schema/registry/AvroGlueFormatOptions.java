@@ -21,17 +21,17 @@
 import java.time.Duration;
 
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
-import com.amazonaws.services.schemaregistry.utils.AvroRecordType;
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants.COMPRESSION;
+import com.amazonaws.services.schemaregistry.utils.AvroRecordType;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
 import software.amazon.awssdk.services.glue.model.Compatibility;
 
-public class GlueSchemaRegistryAvroOptions {
-    private GlueSchemaRegistryAvroOptions() {
-    }
+@PublicEvolving
+public class AvroGlueFormatOptions {
     public static final String PREFIX = "schema-registry.";
 
     public static final ConfigOption<String> AWS_REGION = ConfigOptions.key(PREFIX + AWSSchemaRegistryConstants.AWS_REGION)
@@ -71,4 +71,6 @@ public class GlueSchemaRegistryAvroOptions {
             .key(PREFIX + AWSSchemaRegistryConstants.CACHE_TIME_TO_LIVE_MILLIS).longType()
             .defaultValue(Duration.ofDays(1l).toMillis())
             .withDescription("Cache TTL in milliseconds.  Defaults to 1 day");
+    
+    private AvroGlueFormatOptions() {}
 }

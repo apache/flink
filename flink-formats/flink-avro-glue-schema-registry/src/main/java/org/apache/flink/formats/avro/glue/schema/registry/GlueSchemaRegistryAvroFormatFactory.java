@@ -18,23 +18,25 @@
 
  package org.apache.flink.formats.avro.glue.schema.registry;
 
-import static org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroOptions.AUTO_REGISTRATION;
-import static org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroOptions.AWS_REGION;
-import static org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroOptions.CACHE_SIZE;
-import static org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroOptions.CACHE_TTL_MS;
-import static org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroOptions.COMPATIBILITY;
-import static org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroOptions.COMPRESSION_TYPE;
-import static org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroOptions.ENDPOINT;
-import static org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroOptions.RECORD_TYPE;
-import static org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroOptions.REGISTRY_NAME;
-import static org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroOptions.SCHEMA_REGISTRY_SUBJECT;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.AUTO_REGISTRATION;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.AWS_REGION;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.CACHE_SIZE;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.CACHE_TTL_MS;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.COMPATIBILITY;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.COMPRESSION_TYPE;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.ENDPOINT;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.RECORD_TYPE;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.REGISTRY_NAME;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.SCHEMA_REGISTRY_SUBJECT;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -63,14 +65,15 @@ import org.apache.flink.table.types.logical.RowType;
  * Registry Avro to RowData {@link SerializationSchema} and
  * {@link DeserializationSchema}.
  */
-public class GluSchemaRegistryAvroFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
+@Internal
+public class GlueSchemaRegistryAvroFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
     public static final String IDENTIFIER = "avro-glue";
 
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(DynamicTableFactory.Context context,
             ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        var configMap = buildConfigMap(formatOptions);
+        final Map<String, Object> configMap = buildConfigMap(formatOptions);
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -121,7 +124,7 @@ public class GluSchemaRegistryAvroFormatFactory implements DeserializationFormat
     }
 
     private Map<String, Object> buildConfigMap(ReadableConfig formatOptions) {
-        var properties = new HashMap<String, Object>();
+        final Map<String, Object> properties = new HashMap<String, Object>();
         formatOptions.getOptional(AWS_REGION).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.AWS_REGION, v));
         formatOptions.getOptional(REGISTRY_NAME).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.REGISTRY_NAME, v));
         formatOptions.getOptional(RECORD_TYPE).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.AVRO_RECORD_TYPE, v));
@@ -137,12 +140,23 @@ public class GluSchemaRegistryAvroFormatFactory implements DeserializationFormat
 
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
-        return Set.of(REGISTRY_NAME, AWS_REGION, SCHEMA_REGISTRY_SUBJECT);
+        Set<ConfigOption<?>> result = new HashSet<>();
+        result.add(REGISTRY_NAME);
+        result.add(AWS_REGION);
+        result.add(SCHEMA_REGISTRY_SUBJECT);
+        return result;
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return Set.of(COMPRESSION_TYPE, ENDPOINT, RECORD_TYPE, COMPATIBILITY, AUTO_REGISTRATION, CACHE_SIZE,
-                CACHE_TTL_MS);
+        Set<ConfigOption<?>> result = new HashSet<>();
+        result.add(COMPRESSION_TYPE);
+        result.add(ENDPOINT);
+        result.add(RECORD_TYPE);
+        result.add(COMPATIBILITY);
+        result.add(AUTO_REGISTRATION);
+        result.add(CACHE_SIZE);
+        result.add(CACHE_TTL_MS);
+        return result;
     }
 }

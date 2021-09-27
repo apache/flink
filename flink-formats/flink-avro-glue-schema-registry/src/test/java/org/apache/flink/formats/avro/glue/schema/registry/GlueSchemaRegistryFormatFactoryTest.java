@@ -54,7 +54,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-/** Tests for the {@link GluSchemaRegistryAvroFormatFactory}. */
+/** Tests for the {@link GlueSchemaRegistryAvroFormatFactory}. */
 public class GlueSchemaRegistryFormatFactoryTest {
 
     private static final ResolvedSchema SCHEMA =
@@ -148,7 +148,7 @@ public class GlueSchemaRegistryFormatFactoryTest {
         options.put("target", "MyTarget");
         options.put("buffer-size", "1000");
 
-        options.put("format", GluSchemaRegistryAvroFormatFactory.IDENTIFIER);
+        options.put("format", GlueSchemaRegistryAvroFormatFactory.IDENTIFIER);
         options.put("avro-glue.schema-registry.subject", SUBJECT);
         options.put("avro-glue.schema-registry.registry.name", REGISTRY_NAME);
         options.put("avro-glue.schema-registry.region", REGION);
