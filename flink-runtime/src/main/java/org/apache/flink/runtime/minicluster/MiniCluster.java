@@ -615,7 +615,7 @@ public class MiniCluster implements AutoCloseableAsync {
     private void startTaskManagers() throws Exception {
         final int numTaskManagers = miniClusterConfiguration.getNumTaskManagers();
 
-        LOG.info("Starting {} TaskManger(s)", numTaskManagers);
+        LOG.info("Starting {} TaskManager(s)", numTaskManagers);
 
         for (int i = 0; i < numTaskManagers; i++) {
             startTaskManager();

@@ -32,7 +32,7 @@ import static org.hamcrest.Matchers.is;
 public class InitJobManagerDecoratorAccountTest extends KubernetesJobManagerTestBase {
 
     private static final String SERVICE_ACCOUNT_NAME = "service-test";
-    private static final String JOB_MANGER_SERVICE_ACCOUNT_NAME = "jm-service-test";
+    private static final String JOB_MANAGER_SERVICE_ACCOUNT_NAME = "jm-service-test";
 
     private Pod resultPod;
 
@@ -44,7 +44,7 @@ public class InitJobManagerDecoratorAccountTest extends KubernetesJobManagerTest
                 KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
         this.flinkConfig.set(
                 KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT,
-                JOB_MANGER_SERVICE_ACCOUNT_NAME);
+                JOB_MANAGER_SERVICE_ACCOUNT_NAME);
     }
 
     @Override
@@ -62,6 +62,6 @@ public class InitJobManagerDecoratorAccountTest extends KubernetesJobManagerTest
     public void testPodServiceAccountName() {
         assertThat(
                 this.resultPod.getSpec().getServiceAccountName(),
-                is(JOB_MANGER_SERVICE_ACCOUNT_NAME));
+                is(JOB_MANAGER_SERVICE_ACCOUNT_NAME));
     }
 }

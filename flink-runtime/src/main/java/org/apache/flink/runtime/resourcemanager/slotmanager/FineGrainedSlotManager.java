@@ -670,11 +670,11 @@ public class FineGrainedSlotManager implements SlotManager {
     // ---------------------------------------------------------------------------------------------
 
     private void checkTaskManagerTimeouts() {
-        for (TaskManagerInfo timeoutTaskManger : getTimeOutTaskManagers()) {
+        for (TaskManagerInfo timeoutTaskManager : getTimeOutTaskManagers()) {
             if (waitResultConsumedBeforeRelease) {
-                releaseIdleTaskExecutorIfPossible(timeoutTaskManger);
+                releaseIdleTaskExecutorIfPossible(timeoutTaskManager);
             } else {
-                releaseIdleTaskExecutor(timeoutTaskManger.getInstanceId());
+                releaseIdleTaskExecutor(timeoutTaskManager.getInstanceId());
             }
         }
     }
