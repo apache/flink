@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.formats.avro.SchemaCoder;
 
 import java.util.Map;
+import java.util.Objects;
 
 /** Provider for {@link GlueSchemaRegistryAvroSchemaCoder}. */
 @PublicEvolving
@@ -50,4 +51,29 @@ public class GlueSchemaRegistryAvroSchemaCoderProvider implements SchemaCoder.Sc
     public GlueSchemaRegistryAvroSchemaCoder get() {
         return new GlueSchemaRegistryAvroSchemaCoder(transportName, configs);
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        GlueSchemaRegistryAvroSchemaCoderProvider that = (GlueSchemaRegistryAvroSchemaCoderProvider) o;
+        if (transportName == null)  {
+            if (that.transportName != null) {
+                return false;
+            }
+        } else if (!transportName.equals(that.transportName)) {
+            return false;
+        }
+        return configs.equals(that.configs);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(transportName, configs);
+    }
+
 }
