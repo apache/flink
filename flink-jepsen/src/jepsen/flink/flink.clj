@@ -32,9 +32,9 @@
              [kafka :as kafka]
              [nemesis :as fn]]))
 
-(def default-flink-dist-url "https://archive.apache.org/dist/flink/flink-1.6.0/flink-1.6.0-bin-hadoop28-scala_2.12.tgz")
+(def default-flink-dist-url "https://archive.apache.org/dist/flink/flink-1.6.0/flink-1.6.0-bin-hadoop28-scala_2.11.tgz")
 (def hadoop-dist-url "https://archive.apache.org/dist/hadoop/common/hadoop-2.8.3/hadoop-2.8.3.tar.gz")
-(def kafka-dist-url "http://mirror.funkfreundelandshut.de/apache/kafka/2.2.2/kafka_2.12-2.2.2.tgz")
+(def kafka-dist-url "http://mirror.funkfreundelandshut.de/apache/kafka/2.2.2/kafka_2.11-2.2.2.tgz")
 (def deb-zookeeper-package "3.4.9-3+deb9u2")
 
 (def dbs
