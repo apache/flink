@@ -52,7 +52,7 @@ pygmentsUseClasses = true
   TrainingExercises = "//github.com/apache/flink-training"
 
   # This suffix is appended to the Scala-dependent Maven artifact names
-  ScalaVersion = "_2.11"
+  ScalaVersion = "_2.12"
 
   ProjectHomepage = "//flink.apache.org"
 

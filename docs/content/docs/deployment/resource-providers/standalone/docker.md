@@ -232,7 +232,7 @@ Images for each supported combination of Flink and Scala versions are available,
 For example, you can use the following aliases:
 
 * `flink:latest` → `flink:<latest-flink>-scala_<latest-scala>`
-* `flink:1.11` → `flink:1.11.<latest-flink-1.11>-scala_2.11`
+* `flink:1.11` → `flink:1.11.<latest-flink-1.11>-scala_2.12`
 
 <span class="label label-info">Note</span> It is recommended to always use an explicit version tag of the docker image that specifies both the needed Flink and Scala
 versions (for example `flink:1.11-scala_2.12`).
