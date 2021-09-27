@@ -26,7 +26,7 @@ import java.io.File;
 import java.io.IOException;
 
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
-import static org.apache.flink.configuration.CheckpointingOptions.STATE_CHANGE_LOG_STORAGE;
+import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
 
 /** {@link FsStateChangelogStorage} factory. */
 @Internal

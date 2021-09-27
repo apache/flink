@@ -63,7 +63,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
 import static org.apache.flink.changelog.fs.FsStateChangelogStorageFactory.IDENTIFIER;
-import static org.apache.flink.configuration.CheckpointingOptions.STATE_CHANGE_LOG_STORAGE;
+import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;

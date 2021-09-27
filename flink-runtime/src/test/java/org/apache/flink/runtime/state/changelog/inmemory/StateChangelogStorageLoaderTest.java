@@ -17,8 +17,8 @@
 
 package org.apache.flink.runtime.state.changelog.inmemory;
 
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
@@ -55,7 +55,7 @@ public class StateChangelogStorageLoaderTest {
         assertNull(
                 StateChangelogStorageLoader.load(
                         new Configuration()
-                                .set(CheckpointingOptions.STATE_CHANGE_LOG_STORAGE, "not_exist")));
+                                .set(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE, "not_exist")));
     }
 
     @Test

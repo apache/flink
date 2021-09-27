@@ -18,8 +18,8 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -86,6 +86,8 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                     TestStreamEnvironment env =
                             new TestStreamEnvironment(
                                     miniCluster, parallelism, jarFiles, classpaths);
+
+                    // randomize ITTests for enabling unaligned checkpoint
                     if (RANDOMIZE_CHECKPOINTING_CONFIG) {
                         randomize(
                                 conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
@@ -96,20 +98,22 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                                 Duration.ofMillis(100),
                                 Duration.ofSeconds(2));
                     }
-                    if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
-                        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
-                            conf.set(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true);
-                        }
-                    } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(
-                            STATE_CHANGE_LOG_CONFIG_RAND)) {
-                        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
+
+                    // randomize ITTests for enabling state change log
+                    if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
+                        if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
+                            conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
+                        } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(
+                                STATE_CHANGE_LOG_CONFIG_RAND)) {
                             randomize(
                                     conf,
-                                    CheckpointingOptions.ENABLE_STATE_CHANGE_LOG,
+                                    StateChangelogOptions.ENABLE_STATE_CHANGE_LOG,
                                     true,
                                     false);
                         }
                     }
+
+                    // randomize ITTests for enabling buffer de-bloating
                     if (RANDOMIZE_BUFFER_DEBLOAT_CONFIG) {
                         randomize(conf, TaskManagerOptions.BUFFER_DEBLOAT_ENABLED, true, false);
                     }
