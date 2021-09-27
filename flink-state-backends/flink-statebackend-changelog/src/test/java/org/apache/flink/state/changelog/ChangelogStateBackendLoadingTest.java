@@ -30,6 +30,7 @@ import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -52,6 +53,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -63,6 +65,8 @@ import javax.annotation.Nonnull;
 
 import java.util.Collection;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -210,6 +214,34 @@ public class ChangelogStateBackendLoadingTest {
                 false);
     }
 
+    @Test
+    public void testEnableChangelogStateBackendInStreamExecutionEnvironment() throws Exception {
+        StreamExecutionEnvironment env = getEnvironment();
+        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
+                env, TernaryBoolean.UNDEFINED, null);
+
+        // set back and force
+        env.setStateBackend(new MemoryStateBackend());
+        assertTrue(env.getStateBackend() instanceof MemoryStateBackend);
+        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
+                env, TernaryBoolean.UNDEFINED, MemoryStateBackend.class);
+        env.enableChangelogStateBackend(true);
+        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
+                env, TernaryBoolean.TRUE, MemoryStateBackend.class);
+        env.enableChangelogStateBackend(false);
+        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
+                env, TernaryBoolean.FALSE, MemoryStateBackend.class);
+
+        // enable changelog before set statebackend
+        env = getEnvironment();
+        env.enableChangelogStateBackend(true);
+        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
+                env, TernaryBoolean.TRUE, null);
+        env.setStateBackend(new MemoryStateBackend());
+        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
+                env, TernaryBoolean.TRUE, MemoryStateBackend.class);
+    }
+
     private Configuration config(String stateBackend, boolean enableChangelogStateBackend) {
         final Configuration config = new Configuration();
         config.setBoolean(
@@ -304,6 +336,44 @@ public class ChangelogStateBackendLoadingTest {
                                 });
         operator.setParallelism(1);
         return env;
+    }
+
+    private void assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
+            StreamExecutionEnvironment env,
+            TernaryBoolean isChangelogEnabled,
+            Class<?> rootStateBackendClass)
+            throws Exception {
+        assertEquals(isChangelogEnabled, env.isChangelogStateBackendEnabled());
+        if (rootStateBackendClass == null) {
+            assertNull(env.getStateBackend());
+        } else {
+            assertSame(rootStateBackendClass, env.getStateBackend().getClass());
+        }
+
+        StreamGraph streamGraph = env.getStreamGraph(false);
+        assertEquals(isChangelogEnabled, streamGraph.isChangelogStateBackendEnabled());
+        if (rootStateBackendClass == null) {
+            assertNull(streamGraph.getStateBackend());
+        } else {
+            assertSame(rootStateBackendClass, streamGraph.getStateBackend().getClass());
+        }
+        JobCheckpointingSettings checkpointingSettings =
+                streamGraph.getJobGraph().getCheckpointingSettings();
+        assertEquals(isChangelogEnabled, checkpointingSettings.isChangelogStateBackendEnabled());
+        if (rootStateBackendClass == null) {
+            assertNull(checkpointingSettings.getDefaultStateBackend());
+        } else {
+            assertSame(
+                    rootStateBackendClass,
+                    checkpointingSettings.getDefaultStateBackend().deserializeValue(cl).getClass());
+            assertSame(
+                    rootStateBackendClass,
+                    unwrapFromDelegatingStateBackend(
+                                    checkpointingSettings
+                                            .getDefaultStateBackend()
+                                            .deserializeValue(cl))
+                            .getClass());
+        }
     }
 
     private StateBackend unwrapFromDelegatingStateBackend(StateBackend backend) {

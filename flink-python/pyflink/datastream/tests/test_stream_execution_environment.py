@@ -180,6 +180,19 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(output_backend._j_memory_state_backend,
                          input_backend._j_memory_state_backend)
 
+    def test_is_changelog_state_backend_enabled(self):
+        self.assertIsNone(self.env.is_changelog_state_backend_enabled())
+
+    def test_enable_changelog_state_backend(self):
+
+        self.env.enable_changelog_state_backend(True)
+
+        self.assertTrue(self.env.is_changelog_state_backend_enabled())
+
+        self.env.enable_changelog_state_backend(False)
+
+        self.assertFalse(self.env.is_changelog_state_backend_enabled())
+
     def test_get_set_stream_time_characteristic(self):
         default_time_characteristic = self.env.get_stream_time_characteristic()
 

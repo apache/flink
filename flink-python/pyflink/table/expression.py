@@ -1547,6 +1547,8 @@ class Expression(Generic[T]):
         ::
 
             >>> lit('{"a": true}').json_value('$.a') # STRING: 'true'
+            >>> lit('{"a.b": [0.998,0.996]}').json_value("$.['a.b'][0]", \
+                    DataTypes.DOUBLE()) # DOUBLE: 0.998
             >>> lit('{"a": true}').json_value('$.a', DataTypes.BOOLEAN()) # BOOLEAN: True
             >>> lit('{"a": true}').json_value('lax $.b', \
                     JsonValueOnEmptyOrError.DEFAULT, False) # BOOLEAN: False
