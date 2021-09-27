@@ -73,6 +73,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the standalone KafkaWriter. */
@@ -136,7 +137,7 @@ public class KafkaWriterITCase extends TestLogger {
     }
 
     @Test
-    public void testIncreasingByteOutCounter() throws Exception {
+    public void testIncreasingRecordBasedCounters() throws Exception {
         final OperatorIOMetricGroup operatorIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
         final InternalSinkWriterMetricGroup metricGroup =
@@ -146,9 +147,11 @@ public class KafkaWriterITCase extends TestLogger {
                 createWriterWithConfiguration(
                         getKafkaClientConfiguration(), DeliveryGuarantee.NONE, metricGroup)) {
             final Counter numBytesOut = operatorIOMetricGroup.getNumBytesOutCounter();
-            Assertions.assertEquals(numBytesOut.getCount(), 0L);
+            final Counter numRecordsOut = operatorIOMetricGroup.getNumRecordsOutCounter();
+            assertEquals(numBytesOut.getCount(), 0L);
             writer.write(1, SINK_WRITER_CONTEXT);
             timeService.trigger();
+            assertEquals(numRecordsOut.getCount(), 1);
             assertThat(numBytesOut.getCount(), greaterThan(0L));
         }
     }
@@ -165,7 +168,7 @@ public class KafkaWriterITCase extends TestLogger {
             final Optional<Gauge<Long>> currentSendTime =
                     metricListener.getGauge("currentSendTime");
             assertTrue(currentSendTime.isPresent());
-            Assertions.assertEquals(currentSendTime.get().getValue(), 0L);
+            assertEquals(currentSendTime.get().getValue(), 0L);
             IntStream.range(0, 100)
                     .forEach(
                             (run) -> {
