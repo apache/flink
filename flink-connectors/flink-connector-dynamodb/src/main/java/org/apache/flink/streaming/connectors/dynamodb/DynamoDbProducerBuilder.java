@@ -49,6 +49,7 @@ public class DynamoDbProducerBuilder {
         this.batchSize = DEFAULT_BATCH_SIZE;
         this.queueLimit = DEFAULT_INTERNAL_QUEUE_LIMIT;
         this.retryPolicy = new DefaultBatchWriterRetryPolicy();
+        this.tablesConfig = new DynamoDbTablesConfig();
     }
 
     /**

@@ -24,6 +24,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.dynamodb.DynamoDbProducer;
 import org.apache.flink.streaming.connectors.dynamodb.DynamoDbSink;
 import org.apache.flink.streaming.connectors.dynamodb.DynamoDbSinkFunction;
+import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteRequest;
+import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
+import org.apache.flink.streaming.connectors.dynamodb.WriteRequestFailureHandler;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
@@ -47,6 +50,7 @@ import software.amazon.awssdk.services.dynamodb.model.KeyType;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughput;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
 
 import java.net.URI;
@@ -109,18 +113,22 @@ public class DynamoDbConnectorEndToEndTest {
         dynamoDbClient.close();
     }
 
-    @Test
-    public void test() throws Exception {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
-        env.setParallelism(3);
-
+    private Properties getDynamoDBProperties() {
         Properties properties = new Properties();
         properties.put("aws.region", "us-east-1");
         properties.put("aws.endpoint", "http://localhost:" + dynamoDBLocal.getFirstMappedPort());
         properties.put("aws.credentials.provider.basic.accesskeyid", "x");
         properties.put("aws.credentials.provider.basic.secretkey", "y");
+        return properties;
+    }
+
+    @Test
+    public void test() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(3);
+
         DynamoDbSink<String> dynamoDbSink =
-                new DynamoDbSink<>(new DynamoDBTestSinkFunction(), properties);
+                new DynamoDbSink<>(new DynamoDBTestSinkFunction(), getDynamoDBProperties());
         dynamoDbSink.setFailOnError(true);
         dynamoDbSink.setBatchSize(4);
 
@@ -174,6 +182,9 @@ public class DynamoDbConnectorEndToEndTest {
         Properties properties = new Properties();
         properties.put("aws.region", "us-east-1");
         properties.put("aws.endpoint", "http://unknown-host");
+        properties.put("aws.credentials.provider.basic.accesskeyid", "x");
+        properties.put("aws.credentials.provider.basic.secretkey", "y");
+
         DynamoDbSink<String> dynamoDbSink =
                 new DynamoDbSink<>(new DynamoDBTestSinkFunction(), properties);
         dynamoDbSink.setFailOnError(true);
@@ -181,6 +192,52 @@ public class DynamoDbConnectorEndToEndTest {
 
         env.fromCollection(ImmutableList.of("one")).addSink(dynamoDbSink);
         env.execute("DynamoDB End to End Test with Exception");
+    }
+
+    @Test
+    public void testSendsFailedRecordToWriteRequestFailureHandler() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+        env.setParallelism(1);
+
+        List<String> messages = ImmutableList.of("Locaste", "Isonoe", "Kore", "Arche");
+
+        DynamoDbSinkFunction<String> failingSinkFunction =
+                (value, context, dynamoDbProducer) ->
+                        dynamoDbProducer.produce(
+                                PutItemRequest.builder()
+                                        .tableName("missing_table") // will throw resource not found
+                                        .item(
+                                                ImmutableMap.of(
+                                                        KEY_ATTRIBUTE,
+                                                        AttributeValue.builder().s(value).build()))
+                                        .build());
+
+        WriteRequestFailureHandler failureHandler =
+                new WriteRequestFailureHandler() {
+                    @Override
+                    public void onFailure(ProducerWriteRequest request, Throwable failure)
+                            throws Throwable {
+                        assertEquals(
+                                "Number of messages in the failed request",
+                                messages.size(), // expect all messages in one write request, as
+                                // batch is bigger than number of messages
+                                request.getRequests().size());
+                        assertTrue(failure instanceof ResourceNotFoundException);
+                    }
+
+                    @Override
+                    public void onFailure(
+                            ProducerWriteRequest request, ProducerWriteResponse response)
+                            throws Throwable {}
+                };
+
+        DynamoDbSink<String> dynamoDbSink =
+                new DynamoDbSink<>(failingSinkFunction, getDynamoDBProperties(), failureHandler);
+        dynamoDbSink.setFailOnError(true);
+        dynamoDbSink.setBatchSize(25);
+
+        env.fromCollection(messages).addSink(dynamoDbSink);
+        env.execute("DynamoDB End to End Test with missing table");
     }
 
     private static final class DynamoDBTestSinkFunction implements DynamoDbSinkFunction<String> {

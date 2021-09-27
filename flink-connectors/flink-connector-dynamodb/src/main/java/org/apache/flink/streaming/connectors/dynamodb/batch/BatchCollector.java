@@ -53,8 +53,9 @@ public class BatchCollector {
             int batchSize,
             DynamoDbTablesConfig tableConfig,
             Consumer<ProducerWriteRequest<DynamoDbRequest>> batchConsumer) {
-        this.batchSize = batchSize;
         requireNonNull(batchConsumer);
+        requireNonNull(tableConfig);
+        this.batchSize = batchSize;
         this.batchConsumer = batchConsumer;
         this.tableConfig = tableConfig;
         this.container = new TableRequestsContainer(batchSize);
@@ -62,10 +63,7 @@ public class BatchCollector {
 
     public void accumulateAndPromote(DynamoDbRequest request) {
         String tableName = getTableName(request);
-        DynamoDbTablesConfig.TableConfig tableConfig = null;
-        if (this.tableConfig != null) {
-            tableConfig = this.tableConfig.getTableConfig(tableName);
-        }
+        DynamoDbTablesConfig.TableConfig tableConfig = this.tableConfig.getTableConfig(tableName);
 
         int containerSize =
                 container.addRequest(tableName, PrimaryKey.build(tableConfig, request), request);
