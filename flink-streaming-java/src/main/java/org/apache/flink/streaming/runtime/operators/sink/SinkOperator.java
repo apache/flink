@@ -22,7 +22,6 @@ import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -104,7 +103,6 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
             writerFactory;
 
     private final MailboxExecutor mailboxExecutor;
-    private Counter numRecordsOutCounter;
     // record endOfInput state to avoid duplicate prepareCommit on final notifyCheckpointComplete
     // once FLIP-147 is fully operational all endOfInput processing needs to be removed
     private boolean endOfInput = false;
@@ -137,7 +135,6 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
             StreamConfig config,
             Output<StreamRecord<byte[]>> output) {
         super.setup(containingTask, config, output);
-        numRecordsOutCounter = getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
     }
 
     @Override
@@ -164,7 +161,6 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
     public void processElement(StreamRecord<InputT> element) throws Exception {
         context.element = element;
         sinkWriter.write(element.getValue(), context);
-        numRecordsOutCounter.inc();
     }
 
     @Override
