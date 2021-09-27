@@ -58,11 +58,13 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
 
   // mock FlinkPlannerImpl to avoid discovering TableEnvironment and Executor.
   val config = new TableConfig
+  val moduleManager = new ModuleManager
   val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
-  val functionCatalog = new FunctionCatalog(config, catalogManager, new ModuleManager)
+  val functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager)
   val plannerContext = new PlannerContext(
     false,
     config,
+    moduleManager,
     functionCatalog,
     catalogManager,
     asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),

@@ -60,6 +60,7 @@ public class PlannerMocks {
                 new PlannerContext(
                         false,
                         tableConfig,
+                        moduleManager,
                         functionCatalog,
                         catalogManager,
                         asRootSchema(new CatalogManagerCalciteSchema(catalogManager, true)),

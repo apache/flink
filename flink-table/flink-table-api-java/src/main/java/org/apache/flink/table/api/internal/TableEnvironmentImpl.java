@@ -303,6 +303,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         settings.getPlanner(),
                         executor,
                         tableConfig,
+                        moduleManager,
                         catalogManager,
                         functionCatalog);
 
