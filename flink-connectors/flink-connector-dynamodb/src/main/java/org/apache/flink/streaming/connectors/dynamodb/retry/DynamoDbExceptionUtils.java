@@ -43,7 +43,7 @@ public class DynamoDbExceptionUtils {
         return e instanceof ConditionalCheckFailedException;
     }
 
-    public static boolean isApiCallAttemptTimeoutExcepiton(Exception e) {
+    public static boolean isApiCallAttemptTimeoutException(Exception e) {
         return e instanceof ApiCallAttemptTimeoutException;
     }
 
