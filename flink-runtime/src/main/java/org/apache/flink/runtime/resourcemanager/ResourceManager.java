@@ -505,7 +505,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public void disconnectTaskManager(final ResourceID resourceId, final Exception cause) {
-        closeTaskManagerConnection(resourceId, cause);
+        closeTaskManagerConnection(resourceId, cause).ifPresent((ResourceManager.this::stopWorker));
     }
 
     @Override
@@ -1071,8 +1071,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
      *
      * @param resourceID Id of the TaskManager that has failed.
      * @param cause The exception which cause the TaskManager failed.
+     * @return The {@link WorkerType} of the closed connection, or empty if already removed.
      */
-    protected void closeTaskManagerConnection(final ResourceID resourceID, final Exception cause) {
+    protected Optional<WorkerType> closeTaskManagerConnection(
+            final ResourceID resourceID, final Exception cause) {
         taskManagerHeartbeatManager.unmonitorTarget(resourceID);
 
         WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
@@ -1094,6 +1096,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     resourceID.getStringWithMetadata(),
                     cause.getMessage());
         }
+
+        return Optional.ofNullable(workerRegistration).map(WorkerRegistration::getWorker);
     }
 
     protected void removeJob(JobID jobId, Exception cause) {
@@ -1495,11 +1499,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     resourceID.getStringWithMetadata());
 
             closeTaskManagerConnection(
-                    resourceID,
-                    new TimeoutException(
-                            "The heartbeat of TaskManager with id "
-                                    + resourceID.getStringWithMetadata()
-                                    + "  timed out."));
+                            resourceID,
+                            new TimeoutException(
+                                    "The heartbeat of TaskManager with id "
+                                            + resourceID.getStringWithMetadata()
+                                            + "  timed out."))
+                    .ifPresent((ResourceManager.this::stopWorker));
         }
 
         @Override
