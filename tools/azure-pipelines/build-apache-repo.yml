@@ -137,17 +137,6 @@ stages:
           jdk: 8
       - template: jobs-template.yml
         parameters:
-          stage_name: cron_scala212
-          test_pool_definition:
-            name: Default
-          e2e_pool_definition:
-            vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: 8
-      - template: jobs-template.yml
-        parameters:
           stage_name: cron_jdk11
           test_pool_definition:
             name: Default
