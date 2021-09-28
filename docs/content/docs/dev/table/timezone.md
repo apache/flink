@@ -1,6 +1,6 @@
 ---
 title: "Time Zone"
-weight: 86
+weight: 22
 type: docs
 ---
 <!--
