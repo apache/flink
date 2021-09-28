@@ -34,9 +34,12 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.ForkJoinPool;
+import java.util.function.Function;
 
 /** Simple {@link ResourceManager} implementation for testing purposes. */
 public class TestingResourceManager extends ResourceManager<ResourceID> {
+
+    private final Function<ResourceID, Boolean> stopWorkerFunction;
 
     public TestingResourceManager(
             RpcService rpcService,
@@ -48,6 +51,30 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
             JobLeaderIdService jobLeaderIdService,
             FatalErrorHandler fatalErrorHandler,
             ResourceManagerMetricGroup resourceManagerMetricGroup) {
+        this(
+                rpcService,
+                resourceId,
+                highAvailabilityServices,
+                heartbeatServices,
+                slotManager,
+                clusterPartitionTrackerFactory,
+                jobLeaderIdService,
+                fatalErrorHandler,
+                resourceManagerMetricGroup,
+                (ignore) -> false);
+    }
+
+    public TestingResourceManager(
+            RpcService rpcService,
+            ResourceID resourceId,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            SlotManager slotManager,
+            ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
+            JobLeaderIdService jobLeaderIdService,
+            FatalErrorHandler fatalErrorHandler,
+            ResourceManagerMetricGroup resourceManagerMetricGroup,
+            Function<ResourceID, Boolean> stopWorkerFunction) {
         super(
                 rpcService,
                 resourceId,
@@ -61,6 +88,8 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
                 resourceManagerMetricGroup,
                 RpcUtils.INF_TIMEOUT,
                 ForkJoinPool.commonPool());
+
+        this.stopWorkerFunction = stopWorkerFunction;
     }
 
     @Override
@@ -92,7 +121,6 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 
     @Override
     public boolean stopWorker(ResourceID worker) {
-        // cannot stop workers
-        return false;
+        return stopWorkerFunction.apply(worker);
     }
 }

@@ -64,6 +64,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.empty;
@@ -132,6 +134,10 @@ public class ResourceManagerTest extends TestLogger {
 
         if (testingFatalErrorHandler.hasExceptionOccurred()) {
             testingFatalErrorHandler.rethrowError();
+        }
+
+        if (rpcService != null) {
+            rpcService.clearGateways();
         }
     }
 
@@ -311,6 +317,7 @@ public class ResourceManagerTest extends TestLogger {
                 });
 
         runHeartbeatTimeoutTest(
+                (ignore) -> {},
                 resourceManagerGateway -> {
                     final CompletableFuture<RegistrationResponse> registrationFuture =
                             resourceManagerGateway.registerJobManager(
@@ -341,6 +348,7 @@ public class ResourceManagerTest extends TestLogger {
         final ResourceID taskExecutorId = ResourceID.generate();
         final CompletableFuture<ResourceID> heartbeatRequestFuture = new CompletableFuture<>();
         final CompletableFuture<Exception> disconnectFuture = new CompletableFuture<>();
+        final CompletableFuture<ResourceID> stopWorkerFuture = new CompletableFuture<>();
         final TaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setDisconnectResourceManagerConsumer(disconnectFuture::complete)
@@ -349,6 +357,12 @@ public class ResourceManagerTest extends TestLogger {
         rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
         runHeartbeatTimeoutTest(
+                builder ->
+                        builder.withStopWorkerFunction(
+                                (worker) -> {
+                                    stopWorkerFuture.complete(worker);
+                                    return true;
+                                }),
                 resourceManagerGateway -> {
                     registerTaskExecutor(
                             resourceManagerGateway,
@@ -364,6 +378,7 @@ public class ResourceManagerTest extends TestLogger {
                             optionalHeartbeatRequestOrigin,
                             anyOf(is(resourceManagerResourceId), is(nullValue())));
                     assertThat(disconnectFuture.get(), instanceOf(TimeoutException.class));
+                    assertThat(stopWorkerFuture.get(), is(taskExecutorId));
                 });
     }
 
@@ -375,6 +390,30 @@ public class ResourceManagerTest extends TestLogger {
     @Test
     public void testDisconnectJobManagerWithNonTerminalStatusShouldNotRemoveJob() throws Exception {
         testDisconnectJobManager(JobStatus.FAILING);
+    }
+
+    @Test
+    public void testDisconnectTaskManager() throws Exception {
+        final ResourceID taskExecutorId = ResourceID.generate();
+        final CompletableFuture<Exception> disconnectFuture = new CompletableFuture<>();
+        final CompletableFuture<ResourceID> stopWorkerFuture = new CompletableFuture<>();
+
+        final TaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setDisconnectResourceManagerConsumer(disconnectFuture::complete)
+                        .createTestingTaskExecutorGateway();
+        rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
+
+        resourceManager =
+                new ResourceManagerBuilder()
+                        .withStopWorkerFunction(stopWorkerFuture::complete)
+                        .buildAndStart();
+
+        registerTaskExecutor(resourceManager, taskExecutorId, taskExecutorGateway.getAddress());
+        resourceManager.disconnectTaskManager(taskExecutorId, new FlinkException("Test exception"));
+
+        assertThat(disconnectFuture.get(), instanceOf(FlinkException.class));
+        assertThat(stopWorkerFuture.get(), is(taskExecutorId));
     }
 
     private void testDisconnectJobManager(JobStatus jobStatus) throws Exception {
@@ -431,13 +470,13 @@ public class ResourceManagerTest extends TestLogger {
     }
 
     private void runHeartbeatTimeoutTest(
+            Consumer<ResourceManagerBuilder> prepareResourceManager,
             ThrowingConsumer<ResourceManagerGateway, Exception> registerComponentAtResourceManager,
             ThrowingConsumer<ResourceID, Exception> verifyHeartbeatTimeout)
             throws Exception {
-        resourceManager =
-                new ResourceManagerBuilder()
-                        .withHeartbeatServices(fastHeartbeatServices)
-                        .buildAndStart();
+        final ResourceManagerBuilder rmBuilder = new ResourceManagerBuilder();
+        prepareResourceManager.accept(rmBuilder);
+        resourceManager = rmBuilder.withHeartbeatServices(fastHeartbeatServices).buildAndStart();
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
@@ -449,6 +488,7 @@ public class ResourceManagerTest extends TestLogger {
         private HeartbeatServices heartbeatServices = null;
         private JobLeaderIdService jobLeaderIdService = null;
         private SlotManager slotManager = null;
+        private Function<ResourceID, Boolean> stopWorkerFunction = null;
 
         private ResourceManagerBuilder withHeartbeatServices(HeartbeatServices heartbeatServices) {
             this.heartbeatServices = heartbeatServices;
@@ -463,6 +503,12 @@ public class ResourceManagerTest extends TestLogger {
 
         private ResourceManagerBuilder withSlotManager(SlotManager slotManager) {
             this.slotManager = slotManager;
+            return this;
+        }
+
+        private ResourceManagerBuilder withStopWorkerFunction(
+                Function<ResourceID, Boolean> stopWorkerFunction) {
+            this.stopWorkerFunction = stopWorkerFunction;
             return this;
         }
 
@@ -486,6 +532,10 @@ public class ResourceManagerTest extends TestLogger {
                                 .build();
             }
 
+            if (stopWorkerFunction == null) {
+                stopWorkerFunction = (ignore) -> false;
+            }
+
             final TestingResourceManager resourceManager =
                     new TestingResourceManager(
                             rpcService,
@@ -496,8 +546,8 @@ public class ResourceManagerTest extends TestLogger {
                             NoOpResourceManagerPartitionTracker::get,
                             jobLeaderIdService,
                             testingFatalErrorHandler,
-                            UnregisteredMetricGroups
-                                    .createUnregisteredResourceManagerMetricGroup());
+                            UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
+                            stopWorkerFunction);
 
             resourceManager.start();
 
