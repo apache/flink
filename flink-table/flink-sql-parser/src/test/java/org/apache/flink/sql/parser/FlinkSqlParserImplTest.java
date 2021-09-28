@@ -161,23 +161,23 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testAlterFunction() {
-        sql("alter function function1 as 'org.apache.fink.function.function1'")
-                .ok("ALTER FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+        sql("alter function function1 as 'org.apache.flink.function.function1'")
+                .ok("ALTER FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1'");
 
-        sql("alter temporary function function1 as 'org.apache.fink.function.function1'")
-                .ok("ALTER TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+        sql("alter temporary function function1 as 'org.apache.flink.function.function1'")
+                .ok("ALTER TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1'");
 
-        sql("alter temporary function function1 as 'org.apache.fink.function.function1' language scala")
+        sql("alter temporary function function1 as 'org.apache.flink.function.function1' language scala")
                 .ok(
-                        "ALTER TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE SCALA");
+                        "ALTER TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE SCALA");
 
-        sql("alter temporary system function function1 as 'org.apache.fink.function.function1'")
+        sql("alter temporary system function function1 as 'org.apache.flink.function.function1'")
                 .ok(
-                        "ALTER TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+                        "ALTER TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1'");
 
-        sql("alter temporary system function function1 as 'org.apache.fink.function.function1' language java")
+        sql("alter temporary system function function1 as 'org.apache.flink.function.function1' language java")
                 .ok(
-                        "ALTER TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA");
+                        "ALTER TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA");
     }
 
     @Test
@@ -1216,39 +1216,39 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testCreateFunction() {
-        sql("create function catalog1.db1.function1 as 'org.apache.fink.function.function1'")
+        sql("create function catalog1.db1.function1 as 'org.apache.flink.function.function1'")
                 .ok(
-                        "CREATE FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+                        "CREATE FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.flink.function.function1'");
 
-        sql("create temporary function catalog1.db1.function1 as 'org.apache.fink.function.function1'")
+        sql("create temporary function catalog1.db1.function1 as 'org.apache.flink.function.function1'")
                 .ok(
-                        "CREATE TEMPORARY FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+                        "CREATE TEMPORARY FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.flink.function.function1'");
 
-        sql("create temporary function db1.function1 as 'org.apache.fink.function.function1'")
+        sql("create temporary function db1.function1 as 'org.apache.flink.function.function1'")
                 .ok(
-                        "CREATE TEMPORARY FUNCTION `DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+                        "CREATE TEMPORARY FUNCTION `DB1`.`FUNCTION1` AS 'org.apache.flink.function.function1'");
 
-        sql("create temporary function function1 as 'org.apache.fink.function.function1'")
+        sql("create temporary function function1 as 'org.apache.flink.function.function1'")
                 .ok(
-                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1'");
 
-        sql("create temporary function if not exists catalog1.db1.function1 as 'org.apache.fink.function.function1'")
+        sql("create temporary function if not exists catalog1.db1.function1 as 'org.apache.flink.function.function1'")
                 .ok(
-                        "CREATE TEMPORARY FUNCTION IF NOT EXISTS `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+                        "CREATE TEMPORARY FUNCTION IF NOT EXISTS `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.flink.function.function1'");
 
-        sql("create temporary function function1 as 'org.apache.fink.function.function1' language java")
+        sql("create temporary function function1 as 'org.apache.flink.function.function1' language java")
                 .ok(
-                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA");
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA");
 
-        sql("create temporary system function  function1 as 'org.apache.fink.function.function1' language scala")
+        sql("create temporary system function  function1 as 'org.apache.flink.function.function1' language scala")
                 .ok(
-                        "CREATE TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE SCALA");
+                        "CREATE TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE SCALA");
 
         // Temporary system function always belongs to the system and current session.
-        sql("create temporary system function catalog1^.^db1.function1 as 'org.apache.fink.function.function1'")
+        sql("create temporary system function catalog1^.^db1.function1 as 'org.apache.flink.function.function1'")
                 .fails("(?s).*Encountered \".\" at.*");
 
-        sql("create ^system^ function function1 as 'org.apache.fink.function.function1'")
+        sql("create ^system^ function function1 as 'org.apache.flink.function.function1'")
                 .fails(
                         "CREATE SYSTEM FUNCTION is not supported, "
                                 + "system functions can only be registered as temporary "
