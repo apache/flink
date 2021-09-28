@@ -155,7 +155,7 @@ public class ResourceManagerTest extends TestLogger {
                         .createTestingTaskExecutorGateway();
         rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
-        resourceManager = createAndStartResourceManager(heartbeatServices);
+        resourceManager = new ResourceManagerBuilder().buildAndStart();
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
@@ -192,7 +192,7 @@ public class ResourceManagerTest extends TestLogger {
                         .createTestingTaskExecutorGateway();
         rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
-        resourceManager = createAndStartResourceManager(heartbeatServices);
+        resourceManager = new ResourceManagerBuilder().buildAndStart();
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
@@ -254,7 +254,10 @@ public class ResourceManagerTest extends TestLogger {
                         .setClearRequirementsConsumer(clearRequirementsFuture::complete)
                         .createSlotManager();
         resourceManager =
-                createAndStartResourceManager(heartbeatServices, jobLeaderIdService, slotManager);
+                new ResourceManagerBuilder()
+                        .withJobLeaderIdService(jobLeaderIdService)
+                        .withSlotManager(slotManager)
+                        .buildAndStart();
 
         final JobID jobId = JobID.generate();
         final ResourceManagerGateway resourceManagerGateway =
@@ -389,7 +392,10 @@ public class ResourceManagerTest extends TestLogger {
                         .setAddJobConsumer(ignored -> jobAdded.trigger())
                         .setRemoveJobConsumer(ignored -> jobRemoved.trigger())
                         .build();
-        resourceManager = createAndStartResourceManager(heartbeatServices, jobLeaderIdService);
+        resourceManager =
+                new ResourceManagerBuilder()
+                        .withJobLeaderIdService(jobLeaderIdService)
+                        .buildAndStart();
 
         highAvailabilityServices.setJobMasterLeaderRetrieverFunction(
                 requestedJobId ->
@@ -428,7 +434,10 @@ public class ResourceManagerTest extends TestLogger {
             ThrowingConsumer<ResourceManagerGateway, Exception> registerComponentAtResourceManager,
             ThrowingConsumer<ResourceID, Exception> verifyHeartbeatTimeout)
             throws Exception {
-        resourceManager = createAndStartResourceManager(fastHeartbeatServices);
+        resourceManager =
+                new ResourceManagerBuilder()
+                        .withHeartbeatServices(fastHeartbeatServices)
+                        .buildAndStart();
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
@@ -436,51 +445,67 @@ public class ResourceManagerTest extends TestLogger {
         verifyHeartbeatTimeout.accept(resourceManagerResourceId);
     }
 
-    private TestingResourceManager createAndStartResourceManager(
-            HeartbeatServices heartbeatServices) throws Exception {
-        final JobLeaderIdService jobLeaderIdService =
-                new DefaultJobLeaderIdService(
-                        highAvailabilityServices,
-                        rpcService.getScheduledExecutor(),
-                        TestingUtils.infiniteTime());
-        return createAndStartResourceManager(heartbeatServices, jobLeaderIdService);
-    }
+    private class ResourceManagerBuilder {
+        private HeartbeatServices heartbeatServices = null;
+        private JobLeaderIdService jobLeaderIdService = null;
+        private SlotManager slotManager = null;
 
-    private TestingResourceManager createAndStartResourceManager(
-            HeartbeatServices heartbeatServices, JobLeaderIdService jobLeaderIdService)
-            throws Exception {
-        final SlotManager slotManager =
-                SlotManagerBuilder.newBuilder()
-                        .setScheduledExecutor(rpcService.getScheduledExecutor())
-                        .build();
+        private ResourceManagerBuilder withHeartbeatServices(HeartbeatServices heartbeatServices) {
+            this.heartbeatServices = heartbeatServices;
+            return this;
+        }
 
-        return createAndStartResourceManager(heartbeatServices, jobLeaderIdService, slotManager);
-    }
+        private ResourceManagerBuilder withJobLeaderIdService(
+                JobLeaderIdService jobLeaderIdService) {
+            this.jobLeaderIdService = jobLeaderIdService;
+            return this;
+        }
 
-    private TestingResourceManager createAndStartResourceManager(
-            HeartbeatServices heartbeatServices,
-            JobLeaderIdService jobLeaderIdService,
-            SlotManager slotManager)
-            throws Exception {
+        private ResourceManagerBuilder withSlotManager(SlotManager slotManager) {
+            this.slotManager = slotManager;
+            return this;
+        }
 
-        final TestingResourceManager resourceManager =
-                new TestingResourceManager(
-                        rpcService,
-                        resourceManagerResourceId,
-                        highAvailabilityServices,
-                        heartbeatServices,
-                        slotManager,
-                        NoOpResourceManagerPartitionTracker::get,
-                        jobLeaderIdService,
-                        testingFatalErrorHandler,
-                        UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
+        private TestingResourceManager buildAndStart() throws Exception {
+            if (heartbeatServices == null) {
+                heartbeatServices = ResourceManagerTest.heartbeatServices;
+            }
 
-        resourceManager.start();
+            if (jobLeaderIdService == null) {
+                jobLeaderIdService =
+                        new DefaultJobLeaderIdService(
+                                highAvailabilityServices,
+                                rpcService.getScheduledExecutor(),
+                                TestingUtils.infiniteTime());
+            }
 
-        // first make the ResourceManager the leader
-        resourceManagerId = ResourceManagerId.generate();
-        resourceManagerLeaderElectionService.isLeader(resourceManagerId.toUUID()).get();
+            if (slotManager == null) {
+                slotManager =
+                        SlotManagerBuilder.newBuilder()
+                                .setScheduledExecutor(rpcService.getScheduledExecutor())
+                                .build();
+            }
 
-        return resourceManager;
+            final TestingResourceManager resourceManager =
+                    new TestingResourceManager(
+                            rpcService,
+                            resourceManagerResourceId,
+                            highAvailabilityServices,
+                            heartbeatServices,
+                            slotManager,
+                            NoOpResourceManagerPartitionTracker::get,
+                            jobLeaderIdService,
+                            testingFatalErrorHandler,
+                            UnregisteredMetricGroups
+                                    .createUnregisteredResourceManagerMetricGroup());
+
+            resourceManager.start();
+
+            // first make the ResourceManager the leader
+            resourceManagerId = ResourceManagerId.generate();
+            resourceManagerLeaderElectionService.isLeader(resourceManagerId.toUUID()).get();
+
+            return resourceManager;
+        }
     }
 }
