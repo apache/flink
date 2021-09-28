@@ -55,7 +55,7 @@ public final class FactoryMocks {
 
     public static DynamicTableSource createTableSource(
             ResolvedSchema schema, Map<String, String> options) {
-        return FactoryUtil.createTableSource(
+        return FactoryUtil.createDynamicTableSource(
                 null,
                 IDENTIFIER,
                 new ResolvedCatalogTable(

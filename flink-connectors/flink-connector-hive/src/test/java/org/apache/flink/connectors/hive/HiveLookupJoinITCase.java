@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
 import org.apache.flink.table.filesystem.FileSystemLookupFunction;
@@ -360,8 +361,11 @@ public class HiveLookupJoinITCase {
                 (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
         HiveLookupTableSource hiveTableSource =
                 (HiveLookupTableSource)
-                        FactoryUtil.createTableSource(
-                                hiveCatalog,
+                        FactoryUtil.createDynamicTableSource(
+                                (DynamicTableSourceFactory)
+                                        hiveCatalog
+                                                .getFactory()
+                                                .orElseThrow(IllegalStateException::new),
                                 tableIdentifier,
                                 tableEnvInternal
                                         .getCatalogManager()
