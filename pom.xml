@@ -795,7 +795,7 @@ under the License.
 			</properties>
 			<activation>
 				<property>
-					<name>!scala-2.11</name>
+					<name>!old-and-unsupported-scala-version</name>
 				</property>
 			</activation>
 			<build>
