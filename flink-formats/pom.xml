@@ -50,6 +50,8 @@ under the License.
 		<module>flink-orc-nohive</module>
 		<module>flink-hadoop-bulk</module>
 		<module>flink-format-common</module>
+		<module>flink-avro-glue-schema-registry</module>
+		<module>flink-json-glue-schema-registry</module>
     </modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
@@ -84,23 +86,6 @@ under the License.
 				<module>flink-sql-parquet</module>
 				<module>flink-sql-avro</module>
 				<module>flink-sql-avro-confluent-registry</module>
-			</modules>
-		</profile>
-
-		<profile>
-			<id>scala-2.12</id>
-				<properties>
-					<scala.version>2.12.7</scala.version>
-					<scala.binary.version>2.12</scala.binary.version>
-				</properties>
-			<activation>
-				<property>
-					<name>scala-2.12</name>
-				</property>
-			</activation>
-			<modules>
-				<module>flink-avro-glue-schema-registry</module>
-				<module>flink-json-glue-schema-registry</module>
 			</modules>
 		</profile>
 	</profiles>
