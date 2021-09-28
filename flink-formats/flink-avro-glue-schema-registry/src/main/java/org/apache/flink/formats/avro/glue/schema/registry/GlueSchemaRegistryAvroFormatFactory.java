@@ -89,7 +89,7 @@ public class GlueSchemaRegistryAvroFormatFactory implements DeserializationForma
 
             @Override
             public ChangelogMode getChangelogMode() {
-                return ChangelogMode.upsert();
+                return ChangelogMode.all();
             }
         };
     }
@@ -113,7 +113,7 @@ public class GlueSchemaRegistryAvroFormatFactory implements DeserializationForma
 
             @Override
             public ChangelogMode getChangelogMode() {
-                return ChangelogMode.upsert();
+                return ChangelogMode.all();
             }
         };
     }
