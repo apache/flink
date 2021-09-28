@@ -39,8 +39,6 @@ object ClosureCleaner {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
-  private val isScala2_11 = scala.util.Properties.versionString.contains("2.11")
-
   // Get an ASM class reader for a given class from the JAR that loaded it
   private[scala] def getClassReader(cls: Class[_]): ClassReader = {
     // Copy data over, before delegating to ClassReader - else we can run out of open file handles.
@@ -174,9 +172,6 @@ object ClosureCleaner {
    * @param closure the closure to check.
    */
   private def getSerializedLambda(closure: AnyRef): Option[SerializedLambda] = {
-    if (isScala2_11) {
-      return None
-    }
     val isClosureCandidate =
       closure.getClass.isSynthetic &&
         closure
