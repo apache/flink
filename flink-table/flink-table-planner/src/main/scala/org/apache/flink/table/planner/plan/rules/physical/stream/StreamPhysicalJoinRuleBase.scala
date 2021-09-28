@@ -23,7 +23,6 @@ import org.apache.flink.table.planner.plan.nodes.{FlinkConventions, FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.WindowBounds
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, IntervalJoinUtil}
-
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
@@ -76,19 +75,26 @@ abstract class StreamPhysicalJoinRuleBase(description: String)
       RelOptRule.convert(input, requiredTraitSet)
     }
 
-    val joinInfo = join.analyzeCondition
-    val providedTraitSet: RelTraitSet = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-
-    val leftConversion: RelNode => RelNode = leftInput => {
-      convertInput(leftInput, joinInfo.leftKeys)
-    }
-    val rightConversion: RelNode => RelNode = rightInput => {
-      convertInput(rightInput, joinInfo.rightKeys)
-    }
-
-    val newJoin = transform(join, left, leftConversion, right, rightConversion, providedTraitSet)
+    val newJoin = transform(
+      join,
+      left,
+      leftInput => {
+        convertInput(leftInput, computeJoinLeftKeys(join))
+      },
+      right,
+      rightInput => {
+        convertInput(rightInput, computeJoinRightKeys(join))
+      },
+      join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    )
     call.transformTo(newJoin)
   }
+
+  protected def computeJoinLeftKeys(join: FlinkLogicalJoin): util.Collection[Integer] =
+    join.analyzeCondition().leftKeys
+
+  protected def computeJoinRightKeys(join: FlinkLogicalJoin): util.Collection[Integer] =
+    join.analyzeCondition().rightKeys
 
   protected def transform(
       join: FlinkLogicalJoin,

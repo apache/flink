@@ -27,6 +27,7 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.isRowtimeIndicatorType
 
+import java.util
 import scala.collection.JavaConversions._
 
 /**
@@ -72,6 +73,20 @@ class StreamPhysicalIntervalJoinRule
       }
     }
     true
+  }
+
+  override protected def computeJoinLeftKeys(join: FlinkLogicalJoin): util.Collection[Integer] = {
+    val (windowBounds, _) = extractWindowBounds(join)
+    join.analyzeCondition().leftKeys
+      .filter(k => windowBounds.get.getLeftTimeIdx != k)
+      .toList
+  }
+
+  override protected def computeJoinRightKeys(join: FlinkLogicalJoin): util.Collection[Integer] = {
+    val (windowBounds, _) = extractWindowBounds(join)
+    join.analyzeCondition().rightKeys
+      .filter(k => windowBounds.get.getRightTimeIdx != k)
+      .toList
   }
 
   override protected def transform(
