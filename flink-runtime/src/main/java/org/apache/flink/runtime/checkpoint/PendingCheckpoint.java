@@ -338,7 +338,6 @@ public class PendingCheckpoint implements Checkpoint {
 
                 onCompletionPromise.complete(completed);
 
-                // to prevent null-pointers from concurrent modification, copy reference onto stack
                 if (statsCallback != null) {
                     LOG.trace(
                             "Checkpoint {} size: {}Kb, duration: {}ms",

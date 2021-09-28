@@ -49,11 +49,9 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
-
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import java.util.function.Predicate;
 
 /** Tests for manually triggering checkpoints. */
 @RunWith(Parameterized.class)
@@ -102,8 +100,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
         // wait for the checkpoint to be taken
         miniCluster.triggerCheckpoint(jobID).get();
         miniCluster.cancelJob(jobID).get();
-        final long numberOfCompletedCheckpoints = queryCompletedCheckpoints(miniCluster, jobID);
-        assertThat(numberOfCompletedCheckpoints, equalTo(1L));
+        queryCompletedCheckpointsUntil(miniCluster, jobID, count -> count == 1);
     }
 
     @Test
@@ -143,13 +140,21 @@ public class ManualCheckpointITCase extends AbstractTestBase {
         // wait for the checkpoint to be taken
         miniCluster.triggerCheckpoint(jobID).get();
         miniCluster.cancelJob(jobID).get();
-        final long numberOfCompletedCheckpoints = queryCompletedCheckpoints(miniCluster, jobID);
-        assertThat(
-                numberOfCompletedCheckpoints,
-                greaterThanOrEqualTo(numberOfPeriodicCheckpoints + 1));
+        queryCompletedCheckpointsUntil(
+                miniCluster, jobID, count -> count >= numberOfPeriodicCheckpoints + 1);
     }
 
-    private long queryCompletedCheckpoints(MiniCluster miniCluster, JobID jobID) throws Exception {
+    private void queryCompletedCheckpointsUntil(
+            MiniCluster miniCluster, JobID jobID, Predicate<Long> predicate) throws Exception {
+
+        long counts;
+        do {
+            counts = queryCompletedCheckpoints(miniCluster, jobID);
+        } while (!predicate.test(counts));
+    }
+
+    private long queryCompletedCheckpoints(MiniCluster miniCluster, JobID jobID)
+            throws InterruptedException, ExecutionException {
         return miniCluster
                 .getArchivedExecutionGraph(jobID)
                 .get()
