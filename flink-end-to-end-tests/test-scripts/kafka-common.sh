@@ -52,7 +52,7 @@ function setup_kafka_dist {
 function setup_confluent_dist {
   # download confluent
   mkdir -p $TEST_DATA_DIR
-  CONFLUENT_URL="http://packages.confluent.io/archive/$CONFLUENT_MAJOR_VERSION/confluent-oss-$CONFLUENT_VERSION-2.11.tar.gz"
+  CONFLUENT_URL="http://packages.confluent.io/archive/$CONFLUENT_MAJOR_VERSION/confluent-oss-$CONFLUENT_VERSION-2.12.tar.gz"
   echo "Downloading confluent from $CONFLUENT_URL"
   cache_path=$(get_artifact $CONFLUENT_URL)
   ln "$cache_path" "${TEST_DATA_DIR}/confluent.tgz"
