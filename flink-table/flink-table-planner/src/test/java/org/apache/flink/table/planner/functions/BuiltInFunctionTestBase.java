@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -80,10 +81,15 @@ public abstract class BuiltInFunctionTestBase {
 
     @Parameter public TestSpec testSpec;
 
+    protected Configuration configuration() {
+        return new Configuration();
+    }
+
     @Test
     public void testFunction() {
         final TableEnvironment env =
                 TableEnvironment.create(EnvironmentSettings.newInstance().build());
+        env.getConfig().addConfiguration(configuration());
 
         testSpec.functions.forEach(f -> env.createTemporarySystemFunction(f.getSimpleName(), f));
 
@@ -153,8 +159,9 @@ public abstract class BuiltInFunctionTestBase {
 
             assertEquals(
                     "Result for spec [" + i + "] of test [" + testItem + "] doesn't match.",
-                    testItem.results.get(i),
-                    row.getField(i));
+                    // Use Row.equals() to enable equality for complex structure, i.e. byte[]
+                    Row.of(testItem.results.get(i)),
+                    Row.of(row.getField(i)));
         }
     }
 
@@ -342,10 +349,7 @@ public abstract class BuiltInFunctionTestBase {
                 List<AbstractDataType<?>> sqlDataType) {
             testItems.add(new TableApiResultTestItem(expression, result, tableApiDataType));
             testItems.add(
-                    new SqlResultTestItem(
-                            sqlExpression.stream().collect(Collectors.joining(",")),
-                            result,
-                            sqlDataType));
+                    new SqlResultTestItem(String.join(",", sqlExpression), result, sqlDataType));
             return this;
         }
 
