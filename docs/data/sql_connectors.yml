@@ -48,6 +48,12 @@ avro-confluent:
     category: format
     sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/$version/flink-sql-avro-confluent-registry-$version.jar
 
+avro-glue:
+    name: Avro Schema Registry
+    maven: flink-avro-glue-schema-registry
+    category: format
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-avro-glue-schema-registry/$version/flink-avro-glue-schema-registry-$version.jar
+
 orc:
     name: ORC
     maven: flink-orc$scala_version
