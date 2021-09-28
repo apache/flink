@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.watermark.Watermark
@@ -26,7 +27,6 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -378,32 +378,45 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 
     val sqlQuery =
       """
-        |SELECT t2.key, t2.id, t1.id
+        |SELECT t1.key, t1._2, t1.val, t2.val
         |FROM T1 AS t1 JOIN T2 AS t2 ON
         |t1.key = t2.key AND
         |t2.rowtime = t1.rowtime
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(Int, Long, String, Long)]
+    val data1 = new mutable.MutableList[(String, Long, String)]
+    data1.+=(("K1", 1000L, "L1"))
+    data1.+=(("K1", 1000L, "L2"))
+    data1.+=(("K1", 1000L, "L3"))
+    data1.+=(("K2", 2000L, "L4"))
+    data1.+=(("K1", 4000L, "L5"))
+    data1.+=(("K1", 1000L, "should-be-discarded"))
+    data1.+=(("K1", 6000L, "L7"))
+    data1.+=(("K1", 5001L, "L8"))
+    data1.+=(("K2", 1000L, "should-be-discarded"))
 
-    data1.+=((4, 4000L, "A", 4000L))
-    data1.+=((5, 5000L, "A", 5000L))
-    data1.+=((6, 6000L, "A", 6000L))
-    data1.+=((6, 6000L, "B", 6000L))
+    val data2 = new mutable.MutableList[(String, Long, String)]
+    data2.+=(("K1", 1000L, "R1"))
+    data2.+=(("K1", 1000L, "R2"))
+    data2.+=(("K1", 1000L, "R3"))
+    data2.+=(("K2", 3000L, "R4"))
+    data2.+=(("K1", 4000L, "R5"))
+    data2.+=(("K1", 6000L, "R6"))
+    data2.+=(("K1", 5001L, "R7"))
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
-    data2.+=(("A", "R-5", 5000L))
-    data2.+=(("B", "R-6", 6000L))
+    val schema = Schema.newBuilder()
+      .columnByExpression("key", "_1")
+      .columnByExpression("rowtime", "TO_TIMESTAMP_LTZ(_2, 3)")
+      .columnByExpression("val", "_3")
+      .watermark("rowtime", "rowtime - INTERVAL '1' SECOND")
+      .build()
 
-    val t1 = env.fromCollection(data1)
-      .assignTimestampsAndWatermarks(new Row4WatermarkExtractor)
-      .toTable(tEnv, 'id, 'tm, 'key, 'rowtime)
-    val t2 = env.fromCollection(data2)
-      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
-      .toTable(tEnv, 'key, 'id, 'rowtime)
+    val t1 = tEnv.fromDataStream(env.fromCollection(data1), schema)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    val t2 = tEnv.fromDataStream(env.fromCollection(data2), schema)
+
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -411,8 +424,18 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     env.execute()
 
     val expected = mutable.MutableList[String](
-      "A,R-5,5",
-      "B,R-6,6"
+      "K1,1000,L1,R1",
+      "K1,1000,L1,R2",
+      "K1,1000,L1,R3",
+      "K1,1000,L2,R1",
+      "K1,1000,L2,R2",
+      "K1,1000,L2,R3",
+      "K1,1000,L3,R1",
+      "K1,1000,L3,R2",
+      "K1,1000,L3,R3",
+      "K1,4000,L5,R5",
+      "K1,6000,L7,R6",
+      "K1,5001,L8,R7"
     )
 
     assertEquals(expected.toList.sorted, sink.getAppendResults.sorted)

@@ -226,10 +226,10 @@ LogicalProject(a=[$0], e=[$5], lptime=[$3])
       <![CDATA[
 Calc(select=[a, e, PROCTIME_MATERIALIZE(lptime) AS lptime])
 +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=0, leftUpperBound=0, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (lptime = rptime))], select=[a, lptime, d, e, rptime])
-   :- Exchange(distribution=[hash[a, lptime]])
+   :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, lptime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lptime])
-   +- Exchange(distribution=[hash[d, rptime]])
+   +- Exchange(distribution=[hash[d]])
       +- Calc(select=[d, e, rptime])
          +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f, rptime])
 ]]>
