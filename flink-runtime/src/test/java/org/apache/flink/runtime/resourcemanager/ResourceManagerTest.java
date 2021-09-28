@@ -70,6 +70,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
@@ -77,7 +78,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link ResourceManager}. */
@@ -137,6 +137,10 @@ public class ResourceManagerTest extends TestLogger {
 
         if (testingFatalErrorHandler.hasExceptionOccurred()) {
             testingFatalErrorHandler.rethrowError();
+        }
+
+        if (rpcService != null) {
+            rpcService.clearGateways();
         }
     }
 
@@ -482,6 +486,30 @@ public class ResourceManagerTest extends TestLogger {
     @Test
     public void testDisconnectJobManagerWithNonTerminalStatusShouldNotRemoveJob() throws Exception {
         testDisconnectJobManager(JobStatus.FAILING);
+    }
+
+    @Test
+    public void testDisconnectTaskManager() throws Exception {
+        final ResourceID taskExecutorId = ResourceID.generate();
+        final CompletableFuture<Exception> disconnectFuture = new CompletableFuture<>();
+        final CompletableFuture<ResourceID> stopWorkerFuture = new CompletableFuture<>();
+
+        final TaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setDisconnectResourceManagerConsumer(disconnectFuture::complete)
+                        .createTestingTaskExecutorGateway();
+        rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
+
+        resourceManager =
+                new ResourceManagerBuilder()
+                        .withStopWorkerFunction(stopWorkerFuture::complete)
+                        .buildAndStart();
+
+        registerTaskExecutor(resourceManager, taskExecutorId, taskExecutorGateway.getAddress());
+        resourceManager.disconnectTaskManager(taskExecutorId, new FlinkException("Test exception"));
+
+        assertThat(disconnectFuture.get(), instanceOf(FlinkException.class));
+        assertThat(stopWorkerFuture.get(), is(taskExecutorId));
     }
 
     private void testDisconnectJobManager(JobStatus jobStatus) throws Exception {

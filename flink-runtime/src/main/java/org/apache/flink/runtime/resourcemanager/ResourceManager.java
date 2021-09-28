@@ -493,7 +493,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public void disconnectTaskManager(final ResourceID resourceId, final Exception cause) {
         closeTaskManagerConnection(resourceId, cause).ifPresent(ResourceManager.this::stopWorker);
-        ;
     }
 
     @Override
