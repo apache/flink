@@ -73,7 +73,7 @@ public class KafkaSourceFetcherManager<T>
         if (offsetsToCommit.isEmpty()) {
             return;
         }
-        SplitFetcher<Tuple3<T, Long, Long>, KafkaPartitionSplit> splitFetcher = fetchers.get(0);
+        SplitFetcher<Tuple3<T, Long, Long>, KafkaPartitionSplit> splitFetcher = getRunningFetcher();
         if (splitFetcher != null) {
             // The fetcher thread is still running. This should be the majority of the cases.
             enqueueOffsetsCommitTask(splitFetcher, offsetsToCommit, callback);
