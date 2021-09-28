@@ -97,32 +97,6 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   }
 
   @Test
-  def testCast(): Unit = {
-
-    // binary -> varchar
-    testSqlApi(
-      "CAST (f18 as varchar)",
-      "hello world")
-    testSqlApi(
-      "CAST (CAST (x'68656C6C6F20636F6465' as binary) as varchar)",
-      "hello code")
-
-    // varbinary -> varchar
-    testSqlApi(
-      "CAST (f19 as varchar)",
-      "hello flink")
-    testSqlApi(
-      "CAST (CAST (x'68656C6C6F2063617374' as varbinary) as varchar)",
-      "hello cast")
-
-    // null case
-    testSqlApi("CAST (NULL AS INT)", "null")
-    testSqlApi(
-      "CAST (NULL AS VARCHAR) = ''",
-      "null")
-  }
-
-  @Test
   def testOtherExpressions(): Unit = {
 
     // nested field null type
