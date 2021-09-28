@@ -165,7 +165,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok("ALTER FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1'");
 
         sql("alter temporary function function1 as 'org.apache.flink.function.function1'")
-                .ok("ALTER TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1'");
+                .ok(
+                        "ALTER TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1'");
 
         sql("alter temporary function function1 as 'org.apache.flink.function.function1' language scala")
                 .ok(
