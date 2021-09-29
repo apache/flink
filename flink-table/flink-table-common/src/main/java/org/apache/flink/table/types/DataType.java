@@ -21,7 +21,10 @@ package org.apache.flink.table.types;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -89,6 +92,21 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
     public abstract List<DataType> getChildren();
 
     public abstract <R> R accept(DataTypeVisitor<R> visitor);
+
+    /**
+     * Creates a copy of this {@link DataType} instance with the internal data type conversion
+     * classes. This method performs the transformation deeply through its children. For example,
+     * for a {@link DataType} instance representing a row type with a timestamp field, this method
+     * returns a new {@link DataType}, with the conversion class to {@link RowData} and the children
+     * data type with the conversion class to {@link TimestampData}.
+     *
+     * <p>For a comprehensive list of internal data types, check {@link RowData}.
+     *
+     * @see RowData
+     */
+    public DataType toInternal() {
+        return DataTypeUtils.toInternalDataType(this);
+    }
 
     @Override
     public String toString() {
