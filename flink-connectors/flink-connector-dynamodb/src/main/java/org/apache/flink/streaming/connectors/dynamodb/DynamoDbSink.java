@@ -251,7 +251,6 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
     @VisibleForTesting
     protected DynamoDbProducer buildDynamoDBProducer(DynamoDbProducer.Listener listener) {
         return new DynamoDbProducerBuilder(client, ProducerType.BatchAsync)
-                .setQueueLimit(queueLimit)
                 .setListener(listener)
                 .setBatchSize(batchSize)
                 .setRestartPolicy(restartPolicy)

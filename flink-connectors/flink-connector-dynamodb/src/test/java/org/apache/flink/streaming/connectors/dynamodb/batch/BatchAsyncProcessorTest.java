@@ -103,7 +103,6 @@ public class BatchAsyncProcessorTest {
     public void testDoesNotAcceptNewMessagesOnShutdown() {
         BatchAsyncProcessor processor =
                 new BatchAsyncProcessor(
-                        3,
                         createExecutorService(),
                         new MockWriterProvider(null),
                         new CountingCompletionHandler());
@@ -116,7 +115,6 @@ public class BatchAsyncProcessorTest {
     public void testDoesNotAcceptMessagesWhenNotStarted() {
         BatchAsyncProcessor processor =
                 new BatchAsyncProcessor(
-                        3,
                         createExecutorService(),
                         new MockWriterProvider(null),
                         new CountingCompletionHandler());
@@ -133,7 +131,7 @@ public class BatchAsyncProcessorTest {
 
         BatchAsyncProcessor processor =
                 new BatchAsyncProcessor(
-                        10, createExecutorService(), new MockWriterProvider(writer), handler);
+                        createExecutorService(), new MockWriterProvider(writer), handler);
 
         processor.start();
 
@@ -166,7 +164,7 @@ public class BatchAsyncProcessorTest {
 
         BatchAsyncProcessor processor =
                 new BatchAsyncProcessor(
-                        10, createExecutorService(), new MockWriterProvider(writer), handler);
+                        createExecutorService(), new MockWriterProvider(writer), handler);
 
         processor.start();
 
@@ -199,10 +197,7 @@ public class BatchAsyncProcessorTest {
 
         BatchAsyncProcessor processor =
                 new BatchAsyncProcessor(
-                        6,
-                        createExecutorService(),
-                        new MockWriterProvider(sleepingWriter),
-                        handler);
+                        createExecutorService(), new MockWriterProvider(sleepingWriter), handler);
 
         processor.start();
 

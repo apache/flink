@@ -43,23 +43,17 @@ public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
     private BatchAsyncProcessor processor;
     private final RestartPolicy restartPolicy;
     private final BatchWriterProvider writerProvider;
-    private final int internalQueueLimit;
 
     public DynamoDbBatchAsyncProducer(
             int batchSize,
-            int internalQueueLimit,
             RestartPolicy restartPolicy,
             DynamoDbTablesConfig tablesConfig,
             BatchWriterProvider writerProvider) {
         this.writerProvider = writerProvider;
-        this.internalQueueLimit = internalQueueLimit;
         this.restartPolicy = restartPolicy;
         this.processor =
                 new BatchAsyncProcessor(
-                        internalQueueLimit,
-                        getLoopsExecutor(),
-                        writerProvider,
-                        new CompletionHandler());
+                        getLoopsExecutor(), writerProvider, new CompletionHandler());
         this.batchCollector = new BatchCollector(batchSize, tablesConfig, processor);
     }
 
@@ -138,10 +132,7 @@ public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
                 processor.shutdown();
                 processor =
                         new BatchAsyncProcessor(
-                                internalQueueLimit,
-                                getLoopsExecutor(),
-                                writerProvider,
-                                new CompletionHandler());
+                                getLoopsExecutor(), writerProvider, new CompletionHandler());
                 processor.start();
             }
         }
