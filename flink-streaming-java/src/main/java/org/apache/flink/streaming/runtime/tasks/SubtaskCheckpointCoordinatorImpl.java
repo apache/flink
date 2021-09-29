@@ -245,7 +245,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointOptions options,
             CheckpointMetricsBuilder metrics,
             OperatorChain<?, ?> operatorChain,
-            boolean isOperatorsFinished,
+            boolean isTaskFinished,
             Supplier<Boolean> isRunning)
             throws Exception {
 
@@ -319,7 +319,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         metadata,
                         metrics,
                         operatorChain.isTaskDeployedAsFinished(),
-                        isOperatorsFinished,
+                        isTaskFinished,
                         isRunning);
             } else {
                 cleanup(snapshotFutures, metadata, metrics, new Exception("Checkpoint declined"));
@@ -546,7 +546,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointMetaData metadata,
             CheckpointMetricsBuilder metrics,
             boolean isTaskDeployedAsFinished,
-            boolean isOperatorsFinished,
+            boolean isTaskFinished,
             Supplier<Boolean> isRunning)
             throws IOException {
         AsyncCheckpointRunnable asyncCheckpointRunnable =
@@ -560,7 +560,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         env,
                         asyncExceptionHandler,
                         isTaskDeployedAsFinished,
-                        isOperatorsFinished,
+                        isTaskFinished,
                         isRunning);
 
         registerAsyncCheckpointRunnable(

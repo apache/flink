@@ -53,7 +53,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
     private final String taskName;
     private final Consumer<AsyncCheckpointRunnable> unregisterConsumer;
     private final boolean isTaskDeployedAsFinished;
-    private final boolean isOperatorsFinished;
+    private final boolean isTaskFinished;
     private final Supplier<Boolean> isTaskRunning;
     private final Environment taskEnvironment;
     private final CompletableFuture<Void> finishedFuture = new CompletableFuture<>();
@@ -86,7 +86,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             Environment taskEnvironment,
             AsyncExceptionHandler asyncExceptionHandler,
             boolean isTaskDeployedAsFinished,
-            boolean isOperatorsFinished,
+            boolean isTaskFinished,
             Supplier<Boolean> isTaskRunning) {
 
         this.operatorSnapshotsInProgress = checkNotNull(operatorSnapshotsInProgress);
@@ -98,7 +98,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         this.taskEnvironment = checkNotNull(taskEnvironment);
         this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
         this.isTaskDeployedAsFinished = isTaskDeployedAsFinished;
-        this.isOperatorsFinished = isOperatorsFinished;
+        this.isTaskFinished = isTaskFinished;
         this.isTaskRunning = isTaskRunning;
     }
 
@@ -162,9 +162,9 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
     private SnapshotsFinalizeResult finalizeNonFinishedSnapshots() throws Exception {
         TaskStateSnapshot jobManagerTaskOperatorSubtaskStates =
-                new TaskStateSnapshot(operatorSnapshotsInProgress.size(), isOperatorsFinished);
+                new TaskStateSnapshot(operatorSnapshotsInProgress.size(), isTaskFinished);
         TaskStateSnapshot localTaskOperatorSubtaskStates =
-                new TaskStateSnapshot(operatorSnapshotsInProgress.size(), isOperatorsFinished);
+                new TaskStateSnapshot(operatorSnapshotsInProgress.size(), isTaskFinished);
 
         long bytesPersistedDuringAlignment = 0;
         for (Map.Entry<OperatorID, OperatorSnapshotFutures> entry :
