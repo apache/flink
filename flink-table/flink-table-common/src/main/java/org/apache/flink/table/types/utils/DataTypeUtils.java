@@ -334,12 +334,15 @@ public final class DataTypeUtils {
         return Collections.singletonList(dataType);
     }
 
-    /** Returns the names of the flat representation in the first level of the given data type. */
+    /**
+     * Returns the names of the flat representation of the given data type. In case of {@link
+     * StructuredType}, the list also includes the super type fields.
+     */
     public static List<String> flattenToNames(DataType dataType) {
         return flattenToNames(dataType, Collections.emptyList());
     }
 
-    /** Returns the names of the flat representation in the first level of the given data type. */
+    /** @see DataTypeUtils#flattenToNames(DataType) */
     public static List<String> flattenToNames(DataType dataType, List<String> existingNames) {
         final LogicalType type = dataType.getLogicalType();
         if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
