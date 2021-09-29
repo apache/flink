@@ -39,6 +39,16 @@ Users are advised to use Pulsar connector with Java 8 or overprovision memory fo
 [here]({{< ref "docs/deployment/memory/mem_setup_tm" >}}) for documentation how to configure memory
 for Flink. The proper solution can be tracked in [FLINK-24302](https://issues.apache.org/jira/browse/FLINK-24302).
 
+### Summary of changed dependency names
+
+There are are two changes in Flink 1.14. that might require updating dependency names
+when upgrading to Flink 1.14 from earlier versions.
+
+* The removal of the blink planner ([FLINK-22879](#remove-blink-suffix-from-table-modules))
+   requires the removal of the `blink` infix.
+* Due to [FLINK-14105](#make-flink-runtime-scala-free) making the Flink runtime scala free
+   in case you got a dependency on `flink-runtime`, `flink-optimizer` and/or `flink-queryable-state-runtime` the Scala suffix (`_2.11`/`_2.12`) needs to be removed from the artifactId.
+
 ### Table & SQL
 
 #### Use pipeline name consistently across DataStream API and Table API
