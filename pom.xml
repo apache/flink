@@ -891,6 +891,16 @@ under the License.
 		</profile>
 
 		<profile>
+			<id>java8</id>
+			<activation>
+				<jdk>1.8</jdk>
+			</activation>
+			<properties>
+				<java.version>1.8</java.version>
+			</properties>
+		</profile>
+
+		<profile>
 			<id>java11</id>
 			<activation>
 				<jdk>[11,)</jdk>
