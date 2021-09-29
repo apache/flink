@@ -33,6 +33,7 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.http.HttpHost;
@@ -253,6 +254,11 @@ public class Elasticsearch7DynamicSinkTest extends TestLogger {
 
         @Override
         public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
+            return null;
+        }
+
+        @Override
+        public TypeInformation<?> createTypeInformation(LogicalType consumedLogicalType) {
             return null;
         }
 

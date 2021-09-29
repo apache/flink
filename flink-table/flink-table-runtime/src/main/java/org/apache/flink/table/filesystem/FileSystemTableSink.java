@@ -66,6 +66,7 @@ import org.apache.flink.table.filesystem.stream.compact.CompactBulkReader;
 import org.apache.flink.table.filesystem.stream.compact.CompactReader;
 import org.apache.flink.table.filesystem.stream.compact.FileInputFormatCompactReader;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
@@ -311,6 +312,11 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             @Override
             public <T> TypeInformation<T> createTypeInformation(DataType producedDataType) {
                 return context.createTypeInformation(producedDataType);
+            }
+
+            @Override
+            public <T> TypeInformation<T> createTypeInformation(LogicalType producedLogicalType) {
+                return context.createTypeInformation(producedLogicalType);
             }
 
             @Override
