@@ -22,7 +22,6 @@ import org.apache.flink.streaming.connectors.dynamodb.batch.BatchWriterProvider;
 import org.apache.flink.streaming.connectors.dynamodb.batch.DynamoDbBatchAsyncProducer;
 import org.apache.flink.streaming.connectors.dynamodb.batch.retry.DefaultBatchWriterRetryPolicy;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
-import org.apache.flink.streaming.connectors.dynamodb.config.ProducerType;
 import org.apache.flink.streaming.connectors.dynamodb.config.RestartPolicy;
 import org.apache.flink.streaming.connectors.dynamodb.retry.WriterRetryPolicy;
 
@@ -35,7 +34,6 @@ public class DynamoDbProducerBuilder {
     public static final int DEFAULT_INTERNAL_QUEUE_LIMIT = 1000;
 
     private final DynamoDbClient client;
-    private final ProducerType type;
     private DynamoDbTablesConfig tablesConfig;
     private int batchSize;
     private int queueLimit;
@@ -43,9 +41,8 @@ public class DynamoDbProducerBuilder {
     private DynamoDbProducer.Listener listener;
     private RestartPolicy restartPolicy;
 
-    public DynamoDbProducerBuilder(DynamoDbClient client, ProducerType type) {
+    public DynamoDbProducerBuilder(DynamoDbClient client) {
         this.client = client;
-        this.type = type;
         this.batchSize = DEFAULT_BATCH_SIZE;
         this.queueLimit = DEFAULT_INTERNAL_QUEUE_LIMIT;
         this.retryPolicy = new DefaultBatchWriterRetryPolicy();
@@ -106,13 +103,8 @@ public class DynamoDbProducerBuilder {
     }
 
     public DynamoDbProducer build() {
-        if (type == ProducerType.BatchAsync) {
-            BatchWriterProvider writerProvider =
-                    new BatchWriterProvider(client, retryPolicy, listener);
-            return new DynamoDbBatchAsyncProducer(
-                    batchSize, queueLimit, restartPolicy, tablesConfig, writerProvider);
-        } else {
-            throw new RuntimeException("Producer type " + type + "is not supported");
-        }
+        BatchWriterProvider writerProvider = new BatchWriterProvider(client, retryPolicy, listener);
+        return new DynamoDbBatchAsyncProducer(
+                batchSize, queueLimit, restartPolicy, tablesConfig, writerProvider);
     }
 }

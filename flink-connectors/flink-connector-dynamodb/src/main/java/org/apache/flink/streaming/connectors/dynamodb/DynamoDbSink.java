@@ -27,7 +27,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.connectors.dynamodb.config.ProducerType;
+import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 import org.apache.flink.streaming.connectors.dynamodb.config.RestartPolicy;
 import org.apache.flink.streaming.connectors.dynamodb.util.AwsV2Util;
 import org.apache.flink.streaming.connectors.dynamodb.util.TimeoutLatch;
@@ -84,7 +84,11 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
     /** Maximum length of the internal record queue before backpressuring. */
     private int queueLimit = Integer.MAX_VALUE;
 
-    private int batchSize = 25;
+    /** batch size for the DynamoDb batch request. */
+    private int batchSize;
+
+    /** configuration for DynamoDb tables that will be used in the sink. */
+    private DynamoDbTablesConfig dynamoDbTablesConfig;
 
     /**
      * Restart policy modifies behaviour of the producer if it has failed while scheduling or
@@ -129,6 +133,11 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
                 InstantiationUtil.isSerializable(dynamoDBSinkFunction),
                 "The implementation of the provided DynamoDBSinkFunction is not serializable. "
                         + "The object probably contains or references non-serializable fields.");
+
+        checkArgument(
+                InstantiationUtil.isSerializable(failureHandler),
+                "The implementation of the provided WriteRequestFailureHandler is not serializable. "
+                        + "The object probably contains or references non-serializable fields.");
     }
 
     /**
@@ -140,8 +149,8 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
     }
 
     /**
-     * If set to true, the producer will immediately fail with an exception on any error. Otherwise,
-     * the failed request is handled by the user provided WriteRequestFailureHandler.
+     * If set to true, the sink will immediately fail with an exception on any error. Otherwise, the
+     * failed request is handled by the user provided WriteRequestFailureHandler.
      *
      * @param failOnError Error behavior flag
      */
@@ -169,10 +178,25 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
         this.queueLimit = queueLimit;
     }
 
-    /** @param batchSize Batch size of batch request sent to dynamodb, max is 25 */
+    /**
+     * set batch size.
+     *
+     * @param batchSize Batch size of batch request sent to dynamodb, max is 25
+     */
     public void setBatchSize(int batchSize) {
         checkArgument(batchSize > 0 && batchSize <= 25, "batchSize must be between 1 and 25");
         this.batchSize = batchSize;
+    }
+
+    /**
+     * set DynamoDbTablesConfiguration.
+     *
+     * @param dynamoDbTablesConfig Configuration for the Dynamodb tables that will be used in the
+     *     sink
+     */
+    public void setDynamoDbTablesConfig(DynamoDbTablesConfig dynamoDbTablesConfig) {
+        checkNotNull(dynamoDbTablesConfig);
+        this.dynamoDbTablesConfig = dynamoDbTablesConfig;
     }
 
     @Override
@@ -250,11 +274,12 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
      */
     @VisibleForTesting
     protected DynamoDbProducer buildDynamoDBProducer(DynamoDbProducer.Listener listener) {
-        return new DynamoDbProducerBuilder(client, ProducerType.BatchAsync)
-                .setQueueLimit(queueLimit)
+        checkNotNull(listener);
+        return new DynamoDbProducerBuilder(client)
                 .setListener(listener)
-                .setBatchSize(batchSize)
                 .setRestartPolicy(restartPolicy)
+                .setBatchSize(batchSize)
+                .setTablesConfig(dynamoDbTablesConfig)
                 .build();
     }
 
