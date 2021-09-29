@@ -19,9 +19,12 @@
 package org.apache.flink.table.planner.runtime.stream.module;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.module.Module;
@@ -68,6 +71,34 @@ public class ModuleITCase extends StreamingTestBase {
         table.explain();
     }
 
+    @Test
+    public void testTableSinkFactory() {
+        tEnv().createTemporaryTable(
+                        "T",
+                        TableFactoryHarness.newBuilder()
+                                .schema(Schema.newBuilder().column("f0", DataTypes.INT()).build())
+                                .sink(
+                                        new TableFactoryHarness.SinkBase() {
+                                            @Override
+                                            public SinkRuntimeProvider getSinkRuntimeProvider(
+                                                    Context context) {
+                                                throw new UnsupportedOperationException(
+                                                        "Discovered factory should not be used");
+                                            }
+                                        })
+                                .build());
+
+        // Sanity check: without our module loaded, the factory discovery process is used.
+        assertThrows(
+                "Discovered factory should not be used",
+                UnsupportedOperationException.class,
+                () -> tEnv().explainSql("INSERT INTO T SELECT 1"));
+
+        // The module has precedence over factory discovery.
+        tEnv().loadModule("M", new SourceSinkFactoryOverwriteModule());
+        tEnv().explainSql("INSERT INTO T SELECT 1");
+    }
+
     // ---------------------------------------------------------------------------------------------
 
     private static class SourceSinkFactoryOverwriteModule implements Module {
@@ -75,12 +106,24 @@ public class ModuleITCase extends StreamingTestBase {
         public Optional<DynamicTableSourceFactory> getTableSourceFactory() {
             return Optional.of(new SourceFactory());
         }
+
+        @Override
+        public Optional<DynamicTableSinkFactory> getTableSinkFactory() {
+            return Optional.of(new SinkFactory());
+        }
     }
 
     private static class SourceFactory extends FactoryBase implements DynamicTableSourceFactory {
         @Override
         public DynamicTableSource createDynamicTableSource(Context context) {
             return new TableFactoryHarness.ScanSourceBase() {};
+        }
+    }
+
+    private static class SinkFactory extends FactoryBase implements DynamicTableSinkFactory {
+        @Override
+        public DynamicTableSink createDynamicTableSink(Context context) {
+            return new TableFactoryHarness.SinkBase() {};
         }
     }
 
