@@ -22,14 +22,24 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 
 /**
  * Describes the data type of a value in the table ecosystem. Instances of this class can be used to
@@ -129,6 +139,92 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
     @Override
     public int hashCode() {
         return Objects.hash(logicalType, conversionClass);
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the first-level field names for the provided {@link DataType}.
+     *
+     * <p>Note: this method returns an empty list for every {@link DataType} that is not instance of
+     * {@link FieldsDataType}.
+     */
+    public static List<String> getFieldNames(DataType dataType) {
+        final LogicalType type = dataType.getLogicalType();
+        if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+            return getFieldNames(dataType.getChildren().get(0));
+        } else if (isCompositeType(type)) {
+            return LogicalTypeChecks.getFieldNames(type);
+        }
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns the first-level field data types for the provided {@link DataType}.
+     *
+     * <p>Note: this method returns an empty list for every {@link DataType} that is not instance of
+     * {@link FieldsDataType}.
+     */
+    public static List<DataType> getFieldDataTypes(DataType dataType) {
+        final LogicalType type = dataType.getLogicalType();
+        if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+            return getFieldDataTypes(dataType.getChildren().get(0));
+        } else if (isCompositeType(type)) {
+            return dataType.getChildren();
+        }
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns the count of the first-level fields for the provided {@link DataType}.
+     *
+     * <p>Note: this method returns {@code 0} for every {@link DataType} that is not instance of
+     * {@link FieldsDataType}.
+     */
+    public static int getFieldCount(DataType dataType) {
+        return getFieldDataTypes(dataType).size();
+    }
+
+    /**
+     * Projects a (possibly nested) row data type by returning a new data type that only includes
+     * fields of the given index paths.
+     *
+     * <p>Note: Index paths allow for arbitrary deep nesting. For example, {@code [[0, 2, 1], ...]}
+     * specifies to include the 2nd field of the 3rd field of the 1st field in the top-level row.
+     * Sometimes, it may get name conflicts when extract fields from the row field. Considering the
+     * the path is unique to extract fields, it makes sense to use the path to the fields with
+     * delimiter `_` as the new name of the field. For example, the new name of the field `b` in the
+     * row `a` is `a_b` rather than `b`. But it may still gets name conflicts in some situation,
+     * such as the field `a_b` in the top level schema. In such situation, it will use the postfix
+     * in the format '_$%d' to resolve the name conflicts.
+     */
+    public static DataType projectFields(DataType dataType, int[][] indexPaths) {
+        return DataTypeUtils.projectRow(dataType, indexPaths);
+    }
+
+    /**
+     * Projects a (possibly nested) row data type by returning a new data type that only includes
+     * fields of the given indices.
+     *
+     * <p>Note: This method only projects (possibly nested) fields in the top-level row.
+     */
+    public static DataType projectFields(DataType dataType, int[] indexes) {
+        return DataTypeUtils.projectRow(dataType, indexes);
+    }
+
+    /**
+     * Returns an ordered list of fields starting from the provided {@link DataType}.
+     *
+     * <p>Note: this method returns an empty list for every {@link DataType} that is not an instance
+     * of {@link FieldsDataType} or its logical type is not an instance of {@link RowType} or {@link
+     * StructuredType}.
+     */
+    public static List<DataTypes.Field> getFields(DataType dataType) {
+        List<String> names = getFieldNames(dataType);
+        List<DataType> dataTypes = getFieldDataTypes(dataType);
+        return IntStream.range(0, names.size())
+                .mapToObj(i -> DataTypes.FIELD(names.get(i), dataTypes.get(i)))
+                .collect(Collectors.toList());
     }
 
     // --------------------------------------------------------------------------------------------
