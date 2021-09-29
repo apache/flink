@@ -31,12 +31,10 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 public class DynamoDbProducerBuilder {
 
     public static final int DEFAULT_BATCH_SIZE = 25;
-    public static final int DEFAULT_INTERNAL_QUEUE_LIMIT = 1000;
 
     private final DynamoDbClient client;
     private DynamoDbTablesConfig tablesConfig;
     private int batchSize;
-    private int queueLimit;
     private WriterRetryPolicy retryPolicy;
     private DynamoDbProducer.Listener listener;
     private RestartPolicy restartPolicy;
@@ -44,7 +42,6 @@ public class DynamoDbProducerBuilder {
     public DynamoDbProducerBuilder(DynamoDbClient client) {
         this.client = client;
         this.batchSize = DEFAULT_BATCH_SIZE;
-        this.queueLimit = DEFAULT_INTERNAL_QUEUE_LIMIT;
         this.retryPolicy = new DefaultBatchWriterRetryPolicy();
         this.tablesConfig = new DynamoDbTablesConfig();
     }
@@ -66,12 +63,6 @@ public class DynamoDbProducerBuilder {
      */
     public DynamoDbProducerBuilder setBatchSize(int batchSize) {
         this.batchSize = batchSize;
-        return this;
-    }
-
-    /** Limit for the internal queue of the write tasks. */
-    public DynamoDbProducerBuilder setQueueLimit(int queueLimit) {
-        this.queueLimit = queueLimit;
         return this;
     }
 
@@ -105,6 +96,6 @@ public class DynamoDbProducerBuilder {
     public DynamoDbProducer build() {
         BatchWriterProvider writerProvider = new BatchWriterProvider(client, retryPolicy, listener);
         return new DynamoDbBatchAsyncProducer(
-                batchSize, queueLimit, restartPolicy, tablesConfig, writerProvider);
+                batchSize, restartPolicy, tablesConfig, writerProvider);
     }
 }
