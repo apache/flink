@@ -194,10 +194,12 @@ public final class FactoryUtil {
     /**
      * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
      *
-     * <p>It considers {@link Catalog#getFactory()} if provided.
+     * <p>If {@param preferredFactory} is passed, the table sink is created from that factory.
+     * Otherwise, an attempt is made to discover a matching factory using Java SPI (see {@link
+     * Factory} for details).
      */
-    public static DynamicTableSink createTableSink(
-            @Nullable Catalog catalog,
+    public static DynamicTableSink createDynamicTableSink(
+            @Nullable DynamicTableSinkFactory preferredFactory,
             ObjectIdentifier objectIdentifier,
             ResolvedCatalogTable catalogTable,
             ReadableConfig configuration,
@@ -206,9 +208,13 @@ public final class FactoryUtil {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
                         objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+
         try {
             final DynamicTableSinkFactory factory =
-                    getDynamicTableFactory(DynamicTableSinkFactory.class, catalog, context);
+                    preferredFactory != null
+                            ? preferredFactory
+                            : discoverTableFactory(DynamicTableSinkFactory.class, context);
+
             return factory.createDynamicTableSink(context);
         } catch (Throwable t) {
             throw new ValidationException(
@@ -223,6 +229,35 @@ public final class FactoryUtil {
                                     .collect(Collectors.joining("\n"))),
                     t);
         }
+    }
+
+    /**
+     * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
+     *
+     * <p>It considers {@link Catalog#getFactory()} if provided.
+     *
+     * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
+     *     ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)} instead.
+     */
+    @Deprecated
+    public static DynamicTableSink createTableSink(
+            @Nullable Catalog catalog,
+            ObjectIdentifier objectIdentifier,
+            ResolvedCatalogTable catalogTable,
+            ReadableConfig configuration,
+            ClassLoader classLoader,
+            boolean isTemporary) {
+        final DefaultDynamicTableContext context =
+                new DefaultDynamicTableContext(
+                        objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+
+        return createDynamicTableSink(
+                getDynamicTableFactory(DynamicTableSinkFactory.class, catalog, context),
+                objectIdentifier,
+                catalogTable,
+                configuration,
+                classLoader,
+                isTemporary);
     }
 
     /**

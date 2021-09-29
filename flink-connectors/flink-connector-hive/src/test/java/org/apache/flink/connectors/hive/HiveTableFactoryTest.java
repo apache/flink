@@ -34,6 +34,7 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TableFactory;
@@ -137,8 +138,9 @@ public class HiveTableFactoryTest {
         assertTrue(tableSource instanceof HiveTableSource);
 
         final DynamicTableSink tableSink =
-                FactoryUtil.createTableSink(
-                        catalog,
+                FactoryUtil.createDynamicTableSink(
+                        (DynamicTableSinkFactory)
+                                catalog.getFactory().orElseThrow(IllegalStateException::new),
                         ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
                         new ResolvedCatalogTable(table, schema),
                         new Configuration(),

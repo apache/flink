@@ -77,7 +77,7 @@ public final class FactoryMocks {
 
     public static DynamicTableSink createTableSink(
             ResolvedSchema schema, List<String> partitionKeys, Map<String, String> options) {
-        return FactoryUtil.createTableSink(
+        return FactoryUtil.createDynamicTableSink(
                 null,
                 IDENTIFIER,
                 new ResolvedCatalogTable(

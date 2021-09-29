@@ -70,8 +70,8 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 
         // we don't support temporary hive tables yet
         if (!isHiveTable || context.isTemporary()) {
-            return FactoryUtil.createTableSink(
-                    null, // we already in the factory of catalog
+            return FactoryUtil.createDynamicTableSink(
+                    null,
                     context.getObjectIdentifier(),
                     context.getCatalogTable(),
                     context.getConfiguration(),
