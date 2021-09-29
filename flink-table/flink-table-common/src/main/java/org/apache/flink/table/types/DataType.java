@@ -97,6 +97,12 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
         return conversionClass;
     }
 
+    /**
+     * Returns the children of this data type, if any. Returns an empty list if this data type is
+     * atomic.
+     *
+     * @return the children data types
+     */
     public abstract List<DataType> getChildren();
 
     public abstract <R> R accept(DataTypeVisitor<R> visitor);
