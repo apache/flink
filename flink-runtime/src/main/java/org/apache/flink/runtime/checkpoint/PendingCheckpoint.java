@@ -404,8 +404,7 @@ public class PendingCheckpoint implements Checkpoint {
             } else {
                 List<OperatorIDPair> operatorIDs = vertex.getJobVertex().getOperatorIDs();
                 for (OperatorIDPair operatorID : operatorIDs) {
-                    updateOperatorState(
-                            vertex, operatorSubtaskStates, operatorID);
+                    updateOperatorState(vertex, operatorSubtaskStates, operatorID);
                 }
 
                 if (operatorSubtaskStates != null && operatorSubtaskStates.isTaskFinished()) {
