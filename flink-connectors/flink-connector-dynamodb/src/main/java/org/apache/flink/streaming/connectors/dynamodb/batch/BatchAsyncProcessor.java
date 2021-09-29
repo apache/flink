@@ -54,11 +54,10 @@ public class BatchAsyncProcessor implements Consumer<ProducerWriteRequest<Dynamo
     private final AtomicBoolean started = new AtomicBoolean(false);
 
     public BatchAsyncProcessor(
-            int internalQueueLimit,
             ExecutorService completionExecutor,
             BatchWriterProvider writerProvider,
             CompletionHandler outputMessageHandler) {
-        this.outgoingMessagesQueue = new LinkedBlockingQueue<>(internalQueueLimit);
+        this.outgoingMessagesQueue = new LinkedBlockingQueue<>();
         this.executor = completionExecutor;
         this.taskExecutor = new UnboundedTaskExecutor();
         this.callbackCompletionService = new CountingCompletionService<>(this.taskExecutor);
