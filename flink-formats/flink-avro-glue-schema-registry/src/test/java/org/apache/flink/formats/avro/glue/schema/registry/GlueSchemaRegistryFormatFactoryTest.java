@@ -66,7 +66,7 @@ public class GlueSchemaRegistryFormatFactoryTest {
     private static final RowType ROW_TYPE =
             (RowType) SCHEMA.toPhysicalRowDataType().getLogicalType();
 
-    private static final String SUBJECT = "test-subject";
+    private static final String SCHEMA_NAME = "test-subject";
     private static final String REGISTRY_NAME = "test-registry-name";
     private static final String REGION = "us-middle-1";
     private static final Map<String, Object> REGISTRY_CONFIG = Map.of(
@@ -103,7 +103,7 @@ public class GlueSchemaRegistryFormatFactoryTest {
                         ROW_TYPE,
                         GlueSchemaRegistryAvroSerializationSchema.forGeneric(
                                 AvroSchemaConverter.convertToSchema(ROW_TYPE),
-                                SUBJECT,
+                                SCHEMA_NAME,
                                 REGISTRY_CONFIG),
                         RowDataToAvroConverters.createConverter(ROW_TYPE));
 
@@ -122,7 +122,7 @@ public class GlueSchemaRegistryFormatFactoryTest {
     public void testMissingSubjectForSink() {
         thrown.expect(ValidationException.class);
         final Map<String, String> options =
-                getModifiedOptions(opts -> opts.remove("avro-glue.schema-registry.subject"));
+                getModifiedOptions(opts -> opts.remove("avro-glue.schema-registry.schema.name"));
 
         createTableSink(SCHEMA, options);
     }
@@ -149,7 +149,7 @@ public class GlueSchemaRegistryFormatFactoryTest {
         options.put("buffer-size", "1000");
 
         options.put("format", GlueSchemaRegistryAvroFormatFactory.IDENTIFIER);
-        options.put("avro-glue.schema-registry.subject", SUBJECT);
+        options.put("avro-glue.schema-registry.schema.name", SCHEMA_NAME);
         options.put("avro-glue.schema-registry.registry.name", REGISTRY_NAME);
         options.put("avro-glue.schema-registry.region", REGION);
         return options;

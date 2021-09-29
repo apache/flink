@@ -27,7 +27,7 @@ import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatO
 import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.ENDPOINT;
 import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.RECORD_TYPE;
 import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.REGISTRY_NAME;
-import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.SCHEMA_REGISTRY_SUBJECT;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.SCHEMA_NAME;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -107,7 +107,7 @@ public class GlueSchemaRegistryAvroFormatFactory implements DeserializationForma
                 return new AvroRowDataSerializationSchema(rowType,
                         GlueSchemaRegistryAvroSerializationSchema.forGeneric(
                                 AvroSchemaConverter.convertToSchema(rowType),
-                                formatOptions.get(SCHEMA_REGISTRY_SUBJECT), buildConfigMap(formatOptions)),
+                                formatOptions.get(SCHEMA_NAME), buildConfigMap(formatOptions)),
                         RowDataToAvroConverters.createConverter(rowType));
             }
 
@@ -134,7 +134,6 @@ public class GlueSchemaRegistryAvroFormatFactory implements DeserializationForma
         formatOptions.getOptional(AUTO_REGISTRATION).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.SCHEMA_AUTO_REGISTRATION_SETTING, v));
         formatOptions.getOptional(CACHE_SIZE).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.CACHE_SIZE, v));
         formatOptions.getOptional(CACHE_TTL_MS).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.CACHE_TIME_TO_LIVE_MILLIS, v));
-        formatOptions.getOptional(CACHE_TTL_MS).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.CACHE_TIME_TO_LIVE_MILLIS, v));
         return properties;
     }
 
@@ -143,7 +142,7 @@ public class GlueSchemaRegistryAvroFormatFactory implements DeserializationForma
         Set<ConfigOption<?>> result = new HashSet<>();
         result.add(REGISTRY_NAME);
         result.add(AWS_REGION);
-        result.add(SCHEMA_REGISTRY_SUBJECT);
+        result.add(SCHEMA_NAME);
         return result;
     }
 

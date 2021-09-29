@@ -44,7 +44,7 @@ public class AvroGlueFormatOptions {
             .key(PREFIX + AWSSchemaRegistryConstants.AVRO_RECORD_TYPE).stringType()
             .defaultValue(AvroRecordType.GENERIC_RECORD.getName()).withDescription("Record type");
 
-    public static final ConfigOption<String> SCHEMA_REGISTRY_SUBJECT = ConfigOptions.key(PREFIX + "subject").stringType()
+    public static final ConfigOption<String> SCHEMA_NAME = ConfigOptions.key(PREFIX + "schema.name").stringType()
             .noDefaultValue().withDescription(
                     "The Schema name under which to register the schema used by this format during serialization.");
 

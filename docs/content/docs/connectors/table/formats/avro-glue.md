@@ -1,9 +1,9 @@
 ---
-title: Confluent Avro
+title: AWS Glue Avro
 weight: 4
 type: docs
 aliases:
-  - /dev/table/connectors/formats/avro-confluent.html
+  - /dev/table/connectors/formats/avro-glue.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,7 +24,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Confluent Avro Format
+# AWS Glue Avro Format
 
 {{< label "Format: Serialization Schema" >}}
 {{< label "Format: Deserialization Schema" >}}
@@ -33,7 +33,7 @@ The Glue Schema Registry (``avro-glue``) format allows you to read records that 
 
 When reading (deserializing) a record with this format the Avro writer schema is fetched from the configured AWS Glue Schema Registry based on the schema version id encoded in the record while the reader schema is inferred from table schema. 
 
-When writing (serializing) a record with this format the Avro schema is inferred from the table schema and used to retrieve a schema id to be encoded with the data. The lookup is performed against the configured AWS Glue Schema Registry under the [subject](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html#schema-registry-schemas) given in `avro-glue.subject`.
+When writing (serializing) a record with this format the Avro schema is inferred from the table schema and used to retrieve a schema id to be encoded with the data. The lookup is performed against the configured AWS Glue Schema Registry under the [value](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html#schema-registry-schemas) given in `avro-glue.schema-name`.
 
 The Avro Glue Schema Registry format can only be used in conjunction with the [Apache Kafka SQL connector]({{< ref "docs/connectors/table/kafka" >}}) or the [Upsert Kafka SQL Connector]({{< ref "docs/connectors/table/upsert-kafka" >}}).
 
@@ -71,7 +71,7 @@ CREATE TABLE user_created (
   'value.format' = 'avro-glue',
   'value.avro-glue.region' = 'us-east-1',
   'value.avro-glue.registry.name' = 'my-schema-registry',
-  'value.avro-glue.subject' = 'my-schema-name',
+  'value.avro-glue.schema-name' = 'my-schema-name',
   'value.fields-include' = 'EXCEPT_KEY'
 )
 ```
