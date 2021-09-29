@@ -22,12 +22,13 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
 /** Represents DynamoDB tables configuration. */
 @PublicEvolving
-public class DynamoDbTablesConfig {
+public class DynamoDbTablesConfig implements Serializable {
 
     private final Map<String, TableConfig> perTableConfig;
 
@@ -48,7 +49,7 @@ public class DynamoDbTablesConfig {
     }
 
     /** DynamoDB table configuration. */
-    public static class TableConfig {
+    public static class TableConfig implements Serializable {
 
         private final String partitionKeyName;
 

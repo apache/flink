@@ -27,6 +27,7 @@ import org.apache.flink.streaming.connectors.dynamodb.DynamoDbSinkFunction;
 import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteRequest;
 import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
 import org.apache.flink.streaming.connectors.dynamodb.WriteRequestFailureHandler;
+import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
@@ -127,10 +128,14 @@ public class DynamoDbConnectorEndToEndTest {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(3);
 
+        DynamoDbTablesConfig tablesConfig = new DynamoDbTablesConfig();
+        tablesConfig.addTableConfig(TEST_TABLE, KEY_ATTRIBUTE);
+
         DynamoDbSink<String> dynamoDbSink =
                 new DynamoDbSink<>(new DynamoDBTestSinkFunction(), getDynamoDBProperties());
         dynamoDbSink.setFailOnError(true);
         dynamoDbSink.setBatchSize(4);
+        dynamoDbSink.setDynamoDbTablesConfig(tablesConfig);
 
         List<String> input =
                 ImmutableList.of(
@@ -189,6 +194,7 @@ public class DynamoDbConnectorEndToEndTest {
                 new DynamoDbSink<>(new DynamoDBTestSinkFunction(), properties);
         dynamoDbSink.setFailOnError(true);
         dynamoDbSink.setBatchSize(1);
+        dynamoDbSink.setDynamoDbTablesConfig(new DynamoDbTablesConfig());
 
         env.fromCollection(ImmutableList.of("one")).addSink(dynamoDbSink);
         env.execute("DynamoDB End to End Test with Exception");
@@ -212,32 +218,40 @@ public class DynamoDbConnectorEndToEndTest {
                                                         AttributeValue.builder().s(value).build()))
                                         .build());
 
-        WriteRequestFailureHandler failureHandler =
-                new WriteRequestFailureHandler() {
-                    @Override
-                    public void onFailure(ProducerWriteRequest request, Throwable failure)
-                            throws Throwable {
-                        assertEquals(
-                                "Number of messages in the failed request",
-                                messages.size(), // expect all messages in one write request, as
-                                // batch is bigger than number of messages
-                                request.getRequests().size());
-                        assertTrue(failure instanceof ResourceNotFoundException);
-                    }
-
-                    @Override
-                    public void onFailure(
-                            ProducerWriteRequest request, ProducerWriteResponse response)
-                            throws Throwable {}
-                };
-
         DynamoDbSink<String> dynamoDbSink =
-                new DynamoDbSink<>(failingSinkFunction, getDynamoDBProperties(), failureHandler);
+                new DynamoDbSink<>(
+                        failingSinkFunction,
+                        getDynamoDBProperties(),
+                        new AssertingFailureHandler(messages.size()));
         dynamoDbSink.setFailOnError(true);
         dynamoDbSink.setBatchSize(25);
+        dynamoDbSink.setDynamoDbTablesConfig(new DynamoDbTablesConfig());
 
         env.fromCollection(messages).addSink(dynamoDbSink);
         env.execute("DynamoDB End to End Test with missing table");
+    }
+
+    private static final class AssertingFailureHandler implements WriteRequestFailureHandler {
+
+        private final int expectedMessagesSize;
+
+        public AssertingFailureHandler(int expectedMessagesSize) {
+            this.expectedMessagesSize = expectedMessagesSize;
+        }
+
+        @Override
+        public void onFailure(ProducerWriteRequest request, Throwable failure) throws Throwable {
+            assertEquals(
+                    "Number of messages in the failed request",
+                    expectedMessagesSize, // expect all messages in one write request, as
+                    // batch is bigger than number of messages
+                    request.getRequests().size());
+            assertTrue(failure instanceof ResourceNotFoundException);
+        }
+
+        @Override
+        public void onFailure(ProducerWriteRequest request, ProducerWriteResponse response)
+                throws Throwable {}
     }
 
     private static final class DynamoDBTestSinkFunction implements DynamoDbSinkFunction<String> {

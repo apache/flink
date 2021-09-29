@@ -72,8 +72,7 @@ public class BatchAsyncProcessor implements Consumer<ProducerWriteRequest<Dynamo
     @Override
     public void accept(ProducerWriteRequest<DynamoDbRequest> request) {
         if (!started.get() || taskExecutor.isShutdown() || executor.isShutdown()) {
-            throw new ProducerException(
-                    "BatchAsyncProcessor not started or has been shutdown and can not longer process new messages");
+            throw new ProducerException("BatchAsyncProcessor can no longer process new messages");
         }
         try {
             // here we are blocking the main thread until queue is freed
