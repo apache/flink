@@ -58,7 +58,7 @@ The difference between both cases is minimal: In the bounded/batch case, the enu
 
 Here are some simplified conceptual examples to illustrate how the data source components interact, in streaming and batch cases.
 
-*Note that this does not the accurately describe how the Kafka and File source implementations work; parts are simplified, for illustrative purposes.*
+*Note that this does not accurately describe how the Kafka and File source implementations work; parts are simplified, for illustrative purposes.*
 
 **Bounded File Source**
 
