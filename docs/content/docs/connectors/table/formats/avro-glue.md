@@ -79,7 +79,7 @@ CREATE TABLE user_created (
 Format Options
 ----------------
 
-Yes, these options have inconsistent naming convnetions.  No, I can't fix it.  This is for consistentcy with the existing [AWS Glue client code](https://github.com/awslabs/aws-glue-schema-registry/blob/master/common/src/main/java/com/amazonaws/services/schemaregistry/utils/AWSSchemaRegistryConstants.java#L20).
+Where appropriate naming for the properties is consistent with the existing [AWS Glue client code](https://github.com/awslabs/aws-glue-schema-registry/blob/master/common/src/main/java/com/amazonaws/services/schemaregistry/utils/AWSSchemaRegistryConstants.java#L20).
 
 <table class="table table-bordered">
     <thead>
