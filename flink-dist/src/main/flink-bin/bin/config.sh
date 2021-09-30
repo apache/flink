@@ -39,7 +39,11 @@ constructFlinkClassPath() {
         exit 1
     fi
 
-    echo "$FLINK_CLASSPATH""$FLINK_DIST"
+    if [[ "$FLINK_CLIENT_ADD_CLASSPATH" == "" ]]; then
+        echo "$FLINK_CLASSPATH""$FLINK_DIST"
+    else
+        echo "$FLINK_CLIENT_ADD_CLASSPATH":"$FLINK_CLASSPATH""$FLINK_DIST"
+    fi
 }
 
 findFlinkDistJar() {
