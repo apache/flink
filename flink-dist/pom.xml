@@ -425,15 +425,6 @@ under the License.
 
 	<profiles>
 		<profile>
-			<id>scala-2.11</id>
-			<activation>
-				<property>
-					<name>!scala-2.12</name>
-				</property>
-			</activation>
-		</profile>
-
-		<profile>
 			<!-- Creates/Removes the 'build-target' symlink in the root directory (only Unix systems) -->
 			<id>symlink-build-target</id>
 			<activation>

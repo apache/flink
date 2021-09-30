@@ -151,7 +151,7 @@ For that reason, Flink for Scala 2.11 cannot be used with an application that us
 Scala 2.12.
 
 All Flink dependencies that (transitively) depend on Scala are suffixed with the
-Scala version that they are built for, for example `flink-streaming-scala_2.11`.
+Scala version that they are built for, for example `flink-streaming-scala_2.12`.
 
 Developers that only use Java can pick any Scala version, Scala developers need to
 pick the Scala version that matches their application's Scala version.

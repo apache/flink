@@ -9,7 +9,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.ververica:frocksdbjni:6.20.3-ververica-1.0
 - com.google.code.findbugs:jsr305:1.3.9
 - com.twitter:chill-java:0.7.6
-- com.twitter:chill_2.11:0.7.6
+- com.twitter:chill_2.12:0.7.6
 - commons-cli:commons-cli:1.4
 - commons-collections:commons-collections:3.2.2
 - commons-io:commons-io:2.11.0
@@ -29,11 +29,10 @@ See bundled license files for details.
 
 The following dependencies all share the same BSD license which you find under licenses/LICENSE.scala.
 
-- org.scala-lang:scala-compiler:2.11.12
-- org.scala-lang:scala-library:2.11.12
-- org.scala-lang:scala-reflect:2.11.12
-- org.scala-lang.modules:scala-parser-combinators_2.11:1.1.1
-- org.scala-lang.modules:scala-xml_2.11:1.0.5
+- org.scala-lang:scala-compiler:2.12.7
+- org.scala-lang:scala-library:2.12.7
+- org.scala-lang:scala-reflect:2.12.7
+- org.scala-lang.modules:scala-xml_2.12:1.0.6
 
 This project bundles the following dependencies under the MIT/X11 license.
 See bundled license files for details.

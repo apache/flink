@@ -110,7 +110,7 @@ This will be replaced by the maven artifact for flink-streaming-java that users 
 ```xml
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-streaming-java_2.11</artifactId>
+    <artifactId>flink-streaming-java_2.12</artifactId>
     <version><!-- current flink version --></version>
 </dependency>
 ```

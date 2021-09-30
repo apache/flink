@@ -115,8 +115,8 @@ under the License.
 		<scala.macros.version>2.1.1</scala.macros.version>
 		<!-- Default scala versions, must be overwritten by build profiles, so we set something
 		invalid here -->
-		<scala.version>2.11.12</scala.version>
-		<scala.binary.version>2.11</scala.binary.version>
+		<scala.version>2.12.7</scala.version>
+		<scala.binary.version>2.12</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
 		<zookeeper.version>3.4.14</zookeeper.version>
 		<!-- Only the curator2 TestingServer works with ZK 3.4 -->
@@ -788,49 +788,6 @@ under the License.
 
 	<profiles>
 		<profile>
-			<id>scala-2.11</id>
-			<properties>
-				<scala.version>2.11.12</scala.version>
-				<scala.binary.version>2.11</scala.binary.version>
-			</properties>
-			<activation>
-				<property>
-					<name>!scala-2.12</name>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<!-- make sure we don't have any _2.10 or _2.12 dependencies when building
-					for Scala 2.11 -->
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-enforcer-plugin</artifactId>
-						<executions>
-							<execution>
-								<id>enforce-versions</id>
-								<goals>
-									<goal>enforce</goal>
-								</goals>
-								<configuration>
-									<rules>
-										<bannedDependencies>
-											<excludes combine.children="append">
-												<exclude>*:*_2.12</exclude>
-												<exclude>*:*_2.10</exclude>
-											</excludes>
-											<message>Scala 2.10/2.12 dependencies are not allowed for Scala 2.11 builds. This can be caused by hard-coded scala versions, where the 'scala.binary.version' property should be used instead.</message>
-										</bannedDependencies>
-									</rules>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-
-
-		<profile>
 			<id>scala-2.12</id>
 			<properties>
 				<scala.version>2.12.7</scala.version>
@@ -838,7 +795,7 @@ under the License.
 			</properties>
 			<activation>
 				<property>
-					<name>scala-2.12</name>
+					<name>!old-and-unsupported-scala-version</name>
 				</property>
 			</activation>
 			<build>
