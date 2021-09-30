@@ -28,8 +28,8 @@ public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(PubSubConnectorConfigOptions.PROJECT_NAME);
-        options.add(PubSubConnectorConfigOptions.SUBSCRIPTION);
+        options.add(PubSubConnectorOptions.PROJECT_NAME);
+        options.add(PubSubConnectorOptions.SUBSCRIPTION);
         options.add(FactoryUtil.FORMAT);
         return options;
     }
@@ -52,8 +52,8 @@ public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
         helper.validate();
 
         final ReadableConfig options = helper.getOptions();
-        final String project = options.get(PubSubConnectorConfigOptions.PROJECT_NAME);
-        final String subscription = options.get(PubSubConnectorConfigOptions.SUBSCRIPTION);
+        final String project = options.get(PubSubConnectorOptions.PROJECT_NAME);
+        final String subscription = options.get(PubSubConnectorOptions.SUBSCRIPTION);
 
         final DataType producedDataType =
                 context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();

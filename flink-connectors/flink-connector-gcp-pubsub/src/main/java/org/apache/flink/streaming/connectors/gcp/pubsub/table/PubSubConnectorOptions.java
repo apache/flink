@@ -6,7 +6,7 @@ import org.apache.flink.configuration.ConfigOptions;
 
 /** Options for the PubSub connector. */
 @PublicEvolving
-public class PubSubConnectorConfigOptions {
+public class PubSubConnectorOptions {
 
     public static final ConfigOption<String> PROJECT_NAME =
             ConfigOptions.key("projectName")
@@ -20,5 +20,5 @@ public class PubSubConnectorConfigOptions {
                     .noDefaultValue()
                     .withDescription("Name of the PubSub subscription backing this table.");
 
-    private PubSubConnectorConfigOptions() {}
+    private PubSubConnectorOptions() {}
 }
