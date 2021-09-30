@@ -20,12 +20,10 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.data.{DecimalData, TimestampData}
 import org.apache.flink.table.runtime.functions._
-
-import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
-import org.apache.calcite.sql.{SqlJsonConstructorNullClause, SqlJsonExistsErrorBehavior,
-  SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
+import org.apache.calcite.sql.{SqlJsonConstructorNullClause, SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.TimeUnitRange
 
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
@@ -484,7 +482,7 @@ object BuiltInMethods {
   val TRUNCATE_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[DecimalData], classOf[Int])
 
-  val UNIX_DATE_CEIL = Types.lookupMethod(classOf[DateTimeUtils], "unixDateCeil",
+  val UNIX_DATE_CEIL = Types.lookupMethod(classOf[SqlDateTimeUtils], "unixDateCeil",
     classOf[TimeUnitRange], classOf[Int])
 
   val TRUNCATE_SQL_TIMESTAMP = Types.lookupMethod(classOf[SqlDateTimeUtils], "truncate",

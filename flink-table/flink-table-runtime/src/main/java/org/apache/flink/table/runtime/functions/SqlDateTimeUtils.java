@@ -26,9 +26,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.utils.ThreadLocalCache;
 
-import org.apache.calcite.avatica.util.DateTimeUtils;
-import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +44,11 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAccessor;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.TimeZone;
 
 import static java.time.temporal.ChronoField.DAY_OF_MONTH;
@@ -457,7 +458,7 @@ public class SqlDateTimeUtils {
         ZoneId zoneId = ZoneId.of("UTC");
         Instant instant = Instant.ofEpochMilli(ts);
         ZonedDateTime zdt = ZonedDateTime.ofInstant(instant, zoneId);
-        return DateTimeUtils.ymdToUnixDate(zdt.getYear(), zdt.getMonthValue(), zdt.getDayOfMonth());
+        return ymdToUnixDate(zdt.getYear(), zdt.getMonthValue(), zdt.getDayOfMonth());
     }
 
     // --------------------------------------------------------------------------------------------
@@ -713,12 +714,137 @@ public class SqlDateTimeUtils {
     private static final DateType REUSE_DATE_TYPE = new DateType();
     private static final TimestampType REUSE_TIMESTAMP_TYPE = new TimestampType(9);
 
-    public static long unixTimeExtract(TimeUnitRange range, int ts) {
-        return DateTimeUtils.unixTimeExtract(range, ts);
+    public static int unixTimeExtract(TimeUnitRange range, int time) {
+        assert time >= 0;
+        assert time < MILLIS_PER_DAY;
+        switch (range) {
+            case HOUR:
+                return time / (int) MILLIS_PER_HOUR;
+            case MINUTE:
+                final int minutes = time / (int) MILLIS_PER_MINUTE;
+                return minutes % 60;
+            case SECOND:
+                final int seconds = time / (int) MILLIS_PER_SECOND;
+                return seconds % 60;
+            default:
+                throw new AssertionError(range);
+        }
     }
 
     public static long extractFromTimestamp(TimeUnitRange range, TimestampData ts, TimeZone tz) {
         return convertExtract(range, ts, REUSE_TIMESTAMP_TYPE, tz);
+    }
+
+    private static long unixDateExtract(TimeUnitRange range, long date) {
+        switch (range) {
+            case EPOCH:
+                return date * 86400L;
+            default:
+                return (long) julianExtract(range, (int) date + 2440588);
+        }
+    }
+
+    private static int julianExtract(TimeUnitRange range, int julian) {
+        int j = julian + 32044;
+        int g = j / 146097;
+        int dg = j % 146097;
+        int c = (dg / '躬' + 1) * 3 / 4;
+        int dc = dg - c * '躬';
+        int b = dc / 1461;
+        int db = dc % 1461;
+        int a = (db / 365 + 1) * 3 / 4;
+        int da = db - a * 365;
+        int y = g * 400 + c * 100 + b * 4 + a;
+        int m = (da * 5 + 308) / 153 - 2;
+        int d = da - (m + 4) * 153 / 5 + 122;
+        int year = y - 4800 + (m + 2) / 12;
+        int month = (m + 2) % 12 + 1;
+        int day = d + 1;
+        switch (range) {
+            case YEAR:
+                return year;
+            case YEAR_TO_MONTH:
+            case DAY_TO_SECOND:
+            case DAY_TO_MINUTE:
+            case DAY_TO_HOUR:
+            case HOUR:
+            case HOUR_TO_MINUTE:
+            case HOUR_TO_SECOND:
+            case MINUTE_TO_SECOND:
+            case MINUTE:
+            case SECOND:
+            case EPOCH:
+            default:
+                throw new AssertionError(range);
+            case MONTH:
+                return month;
+            case DAY:
+                return day;
+            case ISOYEAR:
+                int weekNumber = getIso8601WeekNumber(julian, year, month, day);
+                if (weekNumber == 1 && month == 12) {
+                    return year + 1;
+                } else {
+                    if (month == 1 && weekNumber > 50) {
+                        return year - 1;
+                    }
+
+                    return year;
+                }
+            case QUARTER:
+                return (month + 2) / 3;
+            case DOW:
+                return (int) floorMod((long) (julian + 1), 7L) + 1;
+            case ISODOW:
+                return (int) floorMod((long) julian, 7L) + 1;
+            case WEEK:
+                return getIso8601WeekNumber(julian, year, month, day);
+            case DOY:
+                long janFirst = (long) ymdToJulian(year, 1, 1);
+                return (int) ((long) julian - janFirst) + 1;
+            case DECADE:
+                return year / 10;
+            case CENTURY:
+                return year > 0 ? (year + 99) / 100 : (year - 99) / 100;
+            case MILLENNIUM:
+                return year > 0 ? (year + 999) / 1000 : (year - 999) / 1000;
+        }
+    }
+
+    private static long firstMondayOfFirstWeek(int year) {
+        long janFirst = (long) ymdToJulian(year, 1, 1);
+        long janFirstDow = floorMod(janFirst + 1L, 7L);
+        return janFirst + (11L - janFirstDow) % 7L - 3L;
+    }
+
+    private static int getIso8601WeekNumber(int julian, int year, int month, int day) {
+        long fmofw = firstMondayOfFirstWeek(year);
+        if (month == 12 && day > 28) {
+            return 31 - day + 4 > 7 - ((int) floorMod((long) julian, 7L) + 1)
+                            && 31 - day + (int) (floorMod((long) julian, 7L) + 1L) >= 4
+                    ? (int) ((long) julian - fmofw) / 7 + 1
+                    : 1;
+        } else if (month == 1 && day < 5) {
+            return 4 - day <= 7 - ((int) floorMod((long) julian, 7L) + 1)
+                            && day - (int) (floorMod((long) julian, 7L) + 1L) >= -3
+                    ? 1
+                    : (int) ((long) julian - firstMondayOfFirstWeek(year - 1)) / 7 + 1;
+        } else {
+            return (int) ((long) julian - fmofw) / 7 + 1;
+        }
+    }
+
+    private static long floorDiv(long x, long y) {
+        long r = x / y;
+        if ((x ^ y) < 0L && r * y != x) {
+            --r;
+        }
+
+        return r;
+    }
+
+    private static long floorMod(long x, long y) {
+        return x - floorDiv(x, y) * y;
     }
 
     private static long convertExtract(
@@ -741,7 +867,7 @@ public class SqlDateTimeUtils {
             case WEEK:
                 if (type instanceof TimestampType) {
                     long d = divide(utcTs, TimeUnit.DAY.multiplier);
-                    return DateTimeUtils.unixDateExtract(range, d);
+                    return unixDateExtract(range, d);
                 } else if (type instanceof DateType) {
                     return divide(utcTs, TimeUnit.DAY.multiplier);
                 } else {
@@ -930,24 +1056,24 @@ public class SqlDateTimeUtils {
                 if (!floor && (month > 1 || day > 1)) {
                     year += 1;
                 }
-                return DateTimeUtils.ymdToUnixDate(year, 1, 1);
+                return ymdToUnixDate(year, 1, 1);
             case MONTH:
                 if (!floor && day > 1) {
                     month += 1;
                 }
-                return DateTimeUtils.ymdToUnixDate(year, month, 1);
+                return ymdToUnixDate(year, month, 1);
             case QUARTER:
                 if (!floor && (month > 1 || day > 1)) {
                     quarter += 1;
                 }
-                return DateTimeUtils.ymdToUnixDate(year, quarter * 3 - 2, 1);
+                return ymdToUnixDate(year, quarter * 3 - 2, 1);
             case WEEK:
-                int dow = (int) DateTimeUtils.floorMod(julian + 1, 7); // sun=0, sat=6
+                int dow = (int) floorMod(julian + 1, 7); // sun=0, sat=6
                 int offset = dow;
                 if (!floor && offset > 0) {
                     offset -= 7;
                 }
-                return DateTimeUtils.ymdToUnixDate(year, month, day) - offset;
+                return ymdToUnixDate(year, month, day) - offset;
             default:
                 throw new AssertionError(range);
         }
@@ -1413,7 +1539,7 @@ public class SqlDateTimeUtils {
         if (!isIllegalDate(y, m, d)) {
             return null;
         }
-        return DateTimeUtils.ymdToUnixDate(y, m, d);
+        return ymdToUnixDate(y, m, d);
     }
 
     public static Integer timeStringToUnixDate(String v) {
@@ -1628,5 +1754,188 @@ public class SqlDateTimeUtils {
     private static long zeroLastDigits(long l, int n) {
         long tenToTheN = (long) Math.pow(10, n);
         return (l / tenToTheN) * tenToTheN;
+    }
+
+    public static long unixDateCeil(TimeUnitRange range, long date) {
+        return (long) julianDateFloor(range, (int) date + 2440588, false);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // TimeUnit and TimeUnitRange enums
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Enumeration of time units used to construct an interval.
+     *
+     * <p>Only {@link #YEAR}, {@link #MONTH}, {@link #DAY}, {@link #HOUR}, {@link #MINUTE}, {@link
+     * #SECOND} can be the unit of a SQL interval.
+     *
+     * <p>The others ({@link #QUARTER}, {@link #WEEK}, {@link #MILLISECOND}, {@link #DOW}, {@link
+     * #DOY}, {@link #EPOCH}, {@link #DECADE}, {@link #CENTURY}, {@link #MILLENNIUM}, {@link
+     * #MICROSECOND}, {@link #NANOSECOND}, {@link #ISODOW} and {@link #ISOYEAR}) are convenient to
+     * use internally, when converting to and from UNIX timestamps. And also may be arguments to the
+     * {@code EXTRACT}, {@code TIMESTAMPADD} and {@code TIMESTAMPDIFF} functions.
+     */
+    public enum TimeUnit {
+        YEAR(true, ' ', BigDecimal.valueOf(12) /* months */, null),
+        MONTH(true, '-', BigDecimal.ONE /* months */, BigDecimal.valueOf(12)),
+        DAY(false, '-', BigDecimal.valueOf(MILLIS_PER_DAY), null),
+        HOUR(false, ' ', BigDecimal.valueOf(MILLIS_PER_HOUR), BigDecimal.valueOf(24)),
+        MINUTE(false, ':', BigDecimal.valueOf(MILLIS_PER_MINUTE), BigDecimal.valueOf(60)),
+        SECOND(false, ':', BigDecimal.valueOf(MILLIS_PER_SECOND), BigDecimal.valueOf(60)),
+
+        QUARTER(true, '*', BigDecimal.valueOf(3) /* months */, BigDecimal.valueOf(4)),
+        ISOYEAR(true, ' ', BigDecimal.valueOf(12) /* months */, null),
+        WEEK(false, '*', BigDecimal.valueOf(MILLIS_PER_DAY * 7), BigDecimal.valueOf(53)),
+        MILLISECOND(false, '.', BigDecimal.ONE, BigDecimal.valueOf(1000)),
+        MICROSECOND(false, '.', BigDecimal.ONE.scaleByPowerOfTen(-3), BigDecimal.valueOf(1000_000)),
+        NANOSECOND(
+                false, '.', BigDecimal.ONE.scaleByPowerOfTen(-6), BigDecimal.valueOf(1000_000_000)),
+        DOW(false, '-', null, null),
+        ISODOW(false, '-', null, null),
+        DOY(false, '-', null, null),
+        EPOCH(false, '*', null, null),
+        DECADE(true, '*', BigDecimal.valueOf(120) /* months */, null),
+        CENTURY(true, '*', BigDecimal.valueOf(1200) /* months */, null),
+        MILLENNIUM(true, '*', BigDecimal.valueOf(12000) /* months */, null);
+
+        public final boolean yearMonth;
+        public final char separator;
+        public final BigDecimal multiplier;
+        private final BigDecimal limit;
+
+        private static final TimeUnit[] CACHED_VALUES = values();
+
+        TimeUnit(boolean yearMonth, char separator, BigDecimal multiplier, BigDecimal limit) {
+            this.yearMonth = yearMonth;
+            this.separator = separator;
+            this.multiplier = multiplier;
+            this.limit = limit;
+        }
+
+        /**
+         * Returns the TimeUnit associated with an ordinal. The value returned is null if the
+         * ordinal is not a member of the TimeUnit enumeration.
+         */
+        public static TimeUnit getValue(int ordinal) {
+            return ordinal < 0 || ordinal >= CACHED_VALUES.length ? null : CACHED_VALUES[ordinal];
+        }
+
+        /**
+         * Returns whether a given value is valid for a field of this time unit.
+         *
+         * @param field Field value
+         * @return Whether value
+         */
+        public boolean isValidValue(BigDecimal field) {
+            return field.compareTo(BigDecimal.ZERO) >= 0
+                    && (limit == null || field.compareTo(limit) < 0);
+        }
+    }
+
+    /**
+     * A range of time units. The first is more significant than the other (e.g. year-to-day) or the
+     * same as the other (e.g. month).
+     */
+    public enum TimeUnitRange {
+        YEAR(TimeUnit.YEAR, null),
+        YEAR_TO_MONTH(TimeUnit.YEAR, TimeUnit.MONTH),
+        MONTH(TimeUnit.MONTH, null),
+        DAY(TimeUnit.DAY, null),
+        DAY_TO_HOUR(TimeUnit.DAY, TimeUnit.HOUR),
+        DAY_TO_MINUTE(TimeUnit.DAY, TimeUnit.MINUTE),
+        DAY_TO_SECOND(TimeUnit.DAY, TimeUnit.SECOND),
+        HOUR(TimeUnit.HOUR, null),
+        HOUR_TO_MINUTE(TimeUnit.HOUR, TimeUnit.MINUTE),
+        HOUR_TO_SECOND(TimeUnit.HOUR, TimeUnit.SECOND),
+        MINUTE(TimeUnit.MINUTE, null),
+        MINUTE_TO_SECOND(TimeUnit.MINUTE, TimeUnit.SECOND),
+        SECOND(TimeUnit.SECOND, null),
+
+        // non-standard time units cannot participate in ranges
+        ISOYEAR(TimeUnit.ISOYEAR, null),
+        QUARTER(TimeUnit.QUARTER, null),
+        WEEK(TimeUnit.WEEK, null),
+        MILLISECOND(TimeUnit.MILLISECOND, null),
+        MICROSECOND(TimeUnit.MICROSECOND, null),
+        NANOSECOND(TimeUnit.NANOSECOND, null),
+        DOW(TimeUnit.DOW, null),
+        ISODOW(TimeUnit.ISODOW, null),
+        DOY(TimeUnit.DOY, null),
+        EPOCH(TimeUnit.EPOCH, null),
+        DECADE(TimeUnit.DECADE, null),
+        CENTURY(TimeUnit.CENTURY, null),
+        MILLENNIUM(TimeUnit.MILLENNIUM, null);
+
+        public final TimeUnit startUnit;
+        public final TimeUnit endUnit;
+
+        private static final Map<Pair<TimeUnit>, TimeUnitRange> MAP = createMap();
+
+        /**
+         * Creates a TimeUnitRange.
+         *
+         * @param startUnit Start time unit
+         * @param endUnit End time unit
+         */
+        TimeUnitRange(TimeUnit startUnit, TimeUnit endUnit) {
+            assert startUnit != null;
+            this.startUnit = startUnit;
+            this.endUnit = endUnit;
+        }
+
+        /**
+         * Returns a {@code TimeUnitRange} with a given start and end unit.
+         *
+         * @param startUnit Start unit
+         * @param endUnit End unit
+         * @return Time unit range, or null if not valid
+         */
+        public static TimeUnitRange of(TimeUnit startUnit, TimeUnit endUnit) {
+            return MAP.get(new Pair<>(startUnit, endUnit));
+        }
+
+        private static Map<Pair<TimeUnit>, TimeUnitRange> createMap() {
+            Map<Pair<TimeUnit>, TimeUnitRange> map = new HashMap<>();
+            for (TimeUnitRange value : values()) {
+                map.put(new Pair<>(value.startUnit, value.endUnit), value);
+            }
+            return Collections.unmodifiableMap(map);
+        }
+
+        /** Whether this is in the YEAR-TO-MONTH family of intervals. */
+        public boolean monthly() {
+            return ordinal() <= MONTH.ordinal();
+        }
+
+        /**
+         * Immutable pair of values of the same type.
+         *
+         * @param <E> the element type
+         */
+        private static class Pair<E> {
+            final E left;
+            final E right;
+
+            private Pair(E left, E right) {
+                this.left = left;
+                this.right = right;
+            }
+
+            @Override
+            public int hashCode() {
+                int k = (left == null) ? 0 : left.hashCode();
+                int k1 = (right == null) ? 0 : right.hashCode();
+                return ((k << 4) | k) ^ k1;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                return obj == this
+                        || obj instanceof Pair
+                                && Objects.equals(left, ((Pair) obj).left)
+                                && Objects.equals(right, ((Pair) obj).right);
+            }
+        }
     }
 }
