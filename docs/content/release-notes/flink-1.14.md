@@ -41,9 +41,9 @@ for Flink and track the proper solution in [FLINK-24302](https://issues.apache.o
 
 ### Summary of changed dependency names
 
-There are two changes in Flink 1.14 that might require updating dependency names when upgrading from earlier versions.
+There are two changes in Flink 1.14 that require updating dependency names when upgrading from earlier versions.
 
-* The removal of the blink planner ([FLINK-22879](https://issues.apache.org/jira/browse/FLINK-22879))
+* The removal of the Blink planner ([FLINK-22879](https://issues.apache.org/jira/browse/FLINK-22879))
    requires the removal of the `blink` infix.
 * Due to [FLINK-14105](https://issues.apache.org/jira/browse/FLINK-14105), if you have a dependency on `flink-runtime`, `flink-optimizer` and/or `flink-queryable-state-runtime`, the Scala suffix (`_2.11`/`_2.12`) needs to be removed from the `artifactId`.
 
