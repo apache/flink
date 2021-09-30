@@ -66,7 +66,7 @@ import java.util.PriorityQueue;
 import java.util.Properties;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.connector.kafka.sink.KafkaSinkITCase.drainAllRecordsFromTopic;
+import static org.apache.flink.connector.kafka.sink.KafkaUtil.drainAllRecordsFromTopic;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -212,7 +212,7 @@ public class KafkaWriterITCase extends TestLogger {
             committables.get(0).getProducer().get().getObject().commitTransaction();
 
             List<ConsumerRecord<byte[], byte[]>> records =
-                    KafkaSinkITCase.drainAllRecordsFromTopic(topic, getKafkaClientConfiguration());
+                    drainAllRecordsFromTopic(topic, getKafkaClientConfiguration(), true);
             assertThat(records, hasSize(1));
         }
 
@@ -291,7 +291,7 @@ public class KafkaWriterITCase extends TestLogger {
         try (final KafkaWriter<Integer> writer =
                 createWriterWithConfiguration(properties, DeliveryGuarantee.EXACTLY_ONCE)) {
             writer.write(1, SINK_WRITER_CONTEXT);
-            assertThat(drainAllRecordsFromTopic(topic, properties), hasSize(0));
+            assertThat(drainAllRecordsFromTopic(topic, properties, true), hasSize(0));
         }
 
         try (final KafkaWriter<Integer> writer =
@@ -310,7 +310,7 @@ public class KafkaWriterITCase extends TestLogger {
                 producer.commitTransaction();
             }
 
-            assertThat(drainAllRecordsFromTopic(topic, properties), hasSize(1));
+            assertThat(drainAllRecordsFromTopic(topic, properties, true), hasSize(1));
         }
     }
 

@@ -59,7 +59,6 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.junit.After;
@@ -83,7 +82,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -116,8 +114,6 @@ public class KafkaSinkITCase extends TestLogger {
     private static final Network NETWORK = Network.newNetwork();
     private static final int ZK_TIMEOUT_MILLIS = 30000;
     private static final short TOPIC_REPLICATION_FACTOR = 1;
-    private static final Duration CONSUMER_POLL_DURATION = Duration.ofSeconds(1);
-    private static final RecordSerializer serializer = new RecordSerializer();
     private static AdminClient admin;
 
     private String topic;
@@ -255,7 +251,7 @@ public class KafkaSinkITCase extends TestLogger {
         executeWithMapper(
                 new FailingCheckpointMapper(failed, lastCheckpointedRecord), config, "newPrefix");
         final List<ConsumerRecord<byte[], byte[]>> collectedRecords =
-                drainAllRecordsFromTopic(topic);
+                drainAllRecordsFromTopic(topic, true);
         assertThat(
                 deserializeValues(collectedRecords),
                 contains(
@@ -276,7 +272,7 @@ public class KafkaSinkITCase extends TestLogger {
                     e.getCause().getCause().getMessage(),
                     containsString("Exceeded checkpoint tolerable failure"));
         }
-        assertTrue(deserializeValues(drainAllRecordsFromTopic(topic)).isEmpty());
+        assertTrue(deserializeValues(drainAllRecordsFromTopic(topic, true)).isEmpty());
 
         // Second job aborts all transactions from previous runs with higher parallelism
         config.set(CoreOptions.DEFAULT_PARALLELISM, 1);
@@ -284,7 +280,7 @@ public class KafkaSinkITCase extends TestLogger {
         executeWithMapper(
                 new FailingCheckpointMapper(failed, lastCheckpointedRecord), config, null);
         final List<ConsumerRecord<byte[], byte[]>> collectedRecords =
-                drainAllRecordsFromTopic(topic);
+                drainAllRecordsFromTopic(topic, true);
         assertThat(
                 deserializeValues(collectedRecords),
                 contains(
@@ -350,7 +346,7 @@ public class KafkaSinkITCase extends TestLogger {
         env.execute();
 
         final List<ConsumerRecord<byte[], byte[]>> collectedRecords =
-                drainAllRecordsFromTopic(topic);
+                drainAllRecordsFromTopic(topic, guarantee == DeliveryGuarantee.EXACTLY_ONCE);
         recordsAssertion.accept(deserializeValues(collectedRecords));
         checkProducerLeak();
     }
@@ -380,7 +376,8 @@ public class KafkaSinkITCase extends TestLogger {
         env.execute();
 
         final List<ConsumerRecord<byte[], byte[]>> collectedRecords =
-                drainAllRecordsFromTopic(topic);
+                drainAllRecordsFromTopic(
+                        topic, deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE);
         final long recordsCount = expectedRecords.get().get();
         assertEquals(collectedRecords.size(), recordsCount);
         assertThat(
@@ -441,23 +438,10 @@ public class KafkaSinkITCase extends TestLogger {
         result.all().get(1, TimeUnit.MINUTES);
     }
 
-    private List<ConsumerRecord<byte[], byte[]>> drainAllRecordsFromTopic(String topic) {
+    private List<ConsumerRecord<byte[], byte[]>> drainAllRecordsFromTopic(
+            String topic, boolean committed) {
         Properties properties = getKafkaClientConfiguration();
-        return drainAllRecordsFromTopic(topic, properties);
-    }
-
-    static List<ConsumerRecord<byte[], byte[]>> drainAllRecordsFromTopic(
-            String topic, Properties properties) {
-        final List<ConsumerRecord<byte[], byte[]>> collectedRecords = new ArrayList<>();
-        try (Consumer<byte[], byte[]> consumer = createTestConsumer(topic, properties)) {
-            ConsumerRecords<byte[], byte[]> records = consumer.poll(CONSUMER_POLL_DURATION);
-            // Drain the kafka topic till all records are consumed
-            while (!records.isEmpty()) {
-                records.records(topic).forEach(collectedRecords::add);
-                records = consumer.poll(CONSUMER_POLL_DURATION);
-            }
-        }
-        return collectedRecords;
+        return KafkaUtil.drainAllRecordsFromTopic(topic, properties, committed);
     }
 
     private static class RecordSerializer implements SerializationSchema<Long> {
