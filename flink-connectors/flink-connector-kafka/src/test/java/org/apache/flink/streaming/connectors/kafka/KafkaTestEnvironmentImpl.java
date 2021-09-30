@@ -35,6 +35,7 @@ import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import org.apache.commons.collections.list.UnmodifiableList;
 import org.apache.commons.io.FileUtils;
+import org.apache.curator.test.InstanceSpec;
 import org.apache.curator.test.TestingServer;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -125,7 +126,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         zookeeper = null;
         brokers.clear();
 
-        zookeeper = new TestingServer(-1, tmpZkDir);
+        zookeeper = new TestingServer(new InstanceSpec(tmpZkDir, 0, 0, 0, true, -1), true);
         zookeeperConnectionString = zookeeper.getConnectString();
         LOG.info(
                 "Starting Zookeeper with zookeeperConnectionString: {}", zookeeperConnectionString);
