@@ -21,8 +21,9 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderService;
-import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -31,6 +32,7 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFram
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -46,6 +48,10 @@ import static org.junit.Assert.assertThat;
 /** Tests for leader election. */
 @RunWith(Parameterized.class)
 public class LeaderElectionTest extends TestLogger {
+
+    @Rule
+    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerResource();
 
     enum LeaderElectionType {
         ZooKeeper,
@@ -79,7 +85,7 @@ public class LeaderElectionTest extends TestLogger {
 
     @Before
     public void setup() throws Exception {
-        serviceClass.setup();
+        serviceClass.setup(testingFatalErrorHandlerResource.getFatalErrorHandler());
     }
 
     @After
@@ -155,7 +161,7 @@ public class LeaderElectionTest extends TestLogger {
     }
 
     private interface ServiceClass {
-        void setup() throws Exception;
+        void setup(FatalErrorHandler fatalErrorHandler) throws Exception;
 
         void teardown() throws Exception;
 
@@ -171,7 +177,7 @@ public class LeaderElectionTest extends TestLogger {
         private Configuration configuration;
 
         @Override
-        public void setup() throws Exception {
+        public void setup(FatalErrorHandler fatalErrorHandler) throws Exception {
             try {
                 testingServer = new TestingServer();
             } catch (Exception e) {
@@ -184,9 +190,7 @@ public class LeaderElectionTest extends TestLogger {
                     HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
             configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
-            client =
-                    ZooKeeperUtils.startCuratorFramework(
-                            configuration, NoOpFatalErrorHandler.INSTANCE);
+            client = ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
         }
 
         @Override
@@ -212,7 +216,7 @@ public class LeaderElectionTest extends TestLogger {
         private EmbeddedLeaderService embeddedLeaderService;
 
         @Override
-        public void setup() {
+        public void setup(FatalErrorHandler fatalErrorHandler) {
             embeddedLeaderService = new EmbeddedLeaderService(TestingUtils.defaultExecutor());
         }
 
@@ -233,7 +237,7 @@ public class LeaderElectionTest extends TestLogger {
     private static final class StandaloneServiceClass implements ServiceClass {
 
         @Override
-        public void setup() throws Exception {
+        public void setup(FatalErrorHandler fatalErrorHandler) throws Exception {
             // noop
         }
 

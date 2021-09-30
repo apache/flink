@@ -26,11 +26,11 @@ import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingContender;
-import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -39,6 +39,7 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFram
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -63,6 +64,10 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
 
     private HighAvailabilityServices highAvailabilityServices;
 
+    @Rule
+    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerResource();
+
     @Before
     public void before() throws Exception {
         testingServer = new TestingServer();
@@ -73,7 +78,8 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
 
         CuratorFramework client =
-                ZooKeeperUtils.startCuratorFramework(config, NoOpFatalErrorHandler.INSTANCE);
+                ZooKeeperUtils.startCuratorFramework(
+                        config, testingFatalErrorHandlerResource.getFatalErrorHandler());
 
         highAvailabilityServices =
                 new ZooKeeperHaServices(

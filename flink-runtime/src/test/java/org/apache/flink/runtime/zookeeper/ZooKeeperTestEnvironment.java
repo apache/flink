@@ -20,7 +20,7 @@ package org.apache.flink.runtime.zookeeper;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
+import org.apache.flink.runtime.util.ExitJVMFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
@@ -75,7 +75,7 @@ public class ZooKeeperTestEnvironment {
                         zooKeeperCluster.getConnectString());
             }
 
-            client = ZooKeeperUtils.startCuratorFramework(conf, NoOpFatalErrorHandler.INSTANCE);
+            client = ZooKeeperUtils.startCuratorFramework(conf, ExitJVMFatalErrorHandler.INSTANCE);
 
             client.newNamespaceAwareEnsurePath("/").ensure(client.getZookeeperClient());
         } catch (Exception e) {
@@ -128,7 +128,7 @@ public class ZooKeeperTestEnvironment {
     public CuratorFramework createClient() {
         Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, getConnectString());
-        return ZooKeeperUtils.startCuratorFramework(config, NoOpFatalErrorHandler.INSTANCE);
+        return ZooKeeperUtils.startCuratorFramework(config, ExitJVMFatalErrorHandler.INSTANCE);
     }
 
     /**
