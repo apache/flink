@@ -41,13 +41,13 @@ for Flink. The proper solution can be tracked in [FLINK-24302](https://issues.ap
 
 ### Summary of changed dependency names
 
-There are are two changes in Flink 1.14. that might require updating dependency names
+There are are two changes in Flink 1.14 that require updating dependency names
 when upgrading to Flink 1.14 from earlier versions.
 
-* The removal of the blink planner ([FLINK-22879](#remove-blink-suffix-from-table-modules))
+* The removal of the Blink planner ([FLINK-22879](#remove-blink-suffix-from-table-modules))
    requires the removal of the `blink` infix.
 * Due to [FLINK-14105](#make-flink-runtime-scala-free) making the Flink runtime scala free
-   in case you got a dependency on `flink-runtime`, `flink-optimizer` and/or `flink-queryable-state-runtime` the Scala suffix (`_2.11`/`_2.12`) needs to be removed from the artifactId.
+   in case you have a dependency on `flink-runtime`, `flink-optimizer`, or `flink-queryable-state-runtime` the Scala suffix (`_2.11`/`_2.12`) needs to be removed from the artifactId.
 
 ### Table & SQL
 
