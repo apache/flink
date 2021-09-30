@@ -44,7 +44,6 @@ import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
@@ -66,6 +65,7 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -730,12 +730,12 @@ public class DataFormatConverters {
 
         @Override
         Integer toInternalImpl(LocalDate value) {
-            return SqlDateTimeUtils.localDateToUnixDate(value);
+            return DateTimeUtils.localDateToUnixDate(value);
         }
 
         @Override
         LocalDate toExternalImpl(Integer value) {
-            return SqlDateTimeUtils.unixDateToLocalDate(value);
+            return DateTimeUtils.unixDateToLocalDate(value);
         }
 
         @Override
@@ -755,12 +755,12 @@ public class DataFormatConverters {
 
         @Override
         Integer toInternalImpl(LocalTime value) {
-            return SqlDateTimeUtils.localTimeToUnixDate(value);
+            return DateTimeUtils.localTimeToUnixDate(value);
         }
 
         @Override
         LocalTime toExternalImpl(Integer value) {
-            return SqlDateTimeUtils.unixTimeToLocalTime(value);
+            return DateTimeUtils.unixTimeToLocalTime(value);
         }
 
         @Override
@@ -835,12 +835,12 @@ public class DataFormatConverters {
 
         @Override
         Integer toInternalImpl(Date value) {
-            return SqlDateTimeUtils.dateToInternal(value);
+            return DateTimeUtils.dateToInternal(value);
         }
 
         @Override
         Date toExternalImpl(Integer value) {
-            return SqlDateTimeUtils.internalToDate(value);
+            return DateTimeUtils.internalToDate(value);
         }
 
         @Override
@@ -860,12 +860,12 @@ public class DataFormatConverters {
 
         @Override
         Integer toInternalImpl(Time value) {
-            return SqlDateTimeUtils.timeToInternal(value);
+            return DateTimeUtils.timeToInternal(value);
         }
 
         @Override
         Time toExternalImpl(Integer value) {
-            return SqlDateTimeUtils.internalToTime(value);
+            return DateTimeUtils.internalToTime(value);
         }
 
         @Override

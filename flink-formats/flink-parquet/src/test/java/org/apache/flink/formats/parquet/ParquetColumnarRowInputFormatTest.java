@@ -25,7 +25,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.filesystem.PartitionFieldExtractor;
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DateType;
@@ -39,6 +38,7 @@ import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -602,7 +602,7 @@ public class ParquetColumnarRowInputFormatTest {
                         assertEquals(13, row.getFloat(8), 0);
                         assertEquals(6.6, row.getDouble(9), 0);
                         assertEquals(
-                                SqlDateTimeUtils.dateToInternal(Date.valueOf("2020-11-23")),
+                                DateTimeUtils.dateToInternal(Date.valueOf("2020-11-23")),
                                 row.getInt(10));
                         assertEquals(
                                 LocalDateTime.of(1999, 1, 1, 1, 1),

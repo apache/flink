@@ -54,7 +54,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.internalToDate;
+import static org.apache.flink.table.utils.DateTimeUtils.internalToDate;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;

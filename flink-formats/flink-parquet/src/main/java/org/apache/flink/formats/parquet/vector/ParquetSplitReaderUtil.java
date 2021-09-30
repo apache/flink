@@ -70,7 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToInternal;
+import static org.apache.flink.table.utils.DateTimeUtils.dateToInternal;
 import static org.apache.parquet.Preconditions.checkArgument;
 
 /** Util for generating {@link ParquetColumnarRowSplitReader}. */

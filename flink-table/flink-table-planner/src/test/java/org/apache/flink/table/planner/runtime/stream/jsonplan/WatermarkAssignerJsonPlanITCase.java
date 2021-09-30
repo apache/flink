@@ -28,7 +28,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
 
-import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime;
+import static org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime;
 
 /** Test for watermark assigner json plan. */
 public class WatermarkAssignerJsonPlanITCase extends JsonPlanTestBase {

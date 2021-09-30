@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
-import org.apache.flink.table.runtime.functions.{SqlDateTimeUtils, SqlFunctionUtils}
+import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
@@ -40,15 +40,14 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExpli
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.util.Preconditions.checkArgument
-
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
+import org.apache.flink.table.utils.DateTimeUtils
 
 import java.lang.{StringBuilder => JStringBuilder}
 import java.nio.charset.StandardCharsets
 import java.util.Arrays.asList
-
 import scala.collection.JavaConversions._
 
 /**
@@ -2023,17 +2022,17 @@ object ScalarOperatorGens {
     val stringValue = stringLiteral.literalValue.get.toString
     val literalCode = expectType.getTypeRoot match {
       case DATE =>
-        SqlDateTimeUtils.dateStringToUnixDate(stringValue) match {
+        DateTimeUtils.dateStringToUnixDate(stringValue) match {
           case null => throw new ValidationException(s"String '$stringValue' is not a valid date")
           case v => v
         }
       case TIME_WITHOUT_TIME_ZONE =>
-        SqlDateTimeUtils.timeStringToUnixDate(stringValue) match {
+        DateTimeUtils.timeStringToUnixDate(stringValue) match {
           case null => throw new ValidationException(s"String '$stringValue' is not a valid time")
           case v => v
         }
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        SqlDateTimeUtils.toTimestampData(stringValue) match {
+        DateTimeUtils.toTimestampData(stringValue) match {
           case null =>
             throw new ValidationException(s"String '$stringValue' is not a valid timestamp")
           case v => s"${CodeGenUtils.TIMESTAMP_DATA}.fromEpochMillis(" +

@@ -30,7 +30,6 @@ import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.runtime.typeutils.serializers.python.ArrayDataSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DecimalDataSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.MapDataSerializer;
@@ -57,6 +56,7 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+import org.apache.flink.table.utils.DateTimeUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -107,7 +107,7 @@ public final class PythonTypeUtils {
      * Converts the internal representation of a SQL DATE (int) to the Java type used for UDF
      * parameters ({@link java.sql.Date}).
      *
-     * <p>Note: The implementation refers to {@link SqlDateTimeUtils#internalToDate}.
+     * <p>Note: The implementation refers to {@link DateTimeUtils#internalToDate}.
      */
     public static java.sql.Date internalToDate(int v) {
         // note that, in this case, can't handle Daylight Saving Time
@@ -119,7 +119,7 @@ public final class PythonTypeUtils {
      * Converts the Java type used for UDF parameters of SQL DATE type ({@link java.sql.Date}) to
      * internal representation (int).
      *
-     * <p>Note: The implementation refers to {@link SqlDateTimeUtils#dateToInternal}.
+     * <p>Note: The implementation refers to {@link DateTimeUtils#dateToInternal}.
      */
     public static int dateToInternal(java.sql.Date date) {
         long ts = date.getTime() + LOCAL_TZ.getOffset(date.getTime());
@@ -130,7 +130,7 @@ public final class PythonTypeUtils {
      * Converts the Java type used for UDF parameters of SQL TIMESTAMP type ({@link
      * java.sql.Timestamp}) to internal representation (long).
      *
-     * <p>Note: The implementation refers to {@link SqlDateTimeUtils#timestampToInternal}.
+     * <p>Note: The implementation refers to {@link DateTimeUtils#timestampToInternal}.
      */
     public static long timestampToInternal(java.sql.Timestamp ts) {
         long time = ts.getTime();

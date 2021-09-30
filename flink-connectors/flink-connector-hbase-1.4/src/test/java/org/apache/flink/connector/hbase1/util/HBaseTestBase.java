@@ -35,9 +35,9 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToInternal;
-import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.timeToInternal;
-import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.timestampToInternal;
+import static org.apache.flink.table.utils.DateTimeUtils.dateToInternal;
+import static org.apache.flink.table.utils.DateTimeUtils.timeToInternal;
+import static org.apache.flink.table.utils.DateTimeUtils.timestampToInternal;
 
 /** Abstract IT case class for HBase. */
 public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {

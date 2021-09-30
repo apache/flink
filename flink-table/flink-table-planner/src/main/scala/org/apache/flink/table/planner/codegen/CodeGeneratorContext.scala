@@ -27,19 +27,18 @@ import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.planner.utils.InternalConfigOptions
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.runtime.typeutils.{ExternalSerializer, InternalSerializers}
 import org.apache.flink.table.runtime.util.collections._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.util.InstantiationUtil
 
 import java.util.TimeZone
 import java.util.function.{Supplier => JSupplier}
 import java.time.ZoneId
-
 import scala.collection.mutable
 
 /**
@@ -526,7 +525,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 
     // declaration
     reusableMemberStatements.add(s"private int $fieldTerm;")
-    val utilsName = classOf[SqlDateTimeUtils].getCanonicalName
+    val utilsName = classOf[DateTimeUtils].getCanonicalName
 
     // assignment
     val field =
@@ -545,7 +544,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val fieldTerm = s"queryStartLocaltime"
 
     val queryStartLocalTimestamp = addReusableQueryLevelLocalDateTime()
-    val utilsName = classOf[SqlDateTimeUtils].getCanonicalName
+    val utilsName = classOf[DateTimeUtils].getCanonicalName
     // declaration
     reusableMemberStatements.add(
       s"""
@@ -562,7 +561,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val fieldTerm = s"date"
 
     val timestamp = addReusableRecordLevelLocalDateTime()
-    val utilsName = classOf[SqlDateTimeUtils].getCanonicalName
+    val utilsName = classOf[DateTimeUtils].getCanonicalName
 
     // declaration
     reusableMemberStatements.add(s"private int $fieldTerm;")
@@ -579,7 +578,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
    */
   def addReusableQueryLevelCurrentDate(): String = {
     val fieldTerm = s"queryStartDate"
-    val utilsName = classOf[SqlDateTimeUtils].getCanonicalName
+    val utilsName = classOf[DateTimeUtils].getCanonicalName
 
     val timestamp = addReusableQueryLevelLocalDateTime()
     reusableMemberStatements.add(
