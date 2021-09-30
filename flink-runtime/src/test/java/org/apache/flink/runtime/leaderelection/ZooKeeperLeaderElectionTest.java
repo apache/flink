@@ -29,6 +29,7 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -49,6 +50,7 @@ import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
@@ -106,6 +108,10 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionTest.class);
 
+    @Rule
+    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerResource();
+
     @Before
     public void before() {
         try {
@@ -121,7 +127,8 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
         configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
         client =
-                ZooKeeperUtils.startCuratorFramework(configuration, NoOpFatalErrorHandler.INSTANCE);
+                ZooKeeperUtils.startCuratorFramework(
+                        configuration, testingFatalErrorHandlerResource.getFatalErrorHandler());
     }
 
     @After
@@ -496,10 +503,10 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
         try {
             client =
                     ZooKeeperUtils.startCuratorFramework(
-                            configuration, NoOpFatalErrorHandler.INSTANCE);
+                            configuration, testingFatalErrorHandlerResource.getFatalErrorHandler());
             client2 =
                     ZooKeeperUtils.startCuratorFramework(
-                            configuration, NoOpFatalErrorHandler.INSTANCE);
+                            configuration, testingFatalErrorHandlerResource.getFatalErrorHandler());
 
             leaderElectionDriver = createAndInitLeaderElectionDriver(client, electionEventHandler);
             leaderRetrievalDriver =
