@@ -107,11 +107,11 @@ describe v1;
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
-|    user |                      BIGINT | false |     |        |           |
-| product |                 VARCHAR(32) |  true |     |        |           |
-|  amount |                         INT |  true |     |        |           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+|    user |                      BIGINT | FALSE |     |        |           |
+| product |                 VARCHAR(32) |  TRUE |     |        |           |
+|  amount |                         INT |  TRUE |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
@@ -121,11 +121,11 @@ show columns from v1;
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
-|    user |                      BIGINT | false |     |        |           |
-| product |                 VARCHAR(32) |  true |     |        |           |
-|  amount |                         INT |  true |     |        |           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+|    user |                      BIGINT | FALSE |     |        |           |
+| product |                 VARCHAR(32) |  TRUE |     |        |           |
+|  amount |                         INT |  TRUE |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
@@ -134,11 +134,11 @@ show columns in v1;
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
-|    user |                      BIGINT | false |     |        |           |
-| product |                 VARCHAR(32) |  true |     |        |           |
-|  amount |                         INT |  true |     |        |           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+|    user |                      BIGINT | FALSE |     |        |           |
+| product |                 VARCHAR(32) |  TRUE |     |        |           |
+|  amount |                         INT |  TRUE |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
@@ -155,11 +155,11 @@ show columns from v1 not like '%u';
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
-|    user |                      BIGINT | false |     |        |           |
-| product |                 VARCHAR(32) |  true |     |        |           |
-|  amount |                         INT |  true |     |        |           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+|    user |                      BIGINT | FALSE |     |        |           |
+| product |                 VARCHAR(32) |  TRUE |     |        |           |
+|  amount |                         INT |  TRUE |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
@@ -168,11 +168,11 @@ show columns in v1 not like '%u';
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
-|    user |                      BIGINT | false |     |        |           |
-| product |                 VARCHAR(32) |  true |     |        |           |
-|  amount |                         INT |  true |     |        |           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+|    user |                      BIGINT | FALSE |     |        |           |
+| product |                 VARCHAR(32) |  TRUE |     |        |           |
+|  amount |                         INT |  TRUE |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
@@ -181,7 +181,7 @@ show columns from v1 like '%r';
 +------+--------+-------+-----+--------+-----------+
 | name |   type |  null | key | extras | watermark |
 +------+--------+-------+-----+--------+-----------+
-| user | BIGINT | false |     |        |           |
+| user | BIGINT | FALSE |     |        |           |
 +------+--------+-------+-----+--------+-----------+
 1 row in set
 !ok
@@ -190,7 +190,7 @@ show columns in v1 like '%r';
 +------+--------+-------+-----+--------+-----------+
 | name |   type |  null | key | extras | watermark |
 +------+--------+-------+-----+--------+-----------+
-| user | BIGINT | false |     |        |           |
+| user | BIGINT | FALSE |     |        |           |
 +------+--------+-------+-----+--------+-----------+
 1 row in set
 !ok
@@ -199,10 +199,10 @@ show columns from v1 not like  '%r';
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
-| product |                 VARCHAR(32) |  true |     |        |           |
-|  amount |                         INT |  true |     |        |           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+| product |                 VARCHAR(32) |  TRUE |     |        |           |
+|  amount |                         INT |  TRUE |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +---------+-----------------------------+-------+-----+--------+-----------+
 4 rows in set
 !ok
@@ -211,10 +211,10 @@ show columns in v1 not like  '%r';
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
-| product |                 VARCHAR(32) |  true |     |        |           |
-|  amount |                         INT |  true |     |        |           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+| product |                 VARCHAR(32) |  TRUE |     |        |           |
+|  amount |                         INT |  TRUE |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +---------+-----------------------------+-------+-----+--------+-----------+
 4 rows in set
 !ok
@@ -223,9 +223,9 @@ show columns from v1 like '%u%';
 +---------+-------------+-------+-----+--------+-----------+
 |    name |        type |  null | key | extras | watermark |
 +---------+-------------+-------+-----+--------+-----------+
-|    user |      BIGINT | false |     |        |           |
-| product | VARCHAR(32) |  true |     |        |           |
-|  amount |         INT |  true |     |        |           |
+|    user |      BIGINT | FALSE |     |        |           |
+| product | VARCHAR(32) |  TRUE |     |        |           |
+|  amount |         INT |  TRUE |     |        |           |
 +---------+-------------+-------+-----+--------+-----------+
 3 rows in set
 !ok
@@ -234,9 +234,9 @@ show columns in v1 like '%u%';
 +---------+-------------+-------+-----+--------+-----------+
 |    name |        type |  null | key | extras | watermark |
 +---------+-------------+-------+-----+--------+-----------+
-|    user |      BIGINT | false |     |        |           |
-| product | VARCHAR(32) |  true |     |        |           |
-|  amount |         INT |  true |     |        |           |
+|    user |      BIGINT | FALSE |     |        |           |
+| product | VARCHAR(32) |  TRUE |     |        |           |
+|  amount |         INT |  TRUE |     |        |           |
 +---------+-------------+-------+-----+--------+-----------+
 3 rows in set
 !ok
@@ -245,8 +245,8 @@ show columns from v1 not like '%u%';
 +-------+-----------------------------+-------+-----+--------+-----------+
 |  name |                        type |  null | key | extras | watermark |
 +-------+-----------------------------+-------+-----+--------+-----------+
-|    ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-| ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+|    ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+| ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +-------+-----------------------------+-------+-----+--------+-----------+
 2 rows in set
 !ok
@@ -255,8 +255,8 @@ show columns in v1 not like '%u%';
 +-------+-----------------------------+-------+-----+--------+-----------+
 |  name |                        type |  null | key | extras | watermark |
 +-------+-----------------------------+-------+-----+--------+-----------+
-|    ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-| ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+|    ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+| ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +-------+-----------------------------+-------+-----+--------+-----------+
 2 rows in set
 !ok
@@ -265,7 +265,7 @@ show columns from v1 like 'use_';
 +------+--------+-------+-----+--------+-----------+
 | name |   type |  null | key | extras | watermark |
 +------+--------+-------+-----+--------+-----------+
-| user | BIGINT | false |     |        |           |
+| user | BIGINT | FALSE |     |        |           |
 +------+--------+-------+-----+--------+-----------+
 1 row in set
 !ok
@@ -274,7 +274,7 @@ show columns in v1 like 'use_';
 +------+--------+-------+-----+--------+-----------+
 | name |   type |  null | key | extras | watermark |
 +------+--------+-------+-----+--------+-----------+
-| user | BIGINT | false |     |        |           |
+| user | BIGINT | FALSE |     |        |           |
 +------+--------+-------+-----+--------+-----------+
 1 row in set
 !ok
@@ -283,10 +283,10 @@ show columns from v1 not like 'use_';
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
-| product |                 VARCHAR(32) |  true |     |        |           |
-|  amount |                         INT |  true |     |        |           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+| product |                 VARCHAR(32) |  TRUE |     |        |           |
+|  amount |                         INT |  TRUE |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +---------+-----------------------------+-------+-----+--------+-----------+
 4 rows in set
 !ok
@@ -295,10 +295,10 @@ show columns in v1 not like 'use_';
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
-| product |                 VARCHAR(32) |  true |     |        |           |
-|  amount |                         INT |  true |     |        |           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+| product |                 VARCHAR(32) |  TRUE |     |        |           |
+|  amount |                         INT |  TRUE |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +---------+-----------------------------+-------+-----+--------+-----------+
 4 rows in set
 !ok
@@ -335,11 +335,11 @@ describe `mod`;
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
-|    user |                      BIGINT | false |     |        |           |
-| product |                 VARCHAR(32) |  true |     |        |           |
-|  amount |                         INT |  true |     |        |           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+|    user |                      BIGINT | FALSE |     |        |           |
+| product |                 VARCHAR(32) |  TRUE |     |        |           |
+|  amount |                         INT |  TRUE |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
@@ -348,11 +348,11 @@ desc `mod`;
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
-|    user |                      BIGINT | false |     |        |           |
-| product |                 VARCHAR(32) |  true |     |        |           |
-|  amount |                         INT |  true |     |        |           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
+|    user |                      BIGINT | FALSE |     |        |           |
+| product |                 VARCHAR(32) |  TRUE |     |        |           |
+|  amount |                         INT |  TRUE |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     |        |           |
 +---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok

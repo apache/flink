@@ -145,9 +145,7 @@ public class StringUtils {
                     .map(
                             timestampData ->
                                     DateTimeUtils.timestampToString(
-                                            timestampData,
-                                            TimeZone.getTimeZone(sessionTimeZone),
-                                            timestampType.getPrecision()))
+                                            timestampData, timestampType.getPrecision()))
                     .orElseGet(() -> Objects.toString(value));
         }
 
@@ -413,11 +411,13 @@ public class StringUtils {
             } else if (value instanceof DecimalData) {
                 return ((DecimalData) value).toString();
             } else if (value instanceof BigDecimal) {
-                return DecimalData.fromBigDecimal(
-                                (BigDecimal) value,
-                                decimalType.getPrecision(),
-                                decimalType.getScale())
-                        .toString();
+                return Optional.ofNullable(
+                                DecimalData.fromBigDecimal(
+                                        (BigDecimal) value,
+                                        decimalType.getPrecision(),
+                                        decimalType.getScale()))
+                        .map(Objects::toString)
+                        .orElseGet(() -> Objects.toString(value));
             }
             return Objects.toString(value);
         }

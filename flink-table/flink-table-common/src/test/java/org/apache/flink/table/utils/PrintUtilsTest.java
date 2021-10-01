@@ -37,7 +37,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -131,9 +131,9 @@ public class PrintUtilsTest {
                                         "f2", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()))),
                                 Column.physical("f3", DataTypes.ARRAY(DataTypes.TIME()))));
         assertEquals(
-                "[[1, 2], +I[hello, [true, false],"
+                "[[1, 2], (hello, [TRUE, FALSE],"
                         + " [2021-04-18 18:00:00.123456, 2021-04-18 18:00:00.000001],"
-                        + " [1970-01-01 00:00:00.100000, 1970-01-01 00:00:00.200000]], [[1, 10], [2, 20]],"
+                        + " [1970-01-01 00:00:00.100000, 1970-01-01 00:00:00.200000]), [[1, 10], [2, 20]],"
                         + " [00:00:03, 00:00:04]]",
                 Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
     }
@@ -144,7 +144,7 @@ public class PrintUtilsTest {
         row.setField(0, new int[] {1, 2});
         Row row1 = new Row(2);
         row1.setField(0, "hello");
-        Map<TimestampData, TimestampData> map = new HashMap<>();
+        Map<TimestampData, TimestampData> map = new LinkedHashMap<>();
         map.put(TimestampData.fromEpochMillis(1000), TimestampData.fromEpochMillis(2000));
         map.put(TimestampData.fromEpochMillis(2000), TimestampData.fromEpochMillis(4000));
         row1.setField(1, map);
@@ -161,8 +161,8 @@ public class PrintUtilsTest {
                                                         DataTypes.TIMESTAMP_LTZ(3),
                                                         DataTypes.TIMESTAMP_LTZ(3))))));
         assertEquals(
-                "[[1, 2], +I[hello,"
-                        + " {1970-01-01 00:00:01.000=1970-01-01 00:00:02.000, 1970-01-01 00:00:02.000=1970-01-01 00:00:04.000}]]",
+                "[[1, 2], (hello,"
+                        + " {1970-01-01 00:00:01.000=1970-01-01 00:00:02.000, 1970-01-01 00:00:02.000=1970-01-01 00:00:04.000})]",
                 Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
     }
 
@@ -252,15 +252,15 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "|  (NULL) |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "|  (NULL) |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "|   false |      (NULL) |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "|   FALSE |      (NULL) |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "|    true |  2147483647 |               (NULL) |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "|    TRUE |  2147483647 |               (NULL) |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
-                        + "|   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                        + "|   FALSE | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
-                        + "|    true |         100 | -9223372036854775808 |                     abcdefg111 |         (NULL) | 2020-03-01 18:39:14.123456 |"
+                        + "|    TRUE |         100 | -9223372036854775808 |                     abcdefg111 |         (NULL) | 2020-03-01 18:39:14.123456 |"
                         + System.lineSeparator()
                         + "|  (NULL) |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                     (NULL) |"
                         + System.lineSeparator()
@@ -302,15 +302,15 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "| +I |         |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "| +I |         |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| +I |   false |             |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "| +I |   FALSE |             |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| -D |    true |  2147483647 |                      |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "| -D |    TRUE |  2147483647 |                      |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
-                        + "| +I |   false | -2147483648 |  9223372036854775807 |                                |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                        + "| +I |   FALSE | -2147483648 |  9223372036854775807 |                                |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
-                        + "| +I |    true |         100 | -9223372036854775808 |                     abcdefg111 |                | 2020-03-01 18:39:14.123456 |"
+                        + "| +I |    TRUE |         100 | -9223372036854775808 |                     abcdefg111 |                | 2020-03-01 18:39:14.123456 |"
                         + System.lineSeparator()
                         + "| -U |         |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                            |"
                         + System.lineSeparator()
@@ -344,11 +344,11 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "+----+---------+------------+--------+---------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "| +I |         |          1 |      2 |     abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "| +I |         |          1 |      2 |     abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| +I |   false |            |      0 |         |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "| +I |   FALSE |            |      0 |         |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| -D |    true | 2147483647 |        | abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "| -D |    TRUE | 2147483647 |        | abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
                         + "+----+---------+------------+--------+---------+----------------+----------------------------+"
                         + System.lineSeparator()
@@ -394,7 +394,7 @@ public class PrintUtilsTest {
                         Integer.MAX_VALUE,
                         null,
                         "abcdefg",
-                        BigDecimal.valueOf(1234567890),
+                        BigDecimal.valueOf(12345),
                         Timestamp.valueOf("2020-03-01 18:39:14.12")));
         data.add(
                 Row.ofKind(

@@ -167,25 +167,38 @@ class StringUtilsTest {
         LogicalType timestampType = TIMESTAMP_LTZ().getLogicalType();
 
         assertEquals(
+                "2021-09-24 14:34:56.123456",
+                StringUtils.toSQLString(
+                        TimestampData.fromInstant(Instant.parse("2021-09-24T12:34:56.123456Z")),
+                        timestampType,
+                        ZoneId.of("CET"))); // +2 hours
+
+        assertEquals(
+                "2021-09-24 12:34:56.123456",
+                StringUtils.toSQLString(
+                        TimestampData.fromInstant(Instant.parse("2021-09-24T12:34:56.123456Z")),
+                        timestampType,
+                        DateTimeUtils.UTC_ZONE.toZoneId())); // No difference
+    }
+
+    /** TIMESTAMP should ignore the session timezone. */
+    @Test
+    void toSQLStringWithTimestamp() {
+        LogicalType timestampType = TIMESTAMP_LTZ().getLogicalType();
+
+        assertEquals(
+                "2021-09-24 14:34:56.123456",
+                StringUtils.toSQLString(
+                        TimestampData.fromInstant(Instant.parse("2021-09-24T12:34:56.123456Z")),
+                        timestampType,
+                        ZoneId.of("CET")));
+
+        assertEquals(
                 "2021-09-24 12:34:56.123456",
                 StringUtils.toSQLString(
                         TimestampData.fromInstant(Instant.parse("2021-09-24T12:34:56.123456Z")),
                         timestampType,
                         DateTimeUtils.UTC_ZONE.toZoneId()));
-
-        assertEquals(
-                "2021-09-24 12:34:56.000000",
-                StringUtils.toSQLString(
-                        Instant.parse("2021-09-24T12:34:56Z"),
-                        timestampType,
-                        DateTimeUtils.UTC_ZONE.toZoneId()));
-
-        assertEquals(
-                "2021-09-24 12:34:56.123456",
-                StringUtils.toSQLString(
-                        Timestamp.valueOf("2021-09-24 12:34:56.123456"),
-                        timestampType,
-                        ZoneId.systemDefault()));
     }
 
     private static Map<String, Period> testMap() {
