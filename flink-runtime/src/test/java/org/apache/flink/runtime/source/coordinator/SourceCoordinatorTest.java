@@ -33,6 +33,7 @@ import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
@@ -244,7 +245,8 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 OPERATOR_NAME,
                                 coordinatorExecutor,
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
-                                context)) {
+                                context,
+                                new CoordinatorStoreImpl())) {
 
             coordinator.start();
             waitUtil(
@@ -267,7 +269,8 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 () -> {
                                     throw failureReason;
                                 }),
-                        context);
+                        context,
+                        new CoordinatorStoreImpl());
 
         coordinator.start();
 
@@ -292,7 +295,8 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 OPERATOR_NAME,
                                 coordinatorExecutor,
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
-                                context)) {
+                                context,
+                                new CoordinatorStoreImpl())) {
 
             coordinator.start();
             coordinator.handleEventFromOperator(1, new SourceEventWrapper(new SourceEvent() {}));
