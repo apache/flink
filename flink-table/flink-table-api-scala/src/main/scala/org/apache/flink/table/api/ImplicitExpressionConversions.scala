@@ -834,7 +834,7 @@ trait ImplicitExpressionConversions {
    * jsonObject(JsonOnNull.NULL, "K1", jsonObject(JsonOnNull.NULL, "K2", "V"))
    * }}}
    */
-  def jsonObject(onNull: JsonOnNull, keyValues: Any*): Expression = {
+  def jsonObject(onNull: JsonOnNull, keyValues: Expression*): Expression = {
     Expressions.jsonObject(onNull, keyValues)
   }
 }
