@@ -54,7 +54,6 @@ import java.util.stream.IntStream;
 import static org.apache.flink.streaming.runtime.io.UnalignedControllerTest.addSequence;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -607,13 +606,26 @@ public class CheckpointBarrierTrackerTest {
         ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler();
         inputGate = createCheckpointedInputGate(2, sequence, validator);
 
-        for (BufferOrEvent boe : sequence) {
-            assertEquals(boe, inputGate.pollNext().get());
-            Thread.sleep(10);
-        }
+        // start checkpoint 1
+        assertEquals(sequence[0], inputGate.pollNext().get());
+        Thread.sleep(10);
+
+        // start checkpoint 2
+        long start = System.currentTimeMillis();
+        assertEquals(sequence[1], inputGate.pollNext().get());
+        Thread.sleep(1);
+
+        // finish the checkpoint 1
+        assertEquals(sequence[2], inputGate.pollNext().get());
+        Thread.sleep(1);
+
+        //  finish the checkpoint 2
+        assertEquals(sequence[3], inputGate.pollNext().get());
+        long totalSecondCheckpointTime = System.currentTimeMillis() - start;
+
         long alignmentTime = validator.lastAlignmentDurationNanos.get() / 1_000_000;
-        assertThat(alignmentTime, greaterThan(0L));
-        assertThat(alignmentTime, lessThanOrEqualTo(30L));
+        assertThat(alignmentTime, greaterThanOrEqualTo(2L));
+        assertThat(alignmentTime, lessThanOrEqualTo(totalSecondCheckpointTime));
     }
 
     // ------------------------------------------------------------------------
