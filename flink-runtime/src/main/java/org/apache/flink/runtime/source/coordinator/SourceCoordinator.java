@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
@@ -88,6 +89,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     private final SimpleVersionedSerializer<EnumChkT> enumCheckpointSerializer;
     /** The context containing the states of the coordinator. */
     private final SourceCoordinatorContext<SplitT> context;
+
+    private final CoordinatorStore coordinatorStore;
     /**
      * The split enumerator created from the associated Source. This one is created either during
      * resetting the coordinator to a checkpoint, or when the coordinator is started.
@@ -100,12 +103,14 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             String operatorName,
             ExecutorService coordinatorExecutor,
             Source<?, SplitT, EnumChkT> source,
-            SourceCoordinatorContext<SplitT> context) {
+            SourceCoordinatorContext<SplitT> context,
+            CoordinatorStore coordinatorStore) {
         this.operatorName = operatorName;
         this.coordinatorExecutor = coordinatorExecutor;
         this.source = source;
         this.enumCheckpointSerializer = source.getEnumeratorCheckpointSerializer();
         this.context = context;
+        this.coordinatorStore = coordinatorStore;
     }
 
     @Override
