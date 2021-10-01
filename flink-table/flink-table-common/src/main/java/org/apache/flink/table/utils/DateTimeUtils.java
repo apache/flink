@@ -84,7 +84,7 @@ public class DateTimeUtils {
      *
      * <p>This is the modulo 'mask' used when converting TIMESTAMP values to DATE and TIME values.
      */
-    private static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
+    public static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
 
     /** The SimpleDateFormat string for ISO dates, "yyyy-MM-dd". */
     private static final String DATE_FORMAT_STRING = "yyyy-MM-dd";
@@ -600,7 +600,13 @@ public class DateTimeUtils {
     /** Helper for CAST({time} AS VARCHAR(n)). */
     public static String unixTimeToString(int time) {
         final StringBuilder buf = new StringBuilder(8);
-        unixTimeToString(buf, time, 0); // set milli second precision to 0
+        unixTimeToString(buf, time, 0); // set millisecond precision to 0
+        return buf.toString();
+    }
+
+    public static String unixTimeToString(int time, int precision) {
+        final StringBuilder buf = new StringBuilder(8 + (precision > 0 ? precision + 1 : 0));
+        unixTimeToString(buf, time, precision);
         return buf.toString();
     }
 
@@ -642,6 +648,152 @@ public class DateTimeUtils {
     private static void int2(StringBuilder buf, int i) {
         buf.append((char) ('0' + (i / 10) % 10));
         buf.append((char) ('0' + i % 10));
+    }
+
+    /** Helper for CAST({date} AS VARCHAR(n)). */
+    public static String unixDateToString(int date) {
+        final StringBuilder buf = new StringBuilder(10);
+        unixDateToString(buf, date);
+        return buf.toString();
+    }
+
+    private static void unixDateToString(StringBuilder buf, int date) {
+        julianToString(buf, date + EPOCH_JULIAN);
+    }
+
+    private static void julianToString(StringBuilder buf, int julian) {
+        // this shifts the epoch back to astronomical year -4800 instead of the
+        // start of the Christian era in year AD 1 of the proleptic Gregorian
+        // calendar.
+        int j = julian + 32044;
+        int g = j / 146097;
+        int dg = j % 146097;
+        int c = (dg / 36524 + 1) * 3 / 4;
+        int dc = dg - c * 36524;
+        int b = dc / 1461;
+        int db = dc % 1461;
+        int a = (db / 365 + 1) * 3 / 4;
+        int da = db - a * 365;
+
+        // integer number of full years elapsed since March 1, 4801 BC
+        int y = g * 400 + c * 100 + b * 4 + a;
+        // integer number of full months elapsed since the last March 1
+        int m = (da * 5 + 308) / 153 - 2;
+        // number of days elapsed since day 1 of the month
+        int d = da - (m + 4) * 153 / 5 + 122;
+        int year = y - 4800 + (m + 2) / 12;
+        int month = (m + 2) % 12 + 1;
+        int day = d + 1;
+        int4(buf, year);
+        buf.append('-');
+        int2(buf, month);
+        buf.append('-');
+        int2(buf, day);
+    }
+
+    public static String intervalYearMonthToString(int v) {
+        final StringBuilder buf = new StringBuilder();
+        if (v >= 0) {
+            buf.append('+');
+        } else {
+            buf.append('-');
+            v = -v;
+        }
+        final int y = v / 12;
+        final int m = v % 12;
+        buf.append(y);
+        buf.append('-');
+        number(buf, m, 2);
+        return buf.toString();
+    }
+
+    public static StringBuilder number(StringBuilder buf, int v, int n) {
+        for (int k = digitCount(v); k < n; k++) {
+            buf.append('0');
+        }
+        return buf.append(v);
+    }
+
+    public static int digitCount(int v) {
+        for (int n = 1; ; n++) {
+            v /= 10;
+            if (v == 0) {
+                return n;
+            }
+        }
+    }
+
+    private static int roundUp(int dividend, int divisor) {
+        int remainder = dividend % divisor;
+        dividend -= remainder;
+        if (remainder * 2 > divisor) {
+            dividend += divisor;
+        }
+        return dividend;
+    }
+
+    private static long roundUp(long dividend, long divisor) {
+        long remainder = dividend % divisor;
+        dividend -= remainder;
+        if (remainder * 2 > divisor) {
+            dividend += divisor;
+        }
+        return dividend;
+    }
+
+    private static void fraction(StringBuilder buf, int scale, long ms) {
+        if (scale > 0) {
+            buf.append('.');
+            long v1 = scale == 3 ? ms : scale == 2 ? ms / 10 : scale == 1 ? ms / 100 : 0;
+            number(buf, (int) v1, scale);
+        }
+    }
+
+    private static long powerX(long a, long b) {
+        long x = 1;
+        while (b > 0) {
+            x *= a;
+            --b;
+        }
+        return x;
+    }
+
+    public static String intervalDayTimeToString(long v) {
+        return intervalDayTimeToString(v, 3);
+    }
+
+    public static String intervalDayTimeToString(long v, int scale) {
+        final StringBuilder buf = new StringBuilder();
+        if (v >= 0) {
+            buf.append('+');
+        } else {
+            buf.append('-');
+            v = -v;
+        }
+        final long ms;
+        final long s;
+        final long m;
+        final long h;
+        final long d;
+        v = roundUp(v, powerX(10, 3 - scale));
+        ms = v % 1000;
+        v /= 1000;
+        s = v % 60;
+        v /= 60;
+        m = v % 60;
+        v /= 60;
+        h = v % 24;
+        v /= 24;
+        d = v;
+        buf.append((int) d);
+        buf.append(' ');
+        number(buf, (int) h, 2);
+        buf.append(':');
+        number(buf, (int) m, 2);
+        buf.append(':');
+        number(buf, (int) s, 2);
+        fraction(buf, scale, ms);
+        return buf.toString();
     }
 
     /**
