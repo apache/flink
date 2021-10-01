@@ -22,7 +22,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.KafkaException;
-import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
@@ -30,11 +29,10 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.function.Function;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Collection of methods to interact with a Kafka cluster. */
@@ -88,34 +86,33 @@ public class KafkaUtil {
         consumerConfig.put("key.deserializer", ByteArrayDeserializer.class.getName());
         consumerConfig.put("value.deserializer", ByteArrayDeserializer.class.getName());
         try (KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(consumerConfig)) {
-            Map<Integer, TopicPartition> assignments = getAllPartitions(consumer, topic);
-            Map<TopicPartition, Long> endOffsets = consumer.endOffsets(assignments.values());
-            consumer.assign(assignments.values());
-            consumer.seekToBeginning(assignments.values());
+            Set<TopicPartition> topicPartitions = getAllPartitions(consumer, topic);
+            Map<TopicPartition, Long> endOffsets = consumer.endOffsets(topicPartitions);
+            consumer.assign(topicPartitions);
+            consumer.seekToBeginning(topicPartitions);
 
             final List<ConsumerRecord<byte[], byte[]>> consumerRecords = new ArrayList<>();
-            while (!assignments.isEmpty()) {
-                consumer.assign(assignments.values());
+            while (!topicPartitions.isEmpty()) {
                 ConsumerRecords<byte[], byte[]> records = consumer.poll(CONSUMER_POLL_DURATION);
-                LOG.info("Fetched {} records from topic {}.", records.count(), topic);
+                LOG.debug("Fetched {} records from topic {}.", records.count(), topic);
 
                 // Remove partitions from polling which have reached its end.
-                final Iterator<Map.Entry<Integer, TopicPartition>> assignmentIterator =
-                        assignments.entrySet().iterator();
-                while (assignmentIterator.hasNext()) {
-                    final Map.Entry<Integer, TopicPartition> assignment = assignmentIterator.next();
-                    final TopicPartition topicPartition = assignment.getValue();
+                final List<TopicPartition> finishedPartitions = new ArrayList<>();
+                for (final TopicPartition topicPartition : topicPartitions) {
                     final long position = consumer.position(topicPartition);
                     final long endOffset = endOffsets.get(topicPartition);
-                    LOG.info(
+                    LOG.debug(
                             "Endoffset {} and current position {} for partition {}",
                             endOffset,
                             position,
-                            assignment.getKey());
+                            topicPartition.partition());
                     if (endOffset - position > 0) {
                         continue;
                     }
-                    assignmentIterator.remove();
+                    finishedPartitions.add(topicPartition);
+                }
+                if (topicPartitions.removeAll(finishedPartitions)) {
+                    consumer.assign(topicPartitions);
                 }
                 for (ConsumerRecord<byte[], byte[]> r : records) {
                     consumerRecords.add(r);
@@ -125,11 +122,10 @@ public class KafkaUtil {
         }
     }
 
-    private static Map<Integer, TopicPartition> getAllPartitions(
+    private static Set<TopicPartition> getAllPartitions(
             KafkaConsumer<byte[], byte[]> consumer, String topic) {
-        final List<PartitionInfo> partitionInfos = consumer.partitionsFor(topic);
-        return partitionInfos.stream()
+        return consumer.partitionsFor(topic).stream()
                 .map(info -> new TopicPartition(info.topic(), info.partition()))
-                .collect(Collectors.toMap(TopicPartition::partition, Function.identity()));
+                .collect(Collectors.toSet());
     }
 }

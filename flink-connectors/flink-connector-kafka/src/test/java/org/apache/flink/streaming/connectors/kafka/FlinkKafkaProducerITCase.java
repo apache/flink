@@ -156,7 +156,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
                 testHarness2.open();
             }
 
-            assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42));
+            assertExactlyOnceForTopic(createProperties(), topic, Arrays.asList(42));
             deleteTestTopic(topic);
         } catch (Exception ex) {
             // testHarness1 will be fenced off after creating and closing testHarness2
@@ -202,7 +202,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
         testHarness.initializeState(snapshot);
         testHarness.close();
 
-        assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
+        assertExactlyOnceForTopic(createProperties(), topic, Arrays.asList(42, 43));
 
         deleteTestTopic(topic);
         checkProducerLeak();
@@ -250,7 +250,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
         // - aborted transactions with records 44 and 45
         // - committed transaction with record 46
         // - pending transaction with record 47
-        assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 46));
+        assertExactlyOnceForTopic(createProperties(), topic, Arrays.asList(42, 43, 46));
 
         try {
             testHarness1.close();
@@ -313,7 +313,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
         // now we should have:
         // - records 42 and 43 in committed transactions
         // - aborted transactions with records 44 and 45
-        assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
+        assertExactlyOnceForTopic(createProperties(), topic, Arrays.asList(42, 43));
         deleteTestTopic(topic);
         checkProducerLeak();
     }
@@ -369,7 +369,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
         // - records 42, 43, 44 and 45 in aborted transactions
         // - committed transaction with record 46
         // - pending transaction with record 47
-        assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(46));
+        assertExactlyOnceForTopic(createProperties(), topic, Arrays.asList(46));
 
         postScaleDownOperator1.close();
         // ignore ProducerFencedExceptions, because postScaleDownOperator1 could reuse transactional
@@ -454,7 +454,6 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
         assertExactlyOnceForTopic(
                 createProperties(),
                 topic,
-                0,
                 IntStream.range(0, parallelism1 + parallelism2 + parallelism3)
                         .boxed()
                         .collect(Collectors.toList()));
@@ -548,7 +547,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
                 checkpoint0); // recover state 0 - producerA recover and commit txn 0
         testHarness.close();
 
-        assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42));
+        assertExactlyOnceForTopic(createProperties(), topic, Arrays.asList(42));
 
         deleteTestTopic(topic);
         checkProducerLeak();
@@ -584,7 +583,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
                 topic,
                 FlinkKafkaProducer.Semantic.AT_LEAST_ONCE,
                 FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
-        assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 44, 45));
+        assertExactlyOnceForTopic(createProperties(), topic, Arrays.asList(42, 43, 44, 45));
         deleteTestTopic(topic);
     }
 
@@ -595,7 +594,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
                 topic,
                 FlinkKafkaProducer.Semantic.EXACTLY_ONCE,
                 FlinkKafkaProducer.Semantic.AT_LEAST_ONCE);
-        assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 45, 46, 47));
+        assertExactlyOnceForTopic(createProperties(), topic, Arrays.asList(42, 43, 45, 46, 47));
         deleteTestTopic(topic);
     }
 
@@ -717,7 +716,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
             testHarness2.processElement(46, 6);
         }
 
-        assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 44));
+        assertExactlyOnceForTopic(createProperties(), topic, Arrays.asList(42, 44));
         checkProducerLeak();
     }
 
