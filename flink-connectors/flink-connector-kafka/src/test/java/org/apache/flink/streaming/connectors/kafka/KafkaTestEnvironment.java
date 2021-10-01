@@ -170,7 +170,7 @@ public abstract class KafkaTestEnvironment {
             List<String> topics, KafkaDeserializationSchema<T> readSchema, Properties props);
 
     public abstract <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(
-            Properties properties, String topic, int partition, long timeout);
+            Properties properties, String topic);
 
     public abstract <T> StreamSink<T> getProducerSink(
             String topic,

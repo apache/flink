@@ -42,6 +42,7 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -280,7 +281,7 @@ public abstract class KafkaTestBase extends TestLogger {
 
             // query kafka for new records ...
             Collection<ConsumerRecord<Integer, Integer>> records =
-                    kafkaServer.getAllRecordsFromTopic(properties, topic, partition, 100);
+                    kafkaServer.getAllRecordsFromTopic(properties, topic);
 
             for (ConsumerRecord<Integer, Integer> record : records) {
                 actualElements.add(record.value());
@@ -299,23 +300,8 @@ public abstract class KafkaTestBase extends TestLogger {
     }
 
     public void assertExactlyOnceForTopic(
-            Properties properties, String topic, int partition, List<Integer> expectedElements) {
-        assertExactlyOnceForTopic(properties, topic, partition, expectedElements, 30_000L);
-    }
+            Properties properties, String topic, List<Integer> expectedElements) {
 
-    /**
-     * We manually handle the timeout instead of using JUnit's timeout to return failure instead of
-     * timeout error. After timeout we assume that there are missing records and there is a bug, not
-     * that the test has run out of time.
-     */
-    public void assertExactlyOnceForTopic(
-            Properties properties,
-            String topic,
-            int partition,
-            List<Integer> expectedElements,
-            long timeoutMillis) {
-
-        long startMillis = System.currentTimeMillis();
         List<Integer> actualElements = new ArrayList<>();
 
         Properties consumerProperties = new Properties();
@@ -326,24 +312,17 @@ public abstract class KafkaTestBase extends TestLogger {
                 "value.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
         consumerProperties.put("isolation.level", "read_committed");
 
-        // until we timeout...
-        while (System.currentTimeMillis() < startMillis + timeoutMillis) {
-            // query kafka for new records ...
-            Collection<ConsumerRecord<Integer, Integer>> records =
-                    kafkaServer.getAllRecordsFromTopic(consumerProperties, topic, partition, 1000);
+        // query kafka for new records ...
+        Collection<ConsumerRecord<byte[], byte[]>> records =
+                kafkaServer.getAllRecordsFromTopic(consumerProperties, topic);
 
-            for (ConsumerRecord<Integer, Integer> record : records) {
-                actualElements.add(record.value());
-            }
+        for (ConsumerRecord<byte[], byte[]> record : records) {
+            actualElements.add(ByteBuffer.wrap(record.value()).getInt());
+        }
 
-            // succeed if we got all expectedElements
-            if (actualElements.equals(expectedElements)) {
-                return;
-            }
-            // fail early if we already have too many elements
-            if (actualElements.size() > expectedElements.size()) {
-                break;
-            }
+        // succeed if we got all expectedElements
+        if (actualElements.equals(expectedElements)) {
+            return;
         }
 
         fail(
