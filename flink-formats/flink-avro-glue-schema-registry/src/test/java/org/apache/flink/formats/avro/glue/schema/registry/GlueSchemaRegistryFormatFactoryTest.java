@@ -37,6 +37,7 @@ import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContex
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -45,9 +46,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
-
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -69,10 +67,10 @@ public class GlueSchemaRegistryFormatFactoryTest {
     private static final String SCHEMA_NAME = "test-subject";
     private static final String REGISTRY_NAME = "test-registry-name";
     private static final String REGION = "us-middle-1";
-    private static final Map<String, Object> REGISTRY_CONFIG = Map.of(
-        AWSSchemaRegistryConstants.REGISTRY_NAME, REGISTRY_NAME,
-        AWSSchemaRegistryConstants.AWS_REGION, REGION
-    );
+    private static final Map<String, Object> REGISTRY_CONFIG =
+            Map.of(
+                    AWSSchemaRegistryConstants.REGISTRY_NAME, REGISTRY_NAME,
+                    AWSSchemaRegistryConstants.AWS_REGION, REGION);
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
@@ -122,7 +120,7 @@ public class GlueSchemaRegistryFormatFactoryTest {
     public void testMissingSubjectForSink() {
         thrown.expect(ValidationException.class);
         final Map<String, String> options =
-                getModifiedOptions(opts -> opts.remove("avro-glue.schema-registry.schema.name"));
+                getModifiedOptions(opts -> opts.remove("avro-glue.schema.name"));
 
         createTableSink(SCHEMA, options);
     }
@@ -149,9 +147,9 @@ public class GlueSchemaRegistryFormatFactoryTest {
         options.put("buffer-size", "1000");
 
         options.put("format", GlueSchemaRegistryAvroFormatFactory.IDENTIFIER);
-        options.put("avro-glue.schema-registry.schema.name", SCHEMA_NAME);
-        options.put("avro-glue.schema-registry.registry.name", REGISTRY_NAME);
-        options.put("avro-glue.schema-registry.region", REGION);
+        options.put("avro-glue.schema.name", SCHEMA_NAME);
+        options.put("avro-glue.registry.name", REGISTRY_NAME);
+        options.put("avro-glue.aws.region", REGION);
         return options;
     }
 }

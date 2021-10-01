@@ -94,6 +94,19 @@ under the License.
 			<groupId>software.amazon.glue</groupId>
 			<artifactId>schema-registry-serde</artifactId>
 			<version>${glue.schema.registry.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.kjetland</groupId>
+					<artifactId>mbknor-jackson-jsonschema_2.12</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- The above dependency hard-codes the Scala 2.12 binary version of this jar, so we replace it -->
+		<dependency>
+			<groupId>com.kjetland</groupId>
+			<artifactId>mbknor-jackson-jsonschema_${scala.binary.version}</artifactId>
+			<version>1.0.39</version>
 		</dependency>
 
 		<dependency>

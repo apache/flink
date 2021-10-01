@@ -16,61 +16,77 @@
  * limitations under the License.
  */
 
- package org.apache.flink.formats.avro.glue.schema.registry;
-
-import java.time.Duration;
-
-import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
-import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants.COMPRESSION;
-import com.amazonaws.services.schemaregistry.utils.AvroRecordType;
+package org.apache.flink.formats.avro.glue.schema.registry;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
+import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
+import com.amazonaws.services.schemaregistry.utils.AvroRecordType;
 import software.amazon.awssdk.services.glue.model.Compatibility;
 
+import java.time.Duration;
+
+/** Options for AWS Glue Schema Registry Avro format. */
 @PublicEvolving
 public class AvroGlueFormatOptions {
-    public static final String PREFIX = "schema-registry.";
+    public static final ConfigOption<String> AWS_REGION =
+            ConfigOptions.key("aws.region")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("AWS region");
 
-    public static final ConfigOption<String> AWS_REGION = ConfigOptions.key(PREFIX + AWSSchemaRegistryConstants.AWS_REGION)
-            .stringType().noDefaultValue().withDescription("AWS region");
+    public static final ConfigOption<String> AWS_ENDPOINT =
+            ConfigOptions.key("aws.endpoint").stringType().noDefaultValue();
 
-    public static final ConfigOption<String> REGISTRY_NAME = ConfigOptions.key(PREFIX + AWSSchemaRegistryConstants.REGISTRY_NAME)
-            .stringType().noDefaultValue().withDescription("Registry name");
+    public static final ConfigOption<Integer> CACHE_SIZE =
+            ConfigOptions.key("cache.size")
+                    .intType()
+                    .defaultValue(200)
+                    .withDescription("Cache maximum size in *items*.  Defaults to 200");
 
-    public static final ConfigOption<String> RECORD_TYPE = ConfigOptions
-            .key(PREFIX + AWSSchemaRegistryConstants.AVRO_RECORD_TYPE).stringType()
-            .defaultValue(AvroRecordType.GENERIC_RECORD.getName()).withDescription("Record type");
+    public static final ConfigOption<Long> CACHE_TTL_MS =
+            ConfigOptions.key("cache.ttlMs")
+                    .longType()
+                    .defaultValue(Duration.ofDays(1L).toMillis())
+                    .withDescription("Cache TTL in milliseconds.  Defaults to 1 day");
 
-    public static final ConfigOption<String> SCHEMA_NAME = ConfigOptions.key(PREFIX + "schema.name").stringType()
-            .noDefaultValue().withDescription(
-                    "The Schema name under which to register the schema used by this format during serialization.");
+    public static final ConfigOption<String> REGISTRY_NAME =
+            ConfigOptions.key("registry.name")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Registry name");
 
-    public static final ConfigOption<COMPRESSION> COMPRESSION_TYPE = ConfigOptions
-            .key(PREFIX + AWSSchemaRegistryConstants.COMPRESSION_TYPE).enumType(COMPRESSION.class).defaultValue(COMPRESSION.NONE)
-            .withDescription("Compression type");
+    public static final ConfigOption<Boolean> SCHEMA_AUTO_REGISTRATION =
+            ConfigOptions.key("schema.autoRegistration")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Whether auto-registration is enabled.  Defaults to true.");
 
-    public static final ConfigOption<String> ENDPOINT = ConfigOptions.key(PREFIX + AWSSchemaRegistryConstants.AWS_ENDPOINT)
-            .stringType().noDefaultValue();
+    public static final ConfigOption<Compatibility> SCHEMA_COMPATIBILITY =
+            ConfigOptions.key("schema.compatibility")
+                    .enumType(Compatibility.class)
+                    .defaultValue(AWSSchemaRegistryConstants.DEFAULT_COMPATIBILITY_SETTING);
 
-    public static final ConfigOption<Compatibility> COMPATIBILITY = ConfigOptions
-            .key(PREFIX + AWSSchemaRegistryConstants.COMPATIBILITY_SETTING).enumType(Compatibility.class)
-            .defaultValue(AWSSchemaRegistryConstants.DEFAULT_COMPATIBILITY_SETTING);
+    public static final ConfigOption<AWSSchemaRegistryConstants.COMPRESSION> SCHEMA_COMPRESSION =
+            ConfigOptions.key("schema.compression")
+                    .enumType(AWSSchemaRegistryConstants.COMPRESSION.class)
+                    .defaultValue(AWSSchemaRegistryConstants.COMPRESSION.NONE)
+                    .withDescription("Compression type");
 
-    public static final ConfigOption<Boolean> AUTO_REGISTRATION = ConfigOptions
-            .key(PREFIX + AWSSchemaRegistryConstants.SCHEMA_AUTO_REGISTRATION_SETTING).booleanType().defaultValue(true)
-            .withDescription("Whether auto-registration is enabled.  Defaults to true.");
+    public static final ConfigOption<String> SCHEMA_NAME =
+            ConfigOptions.key("schema.name")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The Schema name under which to register the schema used by this format during serialization.");
 
-    public static final ConfigOption<Integer> CACHE_SIZE = ConfigOptions
-            .key(PREFIX + AWSSchemaRegistryConstants.CACHE_SIZE).intType().defaultValue(200)
-            .withDescription("Cache maximum size in *items*.  Defaults to 200");
+    public static final ConfigOption<AvroRecordType> SCHEMA_TYPE =
+            ConfigOptions.key("schema.type")
+                    .enumType(AvroRecordType.class)
+                    .defaultValue(AvroRecordType.GENERIC_RECORD)
+                    .withDescription("Record type");
 
-    public static final ConfigOption<Long> CACHE_TTL_MS = ConfigOptions
-            .key(PREFIX + AWSSchemaRegistryConstants.CACHE_TIME_TO_LIVE_MILLIS).longType()
-            .defaultValue(Duration.ofDays(1l).toMillis())
-            .withDescription("Cache TTL in milliseconds.  Defaults to 1 day");
-    
     private AvroGlueFormatOptions() {}
 }

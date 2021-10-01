@@ -16,25 +16,7 @@
  * limitations under the License.
  */
 
- package org.apache.flink.formats.avro.glue.schema.registry;
-
-import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.AUTO_REGISTRATION;
-import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.AWS_REGION;
-import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.CACHE_SIZE;
-import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.CACHE_TTL_MS;
-import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.COMPATIBILITY;
-import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.COMPRESSION_TYPE;
-import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.ENDPOINT;
-import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.RECORD_TYPE;
-import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.REGISTRY_NAME;
-import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.SCHEMA_NAME;
-
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
+package org.apache.flink.formats.avro.glue.schema.registry;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -60,60 +42,82 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
+import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.AWS_ENDPOINT;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.AWS_REGION;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.CACHE_SIZE;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.CACHE_TTL_MS;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.REGISTRY_NAME;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.SCHEMA_AUTO_REGISTRATION;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.SCHEMA_COMPATIBILITY;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.SCHEMA_COMPRESSION;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.SCHEMA_NAME;
+import static org.apache.flink.formats.avro.glue.schema.registry.AvroGlueFormatOptions.SCHEMA_TYPE;
+
 /**
- * Table format factory for providing configured instances of AWS Glue Schema
- * Registry Avro to RowData {@link SerializationSchema} and
- * {@link DeserializationSchema}.
+ * Table format factory for providing configured instances of AWS Glue Schema Registry Avro to
+ * RowData {@link SerializationSchema} and {@link DeserializationSchema}.
  */
 @Internal
-public class GlueSchemaRegistryAvroFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
+public class GlueSchemaRegistryAvroFormatFactory
+        implements DeserializationFormatFactory, SerializationFormatFactory {
     public static final String IDENTIFIER = "avro-glue";
 
     @Override
-    public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(DynamicTableFactory.Context context,
-            ReadableConfig formatOptions) {
+    public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         final Map<String, Object> configMap = buildConfigMap(formatOptions);
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
-            public DeserializationSchema<RowData> createRuntimeDecoder(DynamicTableSource.Context context,
-                    DataType producedDataType) {
+            public DeserializationSchema<RowData> createRuntimeDecoder(
+                    DynamicTableSource.Context context, DataType producedDataType) {
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
-                final TypeInformation<RowData> rowDataTypeInfo = context.createTypeInformation(producedDataType);
+                final TypeInformation<RowData> rowDataTypeInfo =
+                        context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
-                        GlueSchemaRegistryAvroDeserializationSchema
-                                .forGeneric(AvroSchemaConverter.convertToSchema(rowType), configMap),
-                        AvroToRowDataConverters.createRowConverter(rowType), rowDataTypeInfo);
+                        GlueSchemaRegistryAvroDeserializationSchema.forGeneric(
+                                AvroSchemaConverter.convertToSchema(rowType), configMap),
+                        AvroToRowDataConverters.createRowConverter(rowType),
+                        rowDataTypeInfo);
             }
 
             @Override
             public ChangelogMode getChangelogMode() {
-                return ChangelogMode.all();
+                return ChangelogMode.insertOnly();
             }
         };
     }
 
     @Override
-    public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(DynamicTableFactory.Context context,
-            ReadableConfig formatOptions) {
+    public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
 
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
-            public SerializationSchema<RowData> createRuntimeEncoder(DynamicTableSink.Context context,
-                    DataType consumedDataType) {
+            public SerializationSchema<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context context, DataType consumedDataType) {
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
-                return new AvroRowDataSerializationSchema(rowType,
+                return new AvroRowDataSerializationSchema(
+                        rowType,
                         GlueSchemaRegistryAvroSerializationSchema.forGeneric(
                                 AvroSchemaConverter.convertToSchema(rowType),
-                                formatOptions.get(SCHEMA_NAME), buildConfigMap(formatOptions)),
+                                formatOptions.get(SCHEMA_NAME),
+                                buildConfigMap(formatOptions)),
                         RowDataToAvroConverters.createConverter(rowType));
             }
 
             @Override
             public ChangelogMode getChangelogMode() {
-                return ChangelogMode.all();
+                return ChangelogMode.insertOnly();
             }
         };
     }
@@ -125,15 +129,41 @@ public class GlueSchemaRegistryAvroFormatFactory implements DeserializationForma
 
     private Map<String, Object> buildConfigMap(ReadableConfig formatOptions) {
         final Map<String, Object> properties = new HashMap<String, Object>();
-        formatOptions.getOptional(AWS_REGION).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.AWS_REGION, v));
-        formatOptions.getOptional(REGISTRY_NAME).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.REGISTRY_NAME, v));
-        formatOptions.getOptional(RECORD_TYPE).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.AVRO_RECORD_TYPE, v));
-        formatOptions.getOptional(COMPRESSION_TYPE).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.COMPRESSION_TYPE, v));
-        formatOptions.getOptional(ENDPOINT).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.AWS_ENDPOINT, v));
-        formatOptions.getOptional(COMPATIBILITY).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.COMPATIBILITY_SETTING, v));
-        formatOptions.getOptional(AUTO_REGISTRATION).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.SCHEMA_AUTO_REGISTRATION_SETTING, v));
-        formatOptions.getOptional(CACHE_SIZE).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.CACHE_SIZE, v));
-        formatOptions.getOptional(CACHE_TTL_MS).ifPresent(v -> properties.put(AWSSchemaRegistryConstants.CACHE_TIME_TO_LIVE_MILLIS, v));
+        formatOptions
+                .getOptional(AWS_REGION)
+                .ifPresent(v -> properties.put(AWSSchemaRegistryConstants.AWS_REGION, v));
+        formatOptions
+                .getOptional(AWS_ENDPOINT)
+                .ifPresent(v -> properties.put(AWSSchemaRegistryConstants.AWS_ENDPOINT, v));
+        formatOptions
+                .getOptional(CACHE_SIZE)
+                .ifPresent(v -> properties.put(AWSSchemaRegistryConstants.CACHE_SIZE, v));
+        formatOptions
+                .getOptional(CACHE_TTL_MS)
+                .ifPresent(
+                        v ->
+                                properties.put(
+                                        AWSSchemaRegistryConstants.CACHE_TIME_TO_LIVE_MILLIS, v));
+        formatOptions
+                .getOptional(REGISTRY_NAME)
+                .ifPresent(v -> properties.put(AWSSchemaRegistryConstants.REGISTRY_NAME, v));
+        formatOptions
+                .getOptional(SCHEMA_AUTO_REGISTRATION)
+                .ifPresent(
+                        v ->
+                                properties.put(
+                                        AWSSchemaRegistryConstants.SCHEMA_AUTO_REGISTRATION_SETTING,
+                                        v));
+        formatOptions
+                .getOptional(SCHEMA_COMPATIBILITY)
+                .ifPresent(
+                        v -> properties.put(AWSSchemaRegistryConstants.COMPATIBILITY_SETTING, v));
+        formatOptions
+                .getOptional(SCHEMA_COMPRESSION)
+                .ifPresent(v -> properties.put(AWSSchemaRegistryConstants.COMPRESSION_TYPE, v));
+        formatOptions
+                .getOptional(SCHEMA_TYPE)
+                .ifPresent(v -> properties.put(AWSSchemaRegistryConstants.AVRO_RECORD_TYPE, v));
         return properties;
     }
 
@@ -149,13 +179,13 @@ public class GlueSchemaRegistryAvroFormatFactory implements DeserializationForma
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> result = new HashSet<>();
-        result.add(COMPRESSION_TYPE);
-        result.add(ENDPOINT);
-        result.add(RECORD_TYPE);
-        result.add(COMPATIBILITY);
-        result.add(AUTO_REGISTRATION);
+        result.add(AWS_ENDPOINT);
         result.add(CACHE_SIZE);
         result.add(CACHE_TTL_MS);
+        result.add(SCHEMA_AUTO_REGISTRATION);
+        result.add(SCHEMA_COMPATIBILITY);
+        result.add(SCHEMA_COMPRESSION);
+        result.add(SCHEMA_TYPE);
         return result;
     }
 }

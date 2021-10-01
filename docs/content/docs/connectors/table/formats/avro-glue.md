@@ -29,13 +29,13 @@ under the License.
 {{< label "Format: Serialization Schema" >}}
 {{< label "Format: Deserialization Schema" >}}
 
-The Glue Schema Registry (``avro-glue``) format allows you to read records that were serialized by the ``com.amazonaws.services.schemaregistry.serializers.avro.AWSKafkaAvroSerializer`` and to write records that can in turn be read by the ``com.amazonaws.services.schemaregistry.deserializers.avro.AWSKafkaAvroDeserializer``.  These records have their schemas stored out-of-band in a configured registry provided by the AWS Glue Schema Registry [service](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html#schema-registry-schemas).
+The AWS Glue Schema Registry (``avro-glue``) format allows you to read records that were serialized by the ``com.amazonaws.services.schemaregistry.serializers.avro.AWSKafkaAvroSerializer`` and to write records that can in turn be read by the ``com.amazonaws.services.schemaregistry.deserializers.avro.AWSKafkaAvroDeserializer``.  These records have their schemas stored out-of-band in a configured registry provided by the AWS Glue Schema Registry [service](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html#schema-registry-schemas).
 
 When reading (deserializing) a record with this format the Avro writer schema is fetched from the configured AWS Glue Schema Registry based on the schema version id encoded in the record while the reader schema is inferred from table schema. 
 
 When writing (serializing) a record with this format the Avro schema is inferred from the table schema and used to retrieve a schema id to be encoded with the data. The lookup is performed against the configured AWS Glue Schema Registry under the [value](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html#schema-registry-schemas) given in `avro-glue.schema-name`.
 
-The Avro Glue Schema Registry format can only be used in conjunction with the [Apache Kafka SQL connector]({{< ref "docs/connectors/table/kafka" >}}) or the [Upsert Kafka SQL Connector]({{< ref "docs/connectors/table/upsert-kafka" >}}).
+The AWS Glue Schema format can only be used in conjunction with the [Apache Kafka SQL connector]({{< ref "docs/connectors/table/kafka" >}}) or the [Upsert Kafka SQL Connector]({{< ref "docs/connectors/table/upsert-kafka" >}}).
 
 Dependencies
 ------------
@@ -100,11 +100,18 @@ Where appropriate naming for the properties is consistent with the existing [AWS
             <td>Specify what format to use, here should be <code>'avro-glue'</code>.</td>
         </tr>
         <tr>
-            <td><h5>avro-glue.region</h5></td>
+            <td><h5>avro-glue.aws.region</h5></td>
             <td>required</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Specify what AWS region to use, such as <code>'us-east-1'</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>avro-glue.aws.endpoint</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The HTTP endpoint to use for AWS calls.</td>
         </tr>
         <tr>
             <td><h5>avro-glue.registry.name</h5></td>
@@ -114,35 +121,21 @@ Where appropriate naming for the properties is consistent with the existing [AWS
             <td>The name (not the ARN) of the Glue schema registry in which to store the schemas.</td>
         </tr>
         <tr>
-            <td><h5>avro-glue.subject</h5></td>
-            <td>required</td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The subject name under which to store the schema in the registry.</td>
+            <td><h5>avro-glue.schema.autoRegistration</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether new schemas should be automatically registered rather than treated as errors.</td>
         </tr>
         <tr>
-            <td><h5>avro-glue.compression</h5></td>
+            <td><h5>avro-glue.schema.compression</h5></td>
             <td>optional</td>
             <td style="word-wrap: break-word;">NONE</td>
             <td>String</td>
             <td>What kind of compression to use.  Valid values are <code>'NONE'</code> and <code>'ZLIB'</code>.</td>
         </tr>
         <tr>
-            <td><h5>avro-glue.endpoint</h5></td>
-            <td>optional</td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The HTTP endpoint to use for AWS calls.</td>
-        </tr>
-        <tr>
-            <td><h5>avro-glue.avroRecordType</h5></td>
-            <td>optional</td>
-            <td style="word-wrap: break-word;">GENERIC_RECORD</td>
-            <td>String</td>
-            <td>Valid values are <code>'GENERIC_RECORD'</code> and <code>'SPECIFIC_RECORD'</code>.</td>
-        </tr>
-        <tr>
-            <td><h5>avro-glue.compatibility</h5></td>
+            <td><h5>avro-glue.schema.compatibility</h5></td>
             <td>optional</td>
             <td style="word-wrap: break-word;">BACKWARD</td>
             <td>String</td>
@@ -157,25 +150,32 @@ Where appropriate naming for the properties is consistent with the existing [AWS
             </td>.
         </tr>
         <tr>
-            <td><h5>avro-glue.schemaAutoRegistrationEnabled</h5></td>
-            <td>optional</td>
-            <td style="word-wrap: break-word;">true</td>
-            <td>Boolean</td>
-            <td>Whether new schemas should be automatically registered rather than treated as errors.</td>
+            <td><h5>avro-glue.schema.name</h5></td>
+            <td>required</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The name under which to store the schema in the registry.</td>
         </tr>
         <tr>
-            <td><h5>avro-glue.cacheSize</h5></td>
+            <td><h5>avro-glue.schema.type</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">GENERIC_RECORD</td>
+            <td>String</td>
+            <td>Valid values are <code>'GENERIC_RECORD'</code> and <code>'SPECIFIC_RECORD'</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>avro-glue.cache.size</h5></td>
             <td>optional</td>
             <td style="word-wrap: break-word;">200</td>
             <td>Integer</td>
             <td>The size (in number of items, not bytes) of the cache the Glue client code should manage</td>
         </tr>
         <tr>
-            <td><h5>avro-glue.timeToLiveMillis</h5></td>
+            <td><h5>avro-glue.cache.ttlMs</h5></td>
             <td>optional</td>
             <td style="word-wrap: break-word;">1 day (24 * 60 * 60 * 1000)</td>
             <td>Integer</td>
-            <td>The TTL for cache entries.</td>
+            <td>The time to live (in milliseconds) for cache entries.  Defaults to 1 day.</td>
         </tr>
     </tbody>
 </table>
