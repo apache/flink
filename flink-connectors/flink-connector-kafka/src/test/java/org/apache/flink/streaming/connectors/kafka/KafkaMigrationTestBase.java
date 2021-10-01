@@ -151,7 +151,7 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
                 // - transaction 43 aborted
                 // - committed transaction 44
                 // - transaction 45 pending
-                assertExactlyOnceForTopic(createProperties(), TOPIC, 0, Arrays.asList(42, 44));
+                assertExactlyOnceForTopic(createProperties(), TOPIC, Arrays.asList(42, 44));
             }
         } finally {
             shutdownClusters();
