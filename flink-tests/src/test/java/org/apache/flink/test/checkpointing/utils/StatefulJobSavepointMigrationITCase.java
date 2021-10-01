@@ -97,7 +97,9 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
                 Tuple2.of(MigrationVersion.v1_12, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
                 Tuple2.of(MigrationVersion.v1_12, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
                 Tuple2.of(MigrationVersion.v1_13, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_13, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
+                Tuple2.of(MigrationVersion.v1_13, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+                Tuple2.of(MigrationVersion.v1_14, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+                Tuple2.of(MigrationVersion.v1_14, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
     }
 
     private final MigrationVersion testMigrateVersion;

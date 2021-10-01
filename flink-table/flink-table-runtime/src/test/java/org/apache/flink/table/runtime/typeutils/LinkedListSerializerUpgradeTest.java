@@ -24,14 +24,15 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.testutils.migration.MigrationVersion;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.hamcrest.Matcher;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedList;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.is;
 
@@ -47,12 +48,20 @@ public class LinkedListSerializerUpgradeTest
 
     @Parameterized.Parameters(name = "Test Specification = {0}")
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
-        return Collections.singletonList(
-                new TestSpecification<>(
-                        "linked-list-serializer",
-                        MigrationVersion.v1_13,
-                        LinkedListSerializerSetup.class,
-                        LinkedListSerializerVerifier.class));
+        return MigrationVersion.v1_13.orHigher().stream()
+                .map(
+                        version -> {
+                            try {
+                                return new TestSpecification<>(
+                                        "linked-list-serializer",
+                                        version,
+                                        LinkedListSerializerSetup.class,
+                                        LinkedListSerializerVerifier.class);
+                            } catch (Exception e) {
+                                throw new FlinkRuntimeException(e);
+                            }
+                        })
+                .collect(Collectors.toList());
     }
 
     public static TypeSerializer<LinkedList<Long>> createLinkedListSerializer() {
