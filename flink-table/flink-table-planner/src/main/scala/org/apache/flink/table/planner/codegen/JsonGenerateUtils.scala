@@ -38,8 +38,8 @@ import java.time.format.DateTimeFormatter
 /** Utility for generating JSON function calls. */
 object JsonGenerateUtils {
 
-  /** Returns a term which wraps the given <code>expression</code> into a [[JsonNode]]. If the
-   * operand represents another JSON construction function, a raw node is used instead. */
+  /** Returns a term which wraps the given `expression` into a [[JsonNode]]. If the operand
+   * represents another JSON construction function, a raw node is used instead. */
   def createNodeTerm(
       ctx: CodeGeneratorContext,
       containerNodeTerm: String,
@@ -53,8 +53,7 @@ object JsonGenerateUtils {
   }
 
   /**
-   * Returns a term which wraps the given <code>valueExpr</code> into a [[JsonNode]] of the
-   * appropriate type.
+   * Returns a term which wraps the given `valueExpr` into a [[JsonNode]] of the appropriate type.
    */
   def createNodeTerm(
       ctx: CodeGeneratorContext,
@@ -115,7 +114,7 @@ object JsonGenerateUtils {
   }
 
   /**
-   * Returns a term which wraps the given <code>valueExpr</code> as a raw [[JsonNode]].
+   * Returns a term which wraps the given `valueExpr` as a raw [[JsonNode]].
    *
    * @param containerNodeTerm Name of the [[ContainerNode]] from which to create the raw node.
    * @param valueExpr Generated expression of the value which should be wrapped.
