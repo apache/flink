@@ -841,7 +841,7 @@ trait ImplicitExpressionConversions {
    * @see #jsonObject
    */
   def jsonObject(onNull: JsonOnNull, keyValues: Expression*): Expression = {
-    Expressions.jsonObject(onNull, keyValues)
+    Expressions.jsonObject(onNull, keyValues: _*)
   }
 
   /**
@@ -876,6 +876,6 @@ trait ImplicitExpressionConversions {
    * @see #jsonObject
    */
   def jsonArray(onNull: JsonOnNull, values: Expression*): Expression = {
-    Expressions.jsonArray(onNull, values)
+    Expressions.jsonArray(onNull, values: _*)
   }
 }
