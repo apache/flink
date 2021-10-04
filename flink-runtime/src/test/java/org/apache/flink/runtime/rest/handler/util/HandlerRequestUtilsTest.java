@@ -83,7 +83,8 @@ public class HandlerRequestUtilsTest extends TestLogger {
 
     private static class TestMessageParameters extends MessageParameters {
 
-        private TestBooleanQueryParameter testBooleanQueryParameter;
+        private final TestBooleanQueryParameter testBooleanQueryParameter =
+                new TestBooleanQueryParameter();
 
         @Override
         public Collection<MessagePathParameter<?>> getPathParameters() {
@@ -92,7 +93,6 @@ public class HandlerRequestUtilsTest extends TestLogger {
 
         @Override
         public Collection<MessageQueryParameter<?>> getQueryParameters() {
-            testBooleanQueryParameter = new TestBooleanQueryParameter();
             return Collections.singletonList(testBooleanQueryParameter);
         }
     }
