@@ -215,13 +215,12 @@ class HistoryServerArchiveFetcher {
                 Map<Path, Set<Path>> archivesBeyondSizeLimit = new HashMap<>();
                 for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
                     Path refreshDir = refreshLocation.getPath();
-                    FileSystem refreshFS = refreshLocation.getFs();
                     LOG.debug("Checking archive directory {}.", refreshDir);
 
                     // contents of /:refreshDir
                     FileStatus[] jobArchives;
                     try {
-                        jobArchives = refreshFS.listStatus(refreshDir);
+                        jobArchives = listArchives(refreshLocation.getFs(), refreshDir);
                     } catch (IOException e) {
                         LOG.error(
                                 "Failed to access job archive location for path {}.",
@@ -232,27 +231,12 @@ class HistoryServerArchiveFetcher {
                         jobsToRemove.remove(refreshDir);
                         continue;
                     }
-                    if (jobArchives == null) {
-                        // the entire refreshDirectory was removed
-                        continue;
-                    }
-
-                    Arrays.sort(
-                            jobArchives,
-                            Comparator.comparingLong(FileStatus::getModificationTime).reversed());
 
                     int historySize = 0;
                     for (FileStatus jobArchive : jobArchives) {
                         Path jobArchivePath = jobArchive.getPath();
                         String jobID = jobArchivePath.getName();
-                        try {
-                            JobID.fromHexString(jobID);
-                        } catch (IllegalArgumentException iae) {
-                            LOG.debug(
-                                    "Archive directory {} contained file with unexpected name {}. Ignoring file.",
-                                    refreshDir,
-                                    jobID,
-                                    iae);
+                        if (!isValidJobID(jobID, refreshDir)) {
                             continue;
                         }
 
@@ -273,45 +257,7 @@ class HistoryServerArchiveFetcher {
                         } else {
                             LOG.info("Processing archive {}.", jobArchivePath);
                             try {
-                                for (ArchivedJson archive :
-                                        FsJobArchivist.getArchivedJsons(jobArchive.getPath())) {
-                                    String path = archive.getPath();
-                                    String json = archive.getJson();
-
-                                    File target;
-                                    if (path.equals(JobsOverviewHeaders.URL)) {
-                                        target = new File(webOverviewDir, jobID + JSON_FILE_ENDING);
-                                    } else if (path.equals("/joboverview")) { // legacy path
-                                        LOG.debug("Migrating legacy archive {}", jobArchivePath);
-                                        json = convertLegacyJobOverview(json);
-                                        target = new File(webOverviewDir, jobID + JSON_FILE_ENDING);
-                                    } else {
-                                        // this implicitly writes into webJobDir
-                                        target = new File(webDir, path + JSON_FILE_ENDING);
-                                    }
-
-                                    java.nio.file.Path parent = target.getParentFile().toPath();
-
-                                    try {
-                                        Files.createDirectories(parent);
-                                    } catch (FileAlreadyExistsException ignored) {
-                                        // there may be left-over directories from the previous
-                                        // attempt
-                                    }
-
-                                    java.nio.file.Path targetPath = target.toPath();
-
-                                    // We overwrite existing files since this may be another attempt
-                                    // at fetching this archive.
-                                    // Existing files may be incomplete/corrupt.
-                                    Files.deleteIfExists(targetPath);
-
-                                    Files.createFile(target.toPath());
-                                    try (FileWriter fw = new FileWriter(target)) {
-                                        fw.write(json);
-                                        fw.flush();
-                                    }
-                                }
+                                processArchive(jobID, jobArchivePath);
                                 events.add(new ArchiveEvent(jobID, ArchiveEventType.CREATED));
                                 cachedArchivesPerRefreshDirectory.get(refreshDir).add(jobID);
                                 LOG.info("Processing archive {} finished.", jobArchivePath);
@@ -340,6 +286,77 @@ class HistoryServerArchiveFetcher {
                 LOG.debug("Finished archive fetching.");
             } catch (Exception e) {
                 LOG.error("Critical failure while fetching/processing job archives.", e);
+            }
+        }
+
+        private static FileStatus[] listArchives(FileSystem refreshFS, Path refreshDir)
+                throws IOException {
+            // contents of /:refreshDir
+            FileStatus[] jobArchives = refreshFS.listStatus(refreshDir);
+            if (jobArchives == null) {
+                // the entire refreshDirectory was removed
+                return new FileStatus[0];
+            }
+
+            Arrays.sort(
+                    jobArchives,
+                    Comparator.comparingLong(FileStatus::getModificationTime).reversed());
+
+            return jobArchives;
+        }
+
+        private static boolean isValidJobID(String jobId, Path refreshDir) {
+            try {
+                JobID.fromHexString(jobId);
+                return true;
+            } catch (IllegalArgumentException iae) {
+                LOG.debug(
+                        "Archive directory {} contained file with unexpected name {}. Ignoring file.",
+                        refreshDir,
+                        jobId,
+                        iae);
+                return false;
+            }
+        }
+
+        private void processArchive(String jobID, Path jobArchive) throws IOException {
+            for (ArchivedJson archive : FsJobArchivist.getArchivedJsons(jobArchive)) {
+                String path = archive.getPath();
+                String json = archive.getJson();
+
+                File target;
+                if (path.equals(JobsOverviewHeaders.URL)) {
+                    target = new File(webOverviewDir, jobID + JSON_FILE_ENDING);
+                } else if (path.equals("/joboverview")) { // legacy path
+                    LOG.debug("Migrating legacy archive {}", jobArchive);
+                    json = convertLegacyJobOverview(json);
+                    target = new File(webOverviewDir, jobID + JSON_FILE_ENDING);
+                } else {
+                    // this implicitly writes into webJobDir
+                    target = new File(webDir, path + JSON_FILE_ENDING);
+                }
+
+                java.nio.file.Path parent = target.getParentFile().toPath();
+
+                try {
+                    Files.createDirectories(parent);
+                } catch (FileAlreadyExistsException ignored) {
+                    // there may be left-over directories from the previous
+                    // attempt
+                }
+
+                java.nio.file.Path targetPath = target.toPath();
+
+                // We overwrite existing files since this may be another attempt
+                // at fetching this archive.
+                // Existing files may be incomplete/corrupt.
+                Files.deleteIfExists(targetPath);
+
+                Files.createFile(target.toPath());
+                try (FileWriter fw = new FileWriter(target)) {
+                    fw.write(json);
+                    fw.flush();
+                }
             }
         }
 
