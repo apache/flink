@@ -577,7 +577,6 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                 CastTestSpecBuilder.testCastTo(DATE())
                         .fromCase(CHAR(3), "foo", null)
                         .fromCase(VARCHAR(5), "Flink", null)
-                        // https://issues.apache.org/jira/browse/FLINK-24421 Bug
                         .fromCase(STRING(), "123", LocalDate.of(123, 1, 1))
                         .fromCase(STRING(), "2021-09-27", LocalDate.of(2021, 9, 27))
                         .fromCase(
@@ -633,9 +632,10 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                 CastTestSpecBuilder.testCastTo(TIME())
                         .fromCase(CHAR(3), "foo", null)
                         .fromCase(VARCHAR(5), "Flink", null)
-                        // https://issues.apache.org/jira/browse/FLINK-24421 Bug
-                        .fromCase(STRING(), "123", LocalTime.of(23, 1, 1))
+                        .fromCase(STRING(), "123", LocalTime.of(23, 0, 0))
+                        .fromCase(STRING(), "123:45", LocalTime.of(23, 45, 0))
                         .fromCase(STRING(), "2021-09-27", null)
+                        .fromCase(STRING(), "2021-09-27 12:34:56", null)
                         // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
                         // lost
                         .fromCase(STRING(), "12:34:56.123456789", LocalTime.of(12, 34, 56, 0))
