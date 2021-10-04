@@ -105,7 +105,7 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 
     private static BlobServer blobServer;
 
-    private static HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest;
+    private static HandlerRequest<EmptyRequestBody> handlerRequest;
 
     private String fileContent1;
 

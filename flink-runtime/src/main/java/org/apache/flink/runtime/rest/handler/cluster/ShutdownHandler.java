@@ -50,7 +50,7 @@ public class ShutdownHandler
 
     @Override
     protected CompletableFuture<EmptyResponseBody> handleRequest(
-            @Nonnull final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+            @Nonnull final HandlerRequest<EmptyRequestBody> request,
             @Nonnull final RestfulGateway gateway)
             throws RestHandlerException {
         return gateway.shutDownCluster().thenApply(ignored -> EmptyResponseBody.getInstance());

@@ -274,7 +274,7 @@ public class RestClusterClientTest extends TestLogger {
 
         @Override
         protected CompletableFuture<JobSubmitResponseBody> handleRequest(
-                @Nonnull HandlerRequest<JobSubmitRequestBody, EmptyMessageParameters> request,
+                @Nonnull HandlerRequest<JobSubmitRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
             jobSubmitted = true;
@@ -293,7 +293,7 @@ public class RestClusterClientTest extends TestLogger {
 
         @Override
         protected CompletableFuture<EmptyResponseBody> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, JobCancellationMessageParameters> request,
+                @Nonnull HandlerRequest<EmptyRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
             jobCanceled = true;
@@ -386,9 +386,7 @@ public class RestClusterClientTest extends TestLogger {
 
             @Override
             protected CompletableFuture<TriggerResponse> handleRequest(
-                    @Nonnull
-                            HandlerRequest<SavepointDisposalRequest, EmptyMessageParameters>
-                                    request,
+                    @Nonnull HandlerRequest<SavepointDisposalRequest> request,
                     @Nonnull DispatcherGateway gateway) {
                 assertThat(request.getRequestBody().getSavepointPath(), is(savepointPath));
                 return CompletableFuture.completedFuture(new TriggerResponse(triggerId));
@@ -412,11 +410,7 @@ public class RestClusterClientTest extends TestLogger {
             @Override
             protected CompletableFuture<AsynchronousOperationResult<AsynchronousOperationInfo>>
                     handleRequest(
-                            @Nonnull
-                                    HandlerRequest<
-                                                    EmptyRequestBody,
-                                                    SavepointDisposalStatusMessageParameters>
-                                            request,
+                            @Nonnull HandlerRequest<EmptyRequestBody> request,
                             @Nonnull DispatcherGateway gateway)
                             throws RestHandlerException {
                 final TriggerId actualTriggerId =
@@ -581,7 +575,7 @@ public class RestClusterClientTest extends TestLogger {
 
         @Override
         protected CompletableFuture<JobExecutionResultResponseBody> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
+                @Nonnull HandlerRequest<EmptyRequestBody> request,
                 @Nonnull DispatcherGateway gateway) {
             if (jobExecutionResults.hasNext()) {
                 lastJobExecutionResult = jobExecutionResults.next();
@@ -755,7 +749,7 @@ public class RestClusterClientTest extends TestLogger {
 
         @Override
         protected CompletableFuture<JobSubmitResponseBody> handleRequest(
-                @Nonnull HandlerRequest<JobSubmitRequestBody, EmptyMessageParameters> request,
+                @Nonnull HandlerRequest<JobSubmitRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
             throw new RestHandlerException("expected", HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -804,7 +798,7 @@ public class RestClusterClientTest extends TestLogger {
 
         @Override
         protected CompletableFuture<EmptyResponseBody> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+                @Nonnull HandlerRequest<EmptyRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
             final CompletableFuture<EmptyResponseBody> result = responseQueue.poll();
@@ -935,11 +929,7 @@ public class RestClusterClientTest extends TestLogger {
         @Override
         @SuppressWarnings("unchecked")
         protected CompletableFuture<ClientCoordinationResponseBody> handleRequest(
-                @Nonnull
-                        HandlerRequest<
-                                        ClientCoordinationRequestBody,
-                                        ClientCoordinationMessageParameters>
-                                request,
+                @Nonnull HandlerRequest<ClientCoordinationRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
             try {
@@ -989,7 +979,7 @@ public class RestClusterClientTest extends TestLogger {
 
         @Override
         protected CompletableFuture<JobAccumulatorsInfo> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, JobAccumulatorsMessageParameters> request,
+                @Nonnull HandlerRequest<EmptyRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
             JobAccumulatorsInfo accumulatorsInfo;
@@ -1046,7 +1036,7 @@ public class RestClusterClientTest extends TestLogger {
 
         @Override
         protected CompletableFuture<MultipleJobsDetails> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+                @Nonnull HandlerRequest<EmptyRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
             JobDetails running =
@@ -1073,7 +1063,7 @@ public class RestClusterClientTest extends TestLogger {
 
         @Override
         protected CompletableFuture<JobDetailsInfo> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
+                @Nonnull HandlerRequest<EmptyRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
             if (!jobDetailsInfo.hasNext()) {

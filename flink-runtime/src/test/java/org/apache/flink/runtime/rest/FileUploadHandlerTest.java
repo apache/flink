@@ -21,7 +21,6 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.runtime.io.network.netty.NettyLeakDetectionResource;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -395,9 +394,7 @@ public class FileUploadHandlerTest extends TestLogger {
 
     private static class CustomFilenameVerifier
             implements BiConsumerWithException<
-                    HandlerRequest<? extends RequestBody, ? extends MessageParameters>,
-                    RestfulGateway,
-                    Exception> {
+                    HandlerRequest<? extends RequestBody>, RestfulGateway, Exception> {
 
         private final String customFilename1;
         private final Path fileContent1;
@@ -419,8 +416,7 @@ public class FileUploadHandlerTest extends TestLogger {
 
         @Override
         public void accept(
-                HandlerRequest<? extends RequestBody, ? extends MessageParameters> request,
-                RestfulGateway restfulGateway)
+                HandlerRequest<? extends RequestBody> request, RestfulGateway restfulGateway)
                 throws Exception {
             List<Path> uploadedFiles =
                     request.getUploadedFiles().stream()

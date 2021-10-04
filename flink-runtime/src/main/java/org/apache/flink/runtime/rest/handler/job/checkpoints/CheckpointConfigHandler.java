@@ -71,8 +71,7 @@ public class CheckpointConfigHandler
 
     @Override
     protected CheckpointConfigInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
-            AccessExecutionGraph executionGraph)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionGraph executionGraph)
             throws RestHandlerException {
         return createCheckpointConfigInfo(executionGraph);
     }

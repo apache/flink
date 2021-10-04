@@ -69,9 +69,7 @@ public class ClusterDataSetDeleteHandlers
 
         @Override
         protected CompletableFuture<Void> triggerOperation(
-                HandlerRequest<EmptyRequestBody, ClusterDataSetDeleteTriggerMessageParameters>
-                        request,
-                RestfulGateway gateway)
+                HandlerRequest<EmptyRequestBody> request, RestfulGateway gateway)
                 throws RestHandlerException {
             final IntermediateDataSetID clusterPartitionId =
                     request.getPathParameter(ClusterDataSetIdPathParameter.class);
@@ -82,9 +80,7 @@ public class ClusterDataSetDeleteHandlers
         }
 
         @Override
-        protected OperationKey createOperationKey(
-                HandlerRequest<EmptyRequestBody, ClusterDataSetDeleteTriggerMessageParameters>
-                        request) {
+        protected OperationKey createOperationKey(HandlerRequest<EmptyRequestBody> request) {
             return new OperationKey(new TriggerId());
         }
     }
@@ -108,9 +104,7 @@ public class ClusterDataSetDeleteHandlers
         }
 
         @Override
-        protected OperationKey getOperationKey(
-                HandlerRequest<EmptyRequestBody, ClusterDataSetDeleteStatusMessageParameters>
-                        request) {
+        protected OperationKey getOperationKey(HandlerRequest<EmptyRequestBody> request) {
             final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
             return new OperationKey(triggerId);
         }

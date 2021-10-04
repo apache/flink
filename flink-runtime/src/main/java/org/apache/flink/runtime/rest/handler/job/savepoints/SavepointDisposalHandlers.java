@@ -65,8 +65,7 @@ public class SavepointDisposalHandlers
 
         @Override
         protected CompletableFuture<Acknowledge> triggerOperation(
-                HandlerRequest<SavepointDisposalRequest, EmptyMessageParameters> request,
-                RestfulGateway gateway)
+                HandlerRequest<SavepointDisposalRequest> request, RestfulGateway gateway)
                 throws RestHandlerException {
             final String savepointPath = request.getRequestBody().getSavepointPath();
             if (savepointPath == null) {
@@ -81,7 +80,7 @@ public class SavepointDisposalHandlers
 
         @Override
         protected OperationKey createOperationKey(
-                HandlerRequest<SavepointDisposalRequest, EmptyMessageParameters> request) {
+                HandlerRequest<SavepointDisposalRequest> request) {
             return new OperationKey(new TriggerId());
         }
     }
@@ -105,9 +104,7 @@ public class SavepointDisposalHandlers
         }
 
         @Override
-        protected OperationKey getOperationKey(
-                HandlerRequest<EmptyRequestBody, SavepointDisposalStatusMessageParameters>
-                        request) {
+        protected OperationKey getOperationKey(HandlerRequest<EmptyRequestBody> request) {
             final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
             return new OperationKey(triggerId);
         }

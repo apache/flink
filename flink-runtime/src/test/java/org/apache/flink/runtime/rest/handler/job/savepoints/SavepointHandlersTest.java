@@ -200,18 +200,18 @@ public class SavepointHandlersTest extends TestLogger {
         assertThat(savepointError, instanceOf(RuntimeException.class));
     }
 
-    private static HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters>
-            triggerSavepointRequest() throws HandlerRequestException {
+    private static HandlerRequest<SavepointTriggerRequestBody> triggerSavepointRequest()
+            throws HandlerRequestException {
         return triggerSavepointRequest(DEFAULT_REQUESTED_SAVEPOINT_TARGET_DIRECTORY);
     }
 
-    private static HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters>
+    private static HandlerRequest<SavepointTriggerRequestBody>
             triggerSavepointRequestWithDefaultDirectory() throws HandlerRequestException {
         return triggerSavepointRequest(null);
     }
 
-    private static HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters>
-            triggerSavepointRequest(final String targetDirectory) throws HandlerRequestException {
+    private static HandlerRequest<SavepointTriggerRequestBody> triggerSavepointRequest(
+            final String targetDirectory) throws HandlerRequestException {
         return HandlerRequest.resolveParametersAndCreate(
                 new SavepointTriggerRequestBody(targetDirectory, false),
                 new SavepointTriggerMessageParameters(),
@@ -220,8 +220,8 @@ public class SavepointHandlersTest extends TestLogger {
                 Collections.emptyList());
     }
 
-    private static HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters>
-            savepointStatusRequest(final TriggerId triggerId) throws HandlerRequestException {
+    private static HandlerRequest<EmptyRequestBody> savepointStatusRequest(
+            final TriggerId triggerId) throws HandlerRequestException {
         final Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(JobIDPathParameter.KEY, JOB_ID.toString());
         pathParameters.put(TriggerIdPathParameter.KEY, triggerId.toString());

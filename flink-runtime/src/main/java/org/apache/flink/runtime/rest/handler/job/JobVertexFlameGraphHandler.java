@@ -71,8 +71,7 @@ public class JobVertexFlameGraphHandler
 
     @Override
     protected JobVertexFlameGraph handleRequest(
-            HandlerRequest<EmptyRequestBody, JobVertexFlameGraphParameters> request,
-            AccessExecutionJobVertex jobVertex)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionJobVertex jobVertex)
             throws RestHandlerException {
 
         if (jobVertex.getAggregateState().isTerminal()) {
@@ -109,8 +108,7 @@ public class JobVertexFlameGraphHandler
         return operatorFlameGraph.orElse(JobVertexFlameGraph.waiting());
     }
 
-    private static FlameGraphTypeQueryParameter.Type getFlameGraphType(
-            HandlerRequest<?, JobVertexFlameGraphParameters> request) {
+    private static FlameGraphTypeQueryParameter.Type getFlameGraphType(HandlerRequest<?> request) {
         final List<FlameGraphTypeQueryParameter.Type> flameGraphTypeParameter =
                 request.getQueryParameter(FlameGraphTypeQueryParameter.class);
 
@@ -152,8 +150,7 @@ public class JobVertexFlameGraphHandler
 
         @Override
         protected CompletableFuture<JobVertexFlameGraph> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, JobVertexFlameGraphParameters> request,
-                @Nonnull RestfulGateway gateway)
+                @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
                 throws RestHandlerException {
             return CompletableFuture.completedFuture(JobVertexFlameGraph.disabled());
         }

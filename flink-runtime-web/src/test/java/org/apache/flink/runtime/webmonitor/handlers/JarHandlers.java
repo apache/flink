@@ -105,7 +105,8 @@ public class JarHandlers {
 
     public static String uploadJar(
             JarUploadHandler handler, Path jar, RestfulGateway restfulGateway) throws Exception {
-        HandlerRequest<EmptyRequestBody, EmptyMessageParameters> uploadRequest =
+
+        HandlerRequest<EmptyRequestBody> uploadRequest =
                 HandlerRequest.create(
                         EmptyRequestBody.getInstance(),
                         EmptyMessageParameters.getInstance(),
@@ -117,7 +118,7 @@ public class JarHandlers {
 
     public static JarListInfo listJars(JarListHandler handler, RestfulGateway restfulGateway)
             throws Exception {
-        HandlerRequest<EmptyRequestBody, EmptyMessageParameters> listRequest =
+        HandlerRequest<EmptyRequestBody> listRequest =
                 HandlerRequest.create(
                         EmptyRequestBody.getInstance(), EmptyMessageParameters.getInstance());
         return handler.handleRequest(listRequest, restfulGateway).get();
@@ -128,7 +129,7 @@ public class JarHandlers {
             throws Exception {
         JarPlanMessageParameters planParameters =
                 JarPlanGetHeaders.getInstance().getUnresolvedMessageParameters();
-        HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> planRequest =
+        HandlerRequest<JarPlanRequestBody> planRequest =
                 HandlerRequest.resolveParametersAndCreate(
                         new JarPlanRequestBody(),
                         planParameters,
@@ -144,7 +145,7 @@ public class JarHandlers {
             throws Exception {
         final JarRunMessageParameters runParameters =
                 JarRunHeaders.getInstance().getUnresolvedMessageParameters();
-        HandlerRequest<JarRunRequestBody, JarRunMessageParameters> runRequest =
+        HandlerRequest<JarRunRequestBody> runRequest =
                 HandlerRequest.resolveParametersAndCreate(
                         new JarRunRequestBody(),
                         runParameters,
@@ -160,7 +161,7 @@ public class JarHandlers {
             throws Exception {
         JarDeleteMessageParameters deleteParameters =
                 JarDeleteHeaders.getInstance().getUnresolvedMessageParameters();
-        HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> deleteRequest =
+        HandlerRequest<EmptyRequestBody> deleteRequest =
                 HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         deleteParameters,

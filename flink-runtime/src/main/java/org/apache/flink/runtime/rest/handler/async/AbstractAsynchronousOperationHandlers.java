@@ -113,7 +113,7 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
 
         @Override
         public CompletableFuture<TriggerResponse> handleRequest(
-                @Nonnull HandlerRequest<B, M> request, @Nonnull T gateway)
+                @Nonnull HandlerRequest<B> request, @Nonnull T gateway)
                 throws RestHandlerException {
             final CompletableFuture<R> resultFuture = triggerOperation(request, gateway);
 
@@ -134,7 +134,7 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
          * @throws RestHandlerException if something went wrong
          */
         protected abstract CompletableFuture<R> triggerOperation(
-                HandlerRequest<B, M> request, T gateway) throws RestHandlerException;
+                HandlerRequest<B> request, T gateway) throws RestHandlerException;
 
         /**
          * Create the operation key under which the result future of the asynchronous operation will
@@ -143,7 +143,7 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
          * @param request with which the trigger handler has been called.
          * @return Operation key under which the result future will be stored
          */
-        protected abstract K createOperationKey(HandlerRequest<B, M> request);
+        protected abstract K createOperationKey(HandlerRequest<B> request);
     }
 
     /**
@@ -170,7 +170,7 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
 
         @Override
         public CompletableFuture<AsynchronousOperationResult<V>> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, M> request, @Nonnull T gateway)
+                @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull T gateway)
                 throws RestHandlerException {
 
             final K key = getOperationKey(request);
@@ -210,7 +210,7 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
          * @param request with which the status handler has been called
          * @return Operation key under which the operation result future is stored
          */
-        protected abstract K getOperationKey(HandlerRequest<EmptyRequestBody, M> request);
+        protected abstract K getOperationKey(HandlerRequest<EmptyRequestBody> request);
 
         /**
          * Create an exceptional operation result from the given {@link Throwable}. This method is

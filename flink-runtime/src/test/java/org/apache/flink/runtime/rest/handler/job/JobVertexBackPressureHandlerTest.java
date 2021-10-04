@@ -147,7 +147,7 @@ public class JobVertexBackPressureHandlerTest {
                 JobIDPathParameter.KEY, TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString());
         pathParameters.put(JobVertexIdPathParameter.KEY, TEST_JOB_VERTEX_ID.toString());
 
-        final HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new JobVertexMessageParameters(),
@@ -202,7 +202,7 @@ public class JobVertexBackPressureHandlerTest {
                 JobIDPathParameter.KEY, TEST_JOB_ID_BACK_PRESSURE_STATS_ABSENT.toString());
         pathParameters.put(JobVertexIdPathParameter.KEY, new JobVertexID().toString());
 
-        final HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new JobVertexMessageParameters(),

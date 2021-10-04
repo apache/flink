@@ -66,7 +66,7 @@ public class JobVertexWatermarksHandlerTest {
     private MetricFetcher metricFetcher;
     private MetricStore.TaskMetricStore taskMetricStore;
     private JobVertexWatermarksHandler watermarkHandler;
-    private HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request;
+    private HandlerRequest<EmptyRequestBody> request;
     private AccessExecutionJobVertex vertex;
 
     @Before

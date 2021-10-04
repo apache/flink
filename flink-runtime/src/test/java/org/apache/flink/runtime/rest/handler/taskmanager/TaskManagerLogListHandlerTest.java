@@ -60,7 +60,7 @@ public class TaskManagerLogListHandlerTest extends TestLogger {
     private static final ResourceID EXPECTED_TASK_MANAGER_ID = ResourceID.generate();
     private TestingResourceManagerGateway resourceManagerGateway;
     private TaskManagerLogListHandler taskManagerLogListHandler;
-    private HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest;
+    private HandlerRequest<EmptyRequestBody> handlerRequest;
 
     @Before
     public void setUp() throws HandlerRequestException {
@@ -113,8 +113,8 @@ public class TaskManagerLogListHandlerTest extends TestLogger {
         }
     }
 
-    private static HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> createRequest(
-            ResourceID taskManagerId) throws HandlerRequestException {
+    private static HandlerRequest<EmptyRequestBody> createRequest(ResourceID taskManagerId)
+            throws HandlerRequestException {
         Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(TaskManagerIdPathParameter.KEY, taskManagerId.toString());
         Map<String, List<String>> queryParameters = Collections.emptyMap();
