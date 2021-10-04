@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.watermark.Watermark
@@ -28,9 +27,9 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.S
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
 import org.junit.Assert._
-import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.{Ignore, Test}
 
 import scala.collection.mutable
 
@@ -373,6 +372,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   }
 
   /** test row time inner join with equi-times **/
+  @Ignore // see FLINK-24443
   @Test
   def testRowTimeInnerJoinWithEquiTimeAttrs(): Unit = {
 
