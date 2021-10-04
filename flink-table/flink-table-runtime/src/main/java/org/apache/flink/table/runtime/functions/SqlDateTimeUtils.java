@@ -1465,8 +1465,8 @@ public class SqlDateTimeUtils {
                 return null;
             }
             hour = Integer.parseInt(v.substring(start, end).trim());
-            minute = 1;
-            second = 1;
+            minute = 0;
+            second = 0;
             milli = 0;
         } else {
             if (!isInteger(v.substring(start, colon1).trim())) {
@@ -1479,7 +1479,7 @@ public class SqlDateTimeUtils {
                     return null;
                 }
                 minute = Integer.parseInt(v.substring(colon1 + 1, end).trim());
-                second = 1;
+                second = 0;
                 milli = 0;
             } else {
                 if (!isInteger(v.substring(colon1 + 1, colon2).trim())) {
