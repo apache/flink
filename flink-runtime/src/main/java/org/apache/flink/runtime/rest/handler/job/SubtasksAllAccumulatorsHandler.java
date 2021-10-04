@@ -66,8 +66,7 @@ public class SubtasksAllAccumulatorsHandler
 
     @Override
     protected SubtasksAllAccumulatorsInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
-            AccessExecutionJobVertex jobVertex)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionJobVertex jobVertex)
             throws RestHandlerException {
         JobVertexID jobVertexId = jobVertex.getJobVertexId();
         int parallelism = jobVertex.getParallelism();

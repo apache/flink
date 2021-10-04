@@ -88,8 +88,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandler
 
     @Override
     protected SubtaskExecutionAttemptAccumulatorsInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request,
-            AccessExecution execution)
+            HandlerRequest<EmptyRequestBody> request, AccessExecution execution)
             throws RestHandlerException {
         return createAccumulatorInfo(execution);
     }

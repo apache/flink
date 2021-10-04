@@ -83,7 +83,7 @@ public class JarRunHandler
 
     @Override
     protected CompletableFuture<JarRunResponseBody> handleRequest(
-            @Nonnull final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request,
+            @Nonnull final HandlerRequest<JarRunRequestBody> request,
             @Nonnull final DispatcherGateway gateway)
             throws RestHandlerException {
 
@@ -121,8 +121,7 @@ public class JarRunHandler
     }
 
     private SavepointRestoreSettings getSavepointRestoreSettings(
-            final @Nonnull HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request)
-            throws RestHandlerException {
+            final @Nonnull HandlerRequest<JarRunRequestBody> request) throws RestHandlerException {
 
         final JarRunRequestBody requestBody = request.getRequestBody();
 

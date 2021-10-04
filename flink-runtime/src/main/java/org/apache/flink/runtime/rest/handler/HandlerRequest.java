@@ -41,9 +41,8 @@ import java.util.StringJoiner;
  * path/query parameters.
  *
  * @param <R> type of the contained request body
- * @param <M> type of the contained message parameters
  */
-public class HandlerRequest<R extends RequestBody, M extends MessageParameters> {
+public class HandlerRequest<R extends RequestBody> {
 
     private final R requestBody;
     private final Collection<File> uploadedFiles;
@@ -123,7 +122,7 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
      * uploaded files.
      */
     @VisibleForTesting
-    public static <R extends RequestBody, M extends MessageParameters> HandlerRequest<R, M> create(
+    public static <R extends RequestBody, M extends MessageParameters> HandlerRequest<R> create(
             R requestBody, M messageParameters) {
         return create(requestBody, messageParameters, Collections.emptyList());
     }
@@ -133,9 +132,9 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
      * resolved.
      */
     @VisibleForTesting
-    public static <R extends RequestBody, M extends MessageParameters> HandlerRequest<R, M> create(
+    public static <R extends RequestBody, M extends MessageParameters> HandlerRequest<R> create(
             R requestBody, M messageParameters, Collection<File> uploadedFiles) {
-        return new HandlerRequest<R, M>(
+        return new HandlerRequest<R>(
                 requestBody,
                 mapParameters(messageParameters.getPathParameters()),
                 mapParameters(messageParameters.getQueryParameters()),
@@ -149,7 +148,7 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
      * <p>For tests it is recommended to resolve the parameters manually and use {@link #create}.
      */
     public static <R extends RequestBody, M extends MessageParameters>
-            HandlerRequest<R, M> resolveParametersAndCreate(
+            HandlerRequest<R> resolveParametersAndCreate(
                     R requestBody,
                     M messageParameters,
                     Map<String, String> receivedPathParameters,

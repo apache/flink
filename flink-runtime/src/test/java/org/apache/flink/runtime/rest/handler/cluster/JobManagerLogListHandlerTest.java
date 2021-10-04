@@ -57,7 +57,7 @@ import static org.junit.Assert.assertThat;
 /** Unit tests for {@link JobManagerLogListHandler}. */
 public class JobManagerLogListHandlerTest extends TestLogger {
 
-    private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> testRequest;
+    private static HandlerRequest<EmptyRequestBody> testRequest;
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 

@@ -134,7 +134,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
         receivedPathParameters.put(JobIDPathParameter.KEY, jobID.toString());
         receivedPathParameters.put(JobVertexIdPathParameter.KEY, jobVertexID.toString());
 
-        final HandlerRequest<EmptyRequestBody, SubtaskMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new SubtaskMessageParameters(),

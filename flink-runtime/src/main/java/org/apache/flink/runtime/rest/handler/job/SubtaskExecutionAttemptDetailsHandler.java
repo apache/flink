@@ -95,8 +95,7 @@ public class SubtaskExecutionAttemptDetailsHandler
 
     @Override
     protected SubtaskExecutionAttemptDetailsInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request,
-            AccessExecution execution)
+            HandlerRequest<EmptyRequestBody> request, AccessExecution execution)
             throws RestHandlerException {
 
         final JobID jobID = request.getPathParameter(JobIDPathParameter.class);

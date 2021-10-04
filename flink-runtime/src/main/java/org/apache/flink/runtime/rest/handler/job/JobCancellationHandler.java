@@ -69,8 +69,7 @@ public class JobCancellationHandler
 
     @Override
     public CompletableFuture<EmptyResponseBody> handleRequest(
-            HandlerRequest<EmptyRequestBody, JobCancellationMessageParameters> request,
-            RestfulGateway gateway)
+            HandlerRequest<EmptyRequestBody> request, RestfulGateway gateway)
             throws RestHandlerException {
         final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
         final List<TerminationModeQueryParameter.TerminationMode> terminationModes =

@@ -67,7 +67,7 @@ public class TestRestHandler<
 
     @Override
     protected CompletableFuture<RES> handleRequest(
-            @Nullable HandlerRequest<REQ, M> request, @Nullable G gateway)
+            @Nullable HandlerRequest<REQ> request, @Nullable G gateway)
             throws RestHandlerException {
         final CompletableFuture<RES> result = responseQueue.poll();
 

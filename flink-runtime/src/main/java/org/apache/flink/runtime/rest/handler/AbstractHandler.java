@@ -171,7 +171,7 @@ public abstract class AbstractHandler<
                 }
             }
 
-            final HandlerRequest<R, M> handlerRequest;
+            final HandlerRequest<R> handlerRequest;
 
             try {
                 handlerRequest =
@@ -316,7 +316,7 @@ public abstract class AbstractHandler<
     protected abstract CompletableFuture<Void> respondToRequest(
             ChannelHandlerContext ctx,
             HttpRequest httpRequest,
-            HandlerRequest<R, M> handlerRequest,
+            HandlerRequest<R> handlerRequest,
             T gateway)
             throws RestHandlerException;
 }

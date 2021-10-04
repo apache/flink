@@ -71,7 +71,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
                         TestingUtils.defaultExecutor());
 
         // Instance a empty request.
-        final HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 HandlerRequest.create(
                         EmptyRequestBody.getInstance(), new SubtaskAttemptMessageParameters());
 

@@ -125,7 +125,7 @@ public abstract class AggregatingMetricsHandlerTestBase<
     @Test
     public void getStores() throws Exception {
         { // test without filter
-            HandlerRequest<EmptyRequestBody, P> request =
+            HandlerRequest<EmptyRequestBody> request =
                     HandlerRequest.resolveParametersAndCreate(
                             EmptyRequestBody.getInstance(),
                             handler.getMessageHeaders().getUnresolvedMessageParameters(),
@@ -165,7 +165,7 @@ public abstract class AggregatingMetricsHandlerTestBase<
             Tuple2<String, List<String>> filter = getFilter();
             Map<String, List<String>> queryParameters = new HashMap<>(4);
             queryParameters.put(filter.f0, filter.f1);
-            HandlerRequest<EmptyRequestBody, P> request =
+            HandlerRequest<EmptyRequestBody> request =
                     HandlerRequest.resolveParametersAndCreate(
                             EmptyRequestBody.getInstance(),
                             handler.getMessageHeaders().getUnresolvedMessageParameters(),
@@ -203,7 +203,7 @@ public abstract class AggregatingMetricsHandlerTestBase<
 
     @Test
     public void testListMetrics() throws Exception {
-        HandlerRequest<EmptyRequestBody, P> request =
+        HandlerRequest<EmptyRequestBody> request =
                 HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
@@ -231,7 +231,7 @@ public abstract class AggregatingMetricsHandlerTestBase<
         queryParams.put("get", Collections.singletonList("abc.metric1"));
         queryParams.put("agg", Collections.singletonList("min"));
 
-        HandlerRequest<EmptyRequestBody, P> request =
+        HandlerRequest<EmptyRequestBody> request =
                 HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
@@ -260,7 +260,7 @@ public abstract class AggregatingMetricsHandlerTestBase<
         queryParams.put("get", Collections.singletonList("abc.metric1"));
         queryParams.put("agg", Collections.singletonList("max"));
 
-        HandlerRequest<EmptyRequestBody, P> request =
+        HandlerRequest<EmptyRequestBody> request =
                 HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
@@ -289,7 +289,7 @@ public abstract class AggregatingMetricsHandlerTestBase<
         queryParams.put("get", Collections.singletonList("abc.metric1"));
         queryParams.put("agg", Collections.singletonList("sum"));
 
-        HandlerRequest<EmptyRequestBody, P> request =
+        HandlerRequest<EmptyRequestBody> request =
                 HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
@@ -318,7 +318,7 @@ public abstract class AggregatingMetricsHandlerTestBase<
         queryParams.put("get", Collections.singletonList("abc.metric1"));
         queryParams.put("agg", Collections.singletonList("avg"));
 
-        HandlerRequest<EmptyRequestBody, P> request =
+        HandlerRequest<EmptyRequestBody> request =
                 HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
@@ -347,7 +347,7 @@ public abstract class AggregatingMetricsHandlerTestBase<
         queryParams.put("get", Collections.singletonList("abc.metric1"));
         queryParams.put("agg", Arrays.asList("min", "max", "avg"));
 
-        HandlerRequest<EmptyRequestBody, P> request =
+        HandlerRequest<EmptyRequestBody> request =
                 HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
@@ -375,7 +375,7 @@ public abstract class AggregatingMetricsHandlerTestBase<
         Map<String, List<String>> queryParams = new HashMap<>(4);
         queryParams.put("get", Collections.singletonList("abc.metric1"));
 
-        HandlerRequest<EmptyRequestBody, P> request =
+        HandlerRequest<EmptyRequestBody> request =
                 HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),

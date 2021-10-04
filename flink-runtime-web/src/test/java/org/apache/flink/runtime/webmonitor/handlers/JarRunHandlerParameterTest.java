@@ -192,7 +192,7 @@ public class JarRunHandlerParameterTest
 
     @Test
     public void testRestHandlerExceptionThrownWithEagerSinks() throws Exception {
-        final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request =
+        final HandlerRequest<JarRunRequestBody> request =
                 createRequest(
                         getDefaultJarRequestBody(),
                         getUnresolvedJarMessageParameters(),
@@ -226,8 +226,7 @@ public class JarRunHandlerParameterTest
     }
 
     @Override
-    void handleRequest(HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request)
-            throws Exception {
+    void handleRequest(HandlerRequest<JarRunRequestBody> request) throws Exception {
         handler.handleRequest(request, restfulGateway).get();
     }
 

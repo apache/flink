@@ -90,8 +90,8 @@ public class JobManagerCustomLogHandlerTest extends TestLogger {
         FileUtils.writeStringToFile(file, content, StandardCharsets.UTF_8);
     }
 
-    private static HandlerRequest<EmptyRequestBody, FileMessageParameters> createHandlerRequest(
-            String path) throws HandlerRequestException {
+    private static HandlerRequest<EmptyRequestBody> createHandlerRequest(String path)
+            throws HandlerRequestException {
         FileMessageParameters messageParameters = new FileMessageParameters();
         Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(messageParameters.logFileNamePathParameter.getKey(), path);

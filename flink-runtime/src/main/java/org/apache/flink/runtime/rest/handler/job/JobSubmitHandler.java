@@ -80,7 +80,7 @@ public final class JobSubmitHandler
 
     @Override
     protected CompletableFuture<JobSubmitResponseBody> handleRequest(
-            @Nonnull HandlerRequest<JobSubmitRequestBody, EmptyMessageParameters> request,
+            @Nonnull HandlerRequest<JobSubmitRequestBody> request,
             @Nonnull DispatcherGateway gateway)
             throws RestHandlerException {
         final Collection<File> uploadedFiles = request.getUploadedFiles();

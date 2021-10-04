@@ -125,8 +125,7 @@ public class SavepointHandlers
         }
 
         @Override
-        protected AsynchronousJobOperationKey createOperationKey(
-                final HandlerRequest<T, SavepointTriggerMessageParameters> request) {
+        protected AsynchronousJobOperationKey createOperationKey(final HandlerRequest<T> request) {
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             return AsynchronousJobOperationKey.of(new TriggerId(), jobId);
         }
@@ -149,9 +148,7 @@ public class SavepointHandlers
 
         @Override
         protected CompletableFuture<String> triggerOperation(
-                final HandlerRequest<
-                                StopWithSavepointRequestBody, SavepointTriggerMessageParameters>
-                        request,
+                final HandlerRequest<StopWithSavepointRequestBody> request,
                 final RestfulGateway gateway)
                 throws RestHandlerException {
 
@@ -189,9 +186,7 @@ public class SavepointHandlers
 
         @Override
         protected CompletableFuture<String> triggerOperation(
-                HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters>
-                        request,
-                RestfulGateway gateway)
+                HandlerRequest<SavepointTriggerRequestBody> request, RestfulGateway gateway)
                 throws RestHandlerException {
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
@@ -228,7 +223,7 @@ public class SavepointHandlers
 
         @Override
         protected AsynchronousJobOperationKey getOperationKey(
-                HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters> request) {
+                HandlerRequest<EmptyRequestBody> request) {
             final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             return AsynchronousJobOperationKey.of(triggerId, jobId);

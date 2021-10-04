@@ -59,7 +59,7 @@ public class JobExecutionResultHandler
 
     @Override
     protected CompletableFuture<JobExecutionResultResponseBody> handleRequest(
-            @Nonnull final HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
+            @Nonnull final HandlerRequest<EmptyRequestBody> request,
             @Nonnull final RestfulGateway gateway)
             throws RestHandlerException {
 

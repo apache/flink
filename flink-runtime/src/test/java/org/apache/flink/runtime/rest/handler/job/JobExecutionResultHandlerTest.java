@@ -59,7 +59,7 @@ public class JobExecutionResultHandlerTest extends TestLogger {
 
     private JobExecutionResultHandler jobExecutionResultHandler;
 
-    private HandlerRequest<EmptyRequestBody, JobMessageParameters> testRequest;
+    private HandlerRequest<EmptyRequestBody> testRequest;
 
     @Before
     public void setUp() throws Exception {

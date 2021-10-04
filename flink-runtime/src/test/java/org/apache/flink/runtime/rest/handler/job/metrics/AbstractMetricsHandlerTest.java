@@ -201,8 +201,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
         @Nullable
         @Override
         protected MetricStore.ComponentMetricStore getComponentMetricStore(
-                HandlerRequest<EmptyRequestBody, TestMessageParameters> request,
-                MetricStore metricStore) {
+                HandlerRequest<EmptyRequestBody> request, MetricStore metricStore) {
             return returnComponentMetricStore ? metricStore.getJobManager() : null;
         }
     }

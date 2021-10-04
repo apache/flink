@@ -63,8 +63,7 @@ public class JobManagerLogListHandler
 
     @Override
     protected CompletableFuture<LogListInfo> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-            @Nonnull RestfulGateway gateway)
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         if (logDir == null) {
             return CompletableFuture.completedFuture(new LogListInfo(Collections.emptyList()));
