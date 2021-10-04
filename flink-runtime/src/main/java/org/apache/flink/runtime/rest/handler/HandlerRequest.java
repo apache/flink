@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.handler;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.rest.messages.MessageParameter;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
@@ -51,45 +52,19 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
     private final Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>>
             queryParameters;
 
-    public HandlerRequest(R requestBody, M messageParameters) throws HandlerRequestException {
-        this(
-                requestBody,
-                messageParameters,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyList());
-    }
-
-    public HandlerRequest(
+    private HandlerRequest(
             R requestBody,
-            M messageParameters,
-            Map<String, String> receivedPathParameters,
-            Map<String, List<String>> receivedQueryParameters)
-            throws HandlerRequestException {
-        this(
-                requestBody,
-                messageParameters,
-                receivedPathParameters,
-                receivedQueryParameters,
-                Collections.emptyList());
-    }
-
-    public HandlerRequest(
-            R requestBody,
-            M messageParameters,
-            Map<String, String> receivedPathParameters,
-            Map<String, List<String>> receivedQueryParameters,
-            Collection<File> uploadedFiles)
-            throws HandlerRequestException {
+            Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>>
+                    receivedPathParameters,
+            Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>>
+                    receivedQueryParameters,
+            Collection<File> uploadedFiles) {
         this.requestBody = Preconditions.checkNotNull(requestBody);
         this.uploadedFiles =
                 Collections.unmodifiableCollection(Preconditions.checkNotNull(uploadedFiles));
-        Preconditions.checkNotNull(messageParameters);
-        Preconditions.checkNotNull(receivedQueryParameters);
-        Preconditions.checkNotNull(receivedPathParameters);
 
-        pathParameters = resolvePathParameters(messageParameters, receivedPathParameters);
-        queryParameters = resolveQueryParameters(messageParameters, receivedQueryParameters);
+        pathParameters = Preconditions.checkNotNull(receivedPathParameters);
+        queryParameters = Preconditions.checkNotNull(receivedQueryParameters);
     }
 
     /**
@@ -143,10 +118,54 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
         return uploadedFiles;
     }
 
-    private static Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>>
-            resolvePathParameters(
-                    MessageParameters messageParameters, Map<String, String> receivedPathParameters)
+    /**
+     * Short-cut for {@link #create(RequestBody, MessageParameters, Collection)} without any
+     * uploaded files.
+     */
+    @VisibleForTesting
+    public static <R extends RequestBody, M extends MessageParameters> HandlerRequest<R, M> create(
+            R requestBody, M messageParameters) {
+        return create(requestBody, messageParameters, Collections.emptyList());
+    }
+
+    /**
+     * Creates a new {@link HandlerRequest}. The given {@link MessageParameters} are expected to be
+     * resolved.
+     */
+    @VisibleForTesting
+    public static <R extends RequestBody, M extends MessageParameters> HandlerRequest<R, M> create(
+            R requestBody, M messageParameters, Collection<File> uploadedFiles) {
+        return new HandlerRequest<R, M>(
+                requestBody,
+                mapParameters(messageParameters.getPathParameters()),
+                mapParameters(messageParameters.getQueryParameters()),
+                uploadedFiles);
+    }
+
+    /**
+     * Creates a new {@link HandlerRequest} after resolving the given {@link MessageParameters}
+     * against the given query/path parameter maps.
+     *
+     * <p>For tests it is recommended to resolve the parameters manually and use {@link #create}.
+     */
+    public static <R extends RequestBody, M extends MessageParameters>
+            HandlerRequest<R, M> resolveParametersAndCreate(
+                    R requestBody,
+                    M messageParameters,
+                    Map<String, String> receivedPathParameters,
+                    Map<String, List<String>> receivedQueryParameters,
+                    Collection<File> uploadedFiles)
                     throws HandlerRequestException {
+
+        resolvePathParameters(messageParameters, receivedPathParameters);
+        resolveQueryParameters(messageParameters, receivedQueryParameters);
+
+        return create(requestBody, messageParameters, uploadedFiles);
+    }
+
+    private static void resolvePathParameters(
+            MessageParameters messageParameters, Map<String, String> receivedPathParameters)
+            throws HandlerRequestException {
 
         for (MessagePathParameter<?> pathParameter : messageParameters.getPathParameters()) {
             String value = receivedPathParameters.get(pathParameter.getKey());
@@ -163,15 +182,11 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
                 }
             }
         }
-
-        return mapParameters(messageParameters.getPathParameters());
     }
 
-    private static Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>>
-            resolveQueryParameters(
-                    MessageParameters messageParameters,
-                    Map<String, List<String>> receivedQueryParameters)
-                    throws HandlerRequestException {
+    private static void resolveQueryParameters(
+            MessageParameters messageParameters, Map<String, List<String>> receivedQueryParameters)
+            throws HandlerRequestException {
 
         for (MessageQueryParameter<?> queryParameter : messageParameters.getQueryParameters()) {
             List<String> values = receivedQueryParameters.get(queryParameter.getKey());
@@ -191,19 +206,17 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
                 }
             }
         }
-
-        return mapParameters(messageParameters.getQueryParameters());
     }
 
     private static <P extends MessageParameter<?>> Map<Class<? extends P>, P> mapParameters(
-            Collection<P> pathParameters) {
+            Collection<P> parameters) {
         final Map<Class<? extends P>, P> mappedParameters = new HashMap<>(2);
 
-        for (P pathParameter : pathParameters) {
-            if (pathParameter.isResolved()) {
+        for (P parameter : parameters) {
+            if (parameter.isResolved()) {
                 @SuppressWarnings("unchecked")
-                Class<P> clazz = (Class<P>) pathParameter.getClass();
-                mappedParameters.put(clazz, pathParameter);
+                Class<P> clazz = (Class<P>) parameter.getClass();
+                mappedParameters.put(clazz, parameter);
             }
         }
 

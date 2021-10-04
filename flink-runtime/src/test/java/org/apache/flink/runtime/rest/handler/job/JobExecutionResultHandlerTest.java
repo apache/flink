@@ -73,11 +73,12 @@ public class JobExecutionResultHandlerTest extends TestLogger {
                         Collections.emptyMap());
 
         testRequest =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new JobMessageParameters(),
                         Collections.singletonMap("jobid", TEST_JOB_ID.toString()),
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
     }
 
     @Test

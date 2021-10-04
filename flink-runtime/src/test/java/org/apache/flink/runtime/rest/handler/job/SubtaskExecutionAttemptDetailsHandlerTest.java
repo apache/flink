@@ -139,11 +139,12 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
         receivedPathParameters.put(SubtaskAttemptPathParameter.KEY, Integer.toString(attempt));
 
         final HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new SubtaskAttemptMessageParameters(),
                         receivedPathParameters,
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
 
         // Handle request.
         final SubtaskExecutionAttemptDetailsInfo detailsInfo =

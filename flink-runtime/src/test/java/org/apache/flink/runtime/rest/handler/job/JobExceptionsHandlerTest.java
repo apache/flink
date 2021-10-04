@@ -377,11 +377,12 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final Map<String, List<String>> queryParameters = new HashMap<>();
         queryParameters.put(UpperLimitExceptionParameter.KEY, Collections.singletonList("" + size));
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new JobExceptionsMessageParameters(),
                 pathParameters,
-                queryParameters);
+                queryParameters,
+                Collections.emptyList());
     }
 
     private static RootExceptionHistoryEntry fromGlobalFailure(Throwable cause, long timestamp) {

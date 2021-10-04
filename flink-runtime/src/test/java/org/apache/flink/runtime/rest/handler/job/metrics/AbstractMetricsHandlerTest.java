@@ -102,11 +102,10 @@ public class AbstractMetricsHandlerTest extends TestLogger {
     public void testListMetrics() throws Exception {
         final CompletableFuture<MetricCollectionResponseBody> completableFuture =
                 testMetricsHandler.handleRequest(
-                        new HandlerRequest<>(
+                        HandlerRequest.create(
                                 EmptyRequestBody.getInstance(),
                                 new TestMessageParameters(),
-                                Collections.emptyMap(),
-                                Collections.emptyMap()),
+                                Collections.emptyList()),
                         mockDispatcherGateway);
 
         assertTrue(completableFuture.isDone());
@@ -125,11 +124,10 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 
         final CompletableFuture<MetricCollectionResponseBody> completableFuture =
                 testMetricsHandler.handleRequest(
-                        new HandlerRequest<>(
+                        HandlerRequest.create(
                                 EmptyRequestBody.getInstance(),
                                 new TestMessageParameters(),
-                                Collections.emptyMap(),
-                                Collections.emptyMap()),
+                                Collections.emptyList()),
                         mockDispatcherGateway);
 
         assertTrue(completableFuture.isDone());
@@ -142,13 +140,14 @@ public class AbstractMetricsHandlerTest extends TestLogger {
     public void testGetMetrics() throws Exception {
         final CompletableFuture<MetricCollectionResponseBody> completableFuture =
                 testMetricsHandler.handleRequest(
-                        new HandlerRequest<>(
+                        HandlerRequest.resolveParametersAndCreate(
                                 EmptyRequestBody.getInstance(),
                                 new TestMessageParameters(),
                                 Collections.emptyMap(),
                                 Collections.singletonMap(
                                         METRICS_FILTER_QUERY_PARAM,
-                                        Collections.singletonList(TEST_METRIC_NAME))),
+                                        Collections.singletonList(TEST_METRIC_NAME)),
+                                Collections.emptyList()),
                         mockDispatcherGateway);
 
         assertTrue(completableFuture.isDone());
@@ -165,13 +164,14 @@ public class AbstractMetricsHandlerTest extends TestLogger {
     public void testReturnEmptyListIfRequestedMetricIsUnknown() throws Exception {
         final CompletableFuture<MetricCollectionResponseBody> completableFuture =
                 testMetricsHandler.handleRequest(
-                        new HandlerRequest<>(
+                        HandlerRequest.resolveParametersAndCreate(
                                 EmptyRequestBody.getInstance(),
                                 new TestMessageParameters(),
                                 Collections.emptyMap(),
                                 Collections.singletonMap(
                                         METRICS_FILTER_QUERY_PARAM,
-                                        Collections.singletonList("unknown_metric"))),
+                                        Collections.singletonList("unknown_metric")),
+                                Collections.emptyList()),
                         mockDispatcherGateway);
 
         assertTrue(completableFuture.isDone());

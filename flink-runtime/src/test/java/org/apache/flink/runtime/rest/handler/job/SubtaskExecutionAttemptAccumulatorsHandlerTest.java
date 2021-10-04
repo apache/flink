@@ -72,7 +72,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
 
         // Instance a empty request.
         final HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request =
-                new HandlerRequest<>(
+                HandlerRequest.create(
                         EmptyRequestBody.getInstance(), new SubtaskAttemptMessageParameters());
 
         final Map<String, OptionalFailure<Accumulator<?, ?>>> userAccumulators = new HashMap<>(3);

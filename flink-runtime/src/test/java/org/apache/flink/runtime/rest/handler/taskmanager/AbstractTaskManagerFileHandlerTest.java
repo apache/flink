@@ -124,13 +124,14 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
         blobServer = new BlobServer(configuration, new VoidBlobStore());
 
         handlerRequest =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new TaskManagerFileMessageParameters(),
                         Collections.singletonMap(
                                 TaskManagerIdPathParameter.KEY,
                                 EXPECTED_TASK_MANAGER_ID.getResourceIdString()),
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
     }
 
     @Before

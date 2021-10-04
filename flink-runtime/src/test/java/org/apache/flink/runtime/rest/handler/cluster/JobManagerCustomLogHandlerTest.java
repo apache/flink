@@ -96,11 +96,12 @@ public class JobManagerCustomLogHandlerTest extends TestLogger {
         Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(messageParameters.logFileNamePathParameter.getKey(), path);
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 messageParameters,
                 pathParameters,
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptyList());
     }
 
     @Test

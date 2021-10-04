@@ -136,11 +136,12 @@ public class JarDeleteHandlerTest extends TestLogger {
 
     private static HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> createRequest(
             final String jarFileName) throws HandlerRequestException {
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new JarDeleteMessageParameters(),
                 Collections.singletonMap(JarIdPathParameter.KEY, jarFileName),
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptyList());
     }
 
     private void makeJarDirReadOnly() {

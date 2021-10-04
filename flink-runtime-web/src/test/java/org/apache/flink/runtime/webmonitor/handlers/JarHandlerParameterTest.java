@@ -291,7 +291,7 @@ public abstract class JarHandlerParameterTest<
                                         MessageParameter::getKey,
                                         JarHandlerParameterTest::getValuesAsString));
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 requestBody,
                 unresolvedMessageParameters,
                 Collections.singletonMap(JarIdPathParameter.KEY, jar.getFileName().toString()),
