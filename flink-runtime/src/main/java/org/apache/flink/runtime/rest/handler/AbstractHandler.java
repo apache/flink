@@ -175,7 +175,7 @@ public abstract class AbstractHandler<
 
             try {
                 handlerRequest =
-                        new HandlerRequest<R, M>(
+                        HandlerRequest.resolveParametersAndCreate(
                                 request,
                                 untypedResponseMessageHeaders.getUnresolvedMessageParameters(),
                                 routedRequest.getRouteResult().pathParams(),

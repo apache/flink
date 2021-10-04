@@ -126,11 +126,12 @@ public abstract class AggregatingMetricsHandlerTestBase<
     public void getStores() throws Exception {
         { // test without filter
             HandlerRequest<EmptyRequestBody, P> request =
-                    new HandlerRequest<>(
+                    HandlerRequest.resolveParametersAndCreate(
                             EmptyRequestBody.getInstance(),
                             handler.getMessageHeaders().getUnresolvedMessageParameters(),
                             pathParameters,
-                            Collections.emptyMap());
+                            Collections.emptyMap(),
+                            Collections.emptyList());
             Collection<? extends MetricStore.ComponentMetricStore> subStores =
                     handler.getStores(store, request);
 
@@ -165,11 +166,12 @@ public abstract class AggregatingMetricsHandlerTestBase<
             Map<String, List<String>> queryParameters = new HashMap<>(4);
             queryParameters.put(filter.f0, filter.f1);
             HandlerRequest<EmptyRequestBody, P> request =
-                    new HandlerRequest<>(
+                    HandlerRequest.resolveParametersAndCreate(
                             EmptyRequestBody.getInstance(),
                             handler.getMessageHeaders().getUnresolvedMessageParameters(),
                             pathParameters,
-                            queryParameters);
+                            queryParameters,
+                            Collections.emptyList());
             Collection<? extends MetricStore.ComponentMetricStore> subStores =
                     handler.getStores(store, request);
 
@@ -202,11 +204,12 @@ public abstract class AggregatingMetricsHandlerTestBase<
     @Test
     public void testListMetrics() throws Exception {
         HandlerRequest<EmptyRequestBody, P> request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
                         pathParameters,
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
 
         AggregatedMetricsResponseBody response =
                 handler.handleRequest(request, MOCK_DISPATCHER_GATEWAY).get();
@@ -229,11 +232,12 @@ public abstract class AggregatingMetricsHandlerTestBase<
         queryParams.put("agg", Collections.singletonList("min"));
 
         HandlerRequest<EmptyRequestBody, P> request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
                         pathParameters,
-                        queryParams);
+                        queryParams,
+                        Collections.emptyList());
 
         AggregatedMetricsResponseBody response =
                 handler.handleRequest(request, MOCK_DISPATCHER_GATEWAY).get();
@@ -257,11 +261,12 @@ public abstract class AggregatingMetricsHandlerTestBase<
         queryParams.put("agg", Collections.singletonList("max"));
 
         HandlerRequest<EmptyRequestBody, P> request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
                         pathParameters,
-                        queryParams);
+                        queryParams,
+                        Collections.emptyList());
 
         AggregatedMetricsResponseBody response =
                 handler.handleRequest(request, MOCK_DISPATCHER_GATEWAY).get();
@@ -285,11 +290,12 @@ public abstract class AggregatingMetricsHandlerTestBase<
         queryParams.put("agg", Collections.singletonList("sum"));
 
         HandlerRequest<EmptyRequestBody, P> request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
                         pathParameters,
-                        queryParams);
+                        queryParams,
+                        Collections.emptyList());
 
         AggregatedMetricsResponseBody response =
                 handler.handleRequest(request, MOCK_DISPATCHER_GATEWAY).get();
@@ -313,11 +319,12 @@ public abstract class AggregatingMetricsHandlerTestBase<
         queryParams.put("agg", Collections.singletonList("avg"));
 
         HandlerRequest<EmptyRequestBody, P> request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
                         pathParameters,
-                        queryParams);
+                        queryParams,
+                        Collections.emptyList());
 
         AggregatedMetricsResponseBody response =
                 handler.handleRequest(request, MOCK_DISPATCHER_GATEWAY).get();
@@ -341,11 +348,12 @@ public abstract class AggregatingMetricsHandlerTestBase<
         queryParams.put("agg", Arrays.asList("min", "max", "avg"));
 
         HandlerRequest<EmptyRequestBody, P> request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
                         pathParameters,
-                        queryParams);
+                        queryParams,
+                        Collections.emptyList());
 
         AggregatedMetricsResponseBody response =
                 handler.handleRequest(request, MOCK_DISPATCHER_GATEWAY).get();
@@ -368,11 +376,12 @@ public abstract class AggregatingMetricsHandlerTestBase<
         queryParams.put("get", Collections.singletonList("abc.metric1"));
 
         HandlerRequest<EmptyRequestBody, P> request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         handler.getMessageHeaders().getUnresolvedMessageParameters(),
                         pathParameters,
-                        queryParams);
+                        queryParams,
+                        Collections.emptyList());
 
         AggregatedMetricsResponseBody response =
                 handler.handleRequest(request, MOCK_DISPATCHER_GATEWAY).get();

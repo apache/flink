@@ -119,10 +119,11 @@ public class TaskManagerLogListHandlerTest extends TestLogger {
         pathParameters.put(TaskManagerIdPathParameter.KEY, taskManagerId.toString());
         Map<String, List<String>> queryParameters = Collections.emptyMap();
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new TaskManagerMessageParameters(),
                 pathParameters,
-                queryParameters);
+                queryParameters,
+                Collections.emptyList());
     }
 }

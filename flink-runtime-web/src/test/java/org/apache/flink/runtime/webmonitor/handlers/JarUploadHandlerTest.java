@@ -138,11 +138,9 @@ public class JarUploadHandlerTest extends TestLogger {
 
     private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> createRequest(
             final Path uploadedFile) throws HandlerRequestException, IOException {
-        return new HandlerRequest<>(
+        return HandlerRequest.create(
                 EmptyRequestBody.getInstance(),
                 EmptyMessageParameters.getInstance(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
                 Collections.singleton(uploadedFile.toFile()));
     }
 }

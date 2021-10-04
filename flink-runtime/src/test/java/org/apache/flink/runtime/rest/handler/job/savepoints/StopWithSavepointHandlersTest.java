@@ -217,11 +217,12 @@ public class StopWithSavepointHandlersTest extends TestLogger {
 
     private static HandlerRequest<StopWithSavepointRequestBody, SavepointTriggerMessageParameters>
             triggerSavepointRequest(final String targetDirectory) throws HandlerRequestException {
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 new StopWithSavepointRequestBody(targetDirectory, false),
                 new SavepointTriggerMessageParameters(),
                 Collections.singletonMap(JobIDPathParameter.KEY, JOB_ID.toString()),
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptyList());
     }
 
     private static HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters>
@@ -230,10 +231,11 @@ public class StopWithSavepointHandlersTest extends TestLogger {
         pathParameters.put(JobIDPathParameter.KEY, JOB_ID.toString());
         pathParameters.put(TriggerIdPathParameter.KEY, triggerId.toString());
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new SavepointStatusMessageParameters(),
                 pathParameters,
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptyList());
     }
 }

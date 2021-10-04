@@ -96,11 +96,12 @@ public class JobVertexWatermarksHandlerTest {
         pathParameters.put(JobVertexIdPathParameter.KEY, TEST_VERTEX_ID.toString());
 
         request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new JobVertexMessageParameters(),
                         pathParameters,
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
 
         vertex = Mockito.mock(AccessExecutionJobVertex.class);
         Mockito.when(vertex.getJobVertexId()).thenReturn(TEST_VERTEX_ID);

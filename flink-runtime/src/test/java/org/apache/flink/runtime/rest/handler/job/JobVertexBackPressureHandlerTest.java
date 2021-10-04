@@ -148,11 +148,12 @@ public class JobVertexBackPressureHandlerTest {
         pathParameters.put(JobVertexIdPathParameter.KEY, TEST_JOB_VERTEX_ID.toString());
 
         final HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new JobVertexMessageParameters(),
                         pathParameters,
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
 
         final CompletableFuture<JobVertexBackPressureInfo>
                 jobVertexBackPressureInfoCompletableFuture =
@@ -202,11 +203,12 @@ public class JobVertexBackPressureHandlerTest {
         pathParameters.put(JobVertexIdPathParameter.KEY, new JobVertexID().toString());
 
         final HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new JobVertexMessageParameters(),
                         pathParameters,
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
 
         final CompletableFuture<JobVertexBackPressureInfo>
                 jobVertexBackPressureInfoCompletableFuture =

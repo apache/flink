@@ -183,11 +183,12 @@ public class TaskManagerDetailsHandlerTest extends TestLogger {
         Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(TaskManagerIdPathParameter.KEY, TASK_MANAGER_ID.toString());
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new TaskManagerFileMessageParameters(),
                 pathParameters,
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptyList());
     }
 
     private static class TestingMetricFetcher implements MetricFetcher {
