@@ -143,7 +143,8 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                 new TestingLeaderElectionService();
 
         final CuratorFramework client =
-                ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
+                ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler)
+                        .asCuratorFramework();
         try (final TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServicesBuilder()
                         .setRunningJobsRegistry(

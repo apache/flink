@@ -34,8 +34,6 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
@@ -77,13 +75,13 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
         config.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
 
-        CuratorFramework client =
-                ZooKeeperUtils.startCuratorFramework(
-                        config, testingFatalErrorHandlerResource.getFatalErrorHandler());
-
         highAvailabilityServices =
                 new ZooKeeperHaServices(
-                        client, TestingUtils.defaultExecutor(), config, new VoidBlobStore());
+                        ZooKeeperUtils.startCuratorFramework(
+                                config, testingFatalErrorHandlerResource.getFatalErrorHandler()),
+                        TestingUtils.defaultExecutor(),
+                        config,
+                        new VoidBlobStore());
     }
 
     @After
