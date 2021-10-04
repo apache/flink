@@ -21,6 +21,7 @@ package org.apache.flink.runtime.leaderretrieval;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
@@ -61,6 +62,8 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
 
     private TestingServer testingServer;
 
+    private CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
+
     private CuratorFramework zooKeeperClient;
 
     @Rule
@@ -75,9 +78,10 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
         config.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
 
-        zooKeeperClient =
+        curatorFrameworkWrapper =
                 ZooKeeperUtils.startCuratorFramework(
                         config, fatalErrorHandlerResource.getFatalErrorHandler());
+        zooKeeperClient = curatorFrameworkWrapper.asCuratorFramework();
         zooKeeperClient.blockUntilConnected();
     }
 
@@ -85,9 +89,9 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
     public void after() throws Exception {
         closeTestServer();
 
-        if (zooKeeperClient != null) {
-            zooKeeperClient.close();
-            zooKeeperClient = null;
+        if (curatorFrameworkWrapper != null) {
+            curatorFrameworkWrapper.close();
+            curatorFrameworkWrapper = null;
         }
     }
 
