@@ -53,8 +53,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
@@ -171,7 +173,7 @@ class HistoryServerArchiveFetcher {
         private final int maxHistorySize;
 
         /** Cache of all available jobs identified by their id. */
-        private final Set<String> cachedArchives;
+        private final Map<Path, Set<String>> cachedArchivesPerRefreshDirectory;
 
         private final File webDir;
         private final File webJobDir;
@@ -190,7 +192,10 @@ class HistoryServerArchiveFetcher {
             this.processExpiredArchiveDeletion = processExpiredArchiveDeletion;
             this.maxHistorySize = maxHistorySize;
             this.processBeyondLimitArchiveDeletion = this.maxHistorySize > 0;
-            this.cachedArchives = new HashSet<>();
+            this.cachedArchivesPerRefreshDirectory = new HashMap<>();
+            for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
+                cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
+            }
             this.webDir = checkNotNull(webDir);
             this.webJobDir = new File(webDir, "jobs");
             webJobDir.mkdir();
@@ -204,8 +209,10 @@ class HistoryServerArchiveFetcher {
             try {
                 LOG.debug("Starting archive fetching.");
                 List<ArchiveEvent> events = new ArrayList<>();
-                Set<String> jobsToRemove = new HashSet<>(cachedArchives);
-                Set<Path> archivesBeyondSizeLimit = new HashSet<>();
+                Map<Path, Set<String>> jobsToRemove = new HashMap<>();
+                cachedArchivesPerRefreshDirectory.forEach(
+                        (path, archives) -> jobsToRemove.put(path, new HashSet<>(archives)));
+                Map<Path, Set<Path>> archivesBeyondSizeLimit = new HashMap<>();
                 for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
                     Path refreshDir = refreshLocation.getPath();
                     FileSystem refreshFS = refreshLocation.getFs();
@@ -220,9 +227,13 @@ class HistoryServerArchiveFetcher {
                                 "Failed to access job archive location for path {}.",
                                 refreshDir,
                                 e);
+                        // something went wrong, potentially due to a concurrent deletion
+                        // do not remove any jobs now; we will retry later
+                        jobsToRemove.remove(refreshDir);
                         continue;
                     }
                     if (jobArchives == null) {
+                        // the entire refreshDirectory was removed
                         continue;
                     }
 
@@ -245,15 +256,17 @@ class HistoryServerArchiveFetcher {
                             continue;
                         }
 
-                        jobsToRemove.remove(jobID);
+                        jobsToRemove.get(refreshDir).remove(jobID);
 
                         historySize++;
                         if (historySize > maxHistorySize && processBeyondLimitArchiveDeletion) {
-                            archivesBeyondSizeLimit.add(jobArchivePath);
+                            archivesBeyondSizeLimit
+                                    .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
+                                    .add(jobArchivePath);
                             continue;
                         }
 
-                        if (cachedArchives.contains(jobID)) {
+                        if (cachedArchivesPerRefreshDirectory.get(refreshDir).contains(jobID)) {
                             LOG.trace(
                                     "Ignoring archive {} because it was already fetched.",
                                     jobArchivePath);
@@ -300,7 +313,7 @@ class HistoryServerArchiveFetcher {
                                     }
                                 }
                                 events.add(new ArchiveEvent(jobID, ArchiveEventType.CREATED));
-                                cachedArchives.add(jobID);
+                                cachedArchivesPerRefreshDirectory.get(refreshDir).add(jobID);
                                 LOG.info("Processing archive {} finished.", jobArchivePath);
                             } catch (IOException e) {
                                 LOG.error(
@@ -313,7 +326,8 @@ class HistoryServerArchiveFetcher {
                     }
                 }
 
-                if (!jobsToRemove.isEmpty() && processExpiredArchiveDeletion) {
+                if (jobsToRemove.values().stream().flatMap(Set::stream).findAny().isPresent()
+                        && processExpiredArchiveDeletion) {
                     events.addAll(cleanupExpiredJobs(jobsToRemove));
                 }
                 if (!archivesBeyondSizeLimit.isEmpty() && processBeyondLimitArchiveDeletion) {
@@ -329,30 +343,47 @@ class HistoryServerArchiveFetcher {
             }
         }
 
-        private List<ArchiveEvent> cleanupJobsBeyondSizeLimit(Set<Path> jobArchivesToRemove) {
-            Set<String> jobIdsToRemoveFromOverview = new HashSet<>();
-            for (Path archive : jobArchivesToRemove) {
-                jobIdsToRemoveFromOverview.add(archive.getName());
-                try {
-                    archive.getFileSystem().delete(archive, false);
-                } catch (IOException ioe) {
-                    LOG.warn("Could not delete old archive " + archive, ioe);
+        private List<ArchiveEvent> cleanupJobsBeyondSizeLimit(
+                Map<Path, Set<Path>> jobArchivesToRemove) {
+            Map<Path, Set<String>> allJobIdsToRemoveFromOverview = new HashMap<>();
+
+            for (Map.Entry<Path, Set<Path>> pathSetEntry : jobArchivesToRemove.entrySet()) {
+                HashSet<String> jobIdsToRemoveFromOverview = new HashSet<>();
+
+                for (Path archive : pathSetEntry.getValue()) {
+                    jobIdsToRemoveFromOverview.add(archive.getName());
+                    try {
+                        archive.getFileSystem().delete(archive, false);
+                    } catch (IOException ioe) {
+                        LOG.warn("Could not delete old archive " + archive, ioe);
+                    }
                 }
+                allJobIdsToRemoveFromOverview.put(
+                        pathSetEntry.getKey(), jobIdsToRemoveFromOverview);
             }
-            return cleanupExpiredJobs(jobIdsToRemoveFromOverview);
+
+            return cleanupExpiredJobs(allJobIdsToRemoveFromOverview);
         }
 
-        private List<ArchiveEvent> cleanupExpiredJobs(Set<String> jobsToRemove) {
+        private List<ArchiveEvent> cleanupExpiredJobs(Map<Path, Set<String>> jobsToRemove) {
 
             List<ArchiveEvent> deleteLog = new ArrayList<>();
             LOG.info("Archive directories for jobs {} were deleted.", jobsToRemove);
 
-            cachedArchives.removeAll(jobsToRemove);
             jobsToRemove.forEach(
-                    removedJobID -> {
-                        deleteJobFiles(removedJobID);
-                        deleteLog.add(new ArchiveEvent(removedJobID, ArchiveEventType.DELETED));
+                    (refreshDir, archivesToRemove) -> {
+                        cachedArchivesPerRefreshDirectory
+                                .get(refreshDir)
+                                .removeAll(archivesToRemove);
                     });
+            jobsToRemove.values().stream()
+                    .flatMap(Set::stream)
+                    .forEach(
+                            removedJobID -> {
+                                deleteJobFiles(removedJobID);
+                                deleteLog.add(
+                                        new ArchiveEvent(removedJobID, ArchiveEventType.DELETED));
+                            });
 
             return deleteLog;
         }
