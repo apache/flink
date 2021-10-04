@@ -227,6 +227,8 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 
     private static class TestMessageParameters extends MessageParameters {
 
+        private final MetricsFilterParameter metricsFilterParameter = new MetricsFilterParameter();
+
         @Override
         public Collection<MessagePathParameter<?>> getPathParameters() {
             return Collections.emptyList();
@@ -234,7 +236,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 
         @Override
         public Collection<MessageQueryParameter<?>> getQueryParameters() {
-            return Collections.singletonList(new MetricsFilterParameter());
+            return Collections.singletonList(metricsFilterParameter);
         }
     }
 }
