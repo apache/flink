@@ -60,8 +60,11 @@ import static java.time.temporal.ChronoField.YEAR;
 
 /**
  * Utility functions for datetime types: date, time, timestamp. Currently, it is a bit messy putting
- * date time functions in various classes because the runtime module does not depend on calcite..
+ * date time functions in various classes because the runtime module does not depend on calcite.
+ *
+ * @deprecated Use {@link org.apache.flink.table.utils.DateTimeUtils}
  */
+@Deprecated
 public class SqlDateTimeUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlDateTimeUtils.class);
