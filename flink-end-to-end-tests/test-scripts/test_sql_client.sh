@@ -20,8 +20,9 @@
 set -Eeuo pipefail
 
 KAFKA_VERSION="2.2.2"
-CONFLUENT_VERSION="5.0.0"
-CONFLUENT_MAJOR_VERSION="5.0"
+CONFLUENT_VERSION="5.2.6"
+CONFLUENT_MAJOR_VERSION="5.2"
+# Check the Confluent Platform <> Apache Kafka compatibility matrix when updating KAFKA_VERSION
 KAFKA_SQL_VERSION="universal"
 ELASTICSEARCH_VERSION=7
 # we use the smallest version possible

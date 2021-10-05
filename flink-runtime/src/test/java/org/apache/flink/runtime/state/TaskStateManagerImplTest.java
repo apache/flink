@@ -281,7 +281,7 @@ public class TaskStateManagerImplTest extends TestLogger {
                         null,
                         jobManagerTaskRestore,
                         new TestCheckpointResponder());
-        Assert.assertTrue(stateManager.isFinishedOnRestore());
+        Assert.assertTrue(stateManager.isTaskDeployedAsFinished());
     }
 
     public void testAcquringRestoreCheckpointId() {

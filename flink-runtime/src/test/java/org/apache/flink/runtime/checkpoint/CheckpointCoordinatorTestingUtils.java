@@ -424,8 +424,8 @@ public class CheckpointCoordinatorTestingUtils {
     }
 
     public static TaskStateSnapshot createSnapshotWithUnionListState(
-            File stateFile, OperatorID operatorId, boolean isOperatorsFinished) throws IOException {
-        TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot(1, isOperatorsFinished);
+            File stateFile, OperatorID operatorId, boolean isTaskFinished) throws IOException {
+        TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot(1, isTaskFinished);
         taskStateSnapshot.putSubtaskStateByOperatorID(
                 operatorId, createSubtaskStateWithUnionListState(stateFile));
         return taskStateSnapshot;

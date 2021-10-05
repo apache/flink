@@ -810,11 +810,15 @@ trait ImplicitExpressionConversions {
   /**
    * Builds a JSON object string from a list of key-value pairs.
    *
-   * <code>keyValues</code> is an even-numbered list of alternating key/value pairs. Note that keys
-   * must be string literals, values may be arbitrary expressions.
+   * `keyValues` is an even-numbered list of alternating key/value pairs. Note that keys must be
+   * string literals, values may be arbitrary expressions.
    *
    * This function returns a JSON string. The [[JsonOnNull onNull]] behavior defines how to treat
-   * <code>NULL</code> values.
+   * `NULL` values.
+   *
+   * Values which are created from another JSON construction function call
+   * (`jsonObject`, `jsonArray`) are inserted directly rather than as a string. This allows
+   * building nested JSON structures.
    *
    * Examples:
    * {{{
@@ -833,8 +837,45 @@ trait ImplicitExpressionConversions {
    * // {"K1":{"K2":"V"}}
    * jsonObject(JsonOnNull.NULL, "K1", jsonObject(JsonOnNull.NULL, "K2", "V"))
    * }}}
+   *
+   * @see #jsonObject
    */
-  def jsonObject(onNull: JsonOnNull, keyValues: Any*): Expression = {
-    Expressions.jsonObject(onNull, keyValues)
+  def jsonObject(onNull: JsonOnNull, keyValues: Expression*): Expression = {
+    Expressions.jsonObject(onNull, keyValues: _*)
+  }
+
+  /**
+   * Builds a JSON array string from a list of values.
+   *
+   * This function returns a JSON string. The values can be arbitrary expressions. The
+   * [[JsonOnNull onNull]] behavior defines how to treat `NULL` values.
+   *
+   * Elements which are created from another JSON construction function call
+   * (`jsonObject`, `jsonArray`) are inserted directly rather than as a string. This allows
+   * building nested JSON structures.
+   *
+   * Examples:
+   *
+   * {{{
+   * // "[]"
+   * jsonArray(JsonOnNull.NULL)
+   * // "[1,\"2\"]"
+   * jsonArray(JsonOnNull.NULL, 1, "2")
+   *
+   * // Expressions as values
+   * jsonArray(JsonOnNull.NULL, $("orderId"))
+   *
+   * // ON NULL
+   * jsonArray(JsonOnNull.NULL, nullOf(DataTypes.STRING()))   // "[null]"
+   * jsonArray(JsonOnNull.ABSENT, nullOf(DataTypes.STRING())) // "[]"
+   *
+   * // "[[1]]"
+   * jsonArray(JsonOnNull.NULL, jsonArray(JsonOnNull.NULL, 1))
+   * }}}
+   *
+   * @see #jsonObject
+   */
+  def jsonArray(onNull: JsonOnNull, values: Expression*): Expression = {
+    Expressions.jsonArray(onNull, values: _*)
   }
 }

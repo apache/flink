@@ -75,7 +75,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             String description) {
         super(
                 tableSinkSpec,
-                tableSinkSpec.getTableSink().getChangelogMode(inputChangelogMode),
+                inputChangelogMode,
                 false, // isBounded
                 getNewNodeId(),
                 Collections.singletonList(inputProperty),
@@ -96,7 +96,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
                 tableSinkSpec,
-                tableSinkSpec.getTableSink().getChangelogMode(inputChangelogMode),
+                inputChangelogMode,
                 false, // isBounded
                 id,
                 inputProperties,
@@ -138,10 +138,6 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         }
 
         return createSinkTransformation(
-                planner.getExecEnv(),
-                planner.getTableConfig(),
-                inputTransform,
-                rowtimeFieldIndex,
-                upsertMaterialize);
+                planner, inputTransform, rowtimeFieldIndex, upsertMaterialize);
     }
 }

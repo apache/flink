@@ -1092,7 +1092,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                         .getCurrentExecutionAttempt()
                         .getTaskRestore()
                         .getTaskStateSnapshot();
-        assertTrue(restoredState.isFinishedOnRestore());
+        assertTrue(restoredState.isTaskDeployedAsFinished());
     }
 
     @Test

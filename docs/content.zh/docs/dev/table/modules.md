@@ -35,6 +35,10 @@ For example, users can define their own geo functions and plug them into Flink a
 Flink SQL and Table APIs. Another example is users can load an out-of-shelf Hive module to use Hive built-in 
 functions as Flink built-in functions.
 
+Furthermore, a module can provide built-in [table source and sink factories]({{< ref "docs/dev/table/sourcessinks" >}}#planning)
+which disable Flink's default discovery mechanism based on Java’s Service Provider Interfaces (SPI),
+or influence how connectors of temporary tables should be created without a corresponding catalog.
+
 ## Module Types
 
 ### CoreModule

@@ -18,20 +18,18 @@
 
 package org.apache.flink.table.planner.codegen.calls
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createRawNodeTerm, createNodeTerm, generateArrayConverter, generateRowConverter, isJsonFunctionOperand}
-import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createNodeTerm, getOnNullBehavior}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
-import org.apache.flink.table.types.logical.{ArrayType, LogicalType, RowType}
-import org.apache.flink.table.types.logical.LogicalTypeRoot.{ARRAY, MAP, MULTISET, ROW}
+import org.apache.flink.table.types.logical.LogicalType
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{ArrayNode, NullNode, ObjectNode}
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{NullNode, ObjectNode}
 
 import org.apache.calcite.rex.RexCall
-import org.apache.calcite.sql.SqlJsonConstructorNullClause
 import org.apache.calcite.sql.SqlJsonConstructorNullClause.{ABSENT_ON_NULL, NULL_ON_NULL}
 
 /**
- * [[CallGenerator]] for [[BuiltInMethods.JSON_OBJECT]].
+ * [[CallGenerator]] for `JSON_OBJECT`.
  *
  * `JSON_OBJECT` returns a character string. However, this creates an issue when nesting calls to
  * this function with the intention of creating a nested JSON structure. Instead of a nested JSON
@@ -55,14 +53,10 @@ class JsonObjectCallGen(call: RexCall) extends CallGenerator {
     val nullNodeTerm = newName("nullNode")
     ctx.addReusableMember(s"${className[NullNode]} $nullNodeTerm = $nodeTerm.nullNode();")
 
-    val onNull = getNullBehavior(operands.head)
+    val onNull = getOnNullBehavior(operands.head)
     val populateNodeCode = operands.zipWithIndex.drop(1).grouped(2).map {
       case Seq((keyExpr, _), (valueExpr, valueIdx)) =>
-        val valueTerm = if (isJsonFunctionOperand(call.operands.get(valueIdx))) {
-          createRawNodeTerm(nodeTerm, valueExpr)
-        } else {
-          createNodeTerm(ctx, nodeTerm, valueExpr)
-        }
+        val valueTerm = createNodeTerm(ctx, nodeTerm, valueExpr, call.operands.get(valueIdx))
 
         onNull match {
           case NULL_ON_NULL =>
@@ -95,13 +89,5 @@ class JsonObjectCallGen(call: RexCall) extends CallGenerator {
        |""".stripMargin
 
     GeneratedExpression(resultTerm, "false", resultCode, returnType)
-  }
-
-  private def getNullBehavior(operand: GeneratedExpression): SqlJsonConstructorNullClause = {
-    operand.literalValue match {
-      case Some(onNull: SqlJsonConstructorNullClause) => onNull
-      case _ => throw new CodeGenException(s"Expected operand to be of type"
-        + s"'${typeTerm(classOf[SqlJsonConstructorNullClause])}''")
-    }
   }
 }

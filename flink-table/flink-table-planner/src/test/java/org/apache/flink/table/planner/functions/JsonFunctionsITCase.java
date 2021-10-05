@@ -57,6 +57,7 @@ import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.jsonArray;
 import static org.apache.flink.table.api.Expressions.jsonObject;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.nullOf;
@@ -79,6 +80,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         testCases.addAll(isJsonSpec());
         testCases.addAll(jsonQuerySpec());
         testCases.addAll(jsonObjectSpec());
+        testCases.addAll(jsonArraySpec());
 
         return testCases;
     }
@@ -531,7 +533,12 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         "K13",
                                         $("f13"),
                                         "K14",
-                                        jsonObject(JsonOnNull.NULL, "A", "B")),
+                                        jsonObject(JsonOnNull.NULL, "A", "B"),
+                                        "K15",
+                                        jsonArray(
+                                                JsonOnNull.NULL,
+                                                "A",
+                                                jsonObject(JsonOnNull.NULL, "K", "V"))),
                                 "JSON_OBJECT("
                                         + "'K0' VALUE f0, "
                                         + "'K1' VALUE f1, "
@@ -547,7 +554,8 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "'K11' VALUE f11, "
                                         + "'K12' VALUE f12, "
                                         + "'K13' VALUE f13, "
-                                        + "'K14' VALUE JSON_OBJECT(KEY 'A' VALUE 'B')"
+                                        + "'K14' VALUE JSON_OBJECT(KEY 'A' VALUE 'B'), "
+                                        + "'K15' VALUE JSON_ARRAY('A', JSON_OBJECT('K' VALUE 'V'))"
                                         + ")",
                                 "{"
                                         + "\"K0\":\"V\","
@@ -564,8 +572,133 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "\"K11\":\"VGVzdA==\","
                                         + "\"K12\":\"VGVzdA==\","
                                         + "\"K13\":{\"f0\":[{\"f0\":1,\"f1\":2}]},"
-                                        + "\"K14\":{\"A\":\"B\"}"
+                                        + "\"K14\":{\"A\":\"B\"},"
+                                        + "\"K15\":[\"A\",{\"K\":\"V\"}]"
                                         + "}",
+                                STRING().notNull(),
+                                VARCHAR(2000).notNull()));
+    }
+
+    private static List<TestSpec> jsonArraySpec() {
+        final Map<String, String> mapData = new HashMap<>();
+        mapData.put("M1", "V1");
+        mapData.put("M2", "V2");
+
+        final Map<String, Integer> multisetData = new HashMap<>();
+        multisetData.put("M1", 1);
+        multisetData.put("M2", 2);
+
+        return Arrays.asList(
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAY)
+                        .onFieldsWithData(0)
+                        .testResult(
+                                jsonArray(JsonOnNull.NULL),
+                                "JSON_ARRAY()",
+                                "[]",
+                                STRING().notNull(),
+                                VARCHAR(2000).notNull())
+                        .testResult(
+                                jsonArray(JsonOnNull.NULL, nullOf(STRING())),
+                                "JSON_ARRAY(CAST(NULL AS STRING) NULL ON NULL)",
+                                "[null]",
+                                STRING().notNull(),
+                                VARCHAR(2000).notNull())
+                        .testResult(
+                                jsonArray(JsonOnNull.ABSENT, nullOf(STRING())),
+                                "JSON_ARRAY(CAST(NULL AS STRING) ABSENT ON NULL)",
+                                "[]",
+                                STRING().notNull(),
+                                VARCHAR(2000).notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAY)
+                        .onFieldsWithData(
+                                "V",
+                                true,
+                                1,
+                                1.23d,
+                                1.23,
+                                LocalDateTime.parse("1990-06-02T13:37:42.001"),
+                                Instant.parse("1990-06-02T13:37:42.001Z"),
+                                Arrays.asList("A1", "A2", "A3"),
+                                Row.of("R1", Instant.parse("1990-06-02T13:37:42.001Z")),
+                                mapData,
+                                multisetData,
+                                "Test".getBytes(StandardCharsets.UTF_8),
+                                "Test".getBytes(StandardCharsets.UTF_8),
+                                Row.of(Collections.singletonList(Row.of(1, 2))))
+                        .andDataTypes(
+                                STRING(),
+                                BOOLEAN(),
+                                INT(),
+                                DOUBLE(),
+                                DECIMAL(3, 2),
+                                TIMESTAMP(3),
+                                TIMESTAMP_WITH_LOCAL_TIME_ZONE(3),
+                                ARRAY(STRING()),
+                                ROW(STRING(), TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
+                                MAP(STRING(), STRING()),
+                                MAP(STRING(), INT()),
+                                BINARY(4),
+                                VARBINARY(4),
+                                ROW(ARRAY(ROW(INT(), INT()))))
+                        .withFunction(CreateMultiset.class)
+                        .testResult(
+                                jsonArray(
+                                        JsonOnNull.NULL,
+                                        $("f0"),
+                                        $("f1"),
+                                        $("f2"),
+                                        $("f3"),
+                                        $("f4"),
+                                        $("f5"),
+                                        $("f6"),
+                                        $("f7"),
+                                        $("f8"),
+                                        $("f9"),
+                                        call("CreateMultiset", $("f10")),
+                                        $("f11"),
+                                        $("f12"),
+                                        $("f13"),
+                                        jsonArray(JsonOnNull.NULL, "V"),
+                                        jsonObject(
+                                                JsonOnNull.NULL,
+                                                "K",
+                                                jsonArray(JsonOnNull.NULL, "V"))),
+                                "JSON_ARRAY("
+                                        + "f0, "
+                                        + "f1, "
+                                        + "f2, "
+                                        + "f3, "
+                                        + "f4, "
+                                        + "f5, "
+                                        + "f6, "
+                                        + "f7, "
+                                        + "f8, "
+                                        + "f9, "
+                                        + "CreateMultiset(f10), "
+                                        + "f11, "
+                                        + "f12, "
+                                        + "f13, "
+                                        + "JSON_ARRAY('V'), "
+                                        + "JSON_OBJECT('K' VALUE JSON_ARRAY('V'))"
+                                        + ")",
+                                "["
+                                        + "\"V\","
+                                        + "true,"
+                                        + "1,"
+                                        + "1.23,"
+                                        + "1.23,"
+                                        + "\"1990-06-02T13:37:42.001\","
+                                        + "\"1990-06-02T13:37:42.001Z\","
+                                        + "[\"A1\",\"A2\",\"A3\"],"
+                                        + "{\"f0\":\"R1\",\"f1\":\"1990-06-02T13:37:42.001Z\"},"
+                                        + "{\"M1\":\"V1\",\"M2\":\"V2\"},"
+                                        + "{\"M1\":1,\"M2\":2},"
+                                        + "\"VGVzdA==\","
+                                        + "\"VGVzdA==\","
+                                        + "{\"f0\":[{\"f0\":1,\"f1\":2}]},"
+                                        + "[\"V\"],"
+                                        + "{\"K\":[\"V\"]}"
+                                        + "]",
                                 STRING().notNull(),
                                 VARCHAR(2000).notNull()));
     }

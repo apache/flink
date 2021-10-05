@@ -241,7 +241,8 @@ public class ZooKeeperUtils {
      *     errors of {@link CuratorFramework}
      * @return {@link CuratorFramework} instance
      */
-    static CuratorFramework startCuratorFramework(
+    @VisibleForTesting
+    public static CuratorFramework startCuratorFramework(
             CuratorFrameworkFactory.Builder builder, FatalErrorHandler fatalErrorHandler) {
         CuratorFramework cf = builder.build();
         UnhandledErrorListener unhandledErrorListener =

@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.expressions.converter.converters;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -42,11 +41,7 @@ class JsonObjectConverter extends CustomizedConverter {
         checkArgument(call, (call.getChildren().size() - 1) % 2 == 0);
         final List<RexNode> operands = new LinkedList<>();
 
-        final SqlJsonConstructorNullClause onNull =
-                ((ValueLiteralExpression) call.getChildren().get(0))
-                        .getValueAs(JsonOnNull.class)
-                        .map(this::convertOnNull)
-                        .orElseThrow(() -> new TableException("Missing argument for ON NULL."));
+        final SqlJsonConstructorNullClause onNull = JsonConverterUtil.getOnNullArgument(call, 0);
         operands.add(context.getRelBuilder().getRexBuilder().makeFlag(onNull));
 
         for (int i = 1; i < call.getChildren().size(); i++) {
@@ -62,16 +57,5 @@ class JsonObjectConverter extends CustomizedConverter {
         return context.getRelBuilder()
                 .getRexBuilder()
                 .makeCall(FlinkSqlOperatorTable.JSON_OBJECT, operands);
-    }
-
-    private SqlJsonConstructorNullClause convertOnNull(JsonOnNull onNull) {
-        switch (onNull) {
-            case NULL:
-                return SqlJsonConstructorNullClause.NULL_ON_NULL;
-            case ABSENT:
-                return SqlJsonConstructorNullClause.ABSENT_ON_NULL;
-            default:
-                throw new TableException("Unknown ON NULL behavior: " + onNull);
-        }
     }
 }

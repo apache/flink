@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, rowFieldReadAccess, typeTerm}
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.JSON_OBJECT
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isCharacterString
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
@@ -31,15 +31,29 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{Arr
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.RawValue
 
 import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.calcite.sql.SqlJsonConstructorNullClause
 
 import java.time.format.DateTimeFormatter
 
 /** Utility for generating JSON function calls. */
 object JsonGenerateUtils {
 
+  /** Returns a term which wraps the given `expression` into a [[JsonNode]]. If the operand
+   * represents another JSON construction function, a raw node is used instead. */
+  def createNodeTerm(
+      ctx: CodeGeneratorContext,
+      containerNodeTerm: String,
+      expression: GeneratedExpression,
+      operand: RexNode): String = {
+    if (isJsonFunctionOperand(operand)) {
+      createRawNodeTerm(containerNodeTerm, expression)
+    } else {
+      createNodeTerm(ctx, containerNodeTerm, expression)
+    }
+  }
+
   /**
-   * Returns a term which wraps the given <code>valueExpr</code> into a [[JsonNode]] of the
-   * appropriate type.
+   * Returns a term which wraps the given `valueExpr` into a [[JsonNode]] of the appropriate type.
    */
   def createNodeTerm(
       ctx: CodeGeneratorContext,
@@ -100,7 +114,7 @@ object JsonGenerateUtils {
   }
 
   /**
-   * Returns a term which wraps the given <code>valueExpr</code> as a raw [[JsonNode]].
+   * Returns a term which wraps the given `valueExpr` as a raw [[JsonNode]].
    *
    * @param containerNodeTerm Name of the [[ContainerNode]] from which to create the raw node.
    * @param valueExpr Generated expression of the value which should be wrapped.
@@ -113,6 +127,15 @@ object JsonGenerateUtils {
        |""".stripMargin
   }
 
+  /** Convert the operand to [[SqlJsonConstructorNullClause]]. */
+  def getOnNullBehavior(operand: GeneratedExpression): SqlJsonConstructorNullClause = {
+    operand.literalValue match {
+      case Some(onNull: SqlJsonConstructorNullClause) => onNull
+      case _ => throw new CodeGenException(s"Expected operand to be of type"
+        + s"'${typeTerm(classOf[SqlJsonConstructorNullClause])}''")
+    }
+  }
+
   /**
    * Determines whether the given operand is a call to a JSON function whose result should be
    * inserted as a raw value instead of as a character string.
@@ -120,7 +143,7 @@ object JsonGenerateUtils {
   def isJsonFunctionOperand(operand: RexNode): Boolean = {
     operand match {
       case rexCall: RexCall => rexCall.getOperator match {
-        case JSON_OBJECT => true
+        case JSON_OBJECT | JSON_ARRAY => true
         case _ => false
       }
       case _ => false

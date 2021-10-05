@@ -513,7 +513,4 @@ object BuiltInMethods {
   val JSON_QUERY = Types.lookupMethod(classOf[JsonFunctions], "jsonQuery",
     classOf[String], classOf[String], classOf[SqlJsonQueryWrapperBehavior],
     classOf[SqlJsonQueryEmptyOrErrorBehavior], classOf[SqlJsonQueryEmptyOrErrorBehavior])
-
-  val JSON_OBJECT = Types.lookupMethod(classOf[JsonFunctions], "jsonObject",
-    classOf[SqlJsonConstructorNullClause], classOf[Array[Any]])
 }

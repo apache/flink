@@ -73,7 +73,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         final StreamTaskInput<T> input;
 
         // TODO: should the input be constructed inside the `OperatorChain` class?
-        if (operatorChain.isFinishedOnRestore()) {
+        if (operatorChain.isTaskDeployedAsFinished()) {
             input = new StreamTaskFinishedOnRestoreSourceInput<>(sourceOperator, 0, 0);
         } else if (sourceReader instanceof ExternallyInducedSourceReader) {
             isExternallyInducedSource = true;

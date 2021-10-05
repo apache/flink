@@ -1550,7 +1550,7 @@ object TestingTableEnvironment {
     val executor = executorFactory.create(tableConfig.getConfiguration)
 
     val planner = PlannerFactoryUtil.createPlanner(settings.getPlanner, executor, tableConfig,
-      catalogMgr, functionCatalog).asInstanceOf[PlannerBase]
+      moduleManager, catalogMgr, functionCatalog).asInstanceOf[PlannerBase]
 
     new TestingTableEnvironment(
       catalogMgr,
