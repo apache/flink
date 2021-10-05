@@ -199,7 +199,7 @@ public class Path implements IOReadableWritable, Serializable {
         }
 
         // uri path is the rest of the string -- query & fragment not supported
-        final String path = pathString.substring(start, pathString.length());
+        final String path = pathString.substring(start);
 
         initialize(scheme, authority, path);
     }
@@ -265,8 +265,6 @@ public class Path implements IOReadableWritable, Serializable {
     }
 
     /**
-     * Returns the FileSystem that owns this Path.
-     *
      * @return the FileSystem that owns this Path
      * @throws IOException thrown if the file system could not be retrieved
      */
@@ -275,8 +273,6 @@ public class Path implements IOReadableWritable, Serializable {
     }
 
     /**
-     * Checks if the directory of this path is absolute.
-     *
      * @return <code>true</code> if the directory of this path is absolute, <code>false</code>
      *     otherwise
      */
@@ -286,9 +282,7 @@ public class Path implements IOReadableWritable, Serializable {
     }
 
     /**
-     * Returns the final component of this path, i.e., everything that follows the last separator.
-     *
-     * @return the final component of the path
+     * @return the final component of the path, i.e., everything that follows the last separator.
      */
     public String getName() {
         final String path = uri.getPath();
@@ -296,20 +290,14 @@ public class Path implements IOReadableWritable, Serializable {
         return path.substring(slash + 1);
     }
 
-    /**
-     * Return full path.
-     *
-     * @return full path
-     */
+    /** @return full path */
     public String getPath() {
         return uri.getPath();
     }
 
     /**
-     * Returns the parent of a path, i.e., everything that precedes the last separator or <code>null
+     * @return the parent of a path, i.e., everything that precedes the last separator or <code>null
      * </code> if at root.
-     *
-     * @return the parent of a path or <code>null</code> if at root.
      */
     public Path getParent() {
         final String path = uri.getPath();
@@ -387,11 +375,7 @@ public class Path implements IOReadableWritable, Serializable {
         return this.uri.compareTo(that.uri);
     }
 
-    /**
-     * Returns the number of elements in this path.
-     *
-     * @return the number of elements in this path
-     */
+    /** @return the number of elements in this path */
     public int depth() {
         String path = uri.getPath();
         int depth = 0;
@@ -404,8 +388,6 @@ public class Path implements IOReadableWritable, Serializable {
     }
 
     /**
-     * Returns a qualified path object.
-     *
      * @param fs the FileSystem that should be used to obtain the current working directory
      * @return the qualified path object
      */
@@ -483,18 +465,12 @@ public class Path implements IOReadableWritable, Serializable {
     //  Utilities
     // ------------------------------------------------------------------------
 
-    /**
-     * Checks if the provided path string contains a windows drive letter.
-     *
-     * @return True, if the path string contains a windows drive letter, false otherwise.
-     */
+    /** @return True, if the path string contains a windows drive letter, false otherwise. */
     public boolean hasWindowsDrive() {
         return hasWindowsDrive(uri.getPath(), true);
     }
 
     /**
-     * Checks if the provided path string contains a windows drive letter.
-     *
      * @param path the path to check
      * @param slashed true to indicate the first character of the string is a slash, false otherwise
      * @return <code>true</code> if the path string contains a windows drive letter, false otherwise
