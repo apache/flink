@@ -171,7 +171,7 @@ public class DynamoDbSinkTest {
      * following checkpoint is rethrown; we set a timeout because the test will not finish if the
      * logic is broken.
      */
-    @Test(timeout = 10000)
+    @Test(timeout = 15000)
     public void testBatchFailureRethrownOnCheckpointAfterFlush() throws Throwable {
         final DummyDynamoDbSink<String> sink =
                 new DummyDynamoDbSink<>(new DummySinkFunction(), getStandardProperties());
@@ -226,7 +226,7 @@ public class DynamoDbSinkTest {
      * Tests that the sink correctly waits for pending requests on checkpoints; we set a timeout
      * because the test will not finish if the logic is broken.
      */
-    @Test(timeout = 10000)
+    @Test(timeout = 15000)
     public void testAtLeastOnceSink() throws Throwable {
         final DummyDynamoDbSink<String> sink =
                 new DummyDynamoDbSink<>(new DummySinkFunction(), getStandardProperties());
@@ -279,7 +279,7 @@ public class DynamoDbSinkTest {
      * drops below the limit; we set a timeout because the test will not finish if the logic is
      * broken.
      */
-    @Test(timeout = 10000)
+    @Test(timeout = 15000)
     public void testBackpressure() throws Throwable {
         final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
 
