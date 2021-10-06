@@ -81,9 +81,7 @@ public class DynamoDbConnectorEndToEndTest {
     public static void setUp() {
         dynamoDbClient =
                 DynamoDbClient.builder()
-                        .endpointOverride(
-                                URI.create(
-                                        "http://localhost:" + dynamoDBLocal.getFirstMappedPort()))
+                        .endpointOverride(URI.create(getDynamoDbUrl()))
                         .region(Region.US_EAST_1)
                         .credentialsProvider(() -> AwsBasicCredentials.create("x", "y"))
                         .build();
@@ -117,7 +115,7 @@ public class DynamoDbConnectorEndToEndTest {
     private Properties getDynamoDBProperties() {
         Properties properties = new Properties();
         properties.put("aws.region", "us-east-1");
-        properties.put("aws.endpoint", "http://localhost:" + dynamoDBLocal.getFirstMappedPort());
+        properties.put("aws.endpoint", getDynamoDbUrl());
         properties.put("aws.credentials.provider.basic.accesskeyid", "x");
         properties.put("aws.credentials.provider.basic.secretkey", "y");
         return properties;
@@ -229,6 +227,11 @@ public class DynamoDbConnectorEndToEndTest {
 
         env.fromCollection(messages).addSink(dynamoDbSink);
         env.execute("DynamoDB End to End Test with missing table");
+    }
+
+    private static String getDynamoDbUrl() {
+        return String.format(
+                "http://%s:%s", dynamoDBLocal.getHost(), dynamoDBLocal.getFirstMappedPort());
     }
 
     private static final class AssertingFailureHandler implements WriteRequestFailureHandler {
