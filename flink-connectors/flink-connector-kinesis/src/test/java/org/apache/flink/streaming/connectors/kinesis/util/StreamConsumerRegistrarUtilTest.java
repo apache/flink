@@ -74,7 +74,7 @@ public class StreamConsumerRegistrarUtilTest {
         Properties configProps = getDefaultConfiguration();
         configProps.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
         configProps.put(EFO_REGISTRATION_TYPE, EAGER.name());
-        List<String> streams = List.of("stream-1");
+        List<String> streams = Arrays.asList("stream-1");
         StreamConsumerRegistrar registrar = mock(StreamConsumerRegistrar.class);
 
         StreamConsumerRegistrarUtil.deregisterStreamConsumers(registrar, configProps, streams);
