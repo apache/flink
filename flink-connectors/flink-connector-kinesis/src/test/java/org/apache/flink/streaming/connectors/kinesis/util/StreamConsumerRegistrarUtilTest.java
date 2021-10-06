@@ -70,8 +70,7 @@ public class StreamConsumerRegistrarUtilTest {
     }
 
     @Test
-    public void testDeregisterStreamConsumersOnlyDeregistersEFOLazilyInitializedConsumers()
-            throws Exception {
+    public void testDeregisterStreamConsumersOnlyDeregistersEFOLazilyInitializedConsumers() {
         Properties configProps = getDefaultConfiguration();
         configProps.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
         configProps.put(EFO_REGISTRATION_TYPE, EAGER.name());
