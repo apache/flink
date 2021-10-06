@@ -43,8 +43,11 @@ class ExtractCallGen(method: Method)
            TimeUnit.DAY |
            TimeUnit.QUARTER |
            TimeUnit.DOY |
+           TimeUnit.ISOYEAR |
            TimeUnit.DOW |
+           TimeUnit.ISODOW |
            TimeUnit.WEEK |
+           TimeUnit.DECADE |
            TimeUnit.CENTURY |
            TimeUnit.MILLENNIUM =>
         tpe.getTypeRoot match {

@@ -126,6 +126,7 @@ For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 | :----------------------- | :----------------------------- |
 | `MILLENIUM` _(SQL-only)_ |                                |
 | `CENTURY` _(SQL-only)_   |                                |
+| `DECADE` _(SQL-only)_    |                                |
 | `YEAR`                   | `YEAR`                         |
 | `YEAR TO MONTH`          |                                |
 | `QUARTER`                | `QUARTER`                      |
@@ -145,6 +146,8 @@ For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 |                          | `MICROSECOND`                  |
 | `DOY` _(SQL-only)_       |                                |
 | `DOW` _(SQL-only)_       |                                |
+| `ISODOW` _(SQL-only)_    |                                |
+| `ISOYEAR` _(SQL-only)_   |                                |
 |                          | `SQL_TSI_YEAR` _(SQL-only)_    |
 |                          | `SQL_TSI_QUARTER` _(SQL-only)_ |
 |                          | `SQL_TSI_MONTH` _(SQL-only)_   |
