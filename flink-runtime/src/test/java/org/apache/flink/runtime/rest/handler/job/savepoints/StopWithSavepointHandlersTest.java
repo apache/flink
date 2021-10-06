@@ -205,35 +205,37 @@ public class StopWithSavepointHandlersTest extends TestLogger {
         assertThat(savepointError, instanceOf(RuntimeException.class));
     }
 
-    private static HandlerRequest<StopWithSavepointRequestBody, SavepointTriggerMessageParameters>
-            triggerSavepointRequest() throws HandlerRequestException {
+    private static HandlerRequest<StopWithSavepointRequestBody> triggerSavepointRequest()
+            throws HandlerRequestException {
         return triggerSavepointRequest(DEFAULT_REQUESTED_SAVEPOINT_TARGET_DIRECTORY);
     }
 
-    private static HandlerRequest<StopWithSavepointRequestBody, SavepointTriggerMessageParameters>
+    private static HandlerRequest<StopWithSavepointRequestBody>
             triggerSavepointRequestWithDefaultDirectory() throws HandlerRequestException {
         return triggerSavepointRequest(null);
     }
 
-    private static HandlerRequest<StopWithSavepointRequestBody, SavepointTriggerMessageParameters>
-            triggerSavepointRequest(final String targetDirectory) throws HandlerRequestException {
-        return new HandlerRequest<>(
+    private static HandlerRequest<StopWithSavepointRequestBody> triggerSavepointRequest(
+            final String targetDirectory) throws HandlerRequestException {
+        return HandlerRequest.resolveParametersAndCreate(
                 new StopWithSavepointRequestBody(targetDirectory, false),
                 new SavepointTriggerMessageParameters(),
                 Collections.singletonMap(JobIDPathParameter.KEY, JOB_ID.toString()),
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptyList());
     }
 
-    private static HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters>
-            savepointStatusRequest(final TriggerId triggerId) throws HandlerRequestException {
+    private static HandlerRequest<EmptyRequestBody> savepointStatusRequest(
+            final TriggerId triggerId) throws HandlerRequestException {
         final Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(JobIDPathParameter.KEY, JOB_ID.toString());
         pathParameters.put(TriggerIdPathParameter.KEY, triggerId.toString());
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new SavepointStatusMessageParameters(),
                 pathParameters,
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptyList());
     }
 }

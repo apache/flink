@@ -88,8 +88,7 @@ public class JobVertexTaskManagersHandler
 
     @Override
     protected JobVertexTaskManagersInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
-            AccessExecutionGraph executionGraph)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionGraph executionGraph)
             throws RestHandlerException {
         JobID jobID = request.getPathParameter(JobIDPathParameter.class);
         JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);

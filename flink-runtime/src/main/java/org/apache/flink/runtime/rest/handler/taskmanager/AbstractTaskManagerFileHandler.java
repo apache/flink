@@ -108,7 +108,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
     protected CompletableFuture<Void> respondToRequest(
             ChannelHandlerContext ctx,
             HttpRequest httpRequest,
-            HandlerRequest<EmptyRequestBody, M> handlerRequest,
+            HandlerRequest<EmptyRequestBody> handlerRequest,
             RestfulGateway gateway)
             throws RestHandlerException {
         final ResourceID taskManagerId =
@@ -216,7 +216,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
         }
     }
 
-    protected String getFileName(HandlerRequest<EmptyRequestBody, M> handlerRequest) {
+    protected String getFileName(HandlerRequest<EmptyRequestBody> handlerRequest) {
         return null;
     }
 }

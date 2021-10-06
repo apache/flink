@@ -105,7 +105,7 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 
     private static BlobServer blobServer;
 
-    private static HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest;
+    private static HandlerRequest<EmptyRequestBody> handlerRequest;
 
     private String fileContent1;
 
@@ -124,13 +124,14 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
         blobServer = new BlobServer(configuration, new VoidBlobStore());
 
         handlerRequest =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new TaskManagerFileMessageParameters(),
                         Collections.singletonMap(
                                 TaskManagerIdPathParameter.KEY,
                                 EXPECTED_TASK_MANAGER_ID.getResourceIdString()),
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
     }
 
     @Before

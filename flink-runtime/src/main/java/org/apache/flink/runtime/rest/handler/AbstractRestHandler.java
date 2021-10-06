@@ -75,7 +75,7 @@ public abstract class AbstractRestHandler<
     protected CompletableFuture<Void> respondToRequest(
             ChannelHandlerContext ctx,
             HttpRequest httpRequest,
-            HandlerRequest<R, M> handlerRequest,
+            HandlerRequest<R> handlerRequest,
             T gateway) {
         CompletableFuture<P> response;
 
@@ -113,5 +113,5 @@ public abstract class AbstractRestHandler<
      * @throws RestHandlerException if the handling failed
      */
     protected abstract CompletableFuture<P> handleRequest(
-            @Nonnull HandlerRequest<R, M> request, @Nonnull T gateway) throws RestHandlerException;
+            @Nonnull HandlerRequest<R> request, @Nonnull T gateway) throws RestHandlerException;
 }
