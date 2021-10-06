@@ -83,19 +83,19 @@ public class StreamConsumerRegistrarUtil {
      * @param configProps the properties to parse configuration from
      * @param streams the stream to register consumers against
      */
-    public static void deregisterStreamConsumers(
-            final Properties configProps, final List<String> streams) {
-        if (!isUsingEfoRecordPublisher(configProps) || isNoneEfoRegistrationType(configProps)) {
-            return;
+    public static void deregisterStreamConsumers(final Properties configProps, final List<String> streams) {
+        if (isConsumerDeregistrationRequired(configProps)) {
+            StreamConsumerRegistrar registrar = createStreamConsumerRegistrar(configProps, streams);
+            try {
+                deregisterStreamConsumers(registrar, configProps, streams);
+            } finally {
+                registrar.close();
+            }
         }
+    }
 
-        StreamConsumerRegistrar registrar = createStreamConsumerRegistrar(configProps, streams);
-
-        try {
-            deregisterStreamConsumers(registrar, configProps, streams);
-        } finally {
-            registrar.close();
-        }
+    private static boolean isConsumerDeregistrationRequired(final Properties configProps) {
+        return isUsingEfoRecordPublisher(configProps) || isLazyEfoRegistrationType(configProps);
     }
 
     private static void registerStreamConsumers(
