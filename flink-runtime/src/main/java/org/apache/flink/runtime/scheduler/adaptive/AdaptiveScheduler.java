@@ -587,11 +587,17 @@ public class AdaptiveScheduler
     @Override
     public CompletableFuture<String> triggerSavepoint(
             @Nullable String targetDirectory, boolean cancelJob) {
+        return triggerSavepoint(targetDirectory, 0, cancelJob);
+    }
+
+    @Override
+    public CompletableFuture<String> triggerSavepoint(
+            @Nullable String targetDirectory, long savepointTimeout, boolean cancelJob) {
         return state.tryCall(
                         StateWithExecutionGraph.class,
                         stateWithExecutionGraph ->
                                 stateWithExecutionGraph.triggerSavepoint(
-                                        targetDirectory, cancelJob),
+                                        targetDirectory, savepointTimeout, cancelJob),
                         "triggerSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(
@@ -655,11 +661,18 @@ public class AdaptiveScheduler
     }
 
     @Override
+    public CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate) {
+        return stopWithSavepoint(targetDirectory, 0, terminate);
+    }
+
+    @Override
     public CompletableFuture<String> stopWithSavepoint(
-            @Nullable String targetDirectory, boolean terminate) {
+            @Nullable String targetDirectory, long savepointTimeout, boolean terminate) {
         return state.tryCall(
                         Executing.class,
-                        executing -> executing.stopWithSavepoint(targetDirectory, terminate),
+                        executing ->
+                                executing.stopWithSavepoint(
+                                        targetDirectory, savepointTimeout, terminate),
                         "stopWithSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(

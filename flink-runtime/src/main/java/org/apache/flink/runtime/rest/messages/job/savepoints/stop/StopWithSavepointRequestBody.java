@@ -30,26 +30,41 @@ public class StopWithSavepointRequestBody implements RequestBody {
 
     public static final String FIELD_NAME_TARGET_DIRECTORY = "targetDirectory";
 
+    public static final String FIELD_NAME_SAVEPOINT_TIMEOUT = "savepointTimeout";
+
     private static final String FIELD_NAME_DRAIN = "drain";
 
     @JsonProperty(FIELD_NAME_TARGET_DIRECTORY)
     @Nullable
     private final String targetDirectory;
 
+    @JsonProperty(FIELD_NAME_SAVEPOINT_TIMEOUT)
+    private final long savepointTimeout;
+
     @JsonProperty(FIELD_NAME_DRAIN)
     private final boolean drain;
+
+    public StopWithSavepointRequestBody(final String targetDirectory, final boolean drain) {
+        this(targetDirectory, null, drain);
+    }
 
     @JsonCreator
     public StopWithSavepointRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
+            @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_TIMEOUT) final Long savepointTimeout,
             @Nullable @JsonProperty(FIELD_NAME_DRAIN) final Boolean drain) {
         this.targetDirectory = targetDirectory;
+        this.savepointTimeout = savepointTimeout != null ? savepointTimeout : 0;
         this.drain = drain != null ? drain : false;
     }
 
     @Nullable
     public String getTargetDirectory() {
         return targetDirectory;
+    }
+
+    public long getSavepointTimeout() {
+        return savepointTimeout;
     }
 
     public boolean shouldDrain() {

@@ -154,6 +154,7 @@ public class SavepointHandlers
 
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+            final long savepointTimeout = request.getRequestBody().getSavepointTimeout();
 
             if (requestedTargetDirectory == null && defaultSavepointDir == null) {
                 throw new RestHandlerException(
@@ -170,7 +171,7 @@ public class SavepointHandlers
                             ? requestedTargetDirectory
                             : defaultSavepointDir;
             return gateway.stopWithSavepoint(
-                    jobId, targetDirectory, shouldDrain, RpcUtils.INF_TIMEOUT);
+                    jobId, targetDirectory, savepointTimeout, shouldDrain, RpcUtils.INF_TIMEOUT);
         }
     }
 
@@ -190,6 +191,7 @@ public class SavepointHandlers
                 throws RestHandlerException {
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+            final long savepointTimeout = request.getRequestBody().getSavepointTimeout();
 
             if (requestedTargetDirectory == null && defaultSavepointDir == null) {
                 throw new RestHandlerException(
@@ -206,7 +208,7 @@ public class SavepointHandlers
                             ? requestedTargetDirectory
                             : defaultSavepointDir;
             return gateway.triggerSavepoint(
-                    jobId, targetDirectory, cancelJob, RpcUtils.INF_TIMEOUT);
+                    jobId, targetDirectory, savepointTimeout, cancelJob, RpcUtils.INF_TIMEOUT);
         }
     }
 

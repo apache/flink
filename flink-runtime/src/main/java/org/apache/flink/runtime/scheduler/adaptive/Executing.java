@@ -165,6 +165,13 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
 
     CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory, boolean terminate) {
+        return stopWithSavepoint(targetDirectory, 0, terminate);
+    }
+
+    CompletableFuture<String> stopWithSavepoint(
+            @Nullable final String targetDirectory,
+            final long savepointTimeout,
+            boolean terminate) {
         final ExecutionGraph executionGraph = getExecutionGraph();
 
         StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
@@ -182,7 +189,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         final CompletableFuture<String> savepointFuture =
                 executionGraph
                         .getCheckpointCoordinator()
-                        .triggerSynchronousSavepoint(terminate, targetDirectory)
+                        .triggerSynchronousSavepoint(terminate, targetDirectory, savepointTimeout)
                         .thenApply(CompletedCheckpoint::getExternalPointer);
         return context.goToStopWithSavepoint(
                 executionGraph,

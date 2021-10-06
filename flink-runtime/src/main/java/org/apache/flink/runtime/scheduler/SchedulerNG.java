@@ -127,6 +127,9 @@ public interface SchedulerNG extends AutoCloseableAsync {
 
     CompletableFuture<String> triggerSavepoint(@Nullable String targetDirectory, boolean cancelJob);
 
+    CompletableFuture<String> triggerSavepoint(
+            @Nullable String targetDirectory, long savepointTimeout, boolean cancelJob);
+
     CompletableFuture<String> triggerCheckpoint();
 
     void acknowledgeCheckpoint(
@@ -145,6 +148,9 @@ public interface SchedulerNG extends AutoCloseableAsync {
     void declineCheckpoint(DeclineCheckpoint decline);
 
     CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate);
+
+    CompletableFuture<String> stopWithSavepoint(
+            String targetDirectory, long savepointTimeout, boolean terminate);
 
     // ------------------------------------------------------------------------
     //  Operator Coordinator related methods

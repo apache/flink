@@ -221,7 +221,8 @@ abstract class StateWithExecutionGraph implements State {
                 jobId, jobVertexId, keyGroupRange, registrationName);
     }
 
-    CompletableFuture<String> triggerSavepoint(String targetDirectory, boolean cancelJob) {
+    CompletableFuture<String> triggerSavepoint(
+            String targetDirectory, long savepointTimeout, boolean cancelJob) {
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
         StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
@@ -237,7 +238,7 @@ abstract class StateWithExecutionGraph implements State {
         }
 
         return checkpointCoordinator
-                .triggerSavepoint(targetDirectory)
+                .triggerSavepoint(targetDirectory, savepointTimeout)
                 .thenApply(CompletedCheckpoint::getExternalPointer)
                 .handleAsync(
                         (path, throwable) -> {

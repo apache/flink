@@ -20,6 +20,7 @@ package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
 
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_TIMEOUT_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.STOP_AND_DRAIN;
 import static org.apache.flink.client.cli.CliFrontendParser.STOP_WITH_SAVEPOINT_PATH;
 
@@ -33,6 +34,8 @@ class StopOptions extends CommandLineOptions {
     /** Optional target directory for the savepoint. Overwrites cluster default. */
     private final String targetDirectory;
 
+    private final long savepointTimeout;
+
     private final boolean advanceToEndOfEventTime;
 
     StopOptions(CommandLine line) {
@@ -41,6 +44,10 @@ class StopOptions extends CommandLineOptions {
 
         this.savepointFlag = line.hasOption(STOP_WITH_SAVEPOINT_PATH.getOpt());
         this.targetDirectory = line.getOptionValue(STOP_WITH_SAVEPOINT_PATH.getOpt());
+        this.savepointTimeout =
+                line.hasOption(SAVEPOINT_TIMEOUT_OPTION.getOpt())
+                        ? Long.valueOf(line.getOptionValue(SAVEPOINT_TIMEOUT_OPTION.getOpt()))
+                        : 0;
 
         this.advanceToEndOfEventTime = line.hasOption(STOP_AND_DRAIN.getOpt());
     }
@@ -55,6 +62,10 @@ class StopOptions extends CommandLineOptions {
 
     String getTargetDirectory() {
         return targetDirectory;
+    }
+
+    long getSavepointTimeout() {
+        return savepointTimeout;
     }
 
     boolean shouldAdvanceToEndOfEventTime() {

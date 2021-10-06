@@ -1869,6 +1869,9 @@
         "target-directory" : {
           "type" : "string"
         },
+        "savepointTimeout" : {
+          "type" : "integer"
+        },
         "cancel-job" : {
           "type" : "boolean"
         }
@@ -1940,6 +1943,9 @@
       "properties" : {
         "targetDirectory" : {
           "type" : "string"
+        },
+        "savepointTimeout" : {
+          "type" : "integer"
         },
         "drain" : {
           "type" : "boolean"

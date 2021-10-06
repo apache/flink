@@ -788,7 +788,16 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     public CompletableFuture<String> triggerSavepoint(
             @Nullable final String targetDirectory, final boolean cancelJob, final Time timeout) {
 
-        return schedulerNG.triggerSavepoint(targetDirectory, cancelJob);
+        return triggerSavepoint(targetDirectory, 0, cancelJob, timeout);
+    }
+
+    @Override
+    public CompletableFuture<String> triggerSavepoint(
+            @Nullable String targetDirectory,
+            long savepointTimeout,
+            boolean cancelJob,
+            Time timeout) {
+        return schedulerNG.triggerSavepoint(targetDirectory, savepointTimeout, cancelJob);
     }
 
     @Override
@@ -800,7 +809,17 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     public CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory, final boolean terminate, final Time timeout) {
 
-        return schedulerNG.stopWithSavepoint(targetDirectory, terminate);
+        return stopWithSavepoint(targetDirectory, 0, terminate, timeout);
+    }
+
+    @Override
+    public CompletableFuture<String> stopWithSavepoint(
+            @Nullable final String targetDirectory,
+            final long savepointTimeout,
+            final boolean terminate,
+            final Time timeout) {
+
+        return schedulerNG.stopWithSavepoint(targetDirectory, savepointTimeout, terminate);
     }
 
     @Override

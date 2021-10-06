@@ -47,6 +47,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -76,16 +77,20 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
         JobID jobId = new JobID();
 
         String savepointPath = "expectedSavepointPath";
+        long savepointTimeout = 5 * 60 * 1000;
 
         final ClusterClient<String> clusterClient = createClusterClient(savepointPath);
 
         try {
             MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
-            String[] parameters = {jobId.toString()};
+            String[] parameters = {
+                jobId.toString(), "--savepointTimeout", String.valueOf(savepointTimeout)
+            };
             frontend.savepoint(parameters);
 
-            verify(clusterClient, times(1)).triggerSavepoint(eq(jobId), isNull(String.class));
+            verify(clusterClient, times(1))
+                    .triggerSavepoint(eq(jobId), isNull(String.class), eq(savepointTimeout));
 
             assertTrue(buffer.toString().contains(savepointPath));
         } finally {
@@ -158,16 +163,23 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
         JobID jobId = new JobID();
 
         String savepointDirectory = "customTargetDirectory";
+        long savepointTimeout = 5 * 60 * 1000;
 
         final ClusterClient<String> clusterClient = createClusterClient(savepointDirectory);
 
         try {
             MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
-            String[] parameters = {jobId.toString(), savepointDirectory};
+            String[] parameters = {
+                jobId.toString(),
+                savepointDirectory,
+                "--savepointTimeout",
+                String.valueOf(savepointTimeout)
+            };
             frontend.savepoint(parameters);
 
-            verify(clusterClient, times(1)).triggerSavepoint(eq(jobId), eq(savepointDirectory));
+            verify(clusterClient, times(1))
+                    .triggerSavepoint(eq(jobId), eq(savepointDirectory), eq(savepointTimeout));
 
             assertTrue(buffer.toString().contains(savepointDirectory));
         } finally {
@@ -321,6 +333,9 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
         when(clusterClient.triggerSavepoint(any(JobID.class), nullable(String.class)))
                 .thenReturn(CompletableFuture.completedFuture(expectedResponse));
 
+        when(clusterClient.triggerSavepoint(any(JobID.class), nullable(String.class), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(expectedResponse));
+
         return clusterClient;
     }
 
@@ -329,6 +344,9 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
         final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
         when(clusterClient.triggerSavepoint(any(JobID.class), nullable(String.class)))
+                .thenReturn(FutureUtils.completedExceptionally(expectedException));
+
+        when(clusterClient.triggerSavepoint(any(JobID.class), nullable(String.class), anyLong()))
                 .thenReturn(FutureUtils.completedExceptionally(expectedException));
 
         return clusterClient;

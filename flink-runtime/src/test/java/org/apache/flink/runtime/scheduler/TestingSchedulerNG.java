@@ -183,6 +183,12 @@ public class TestingSchedulerNG implements SchedulerNG {
     }
 
     @Override
+    public CompletableFuture<String> triggerSavepoint(
+            @Nullable String targetDirectory, long savepointTimeout, boolean cancelJob) {
+        return triggerSavepointFunction.apply(targetDirectory, cancelJob);
+    }
+
+    @Override
     public CompletableFuture<String> triggerCheckpoint() {
         return triggerCheckpointFunction.get();
     }
@@ -204,6 +210,13 @@ public class TestingSchedulerNG implements SchedulerNG {
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate) {
+        failOperation();
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<String> stopWithSavepoint(
+            String targetDirectory, long savepointTimeout, boolean terminate) {
         failOperation();
         return null;
     }

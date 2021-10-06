@@ -22,6 +22,7 @@ import org.apache.commons.cli.CommandLine;
 
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_DISPOSE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_TIMEOUT_OPTION;
 
 /** Command line options for the SAVEPOINT command. */
 public class SavepointOptions extends CommandLineOptions {
@@ -30,6 +31,7 @@ public class SavepointOptions extends CommandLineOptions {
     private boolean dispose;
     private String disposeSavepointPath;
     private String jarFile;
+    private long savepointTimeout;
 
     public SavepointOptions(CommandLine line) {
         super(line);
@@ -37,6 +39,10 @@ public class SavepointOptions extends CommandLineOptions {
         dispose = line.hasOption(SAVEPOINT_DISPOSE_OPTION.getOpt());
         disposeSavepointPath = line.getOptionValue(SAVEPOINT_DISPOSE_OPTION.getOpt());
         jarFile = line.getOptionValue(JAR_OPTION.getOpt());
+        savepointTimeout =
+                line.hasOption(SAVEPOINT_TIMEOUT_OPTION.getOpt())
+                        ? Long.valueOf(line.getOptionValue(SAVEPOINT_TIMEOUT_OPTION.getOpt()))
+                        : 0;
     }
 
     public String[] getArgs() {
@@ -53,5 +59,9 @@ public class SavepointOptions extends CommandLineOptions {
 
     public String getJarFilePath() {
         return jarFile;
+    }
+
+    public long getSavepointTimeout() {
+        return savepointTimeout;
     }
 }

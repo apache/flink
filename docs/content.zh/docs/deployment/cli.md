@@ -110,7 +110,8 @@ in. All that's needed is the JobID:
 ```bash
 $ ./bin/flink savepoint \
       $JOB_ID \ 
-      /tmp/flink-savepoints
+      /tmp/flink-savepoints \
+      --savepointTimeout 300000
 ```
 ```
 Triggering savepoint for job cca7bc1061d61cf15238e92312c2fc20.
@@ -120,6 +121,8 @@ You can resume your program from this savepoint with the run command.
 ```
 The savepoint folder is optional and needs to be specified if 
 [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) isn't set.
+
+The savepoint timeout is optional and checkpoint timeout will take effect if isn't set.
 
 The path to the savepoint can be used later on to [restart the Flink job](#starting-a-job-from-a-savepoint).
 
@@ -163,6 +166,7 @@ completion of that savepoint, they will finish by calling their `cancel()` metho
 ```bash
 $ ./bin/flink stop \
       --savepointPath /tmp/flink-savepoints \
+      --savepointTimeout 300000 \
       $JOB_ID
 ```
 ```
@@ -171,6 +175,8 @@ Savepoint completed. Path: file:/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0
 ```
 We have to use `--savepointPath` to specify the savepoint folder if 
 [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) isn't set.
+
+The savepoint timeout is optional and checkpoint timeout will take effect if isn't set.
 
 If the `--drain` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint 
 barrier. This will make all registered event-time timers fire, thus flushing out any state that 

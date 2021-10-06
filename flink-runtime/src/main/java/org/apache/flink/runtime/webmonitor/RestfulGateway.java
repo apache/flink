@@ -146,6 +146,26 @@ public interface RestfulGateway extends RpcGateway {
     }
 
     /**
+     * Triggers a savepoint with the given savepoint directory as a target.
+     *
+     * @param jobId ID of the job for which the savepoint should be triggered.
+     * @param targetDirectory Target directory for the savepoint.
+     * @param savepointTimeout Timeout for the savepoint. If it <= 0, checkpoint timeout will take
+     *     effect.
+     * @param timeout Timeout for the asynchronous operation
+     * @return A future to the {@link CompletedCheckpoint#getExternalPointer() external pointer} of
+     *     the savepoint.
+     */
+    default CompletableFuture<String> triggerSavepoint(
+            JobID jobId,
+            String targetDirectory,
+            long savepointTimeout,
+            boolean cancelJob,
+            @RpcTimeout Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Stops the job with a savepoint.
      *
      * @param jobId ID of the job for which the savepoint should be triggered.
@@ -158,6 +178,27 @@ public interface RestfulGateway extends RpcGateway {
     default CompletableFuture<String> stopWithSavepoint(
             final JobID jobId,
             final String targetDirectory,
+            final boolean terminate,
+            @RpcTimeout final Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Stops the job with a savepoint.
+     *
+     * @param jobId ID of the job for which the savepoint should be triggered.
+     * @param targetDirectory to which to write the savepoint data or null if the default savepoint
+     *     directory should be used
+     * @param savepointTimeout Timeout for the savepoint. If it <= 0, checkpoint timeout will take
+     *     effect.
+     * @param terminate flag indicating if the job should terminate or just suspend
+     * @param timeout for the rpc call
+     * @return Future which is completed with the savepoint path once completed
+     */
+    default CompletableFuture<String> stopWithSavepoint(
+            final JobID jobId,
+            final String targetDirectory,
+            final long savepointTimeout,
             final boolean terminate,
             @RpcTimeout final Time timeout) {
         throw new UnsupportedOperationException();

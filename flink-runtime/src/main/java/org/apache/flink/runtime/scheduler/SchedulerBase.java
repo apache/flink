@@ -819,7 +819,13 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     @Override
     public CompletableFuture<String> triggerSavepoint(
-            final String targetDirectory, final boolean cancelJob) {
+            @Nullable String targetDirectory, boolean cancelJob) {
+        return triggerSavepoint(targetDirectory, 0, cancelJob);
+    }
+
+    @Override
+    public CompletableFuture<String> triggerSavepoint(
+            final String targetDirectory, long savepointTimeout, final boolean cancelJob) {
         mainThreadExecutor.assertRunningInMainThread();
 
         final CheckpointCoordinator checkpointCoordinator =
@@ -837,7 +843,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         }
 
         return checkpointCoordinator
-                .triggerSavepoint(targetDirectory)
+                .triggerSavepoint(targetDirectory, savepointTimeout)
                 .thenApply(CompletedCheckpoint::getExternalPointer)
                 .handleAsync(
                         (path, throwable) -> {
@@ -936,8 +942,15 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     @Override
+    public CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate) {
+        return stopWithSavepoint(targetDirectory, 0, terminate);
+    }
+
+    @Override
     public CompletableFuture<String> stopWithSavepoint(
-            @Nullable final String targetDirectory, final boolean terminate) {
+            @Nullable final String targetDirectory,
+            final long savepointTimeout,
+            final boolean terminate) {
         mainThreadExecutor.assertRunningInMainThread();
 
         final CheckpointCoordinator checkpointCoordinator =
@@ -958,7 +971,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 getCombinedExecutionTerminationFuture();
 
         final CompletableFuture<CompletedCheckpoint> savepointFuture =
-                checkpointCoordinator.triggerSynchronousSavepoint(terminate, targetDirectory);
+                checkpointCoordinator.triggerSynchronousSavepoint(
+                        terminate, targetDirectory, savepointTimeout);
 
         final StopWithSavepointTerminationManager stopWithSavepointTerminationManager =
                 new StopWithSavepointTerminationManager(

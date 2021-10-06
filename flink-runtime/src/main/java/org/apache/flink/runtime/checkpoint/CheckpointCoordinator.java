@@ -450,7 +450,25 @@ public class CheckpointCoordinator {
             @Nullable final String targetLocation) {
         final CheckpointProperties properties =
                 CheckpointProperties.forSavepoint(!unalignedCheckpointsEnabled);
-        return triggerSavepointInternal(properties, targetLocation);
+        return triggerSavepointInternal(properties, targetLocation, 0);
+    }
+
+    /**
+     * Triggers a savepoint with the given savepoint directory as a target.
+     *
+     * @param targetLocation Target location for the savepoint, optional. If null, the state
+     *     backend's configured default will be used.
+     * @param savepointTimeout Timeout for the savepoint. If it <= 0, checkpoint timeout will take
+     *     effect.
+     * @return A future to the completed checkpoint
+     * @throws IllegalStateException If no savepoint directory has been specified and no default
+     *     savepoint directory has been configured
+     */
+    public CompletableFuture<CompletedCheckpoint> triggerSavepoint(
+            @Nullable final String targetLocation, final long savepointTimeout) {
+        final CheckpointProperties properties =
+                CheckpointProperties.forSavepoint(!unalignedCheckpointsEnabled);
+        return triggerSavepointInternal(properties, targetLocation, savepointTimeout);
     }
 
     /**
@@ -469,12 +487,34 @@ public class CheckpointCoordinator {
         final CheckpointProperties properties =
                 CheckpointProperties.forSyncSavepoint(!unalignedCheckpointsEnabled, terminate);
 
-        return triggerSavepointInternal(properties, targetLocation);
+        return triggerSavepointInternal(properties, targetLocation, 0);
+    }
+
+    /**
+     * Triggers a synchronous savepoint with the given savepoint directory as a target.
+     *
+     * @param terminate flag indicating if the job should terminate or just suspend
+     * @param targetLocation Target location for the savepoint, optional. If null, the state
+     *     backend's configured default will be used.
+     * @param savepointTimeout Timeout for the savepoint. If it <= 0, checkpoint timeout will take
+     *     effect.
+     * @return A future to the completed checkpoint
+     * @throws IllegalStateException If no savepoint directory has been specified and no default
+     *     savepoint directory has been configured
+     */
+    public CompletableFuture<CompletedCheckpoint> triggerSynchronousSavepoint(
+            final boolean terminate, @Nullable final String targetLocation, long savepointTimeout) {
+
+        final CheckpointProperties properties =
+                CheckpointProperties.forSyncSavepoint(!unalignedCheckpointsEnabled, terminate);
+
+        return triggerSavepointInternal(properties, targetLocation, savepointTimeout);
     }
 
     private CompletableFuture<CompletedCheckpoint> triggerSavepointInternal(
             final CheckpointProperties checkpointProperties,
-            @Nullable final String targetLocation) {
+            @Nullable final String targetLocation,
+            long savepointTimeout) {
 
         checkNotNull(checkpointProperties);
 
@@ -483,7 +523,11 @@ public class CheckpointCoordinator {
         final CompletableFuture<CompletedCheckpoint> resultFuture = new CompletableFuture<>();
         timer.execute(
                 () ->
-                        triggerCheckpoint(checkpointProperties, targetLocation, false)
+                        triggerCheckpoint(
+                                        checkpointProperties,
+                                        targetLocation,
+                                        savepointTimeout,
+                                        false)
                                 .whenComplete(
                                         (completedCheckpoint, throwable) -> {
                                             if (throwable == null) {
@@ -505,13 +549,23 @@ public class CheckpointCoordinator {
      * @return a future to the completed checkpoint.
      */
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(boolean isPeriodic) {
-        return triggerCheckpoint(checkpointProperties, null, isPeriodic);
+        return triggerCheckpoint(checkpointProperties, null, 0, isPeriodic);
     }
 
     @VisibleForTesting
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
             CheckpointProperties props,
             @Nullable String externalSavepointLocation,
+            boolean isPeriodic) {
+
+        return triggerCheckpoint(props, externalSavepointLocation, 0, isPeriodic);
+    }
+
+    @VisibleForTesting
+    public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
+            CheckpointProperties props,
+            @Nullable String externalSavepointLocation,
+            long savepointTimeout,
             boolean isPeriodic) {
 
         if (props.getCheckpointType().getPostCheckpointAction() == PostCheckpointAction.TERMINATE
@@ -522,7 +576,8 @@ public class CheckpointCoordinator {
         }
 
         CheckpointTriggerRequest request =
-                new CheckpointTriggerRequest(props, externalSavepointLocation, isPeriodic);
+                new CheckpointTriggerRequest(
+                        props, externalSavepointLocation, savepointTimeout, isPeriodic);
         chooseRequestToExecute(request).ifPresent(this::startTriggeringCheckpoint);
         return request.onCompletionPromise;
     }
@@ -572,6 +627,7 @@ public class CheckpointCoordinator {
                                                     request.isPeriodic,
                                                     checkpointInfo.f1.checkpointId,
                                                     checkpointInfo.f1.checkpointStorageLocation,
+                                                    request.savepointTimeout,
                                                     request.getOnCompletionFuture()),
                                     timer);
 
@@ -765,6 +821,7 @@ public class CheckpointCoordinator {
             boolean isPeriodic,
             long checkpointID,
             CheckpointStorageLocation checkpointStorageLocation,
+            long timeout,
             CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
 
         synchronized (lock) {
@@ -797,7 +854,7 @@ public class CheckpointCoordinator {
             ScheduledFuture<?> cancellerHandle =
                     timer.schedule(
                             new CheckpointCanceller(checkpoint),
-                            checkpointTimeout,
+                            timeout > 0 ? timeout : checkpointTimeout,
                             TimeUnit.MILLISECONDS);
 
             if (!checkpoint.setCancellerHandle(cancellerHandle)) {
@@ -2060,6 +2117,7 @@ public class CheckpointCoordinator {
         final long timestamp;
         final CheckpointProperties props;
         final @Nullable String externalSavepointLocation;
+        final long savepointTimeout;
         final boolean isPeriodic;
         private final CompletableFuture<CompletedCheckpoint> onCompletionPromise =
                 new CompletableFuture<>();
@@ -2069,9 +2127,19 @@ public class CheckpointCoordinator {
                 @Nullable String externalSavepointLocation,
                 boolean isPeriodic) {
 
+            this(props, externalSavepointLocation, 0, isPeriodic);
+        }
+
+        CheckpointTriggerRequest(
+                CheckpointProperties props,
+                @Nullable String externalSavepointLocation,
+                long savepointTimeout,
+                boolean isPeriodic) {
+
             this.timestamp = System.currentTimeMillis();
             this.props = checkNotNull(props);
             this.externalSavepointLocation = externalSavepointLocation;
+            this.savepointTimeout = savepointTimeout;
             this.isPeriodic = isPeriodic;
         }
 

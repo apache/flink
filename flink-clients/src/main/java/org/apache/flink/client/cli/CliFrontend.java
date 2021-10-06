@@ -552,6 +552,8 @@ public class CliFrontend {
                         ? stopOptions.getTargetDirectory()
                         : null; // the default savepoint location is going to be used in this case.
 
+        final long savepointTimeout = stopOptions.getSavepointTimeout();
+
         final JobID jobId =
                 cleanedArgs.length != 0
                         ? parseJobId(cleanedArgs[0])
@@ -572,11 +574,18 @@ public class CliFrontend {
                 clusterClient -> {
                     final String savepointPath;
                     try {
+                        long waitingTime =
+                                savepointTimeout > 0
+                                        ? clientTimeout.toMillis() + savepointTimeout
+                                        : clientTimeout.toMillis();
                         savepointPath =
                                 clusterClient
                                         .stopWithSavepoint(
-                                                jobId, advanceToEndOfEventTime, targetDirectory)
-                                        .get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                                                jobId,
+                                                advanceToEndOfEventTime,
+                                                targetDirectory,
+                                                savepointTimeout)
+                                        .get(waitingTime, TimeUnit.MILLISECONDS);
                     } catch (Exception e) {
                         throw new FlinkException(
                                 "Could not stop with a savepoint job \"" + jobId + "\".", e);
@@ -742,6 +751,8 @@ public class CliFrontend {
                 savepointDirectory = null;
             }
 
+            final long savepointTimeout = savepointOptions.getSavepointTimeout();
+
             // Print superfluous arguments
             if (cleanedArgs.length >= 3) {
                 logAndSysout(
@@ -751,24 +762,33 @@ public class CliFrontend {
             runClusterAction(
                     activeCommandLine,
                     commandLine,
-                    clusterClient -> triggerSavepoint(clusterClient, jobId, savepointDirectory));
+                    clusterClient ->
+                            triggerSavepoint(
+                                    clusterClient, jobId, savepointDirectory, savepointTimeout));
         }
     }
 
     /** Sends a SavepointTriggerMessage to the job manager. */
     private void triggerSavepoint(
-            ClusterClient<?> clusterClient, JobID jobId, String savepointDirectory)
+            ClusterClient<?> clusterClient,
+            JobID jobId,
+            String savepointDirectory,
+            long savepointTimeout)
             throws FlinkException {
         logAndSysout("Triggering savepoint for job " + jobId + '.');
 
         CompletableFuture<String> savepointPathFuture =
-                clusterClient.triggerSavepoint(jobId, savepointDirectory);
+                clusterClient.triggerSavepoint(jobId, savepointDirectory, savepointTimeout);
 
         logAndSysout("Waiting for response...");
 
         try {
+            long waitingTime =
+                    savepointTimeout > 0
+                            ? clientTimeout.toMillis() + savepointTimeout
+                            : clientTimeout.toMillis();
             final String savepointPath =
-                    savepointPathFuture.get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                    savepointPathFuture.get(waitingTime, TimeUnit.MILLISECONDS);
 
             logAndSysout("Savepoint completed. Path: " + savepointPath);
             logAndSysout("You can resume your program from this savepoint with the run command.");

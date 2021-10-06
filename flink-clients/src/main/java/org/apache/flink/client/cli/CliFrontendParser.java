@@ -132,6 +132,9 @@ public class CliFrontendParser {
     static final Option SAVEPOINT_DISPOSE_OPTION =
             new Option("d", "dispose", true, "Path of savepoint to dispose.");
 
+    static final Option SAVEPOINT_TIMEOUT_OPTION =
+            new Option("st", "savepointTimeout", true, "timeout of savepoint.");
+
     // list specific options
     static final Option RUNNING_OPTION =
             new Option("r", "running", false, "Show only running programs and their JobIDs");
@@ -389,12 +392,14 @@ public class CliFrontendParser {
     static Options getStopCommandOptions() {
         return buildGeneralOptions(new Options())
                 .addOption(STOP_WITH_SAVEPOINT_PATH)
-                .addOption(STOP_AND_DRAIN);
+                .addOption(STOP_AND_DRAIN)
+                .addOption(SAVEPOINT_TIMEOUT_OPTION);
     }
 
     static Options getSavepointCommandOptions() {
         Options options = buildGeneralOptions(new Options());
         options.addOption(SAVEPOINT_DISPOSE_OPTION);
+        options.addOption(SAVEPOINT_TIMEOUT_OPTION);
         return options.addOption(JAR_OPTION);
     }
 

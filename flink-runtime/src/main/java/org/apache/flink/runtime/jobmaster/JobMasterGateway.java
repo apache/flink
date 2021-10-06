@@ -235,6 +235,22 @@ public interface JobMasterGateway
             @RpcTimeout final Time timeout);
 
     /**
+     * Triggers taking a savepoint of the executed job.
+     *
+     * @param targetDirectory to which to write the savepoint data or null if the default savepoint
+     *     directory should be used
+     * @param savepointTimeout Timeout for the savepoint. If it <= 0, checkpoint timeout will take
+     *     effect.
+     * @param timeout for the rpc call
+     * @return Future which is completed with the savepoint path once completed
+     */
+    CompletableFuture<String> triggerSavepoint(
+            @Nullable final String targetDirectory,
+            final long savepointTimeout,
+            final boolean cancelJob,
+            @RpcTimeout final Time timeout);
+
+    /**
      * Triggers taking a checkpoint of the executed job.
      *
      * @param timeout for the rpc call
@@ -253,6 +269,23 @@ public interface JobMasterGateway
      */
     CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory,
+            final boolean terminate,
+            @RpcTimeout final Time timeout);
+
+    /**
+     * Stops the job with a savepoint.
+     *
+     * @param targetDirectory to which to write the savepoint data or null if the default savepoint
+     *     directory should be used
+     * @param savepointTimeout Timeout for the savepoint. If it <= 0, checkpoint timeout will take
+     *     effect.
+     * @param terminate flag indicating if the job should terminate or just suspend
+     * @param timeout for the rpc call
+     * @return Future which is completed with the savepoint path once completed
+     */
+    CompletableFuture<String> stopWithSavepoint(
+            @Nullable final String targetDirectory,
+            final long savepointTimeout,
             final boolean terminate,
             @RpcTimeout final Time timeout);
 

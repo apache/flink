@@ -141,9 +141,24 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
     }
 
     @Override
+    public CompletableFuture<String> stopWithSavepoint(
+            JobID jobId,
+            boolean advanceToEndOfEventTime,
+            @Nullable String savepointDirectory,
+            long savepointTimeout) {
+        return stopWithSavepointFunction.apply(jobId, advanceToEndOfEventTime, savepointDirectory);
+    }
+
+    @Override
     public CompletableFuture<String> triggerSavepoint(
             JobID jobId, @Nullable String savepointDirectory) {
         return triggerSavepointFunction.apply(jobId, savepointDirectory);
+    }
+
+    @Override
+    public CompletableFuture<String> triggerSavepoint(
+            JobID jobId, @Nullable String savepointDirectory, long savepointTimeout) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

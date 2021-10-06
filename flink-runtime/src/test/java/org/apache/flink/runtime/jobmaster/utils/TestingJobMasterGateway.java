@@ -413,6 +413,15 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
+    public CompletableFuture<String> triggerSavepoint(
+            @Nullable String targetDirectory,
+            long savepointTimeout,
+            boolean cancelJob,
+            Time timeout) {
+        throw new UnsupportedOperationException("This operation is not supported.");
+    }
+
+    @Override
     public CompletableFuture<String> triggerCheckpoint(Time timeout) {
         return triggerCheckpointFunction.get();
     }
@@ -421,6 +430,15 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     public CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory, final boolean terminate, final Time timeout) {
         return stopWithSavepointFunction.apply(targetDirectory, terminate);
+    }
+
+    @Override
+    public CompletableFuture<String> stopWithSavepoint(
+            @Nullable String targetDirectory,
+            long savepointTimeout,
+            boolean terminate,
+            Time timeout) {
+        throw new UnsupportedOperationException("This operation is not supported.");
     }
 
     @Override
