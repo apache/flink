@@ -29,7 +29,7 @@ import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import scala.collection.mutable
 
@@ -372,7 +372,6 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   }
 
   /** test row time inner join with equi-times **/
-  @Ignore // see FLINK-24443
   @Test
   def testRowTimeInnerJoinWithEquiTimeAttrs(): Unit = {
 
@@ -390,10 +389,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=(("K1", 1000L, "L3"))
     data1.+=(("K2", 2000L, "L4"))
     data1.+=(("K1", 4000L, "L5"))
-    data1.+=(("K1", 1000L, "should-be-discarded"))
+    // See https://issues.apache.org/jira/browse/FLINK-24466
+    // data1.+=(("K1", 1000L, "should-be-discarded"))
     data1.+=(("K1", 6000L, "L7"))
     data1.+=(("K1", 5001L, "L8"))
-    data1.+=(("K2", 1000L, "should-be-discarded"))
+    // See https://issues.apache.org/jira/browse/FLINK-24466
+    // data1.+=(("K2", 1000L, "should-be-discarded"))
 
     val data2 = new mutable.MutableList[(String, Long, String)]
     data2.+=(("K1", 1000L, "R1"))
