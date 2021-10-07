@@ -507,8 +507,7 @@ Retry and backoff parameters can be configured using the
 this is called during stream consumer registration and deregistration. For each stream this service will be invoked 
 periodically until the stream consumer is reported `ACTIVE`/`not found` for registration/deregistration. By default,
 the `LAZY` registration strategy will scale the number of calls by the job parallelism. `EAGER` will call the service 
-once per stream for registration, and scale the number of calls by the job parallelism for deregistration. 
-`NONE` will not invoke this service. Retry and backoff parameters can be configured using the 
+once per stream for registration only. `NONE` will not invoke this service. Retry and backoff parameters can be configured using the 
 `ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_*` keys.  
 
 - *[RegisterStreamConsumer](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_RegisterStreamConsumer.html)*: 
@@ -516,7 +515,7 @@ this is called once per stream during stream consumer registration, unless the `
 Retry and backoff parameters can be configured using the `ConsumerConfigConstants.REGISTER_STREAM_*` keys.
 
 - *[DeregisterStreamConsumer](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DeregisterStreamConsumer.html)*: 
-this is called once per stream during stream consumer deregistration, unless the `NONE` registration strategy is configured.
+this is called once per stream during stream consumer deregistration, unless the `NONE` or `EAGER` registration strategy is configured.
 Retry and backoff parameters can be configured using the `ConsumerConfigConstants.DEREGISTER_STREAM_*` keys.  
 
 ## Kinesis Producer
