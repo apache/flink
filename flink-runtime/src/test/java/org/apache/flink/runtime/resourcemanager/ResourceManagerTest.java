@@ -272,7 +272,7 @@ public class ResourceManagerTest extends TestLogger {
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
         resourceManagerGateway
-                .registerJobManager(
+                .registerJobMaster(
                         jobMasterGateway.getFencingToken(),
                         ResourceID.generate(),
                         jobMasterGateway.getAddress(),
@@ -327,7 +327,7 @@ public class ResourceManagerTest extends TestLogger {
                 (ignore) -> {},
                 resourceManagerGateway -> {
                     final CompletableFuture<RegistrationResponse> registrationFuture =
-                            resourceManagerGateway.registerJobManager(
+                            resourceManagerGateway.registerJobMaster(
                                     jobMasterGateway.getFencingToken(),
                                     jobMasterResourceId,
                                     jobMasterGateway.getAddress(),
@@ -383,7 +383,7 @@ public class ResourceManagerTest extends TestLogger {
                 (ignore) -> {},
                 resourceManagerGateway -> {
                     final CompletableFuture<RegistrationResponse> registrationFuture =
-                            resourceManagerGateway.registerJobManager(
+                            resourceManagerGateway.registerJobMaster(
                                     jobMasterGateway.getFencingToken(),
                                     jobMasterResourceId,
                                     jobMasterGateway.getAddress(),
@@ -541,7 +541,7 @@ public class ResourceManagerTest extends TestLogger {
         final JobID jobId = JobID.generate();
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
-        resourceManagerGateway.registerJobManager(
+        resourceManagerGateway.registerJobMaster(
                 jobMasterGateway.getFencingToken(),
                 ResourceID.generate(),
                 jobMasterGateway.getAddress(),

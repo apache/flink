@@ -99,8 +99,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>It offers the following methods as part of its rpc interface to interact with him remotely:
  *
  * <ul>
- *   <li>{@link #registerJobManager(JobMasterId, ResourceID, String, JobID, Time)} registers a
- *       {@link JobMaster} at the resource manager
+ *   <li>{@link #registerJobMaster(JobMasterId, ResourceID, String, JobID, Time)} registers a {@link
+ *       JobMaster} at the resource manager
  * </ul>
  */
 public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
@@ -311,7 +311,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     // ------------------------------------------------------------------------
 
     @Override
-    public CompletableFuture<RegistrationResponse> registerJobManager(
+    public CompletableFuture<RegistrationResponse> registerJobMaster(
             final JobMasterId jobMasterId,
             final ResourceID jobManagerResourceId,
             final String jobManagerAddress,
