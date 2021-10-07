@@ -728,10 +728,10 @@ You can enable and configure EFO with the following properties:
 However, consumer names do not have to be unique across data streams.
 Reusing a consumer name will result in existing subscriptions being terminated.
 
-<span class="label label-info">Note</span> With the `LAZY` and `EAGER` strategies, stream consumers are de-registered when the job is shutdown gracefully.
+<span class="label label-info">Note</span> With the `LAZY` strategy, stream consumers are de-registered when the job is shutdown gracefully.
 In the event that a job terminates within executing the shutdown hooks, stream consumers will remain active.
 In this situation the stream consumers will be gracefully reused when the application restarts.
-With the `NONE` strategy, stream consumer de-registration is not performed by `FlinkKinesisConsumer`.
+With the `NONE` and `EAGER` strategies, stream consumer de-registration is not performed by `FlinkKinesisConsumer`.
 
 Data Type Mapping
 ----------------
