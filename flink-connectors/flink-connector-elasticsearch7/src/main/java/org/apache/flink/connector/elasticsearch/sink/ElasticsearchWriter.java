@@ -150,6 +150,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
     public void close() throws Exception {
         closed = true;
         emitter.close();
+        bulkProcessor.close();
         client.close();
     }
 

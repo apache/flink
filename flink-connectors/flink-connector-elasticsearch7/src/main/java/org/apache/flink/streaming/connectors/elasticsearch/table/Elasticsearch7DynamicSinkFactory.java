@@ -22,38 +22,41 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
-import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.StringUtils;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLASH_MAX_SIZE_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLUSH_INTERVAL_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLUSH_MAX_ACTIONS_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.CONNECTION_MAX_RETRY_TIMEOUT_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.CONNECTION_PATH_PREFIX;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.FAILURE_HANDLER_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.FORMAT_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.HOSTS_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.INDEX_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.KEY_DELIMITER_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.PASSWORD_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.USERNAME_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.BULK_FLUSH_INTERVAL_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.BULK_FLUSH_MAX_ACTIONS_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.BULK_FLUSH_MAX_SIZE_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.CONNECTION_PATH_PREFIX_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.DELIVERY_GUARANTEE_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.FORMAT_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.HOSTS_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.INDEX_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.KEY_DELIMITER_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.PASSWORD_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch7ConnectorOptions.USERNAME_OPTION;
 
 /** A {@link DynamicTableSinkFactory} for discovering {@link Elasticsearch7DynamicSink}. */
 @Internal
@@ -63,25 +66,46 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
     private static final Set<ConfigOption<?>> optionalOptions =
             Stream.of(
                             KEY_DELIMITER_OPTION,
-                            FAILURE_HANDLER_OPTION,
-                            FLUSH_ON_CHECKPOINT_OPTION,
-                            BULK_FLASH_MAX_SIZE_OPTION,
+                            BULK_FLUSH_MAX_SIZE_OPTION,
                             BULK_FLUSH_MAX_ACTIONS_OPTION,
                             BULK_FLUSH_INTERVAL_OPTION,
                             BULK_FLUSH_BACKOFF_TYPE_OPTION,
                             BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION,
                             BULK_FLUSH_BACKOFF_DELAY_OPTION,
-                            CONNECTION_MAX_RETRY_TIMEOUT_OPTION,
-                            CONNECTION_PATH_PREFIX,
+                            CONNECTION_PATH_PREFIX_OPTION,
                             FORMAT_OPTION,
+                            DELIVERY_GUARANTEE_OPTION,
                             PASSWORD_OPTION,
                             USERNAME_OPTION)
                     .collect(Collectors.toSet());
 
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
-        TableSchema tableSchema = context.getCatalogTable().getSchema();
-        ElasticsearchValidationUtils.validatePrimaryKey(tableSchema);
+        DataType physicalRowDataType = context.getPhysicalRowDataType();
+        int[] primaryKeyIndexes = context.getPrimaryKeyIndexes();
+        if (primaryKeyIndexes.length != 0) {
+            DataType pkDataType = DataType.projectFields(physicalRowDataType, primaryKeyIndexes);
+
+            ElasticsearchValidationUtils.validatePrimaryKey(pkDataType);
+        }
+
+        ResolvedSchema resolvedSchema = context.getCatalogTable().getResolvedSchema();
+        List<LogicalTypeWithIndex> primaryKeyLogicalTypesWithIndex =
+                Arrays.stream(primaryKeyIndexes)
+                        .mapToObj(
+                                index -> {
+                                    Optional<Column> column = resolvedSchema.getColumn(index);
+                                    if (!column.isPresent()) {
+                                        throw new IllegalStateException(
+                                                String.format(
+                                                        "No primary key column found with index '%s'.",
+                                                        index));
+                                    }
+                                    LogicalType logicalType =
+                                            column.get().getDataType().getLogicalType();
+                                    return new LogicalTypeWithIndex(index, logicalType);
+                                })
+                        .collect(Collectors.toList());
 
         final FactoryUtil.TableFactoryHelper helper =
                 FactoryUtil.createTableFactoryHelper(this, context);
@@ -92,17 +116,15 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
         helper.validate();
         Configuration configuration = new Configuration();
         context.getCatalogTable().getOptions().forEach(configuration::setString);
-        Elasticsearch7Configuration config =
-                new Elasticsearch7Configuration(configuration, context.getClassLoader());
+        Elasticsearch7Configuration config = new Elasticsearch7Configuration(configuration);
 
         validate(config, configuration);
 
         return new Elasticsearch7DynamicSink(
-                format, config, TableSchemaUtils.getPhysicalSchema(tableSchema));
+                format, config, primaryKeyLogicalTypesWithIndex, physicalRowDataType);
     }
 
     private void validate(Elasticsearch7Configuration config, Configuration originalConfiguration) {
-        config.getFailureHandler(); // checks if we can instantiate the custom failure handler
         config.getHosts(); // validate hosts
         validate(
                 config.getIndex().length() >= 1,
@@ -121,9 +143,9 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
                 () ->
                         String.format(
                                 "'%s' must be in MB granularity. Got: %s",
-                                BULK_FLASH_MAX_SIZE_OPTION.key(),
+                                BULK_FLUSH_MAX_SIZE_OPTION.key(),
                                 originalConfiguration
-                                        .get(BULK_FLASH_MAX_SIZE_OPTION)
+                                        .get(BULK_FLUSH_MAX_SIZE_OPTION)
                                         .toHumanReadableString()));
         validate(
                 config.getBulkFlushBackoffRetries().map(retries -> retries >= 1).orElse(true),
