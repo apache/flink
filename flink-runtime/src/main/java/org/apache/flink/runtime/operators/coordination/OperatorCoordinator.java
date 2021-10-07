@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -70,6 +71,7 @@ import java.util.concurrent.CompletableFuture;
  *       methods, the task are scheduled and deployed.
  * </ol>
  */
+@Internal
 public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 
     /**
