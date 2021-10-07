@@ -1274,7 +1274,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         long timeoutMillis) {
                     Time timeout = Time.milliseconds(timeoutMillis);
 
-                    return gateway.registerJobManager(
+                    return gateway.registerJobMaster(
                             jobMasterId,
                             jobManagerResourceID,
                             jobManagerRpcAddress,
