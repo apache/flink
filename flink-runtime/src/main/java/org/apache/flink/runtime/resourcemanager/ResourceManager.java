@@ -33,8 +33,8 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
+import org.apache.flink.runtime.heartbeat.HeartbeatSender;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.heartbeat.NoOpHeartbeatManager;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
@@ -854,7 +854,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                 jobId);
 
         jobManagerHeartbeatManager.monitorTarget(
-                jobManagerResourceId, new JobMasterHeartbeatTarget(jobMasterGateway));
+                jobManagerResourceId, new JobMasterHeartbeatSender(jobMasterGateway));
 
         return new JobMasterRegistrationSuccess(getFencingToken(), resourceId);
     }
@@ -916,7 +916,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             taskExecutors.put(taskExecutorResourceId, registration);
 
             taskManagerHeartbeatManager.monitorTarget(
-                    taskExecutorResourceId, new TaskExecutorHeartbeatTarget(taskExecutorGateway));
+                    taskExecutorResourceId, new TaskExecutorHeartbeatSender(taskExecutorGateway));
 
             return new TaskExecutorRegistrationSuccess(
                     registration.getInstanceID(), resourceId, clusterInformation);
@@ -1197,17 +1197,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     //  Static utility classes
     // ------------------------------------------------------------------------
 
-    private static final class JobMasterHeartbeatTarget implements HeartbeatTarget<Void> {
+    private static final class JobMasterHeartbeatSender extends HeartbeatSender<Void> {
         private final JobMasterGateway jobMasterGateway;
 
-        private JobMasterHeartbeatTarget(JobMasterGateway jobMasterGateway) {
+        private JobMasterHeartbeatSender(JobMasterGateway jobMasterGateway) {
             this.jobMasterGateway = jobMasterGateway;
-        }
-
-        @Override
-        public CompletableFuture<Void> receiveHeartbeat(ResourceID resourceID, Void payload) {
-            // the ResourceManager will always send heartbeat requests to the JobManager
-            return FutureUtils.unsupportedOperationFuture();
         }
 
         @Override
@@ -1216,18 +1210,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
-    private static final class TaskExecutorHeartbeatTarget implements HeartbeatTarget<Void> {
+    private static final class TaskExecutorHeartbeatSender extends HeartbeatSender<Void> {
         private final TaskExecutorGateway taskExecutorGateway;
 
-        private TaskExecutorHeartbeatTarget(TaskExecutorGateway taskExecutorGateway) {
+        private TaskExecutorHeartbeatSender(TaskExecutorGateway taskExecutorGateway) {
             this.taskExecutorGateway = taskExecutorGateway;
-        }
-
-        @Override
-        public CompletableFuture<Void> receiveHeartbeat(ResourceID resourceID, Void payload) {
-            // the ResourceManager will always send heartbeat requests to the
-            // TaskManager
-            return FutureUtils.unsupportedOperationFuture();
         }
 
         @Override
