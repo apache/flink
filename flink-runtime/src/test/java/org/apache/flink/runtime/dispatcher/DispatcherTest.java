@@ -99,6 +99,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -441,8 +442,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         assertThat(
                 cancelFuture,
-                FlinkMatchers.futureFailedWith(
-                        FlinkJobTerminatedWithoutCancellationException.class));
+                FlinkMatchers.futureWillCompleteExceptionally(
+                        FlinkJobTerminatedWithoutCancellationException.class, Duration.ofHours(8)));
     }
 
     @Test
