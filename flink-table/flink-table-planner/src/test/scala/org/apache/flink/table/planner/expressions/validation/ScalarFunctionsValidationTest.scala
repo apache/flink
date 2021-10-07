@@ -196,6 +196,18 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testSqlApi("EXTRACT(DOY FROM TIME '12:42:25')", "0")
   }
 
+  @Test
+  def testISODOWWithTimeWhichIsUnsupported(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    testSqlApi("EXTRACT(ISODOW FROM TIME '12:42:25')", "0")
+  }
+
+  @Test
+  def testISOYEARWithTimeWhichIsUnsupported(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    testSqlApi("EXTRACT(ISOYEAR FROM TIME '12:42:25')", "0")
+  }
+
   private def testExtractFromTimeZeroResult(unit: TimeUnit): Unit = {
     thrown.expect(classOf[ValidationException])
     testSqlApi("EXTRACT(" + unit + " FROM TIME '00:00:00')", "0")
@@ -211,6 +223,12 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   def testCenturyWithTime(): Unit = {
     thrown.expect(classOf[ValidationException])
     testExtractFromTimeZeroResult(TimeUnit.CENTURY)
+  }
+
+  @Test
+  def testDecadeWithTime(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    testExtractFromTimeZeroResult(TimeUnit.DECADE)
   }
 
   @Test
