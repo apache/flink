@@ -36,6 +36,7 @@ import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_T
 import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_SEGMENT_SIZE;
 import static org.apache.flink.configuration.TaskManagerOptions.MIN_MEMORY_SEGMENT_SIZE;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test for {@link BufferDebloater}. */
@@ -105,14 +106,14 @@ public class BufferDebloaterTest extends TestLogger {
         testBufferSizeCalculation(3, asList(3, 5, 8), 3333, 50, 1100, -1, 248);
     }
 
-    private void testBufferSizeCalculation(
+    private BufferDebloater testBufferSizeCalculation(
             int numberOfGates,
             List<Integer> numberOfBuffersInUse,
             long throughput,
             long minBufferSize,
             long maxBufferSize,
             int consumptionTime,
-            long expectedBufferSize) {
+            int expectedBufferSize) {
         TestBufferSizeInputGate[] inputGates = new TestBufferSizeInputGate[numberOfGates];
         for (int i = 0; i < numberOfGates; i++) {
             inputGates[i] = new TestBufferSizeInputGate(numberOfBuffersInUse.get(i));
@@ -138,10 +139,12 @@ public class BufferDebloaterTest extends TestLogger {
         for (int i = 0; i < numberOfGates; i++) {
             assertThat(inputGates[i].lastBufferSize, is(expectedBufferSize));
         }
+
+        return bufferDebloater;
     }
 
     private static class TestBufferSizeInputGate extends MockInputGate {
-        private long lastBufferSize = -1;
+        private int lastBufferSize = -1;
         private final int bufferInUseCount;
 
         public TestBufferSizeInputGate(int bufferInUseCount) {
@@ -157,6 +160,8 @@ public class BufferDebloaterTest extends TestLogger {
 
         @Override
         public void announceBufferSize(int bufferSize) {
+            // Announce the same value doesn't make sense.
+            assertThat(bufferSize, is(not(lastBufferSize)));
             lastBufferSize = bufferSize;
         }
     }
