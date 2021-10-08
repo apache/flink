@@ -84,8 +84,10 @@ public class BufferDebloater {
                         newSize * totalNumber * MILLIS_IN_SECOND / Math.max(1, currentThroughput));
 
         boolean skipUpdate =
-                Math.abs(1 - ((double) lastBufferSize) / newSize) * 100
-                        < bufferDebloatThresholdPercentages;
+                newSize == lastBufferSize
+                        || (newSize > minBufferSize && newSize < maxBufferSize)
+                                && Math.abs(1 - ((double) lastBufferSize) / newSize) * 100
+                                        < bufferDebloatThresholdPercentages;
 
         // Skip update if the new value pretty close to the old one.
         if (skipUpdate) {

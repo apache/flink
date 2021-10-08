@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.BYTES;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_TARGET;
@@ -159,6 +160,56 @@ public class BufferDebloaterTest extends TestLogger {
                 .withNumberOfBuffersInUse(asList(3, 5, 8))
                 .withThroughput(3333)
                 .expectBufferSize(248);
+    }
+
+    @Test
+    public void testAnnouncedMaxBufferSizeDespiteLastDiffLessThanThreshold() {
+        BufferDebloater bufferDebloater =
+                testBufferDebloater()
+                        .withDebloatTarget(1000)
+                        .withBufferSize(50, 1100)
+                        .withNumberOfBuffersInUse(singletonList(1))
+                        .withThroughput(500)
+                        .expectBufferSize(500);
+
+        // Calculate the buffer size a little lower than the max buffer size.
+        bufferDebloater.recalculateBufferSize(1000);
+        assertThat(bufferDebloater.getLastBufferSize(), is(1000));
+
+        // Recalculate the buffer size to max value.
+        bufferDebloater.recalculateBufferSize(2000);
+
+        // The max value should be announced despite it differ from the previous one by less than
+        // threshold value.
+        assertThat(bufferDebloater.getLastBufferSize(), is(1100));
+
+        // Make sure that there is no repeated announcement of max buffer size.
+        bufferDebloater.recalculateBufferSize(2000);
+    }
+
+    @Test
+    public void testAnnouncedMinBufferSizeEvenDespiteLastDiffLessThanThreshold() {
+        BufferDebloater bufferDebloater =
+                testBufferDebloater()
+                        .withDebloatTarget(1000)
+                        .withBufferSize(50, 1100)
+                        .withNumberOfBuffersInUse(singletonList(1))
+                        .withThroughput(60)
+                        .expectBufferSize(60);
+
+        // Calculate the buffer size a little greater than the min buffer size.
+        bufferDebloater.recalculateBufferSize(60);
+        assertThat(bufferDebloater.getLastBufferSize(), is(60));
+
+        // Recalculate the buffer size to min value.
+        bufferDebloater.recalculateBufferSize(40);
+
+        // The min value should be announced despite it differ from the previous one by less than
+        // threshold value.
+        assertThat(bufferDebloater.getLastBufferSize(), is(50));
+
+        // Make sure that there is no repeated announcement of min buffer size.
+        bufferDebloater.recalculateBufferSize(40);
     }
 
     private static class TestBufferSizeInputGate extends MockInputGate {
