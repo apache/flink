@@ -22,8 +22,12 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -32,7 +36,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /** {@link TableResult} for testing. */
-public class TestTableResult implements TableResult {
+public class TestTableResult implements TableResultInternal {
     private final JobClient jobClient;
     private final ResolvedSchema resolvedSchema;
     private final ResultKind resultKind;
@@ -96,5 +100,28 @@ public class TestTableResult implements TableResult {
     @Override
     public void print() {
         // do nothing
+    }
+
+    @Override
+    public CloseableIterator<RowData> collectInternal() {
+        DataStructureConverter<Object, Object> converter =
+                DataStructureConverters.getConverter(resolvedSchema.toPhysicalRowDataType());
+        return new CloseableIterator<RowData>() {
+            @Override
+            public void close() throws Exception {
+                data.close();
+            }
+
+            @Override
+            public boolean hasNext() {
+                return data.hasNext();
+            }
+
+            @Override
+            public RowData next() {
+                Row row = data.next();
+                return (RowData) converter.toInternalOrNull(row);
+            }
+        };
     }
 }

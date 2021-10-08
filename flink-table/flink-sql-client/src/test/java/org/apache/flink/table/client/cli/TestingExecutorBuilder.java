@@ -19,7 +19,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.util.Arrays;
@@ -29,14 +29,14 @@ import java.util.List;
 /** Builder for {@link TestingExecutor}. */
 class TestingExecutorBuilder {
 
-    private List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
+    private List<SupplierWithException<TypedResult<List<RowData>>, SqlExecutionException>>
             resultChangesSupplier = Collections.emptyList();
-    private List<SupplierWithException<List<Row>, SqlExecutionException>> resultPagesSupplier =
+    private List<SupplierWithException<List<RowData>, SqlExecutionException>> resultPagesSupplier =
             Collections.emptyList();
 
     @SafeVarargs
     public final TestingExecutorBuilder setResultChangesSupplier(
-            SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>...
+            SupplierWithException<TypedResult<List<RowData>>, SqlExecutionException>...
                     resultChangesSupplier) {
         this.resultChangesSupplier = Arrays.asList(resultChangesSupplier);
         return this;
@@ -44,7 +44,7 @@ class TestingExecutorBuilder {
 
     @SafeVarargs
     public final TestingExecutorBuilder setResultPageSupplier(
-            SupplierWithException<List<Row>, SqlExecutionException>... resultPageSupplier) {
+            SupplierWithException<List<RowData>, SqlExecutionException>... resultPageSupplier) {
         resultPagesSupplier = Arrays.asList(resultPageSupplier);
         return this;
     }

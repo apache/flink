@@ -29,6 +29,11 @@ import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -41,12 +46,14 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
@@ -59,8 +66,8 @@ public class CliTableauResultViewTest {
     private ByteArrayOutputStream terminalOutput;
     private Terminal terminal;
     private ResolvedSchema schema;
-    private List<Row> data;
-    private List<Row> streamingData;
+    private List<RowData> data;
+    private List<RowData> streamingData;
 
     @Before
     public void setUp() {
@@ -76,87 +83,91 @@ public class CliTableauResultViewTest {
                         Column.physical("decimal(10, 5)", DataTypes.DECIMAL(10, 5)),
                         Column.physical("timestamp", DataTypes.TIMESTAMP(6)));
 
-        data = new ArrayList<>();
-        data.add(
-                Row.ofKind(
-                        RowKind.INSERT,
-                        null,
-                        1,
-                        2,
-                        "abc",
-                        BigDecimal.valueOf(1.23),
-                        Timestamp.valueOf("2020-03-01 18:39:14")));
-        data.add(
-                Row.ofKind(
-                        RowKind.UPDATE_BEFORE,
-                        false,
-                        null,
-                        0,
-                        "",
-                        BigDecimal.valueOf(1),
-                        Timestamp.valueOf("2020-03-01 18:39:14.1")));
-        data.add(
-                Row.ofKind(
-                        RowKind.UPDATE_AFTER,
-                        true,
-                        Integer.MAX_VALUE,
-                        null,
-                        "abcdefg",
-                        BigDecimal.valueOf(1234567890),
-                        Timestamp.valueOf("2020-03-01 18:39:14.12")));
-        data.add(
-                Row.ofKind(
-                        RowKind.DELETE,
-                        false,
-                        Integer.MIN_VALUE,
-                        Long.MAX_VALUE,
-                        null,
-                        BigDecimal.valueOf(12345.06789),
-                        Timestamp.valueOf("2020-03-01 18:39:14.123")));
-        data.add(
-                Row.ofKind(
-                        RowKind.INSERT,
-                        true,
-                        100,
-                        Long.MIN_VALUE,
-                        "abcdefg111",
-                        null,
-                        Timestamp.valueOf("2020-03-01 18:39:14.123456")));
-        data.add(
-                Row.ofKind(
-                        RowKind.DELETE,
-                        null,
-                        -1,
-                        -1,
-                        "abcdefghijklmnopqrstuvwxyz",
-                        BigDecimal.valueOf(-12345.06789),
-                        null));
+        List<Row> rows =
+                Arrays.asList(
+                        Row.ofKind(
+                                RowKind.INSERT,
+                                null,
+                                1,
+                                2L,
+                                "abc",
+                                BigDecimal.valueOf(1.23),
+                                Timestamp.valueOf("2020-03-01 18:39:14")),
+                        Row.ofKind(
+                                RowKind.UPDATE_BEFORE,
+                                false,
+                                null,
+                                0L,
+                                "",
+                                BigDecimal.valueOf(1),
+                                Timestamp.valueOf("2020-03-01 18:39:14.1")),
+                        Row.ofKind(
+                                RowKind.UPDATE_AFTER,
+                                true,
+                                Integer.MAX_VALUE,
+                                null,
+                                "abcdefg",
+                                BigDecimal.valueOf(12345),
+                                Timestamp.valueOf("2020-03-01 18:39:14.12")),
+                        Row.ofKind(
+                                RowKind.DELETE,
+                                false,
+                                Integer.MIN_VALUE,
+                                Long.MAX_VALUE,
+                                null,
+                                BigDecimal.valueOf(12345.06789),
+                                Timestamp.valueOf("2020-03-01 18:39:14.123")),
+                        Row.ofKind(
+                                RowKind.INSERT,
+                                true,
+                                100,
+                                Long.MIN_VALUE,
+                                "abcdefg111",
+                                null,
+                                Timestamp.valueOf("2020-03-01 18:39:14.123456")),
+                        Row.ofKind(
+                                RowKind.DELETE,
+                                null,
+                                -1,
+                                -1L,
+                                "abcdefghijklmnopqrstuvwxyz",
+                                BigDecimal.valueOf(-12345.06789),
+                                null),
+                        Row.ofKind(
+                                RowKind.INSERT,
+                                null,
+                                -1,
+                                -1L,
+                                "这是一段中文",
+                                BigDecimal.valueOf(-12345.06789),
+                                Timestamp.valueOf("2020-03-04 18:39:14")),
+                        Row.ofKind(
+                                RowKind.DELETE,
+                                null,
+                                -1,
+                                -1L,
+                                "これは日本語をテストするための文です",
+                                BigDecimal.valueOf(-12345.06789),
+                                Timestamp.valueOf("2020-03-04 18:39:14")));
 
-        data.add(
-                Row.ofKind(
-                        RowKind.INSERT,
-                        null,
-                        -1,
-                        -1,
-                        "这是一段中文",
-                        BigDecimal.valueOf(-12345.06789),
-                        Timestamp.valueOf("2020-03-04 18:39:14")));
-
-        data.add(
-                Row.ofKind(
-                        RowKind.DELETE,
-                        null,
-                        -1,
-                        -1,
-                        "これは日本語をテストするための文です",
-                        BigDecimal.valueOf(-12345.06789),
-                        Timestamp.valueOf("2020-03-04 18:39:14")));
-
-        streamingData = new ArrayList<>();
-        for (Row datum : data) {
-            Row row = Row.copy(datum);
-            streamingData.add(row);
-        }
+        Function<Row, RowData> toInternalMapper =
+                row ->
+                        GenericRowData.ofKind(
+                                row.getKind(),
+                                row.getField(0),
+                                row.getField(1),
+                                row.getField(2),
+                                (row.getField(3) == null)
+                                        ? null
+                                        : StringData.fromString(row.getFieldAs(3)),
+                                (row.getField(4) == null)
+                                        ? null
+                                        : DecimalData.fromBigDecimal(row.getFieldAs(4), 10, 5),
+                                (row.getField(5) == null)
+                                        ? null
+                                        : TimestampData.fromTimestamp(row.getFieldAs(5)));
+        data = rows.stream().map(toInternalMapper).collect(Collectors.toList());
+        streamingData = rows.stream().map(toInternalMapper).collect(Collectors.toList());
     }
 
     @Test
@@ -188,11 +199,11 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "|  (NULL) |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "|  (NULL) |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "|   false |      (NULL) |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "|   false |      (NULL) |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "|    true |  2147483647 |               (NULL) |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "|    true |  2147483647 |               (NULL) |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
                         + "|   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
@@ -349,11 +360,11 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "| +I |  (NULL) |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "| +I |  (NULL) |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| -U |   false |      (NULL) |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "| -U |   false |      (NULL) |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| +U |    true |  2147483647 |               (NULL) |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "| +U |    true |  2147483647 |               (NULL) |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
                         + "| -D |   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
@@ -445,11 +456,11 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "| +I |  (NULL) |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "| +I |  (NULL) |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| -U |   false |      (NULL) |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "| -U |   false |      (NULL) |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| +U |    true |  2147483647 |               (NULL) |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "| +U |    true |  2147483647 |               (NULL) |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
                         + "| -D |   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
@@ -496,11 +507,11 @@ public class CliTableauResultViewTest {
                         + System.lineSeparator()
                         + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "| +I |  (NULL) |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "| +I |  (NULL) |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| -U |   false |      (NULL) |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "| -U |   false |      (NULL) |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| +U |    true |  2147483647 |               (NULL) |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "| +U |    true |  2147483647 |               (NULL) |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
                         + "| -D |   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator(),

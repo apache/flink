@@ -21,6 +21,7 @@ package org.apache.flink.table.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
@@ -64,6 +65,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPr
 import static org.apache.flink.table.utils.TimestampStringUtils.localTimeToUnixDate;
 import static org.apache.flink.table.utils.TimestampStringUtils.timeToInternal;
 import static org.apache.flink.table.utils.TimestampStringUtils.timestampToString;
+import static org.apache.flink.table.utils.TimestampStringUtils.unixDateToString;
 import static org.apache.flink.table.utils.TimestampStringUtils.unixTimeToString;
 
 /** Utilities for print formatting. */
@@ -96,7 +98,7 @@ public class PrintUtils {
      */
     public static void printAsTableauForm(
             ResolvedSchema resolvedSchema,
-            Iterator<Row> it,
+            Iterator<RowData> it,
             PrintWriter printWriter,
             ZoneId sessionTimeZone) {
         printAsTableauForm(
@@ -142,7 +144,7 @@ public class PrintUtils {
      */
     public static void printAsTableauForm(
             ResolvedSchema resolvedSchema,
-            Iterator<Row> it,
+            Iterator<RowData> it,
             PrintWriter printWriter,
             int maxColumnWidth,
             String nullColumn,
@@ -171,11 +173,11 @@ public class PrintUtils {
                             nullColumn,
                             printRowKind ? ROW_KIND_COLUMN : null);
         } else {
-            final List<Row> rows = new ArrayList<>();
+            final List<RowData> rows = new ArrayList<>();
             final List<String[]> content = new ArrayList<>();
             content.add(columnNames);
             while (it.hasNext()) {
-                Row row = it.next();
+                RowData row = it.next();
                 rows.add(row);
                 content.add(
                         rowToString(
@@ -212,12 +214,12 @@ public class PrintUtils {
     }
 
     public static String[] rowToString(
-            Row row, ResolvedSchema resolvedSchema, ZoneId sessionTimeZone) {
+            RowData row, ResolvedSchema resolvedSchema, ZoneId sessionTimeZone) {
         return rowToString(row, NULL_COLUMN, false, resolvedSchema, sessionTimeZone);
     }
 
     public static String[] rowToString(
-            Row row,
+            RowData row,
             String nullColumn,
             boolean printRowKind,
             ResolvedSchema resolvedSchema,
@@ -225,12 +227,12 @@ public class PrintUtils {
         final int len = printRowKind ? row.getArity() + 1 : row.getArity();
         final List<String> fields = new ArrayList<>(len);
         if (printRowKind) {
-            fields.add(row.getKind().shortString());
+            fields.add(row.getRowKind().shortString());
         }
         for (int i = 0; i < row.getArity(); i++) {
-            final Object field = row.getField(i);
             final LogicalType fieldType =
                     resolvedSchema.getColumnDataTypes().get(i).getLogicalType();
+            final Object field = RowData.createFieldGetter(fieldType, i).getFieldOrNull(row);
             if (field == null) {
                 fields.add(nullColumn);
             } else {
@@ -259,6 +261,8 @@ public class PrintUtils {
                 return formatTimestampField(field, fieldType, sessionTimeZone);
             case TIME_WITHOUT_TIME_ZONE:
                 return formatTimeField(field);
+            case DATE:
+                return unixDateToString((int) field);
             case ARRAY:
                 LogicalType elementType = ((ArrayType) fieldType).getElementType();
                 if (field instanceof List) {
@@ -267,6 +271,18 @@ public class PrintUtils {
                     for (int i = 0; i < array.size(); i++) {
                         formattedArray[i] =
                                 formattedTimestamp(array.get(i), elementType, sessionTimeZone);
+                    }
+                    return formattedArray;
+                } else if (field instanceof ArrayData) {
+                    ArrayData array = (ArrayData) field;
+                    Object[] formattedArray = new Object[array.size()];
+                    for (int i = 0; i < array.size(); i++) {
+                        formattedArray[i] =
+                                formattedTimestamp(
+                                        ArrayData.createElementGetter(elementType)
+                                                .getElementOrNull(array, i),
+                                        elementType,
+                                        sessionTimeZone);
                     }
                     return formattedArray;
                 } else if (field.getClass().isArray()) {
@@ -391,14 +407,20 @@ public class PrintUtils {
                 } else if (fieldType instanceof MapType && field instanceof MapData) {
                     MapData map = ((MapData) field);
                     Map<Object, Object> formattedMap = new HashMap<>(map.size());
-                    Object[] keyArray =
-                            (Object[]) formattedTimestamp(map.keyArray(), keyType, sessionTimeZone);
-                    Object[] valueArray =
-                            (Object[])
-                                    formattedTimestamp(
-                                            map.valueArray(), valueType, sessionTimeZone);
-                    for (int i = 0; i < keyArray.length; i++) {
-                        formattedMap.put(keyArray[i], valueArray[i]);
+                    ArrayData keyArray = map.keyArray();
+                    ArrayData valueArray = map.valueArray();
+                    for (int i = 0; i < keyArray.size(); i++) {
+                        formattedMap.put(
+                                formattedTimestamp(
+                                        ArrayData.createElementGetter(keyType)
+                                                .getElementOrNull(keyArray, i),
+                                        keyType,
+                                        sessionTimeZone),
+                                formattedTimestamp(
+                                        ArrayData.createElementGetter(valueType)
+                                                .getElementOrNull(valueArray, i),
+                                        valueType,
+                                        sessionTimeZone));
                     }
                     return formattedMap;
                 } else {

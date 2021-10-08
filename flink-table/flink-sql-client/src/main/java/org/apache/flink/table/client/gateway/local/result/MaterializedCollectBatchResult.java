@@ -19,33 +19,26 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.api.TableResult;
-import org.apache.flink.types.Row;
-
-import java.util.List;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.data.RowData;
 
 /** Collects results and returns them as table snapshots. */
 public class MaterializedCollectBatchResult extends MaterializedCollectResultBase {
 
     @VisibleForTesting
     public MaterializedCollectBatchResult(
-            TableResult tableResult, int maxRowCount, int overcommitThreshold) {
+            TableResultInternal tableResult, int maxRowCount, int overcommitThreshold) {
         super(tableResult, maxRowCount, overcommitThreshold);
         // start listener thread
         retrievalThread.start();
     }
 
-    public MaterializedCollectBatchResult(TableResult tableResult, int maxRowCount) {
+    public MaterializedCollectBatchResult(TableResultInternal tableResult, int maxRowCount) {
         this(tableResult, maxRowCount, computeMaterializedTableOvercommit(maxRowCount));
     }
 
-    @VisibleForTesting
-    protected List<Row> getMaterializedTable() {
-        return materializedTable;
-    }
-
     @Override
-    protected void processRecord(Row row) {
+    protected void processRecord(RowData row) {
         // limit the materialized table
         if (materializedTable.size() - validRowPosition >= maxRowCount) {
             cleanUp();

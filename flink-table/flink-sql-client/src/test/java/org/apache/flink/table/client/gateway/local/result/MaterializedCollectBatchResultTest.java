@@ -20,10 +20,13 @@ package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
-import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
@@ -31,6 +34,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.function.Function;
 
 import static org.junit.Assert.assertEquals;
 
@@ -44,6 +48,11 @@ public class MaterializedCollectBatchResultTest {
                         new String[] {"f0", "f1"},
                         new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()});
 
+        DataStructureConverter<Object, Object> dataStructureConverter =
+                DataStructureConverters.getConverter(schema.toPhysicalRowDataType());
+        Function<Row, RowData> converter =
+                row -> (RowData) dataStructureConverter.toInternalOrNull(row);
+
         try (TestMaterializedCollectBatchResult result =
                 new TestMaterializedCollectBatchResult(
                         new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema),
@@ -51,27 +60,45 @@ public class MaterializedCollectBatchResultTest {
 
             result.isRetrieving = true;
 
-            result.processRecord(Row.of("A", 1));
-            result.processRecord(Row.of("B", 1));
-            result.processRecord(Row.of("A", 1));
-            result.processRecord(Row.of("C", 2));
+            result.processRecord(converter.apply(Row.of("A", 1)));
+            result.processRecord(converter.apply(Row.of("B", 1)));
+            result.processRecord(converter.apply(Row.of("A", 1)));
+            result.processRecord(converter.apply(Row.of("C", 2)));
 
             assertEquals(TypedResult.payload(4), result.snapshot(1));
 
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(1));
-            assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(2));
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(3));
-            assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(4));
+            assertEquals(
+                    Collections.singletonList(converter.apply(Row.of("A", 1))),
+                    result.retrievePage(1));
+            assertEquals(
+                    Collections.singletonList(converter.apply(Row.of("B", 1))),
+                    result.retrievePage(2));
+            assertEquals(
+                    Collections.singletonList(converter.apply(Row.of("A", 1))),
+                    result.retrievePage(3));
+            assertEquals(
+                    Collections.singletonList(converter.apply(Row.of("C", 2))),
+                    result.retrievePage(4));
 
-            result.processRecord(Row.of("A", 1));
+            result.processRecord(converter.apply(Row.of("A", 1)));
 
             assertEquals(TypedResult.payload(5), result.snapshot(1));
 
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(1));
-            assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(2));
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(3));
-            assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(4));
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(5));
+            assertEquals(
+                    Collections.singletonList(converter.apply(Row.of("A", 1))),
+                    result.retrievePage(1));
+            assertEquals(
+                    Collections.singletonList(converter.apply(Row.of("B", 1))),
+                    result.retrievePage(2));
+            assertEquals(
+                    Collections.singletonList(converter.apply(Row.of("A", 1))),
+                    result.retrievePage(3));
+            assertEquals(
+                    Collections.singletonList(converter.apply(Row.of("C", 2))),
+                    result.retrievePage(4));
+            assertEquals(
+                    Collections.singletonList(converter.apply(Row.of("A", 1))),
+                    result.retrievePage(5));
         }
     }
 
@@ -82,6 +109,11 @@ public class MaterializedCollectBatchResultTest {
                         new String[] {"f0", "f1"},
                         new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()});
 
+        DataStructureConverter<Object, Object> dataStructureConverter =
+                DataStructureConverters.getConverter(schema.toPhysicalRowDataType());
+        Function<Row, RowData> converter =
+                row -> (RowData) dataStructureConverter.toInternalOrNull(row);
+
         try (TestMaterializedCollectBatchResult result =
                 new TestMaterializedCollectBatchResult(
                         new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema),
@@ -89,31 +121,41 @@ public class MaterializedCollectBatchResultTest {
                         3)) { // with 3 rows overcommitment
             result.isRetrieving = true;
 
-            result.processRecord(Row.of("D", 1));
-            result.processRecord(Row.of("A", 1));
-            result.processRecord(Row.of("B", 1));
-            result.processRecord(Row.of("A", 1));
+            result.processRecord(converter.apply(Row.of("D", 1)));
+            result.processRecord(converter.apply(Row.of("A", 1)));
+            result.processRecord(converter.apply(Row.of("B", 1)));
+            result.processRecord(converter.apply(Row.of("A", 1)));
 
             assertEquals(
                     Arrays.asList(
-                            null, null, Row.of("B", 1), Row.of("A", 1)), // two over-committed rows
+                            null,
+                            null,
+                            converter.apply(Row.of("B", 1)),
+                            converter.apply(Row.of("A", 1))), // two over-committed rows
                     result.getMaterializedTable());
 
             assertEquals(TypedResult.payload(2), result.snapshot(1));
 
-            assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(1));
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(2));
+            assertEquals(
+                    Collections.singletonList(converter.apply(Row.of("B", 1))),
+                    result.retrievePage(1));
+            assertEquals(
+                    Collections.singletonList(converter.apply(Row.of("A", 1))),
+                    result.retrievePage(2));
 
-            result.processRecord(Row.of("C", 1));
+            result.processRecord(converter.apply(Row.of("C", 1)));
 
             assertEquals(
-                    Arrays.asList(Row.of("A", 1), Row.of("C", 1)), // limit clean up has taken place
+                    Arrays.asList(
+                            converter.apply(Row.of("A", 1)),
+                            converter.apply(Row.of("C", 1))), // limit clean up has taken place
                     result.getMaterializedTable());
 
-            result.processRecord(Row.of("A", 1));
+            result.processRecord(converter.apply(Row.of("A", 1)));
 
             assertEquals(
-                    Arrays.asList(null, Row.of("C", 1), Row.of("A", 1)),
+                    Arrays.asList(
+                            null, converter.apply(Row.of("C", 1)), converter.apply(Row.of("A", 1))),
                     result.getMaterializedTable());
         }
     }
@@ -128,11 +170,12 @@ public class MaterializedCollectBatchResultTest {
         public boolean isRetrieving;
 
         public TestMaterializedCollectBatchResult(
-                TableResult tableResult, int maxRowCount, int overcommitThreshold) {
+                TableResultInternal tableResult, int maxRowCount, int overcommitThreshold) {
             super(tableResult, maxRowCount, overcommitThreshold);
         }
 
-        public TestMaterializedCollectBatchResult(TableResult tableResult, int maxRowCount) {
+        public TestMaterializedCollectBatchResult(
+                TableResultInternal tableResult, int maxRowCount) {
             super(tableResult, maxRowCount);
         }
 

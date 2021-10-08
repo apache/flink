@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.internal.CollectResultProvider;
+import org.apache.flink.table.api.internal.ResultProvider;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.util.Collections;
@@ -39,7 +39,7 @@ public final class CollectModifyOperation implements ModifyOperation {
     private final QueryOperation child;
 
     // help the client to get the execute result from a specific sink.
-    private CollectResultProvider resultProvider;
+    private ResultProvider resultProvider;
 
     public CollectModifyOperation(ObjectIdentifier tableIdentifier, QueryOperation child) {
         this.tableIdentifier = tableIdentifier;
@@ -54,11 +54,11 @@ public final class CollectModifyOperation implements ModifyOperation {
         return tableIdentifier;
     }
 
-    public void setSelectResultProvider(CollectResultProvider resultProvider) {
+    public void setSelectResultProvider(ResultProvider resultProvider) {
         this.resultProvider = resultProvider;
     }
 
-    public CollectResultProvider getSelectResultProvider() {
+    public ResultProvider getSelectResultProvider() {
         return resultProvider;
     }
 
