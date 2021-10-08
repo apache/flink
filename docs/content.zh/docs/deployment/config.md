@@ -410,6 +410,8 @@ These configuration keys control basic Resource Manager behavior, independent of
 
 ### Full TaskManagerOptions
 
+Please refer to the [network memory tuning guide]({{< ref "docs/deployment/memory/network_mem_tuning" >}}) for details on how to use the `taskmanager.network.memory.buffer-debloat.*` configuration.
+
 {{< generated/all_taskmanager_section >}}
 
 **Data Transport Network Stack**
