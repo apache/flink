@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog;
 
+import javax.annotation.Nullable;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
@@ -43,7 +45,7 @@ import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 public class CatalogTableImpl extends AbstractCatalogTable {
 
     public CatalogTableImpl(
-            TableSchema tableSchema, Map<String, String> properties, String comment) {
+            TableSchema tableSchema, Map<String, String> properties, @Nullable String comment) {
         this(tableSchema, new ArrayList<>(), properties, comment);
     }
 
@@ -51,7 +53,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
             TableSchema tableSchema,
             List<String> partitionKeys,
             Map<String, String> properties,
-            String comment) {
+            @Nullable String comment) {
         super(tableSchema, partitionKeys, properties, comment);
     }
 
@@ -66,7 +68,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
 
     @Override
     public Optional<String> getDescription() {
-        return Optional.of(getComment());
+        return Optional.ofNullable(getComment());
     }
 
     @Override

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog;
 
+import java.util.Optional;
+
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -60,6 +62,15 @@ public class CatalogTableImpTest {
         assertEquals(tableFromProperties.getOptions(), table.getOptions());
         assertEquals(tableFromProperties.getPartitionKeys(), table.getPartitionKeys());
         assertEquals(tableFromProperties.getSchema(), table.getSchema());
+    }
+
+    @Test
+    public void testNullComment() {
+        TableSchema schema = createTableSchema();
+        Map<String, String> prop = createProperties();
+        CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, null);
+
+        assertEquals(Optional.empty(), table.getDescription());
     }
 
     private static Map<String, String> createProperties() {

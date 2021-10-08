@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog;
 
+import javax.annotation.Nullable;
+
 import org.apache.flink.table.api.TableSchema;
 
 import java.util.ArrayList;
@@ -37,10 +39,10 @@ public abstract class AbstractCatalogTable implements CatalogTable {
     // Properties of the table
     private final Map<String, String> options;
     // Comment of the table
-    private final String comment;
+    @Nullable private final String comment;
 
     public AbstractCatalogTable(
-            TableSchema tableSchema, Map<String, String> options, String comment) {
+            TableSchema tableSchema, Map<String, String> options, @Nullable String comment) {
         this(tableSchema, new ArrayList<>(), options, comment);
     }
 
@@ -48,7 +50,7 @@ public abstract class AbstractCatalogTable implements CatalogTable {
             TableSchema tableSchema,
             List<String> partitionKeys,
             Map<String, String> options,
-            String comment) {
+            @Nullable String comment) {
         this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
         this.partitionKeys = checkNotNull(partitionKeys, "partitionKeys cannot be null");
         this.options = checkNotNull(options, "options cannot be null");
