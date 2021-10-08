@@ -20,6 +20,7 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.TimeZone;
@@ -121,6 +122,13 @@ public class TimestampStringUtils {
     public static String unixTimeToString(int time) {
         final StringBuilder buf = new StringBuilder(8);
         unixTimeToString(buf, time, 0); // set milli second precision to 0
+        return buf.toString();
+    }
+
+    public static String unixDateToString(int time) {
+        final StringBuilder buf = new StringBuilder(8);
+        final LocalDate date = LocalDate.ofEpochDay(time);
+        ymd(buf, date.getYear(), date.getMonthValue(), date.getDayOfMonth());
         return buf.toString();
     }
 

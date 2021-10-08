@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.config.SqlClientOptions;
@@ -622,7 +623,7 @@ public class CliClient implements AutoCloseable {
     }
 
     private void executeOperation(Operation operation) {
-        TableResult result = executor.executeOperation(sessionId, operation);
+        TableResultInternal result = executor.executeOperation(sessionId, operation);
         if (TABLE_RESULT_OK == result) {
             // print more meaningful message than tableau OK result
             printInfo(MESSAGE_EXECUTE_STATEMENT);
@@ -630,7 +631,7 @@ public class CliClient implements AutoCloseable {
             // print tableau if result has content
             PrintUtils.printAsTableauForm(
                     result.getResolvedSchema(),
-                    result.collect(),
+                    result.collectInternal(),
                     terminal.writer(),
                     Integer.MAX_VALUE,
                     "",
