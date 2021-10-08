@@ -778,7 +778,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         systemTimerService.registerTimer(
                 systemTimerService.getCurrentProcessingTime() + bufferDebloatPeriod,
                 timestamp ->
-                        mainMailboxExecutor.submit(
+                        mainMailboxExecutor.execute(
                                 () -> {
                                     debloat();
                                     scheduleBufferDebloater();
