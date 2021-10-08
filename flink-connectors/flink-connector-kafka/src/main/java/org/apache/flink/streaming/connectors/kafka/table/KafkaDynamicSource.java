@@ -436,7 +436,7 @@ public class KafkaDynamicSource
 
         // adjust physical arity with value format's metadata
         final int adjustedPhysicalArity =
-                producedDataType.getChildren().size() - metadataKeys.size();
+                DataType.getFieldDataTypes(producedDataType).size() - metadataKeys.size();
 
         // adjust value format projection to include value format's metadata columns at the end
         final int[] adjustedValueProjection =
