@@ -177,13 +177,13 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
         context.getSqlExprToRexConverterFactory
 
+      override def getFlinkRelBuilder: FlinkRelBuilder = planner.getRelBuilder
+
       override def isUpdateBeforeRequired: Boolean = updateBeforeRequired
 
       def getMiniBatchInterval: MiniBatchInterval = miniBatchInterval
 
       override def needFinalTimeIndicatorConversion: Boolean = isSinkBlock
-
-      override def getFlinkRelBuilder: FlinkRelBuilder = planner.getRelBuilder
     })
   }
 

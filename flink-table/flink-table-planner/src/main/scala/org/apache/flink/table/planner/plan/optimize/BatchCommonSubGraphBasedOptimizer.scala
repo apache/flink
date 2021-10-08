@@ -100,9 +100,9 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
       override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
         context.getSqlExprToRexConverterFactory
 
-      override def needFinalTimeIndicatorConversion: Boolean = true
-
       override def getFlinkRelBuilder: FlinkRelBuilder = planner.getRelBuilder
+
+      override def needFinalTimeIndicatorConversion: Boolean = true
     })
   }
 
