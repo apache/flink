@@ -16,26 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network;
+package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
-
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
+/** Abstract class for representing the output message. */
+abstract class ClientOutboundMessage {
+    protected final RemoteInputChannel inputChannel;
 
-/** Channel handler to read and write network messages on client side. */
-public interface NetworkClientHandler extends ChannelHandler {
-
-    void addInputChannel(RemoteInputChannel inputChannel) throws IOException;
-
-    void removeInputChannel(RemoteInputChannel inputChannel);
+    ClientOutboundMessage(RemoteInputChannel inputChannel) {
+        this.inputChannel = inputChannel;
+    }
 
     @Nullable
-    RemoteInputChannel getInputChannel(InputChannelID inputChannelId);
-
-    void cancelRequestFor(InputChannelID inputChannelId);
+    abstract Object buildMessage();
 }
