@@ -257,6 +257,11 @@ public class HistoryServer {
         return netty.getServerPort();
     }
 
+    @VisibleForTesting
+    void fetchArchives() {
+        executor.execute(getArchiveFetchingRunnable());
+    }
+
     public void run() {
         try {
             start();
