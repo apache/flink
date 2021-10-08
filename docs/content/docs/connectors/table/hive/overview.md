@@ -32,7 +32,7 @@ It serves as not only a SQL engine for big data analytics and ETL, but also a da
 Flink offers a two-fold integration with Hive.
 
 The first is to leverage Hive's Metastore as a persistent catalog with Flink's `HiveCatalog` for storing Flink specific metadata across sessions.
-For example, users can store their Kafka or ElasticSearch tables in Hive Metastore by using `HiveCatalog`, and reuse them later on in SQL queries.
+For example, users can store their Kafka or Elasticsearch tables in Hive Metastore by using `HiveCatalog`, and reuse them later on in SQL queries.
 
 The second is to offer Flink as an alternative engine for reading and writing Hive tables.
 
