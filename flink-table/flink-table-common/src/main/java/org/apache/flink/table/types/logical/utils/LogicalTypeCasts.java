@@ -43,6 +43,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_S
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CONSTRUCTED;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.EXACT_NUMERIC;
+import static org.apache.flink.table.types.logical.LogicalTypeFamily.INTEGER_NUMERIC;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.INTERVAL;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.NUMERIC;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.PREDEFINED;
@@ -122,7 +123,10 @@ public final class LogicalTypeCasts {
 
         castTo(VARCHAR).implicitFromFamily(CHARACTER_STRING).explicitFromFamily(PREDEFINED).build();
 
-        castTo(BOOLEAN).implicitFrom(BOOLEAN).explicitFromFamily(CHARACTER_STRING, NUMERIC).build();
+        castTo(BOOLEAN)
+                .implicitFrom(BOOLEAN)
+                .explicitFromFamily(CHARACTER_STRING, INTEGER_NUMERIC)
+                .build();
 
         castTo(BINARY)
                 .implicitFrom(BINARY)

@@ -175,8 +175,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // BINARY
                         // VARBINARY
                         // BYTES
-                        .fromCase(DECIMAL(4, 3), 9.87, true)
-                        .fromCase(DECIMAL(2, 1), 0.0, false)
+                        // https://issues.apache.org/jira/browse/FLINK-24576 should also fail for
+                        // SQL
+                        .failTableApi(DECIMAL(4, 3), 4.3)
                         .fromCase(TINYINT(), -125, true)
                         .fromCase(TINYINT(), 0, false)
                         .fromCase(SMALLINT(), 32767, true)
@@ -185,10 +186,10 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(INT(), 0, false)
                         .fromCase(BIGINT(), 1234567891234L, true)
                         .fromCase(BIGINT(), 0, false)
-                        .fromCase(FLOAT(), -123.456, true)
-                        .fromCase(FLOAT(), 0, false)
-                        .fromCase(DOUBLE(), 12345.67890, true)
-                        .fromCase(DOUBLE(), 0, false)
+                        // https://issues.apache.org/jira/browse/FLINK-24576 should also fail for
+                        // SQL
+                        .failTableApi(FLOAT(), -123.456)
+                        .failTableApi(DOUBLE(), 0)
                         // Not supported - no fix
                         // DATE
                         // TIME
@@ -891,6 +892,13 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         private final List<Object> columnData = new ArrayList<>();
         private final List<AbstractDataType<?>> columnTypes = new ArrayList<>();
         private final List<Object> expectedValues = new ArrayList<>();
+        private final List<TestType> testTypes = new ArrayList<>();
+
+        private enum TestType {
+            RESULT,
+            ERROR_SQL,
+            ERROR_TABLE_API
+        }
 
         private static CastTestSpecBuilder testCastTo(DataType targetType) {
             CastTestSpecBuilder tsb = new CastTestSpecBuilder();
@@ -903,26 +911,51 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
         private CastTestSpecBuilder fromCase(
                 AbstractDataType<?> dataType, Object src, Object target) {
+            this.testTypes.add(TestType.RESULT);
             this.columnTypes.add(dataType);
             this.columnData.add(src);
             this.expectedValues.add(target);
             return this;
         }
 
+        private CastTestSpecBuilder failTableApi(AbstractDataType<?> dataType, Object src) {
+            this.testTypes.add(TestType.ERROR_TABLE_API);
+            this.columnTypes.add(dataType);
+            this.columnData.add(src);
+            return this;
+        }
+
         private TestSpec build() {
-            ResultSpec[] testSpecs = new ResultSpec[columnData.size()];
+            List<ResultSpec> testSpecs = new ArrayList<>(columnData.size());
+            // expectedValues may contain less elements if there are also error test cases
+            int idxOffset = 0;
             for (int i = 0; i < columnData.size(); i++) {
                 String colName = "f" + i;
-                testSpecs[i] =
-                        resultSpec(
+                switch (testTypes.get(i)) {
+                    case ERROR_TABLE_API:
+                        testSpec.testTableApiValidationError(
                                 $(colName).cast(targetType),
-                                "CAST(" + colName + " AS " + targetType.toString() + ")",
-                                expectedValues.get(i),
-                                targetType);
+                                String.format(
+                                        "Invalid function call:%ncast("
+                                                + columnTypes.get(i).toString()
+                                                + ", "
+                                                + targetType.toString()
+                                                + ")"));
+                        idxOffset++;
+                        break;
+                    case RESULT:
+                        testSpecs.add(
+                                resultSpec(
+                                        $(colName).cast(targetType),
+                                        "CAST(" + colName + " AS " + targetType.toString() + ")",
+                                        expectedValues.get(i - idxOffset),
+                                        targetType));
+                        break;
+                }
             }
             testSpec.onFieldsWithData(columnData.toArray())
                     .andDataTypes(columnTypes.toArray(new AbstractDataType<?>[] {}))
-                    .testResult(testSpecs);
+                    .testResult(testSpecs.toArray(new ResultSpec[0]));
             return testSpec;
         }
     }
