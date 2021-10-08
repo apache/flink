@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.planner.plan.optimize.program
 
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder}
+import org.apache.flink.table.planner.calcite.FlinkContext
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 
 /**
   * A FlinkOptimizeContext allows to obtain table environment information when optimizing.
