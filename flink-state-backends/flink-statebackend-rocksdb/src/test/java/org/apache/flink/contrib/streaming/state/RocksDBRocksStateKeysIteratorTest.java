@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 
@@ -31,6 +32,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyHandle;
+import org.testcontainers.shaded.com.google.common.collect.Lists;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -56,6 +58,48 @@ public class RocksDBRocksStateKeysIteratorTest {
 
         // test for keyGroupPrefixBytes == 2 && ambiguousKeyPossible == true
         testIteratorHelper(StringSerializer.INSTANCE, 256, String::valueOf);
+    }
+
+    @Test
+    public void testSeekToLast() throws Exception {
+        String testStateName = "aha";
+        String namespace = "ns";
+
+        try (RocksDBKeyedStateBackendTestFactory factory =
+                new RocksDBKeyedStateBackendTestFactory()) {
+            RocksDBKeyedStateBackend<Integer> keyedStateBackend =
+                    factory.create(tmp, IntSerializer.INSTANCE, 1);
+            ValueState<String> testState =
+                    keyedStateBackend.getPartitionedState(
+                            namespace,
+                            StringSerializer.INSTANCE,
+                            new ValueStateDescriptor<>(testStateName, String.class));
+
+            // insert record
+            for (int i = 0; i < 1000; ++i) {
+                keyedStateBackend.setCurrentKey(i);
+                testState.update(String.valueOf(i));
+            }
+
+            ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
+            try (RocksIteratorWrapper iterator =
+                    RocksDBOperationUtils.getRocksIterator(
+                            keyedStateBackend.db, handle, keyedStateBackend.getReadOptions())) {
+                iterator.seekToLast();
+
+                // valid record
+                List<String> fetchedValues = new ArrayList<>(1);
+                while (iterator.isValid()) {
+                    fetchedValues.add(
+                            StringSerializer.INSTANCE.deserialize(
+                                    new DataInputDeserializer(iterator.value())));
+                    iterator.next();
+                }
+
+                Assert.assertEquals(1, fetchedValues.size());
+                Assert.assertEquals(Lists.newArrayList("999"), fetchedValues);
+            }
+        }
     }
 
     <K> void testIteratorHelper(
