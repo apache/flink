@@ -413,11 +413,32 @@ object ScalarOperatorGens {
     }
   }
 
+  /**
+   * check the validity of implicit type conversion
+   * See: https://cwiki.apache.org/confluence/display/FLINK/FLIP-154%3A+SQL+Implicit+Type+Coercion
+   */
+  private def checkImplicitConversionValidity(
+      left: GeneratedExpression,
+      right: GeneratedExpression): Unit = {
+    // TODO: in flip-154, we should support implicit type conversion between (var)char and numeric,
+    // but flink has not yet supported now
+    if ((isNumeric(left.resultType) && isCharacterString(right.resultType))
+      || (isNumeric(right.resultType) && isCharacterString(left.resultType))) {
+      throw new CodeGenException(
+        "implicit type conversion between " +
+          s"${left.resultType.getTypeRoot}" +
+          s" and " +
+          s"${right.resultType.getTypeRoot}" +
+          s" is not supported now")
+    }
+  }
+
   def generateEquals(
       ctx: CodeGeneratorContext,
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
+    checkImplicitConversionValidity(left,right)
     val canEqual = isInteroperable(left.resultType, right.resultType)
     if (isCharacterString(left.resultType) && isCharacterString(right.resultType)) {
       generateOperatorIfNotNull(ctx, new BooleanType(), left, right) {
@@ -517,6 +538,7 @@ object ScalarOperatorGens {
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
+    checkImplicitConversionValidity(left,right)
     if (isCharacterString(left.resultType) && isCharacterString(right.resultType)) {
       generateOperatorIfNotNull(ctx, new BooleanType(), left, right) {
         (leftTerm, rightTerm) => s"!$leftTerm.equals($rightTerm)"
