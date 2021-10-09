@@ -70,7 +70,8 @@ public class CatalogTableImpTest {
         Map<String, String> prop = createProperties();
         CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, null);
 
-        assertEquals(Optional.empty(), table.getDescription());
+        assertEquals("", table.getComment());
+        assertEquals(Optional.of(""), table.getDescription());
     }
 
     private static Map<String, String> createProperties() {

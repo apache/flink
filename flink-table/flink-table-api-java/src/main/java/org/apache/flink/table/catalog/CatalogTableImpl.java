@@ -68,7 +68,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
 
     @Override
     public Optional<String> getDescription() {
-        return Optional.ofNullable(getComment());
+        return Optional.of(getComment());
     }
 
     @Override
