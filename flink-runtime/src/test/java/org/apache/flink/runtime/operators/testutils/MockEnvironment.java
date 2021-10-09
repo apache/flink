@@ -46,6 +46,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
@@ -127,11 +128,13 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
+    private final ThroughputCalculator throughputCalculator;
+
     private MailboxExecutor mainMailboxExecutor;
 
     private ExecutorService asyncOperationsThreadPool;
 
-    private final ThroughputCalculator throughputCalculator;
+    private CheckpointStorageAccess checkpointStorageAccess;
 
     public static MockEnvironmentBuilder builder() {
         return new MockEnvironmentBuilder();

@@ -65,6 +65,8 @@ import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
+import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
@@ -1563,14 +1565,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     // ------------------------------------------------------------------------
 
     /** Utility class to encapsulate the handling of asynchronous exceptions. */
-    static class StreamTaskAsyncExceptionHandler {
+    static class StreamTaskAsyncExceptionHandler implements AsyncExceptionHandler {
         private final Environment environment;
 
         StreamTaskAsyncExceptionHandler(Environment environment) {
             this.environment = environment;
         }
 
-        void handleAsyncException(String message, Throwable exception) {
+        @Override
+        public void handleAsyncException(String message, Throwable exception) {
             environment.failExternally(new AsynchronousException(message, exception));
         }
     }

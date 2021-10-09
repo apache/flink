@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks;
+package org.apache.flink.runtime.taskmanager;
 
 /**
  * An interface marking a task as capable of handling exceptions thrown by different threads, other
