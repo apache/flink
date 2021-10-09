@@ -24,10 +24,10 @@ import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.util.ArrayUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
-import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -38,13 +38,13 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class CoreOptions {
 
     @Internal
-    public static final List<String> PARENT_FIRST_LOGGING_PATTERNS =
-            Arrays.asList(
-                    "org.slf4j",
-                    "org.apache.log4j",
-                    "org.apache.logging",
-                    "org.apache.commons.logging",
-                    "ch.qos.logback");
+    public static final String[] PARENT_FIRST_LOGGING_PATTERNS = new String[]{
+            "org.slf4j",
+            "org.apache.log4j",
+            "org.apache.logging",
+            "org.apache.commons.logging",
+            "ch.qos.logback"
+    };
 
     // ------------------------------------------------------------------------
     //  Classloading Parameters
@@ -105,24 +105,22 @@ public class CoreOptions {
             ConfigOptions.key("classloader.parent-first-patterns.default")
                     .stringType()
                     .asList()
-                    .defaultValues(
-                            mergeListsToArray(
-                                    Arrays.asList(
-                                            "java.",
-                                            "scala.",
-                                            "org.apache.flink.",
-                                            "com.esotericsoftware.kryo",
-                                            "org.apache.hadoop.",
-                                            "javax.annotation.",
-                                            "org.xml",
-                                            "javax.xml",
-                                            "org.apache.xerces",
-                                            "org.w3c",
-                                    "org.rocksdb."),
-                            PARENT_FIRST_LOGGING_PATTERNS))
+                    .defaultValues(ArrayUtils.concat(new String[]{
+                            "java.",
+                            "scala.",
+                            "org.apache.flink.",
+                            "com.esotericsoftware.kryo",
+                            "org.apache.hadoop.",
+                            "javax.annotation.",
+                            "org.xml",
+                            "javax.xml",
+                            "org.apache.xerces",
+                            "org.w3c",
+                            "org.rocksdb."
+                    }, PARENT_FIRST_LOGGING_PATTERNS))
                     .withDeprecatedKeys("classloader.parent-first-patterns")
                     .withDescription(
-                            "A list of patterns that specifies which classes should always be"
+                            "A (semicolon-separated) list of patterns that specifies which classes should always be"
                                     + " resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against"
                                     + " the fully qualified class name. This setting should generally not be modified. To add another pattern we"
                                     + " recommend to use \"classloader.parent-first-patterns.additional\" instead.");
@@ -132,9 +130,9 @@ public class CoreOptions {
             ConfigOptions.key("classloader.parent-first-patterns.additional")
                     .stringType()
                     .asList()
-                    .noDefaultValue()
+                    .defaultValues()
                     .withDescription(
-                            "A list of patterns that specifies which classes should always be"
+                            "A (semicolon-separated) list of patterns that specifies which classes should always be"
                                     + " resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against"
                                     + " the fully qualified class name. These patterns are appended to \""
                                     + ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key()
@@ -150,12 +148,8 @@ public class CoreOptions {
                                     + "thrown while trying to load a user code class.");
 
     public static String[] getParentFirstLoaderPatterns(Configuration config) {
-        List<String> base =
-                ConfigUtils.decodeListFromConfig(
-                        config, ALWAYS_PARENT_FIRST_LOADER_PATTERNS, String::new);
-        List<String> append =
-                ConfigUtils.decodeListFromConfig(
-                        config, ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL, String::new);
+        List<String> base = config.get(ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
+        List<String> append = config.get(ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
         return mergeListsToArray(base, append);
     }
 
@@ -182,13 +176,13 @@ public class CoreOptions {
             ConfigOptions.key("plugin.classloader.parent-first-patterns.default")
                     .stringType()
                     .asList()
-                    .defaultValues(
-                            mergeListsToArray(
-                                    Arrays.asList(
-                                            "java.", "org.apache.flink.", "javax.annotation."),
-                                    PARENT_FIRST_LOGGING_PATTERNS))
+                    .defaultValues(ArrayUtils.concat(new String[]{
+                            "java.",
+                            "org.apache.flink.",
+                            "javax.annotation."
+                    }, PARENT_FIRST_LOGGING_PATTERNS))
                     .withDescription(
-                            "A list of patterns that specifies which classes should always be"
+                            "A (semicolon-separated) list of patterns that specifies which classes should always be"
                                     + " resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked "
                                     + " against the fully qualified class name. This setting should generally not be modified. To add another "
                                     + " pattern we recommend to use \"plugin.classloader.parent-first-patterns.additional\" instead.");
@@ -198,24 +192,20 @@ public class CoreOptions {
                     + "Configuration only included in case to mitigate unintended side-effects of this young feature.")
     public static final ConfigOption<List<String>>
             PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL =
-                    ConfigOptions.key("plugin.classloader.parent-first-patterns.additional")
-                            .stringType()
-                            .asList()
-                            .noDefaultValue()
-                            .withDescription(
-                                    "A list of patterns that specifies which classes should always be"
-                                            + " resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked "
-                                            + " against the fully qualified class name. These patterns are appended to \""
-                                            + PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key()
-                                            + "\".");
+            ConfigOptions.key("plugin.classloader.parent-first-patterns.additional")
+                    .stringType()
+                    .asList()
+                    .defaultValues()
+                    .withDescription(
+                            "A (semicolon-separated) list of patterns that specifies which classes should always be"
+                                    + " resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked "
+                                    + " against the fully qualified class name. These patterns are appended to \""
+                                    + PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key()
+                                    + "\".");
 
     public static String[] getPluginParentFirstLoaderPatterns(Configuration config) {
-        List<String> base =
-                ConfigUtils.decodeListFromConfig(
-                        config, PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS, String::new);
-        List<String> append =
-                ConfigUtils.decodeListFromConfig(
-                        config, PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL, String::new);
+        List<String> base = config.get(PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
+        List<String> append = config.get(PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
         return mergeListsToArray(base, append);
     }
 

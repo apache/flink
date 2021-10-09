@@ -38,7 +38,7 @@ public class SubmoduleClassLoader extends ComponentClassLoader {
         super(
                 classpath,
                 parentClassLoader,
-                CoreOptions.PARENT_FIRST_LOGGING_PATTERNS.toArray(new String[0]),
+                CoreOptions.PARENT_FIRST_LOGGING_PATTERNS,
                 new String[] {"org.apache.flink"});
     }
 }
