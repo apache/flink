@@ -27,10 +27,10 @@ import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.CloseableIterator;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -48,7 +48,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Example: If the current task has been downscaled from 2 to 1. Then the only new subtask needs
  * to handle data originating from old subtasks 0 and 1.
  *
- * <p>It is also responsible for summarizing watermark and stream statuses of the virtual channels.
+ * <p>It is also responsible for summarizing watermark and watermark statuses of the virtual
+ * channels.
  */
 class DemultiplexingRecordDeserializer<T>
         implements RecordDeserializer<DeserializationDelegate<StreamElement>> {
@@ -62,7 +63,7 @@ class DemultiplexingRecordDeserializer<T>
         private final RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer;
         private final Predicate<StreamRecord<T>> recordFilter;
         Watermark lastWatermark = Watermark.UNINITIALIZED;
-        StreamStatus streamStatus = StreamStatus.ACTIVE;
+        WatermarkStatus watermarkStatus = WatermarkStatus.ACTIVE;
         private DeserializationResult lastResult;
 
         VirtualChannel(
@@ -85,8 +86,8 @@ class DemultiplexingRecordDeserializer<T>
                     } else if (element.isWatermark()) {
                         lastWatermark = element.asWatermark();
                         return lastResult;
-                    } else if (element.isStreamStatus()) {
-                        streamStatus = element.asStreamStatus();
+                    } else if (element.isWatermarkStatus()) {
+                        watermarkStatus = element.asWatermarkStatus();
                         return lastResult;
                     }
                 }
@@ -172,11 +173,11 @@ class DemultiplexingRecordDeserializer<T>
                     }
                     delegate.setInstance(minWatermark);
                     return result;
-                } else if (element.isStreamStatus()) {
+                } else if (element.isWatermarkStatus()) {
                     // summarize statuses across all virtual channels
                     // duplicate statuses are filtered in StatusWatermarkValve
-                    if (channels.values().stream().anyMatch(d -> d.streamStatus.isActive())) {
-                        delegate.setInstance(StreamStatus.ACTIVE);
+                    if (channels.values().stream().anyMatch(d -> d.watermarkStatus.isActive())) {
+                        delegate.setInstance(WatermarkStatus.ACTIVE);
                     }
                     return result;
                 }
@@ -197,7 +198,8 @@ class DemultiplexingRecordDeserializer<T>
             Function<Integer, RecordDeserializer<DeserializationDelegate<StreamElement>>>
                     deserializerFactory,
             Function<InputChannelInfo, Predicate<StreamRecord<T>>> recordFilterFactory) {
-        int[] oldSubtaskIndexes = rescalingDescriptor.getOldSubtaskIndexes();
+        int[] oldSubtaskIndexes =
+                rescalingDescriptor.getOldSubtaskIndexes(channelInfo.getGateIdx());
         if (oldSubtaskIndexes.length == 0) {
             return UNMAPPED;
         }
@@ -219,7 +221,7 @@ class DemultiplexingRecordDeserializer<T>
                         descriptor,
                         new VirtualChannel<>(
                                 deserializerFactory.apply(totalChannels),
-                                rescalingDescriptor.isAmbiguous(subtask)
+                                rescalingDescriptor.isAmbiguous(channelInfo.getGateIdx(), subtask)
                                         ? recordFilterFactory.apply(channelInfo)
                                         : RecordFilter.all()));
             }

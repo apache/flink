@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.dispatcher.UnavailableDispatcherOperationException;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -130,7 +131,13 @@ public class CollectResultFetcher<T> {
                     if (ExceptionUtils.findThrowable(
                                     e, UnavailableDispatcherOperationException.class)
                             .isPresent()) {
-                        LOG.debug("The job execution has not started yet; cannot fetch results.");
+                        LOG.debug(
+                                "The job execution has not started yet; cannot fetch results.", e);
+                    } else if (ExceptionUtils.findThrowable(e, FlinkJobNotFoundException.class)
+                            .isPresent()) {
+                        LOG.debug(
+                                "The job cannot be found. It is very likely that the job is not in a RUNNING state.",
+                                e);
                     } else {
                         LOG.warn("An exception occurred when fetching query results", e);
                     }

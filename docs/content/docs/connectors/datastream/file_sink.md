@@ -253,7 +253,7 @@ AvroWriters class.
 
 To use the Avro writers in your application you need to add the following dependency:
 
-{{< artifact flink-avro withScalaVersion >}}
+{{< artifact flink-avro >}}
 
 A `FileSink` that writes data to Avro files can be created like this:
 
@@ -537,7 +537,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 To use the `SequenceFile` bulk encoder in your application you need to add the following dependency:
 
-{{< artifact flink-sequence-file withScalaVersion >}}
+{{< artifact flink-sequence-file >}}
 
 A simple `SequenceFile` writer can be created like this:
 

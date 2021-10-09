@@ -66,7 +66,12 @@ final class CombinedWatermarkStatus {
     public boolean updateCombinedWatermark() {
         long minimumOverAllOutputs = Long.MAX_VALUE;
 
-        boolean hasOutputs = false;
+        // if we don't have any outputs minimumOverAllOutputs is not valid, it's still
+        // at its initial Long.MAX_VALUE state and we must not emit that
+        if (partialWatermarks.isEmpty()) {
+            return false;
+        }
+
         boolean allIdle = true;
         for (PartialWatermark partialWatermark : partialWatermarks) {
             if (!partialWatermark.isIdle()) {
@@ -74,17 +79,11 @@ final class CombinedWatermarkStatus {
                         Math.min(minimumOverAllOutputs, partialWatermark.getWatermark());
                 allIdle = false;
             }
-            hasOutputs = true;
         }
 
-        // if we don't have any outputs minimumOverAllOutputs is not valid, it's still
-        // at its initial Long.MAX_VALUE state and we must not emit that
         this.idle = allIdle;
-        if (!hasOutputs || allIdle) {
-            return false;
-        }
 
-        if (minimumOverAllOutputs > combinedWatermark) {
+        if (!allIdle && minimumOverAllOutputs > combinedWatermark) {
             combinedWatermark = minimumOverAllOutputs;
             return true;
         }

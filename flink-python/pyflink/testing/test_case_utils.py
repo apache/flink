@@ -26,7 +26,6 @@ import unittest
 from abc import abstractmethod
 
 from py4j.java_gateway import JavaObject
-from py4j.protocol import Py4JJavaError
 
 from pyflink.common import JobExecutionResult
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
@@ -44,23 +43,6 @@ else:
     log_level = logging.INFO
 logging.basicConfig(stream=sys.stdout, level=log_level,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-
-def get_private_field(java_obj, field_name):
-    try:
-        field = java_obj.getClass().getDeclaredField(field_name)
-        field.setAccessible(True)
-        return field.get(java_obj)
-    except Py4JJavaError:
-        cls = java_obj.getClass()
-        while cls.getSuperclass() is not None:
-            cls = cls.getSuperclass()
-            try:
-                field = cls.getDeclaredField(field_name)
-                field.setAccessible(True)
-                return field.get(java_obj)
-            except Py4JJavaError:
-                pass
 
 
 def exec_insert_table(table, table_path) -> JobExecutionResult:
@@ -101,6 +83,7 @@ class PyFlinkTestCase(unittest.TestCase):
         cls.tempdir = tempfile.mkdtemp()
 
         os.environ["FLINK_TESTING"] = "1"
+        os.environ['_python_worker_execution_mode'] = "process"
         _find_flink_home()
 
         logging.info("Using %s as FLINK_HOME...", os.environ["FLINK_HOME"])
@@ -108,6 +91,7 @@ class PyFlinkTestCase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tempdir, ignore_errors=True)
+        del os.environ['_python_worker_execution_mode']
 
     @classmethod
     def assert_equals(cls, actual, expected):
@@ -143,29 +127,27 @@ class PyFlinkTestCase(unittest.TestCase):
         return CsvTableSource(path, fields, data_types)
 
 
-class PyFlinkBlinkStreamTableTestCase(PyFlinkTestCase):
+class PyFlinkStreamTableTestCase(PyFlinkTestCase):
     """
-    Base class for stream tests of blink planner.
+    Base class for table stream tests.
     """
 
     def setUp(self):
-        super(PyFlinkBlinkStreamTableTestCase, self).setUp()
-        self.t_env = TableEnvironment.create(
-            EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build())
+        super(PyFlinkStreamTableTestCase, self).setUp()
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
         self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
         self.t_env.get_config().get_configuration().set_string(
             "python.fn-execution.bundle.size", "1")
 
 
-class PyFlinkBlinkBatchTableTestCase(PyFlinkTestCase):
+class PyFlinkBatchTableTestCase(PyFlinkTestCase):
     """
-    Base class for batch tests of blink planner.
+    Base class for table batch tests.
     """
 
     def setUp(self):
-        super(PyFlinkBlinkBatchTableTestCase, self).setUp()
-        self.t_env = TableEnvironment.create(
-            EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build())
+        super(PyFlinkBatchTableTestCase, self).setUp()
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
         self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
         self.t_env.get_config().get_configuration().set_string(
             "python.fn-execution.bundle.size", "1")

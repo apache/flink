@@ -106,6 +106,7 @@ public class KubernetesJobManagerFactory {
                 .withName(
                         KubernetesUtils.getDeploymentName(
                                 kubernetesJobManagerParameters.getClusterId()))
+                .withAnnotations(kubernetesJobManagerParameters.getAnnotations())
                 .withLabels(kubernetesJobManagerParameters.getLabels())
                 .withOwnerReferences(
                         kubernetesJobManagerParameters.getOwnerReference().stream()
@@ -113,7 +114,7 @@ public class KubernetesJobManagerFactory {
                                 .collect(Collectors.toList()))
                 .endMetadata()
                 .editOrNewSpec()
-                .withReplicas(1)
+                .withReplicas(kubernetesJobManagerParameters.getReplicas())
                 .editOrNewTemplate()
                 .withMetadata(resolvedPod.getMetadata())
                 .withSpec(resolvedPod.getSpec())

@@ -151,11 +151,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testDescribeDatabase() {
         sql("describe database db1").ok("DESCRIBE DATABASE `DB1`");
-        sql("describe database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
+        sql("describe database catalog1.db1").ok("DESCRIBE DATABASE `CATALOG1`.`DB1`");
         sql("describe database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
 
         sql("desc database db1").ok("DESCRIBE DATABASE `DB1`");
-        sql("desc database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
+        sql("desc database catalog1.db1").ok("DESCRIBE DATABASE `CATALOG1`.`DB1`");
         sql("desc database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
     }
 
@@ -200,12 +200,47 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testDescribeTable() {
         sql("describe tbl").ok("DESCRIBE `TBL`");
-        sql("describe catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
+        sql("describe catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");
         sql("describe extended db1").ok("DESCRIBE EXTENDED `DB1`");
 
         sql("desc tbl").ok("DESCRIBE `TBL`");
-        sql("desc catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
+        sql("desc catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");
         sql("desc extended db1").ok("DESCRIBE EXTENDED `DB1`");
+    }
+
+    @Test
+    public void testShowColumns() {
+        sql("show columns from tbl").ok("SHOW COLUMNS FROM `TBL`");
+        sql("show columns in tbl").ok("SHOW COLUMNS IN `TBL`");
+
+        sql("show columns from db1.tbl").ok("SHOW COLUMNS FROM `DB1`.`TBL`");
+        sql("show columns in db1.tbl").ok("SHOW COLUMNS IN `DB1`.`TBL`");
+
+        sql("show columns from catalog1.db1.tbl").ok("SHOW COLUMNS FROM `CATALOG1`.`DB1`.`TBL`");
+        sql("show columns in catalog1.db1.tbl").ok("SHOW COLUMNS IN `CATALOG1`.`DB1`.`TBL`");
+
+        sql("show columns from tbl like '%'").ok("SHOW COLUMNS FROM `TBL` LIKE '%'");
+        sql("show columns in tbl like '%'").ok("SHOW COLUMNS IN `TBL` LIKE '%'");
+
+        sql("show columns from db1.tbl like '%'").ok("SHOW COLUMNS FROM `DB1`.`TBL` LIKE '%'");
+        sql("show columns in db1.tbl like '%'").ok("SHOW COLUMNS IN `DB1`.`TBL` LIKE '%'");
+
+        sql("show columns from catalog1.db1.tbl like '%'")
+                .ok("SHOW COLUMNS FROM `CATALOG1`.`DB1`.`TBL` LIKE '%'");
+        sql("show columns in catalog1.db1.tbl like '%'")
+                .ok("SHOW COLUMNS IN `CATALOG1`.`DB1`.`TBL` LIKE '%'");
+
+        sql("show columns from tbl not like '%'").ok("SHOW COLUMNS FROM `TBL` NOT LIKE '%'");
+        sql("show columns in tbl not like '%'").ok("SHOW COLUMNS IN `TBL` NOT LIKE '%'");
+
+        sql("show columns from db1.tbl not like '%'")
+                .ok("SHOW COLUMNS FROM `DB1`.`TBL` NOT LIKE '%'");
+        sql("show columns in db1.tbl not like '%'").ok("SHOW COLUMNS IN `DB1`.`TBL` NOT LIKE '%'");
+
+        sql("show columns from catalog1.db1.tbl not like '%'")
+                .ok("SHOW COLUMNS FROM `CATALOG1`.`DB1`.`TBL` NOT LIKE '%'");
+        sql("show columns in catalog1.db1.tbl not like '%'")
+                .ok("SHOW COLUMNS IN `CATALOG1`.`DB1`.`TBL` NOT LIKE '%'");
     }
 
     /**
@@ -1127,6 +1162,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAlterView() {
+        sql("ALTER VIEW v1 RENAME TO v2").ok("ALTER VIEW `V1` RENAME TO `V2`");
+        sql("ALTER VIEW v1 AS SELECT c1, c2 FROM tbl")
+                .ok("ALTER VIEW `V1`\n" + "AS\n" + "SELECT `C1`, `C2`\n" + "FROM `TBL`");
+    }
+
+    @Test
     public void testShowViews() {
         sql("show views").ok("SHOW VIEWS");
     }
@@ -1283,8 +1325,41 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testExplain() {
+        String sql = "explain select * from emps";
+        String expected = "EXPLAIN SELECT *\nFROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainPlanFor() {
         String sql = "explain plan for select * from emps";
-        String expected = "EXPLAIN SELECT *\n" + "FROM `EMPS`";
+        String expected = "EXPLAIN SELECT *\nFROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainChangelogMode() {
+        String sql = "explain changelog_mode select * from emps";
+        String expected = "EXPLAIN CHANGELOG_MODE SELECT *\nFROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainEstimatedCost() {
+        String sql = "explain estimated_cost select * from emps";
+        String expected = "EXPLAIN ESTIMATED_COST SELECT *\nFROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainUnion() {
+        String sql = "explain estimated_cost select * from emps union all select * from emps";
+        String expected =
+                "EXPLAIN ESTIMATED_COST (SELECT *\n"
+                        + "FROM `EMPS`\n"
+                        + "UNION ALL\n"
+                        + "SELECT *\n"
+                        + "FROM `EMPS`)";
         this.sql(sql).ok(expected);
     }
 
@@ -1320,7 +1395,18 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testExplainAsJson() {
-        // TODO: FLINK-20562
+        String sql = "explain json_execution_plan select * from emps";
+        String expected = "EXPLAIN JSON_EXECUTION_PLAN SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainAllDetails() {
+        String sql = "explain changelog_mode,json_execution_plan,estimated_cost select * from emps";
+        String expected =
+                "EXPLAIN JSON_EXECUTION_PLAN, CHANGELOG_MODE, ESTIMATED_COST SELECT *\n"
+                        + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
     }
 
     @Test
@@ -1337,10 +1423,35 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testExplainPlanForWithExplainDetails() {
+        String sql = "explain plan for ^json_execution_plan^ upsert into emps1 values (1, 2)";
+        this.sql(sql).fails("Non-query expression encountered in illegal context");
+    }
+
+    @Test
+    public void testExplainDuplicateExplainDetails() {
+        String sql = "explain changelog_mode,^changelog_mode^ select * from emps";
+        this.sql(sql).fails("Duplicate EXPLAIN DETAIL is not allowed.");
+    }
+
+    @Test
     public void testAddJar() {
         sql("add Jar './test.sql'").ok("ADD JAR './test.sql'");
         sql("add JAR 'file:///path/to/\nwhatever'").ok("ADD JAR 'file:///path/to/\nwhatever'");
         sql("add JAR 'oss://path/helloworld.go'").ok("ADD JAR 'oss://path/helloworld.go'");
+    }
+
+    @Test
+    public void testRemoveJar() {
+        sql("remove Jar './test.sql'").ok("REMOVE JAR './test.sql'");
+        sql("remove JAR 'file:///path/to/\nwhatever'")
+                .ok("REMOVE JAR 'file:///path/to/\nwhatever'");
+        sql("remove JAR 'oss://path/helloworld.go'").ok("REMOVE JAR 'oss://path/helloworld.go'");
+    }
+
+    @Test
+    public void testShowJars() {
+        sql("show jars").ok("SHOW JARS");
     }
 
     @Test

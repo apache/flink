@@ -47,7 +47,7 @@ import java.util.function.Supplier;
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.getQueryParameter;
-import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emptyToNull;
+import static org.apache.flink.shaded.guava30.com.google.common.base.Strings.emptyToNull;
 
 /** Handler to submit jobs uploaded via the Web UI. */
 public class JarRunHandler
@@ -83,7 +83,7 @@ public class JarRunHandler
 
     @Override
     protected CompletableFuture<JarRunResponseBody> handleRequest(
-            @Nonnull final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request,
+            @Nonnull final HandlerRequest<JarRunRequestBody> request,
             @Nonnull final DispatcherGateway gateway)
             throws RestHandlerException {
 
@@ -121,8 +121,7 @@ public class JarRunHandler
     }
 
     private SavepointRestoreSettings getSavepointRestoreSettings(
-            final @Nonnull HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request)
-            throws RestHandlerException {
+            final @Nonnull HandlerRequest<JarRunRequestBody> request) throws RestHandlerException {
 
         final JarRunRequestBody requestBody = request.getRequestBody();
 

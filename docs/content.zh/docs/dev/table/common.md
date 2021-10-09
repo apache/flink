@@ -26,20 +26,9 @@ under the License.
 
 # 概念与通用 API
 
-Table API 和 SQL 集成在同一套 API 中。这套 API 的核心概念是`Table`，用作查询的输入和输出。本文介绍了 Table API 和 SQL 查询程序的通用结构、如何注册 `Table` 、如何查询 `Table` 以及如何输出 `Table` 。
-
-<a name="main-differences-between-the-two-planners"></a>
-
-两种计划器（Planner）的主要区别
------------------------------------------
-
-1. Blink 将批处理作业视作流处理的一种特例。严格来说，`Table` 和 `DataSet` 之间不支持相互转换，并且批处理作业也不会转换成 `DataSet` 程序而是转换成 `DataStream` 程序，流处理作业也一样。
-2. Blink 计划器不支持  `BatchTableSource`，而是使用有界的  `StreamTableSource` 来替代。
-3. 旧计划器和 Blink 计划器中 `FilterableTableSource` 的实现是不兼容的。旧计划器会将 `PlannerExpression` 下推至 `FilterableTableSource`，而 Blink 计划器则是将 `Expression` 下推。
-4. 基于字符串的键值配置选项仅在 Blink 计划器中使用。（详情参见 [配置]({{< ref "docs/dev/table/config" >}}) ）
-5. `PlannerConfig` 在两种计划器中的实现（`CalciteConfig`）是不同的。
-6. Blink 计划器会将多sink（multiple-sinks）优化成一张有向无环图（DAG），`TableEnvironment` 和 `StreamTableEnvironment` 都支持该特性。旧计划器总是将每个sink都优化成一个新的有向无环图，且所有图相互独立。
-7. 旧计划器目前不支持 catalog 统计数据，而 Blink 支持。
+Table API 和 SQL 集成在同一套 API 中。
+这套 API 的核心概念是`Table`，用作查询的输入和输出。
+本文介绍 Table API 和 SQL 查询程序的通用结构、如何注册 `Table` 、如何查询 `Table` 以及如何输出 `Table` 。
 
 <a name="structure-of-table-api-and-sql-programs"></a>
 
@@ -51,73 +40,96 @@ Table API 和 SQL 程序的结构
 {{< tabs "62be8916-7ab4-4831-bd19-05c591181835" >}}
 {{< tab "Java" >}}
 ```java
+import org.apache.flink.table.api.*;
+import org.apache.flink.connector.datagen.table.DataGenOptions;
 
-// create a TableEnvironment for specific planner batch or streaming
-TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// Create a TableEnvironment for batch or streaming execution.
+// See the "Create a TableEnvironment" section for details.
+TableEnvironment tableEnv = TableEnvironment.create(/*…*/);
 
-// create an input Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )");
-// register an output Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )");
+// Create a source table
+tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datagen")
+    .schema(Schema.newBuilder()
+      .column("f0", DataTypes.STRING())
+      .build())
+    .option(DataGenOptions.ROWS_PER_SECOND, 100)
+    .build())
 
-// create a Table object from a Table API query
-Table table2 = tableEnv.from("table1").select(...);
-// create a Table object from a SQL query
-Table table3 = tableEnv.sqlQuery("SELECT ... FROM table1 ... ");
+// Create a sink table (using SQL DDL)
+tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable");
 
-// emit a Table API result Table to a TableSink, same for SQL result
-TableResult tableResult = table2.executeInsert("outputTable");
-tableResult...
+// Create a Table object from a Table API query
+Table table2 = tableEnv.from("SourceTable");
 
+// Create a Table object from a SQL query
+Table table3 = tableEnv.sqlQuery("SELECT * FROM SourceTable");
+
+// Emit a Table API result Table to a TableSink, same for SQL result
+TableResult tableResult = table2.executeInsert("SinkTable");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
+import org.apache.flink.table.api._
+import org.apache.flink.connector.datagen.table.DataGenOptions
 
-// create a TableEnvironment for specific planner batch or streaming
-val tableEnv = ... // see "Create a TableEnvironment" section
+// Create a TableEnvironment for batch or streaming execution.
+// See the "Create a TableEnvironment" section for details.
+val tableEnv = TableEnvironment.create(/*…*/)
 
-// create an input Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )")
-// register an output Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )")
+// Create a source table
+tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datagen")
+  .schema(Schema.newBuilder()
+    .column("f0", DataTypes.STRING())
+    .build())
+  .option(DataGenOptions.ROWS_PER_SECOND, 100)
+  .build())
 
-// create a Table from a Table API query
-val table2 = tableEnv.from("table1").select(...)
-// create a Table from a SQL query
-val table3 = tableEnv.sqlQuery("SELECT ... FROM table1 ...")
+// Create a sink table (using SQL DDL)
+tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable");
 
-// emit a Table API result Table to a TableSink, same for SQL result
-val tableResult = table2.executeInsert("outputTable")
-tableResult...
+// Create a Table object from a Table API query
+val table1 = tableEnv.from("SourceTable");
 
+// Create a Table object from a SQL query
+val table2 = tableEnv.sqlQuery("SELECT * FROM SourceTable");
+
+// Emit a Table API result Table to a TableSink, same for SQL result
+val tableResult = table1.executeInsert("SinkTable");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
+from pyflink.table import *
 
-# create a TableEnvironment for specific planner batch or streaming
+# Create a TableEnvironment for batch or streaming execution
 table_env = ... # see "Create a TableEnvironment" section
 
-# register an input Table
-table_env.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )")
-# register an output Table
-table_env.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )")
+# Create a source table
+table_env.executeSql("""CREATE TEMPORARY TABLE SourceTable (
+  f0 STRING
+) WITH (
+  'connector' = 'datagen',
+  'rows-per-second' = '100'
+)
+""")
 
-# create a Table from a Table API query
-table2 = table_env.from_path("table1").select(...)
-# create a Table from a SQL query
-table3 = table_env.sql_query("SELECT ... FROM table1 ...")
+# Create a sink table
+table_env.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable")
 
-# emit a Table API result Table to a TableSink, same for SQL result
-table_result = table3.execute_insert("outputTable")
-table_result...
+# Create a Table from a Table API query
+table1 = table_env.from_path("SourceTable").select(...)
 
+# Create a Table from a SQL query
+table2 = table_env.sql_query("SELECT ... FROM SourceTable ...")
+
+# Emit a Table API result Table to a TableSink, same for SQL result
+table_result = table1.execute_insert("SinkTable")
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-**注意：** Table API 和 SQL 查询可以很容易地集成并嵌入到 DataStream 或 DataSet 程序中。 请参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api) 章节了解如何将 DataSet 和 DataStream 与表之间的相互转化。
+**注意：** Table API 和 SQL 查询可以很容易地集成并嵌入到 DataStream 程序中。 请参阅[与 DataStream API 集成]({{< ref "docs/dev/table/data_stream_api" >}}) 章节了解如何将 DataStream 与表之间的相互转化。
 
 {{< top >}}
 
@@ -133,156 +145,90 @@ table_result...
 * 加载可插拔模块
 * 执行 SQL 查询
 * 注册自定义函数 （scalar、table 或 aggregation）
-* 将 `DataStream` 或 `DataSet` 转换成 `Table`
-* 持有对  `ExecutionEnvironment` 或 `StreamExecutionEnvironment` 的引用
+* `DataStream` 和 `Table` 之间的转换(面向 `StreamTableEnvironment` )
 
-`Table` 总是与特定的 `TableEnvironment` 绑定。不能在同一条查询中使用不同 TableEnvironment 中的表，例如，对它们进行 join 或 union 操作。
-
-`TableEnvironment` 可以通过静态方法 `BatchTableEnvironment.create()` 或者 `StreamTableEnvironment.create()` 在 `StreamExecutionEnvironment` 或者 `ExecutionEnvironment` 中创建，`TableConfig` 是可选项。`TableConfig`可用于配置`TableEnvironment`或定制的查询优化和转换过程(参见 [查询优化](#query-optimization))。
-
-请确保选择与你的编程语言匹配的特定的计划器`BatchTableEnvironment`/`StreamTableEnvironment`。
-
-如果两种计划器的 jar 包都在 classpath 中（默认行为），你应该明确地设置要在当前程序中使用的计划器。
+`Table` 总是与特定的 `TableEnvironment` 绑定。
+不能在同一条查询中使用不同 TableEnvironment 中的表，例如，对它们进行 join 或 union 操作。
+`TableEnvironment` 可以通过静态方法 `TableEnvironment.create()` 创建。
 
 {{< tabs "74c10eb1-1267-4b4e-89cd-2d85f761d139" >}}
 {{< tab "Java" >}}
 ```java
-
-// **********************
-// FLINK STREAMING QUERY
-// **********************
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-
-EnvironmentSettings fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build();
-StreamExecutionEnvironment fsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSettings);
-// or TableEnvironment fsTableEnv = TableEnvironment.create(fsSettings);
-
-// ******************
-// FLINK BATCH QUERY
-// ******************
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
-
-ExecutionEnvironment fbEnv = ExecutionEnvironment.getExecutionEnvironment();
-BatchTableEnvironment fbTableEnv = BatchTableEnvironment.create(fbEnv);
-
-// **********************
-// BLINK STREAMING QUERY
-// **********************
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-
-StreamExecutionEnvironment bsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-StreamTableEnvironment bsTableEnv = StreamTableEnvironment.create(bsEnv, bsSettings);
-// or TableEnvironment bsTableEnv = TableEnvironment.create(bsSettings);
-
-// ******************
-// BLINK BATCH QUERY
-// ******************
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 
-EnvironmentSettings bbSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-TableEnvironment bbTableEnv = TableEnvironment.create(bbSettings);
+EnvironmentSettings settings = EnvironmentSettings
+    .newInstance()
+    .inStreamingMode()
+    //.inBatchMode()
+    .build();
 
+TableEnvironment tEnv = TableEnvironment.create(settings);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-
-// **********************
-// FLINK STREAMING QUERY
-// **********************
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
-
-val fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build()
-val fsEnv = StreamExecutionEnvironment.getExecutionEnvironment
-val fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSettings)
-// or val fsTableEnv = TableEnvironment.create(fsSettings)
-
-// ******************
-// FLINK BATCH QUERY
-// ******************
-import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.table.api.bridge.scala.BatchTableEnvironment
-
-val fbEnv = ExecutionEnvironment.getExecutionEnvironment
-val fbTableEnv = BatchTableEnvironment.create(fbEnv)
-
-// **********************
-// BLINK STREAMING QUERY
-// **********************
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
-
-val bsEnv = StreamExecutionEnvironment.getExecutionEnvironment
-val bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
-val bsTableEnv = StreamTableEnvironment.create(bsEnv, bsSettings)
-// or val bsTableEnv = TableEnvironment.create(bsSettings)
-
-// ******************
-// BLINK BATCH QUERY
-// ******************
 import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
 
-val bbSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
-val bbTableEnv = TableEnvironment.create(bbSettings)
+val settings = EnvironmentSettings
+    .newInstance()
+    .inStreamingMode()
+    //.inBatchMode()
+    .build()
 
+val tEnv = TableEnvironment.create(settings)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# **********************
-# FLINK STREAMING QUERY
-# **********************
-from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamTableEnvironment, EnvironmentSettings
+# create a streaming TableEnvironment
+env_settings = EnvironmentSettings.in_streaming_mode()
+table_env = TableEnvironment.create(env_settings)
 
-f_s_env = StreamExecutionEnvironment.get_execution_environment()
-f_s_settings = EnvironmentSettings.new_instance().use_old_planner().in_streaming_mode().build()
-f_s_t_env = StreamTableEnvironment.create(f_s_env, environment_settings=f_s_settings)
-
-# ******************
-# FLINK BATCH QUERY
-# ******************
-from pyflink.dataset import ExecutionEnvironment
-from pyflink.table import BatchTableEnvironment
-
-f_b_env = ExecutionEnvironment.get_execution_environment()
-f_b_t_env = BatchTableEnvironment.create(f_b_env, table_config)
-
-# **********************
-# BLINK STREAMING QUERY
-# **********************
-from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamTableEnvironment, EnvironmentSettings
-
-b_s_env = StreamExecutionEnvironment.get_execution_environment()
-b_s_settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
-b_s_t_env = StreamTableEnvironment.create(b_s_env, environment_settings=b_s_settings)
-
-# ******************
-# BLINK BATCH QUERY
-# ******************
-from pyflink.table import EnvironmentSettings, BatchTableEnvironment
-
-b_b_settings = EnvironmentSettings.new_instance().use_blink_planner().in_batch_mode().build()
-b_b_t_env = BatchTableEnvironment.create(environment_settings=b_b_settings)
+# create a batch TableEnvironment
+env_settings = EnvironmentSettings.in_batch_mode()
+table_env = TableEnvironment.create(env_settings)
 
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-**注意：** 如果`/lib`目录中只有一种计划器的 jar 包，则可以使用`useAnyPlanner`（python 使用 `use any_u_planner`）创建 `EnvironmentSettings`。
+或者，用户可以从现有的 `StreamExecutionEnvironment` 创建一个 `StreamTableEnvironment` 与 `DataStream` API 互操作。
+
+{{< tabs "c91b91ec-7197-4305-827d-9f91dedadce5" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.EnvironmentSettings
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tEnv = StreamTableEnvironment.create(env)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.table import StreamTableEnvironment
+
+s_env = StreamExecutionEnvironment.get_execution_environment()
+t_env = StreamTableEnvironment.create(s_env)
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 {{< top >}}
 
@@ -364,7 +310,7 @@ table_env.register_table("projectedTable", proj_table)
 
 **注意：** 从传统数据库系统的角度来看，`Table` 对象与 `VIEW` 视图非常像。也就是，定义了 `Table` 的查询是没有被优化的，
 而且会被内嵌到另一个引用了这个注册了的 `Table`的查询中。如果多个查询都引用了同一个注册了的`Table`，那么它会被内嵌每个查询中并被执行多次，
-也就是说注册了的`Table`的结果**不会**被共享（注：Blink 计划器的`TableEnvironment`会优化成只执行一次）。
+也就是说注册了的`Table`的结果**不会**被共享。
 
 {{< top >}}
 
@@ -374,43 +320,23 @@ table_env.register_table("projectedTable", proj_table)
 
 另外一个方式去创建 `TABLE` 是通过 [connector]({{< ref "docs/connectors/table/overview" >}}) 声明。Connector 描述了存储表数据的外部系统。存储系统例如 Apache Kafka 或者常规的文件系统都可以通过这种方式来声明。
 
-{{< tabs "0b2e02bb-4185-4036-b948-85961ad05764" >}}
-{{< tab "Java" >}}
+Such tables can either be created using the Table API directly, or by switching to SQL DDL.
+
 ```java
-tableEnvironment
-  .connect(...)
-  .withFormat(...)
-  .withSchema(...)
-  .inAppendMode()
-  .createTemporaryTable("MyTable")
+// Using table descriptors
+final TableDescriptor sourceDescriptor = TableDescriptor.forConnector("datagen")
+    .schema(Schema.newBuilder()
+    .column("f0", DataTypes.STRING())
+    .build())
+    .option(DataGenOptions.ROWS_PER_SECOND, 100)
+    .build();
+
+tableEnv.createTable("SourceTableA", sourceDescriptor);
+tableEnv.createTemporaryTable("SourceTableB", sourceDescriptor);
+
+// Using SQL DDL
+tableEnv.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-tableEnvironment
-  .connect(...)
-  .withFormat(...)
-  .withSchema(...)
-  .inAppendMode()
-  .createTemporaryTable("MyTable")
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-```python
-table_environment \
-    .connect(...) \
-    .with_format(...) \
-    .with_schema(...) \
-    .in_append_mode() \
-    .create_temporary_table("MyTable")
-```
-{{< /tab >}}
-{{< tab "DDL" >}}
-```sql
-tableEnvironment.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 <a name="expanding-table-identifiers"></a>
 
@@ -717,7 +643,7 @@ Table API 和 SQL 查询的混用非常简单因为它们都返回 `Table` 对�
 
 批处理 `Table` 只能写入 `BatchTableSink`，而流处理 `Table` 需要指定写入 `AppendStreamTableSink`，`RetractStreamTableSink` 或者 `UpsertStreamTableSink`。
 
-请参考文档 [Table Sources & Sinks]({{< ref "docs/dev/table/sourcesSinks" >}}) 以获取更多关于可用 Sink 的信息以及如何自定义 `TableSink`。
+请参考文档 [Table Sources & Sinks]({{< ref "docs/dev/table/sourcesSinks" >}}) 以获取更多关于可用 Sink 的信息以及如何自定义 `DynamicTableSink`。
 
 方法 `Table.executeInsert(String tableName)` 将 `Table` 发送至已注册的 `TableSink`。该方法通过名称在 catalog 中查找 `TableSink` 并确认`Table` schema 和 `TableSink` schema 一致。
 
@@ -730,18 +656,23 @@ Table API 和 SQL 查询的混用非常简单因为它们都返回 `Table` 对�
 TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 // create an output Table
-final Schema schema = new Schema()
-    .field("a", DataTypes.INT())
-    .field("b", DataTypes.STRING())
-    .field("c", DataTypes.BIGINT());
+final Schema schema = Schema.newBuilder()
+    .column("a", DataTypes.INT())
+    .column("b", DataTypes.STRING())
+    .column("c", DataTypes.BIGINT())
+    .build();
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("CsvSinkTable");
+tableEnv.createTemporaryTable("CsvSinkTable", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/path/to/file")
+    .format(FormatDescriptor.forFormat("csv")
+        .option("field-delimiter", "|")
+        .build())
+    .build());
 
 // compute a result Table using Table API operators and/or SQL queries
 Table result = ...
+
 // emit the result Table to the registered TableSink
 result.executeInsert("CsvSinkTable");
 
@@ -753,15 +684,19 @@ result.executeInsert("CsvSinkTable");
 val tableEnv = ... // see "Create a TableEnvironment" section
 
 // create an output Table
-val schema = new Schema()
-    .field("a", DataTypes.INT())
-    .field("b", DataTypes.STRING())
-    .field("c", DataTypes.BIGINT())
+val schema = Schema.newBuilder()
+    .column("a", DataTypes.INT())
+    .column("b", DataTypes.STRING())
+    .column("c", DataTypes.BIGINT())
+    .build()
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("CsvSinkTable")
+tableEnv.createTemporaryTable("CsvSinkTable", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/path/to/file")
+    .format(FormatDescriptor.forFormat("csv")
+        .option("field-delimiter", "|")
+        .build())
+    .build())
 
 // compute a result Table using Table API operators and/or SQL queries
 val result: Table = ...
@@ -777,15 +712,19 @@ result.executeInsert("CsvSinkTable")
 table_env = ... # see "Create a TableEnvironment" section
 
 # create a TableSink
-table_env.connect(FileSystem().path("/path/to/file")))
-    .with_format(Csv()
-                 .field_delimiter(',')
-                 .deriveSchema())
-    .with_schema(Schema()
-                 .field("a", DataTypes.INT())
-                 .field("b", DataTypes.STRING())
-                 .field("c", DataTypes.BIGINT()))
-    .create_temporary_table("CsvSinkTable")
+schema = Schema.new_builder()
+    .column("a", DataTypes.INT())
+    .column("b", DataTypes.STRING())
+    .column("c", DataTypes.BIGINT())
+    .build()
+    
+table_env.create_temporary_table("CsvSinkTable", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/path/to/file")
+    .format(FormatDescriptor.for_format("csv")
+        .option("field-delimiter", "|")
+        .build())
+    .build())
 
 # compute a result Table using Table API operators and/or SQL queries
 result = ...
@@ -804,11 +743,8 @@ result.execute_insert("CsvSinkTable")
 翻译与执行查询
 -----------------------------
 
-两种计划器翻译和执行查询的方式是不同的。
-
-{{< tabs "58b3e383-ade2-482d-a86f-b4f243ffce48" >}}
-{{< tab "Blink planner" >}}
-不论输入数据源是流式的还是批式的，Table API 和 SQL 查询都会被转换成 [DataStream]({{< ref "docs/dev/datastream/overview" >}}) 程序。查询在内部表示为逻辑查询计划，并被翻译成两个阶段：
+不论输入数据源是流式的还是批式的，Table API 和 SQL 查询都会被转换成 [DataStream]({{< ref "docs/dev/datastream/overview" >}}) 程序。
+查询在内部表示为逻辑查询计划，并被翻译成两个阶段：
 
 1. 优化逻辑执行计划
 2. 翻译成 DataStream 程序
@@ -819,28 +755,7 @@ Table API 或者 SQL 查询在下列情况下会被翻译：
 * 当 `Table.executeInsert()` 被调用时。该方法是用来将一个表的内容插入到目标表中，一旦该方法被调用， TABLE API 程序立即被翻译。
 * 当 `Table.execute()` 被调用时。该方法是用来将一个表的内容收集到本地，一旦该方法被调用， TABLE API 程序立即被翻译。
 * 当 `StatementSet.execute()` 被调用时。`Table` （通过 `StatementSet.addInsert()` 输出给某个 `Sink`）和 INSERT 语句 （通过调用 `StatementSet.addInsertSql()`）会先被缓存到 `StatementSet` 中，`StatementSet.execute()` 方法被调用时，所有的 sink 会被优化成一张有向无环图。
-* 当 `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。转换完成后，它就成为一个普通的 DataStream 程序，并会在调用 `StreamExecutionEnvironment.execute()` 时被执行。
-
-<span class="label label-danger">注意</span> **从 1.11 版本开始，`sqlUpdate` 方法 和 `insertInto` 方法被废弃，从这两个方法构建的 Table 程序必须通过 `StreamTableEnvironment.execute()` 方法执行，而不能通过 `StreamExecutionEnvironment.execute()` 方法来执行。**
-{{< /tab >}}
-{{< tab "Old planner" >}}
-Table API 和 SQL 查询会被翻译成 [DataStream]({{< ref "docs/dev/datastream/overview" >}}) 或者 [DataSet]({{< ref "docs/dev/dataset/overview" >}}) 程序， 这取决于它们的输入数据源是流式的还是批式的。查询在内部表示为逻辑查询计划，并被翻译成两个阶段：
-
-1. 优化逻辑执行计划
-2. 翻译成 DataStream 或 DataSet 程序
-
-Table API 或者 SQL 查询在下列情况下会被翻译：
-
-* 当 `TableEnvironment.executeSql()` 被调用时。该方法是用来执行一个 SQL 语句，一旦该方法被调用， SQL 语句立即被翻译。
-* 当 `Table.executeInsert()` 被调用时。该方法是用来将一个表的内容插入到目标表中，一旦该方法被调用， TABLE API 程序立即被翻译。
-* 当 `Table.execute()` 被调用时。该方法是用来将一个表的内容收集到本地，一旦该方法被调用， TABLE API 程序立即被翻译。
-* 当 `StatementSet.execute()` 被调用时。`Table` （通过 `StatementSet.addInsert()` 输出给某个 `Sink`）和 INSERT 语句 （通过调用 `StatementSet.addInsertSql()`）会先被缓存到 `StatementSet` 中，`StatementSet.execute()` 方法被调用时，所有的 sink 会被优化成一张有向无环图。
-* 对于 Streaming 而言，当`Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）触发翻译。转换完成后，它就成为一个普通的 DataStream 程序，并会在调用 `StreamExecutionEnvironment.execute()` 时被执行。对于 Batch 而言，`Table` 被转换成 `DataSet` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）触发翻译。转换完成后，它就成为一个普通的 DataSet 程序，并会在调用 `ExecutionEnvironment.execute()` 时被执行。
-
-<span class="label label-danger">注意</span> **从 1.11 版本开始，`sqlUpdate` 方法 和 `insertInto` 方法被废弃。对于 Streaming 而言，如果一个 Table 程序是从这两个方法构建出来的，必须通过 `StreamTableEnvironment.execute()` 方法执行，而不能通过 `StreamExecutionEnvironment.execute()` 方法执行；对于 Batch 而言，如果一个 Table 程序是从这两个方法构建出来的，必须通过 `BatchTableEnvironment.execute()` 方法执行，而不能通过 `ExecutionEnvironment.execute()` 方法执行。**
-
-{{< /tab >}}
-{{< /tabs >}}
+* 当 `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 集成](#integration-with-datastream)）。转换完成后，它就成为一个普通的 DataStream 程序，并会在调用 `StreamExecutionEnvironment.execute()` 时被执行。
 
 {{< top >}}
 
@@ -850,8 +765,6 @@ Table API 或者 SQL 查询在下列情况下会被翻译：
 查询优化
 ------------------
 
-{{< tabs "76bc65c8-6242-448a-a9d8-1b2909ad2198" >}}
-{{< tab "Blink planner" >}}
 Apache Flink 使用并扩展了 Apache Calcite 来执行复杂的查询优化。
 这包括一系列基于规则和成本的优化，例如：
 
@@ -871,13 +784,6 @@ Apache Flink 使用并扩展了 Apache Calcite 来执行复杂的查询优化。
 优化器不仅基于计划，而且还基于可从数据源获得的丰富统计信息以及每个算子（例如 io，cpu，网络和内存）的细粒度成本来做出明智的决策。
 
 高级用户可以通过 `CalciteConfig` 对象提供自定义优化，可以通过调用  `TableEnvironment＃getConfig＃setPlannerConfig` 将其提供给 TableEnvironment。
-{{< /tab >}}
-{{< tab "Old planner" >}}
-Apache Flink 利用 Apache Calcite 来优化和翻译查询。当前执行的优化包括投影和过滤器下推，子查询消除以及其他类型的查询重写。原版计划程序尚未优化 join 的顺序，而是按照查询中定义的顺序执行它们（FROM 子句中的表顺序和/或 WHERE 子句中的 join 谓词顺序）。
-
-通过提供一个 `CalciteConfig` 对象，可以调整在不同阶段应用的优化规则集合。这个对象可以通过调用构造器 `CalciteConfig.createBuilder()` 创建，并通过调用 `tableEnv.getConfig.setPlannerConfig(calciteConfig)` 提供给 TableEnvironment。
-{{< /tab >}}
-{{< /tabs >}}
 
 <a name="explaining-a-table"></a>
 
@@ -910,8 +816,8 @@ Table table2 = tEnv.fromDataStream(stream2, $("count"), $("word"));
 Table table = table1
   .where($("word").like("F%"))
   .unionAll(table2);
-System.out.println(table.explain());
 
+System.out.println(table.explain());
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -924,8 +830,8 @@ val table2 = env.fromElements((1, "hello")).toTable(tEnv, $"count", $"word")
 val table = table1
   .where($"word".like("F%"))
   .unionAll(table2)
-println(table.explain())
 
+println(table.explain())
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -945,40 +851,26 @@ print(table.explain())
 {{< /tabs >}}
 
 上述例子的结果是：
-<div>
+
 ```text
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
-    FlinkLogicalDataStreamScan(id=[1], fields=[count, word])
-  FlinkLogicalDataStreamScan(id=[2], fields=[count, word])
+:- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
+:  +- LogicalTableScan(table=[[Unregistered_DataStream_1]])
++- LogicalTableScan(table=[[Unregistered_DataStream_2]])
 
-== Optimized Logical Plan ==
-DataStreamUnion(all=[true], union all=[count, word])
-  DataStreamCalc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
-    DataStreamScan(id=[1], fields=[count, word])
-  DataStreamScan(id=[2], fields=[count, word])
+== Optimized Physical Plan ==
+Union(all=[true], union=[count, word])
+:- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+:  +- DataStreamScan(table=[[Unregistered_DataStream_1]], fields=[count, word])
++- DataStreamScan(table=[[Unregistered_DataStream_2]], fields=[count, word])
 
-== Physical Execution Plan ==
-Stage 1 : Data Source
-	content : collect elements with CollectionInputFormat
-
-Stage 2 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 3 : Operator
-		content : from: (count, word)
-		ship_strategy : REBALANCE
-
-		Stage 4 : Operator
-			content : where: (LIKE(word, _UTF-16LE'F%')), select: (count, word)
-			ship_strategy : FORWARD
-
-			Stage 5 : Operator
-				content : from: (count, word)
-				ship_strategy : REBALANCE
+== Optimized Execution Plan ==
+Union(all=[true], union=[count, word])
+:- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+:  +- DataStreamScan(table=[[Unregistered_DataStream_1]], fields=[count, word])
++- DataStreamScan(table=[[Unregistered_DataStream_2]], fields=[count, word])
 ```
-</div>
 
 以下代码展示了一个示例以及使用 `StatementSet.explain()` 的多 sink 计划的相应输出：
 
@@ -986,29 +878,34 @@ Stage 2 : Data Source
 {{< tab "Java" >}}
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 
-final Schema schema = new Schema()
-    .field("count", DataTypes.INT())
-    .field("word", DataTypes.STRING());
+final Schema schema = Schema.newBuilder()
+    .column("count", DataTypes.INT())
+    .column("word", DataTypes.STRING())
+    .build();
 
-tEnv.connect(new FileSystem().path("/source/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource1");
-tEnv.connect(new FileSystem().path("/source/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource2");
-tEnv.connect(new FileSystem().path("/sink/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink1");
-tEnv.connect(new FileSystem().path("/sink/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink2");
+tEnv.createTemporaryTable("MySource1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path1")
+    .format("csv")
+    .build());
+tEnv.createTemporaryTable("MySource2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path2")
+    .format("csv")
+    .build());
+tEnv.createTemporaryTable("MySink1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path1")
+    .format("csv")
+    .build());
+tEnv.createTemporaryTable("MySink2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path2")
+    .format("csv")
+    .build());
 
 StatementSet stmtSet = tEnv.createStatementSet();
 
@@ -1025,29 +922,34 @@ System.out.println(explanation);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance.useBlinkPlanner.inStreamingMode.build
+val settings = EnvironmentSettings.inStreamingMode()
 val tEnv = TableEnvironment.create(settings)
 
-val schema = new Schema()
-    .field("count", DataTypes.INT())
-    .field("word", DataTypes.STRING())
+val schema = Schema.newBuilder()
+    .column("count", DataTypes.INT())
+    .column("word", DataTypes.STRING())
+    .build()
 
-tEnv.connect(new FileSystem().path("/source/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource1")
-tEnv.connect(new FileSystem().path("/source/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource2")
-tEnv.connect(new FileSystem().path("/sink/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink1")
-tEnv.connect(new FileSystem().path("/sink/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink2")
+tEnv.createTemporaryTable("MySource1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path1")
+    .format("csv")
+    .build())
+tEnv.createTemporaryTable("MySource2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path2")
+    .format("csv")
+    .build())
+tEnv.createTemporaryTable("MySink1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path1")
+    .format("csv")
+    .build())
+tEnv.createTemporaryTable("MySink2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path2")
+    .format("csv")
+    .build())
 
 val stmtSet = tEnv.createStatementSet()
 
@@ -1064,29 +966,34 @@ println(explanation)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
+settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(environment_settings=settings)
 
-schema = Schema()
-    .field("count", DataTypes.INT())
-    .field("word", DataTypes.STRING())
+schema = Schema.new_builder()
+    .column("count", DataTypes.INT())
+    .column("word", DataTypes.STRING())
+    .build()
 
-t_env.connect(FileSystem().path("/source/path1")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySource1")
-t_env.connect(FileSystem().path("/source/path2")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySource2")
-t_env.connect(FileSystem().path("/sink/path1")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySink1")
-t_env.connect(FileSystem().path("/sink/path2")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySink2")
+t_env.create_temporary_table("MySource1", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path1")
+    .format("csv")
+    .build())
+t_env.create_temporary_table("MySource2", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path2")
+    .format("csv")
+    .build())
+t_env.create_temporary_table("MySink1", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path1")
+    .format("csv")
+    .build())
+t_env.create_temporary_table("MySink2", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path2")
+    .format("csv")
+    .build())
 
 stmt_set = t_env.create_statement_set()
 
@@ -1104,85 +1011,43 @@ print(explanation)
 {{< /tabs >}}
 
 多 sink 计划的结果是：
-<div>
-```text
 
+```text
 == Abstract Syntax Tree ==
-LogicalLegacySink(name=[MySink1], fields=[count, word])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
 +- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
 
-LogicalLegacySink(name=[MySink2], fields=[count, word])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
 +- LogicalUnion(all=[true])
-   :- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]])
+:- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]])
 
-== Optimized Logical Plan ==
-Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')], reuse_id=[1])
-+- TableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
++- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
-LegacySink(name=[MySink1], fields=[count, word])
+LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
++- Union(all=[true], union=[count, word])
+:- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+
+== Optimized Execution Plan ==
+Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])(reuse_id=[1])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+
+LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
 +- Reused(reference_id=[1])
 
-LegacySink(name=[MySink2], fields=[count, word])
+LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
 +- Union(all=[true], union=[count, word])
-   :- Reused(reference_id=[1])
-   +- TableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
-
-== Physical Execution Plan ==
-Stage 1 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 2 : Operator
-		content : CsvTableSource(read fields: count, word)
-		ship_strategy : REBALANCE
-
-		Stage 3 : Operator
-			content : SourceConversion(table:Buffer(default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]), fields:(count, word))
-			ship_strategy : FORWARD
-
-			Stage 4 : Operator
-				content : Calc(where: (word LIKE _UTF-16LE'F%'), select: (count, word))
-				ship_strategy : FORWARD
-
-				Stage 5 : Operator
-					content : SinkConversionToRow
-					ship_strategy : FORWARD
-
-					Stage 6 : Operator
-						content : Map
-						ship_strategy : FORWARD
-
-Stage 8 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 9 : Operator
-		content : CsvTableSource(read fields: count, word)
-		ship_strategy : REBALANCE
-
-		Stage 10 : Operator
-			content : SourceConversion(table:Buffer(default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]), fields:(count, word))
-			ship_strategy : FORWARD
-
-			Stage 12 : Operator
-				content : SinkConversionToRow
-				ship_strategy : FORWARD
-
-				Stage 13 : Operator
-					content : Map
-					ship_strategy : FORWARD
-
-					Stage 7 : Data Sink
-						content : Sink: CsvTableSink(count, word)
-						ship_strategy : FORWARD
-
-						Stage 14 : Data Sink
-							content : Sink: CsvTableSink(count, word)
-							ship_strategy : FORWARD
+:- Reused(reference_id=[1])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
 ```
-</div>
 
 {{< top >}}
 

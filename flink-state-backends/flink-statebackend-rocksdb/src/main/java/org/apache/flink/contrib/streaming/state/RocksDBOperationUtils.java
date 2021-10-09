@@ -104,16 +104,6 @@ public class RocksDBOperationUtils {
         return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
     }
 
-    /**
-     * Create a total order read option to avoid user misuse, see FLINK-17800 for more details.
-     *
-     * <p>Note, remember to close the generated {@link ReadOptions} when dispose.
-     */
-    // TODO We would remove this method once we bump RocksDB version larger than 6.2.2.
-    public static ReadOptions createTotalOrderSeekReadOptions() {
-        return new ReadOptions().setTotalOrderSeek(true);
-    }
-
     public static void registerKvStateInformation(
             Map<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
             RocksDBNativeMetricMonitor nativeMetricMonitor,

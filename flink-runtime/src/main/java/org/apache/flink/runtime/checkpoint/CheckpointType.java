@@ -62,6 +62,10 @@ public enum CheckpointType {
     }
 
     public boolean shouldAdvanceToEndOfTime() {
+        return shouldDrain();
+    }
+
+    public boolean shouldDrain() {
         return getPostCheckpointAction() == PostCheckpointAction.TERMINATE;
     }
 

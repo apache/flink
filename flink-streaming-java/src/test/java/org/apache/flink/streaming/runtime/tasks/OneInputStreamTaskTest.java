@@ -19,31 +19,35 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -59,7 +63,7 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -68,6 +72,8 @@ import org.hamcrest.collection.IsMapContaining;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -78,13 +84,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertArrayEquals;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -146,12 +148,12 @@ public class OneInputStreamTaskTest extends TestLogger {
     }
 
     /**
-     * This test verifies that watermarks and stream statuses are correctly forwarded. This also
+     * This test verifies that watermarks and watermark statuses are correctly forwarded. This also
      * checks whether watermarks are forwarded only when we have received watermarks from all
      * inputs. The forwarded watermark must be the minimum of the watermarks of all active inputs.
      */
     @Test
-    public void testWatermarkAndStreamStatusForwarding() throws Exception {
+    public void testWatermarkAndWatermarkStatusForwarding() throws Exception {
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
@@ -226,12 +228,12 @@ public class OneInputStreamTaskTest extends TestLogger {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // test whether idle input channels are acknowledged correctly when forwarding watermarks
-        testHarness.processElement(StreamStatus.IDLE, 0, 1);
-        testHarness.processElement(StreamStatus.IDLE, 1, 0);
+        testHarness.processElement(WatermarkStatus.IDLE, 0, 1);
+        testHarness.processElement(WatermarkStatus.IDLE, 1, 0);
         testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
         testHarness.processElement(
                 new Watermark(initialTime + 5), 1, 1); // this watermark should be advanced first
-        testHarness.processElement(StreamStatus.IDLE, 1, 1); // once this is acknowledged,
+        testHarness.processElement(WatermarkStatus.IDLE, 1, 1); // once this is acknowledged,
         // watermark (initial + 6) should be forwarded
         testHarness.waitForInputProcessing();
         expectedOutput.add(new Watermark(initialTime + 5));
@@ -240,18 +242,18 @@ public class OneInputStreamTaskTest extends TestLogger {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // make all input channels idle and check that the operator's idle status is forwarded
-        testHarness.processElement(StreamStatus.IDLE, 0, 0);
+        testHarness.processElement(WatermarkStatus.IDLE, 0, 0);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(StreamStatus.IDLE);
+        expectedOutput.add(WatermarkStatus.IDLE);
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // make some input channels active again and check that the operator's active status is
         // forwarded only once
-        testHarness.processElement(StreamStatus.ACTIVE, 1, 0);
-        testHarness.processElement(StreamStatus.ACTIVE, 0, 1);
+        testHarness.processElement(WatermarkStatus.ACTIVE, 1, 0);
+        testHarness.processElement(WatermarkStatus.ACTIVE, 0, 1);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(StreamStatus.ACTIVE);
+        expectedOutput.add(WatermarkStatus.ACTIVE);
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -262,6 +264,139 @@ public class OneInputStreamTaskTest extends TestLogger {
         List<String> resultElements =
                 TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
         assertEquals(2, resultElements.size());
+    }
+
+    /**
+     * This test verifies that watermarks are not forwarded when the task is idle. It also verifies
+     * that when task is idle, watermarks generated in the middle of chains are also blocked and
+     * never forwarded.
+     *
+     * <p>The tested chain will be: (HEAD: normal operator) --> (watermark generating operator) -->
+     * (normal operator). The operators will throw an exception and fail the test if either of them
+     * were forwarded watermarks when the task is idle.
+     */
+    @Test
+    public void testWatermarksNotForwardedWithinChainWhenIdle() throws Exception {
+
+        final OneInputStreamTaskTestHarness<String, String> testHarness =
+                new OneInputStreamTaskTestHarness<>(
+                        OneInputStreamTask::new,
+                        1,
+                        1,
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO);
+
+        TriggerableFailOnWatermarkTestOperator headOperator =
+                new TriggerableFailOnWatermarkTestOperator();
+        WatermarkGeneratingTestOperator watermarkOperator = new WatermarkGeneratingTestOperator();
+        TriggerableFailOnWatermarkTestOperator tailOperator =
+                new TriggerableFailOnWatermarkTestOperator();
+
+        testHarness
+                .setupOperatorChain(new OperatorID(42L, 42L), headOperator)
+                .chain(new OperatorID(4711L, 42L), watermarkOperator, StringSerializer.INSTANCE)
+                .chain(new OperatorID(123L, 123L), tailOperator, StringSerializer.INSTANCE)
+                .finish();
+
+        // --------------------- begin test ---------------------
+
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+        testHarness.invoke();
+        testHarness.waitForTaskRunning();
+
+        // the task starts as active, so all generated watermarks should be forwarded
+        testHarness.processElement(
+                new StreamRecord<>(
+                        TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));
+
+        testHarness.processElement(new StreamRecord<>("10"), 0, 0);
+
+        // this watermark will be forwarded since the task is currently active,
+        // but should not be in the final output because it should be blocked by the watermark
+        // generator in the chain
+        testHarness.processElement(new Watermark(15));
+
+        testHarness.processElement(new StreamRecord<>("20"), 0, 0);
+        testHarness.processElement(new StreamRecord<>("30"), 0, 0);
+
+        testHarness.waitForInputProcessing();
+
+        expectedOutput.add(
+                new StreamRecord<>(
+                        TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));
+        expectedOutput.add(new StreamRecord<>("10"));
+        expectedOutput.add(new Watermark(10));
+        expectedOutput.add(new StreamRecord<>("20"));
+        expectedOutput.add(new Watermark(20));
+        expectedOutput.add(new StreamRecord<>("30"));
+        expectedOutput.add(new Watermark(30));
+        TestHarnessUtil.assertOutputEquals(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        // now, toggle the task to be idle, and let the watermark generator produce some watermarks
+        testHarness.processElement(WatermarkStatus.IDLE);
+
+        // after this, the operators will throw an exception if they are forwarded watermarks
+        // anywhere in the chain
+        testHarness.processElement(
+                new StreamRecord<>(
+                        TriggerableFailOnWatermarkTestOperator.NO_FORWARDED_WATERMARKS_MARKER));
+
+        // NOTE: normally, tasks will not have records to process while idle;
+        // we're doing this here only to mimic watermark generating in operators
+        testHarness.processElement(new StreamRecord<>("40"), 0, 0);
+        testHarness.processElement(new StreamRecord<>("50"), 0, 0);
+        testHarness.processElement(new StreamRecord<>("60"), 0, 0);
+        testHarness.processElement(
+                new Watermark(
+                        65)); // the test will fail if any of the operators were forwarded this
+        testHarness.waitForInputProcessing();
+
+        // the 40 - 60 watermarks should not be forwarded, only the watermark status toggle element
+        // and
+        // records
+        expectedOutput.add(WatermarkStatus.IDLE);
+        expectedOutput.add(
+                new StreamRecord<>(
+                        TriggerableFailOnWatermarkTestOperator.NO_FORWARDED_WATERMARKS_MARKER));
+        expectedOutput.add(new StreamRecord<>("40"));
+        expectedOutput.add(new StreamRecord<>("50"));
+        expectedOutput.add(new StreamRecord<>("60"));
+        TestHarnessUtil.assertOutputEquals(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        // re-toggle the task to be active and see if new watermarks are correctly forwarded again
+        testHarness.processElement(WatermarkStatus.ACTIVE);
+        testHarness.processElement(
+                new StreamRecord<>(
+                        TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));
+
+        testHarness.processElement(new StreamRecord<>("70"), 0, 0);
+        testHarness.processElement(new StreamRecord<>("80"), 0, 0);
+        testHarness.processElement(new StreamRecord<>("90"), 0, 0);
+        testHarness.waitForInputProcessing();
+
+        expectedOutput.add(WatermarkStatus.ACTIVE);
+        expectedOutput.add(
+                new StreamRecord<>(
+                        TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));
+        expectedOutput.add(new StreamRecord<>("70"));
+        expectedOutput.add(new Watermark(70));
+        expectedOutput.add(new StreamRecord<>("80"));
+        expectedOutput.add(new Watermark(80));
+        expectedOutput.add(new StreamRecord<>("90"));
+        expectedOutput.add(new Watermark(90));
+        TestHarnessUtil.assertOutputEquals(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        testHarness.endInput();
+
+        testHarness.waitForTaskCompletion();
+
+        List<String> resultElements =
+                TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
+        assertEquals(12, resultElements.size());
     }
 
     /** This test verifies that checkpoint barriers are correctly forwarded. */
@@ -437,7 +572,7 @@ public class OneInputStreamTaskTest extends TestLogger {
      */
     @Test
     public void testSnapshottingAndRestoring() throws Exception {
-        final Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
+        final Deadline deadline = Deadline.fromNow(Duration.ofMinutes(2));
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
@@ -458,9 +593,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         configureChainedTestingStreamOperator(streamConfig, numberChainedTasks);
         TestTaskStateManager taskStateManager = testHarness.taskStateManager;
-        OneShotLatch waitForAcknowledgeLatch = new OneShotLatch();
-
-        taskStateManager.setWaitForReportLatch(waitForAcknowledgeLatch);
 
         // reset number of restore calls
         TestingStreamOperator.numberRestoreCalls = 0;
@@ -481,7 +613,7 @@ public class OneInputStreamTaskTest extends TestLogger {
         // since no state was set, there shouldn't be restore calls
         assertEquals(0, TestingStreamOperator.numberRestoreCalls);
 
-        waitForAcknowledgeLatch.await();
+        taskStateManager.getWaitForReportLatch().await();
 
         assertEquals(checkpointId, taskStateManager.getReportedCheckpointId());
 
@@ -577,17 +709,16 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         testHarness.waitForTaskCompletion();
 
-        ArrayList<StreamRecord<String>> expected = new ArrayList<>();
+        ArrayDeque<Object> expected = new ArrayDeque<>();
         Collections.addAll(
                 expected,
                 new StreamRecord<>("Hello"),
                 new StreamRecord<>("[Operator0]: End of input"),
-                new StreamRecord<>("[Operator0]: Bye"),
+                new StreamRecord<>("[Operator0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"));
 
-        final Object[] output = testHarness.getOutput().toArray();
-        assertArrayEquals("Output was not correct.", expected.toArray(), output);
+        assertThat(testHarness.getOutput(), containsInAnyOrder(expected.toArray()));
     }
 
     private static class TestOperator extends AbstractStreamOperator<String>
@@ -601,7 +732,7 @@ public class OneInputStreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void close() throws Exception {
+        public void finish() throws Exception {
 
             // verify that the timer service is still running
             Assert.assertTrue(
@@ -632,14 +763,16 @@ public class OneInputStreamTaskTest extends TestLogger {
                 .finish();
 
         final TaskMetricGroup taskMetricGroup =
-                new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
-                    @Override
-                    public OperatorMetricGroup getOrAddOperator(
-                            OperatorID operatorID, String name) {
-                        return new OperatorMetricGroup(
-                                NoOpMetricRegistry.INSTANCE, this, operatorID, name);
-                    }
-                };
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                                NoOpMetricRegistry.INSTANCE, "host", ResourceID.generate())
+                        .addTaskForJob(
+                                new JobID(),
+                                "jobname",
+                                new JobVertexID(),
+                                new ExecutionAttemptID(),
+                                "task",
+                                0,
+                                0);
 
         final StreamMockEnvironment env =
                 new StreamMockEnvironment(
@@ -716,7 +849,8 @@ public class OneInputStreamTaskTest extends TestLogger {
         InterceptingTaskMetricGroup taskMetricGroup =
                 new InterceptingTaskMetricGroup() {
                     @Override
-                    public OperatorMetricGroup getOrAddOperator(OperatorID id, String name) {
+                    public InternalOperatorMetricGroup getOrAddOperator(
+                            OperatorID id, String name) {
                         if (id.equals(headOperatorId)) {
                             return headOperatorMetricGroup;
                         } else if (id.equals(chainedOperatorId)) {
@@ -813,7 +947,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         final Map<String, Metric> metrics = new ConcurrentHashMap<>();
         final TaskMetricGroup taskMetricGroup =
-                new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+                StreamTaskTestHarness.createTaskMetricGroup(metrics);
         final StreamMockEnvironment environment = testHarness.createEnvironment();
         environment.setTaskMetricGroup(taskMetricGroup);
 
@@ -997,6 +1131,83 @@ public class OneInputStreamTaskTest extends TestLogger {
         @Override
         public String map(String value) throws Exception {
             return value;
+        }
+    }
+
+    /** A {@link TriggerableFailOnWatermarkTestOperator} that generates watermarks. */
+    private static class WatermarkGeneratingTestOperator
+            extends TriggerableFailOnWatermarkTestOperator {
+
+        private static final long serialVersionUID = -5064871833244157221L;
+
+        private long lastWatermark;
+
+        @Override
+        protected void handleElement(StreamRecord<String> element) {
+            long timestamp = Long.valueOf(element.getValue());
+            if (timestamp > lastWatermark) {
+                output.emitWatermark(new Watermark(timestamp));
+                lastWatermark = timestamp;
+            }
+        }
+
+        @Override
+        protected void handleWatermark(Watermark mark) {
+            if (mark.equals(Watermark.MAX_WATERMARK)) {
+                output.emitWatermark(mark);
+                lastWatermark = Long.MAX_VALUE;
+            }
+        }
+    }
+
+    /**
+     * An operator that can be triggered whether or not to expect watermarks forwarded to it,
+     * toggled by letting it process special trigger marker records.
+     *
+     * <p>If it receives a watermark when it's not expecting one, it'll throw an exception and fail.
+     */
+    private static class TriggerableFailOnWatermarkTestOperator
+            extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String> {
+
+        private static final long serialVersionUID = 2048954179291813243L;
+
+        public static final String EXPECT_FORWARDED_WATERMARKS_MARKER = "EXPECT_WATERMARKS";
+        public static final String NO_FORWARDED_WATERMARKS_MARKER = "NO_WATERMARKS";
+
+        protected boolean expectForwardedWatermarks;
+
+        @Override
+        public void processElement(StreamRecord<String> element) throws Exception {
+            output.collect(element);
+
+            if (element.getValue().equals(EXPECT_FORWARDED_WATERMARKS_MARKER)) {
+                this.expectForwardedWatermarks = true;
+            } else if (element.getValue().equals(NO_FORWARDED_WATERMARKS_MARKER)) {
+                this.expectForwardedWatermarks = false;
+            } else {
+                handleElement(element);
+            }
+        }
+
+        @Override
+        public void processWatermark(Watermark mark) throws Exception {
+            if (!expectForwardedWatermarks) {
+                throw new Exception(
+                        "Received a "
+                                + mark
+                                + ", but this operator should not be forwarded watermarks.");
+            } else {
+                handleWatermark(mark);
+            }
+        }
+
+        protected void handleElement(StreamRecord<String> element) {
+            // do nothing
+        }
+
+        protected void handleWatermark(Watermark mark) {
+            output.emitWatermark(mark);
         }
     }
 }

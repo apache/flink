@@ -22,9 +22,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
@@ -70,7 +72,10 @@ public class ZooKeeperJobGraphStoreWatcherTest extends TestLogger {
 
     @Test
     public void testJobGraphAddedAndRemovedShouldNotifyGraphStoreListener() throws Exception {
-        try (final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration)) {
+        try (final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
+                ZooKeeperUtils.startCuratorFramework(
+                        configuration, NoOpFatalErrorHandler.INSTANCE)) {
+            final CuratorFramework client = curatorFrameworkWrapper.asCuratorFramework();
             final JobGraphStoreWatcher jobGraphStoreWatcher =
                     createAndStartJobGraphStoreWatcher(client);
 

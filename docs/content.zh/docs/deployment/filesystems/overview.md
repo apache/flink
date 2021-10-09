@@ -47,9 +47,11 @@ Apache Flink 支持下列文件系统：
 
   - **MapR FS** 文件系统适配器已在 Flink 的主发行版中通过 *maprfs://* URI Scheme 支持。MapR 库需要在 classpath 中指定（例如在 `lib` 目录中）。
 
-  - **[阿里云对象存储]({{< ref "docs/deployment/filesystems/oss" >}})**由 `flink-oss-fs-hadoop` 支持，并通过 *oss://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
+  - **[阿里云对象存储]({{< ref "docs/deployment/filesystems/oss" >}})** 由 `flink-oss-fs-hadoop` 支持，并通过 *oss://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
 
-  - **[Azure Blob Storage]({{< ref "docs/deployment/filesystems/azure" >}})** 由`flink-azure-fs-hadoop` 支持，并通过 *wasb(s)://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
+  - **[Azure Blob Storage]({{< ref "docs/deployment/filesystems/azure" >}})** 由`flink-azure-fs-hadoop` 支持，并通过 *abfs(s)://* 和 *wasb(s)://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
+
+  - **[Google Cloud Storage]({{< ref "docs/deployment/filesystems/gcs" >}})** 由`gcs-connector` 支持，并通过 *gs://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
 
 除 **MapR FS** 之外，上述文件系统可以并且需要作为[插件]({{< ref "docs/deployment/filesystems/plugins" >}})使用。
 
@@ -57,7 +59,7 @@ Apache Flink 支持下列文件系统：
 
 ```bash
 mkdir ./plugins/s3-fs-hadoop
-cp ./opt/flink-s3-fs-hadoop-{{ site.version }}.jar ./plugins/s3-fs-hadoop/
+cp ./opt/flink-s3-fs-hadoop-{{< version >}}.jar ./plugins/s3-fs-hadoop/
 ```
 
 <span class="label label-danger">注意</span> 文件系统的[插件]({{< ref "docs/deployment/filesystems/plugins" >}})机制在 Flink 版本 1.9 中引入，以支持每个插件专有 Java 类加载器，并避免类隐藏机制。您仍然可以通过旧机制使用文件系统，即将对应的 JAR 文件复制到 `lib` 目录中，或使用您自己的实现方式，但是从版本 1.10 开始，**S3 插件必须通过插件机制加载**，因为这些插件不再被隐藏（版本 1.10 之后类不再被重定位），旧机制不再可用。

@@ -26,56 +26,50 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# High Availability
+# 高可用
 
-JobManager High Availability (HA) hardens a Flink cluster against JobManager failures.
-This feature ensures that a Flink cluster will always continue executing your submitted jobs.
+JobManager 高可用（HA）模式加强了 Flink 集群防止 JobManager 故障的能力。
+此特性确保 Flink 集群将始终持续执行你提交的作业。
 
-## JobManager High Availability
+## JobManager 高可用
 
-The JobManager coordinates every Flink deployment. 
-It is responsible for both *scheduling* and *resource management*.
+JobManager 协调每个 Flink 的部署。它同时负责 *调度* 和 *资源管理*。
 
-By default, there is a single JobManager instance per Flink cluster. 
-This creates a *single point of failure* (SPOF): if the JobManager crashes, no new programs can be submitted and running programs fail.
+默认情况下，每个 Flink 集群只有一个 JobManager 实例。这会导致 *单点故障（SPOF）*：如果 JobManager 崩溃，则不能提交任何新程序，运行中的程序也会失败。
 
-With JobManager High Availability, you can recover from JobManager failures and thereby eliminate the *SPOF*. 
-You can configure high availability for every cluster deployment.
-See the [list of available high availability services](#high-availability-services) for more information.
+使用 JobManager 高可用模式，你可以从 JobManager 失败中恢复，从而消除单点故障。你可以为每个集群部署配置高可用模式。
+有关更多信息，请参阅 [高可用服务](#high-availability-services)。
 
-### How to make a cluster highly available
+### 如何启用集群高可用
 
-The general idea of JobManager High Availability is that there is a *single leading JobManager* at any time and *multiple standby JobManagers* to take over leadership in case the leader fails. 
-This guarantees that there is *no single point of failure* and programs can make progress as soon as a standby JobManager has taken leadership. 
+JobManager 高可用一般概念是指，在任何时候都有 *一个领导者 JobManager*，如果领导者出现故障，则有多个备用 JobManager 来接管领导。这保证了 *不存在单点故障*，只要有备用 JobManager 担任领导者，程序就可以继续运行。
 
-As an example, consider the following setup with three JobManager instances:
+如下是一个使用三个 JobManager 实例的例子：
 
 {{< img src="/fig/jobmanager_ha_overview.png" class="center" >}}
 
-Flink's [high availability services](#high-availability-services) encapsulate the required services to make everything work:
-* **Leader election**: Selecting a single leader out of a pool of `n` candidates
-* **Service discovery**: Retrieving the address of the current leader
-* **State persistence**: Persisting state which is required for the successor to resume the job execution (JobGraphs, user code jars, completed checkpoints)
+Flink 的 [高可用服务](#high-availability-services) 封装了所需的服务，使一切可以正常工作：
+* **领导者选举**：从 `n` 个候选者中选出一个领导者
+* **服务发现**：检索当前领导者的地址
+* **状态持久化**：继承程序恢复作业所需的持久化状态（JobGraphs、用户代码jar、已完成的检查点）
 
 {{< top >}}
 
-## High Availability Services
+<a name="high-availability-services" />
 
-Flink ships with two high availability service implementations:
+## 高可用服务
 
-* [ZooKeeper]({{< ref "docs/deployment/ha/zookeeper_ha" >}}): 
-ZooKeeper HA services can be used with every Flink cluster deployment. 
-They require a running ZooKeeper quorum.  
+Flink 提供了两种高可用服务实现：
 
-* [Kubernetes]({{< ref "docs/deployment/ha/kubernetes_ha" >}}):
-Kubernetes HA services only work when running on Kubernetes.
+
+* [ZooKeeper]({{< ref "docs/deployment/ha/zookeeper_ha" >}})：每个 Flink 集群部署都可以使用 ZooKeeper HA 服务。它们需要一个运行的 ZooKeeper 复制组（quorum）。
+
+* [Kubernetes]({{< ref "docs/deployment/ha/kubernetes_ha" >}})：Kubernetes HA 服务只能运行在 Kubernetes 上。
 
 {{< top >}}
 
-## High Availability data lifecycle
+## 高可用数据生命周期
 
-In order to recover submitted jobs, Flink persists metadata and the job artifacts.
-The HA data will be kept until the respective job either succeeds, is cancelled or fails terminally.
-Once this happens, all the HA data, including the metadata stored in the HA services, will be deleted.  
+为了恢复提交的作业，Flink 持久化元数据和 job 组件。高可用数据将一直保存，直到相应的作业执行成功、被取消或最终失败。当这些情况发生时，将删除所有高可用数据，包括存储在高可用服务中的元数据。
 
 {{< top >}}

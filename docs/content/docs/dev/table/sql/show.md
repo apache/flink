@@ -26,7 +26,7 @@ under the License.
 
 # SHOW Statements
 
-SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or show create statement for specified table, or list all functions including system functions and user-defined functions in the current catalog and current database, or list only user-defined functions in the current catalog and current database, or list enabled module names, or list all loaded modules with enabled status in the current session.
+SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or show create statement for specified table, or list all functions including system functions and user-defined functions in the current catalog and current database, or list only user-defined functions in the current catalog and current database, or list enabled module names, or list all loaded modules with enabled status in the current session, or list the columns of the table or the view with the given name and the optional like clause.
 
 Flink SQL supports the following SHOW statements for now:
 - SHOW CATALOGS
@@ -34,10 +34,12 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW DATABASES
 - SHOW CURRENT DATABASE
 - SHOW TABLES
-- SHOW CREATE TABLE 
+- SHOW CREATE TABLE
+- SHOW COLUMNS
 - SHOW VIEWS
 - SHOW FUNCTIONS
 - SHOW MODULES
+- SHOW JARS
 
 ## Run a SHOW statement
 
@@ -128,6 +130,14 @@ tEnv.executeSql("SHOW CREATE TABLE my_table").print();
 //   ...
 // )
 
+// show columns
+tEnv.executeSql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print();
+// +--------+-------+------+-----+--------+-----------+
+// |   name |  type | null | key | extras | watermark |
+// +--------+-------+------+-----+--------+-----------+
+// | field2 | BYTES | true |     |        |           |
+// +--------+-------+------+-----+--------+-----------+
+
 
 // create a view
 tEnv.executeSql("CREATE VIEW my_view AS ...");
@@ -217,6 +227,15 @@ tEnv.executeSql("SHOW CREATE TABLE my_table").print()
 // ) WITH (
 //  ...
 // )
+
+// show columns
+tEnv.executeSql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print()
+// +--------+-------+------+-----+--------+-----------+
+// |   name |  type | null | key | extras | watermark |
+// +--------+-------+------+-----+--------+-----------+
+// | field2 | BYTES | true |     |        |           |
+// +--------+-------+------+-----+--------+-----------+
+
 // create a view
 tEnv.executeSql("CREATE VIEW my_view AS ...")
 // show views
@@ -269,8 +288,7 @@ tEnv.executeSql("SHOW FULL MODULES").print()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = StreamTableEnvironment.create(...)
 
 # show catalogs
 table_env.execute_sql("SHOW CATALOGS").print()
@@ -304,6 +322,14 @@ table_env.executeSql("SHOW CREATE TABLE my_table").print()
 # ) WITH (
 #   ...
 # )
+
+# show columns
+table_env.execute_sql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print()
+# +--------+-------+------+-----+--------+-----------+
+# |   name |  type | null | key | extras | watermark |
+# +--------+-------+------+-----+--------+-----------+
+# | field2 | BYTES | true |     |        |           |
+# +--------+-------+------+-----+--------+-----------+
 
 # create a view
 table_env.execute_sql("CREATE VIEW my_view AS ...")
@@ -352,6 +378,7 @@ table_env.execute_sql("SHOW FULL MODULES").print()
 # |        core |  true |
 # |        hive | false |
 # +-------------+-------+
+
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -375,6 +402,16 @@ CREATE TABLE `default_catalog`.`default_db`.`my_table` (
 ) WITH (
   ...
 )
+
+
+Flink SQL> SHOW COLUMNS from MyUserTable LIKE '%f%';
++--------+-------+------+-----+--------+-----------+
+|   name |  type | null | key | extras | watermark |
++--------+-------+------+-----+--------+-----------+
+| field2 | BYTES | true |     |        |           |
++--------+-------+------+-----+--------+-----------+
+1 row in set
+
 
 Flink SQL> CREATE VIEW my_view AS ...;
 [INFO] View has been created.
@@ -410,6 +447,10 @@ Flink SQL> SHOW FULL MODULES;
 |        core | true |
 +-------------+------+
 1 row in set
+
+
+Flink SQL> SHOW JARS;
+/path/to/addedJar.jar
 
 
 ```
@@ -467,7 +508,94 @@ SHOW CREATE TABLE
 
 Show create table statement for specified table.
 
-<span class="label label-danger">Attention</span> Currently `SHOW CREATE TABLE` only supports table that is created by Flink SQL DDL. 
+<span class="label label-danger">Attention</span> Currently `SHOW CREATE TABLE` only supports table that is created by Flink SQL DDL.
+
+## SHOW COLUMNS
+
+```sql
+SHOW COLUMNS ( FROM | IN ) [[catalog_name.]database.]<table_name> [ [NOT] LIKE <sql_like_pattern>]
+```
+
+Show all columns of the table with given table name and optional like clause.
+
+**LIKE**
+Show all columns of the table with given table name and optional `LIKE` clause, whose name is whether similar to the `<sql_like_pattern>`.
+
+The syntax of sql pattern in `LIKE` clause is the same as that of `MySQL` dialect.
+
+### SHOW COLUMNS EXAMPLES
+
+Assumes that the table named `orders` in the `database1` database which is located in the `catalog1` catalog has the following structure:
+
+```sql
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+```
+
+- Shows all columns of the given table.
+
+```sql
+show columns from orders;
+-- show columns from database1.orders;
+-- show columns from catalog1.database1.orders;
+-- show columns in orders;
+-- show columns in database1.orders;
+-- show columns in catalog1.database1.orders;
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+5 rows in set
+```
+
+- Shows all columns of the given table, which are similar to the given sql pattern.
+
+```sql
+show columns from orders like '%r';
+-- show columns from database1.orders like '%r';
+-- show columns from catalog1.database1.orders like '%r';
+-- show columns in orders like '%r';
+-- show columns in database1.orders like '%r';
+-- show columns in catalog1.database1.orders like '%r';
++------+--------+-------+-----------+--------+-----------+
+| name |   type |  null |       key | extras | watermark |
++------+--------+-------+-----------+--------+-----------+
+| user | BIGINT | false | PRI(user) |        |           |
++------+--------+-------+-----------+--------+-----------+
+1 row in set
+```
+
+- Shows all columns of the given table, which are not similar to the given sql pattern.
+
+```sql
+show columns from orders not like '%_r';
+-- show columns from database1.orders not like '%_r';
+-- show columns from catalog1.database1.orders not like '%_r';
+-- show columns in orders not like '%_r';
+-- show columns in database1.orders not like '%_r';
+-- show columns in catalog1.database1.orders not like '%_r';
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+|    name |                        type |  null | key |        extras |                  watermark |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+| product |                 VARCHAR(32) |  true |     |               |                            |
+|  amount |                         INT |  true |     |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+4 rows in set
+```
 
 ## SHOW VIEWS
 
@@ -498,5 +626,15 @@ Show all enabled module names with resolution order.
 
 **FULL**
 Show all loaded modules and enabled status with resolution order.
+
+## SHOW JARS
+
+```sql
+SHOW JARS
+```
+
+Show all added jars in the session classloader which are added by [`ADD JAR`]({{< ref "docs/dev/table/sql/jar" >}}#add-jar) statements.
+
+<span class="label label-danger">Attention</span> Currently `SHOW JARS` only works in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
 
 {{< top >}}

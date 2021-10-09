@@ -41,10 +41,10 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheLoader;
-import org.apache.flink.shaded.guava18.com.google.common.cache.LoadingCache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.RemovalNotification;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheLoader;
+import org.apache.flink.shaded.guava30.com.google.common.cache.LoadingCache;
+import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalNotification;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -108,7 +108,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
     protected CompletableFuture<Void> respondToRequest(
             ChannelHandlerContext ctx,
             HttpRequest httpRequest,
-            HandlerRequest<EmptyRequestBody, M> handlerRequest,
+            HandlerRequest<EmptyRequestBody> handlerRequest,
             RestfulGateway gateway)
             throws RestHandlerException {
         final ResourceID taskManagerId =
@@ -216,7 +216,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
         }
     }
 
-    protected String getFileName(HandlerRequest<EmptyRequestBody, M> handlerRequest) {
+    protected String getFileName(HandlerRequest<EmptyRequestBody> handlerRequest) {
         return null;
     }
 }

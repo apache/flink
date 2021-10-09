@@ -1,0 +1,234 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testNestedProject">
+    <Resource name="sql">
+      <![CDATA[
+SELECT id,
+    deepNested.nested1.name AS nestedName,
+    nested.`value` AS nestedValue,
+    deepNested.nested2.flag AS nestedFlag,
+    deepNested.nested2.num AS nestedNum
+FROM T
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, deepNested_nested1_name AS nestedName, nested_value AS nestedValue, deepNested_nested2_flag AS nestedFlag, deepNested_nested2_num AS nestedNum])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value], metadata=[]]], fields=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedProjectWithItem">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  `result`.`data_arr`[`id`].`value`,
+  `result`.`data_map`['item'].`value`
+FROM NestedItemTable
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _UTF-16LE'item').value])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[ITEM(result_data_arr, id).value AS EXPR$0, ITEM(result_data_map, _UTF-16LE'item').value AS EXPR$1])
++- TableSourceScan(table=[[default_catalog, default_database, NestedItemTable, project=[result_data_arr, result_data_map, id], metadata=[]]], fields=[result_data_arr, result_data_map, id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedProjectWithMetadata">
+    <Resource name="sql">
+      <![CDATA[
+SELECT id,
+       deepNested.nested1 AS nested1,
+       deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results
+FROM T
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.nested2.num), $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, deepNested_nested1 AS nested1, ((deepNested_nested1.value + deepNested_nested2_num) + metadata_1) AS results])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested_nested1, deepNested_nested2_num, metadata_1], metadata=[metadata_1]]], fields=[id, deepNested_nested1, deepNested_nested2_num, metadata_1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectOnlyRowtime">
+    <Resource name="sql">
+      <![CDATA[SELECT rtime FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(rtime=[$1])
++- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
+   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[rtime], metadata=[]]], fields=[rtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithoutInputRef">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(1) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalProject($f0=[0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(select=[COUNT(*) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- TableSourceScan(table=[[default_catalog, default_database, T, project=[], metadata=[]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeTableSourceGroupWindow">
+    <Resource name="sql">
+      <![CDATA[
+SELECT name,
+    TUMBLE_END(rowtime, INTERVAL '10' MINUTE),
+    AVG(val)
+FROM rowTimeT WHERE val > 100
+   GROUP BY name, TUMBLE(rowtime, INTERVAL '10' MINUTE)
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], EXPR$1=[TUMBLE_END($1)], EXPR$2=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$2=[AVG($2)])
+   +- LogicalProject(name=[$3], $f1=[$TUMBLE($1, 600000:INTERVAL MINUTE)], val=[$2])
+      +- LogicalFilter(condition=[>($2, 100)])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[name, w$end AS EXPR$1, EXPR$2])
++- GroupWindowAggregate(groupBy=[name], window=[TumblingGroupWindow('w$, rowtime, 600000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[name, AVG(val) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+   +- Exchange(distribution=[hash[name]])
+      +- Calc(select=[rowtime, val, name], where=[(val > 100)])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, rowTimeT, project=[rowtime, val, name], metadata=[]]], fields=[rowtime, val, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithoutProctime">
+    <Resource name="sql">
+      <![CDATA[select name, val, rtime, id from T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$3], val=[$2], rtime=[$1], id=[$0])
++- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
+   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
++- Calc(select=[name, val, rtime, id])
+   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableSourceWithTimestampRowTimeField">
+    <Resource name="sql">
+      <![CDATA[SELECT rowtime, id, name, val FROM rowTimeT]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
++- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[rowtime, id, name, val])
++- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   +- TableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithoutRowtime">
+    <Resource name="sql">
+      <![CDATA[SELECT ptime, name, val, id FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(ptime=[$4], name=[$3], val=[$2], id=[$0])
++- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
+   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
++- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
+   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableSourceWithSourceWatermarks">
+    <Resource name="sql">
+      <![CDATA[SELECT rowtime, id, name, val FROM rowTimeT]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
++- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[SOURCE_WATERMARK()])
+   +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[rowtime, id, name, val])
++- TableSourceScan(table=[[default_catalog, default_database, rowTimeT, watermark=[SOURCE_WATERMARK()]]], fields=[id, rowtime, val, name])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

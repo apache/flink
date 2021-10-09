@@ -18,12 +18,13 @@
 
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
+
 import { JobOverviewDrawerAccumulatorsComponent } from './accumulators/job-overview-drawer-accumulators.component';
 import { JobOverviewDrawerBackpressureComponent } from './backpressure/job-overview-drawer-backpressure.component';
-import { JobOverviewDrawerFlameGraphComponent } from './flamegraph/job-overview-drawer-flamegraph.component';
 import { JobOverviewDrawerChartComponent } from './chart/job-overview-drawer-chart.component';
 import { JobOverviewDrawerDetailComponent } from './detail/job-overview-drawer-detail.component';
 import { JobOverviewDrawerComponent } from './drawer/job-overview-drawer.component';
+import { JobOverviewDrawerFlameGraphComponent } from './flamegraph/job-overview-drawer-flamegraph.component';
 import { JobOverviewComponent } from './job-overview.component';
 import { JobOverviewDrawerSubtasksComponent } from './subtasks/job-overview-drawer-subtasks.component';
 import { JobOverviewDrawerTaskmanagersComponent } from './taskmanagers/job-overview-drawer-taskmanagers.component';

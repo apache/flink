@@ -18,20 +18,25 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.connector.blackhole.table.BlackHoleTableSinkFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link BlackHoleTableSinkFactory}. */
 public class BlackHoleSinkFactoryTest {
@@ -47,9 +52,11 @@ public class BlackHoleSinkFactoryTest {
         Map<String, String> properties = new HashMap<>();
         properties.put("connector", "blackhole");
 
-        DynamicTableSink sink = createTableSink(SCHEMA, properties);
+        List<String> partitionKeys = Arrays.asList("f0", "f1");
+        DynamicTableSink sink = createTableSink(SCHEMA, partitionKeys, properties);
 
         assertEquals("BlackHole", sink.asSummaryString());
+        assertTrue(sink instanceof SupportsPartitioning);
     }
 
     @Test

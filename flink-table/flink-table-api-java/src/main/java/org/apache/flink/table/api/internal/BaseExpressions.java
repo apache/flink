@@ -21,7 +21,13 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
+import org.apache.flink.table.api.JsonQueryWrapper;
+import org.apache.flink.table.api.JsonType;
+import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
@@ -80,11 +86,15 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF_NUL
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INIT_CAP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_FALSE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_JSON;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_FALSE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LIKE;
@@ -100,6 +110,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MD5;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MINUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MOD;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_BETWEEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OR;
@@ -202,6 +213,26 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType or(InType other) {
         return toApiSpecificExpression(unresolvedCall(OR, toExpr(), objectToExpression(other)));
+    }
+
+    /**
+     * Inverts a given boolean expression.
+     *
+     * <p>This method supports a three-valued logic by preserving {@code NULL}. This means if the
+     * input expression is {@code NULL}, the result will also be {@code NULL}.
+     *
+     * <p>The resulting type is nullable if and only if the input type is nullable.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit(true).not() // false
+     * lit(false).not() // true
+     * lit(null, DataTypes.BOOLEAN()).not() // null
+     * }</pre>
+     */
+    public OutType not() {
+        return toApiSpecificExpression(unresolvedCall(NOT, toExpr()));
     }
 
     /** Greater than. */
@@ -1260,5 +1291,349 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType sha2(InType hashLength) {
         return toApiSpecificExpression(
                 unresolvedCall(SHA2, toExpr(), objectToExpression(hashLength)));
+    }
+
+    // JSON functions
+
+    /**
+     * Determine whether a given string is valid JSON.
+     *
+     * <p>Specifying the optional {@param type} argument puts a constraint on which type of JSON
+     * object is allowed. If the string is valid JSON, but not that type, {@code false} is returned.
+     * The default is {@link JsonType#VALUE}.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("1").isJson() // true
+     * lit("[]").isJson() // true
+     * lit("{}").isJson() // true
+     *
+     * lit("\"abc\"").isJson() // true
+     * lit("abc").isJson() // false
+     * nullOf(DataTypes.STRING()).isJson() // false
+     *
+     * lit("1").isJson(JsonType.SCALAR) // true
+     * lit("1").isJson(JsonType.ARRAY) // false
+     * lit("1").isJson(JsonType.OBJECT) // false
+     *
+     * lit("{}").isJson(JsonType.SCALAR) // false
+     * lit("{}").isJson(JsonType.ARRAY) // false
+     * lit("{}").isJson(JsonType.OBJECT) // true
+     * }</pre>
+     *
+     * @param type The type of JSON object to validate against.
+     * @return {@code true} if the string is a valid JSON of the given {@param type}, {@code false}
+     *     otherwise.
+     */
+    public OutType isJson(JsonType type) {
+        return toApiSpecificExpression(unresolvedCall(IS_JSON, toExpr(), valueLiteral(type)));
+    }
+
+    /**
+     * Determine whether a given string is valid JSON.
+     *
+     * <p>This is a shortcut for {@code isJson(JsonType.VALUE)}. See {@link #isJson(JsonType)}.
+     *
+     * @return {@code true} if the string is a valid JSON value, {@code false} otherwise.
+     */
+    public OutType isJson() {
+        return toApiSpecificExpression(unresolvedCall(IS_JSON, toExpr()));
+    }
+
+    /**
+     * Returns whether a JSON string satisfies a given search criterion.
+     *
+     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // true
+     * lit("{\"a\": true}").jsonExists("$.a")
+     * // false
+     * lit("{\"a\": true}").jsonExists("$.b")
+     * // true
+     * lit("{\"a\": [{ \"b\": 1 }]}").jsonExists("$.a[0].b")
+     *
+     * // true
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.TRUE)
+     * // false
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.FALSE)
+     * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @param onError Behavior in case of an error.
+     * @return {@code true} if the JSON string satisfies the search criterion.
+     */
+    public OutType jsonExists(String path, JsonExistsOnError onError) {
+        return toApiSpecificExpression(
+                unresolvedCall(JSON_EXISTS, toExpr(), valueLiteral(path), valueLiteral(onError)));
+    }
+
+    /**
+     * Determines whether a JSON string satisfies a given search criterion.
+     *
+     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // true
+     * lit("{\"a\": true}").jsonExists("$.a")
+     * // false
+     * lit("{\"a\": true}").jsonExists("$.b")
+     * // true
+     * lit("{\"a\": [{ \"b\": 1 }]}").jsonExists("$.a[0].b")
+     *
+     * // true
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.TRUE)
+     * // false
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.FALSE)
+     * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @return {@code true} if the JSON string satisfies the search criterion.
+     */
+    public OutType jsonExists(String path) {
+        return toApiSpecificExpression(unresolvedCall(JSON_EXISTS, toExpr(), valueLiteral(path)));
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}. Using {@param returningType} a different type can
+     * be chosen, with the following types being supported:
+     *
+     * <ul>
+     *   <li>{@link DataTypes#STRING()}
+     *   <li>{@link DataTypes#BOOLEAN()}
+     *   <li>{@link DataTypes#INT()}
+     *   <li>{@link DataTypes#DOUBLE()}
+     * </ul>
+     *
+     * <p>For empty path expressions or errors a behavior can be defined to either return {@code
+     * null}, raise an error or return a defined default value instead.
+     *
+     * <p>See {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
+     * JsonQueryOnEmptyOrError)} for extracting non-scalar values from a JSON string.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // STRING: "true"
+     * lit("{\"a\": true}").jsonValue("$.a")
+     *
+     * // DOUBLE: 0.998
+     * lit("{\"a.b\": [0.998,0.996]}").jsonValue("$.['a.b'][0]", DataTypes.DOUBLE())
+     *
+     * // BOOLEAN: true
+     * lit("{\"a\": true}").jsonValue("$.a", DataTypes.BOOLEAN())
+     *
+     * // BOOLEAN: "false"
+     * lit("{\"a\": true}").jsonValue("lax $.b",
+     *     JsonValueOnEmptyOrError.DEFAULT, false, JsonValueOnEmptyOrError.NULL, null)
+     *
+     * // BOOLEAN: "false"
+     * lit("{\"a\": true}").jsonValue("strict $.b",
+     *     JsonValueOnEmptyOrError.NULL, null, JsonValueOnEmptyOrError.DEFAULT, false)
+     * }</pre>
+     *
+     * @param path JSON path to extract.
+     * @param returningType Type to convert the extracted scalar to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @param onEmpty Behavior in case the path expression is empty.
+     * @param defaultOnEmpty Default value to return if the path expression is empty and {@param
+     *     onEmpty} is set to {@link JsonValueOnEmptyOrError#DEFAULT}.
+     * @param onError Behavior in case of an error.
+     * @param defaultOnError Default value to return if there is an error and {@param onError} is
+     *     set to {@link JsonValueOnEmptyOrError#DEFAULT}.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(
+            String path,
+            DataType returningType,
+            JsonValueOnEmptyOrError onEmpty,
+            InType defaultOnEmpty,
+            JsonValueOnEmptyOrError onError,
+            InType defaultOnError) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        JSON_VALUE,
+                        toExpr(),
+                        valueLiteral(path),
+                        typeLiteral(returningType),
+                        valueLiteral(onEmpty),
+                        objectToExpression(defaultOnEmpty),
+                        valueLiteral(onError),
+                        objectToExpression(defaultOnError)));
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}.
+     *
+     * <p>See also {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)}.
+     *
+     * @param path JSON path to extract.
+     * @param returningType Type to convert the extracted scalar to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(String path, DataType returningType) {
+        return jsonValue(
+                path,
+                returningType,
+                JsonValueOnEmptyOrError.NULL,
+                null,
+                JsonValueOnEmptyOrError.NULL,
+                null);
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}.
+     *
+     * <p>See also {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)}.
+     *
+     * <p>This is a convenience method using {@link JsonValueOnEmptyOrError#DEFAULT} for both empty
+     * and error cases with the same default value.
+     *
+     * @param path JSON path to extract.
+     * @param returningType Type to convert the extracted scalar to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(String path, DataType returningType, InType defaultOnEmptyOrError) {
+        return jsonValue(
+                path,
+                returningType,
+                JsonValueOnEmptyOrError.DEFAULT,
+                defaultOnEmptyOrError,
+                JsonValueOnEmptyOrError.DEFAULT,
+                defaultOnEmptyOrError);
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}.
+     *
+     * <p>See also {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)}.
+     *
+     * @param path JSON path to extract.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(String path) {
+        return jsonValue(path, DataTypes.STRING());
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
+     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL. The result is
+     * always returned as a {@link DataTypes#STRING()}.
+     *
+     * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
+     * into an array, and whether to do so unconditionally or only if the value itself isn't an
+     * array already.
+     *
+     * <p>{@param onEmpty} and {@param onError} determine the behavior in case the path expression
+     * is empty, or in case an error was raised, respectively. By default, in both cases {@code
+     * null} is returned. Other choices are to use an empty array, an empty object, or to raise an
+     * error.
+     *
+     * <p>See {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)} for extracting scalars from a JSON string.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("{ \"a\": { \"b\": 1 } }").jsonQuery("$.a") // "{ \"b\": 1 }"
+     * lit("[1, 2]").jsonQuery("$") // "[1, 2]"
+     * nullOf(DataTypes.STRING()).jsonQuery("$") // null
+     *
+     * // Wrap result into an array
+     * lit("{}").jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[{}]"
+     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[1, 2]"
+     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.UNCONDITIONAL_ARRAY) // "[[1, 2]]"
+     *
+     * // Scalars must be wrapped to be returned
+     * lit(1).jsonQuery("$") // null
+     * lit(1).jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[1]"
+     *
+     * // Behavior if path expression is empty / there is an error
+     * // "{}"
+     * lit("{}").jsonQuery("lax $.invalid", JsonQueryWrapper.WITHOUT_ARRAY,
+     *     JsonQueryOnEmptyOrError.EMPTY_OBJECT, JsonQueryOnEmptyOrError.NULL)
+     * // "[]"
+     * lit("{}").jsonQuery("strict $.invalid", JsonQueryWrapper.WITHOUT_ARRAY,
+     *     JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.EMPTY_ARRAY)
+     * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @param wrappingBehavior Determine if and when to wrap the resulting value into an array.
+     * @param onEmpty Behavior in case the path expression is empty.
+     * @param onError Behavior in case of an error.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(
+            String path,
+            JsonQueryWrapper wrappingBehavior,
+            JsonQueryOnEmptyOrError onEmpty,
+            JsonQueryOnEmptyOrError onError) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        JSON_QUERY,
+                        toExpr(),
+                        valueLiteral(path),
+                        valueLiteral(wrappingBehavior),
+                        valueLiteral(onEmpty),
+                        valueLiteral(onError)));
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
+     * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
+     * into an array, and whether to do so unconditionally or only if the value itself isn't an
+     * array already.
+     *
+     * <p>See also {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
+     * JsonQueryOnEmptyOrError)}.
+     *
+     * @param path JSON path to search for.
+     * @param wrappingBehavior Determine if and when to wrap the resulting value into an array.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(String path, JsonQueryWrapper wrappingBehavior) {
+        return jsonQuery(
+                path, wrappingBehavior, JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.NULL);
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
+     * <p>See also {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
+     * JsonQueryOnEmptyOrError)}.
+     *
+     * @param path JSON path to search for.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(String path) {
+        return jsonQuery(path, JsonQueryWrapper.WITHOUT_ARRAY);
     }
 }

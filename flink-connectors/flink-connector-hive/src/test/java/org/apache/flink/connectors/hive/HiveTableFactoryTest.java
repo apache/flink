@@ -34,6 +34,8 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableSinkFactoryContextImpl;
@@ -47,6 +49,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -70,23 +73,24 @@ public class HiveTableFactoryTest {
 
     @Test
     public void testGenericTable() throws Exception {
-        TableSchema schema =
+        final TableSchema schema =
                 TableSchema.builder()
                         .field("name", DataTypes.STRING())
                         .field("age", DataTypes.INT())
                         .build();
 
-        Map<String, String> properties = new HashMap<>();
-        properties.put(FactoryUtil.CONNECTOR.key(), "COLLECTION");
-
         catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
-        ObjectPath path = new ObjectPath("mydb", "mytable");
-        CatalogTable table = new CatalogTableImpl(schema, properties, "csv table");
-        catalog.createTable(path, table, true);
-        Optional<TableFactory> opt = catalog.getTableFactory();
-        assertTrue(opt.isPresent());
-        HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
-        TableSource tableSource =
+
+        final Map<String, String> options =
+                Collections.singletonMap(FactoryUtil.CONNECTOR.key(), "COLLECTION");
+        final CatalogTable table = new CatalogTableImpl(schema, options, "csv table");
+        catalog.createTable(new ObjectPath("mydb", "mytable"), table, true);
+
+        final Optional<TableFactory> tableFactoryOpt = catalog.getTableFactory();
+        assertTrue(tableFactoryOpt.isPresent());
+        final HiveTableFactory tableFactory = (HiveTableFactory) tableFactoryOpt.get();
+
+        final TableSource tableSource =
                 tableFactory.createTableSource(
                         new TableSourceFactoryContextImpl(
                                 ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
@@ -94,7 +98,8 @@ public class HiveTableFactoryTest {
                                 new Configuration(),
                                 false));
         assertTrue(tableSource instanceof StreamTableSource);
-        TableSink tableSink =
+
+        final TableSink tableSink =
                 tableFactory.createTableSink(
                         new TableSinkFactoryContextImpl(
                                 ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
@@ -107,24 +112,24 @@ public class HiveTableFactoryTest {
 
     @Test
     public void testHiveTable() throws Exception {
-        ResolvedSchema schema =
+        final ResolvedSchema schema =
                 ResolvedSchema.of(
                         Column.physical("name", DataTypes.STRING()),
                         Column.physical("age", DataTypes.INT()));
 
-        Map<String, String> properties = new HashMap<>();
-        properties.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
-
         catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
-        ObjectPath path = new ObjectPath("mydb", "mytable");
-        CatalogTable table =
-                new CatalogTableImpl(
-                        TableSchema.fromResolvedSchema(schema), properties, "hive table");
-        catalog.createTable(path, table, true);
 
-        DynamicTableSource tableSource =
-                FactoryUtil.createTableSource(
-                        catalog,
+        final Map<String, String> options =
+                Collections.singletonMap(
+                        FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+        final CatalogTable table =
+                new CatalogTableImpl(TableSchema.fromResolvedSchema(schema), options, "hive table");
+        catalog.createTable(new ObjectPath("mydb", "mytable"), table, true);
+
+        final DynamicTableSource tableSource =
+                FactoryUtil.createDynamicTableSource(
+                        (DynamicTableSourceFactory)
+                                catalog.getFactory().orElseThrow(IllegalStateException::new),
                         ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
                         new ResolvedCatalogTable(table, schema),
                         new Configuration(),
@@ -132,9 +137,10 @@ public class HiveTableFactoryTest {
                         false);
         assertTrue(tableSource instanceof HiveTableSource);
 
-        DynamicTableSink tableSink =
-                FactoryUtil.createTableSink(
-                        catalog,
+        final DynamicTableSink tableSink =
+                FactoryUtil.createDynamicTableSink(
+                        (DynamicTableSinkFactory)
+                                catalog.getFactory().orElseThrow(IllegalStateException::new),
                         ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
                         new ResolvedCatalogTable(table, schema),
                         new Configuration(),

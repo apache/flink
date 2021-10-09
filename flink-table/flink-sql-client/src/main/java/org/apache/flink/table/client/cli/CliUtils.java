@@ -109,7 +109,9 @@ public final class CliUtils {
             if (parent == null) {
                 return false;
             }
-            Files.createDirectories(parent);
+            if (Files.notExists(parent)) {
+                Files.createDirectories(parent);
+            }
             if (Files.notExists(filePath)) {
                 Files.createFile(filePath);
             }

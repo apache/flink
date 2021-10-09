@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -28,6 +27,7 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -80,8 +80,7 @@ public class JarUploadHandlerTest extends TestLogger {
     @Test
     public void testRejectNonJarFiles() throws Exception {
         final Path uploadedFile = Files.createFile(jarDir.resolve("katrin.png"));
-        final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request =
-                createRequest(uploadedFile);
+        final HandlerRequest<EmptyRequestBody> request = createRequest(uploadedFile);
 
         try {
             jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
@@ -99,8 +98,7 @@ public class JarUploadHandlerTest extends TestLogger {
     @Test
     public void testUploadJar() throws Exception {
         final Path uploadedFile = Files.createFile(jarDir.resolve("FooBazzleExample.jar"));
-        final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request =
-                createRequest(uploadedFile);
+        final HandlerRequest<EmptyRequestBody> request = createRequest(uploadedFile);
 
         final JarUploadResponseBody jarUploadResponseBody =
                 jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
@@ -117,8 +115,7 @@ public class JarUploadHandlerTest extends TestLogger {
     @Test
     public void testFailedUpload() throws Exception {
         final Path uploadedFile = jarDir.resolve("FooBazzleExample.jar");
-        final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request =
-                createRequest(uploadedFile);
+        final HandlerRequest<EmptyRequestBody> request = createRequest(uploadedFile);
 
         try {
             jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
@@ -136,13 +133,11 @@ public class JarUploadHandlerTest extends TestLogger {
         }
     }
 
-    private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> createRequest(
-            final Path uploadedFile) throws HandlerRequestException, IOException {
-        return new HandlerRequest<>(
+    private static HandlerRequest<EmptyRequestBody> createRequest(final Path uploadedFile)
+            throws HandlerRequestException, IOException {
+        return HandlerRequest.create(
                 EmptyRequestBody.getInstance(),
                 EmptyMessageParameters.getInstance(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
                 Collections.singleton(uploadedFile.toFile()));
     }
 }

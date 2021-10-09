@@ -51,7 +51,6 @@ import java.util.Locale;
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -88,55 +87,6 @@ public class SSLUtilsTest extends TestLogger {
     @Parameterized.Parameters(name = "SSL provider = {0}")
     public static List<String> parameters() {
         return AVAILABLE_SSL_PROVIDERS;
-    }
-
-    /** Tests whether activation of internal / REST SSL evaluates the config flags correctly. */
-    @SuppressWarnings("deprecation")
-    @Test
-    public void checkEnableSSL() {
-        // backwards compatibility
-        Configuration oldConf = new Configuration();
-        oldConf.setBoolean(SecurityOptions.SSL_ENABLED, true);
-        assertTrue(SSLUtils.isInternalSSLEnabled(oldConf));
-        assertTrue(SSLUtils.isRestSSLEnabled(oldConf));
-
-        // new options take precedence
-        Configuration newOptions = new Configuration();
-        newOptions.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-        newOptions.setBoolean(SecurityOptions.SSL_REST_ENABLED, false);
-        assertTrue(SSLUtils.isInternalSSLEnabled(newOptions));
-        assertFalse(SSLUtils.isRestSSLEnabled(newOptions));
-
-        // new options take precedence
-        Configuration precedence = new Configuration();
-        precedence.setBoolean(SecurityOptions.SSL_ENABLED, true);
-        precedence.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, false);
-        precedence.setBoolean(SecurityOptions.SSL_REST_ENABLED, false);
-        assertFalse(SSLUtils.isInternalSSLEnabled(precedence));
-        assertFalse(SSLUtils.isRestSSLEnabled(precedence));
-    }
-
-    /**
-     * Tests whether activation of REST mutual SSL authentication evaluates the config flags
-     * correctly.
-     */
-    @Test
-    public void checkEnableRestSSLAuthentication() {
-        // SSL has to be enabled
-        Configuration noSSLOptions = new Configuration();
-        noSSLOptions.setBoolean(SecurityOptions.SSL_REST_ENABLED, false);
-        noSSLOptions.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
-        assertFalse(SSLUtils.isRestSSLAuthenticationEnabled(noSSLOptions));
-
-        // authentication is disabled by default
-        Configuration defaultOptions = new Configuration();
-        defaultOptions.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
-        assertFalse(SSLUtils.isRestSSLAuthenticationEnabled(defaultOptions));
-
-        Configuration options = new Configuration();
-        noSSLOptions.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
-        noSSLOptions.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
-        assertTrue(SSLUtils.isRestSSLAuthenticationEnabled(noSSLOptions));
     }
 
     @Test
@@ -571,7 +521,7 @@ public class SSLUtilsTest extends TestLogger {
 
     private static void addSslProviderConfig(Configuration config, String sslProvider) {
         if (sslProvider.equalsIgnoreCase("OPENSSL")) {
-            assertTrue("openSSL not available", OpenSsl.isAvailable());
+            OpenSsl.ensureAvailability();
 
             // Flink's default algorithm set is not available for openSSL - choose a different one:
             config.setString(

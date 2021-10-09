@@ -57,11 +57,6 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
     }
 
     @Override
-    public void recover() throws Exception {
-        // Nothing to do
-    }
-
-    @Override
     public void addCheckpoint(
             CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,

@@ -19,17 +19,18 @@ from typing import Union
 
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
-from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit
+from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
 from pyflink.table.types import _to_java_data_type, DataType, _to_java_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, UserDefinedTableFunctionWrapper
 from pyflink.util.java_utils import to_jarray, load_java_class
 
-__all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'UNBOUNDED_ROW',
+__all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOUNDED_ROW',
            'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_date', 'current_time',
-           'current_timestamp', 'local_time', 'local_timestamp', 'temporal_overlaps',
-           'date_format', 'timestamp_diff', 'array', 'row', 'map_', 'row_interval', 'pi', 'e',
-           'rand', 'rand_integer', 'atan2', 'negative', 'concat', 'concat_ws', 'uuid', 'null_of',
-           'log', 'with_columns', 'without_columns', 'call', 'call_sql']
+           'current_timestamp', 'current_watermark', 'local_time', 'local_timestamp',
+           'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
+           'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
+           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_object',
+           'json_array', 'call', 'call_sql', 'source_watermark']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -64,6 +65,12 @@ def _quaternion_op(op_name: str, first, second, third, forth) -> Expression:
         _get_java_expression(second),
         _get_java_expression(third),
         _get_java_expression(forth)))
+
+
+def _varargs_op(op_name: str, *args):
+    gateway = get_gateway()
+    return Expression(
+        getattr(gateway.jvm.Expressions, op_name)(*[_get_java_expression(arg) for arg in args]))
 
 
 def _add_version_doc():
@@ -142,6 +149,25 @@ def or_(predicate0: Union[bool, Expression[bool]],
     return _ternary_op("or", predicate0, predicate1, predicates)
 
 
+def not_(expression: Expression[bool]) -> Expression[bool]:
+    """
+    Inverts a given boolean expression.
+
+    This method supports a three-valued logic by preserving `NULL`. This means if the input
+    expression is `NULL`, the result will also be `NULL`.
+
+    The resulting type is nullable if and only if the input type is nullable.
+
+    Examples:
+    ::
+
+        >>> not_(lit(True)) # False
+        >>> not_(lit(False)) # True
+        >>> not_(lit(None, DataTypes.BOOLEAN())) # None
+    """
+    return _unary_op("not", expression)
+
+
 """
 Offset constant to be used in the `preceding` clause of unbounded
 :class:`~pyflink.table.window.Over`. Use this constant for a time interval.
@@ -201,6 +227,25 @@ def current_timestamp() -> Expression:
     the return type of this expression is TIMESTAMP_LTZ.
     """
     return _leaf_op("currentTimestamp")
+
+
+def current_watermark(rowtimeAttribute) -> Expression:
+    """
+    Returns the current watermark for the given rowtime attribute, or NULL if no common watermark of
+    all upstream operations is available at the current operation in the pipeline.
+
+    The function returns the watermark with the same type as the rowtime attribute, but with an
+    adjusted precision of 3. For example, if the rowtime attribute is `TIMESTAMP_LTZ(9)`, the
+    function will return `TIMESTAMP_LTZ(3)`.
+
+    If no watermark has been emitted yet, the function will return `NULL`. Users must take care of
+    this when comparing against it, e.g. in order to filter out late data you can use
+
+    ::
+
+        WHERE CURRENT_WATERMARK(ts) IS NULL OR ts > CURRENT_WATERMARK(ts)
+    """
+    return _unary_op("currentWatermark", rowtimeAttribute)
 
 
 def local_time() -> Expression:
@@ -505,6 +550,29 @@ def if_then_else(condition: Union[bool, Expression[bool]], if_true, if_false) ->
     return _ternary_op("ifThenElse", condition, if_true, if_false)
 
 
+def coalesce(*args) -> Expression:
+    """
+    Returns the first argument that is not NULL.
+
+    If all arguments are NULL, it returns NULL as well.
+    The return type is the least restrictive, common type of all of its arguments.
+    The return type is nullable if all arguments are nullable as well.
+
+    Examples:
+    ::
+
+        >>> coalesce(None, "default") # Returns "default"
+        >>> # Returns the first non-null value among f0 and f1,
+        >>> # or "default" if f0 and f1 are both null
+        >>> coalesce(col("f0"), col("f1"), "default")
+
+    :param args: the input expressions.
+    """
+    gateway = get_gateway()
+    args = to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
+    return _unary_op("coalesce", args)
+
+
 def with_columns(head, *tails) -> Expression:
     """
     Creates an expression that selects a range of columns. It can be used wherever an array of
@@ -540,6 +608,69 @@ def without_columns(head, *tails) -> Expression:
     gateway = get_gateway()
     tails = to_jarray(gateway.jvm.Object, [_get_java_expression(t) for t in tails])
     return _binary_op("withoutColumns", head, tails)
+
+
+def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
+    """
+    Builds a JSON object string from a list of key-value pairs.
+
+    `args` is an even-numbered list of alternating key/value pairs. Note that keys must be
+    non-`NULL` string literals, while values may be arbitrary expressions.
+
+    This function returns a JSON string. The `on_null` behavior defines how to treat `NULL` values.
+
+    Values which are created from another JSON construction function call (`json_object`,
+    `json_array`) are inserted directly rather than as a string. This allows building nested JSON
+    structures.
+
+    Examples:
+    ::
+
+        >>> json_object() # '{}'
+        >>> json_object(JsonOnNull.NULL, "K1", "V1", "K2", "V2") # '{"K1":"V1","K2":"V2"}'
+
+        >>> # Expressions as values
+        >>> json_object(JsonOnNull.NULL, "orderNo", col("orderId"))
+
+        >>> json_object(JsonOnNull.NULL, "K1", null_of(DataTypes.STRING()))   # '{"K1":null}'
+        >>> json_object(JsonOnNull.ABSENT, "K1", null_of(DataTypes.STRING())) # '{}'
+
+        >>> # '{"K1":{"K2":"V"}}'
+        >>> json_object(JsonOnNull.NULL, "K1", json_object(JsonOnNull.NULL, "K2", "V"))
+
+    .. seealso:: :func:`~pyflink.table.expressions.json_array`
+    """
+    return _varargs_op("jsonObject", *(on_null._to_j_json_on_null(), *args))
+
+
+def json_array(on_null: JsonOnNull = JsonOnNull.ABSENT, *args) -> Expression:
+    """
+    Builds a JSON array string from a list of values.
+
+    This function returns a JSON string. The values can be arbitrary expressions. The `on_null`
+    behavior defines how to treat `NULL` values.
+
+    Elements which are created from another JSON construction function call (`json_object`,
+    `json_array`) are inserted directly rather than as a string. This allows building nested JSON
+    structures.
+
+    Examples:
+    ::
+
+        >>> json_array() # '[]'
+        >>> json_array(JsonOnNull.NULL, 1, "2") # '[1,"2"]'
+
+        >>> # Expressions as values
+        >>> json_array(JsonOnNull.NULL, col("orderId"))
+
+        >>> json_array(JsonOnNull.NULL, null_of(DataTypes.STRING()))   # '[null]'
+        >>> json_array(JsonOnNull.ABSENT, null_of(DataTypes.STRING())) # '[]'
+
+        >>> json_array(JsonOnNull.NULL, json_array(JsonOnNull.NULL, 1)) # '[[1]]'
+
+    .. seealso:: :func:`~pyflink.table.expressions.json_object`
+    """
+    return _varargs_op("jsonArray", *(on_null._to_j_json_on_null(), *args))
 
 
 def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:

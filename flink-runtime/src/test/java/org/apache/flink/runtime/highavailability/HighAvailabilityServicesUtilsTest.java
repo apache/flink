@@ -21,9 +21,12 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
+import org.apache.flink.runtime.rpc.AddressResolution;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -55,7 +58,8 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 
         // when
         HighAvailabilityServices actualHaServices =
-                HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config, executor);
+                HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+                        config, executor, NoOpFatalErrorHandler.INSTANCE);
 
         // then
         assertSame(haServices, actualHaServices);
@@ -65,7 +69,10 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
                 HighAvailabilityServicesUtils.createHighAvailabilityServices(
                         config,
                         executor,
-                        HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+                        AddressResolution.NO_ADDRESS_RESOLUTION,
+                        RpcSystem.load(),
+                        NoOpFatalErrorHandler.INSTANCE);
+
         // then
         assertSame(haServices, actualHaServices);
     }
@@ -82,7 +89,8 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 
         // when
         ClientHighAvailabilityServices actualClientHAServices =
-                HighAvailabilityServicesUtils.createClientHAService(config);
+                HighAvailabilityServicesUtils.createClientHAService(
+                        config, NoOpFatalErrorHandler.INSTANCE);
 
         // then
         assertSame(clientHAServices, actualClientHAServices);
@@ -99,7 +107,8 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
                 HighAvailabilityMode.FACTORY_CLASS.name().toLowerCase());
 
         // expect
-        HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config, executor);
+        HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+                config, executor, NoOpFatalErrorHandler.INSTANCE);
     }
 
     @Test

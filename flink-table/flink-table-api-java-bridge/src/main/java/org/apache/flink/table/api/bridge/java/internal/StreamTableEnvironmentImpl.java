@@ -20,7 +20,6 @@ package org.apache.flink.table.api.bridge.java.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -36,27 +35,26 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.bridge.java.StreamStatementSet;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.ExternalSchemaTranslator;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
+import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.delegation.PlannerFactory;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
-import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -84,7 +82,6 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -127,17 +124,12 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
             EnvironmentSettings settings,
             TableConfig tableConfig) {
 
-        if (!settings.isStreamingMode()) {
-            throw new TableException(
-                    "StreamTableEnvironment can not run in batch mode for now, please use TableEnvironment.");
-        }
-
         // temporary solution until FLINK-15635 is fixed
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
-        ModuleManager moduleManager = new ModuleManager();
+        final ModuleManager moduleManager = new ModuleManager();
 
-        CatalogManager catalogManager =
+        final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
                         .classLoader(classLoader)
                         .config(tableConfig.getConfiguration())
@@ -149,21 +141,20 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                         .executionConfig(executionEnvironment.getConfig())
                         .build();
 
-        FunctionCatalog functionCatalog =
+        final FunctionCatalog functionCatalog =
                 new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
-        Map<String, String> executorProperties = settings.toExecutorProperties();
-        Executor executor = lookupExecutor(executorProperties, executionEnvironment);
+        final Executor executor =
+                lookupExecutor(classLoader, settings.getExecutor(), executionEnvironment);
 
-        Map<String, String> plannerProperties = settings.toPlannerProperties();
-        Planner planner =
-                ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
-                        .create(
-                                plannerProperties,
-                                executor,
-                                tableConfig,
-                                functionCatalog,
-                                catalogManager);
+        final Planner planner =
+                PlannerFactoryUtil.createPlanner(
+                        settings.getPlanner(),
+                        executor,
+                        tableConfig,
+                        moduleManager,
+                        catalogManager,
+                        functionCatalog);
 
         return new StreamTableEnvironmentImpl(
                 catalogManager,
@@ -178,18 +169,19 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
     }
 
     private static Executor lookupExecutor(
-            Map<String, String> executorProperties,
+            ClassLoader classLoader,
+            String executorIdentifier,
             StreamExecutionEnvironment executionEnvironment) {
         try {
-            ExecutorFactory executorFactory =
-                    ComponentFactoryService.find(ExecutorFactory.class, executorProperties);
-            Method createMethod =
+            final ExecutorFactory executorFactory =
+                    FactoryUtil.discoverFactory(
+                            classLoader, ExecutorFactory.class, executorIdentifier);
+            final Method createMethod =
                     executorFactory
                             .getClass()
-                            .getMethod("create", Map.class, StreamExecutionEnvironment.class);
+                            .getMethod("create", StreamExecutionEnvironment.class);
 
-            return (Executor)
-                    createMethod.invoke(executorFactory, executorProperties, executionEnvironment);
+            return (Executor) createMethod.invoke(executorFactory, executionEnvironment);
         } catch (Exception e) {
             throw new TableException(
                     "Could not instantiate the executor. Make sure a planner module is on the classpath",
@@ -278,6 +270,13 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
             ChangelogMode changelogMode) {
         Preconditions.checkNotNull(dataStream, "Data stream must not be null.");
         Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.");
+
+        if (dataStream.getExecutionEnvironment() != executionEnvironment) {
+            throw new ValidationException(
+                    "The DataStream's StreamExecutionEnvironment must be identical to the one that "
+                            + "has been passed to the StreamTableEnvironment during instantiation.");
+        }
+
         final CatalogManager catalogManager = getCatalogManager();
         final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
         final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
@@ -292,8 +291,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         final ObjectIdentifier objectIdentifier =
                 catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
-        final ExternalSchemaTranslator.InputResult schemaTranslationResult =
-                ExternalSchemaTranslator.fromExternal(
+        final SchemaTranslator.ConsumingResult schemaTranslationResult =
+                SchemaTranslator.createConsumingResult(
                         catalogManager.getDataTypeFactory(), dataStream.getType(), schema);
 
         final ResolvedSchema resolvedSchema =
@@ -349,8 +348,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         Preconditions.checkNotNull(table, "Table must not be null.");
         Preconditions.checkNotNull(targetDataType, "Target data type must not be null.");
 
-        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
-                ExternalSchemaTranslator.fromInternal(
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(
                         getCatalogManager().getDataTypeFactory(),
                         table.getResolvedSchema(),
                         targetDataType);
@@ -362,8 +361,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
     public DataStream<Row> toChangelogStream(Table table) {
         Preconditions.checkNotNull(table, "Table must not be null.");
 
-        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
-                ExternalSchemaTranslator.fromInternal(table.getResolvedSchema(), null);
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(table.getResolvedSchema(), null);
 
         return toStreamInternal(table, schemaTranslationResult, null);
     }
@@ -373,8 +372,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         Preconditions.checkNotNull(table, "Table must not be null.");
         Preconditions.checkNotNull(targetSchema, "Target schema must not be null.");
 
-        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
-                ExternalSchemaTranslator.fromInternal(table.getResolvedSchema(), targetSchema);
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(table.getResolvedSchema(), targetSchema);
 
         return toStreamInternal(table, schemaTranslationResult, null);
     }
@@ -386,15 +385,15 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         Preconditions.checkNotNull(targetSchema, "Target schema must not be null.");
         Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.");
 
-        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
-                ExternalSchemaTranslator.fromInternal(table.getResolvedSchema(), targetSchema);
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(table.getResolvedSchema(), targetSchema);
 
         return toStreamInternal(table, schemaTranslationResult, changelogMode);
     }
 
     private <T> DataStream<T> toStreamInternal(
             Table table,
-            ExternalSchemaTranslator.OutputResult schemaTranslationResult,
+            SchemaTranslator.ProducingResult schemaTranslationResult,
             @Nullable ChangelogMode changelogMode) {
         final CatalogManager catalogManager = getCatalogManager();
         final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
@@ -439,9 +438,22 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                 planner.translate(Collections.singletonList(modifyOperation));
 
         final Transformation<T> transformation = getTransformation(table, transformations);
-
         executionEnvironment.addOperator(transformation);
+
+        // reconfigure whenever planner transformations are added
+        executionEnvironment.configure(tableConfig.getConfiguration());
+
         return new DataStream<>(executionEnvironment, transformation);
+    }
+
+    @Override
+    public StreamStatementSet createStatementSet() {
+        return new StreamStatementSetImpl(this);
+    }
+
+    void attachAsDataStream(List<ModifyOperation> modifyOperations) {
+        final List<Transformation<?>> transformations = translate(modifyOperations);
+        transformations.forEach(executionEnvironment::addOperator);
     }
 
     @Override
@@ -528,11 +540,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         return toStreamInternal(table, modifyOperation);
     }
 
-    @Override
-    public StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor) {
-        return (StreamTableDescriptor) super.connect(connectorDescriptor);
-    }
-
     /**
      * This is a temporary workaround for Python API. Python API should not use
      * StreamExecutionEnvironment at all.
@@ -540,11 +547,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
     @Internal
     public StreamExecutionEnvironment execEnv() {
         return executionEnvironment;
-    }
-
-    /** This method is used for sql client to submit job. */
-    public Pipeline getPipeline(String jobName) {
-        return execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
     }
 
     @Override

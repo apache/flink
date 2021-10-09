@@ -43,6 +43,7 @@ __all__ = [
     'SourceFunction',
     'SinkFunction',
     'ProcessFunction',
+    'CoProcessFunction',
     'KeyedProcessFunction',
     'KeyedCoProcessFunction',
     'TimerService',
@@ -518,70 +519,6 @@ class FunctionWrapper(Function):
         self._func = func
 
 
-class MapFunctionWrapper(FunctionWrapper):
-    """
-    A wrapper class for MapFunction. It's used for wrapping up user defined function in a
-    MapFunction when user does not implement a MapFunction but directly pass a function object or
-    a lambda function to map() function.
-    """
-
-    def __init__(self, func):
-        """
-        The constructor of MapFunctionWrapper.
-
-        :param func: user defined function object.
-        """
-        super(MapFunctionWrapper, self).__init__(func)
-
-    def map(self, value):
-        """
-        A delegated map function to invoke user defined function.
-
-        :param value: The input value.
-        :return: the return value of user defined map function.
-        """
-        return self._func(value)
-
-
-class FlatMapFunctionWrapper(FunctionWrapper):
-    """
-    A wrapper class for FlatMapFunction. It's used for wrapping up user defined function in a
-    FlatMapFunction when user does not implement a FlatMapFunction but directly pass a function
-    object or a lambda function to flat_map() function.
-    """
-
-    def __init__(self, func):
-        """
-        The constructor of MapFunctionWrapper.
-
-        :param func: user defined function object.
-        """
-        super(FlatMapFunctionWrapper, self).__init__(func)
-
-    def flat_map(self, value):
-        """
-        A delegated flat_map function to invoke user defined function.
-
-        :param value: The input value.
-        :return: the return value of user defined flat_map function.
-        """
-        return self._func(value)
-
-
-class FilterFunctionWrapper(FunctionWrapper):
-    """
-    A wrapper class for FilterFunction. It's used for wrapping up user defined function in a
-    FilterFunction when user does not implement a FilterFunction but directly pass a function
-    object or a lambda function to filter() function.
-    """
-
-    def __init__(self, func):
-        super(FilterFunctionWrapper, self).__init__(func)
-
-    def filter(self, value):
-        return self._func(value)
-
-
 class ReduceFunctionWrapper(FunctionWrapper):
     """
     A wrapper class for ReduceFunction. It's used for wrapping up user defined function in a
@@ -606,57 +543,6 @@ class ReduceFunctionWrapper(FunctionWrapper):
         :return: The combined value of both input values.
         """
         return self._func(value1, value2)
-
-
-class KeySelectorFunctionWrapper(FunctionWrapper):
-    """
-    A wrapper class for KeySelector. It's used for wrapping up user defined function in a
-    KeySelector when user does not implement a KeySelector but directly pass a function
-    object or a lambda function to key_by() function.
-    """
-
-    def __init__(self, func):
-        """
-        The constructor of MapFunctionWrapper.
-
-        :param func: user defined function object.
-        """
-        super(KeySelectorFunctionWrapper, self).__init__(func)
-
-    def get_key(self, value):
-        """
-        A delegated get_key function to invoke user defined function.
-
-        :param value: The input value.
-        :return: the return value of user defined get_key function.
-        """
-        return self._func(value)
-
-
-class PartitionerFunctionWrapper(FunctionWrapper):
-    """
-    A wrapper class for Partitioner. It's used for wrapping up user defined function in a
-    Partitioner when user does not implement a Partitioner but directly pass a function
-    object or a lambda function to partition_custom() function.
-    """
-
-    def __init__(self, func):
-        """
-        The constructor of PartitionerFunctionWrapper.
-
-        :param func: user defined function object.
-        """
-        super(PartitionerFunctionWrapper, self).__init__(func)
-
-    def partition(self, key: Any, num_partitions: int) -> int:
-        """
-        A delegated partition function to invoke user defined function.
-
-        :param key: The key.
-        :param num_partitions: The number of partitions to partition into.
-        :return: The partition index.
-        """
-        return self._func(key, num_partitions)
 
 
 def _get_python_env():
@@ -833,6 +719,74 @@ class KeyedProcessFunction(Function):
                     querying the TimeDomain of the firing timer and getting a TimerService for
                     registering timers and querying the time. The context is only valid during the
                     invocation of this method, do not store it.
+        """
+        pass
+
+
+class CoProcessFunction(Function):
+    """
+    A function that processes elements of two streams and produces a single output one.
+
+    The function will be called for every element in the input streams and can produce zero or
+    more output elements. Contrary to the :class:`CoFlatMapFunction`, this function can also query
+    the time (both event and processing) and set timers, through the provided
+    :class:`CoProcessFunction.Context`. When reacting to the firing of set timers the function can
+    emit yet more elements.
+
+    An example use-case for connected streams would be the application of a set of rules that
+    change over time ({@code stream A}) to the elements contained in another stream (stream {@code
+    B}). The rules contained in {@code stream A} can be stored in the state and wait for new
+    elements to arrive on {@code stream B}. Upon reception of a new element on {@code stream B},
+    the function can now apply the previously stored rules to the element and directly emit a
+    result, and/or register a timer that will trigger an action in the future.
+    """
+
+    class Context(ABC):
+
+        @abstractmethod
+        def timer_service(self) -> TimerService:
+            """
+            A Timer service for querying time and registering timers.
+            """
+            pass
+
+        @abstractmethod
+        def timestamp(self) -> int:
+            """
+            Timestamp of the element currently being processed or timestamp of a firing timer.
+
+            This might be None, for example if the time characteristic of your program is set to
+            TimeCharacteristic.ProcessTime.
+            """
+            pass
+
+    @abstractmethod
+    def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
+        """
+        This method is called for each element in the first of the connected streams.
+
+        This function can output zero or more elements using the Collector parameter and also update
+        internal state or set timers using the Context parameter.
+
+        :param value: The input value.
+        :param ctx:  A Context that allows querying the timestamp of the element and getting a
+                     TimerService for registering timers and querying the time. The context is only
+                     valid during the invocation of this method, do not store it.
+        """
+        pass
+
+    @abstractmethod
+    def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
+        """
+        This method is called for each element in the second of the connected streams.
+
+        This function can output zero or more elements using the Collector parameter and also update
+        internal state or set timers using the Context parameter.
+
+        :param value: The input value.
+        :param ctx:  A Context that allows querying the timestamp of the element and getting a
+                     TimerService for registering timers and querying the time. The context is only
+                     valid during the invocation of this method, do not store it.
         """
         pass
 

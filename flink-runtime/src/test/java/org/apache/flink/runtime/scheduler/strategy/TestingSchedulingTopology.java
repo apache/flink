@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
+import org.apache.flink.runtime.executiongraph.failover.flip1.SchedulingPipelinedRegionComputeUtil;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -99,7 +99,8 @@ public class TestingSchedulingTopology implements SchedulingTopology {
         vertexRegions = new HashMap<>();
 
         final Set<Set<SchedulingExecutionVertex>> rawRegions =
-                PipelinedRegionComputeUtil.computePipelinedRegions(getVertices());
+                SchedulingPipelinedRegionComputeUtil.computePipelinedRegions(
+                        getVertices(), this::getVertex, this::getResultPartition);
 
         for (Set<SchedulingExecutionVertex> rawRegion : rawRegions) {
             final Set<TestingSchedulingExecutionVertex> vertices =
@@ -372,6 +373,13 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                 consumer.addConsumedPartitionGroup(consumedPartitionGroup, consumedPartitionById);
             }
 
+            for (TestingSchedulingResultPartition resultPartition : resultPartitions) {
+                resultPartition.registerConsumedPartitionGroup(consumedPartitionGroup);
+                if (resultPartition.getState() == ResultPartitionState.CONSUMABLE) {
+                    consumedPartitionGroup.partitionFinished();
+                }
+            }
+
             return resultPartitions;
         }
     }
@@ -379,12 +387,17 @@ public class TestingSchedulingTopology implements SchedulingTopology {
     /** Builder for {@link TestingSchedulingExecutionVertex}. */
     public class SchedulingExecutionVerticesBuilder {
 
-        private final JobVertexID jobVertexId = new JobVertexID();
+        private JobVertexID jobVertexId = new JobVertexID();
 
         private int parallelism = 1;
 
         public SchedulingExecutionVerticesBuilder withParallelism(final int parallelism) {
             this.parallelism = parallelism;
+            return this;
+        }
+
+        public SchedulingExecutionVerticesBuilder withJobVertexID(final JobVertexID jobVertexId) {
+            this.jobVertexId = jobVertexId;
             return this;
         }
 

@@ -20,10 +20,14 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.AckAllUserRecordsProcessed;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CloseRequest;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.NewBufferSize;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.TaskEventRequest;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
@@ -33,9 +37,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandl
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
-import static org.apache.flink.runtime.io.network.netty.NettyMessage.TaskEventRequest;
 
 /** Channel handler to initiate data transfers and dispatch backwards flowing task events. */
 class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMessage> {
@@ -123,6 +124,14 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 
                 outboundQueue.addCreditOrResumeConsumption(
                         request.receiverId, NetworkSequenceViewReader::resumeConsumption);
+            } else if (msgClazz == AckAllUserRecordsProcessed.class) {
+                AckAllUserRecordsProcessed request = (AckAllUserRecordsProcessed) msg;
+
+                outboundQueue.acknowledgeAllRecordsProcessed(request.receiverId);
+            } else if (msgClazz == NewBufferSize.class) {
+                NewBufferSize request = (NewBufferSize) msg;
+
+                outboundQueue.notifyNewBufferSize(request.receiverId, request.bufferSize);
             } else {
                 LOG.warn("Received unexpected client request: {}", msg);
             }

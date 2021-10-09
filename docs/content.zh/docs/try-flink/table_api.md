@@ -75,7 +75,7 @@ The required configuration files are available in the [flink-playgrounds](https:
 Once downloaded, open the project `flink-playground/table-walkthrough` in your IDE and navigate to the file `SpendReport`. 
 
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 
 tEnv.executeSql("CREATE TABLE transactions (\n" +
@@ -118,7 +118,7 @@ The table environment is how you can set properties for your Job, specify whethe
 This walkthrough creates a standard table environment that uses the streaming execution.
 
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 ```
 
@@ -184,7 +184,7 @@ The project contains a secondary testing class `SpendReportTest` that validates 
 It creates a table environment in batch mode. 
 
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
+EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
 TableEnvironment tEnv = TableEnvironment.create(settings); 
 ```
 

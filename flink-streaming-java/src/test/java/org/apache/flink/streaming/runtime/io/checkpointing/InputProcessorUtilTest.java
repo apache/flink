@@ -27,12 +27,12 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.util.MockStreamTask;
@@ -69,23 +69,28 @@ public class InputProcessorUtilTest {
                         Collections.singletonList(getGate(0, 2)),
                     };
 
-            CheckpointedInputGate[] checkpointedMultipleInputGate =
-                    InputProcessorUtil.createCheckpointedMultipleInputGate(
+            CheckpointBarrierHandler barrierHandler =
+                    InputProcessorUtil.createCheckpointBarrierHandler(
                             streamTask,
                             streamConfig,
                             new TestSubtaskCheckpointCoordinator(new MockChannelStateWriter()),
-                            environment.getMetricGroup().getIOMetricGroup(),
                             streamTask.getName(),
-                            new SyncMailboxExecutor(),
                             inputGates,
                             Collections.emptyList(),
+                            new SyncMailboxExecutor(),
                             new TestProcessingTimeService());
+
+            CheckpointedInputGate[] checkpointedMultipleInputGate =
+                    InputProcessorUtil.createCheckpointedMultipleInputGate(
+                            new SyncMailboxExecutor(),
+                            inputGates,
+                            environment.getMetricGroup().getIOMetricGroup(),
+                            barrierHandler,
+                            streamConfig);
+
             for (CheckpointedInputGate checkpointedInputGate : checkpointedMultipleInputGate) {
                 registry.registerCloseable(checkpointedInputGate);
             }
-
-            CheckpointBarrierHandler barrierHandler =
-                    checkpointedMultipleInputGate[0].getCheckpointBarrierHandler();
 
             List<IndexedInputGate> allInputGates =
                     Arrays.stream(inputGates)
@@ -101,7 +106,8 @@ public class InputProcessorUtilTest {
                                     42,
                                     CheckpointOptions.unaligned(
                                             CheckpointStorageLocationReference.getDefault())),
-                            new InputChannelInfo(inputGate.getGateIndex(), channelId));
+                            new InputChannelInfo(inputGate.getGateIndex(), channelId),
+                            false);
                 }
             }
             assertTrue(barrierHandler.getAllBarriersReceivedFuture(1).isDone());

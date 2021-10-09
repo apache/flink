@@ -31,7 +31,7 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriFunctionWithException;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
 import org.junit.Test;
 
@@ -41,15 +41,12 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 /** Tests for the {@link TaskSlotTable}. */
 public class TaskSlotTableImplTest extends TestLogger {
@@ -487,15 +484,15 @@ public class TaskSlotTableImplTest extends TestLogger {
                             SlotNotFoundException>
                     taskSlotTableAction)
             throws Exception {
-        final CompletableFuture<AllocationID> timeoutFuture = new CompletableFuture<>();
-        final TestingSlotActions testingSlotActions =
-                new TestingSlotActionsBuilder()
-                        .setTimeoutSlotConsumer(
-                                (allocationID, uuid) -> timeoutFuture.complete(allocationID))
-                        .build();
+        final CompletableFuture<AllocationID> timeoutCancellationFuture = new CompletableFuture<>();
+
+        final TimerService<AllocationID> testingTimerService =
+                new TestingTimerServiceBuilder<AllocationID>()
+                        .setUnregisterTimeoutConsumer(timeoutCancellationFuture::complete)
+                        .createTestingTimerService();
 
         try (final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable =
-                createTaskSlotTableAndStart(1, testingSlotActions)) {
+                createTaskSlotTableAndStart(1, testingTimerService)) {
             final AllocationID allocationId = new AllocationID();
             final long timeout = 50L;
             final JobID jobId = new JobID();
@@ -504,11 +501,7 @@ public class TaskSlotTableImplTest extends TestLogger {
                     is(true));
             assertThat(taskSlotTableAction.apply(taskSlotTable, jobId, allocationId), is(true));
 
-            try {
-                timeoutFuture.get(timeout, TimeUnit.MILLISECONDS);
-                fail("The slot timeout should have been deactivated.");
-            } catch (TimeoutException expected) {
-            }
+            timeoutCancellationFuture.get();
         }
     }
 
@@ -546,6 +539,16 @@ public class TaskSlotTableImplTest extends TestLogger {
         final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable =
                 TaskSlotUtils.createTaskSlotTable(numberOfSlots);
         taskSlotTable.start(slotActions, ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        return taskSlotTable;
+    }
+
+    private static TaskSlotTableImpl<TaskSlotPayload> createTaskSlotTableAndStart(
+            final int numberOfSlots, TimerService<AllocationID> timerService) {
+        final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(numberOfSlots, timerService);
+        taskSlotTable.start(
+                new TestingSlotActionsBuilder().build(),
+                ComponentMainThreadExecutorServiceAdapter.forMainThread());
         return taskSlotTable;
     }
 }

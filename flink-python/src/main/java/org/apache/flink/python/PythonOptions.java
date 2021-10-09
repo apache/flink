@@ -65,6 +65,26 @@ public class PythonOptions {
                             "When it is false, metric for Python will be disabled. You can "
                                     + "disable the metric to achieve better performance at some circumstance.");
 
+    /** The configuration to enable or disable profile for Python execution. */
+    public static final ConfigOption<Boolean> PYTHON_PROFILE_ENABLED =
+            ConfigOptions.key("python.profile.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Specifies whether to enable Python worker profiling. The profile result "
+                                    + "will be displayed in the log file of the TaskManager periodically. "
+                                    + "The interval between each profiling is determined by the config options "
+                                    + "python.fn-execution.bundle.size and python.fn-execution.bundle.time.");
+
+    /** The configuration to enable or disable python operator chaining. */
+    public static final ConfigOption<Boolean> PYTHON_OPERATOR_CHAINING_ENABLED =
+            ConfigOptions.key("python.operator-chaining.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Python operator chaining allows non-shuffle operations to be co-located in the "
+                                    + "same thread fully avoiding serialization and de-serialization.");
+
     public static final ConfigOption<String> PYTHON_FILES =
             ConfigOptions.key("python.files")
                     .stringType()
@@ -93,8 +113,8 @@ public class PythonOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Add python archive files for job. The archive files will be extracted "
-                                    + "to the working directory of python UDF worker. Currently only zip-format is "
-                                    + "supported. For each archive file, a target directory is specified. If the target "
+                                    + "to the working directory of python UDF worker. "
+                                    + "For each archive file, a target directory is specified. If the target "
                                     + "directory name is specified, the archive file will be extracted to a "
                                     + "directory with the specified name. Otherwise, the archive file will be extracted to "
                                     + "a directory with the same name of the archive file. The files uploaded via this "
@@ -125,16 +145,18 @@ public class PythonOptions {
                                     .text(
                                             "The path of the Python interpreter used to launch the Python process when submitting the "
                                                     + "Python jobs via \"flink run\" or compiling the Java/Scala jobs containing Python UDFs. "
-                                                    + "Equivalent to the environment variable PYFLINK_CLIENT_EXECUTABLE. "
+                                                    + "Equivalent to the command line option \"-pyclientexec\" or the environment variable PYFLINK_CLIENT_EXECUTABLE. "
                                                     + "The priority is as following: ")
                                     .linebreak()
                                     .text(
-                                            "1. the configuration 'python.client.executable' defined in the source code;")
+                                            "1. the configuration 'python.client.executable' defined in the source code(Only used in Flink Java SQL/Table API job call Python UDF);")
                                     .linebreak()
-                                    .text("2. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
+                                    .text("2. the command line option \"-pyclientexec\";")
                                     .linebreak()
                                     .text(
                                             "3. the configuration 'python.client.executable' defined in flink-conf.yaml")
+                                    .linebreak()
+                                    .text("4. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
                                     .build());
 
     /** Whether the memory used by the Python framework is managed memory. */

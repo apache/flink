@@ -18,10 +18,10 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 final class CollectionDataInput<E> implements StreamTaskInput<E> {
     private final Iterator<StreamElement> elementsIterator;
     private final int inputIdx;
+    private boolean endOfInput = false;
 
     CollectionDataInput(Collection<StreamElement> elements) {
         this(elements, 0);
@@ -45,7 +46,7 @@ final class CollectionDataInput<E> implements StreamTaskInput<E> {
     }
 
     @Override
-    public InputStatus emitNext(DataOutput<E> output) throws Exception {
+    public DataInputStatus emitNext(DataOutput<E> output) throws Exception {
         if (elementsIterator.hasNext()) {
             StreamElement streamElement = elementsIterator.next();
             if (streamElement instanceof StreamRecord) {
@@ -56,7 +57,14 @@ final class CollectionDataInput<E> implements StreamTaskInput<E> {
                 throw new IllegalStateException("Unsupported element type: " + streamElement);
             }
         }
-        return elementsIterator.hasNext() ? InputStatus.MORE_AVAILABLE : InputStatus.END_OF_INPUT;
+        if (elementsIterator.hasNext()) {
+            return DataInputStatus.MORE_AVAILABLE;
+        } else if (endOfInput) {
+            return DataInputStatus.END_OF_INPUT;
+        } else {
+            endOfInput = true;
+            return DataInputStatus.END_OF_DATA;
+        }
     }
 
     @Override

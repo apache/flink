@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
+@import "theme";
+
 :host {
-  display: block;
   position: relative;
+  display: block;
   height: 100%;
 
   nz-tabset {
@@ -31,6 +33,25 @@
 
       .ant-tabs-tabpane {
         height: 100%;
+      }
+    }
+
+    .ant-tabs-nav {
+      margin-bottom: 0;
+    }
+
+    .ant-tabs-small > .ant-tabs-nav .ant-tabs-tab {
+      font-size: 12px;
+
+      &:first-of-type {
+        margin: 0 0 0 @margin-md;
+      }
+    }
+
+    nz-table {
+      td,
+      th {
+        font-size: 12px;
       }
     }
   }

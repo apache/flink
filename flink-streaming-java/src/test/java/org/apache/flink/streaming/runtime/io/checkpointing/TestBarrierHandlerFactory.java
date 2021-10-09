@@ -37,6 +37,7 @@ public class TestBarrierHandlerFactory {
     private BiFunction<Callable<?>, Duration, Cancellable> actionRegistration =
             (callable, delay) -> () -> {};
     private Clock clock = SystemClock.getInstance();
+    private boolean enableCheckpointsAfterTasksFinish = true;
 
     private TestBarrierHandlerFactory(AbstractInvokable target) {
         this.target = target;
@@ -57,6 +58,11 @@ public class TestBarrierHandlerFactory {
         return this;
     }
 
+    public TestBarrierHandlerFactory disableCheckpointsAfterTasksFinish() {
+        this.enableCheckpointsAfterTasksFinish = false;
+        return this;
+    }
+
     public SingleCheckpointBarrierHandler create(SingleInputGate inputGate) {
         return create(inputGate, new RecordingChannelStateWriter());
     }
@@ -71,6 +77,7 @@ public class TestBarrierHandlerFactory {
                 clock,
                 inputGate.getNumberOfInputChannels(),
                 actionRegistration,
+                enableCheckpointsAfterTasksFinish,
                 inputGate);
     }
 }

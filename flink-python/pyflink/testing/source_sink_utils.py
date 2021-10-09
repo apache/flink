@@ -51,17 +51,16 @@ class TestTableSink(TableSink):
 
         FLINK_SOURCE_ROOT_DIR = _find_flink_source_root()
         filename_pattern = (
-            "flink-table/flink-table-planner/target/"
-            "flink-table-planner*-tests.jar")
+            "flink-python/target/flink-python*-tests.jar")
         if not glob.glob(os.path.join(FLINK_SOURCE_ROOT_DIR, filename_pattern)):
             raise unittest.SkipTest(
-                "'flink-table-planner*-tests.jar' is not available. Will skip the related tests.")
+                "'flink-python*-tests.jar' is not available. Will skip the related tests.")
 
         gateway = get_gateway()
-        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.TestAppendSink")
-        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.TestRetractSink")
-        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.TestUpsertSink")
-        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.RowCollector")
+        java_import(gateway.jvm, "org.apache.flink.table.legacyutils.TestAppendSink")
+        java_import(gateway.jvm, "org.apache.flink.table.legacyutils.TestRetractSink")
+        java_import(gateway.jvm, "org.apache.flink.table.legacyutils.TestUpsertSink")
+        java_import(gateway.jvm, "org.apache.flink.table.legacyutils.RowCollector")
 
         TestTableSink._inited = True
 

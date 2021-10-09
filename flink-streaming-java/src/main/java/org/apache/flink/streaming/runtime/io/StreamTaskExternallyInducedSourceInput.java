@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.api.connector.source.ExternallyInducedSourceReader;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 
 import java.util.function.Consumer;
@@ -41,9 +40,9 @@ public class StreamTaskExternallyInducedSourceInput<T> extends StreamTaskSourceI
     }
 
     @Override
-    public InputStatus emitNext(DataOutput<T> output) throws Exception {
-        InputStatus status = super.emitNext(output);
-        if (status == InputStatus.NOTHING_AVAILABLE) {
+    public DataInputStatus emitNext(DataOutput<T> output) throws Exception {
+        DataInputStatus status = super.emitNext(output);
+        if (status == DataInputStatus.NOTHING_AVAILABLE) {
             sourceReader.shouldTriggerCheckpoint().ifPresent(checkpointTriggeringHook);
         }
         return status;

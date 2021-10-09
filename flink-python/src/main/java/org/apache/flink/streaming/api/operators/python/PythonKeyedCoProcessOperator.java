@@ -18,10 +18,9 @@
 
 package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
@@ -32,65 +31,74 @@ import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.operators.python.timer.TimerHandler;
+import org.apache.flink.streaming.api.operators.python.timer.TimerRegistration;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
-import org.apache.flink.streaming.api.utils.input.KeyedTwoInputWithTimerRowFactory;
-import org.apache.flink.streaming.api.utils.output.OutputWithTimerRowHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
 
-import java.util.Collections;
-
+import static org.apache.flink.python.Constants.STATEFUL_FUNCTION_URN;
+import static org.apache.flink.streaming.api.operators.python.timer.TimerUtils.createTimerDataCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.operators.python.timer.TimerUtils.createTimerDataTypeInfo;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /** KeyedCoProcessOperator. */
+@Internal
 public class PythonKeyedCoProcessOperator<OUT>
-        extends TwoInputPythonFunctionOperator<Row, Row, Row, OUT>
-        implements ResultTypeQueryable<OUT>, Triggerable<Row, VoidNamespace> {
+        extends AbstractTwoInputPythonFunctionOperator<Row, Row, OUT>
+        implements Triggerable<Row, VoidNamespace> {
 
-    private static final String KEYED_CO_PROCESS_FUNCTION_URN =
-            "flink:transform:keyed_process_function:v1";
-
-    private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
-
-    /** The TypeInformation of current key. */
-    private final TypeInformation<Row> keyTypeInfo;
-
-    /** Serializer for current key. */
-    private final TypeSerializer keyTypeSerializer;
-
-    private final TypeInformation<OUT> outputTypeInfo;
+    private static final long serialVersionUID = 2L;
 
     /** TimerService for current operator to register or fire timer. */
     private transient InternalTimerService<VoidNamespace> internalTimerService;
 
-    private transient KeyedTwoInputWithTimerRowFactory runnerInputFactory;
-    private transient OutputWithTimerRowHandler runnerOutputHandler;
+    /** The TypeInformation of the key. */
+    private transient TypeInformation<Row> keyTypeInfo;
+
+    /** The TypeSerializer of the key. */
+    private transient TypeSerializer<Row> keyTypeSerializer;
+
+    /** The TypeInformation of timer data. */
+    private transient TypeInformation<Row> timerDataTypeInfo;
+
+    /** The TypeSerializer of timer data. */
+    private transient TypeSerializer<Row> timerDataSerializer;
+
+    private transient TimerHandler timerHandler;
 
     private transient Object keyForTimerService;
 
     public PythonKeyedCoProcessOperator(
             Configuration config,
+            DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<Row> inputTypeInfo1,
             TypeInformation<Row> inputTypeInfo2,
-            TypeInformation<OUT> outputTypeInfo,
-            DataStreamPythonFunctionInfo pythonFunctionInfo) {
-        super(
-                config,
-                pythonFunctionInfo,
-                FLAT_MAP_CODER_URN,
-                KeyedTwoInputWithTimerRowFactory.getRunnerInputTypeInfo(
-                        inputTypeInfo1, inputTypeInfo2, constructKeyTypeInfo(inputTypeInfo1)),
-                OutputWithTimerRowHandler.getRunnerOutputTypeInfo(
-                        outputTypeInfo, constructKeyTypeInfo(inputTypeInfo1)));
-        this.keyTypeInfo = constructKeyTypeInfo(inputTypeInfo1);
-        this.keyTypeSerializer =
+            TypeInformation<OUT> outputTypeInfo) {
+        super(config, pythonFunctionInfo, inputTypeInfo1, inputTypeInfo2, outputTypeInfo);
+    }
+
+    @Override
+    public void open() throws Exception {
+        internalTimerService =
+                getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
+
+        keyTypeInfo = new RowTypeInfo(((RowTypeInfo) getLeftInputType()).getTypeAt(0));
+        keyTypeSerializer =
                 PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
                         keyTypeInfo);
-        this.outputTypeInfo = outputTypeInfo;
+
+        timerDataTypeInfo = createTimerDataTypeInfo(keyTypeInfo);
+        timerDataSerializer =
+                PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
+                        timerDataTypeInfo);
+
+        timerHandler = new TimerHandler();
+
+        super.open();
     }
 
     @Override
@@ -98,21 +106,25 @@ public class PythonKeyedCoProcessOperator<OUT>
         return new BeamDataStreamPythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
-                getRunnerInputTypeInfo(),
-                getRunnerOutputTypeInfo(),
-                KEYED_CO_PROCESS_FUNCTION_URN,
-                PythonOperatorUtils.getUserDefinedDataStreamStatefulFunctionProto(
+                STATEFUL_FUNCTION_URN,
+                ProtoUtils.createUserDefinedDataStreamStatefulFunctionProtos(
                         getPythonFunctionInfo(),
                         getRuntimeContext(),
-                        Collections.EMPTY_MAP,
+                        getInternalParameters(),
                         keyTypeInfo,
                         inBatchExecutionMode(getKeyedStateBackend())),
-                getCoderUrn(),
-                getJobOptions(),
+                jobOptions,
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 keyTypeSerializer,
                 null,
+                new TimerRegistration(
+                        getKeyedStateBackend(),
+                        internalTimerService,
+                        this,
+                        VoidNamespaceSerializer.INSTANCE,
+                        PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
+                                timerDataTypeInfo)),
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -124,61 +136,37 @@ public class PythonKeyedCoProcessOperator<OUT>
                                 getContainingTask()
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
-                                        .asClassLoader()));
-    }
-
-    @Override
-    public void open() throws Exception {
-        this.internalTimerService =
-                getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
-        this.runnerInputFactory = new KeyedTwoInputWithTimerRowFactory();
-        this.runnerOutputHandler =
-                new OutputWithTimerRowHandler(
-                        getKeyedStateBackend(),
-                        internalTimerService,
-                        new TimestampedCollector<>(output),
-                        this,
-                        VoidNamespaceSerializer.INSTANCE);
-        super.open();
+                                        .asClassLoader()),
+                createInputCoderInfoDescriptor(),
+                createOutputCoderInfoDescriptor(),
+                createTimerDataCoderInfoDescriptorProto(timerDataTypeInfo));
     }
 
     @Override
     public void processElement1(StreamRecord<Row> element) throws Exception {
-        processElement(true, element);
+        processElement(
+                true,
+                element.getTimestamp(),
+                internalTimerService.currentWatermark(),
+                element.getValue());
     }
 
     @Override
     public void processElement2(StreamRecord<Row> element) throws Exception {
-        processElement(false, element);
-    }
-
-    @Override
-    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-        byte[] rawResult = resultTuple.f0;
-        int length = resultTuple.f1;
-        if (PythonOperatorUtils.endOfLastFlatMap(length, rawResult)) {
-            bufferedTimestamp.poll();
-        } else {
-            bais.setBuffer(rawResult, 0, length);
-            Row runnerOutput = getRunnerOutputTypeSerializer().deserialize(baisWrapper);
-            runnerOutputHandler.accept(runnerOutput, bufferedTimestamp.peek());
-        }
-    }
-
-    @Override
-    public TypeInformation<OUT> getProducedType() {
-        return outputTypeInfo;
+        processElement(
+                false,
+                element.getTimestamp(),
+                internalTimerService.currentWatermark(),
+                element.getValue());
     }
 
     @Override
     public void onEventTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
-        bufferedTimestamp.offer(timer.getTimestamp());
         processTimer(TimeDomain.EVENT_TIME, timer);
     }
 
     @Override
     public void onProcessingTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
-        bufferedTimestamp.offer(Long.MIN_VALUE);
         processTimer(TimeDomain.PROCESSING_TIME, timer);
     }
 
@@ -193,39 +181,19 @@ public class PythonKeyedCoProcessOperator<OUT>
      */
     private void processTimer(TimeDomain timeDomain, InternalTimer<Row, VoidNamespace> timer)
             throws Exception {
-        Row row =
-                runnerInputFactory.fromTimer(
+        Row timerData =
+                timerHandler.buildTimerData(
                         timeDomain,
-                        timer.getTimestamp(),
                         internalTimerService.currentWatermark(),
+                        timer.getTimestamp(),
                         timer.getKey(),
                         null);
-        getRunnerInputTypeSerializer().serialize(row, baosWrapper);
-        pythonFunctionRunner.process(baos.toByteArray());
+        timerDataSerializer.serialize(timerData, baosWrapper);
+        pythonFunctionRunner.processTimer(baos.toByteArray());
         baos.reset();
         elementCount++;
         checkInvokeFinishBundleByCount();
         emitResults();
-    }
-
-    private void processElement(boolean isLeft, StreamRecord<Row> element) throws Exception {
-        bufferedTimestamp.offer(element.getTimestamp());
-        Row row =
-                runnerInputFactory.fromNormalData(
-                        isLeft,
-                        element.getTimestamp(),
-                        internalTimerService.currentWatermark(),
-                        element.getValue());
-        getRunnerInputTypeSerializer().serialize(row, baosWrapper);
-        pythonFunctionRunner.process(baos.toByteArray());
-        baos.reset();
-        elementCount++;
-        checkInvokeFinishBundleByCount();
-        emitResults();
-    }
-
-    private static TypeInformation<Row> constructKeyTypeInfo(TypeInformation<Row> inputTypeInfo) {
-        return new RowTypeInfo(((RowTypeInfo) inputTypeInfo).getTypeAt(0));
     }
 
     /**
@@ -245,5 +213,16 @@ public class PythonKeyedCoProcessOperator<OUT>
     @Override
     public Object getCurrentKey() {
         return keyForTimerService;
+    }
+
+    @Override
+    public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
+            DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
+        return new PythonKeyedCoProcessOperator<>(
+                config,
+                pythonFunctionInfo,
+                getLeftInputType(),
+                getRightInputType(),
+                outputTypeInfo);
     }
 }

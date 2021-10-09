@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -40,6 +39,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -222,19 +222,19 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
         assertThat(closeFuture.isDone(), is(true));
     }
 
-    private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters>
-            triggerOperationRequest() throws HandlerRequestException {
-        return new HandlerRequest<>(
+    private static HandlerRequest<EmptyRequestBody> triggerOperationRequest() {
+        return HandlerRequest.create(
                 EmptyRequestBody.getInstance(), EmptyMessageParameters.getInstance());
     }
 
-    private static HandlerRequest<EmptyRequestBody, TriggerMessageParameters>
-            statusOperationRequest(TriggerId triggerId) throws HandlerRequestException {
-        return new HandlerRequest<>(
+    private static HandlerRequest<EmptyRequestBody> statusOperationRequest(TriggerId triggerId)
+            throws HandlerRequestException {
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new TriggerMessageParameters(),
                 Collections.singletonMap(TriggerIdPathParameter.KEY, triggerId.toString()),
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptyList());
     }
 
     private static final class TestOperationKey extends OperationKey {
@@ -376,15 +376,14 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
             @Override
             protected CompletableFuture<String> triggerOperation(
-                    HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-                    RestfulGateway gateway)
+                    HandlerRequest<EmptyRequestBody> request, RestfulGateway gateway)
                     throws RestHandlerException {
                 return gateway.triggerSavepoint(new JobID(), null, false, timeout);
             }
 
             @Override
             protected TestOperationKey createOperationKey(
-                    HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request) {
+                    HandlerRequest<EmptyRequestBody> request) {
                 return new TestOperationKey(new TriggerId());
             }
         }
@@ -405,8 +404,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
             }
 
             @Override
-            protected TestOperationKey getOperationKey(
-                    HandlerRequest<EmptyRequestBody, TriggerMessageParameters> request) {
+            protected TestOperationKey getOperationKey(HandlerRequest<EmptyRequestBody> request) {
                 final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
 
                 return new TestOperationKey(triggerId);

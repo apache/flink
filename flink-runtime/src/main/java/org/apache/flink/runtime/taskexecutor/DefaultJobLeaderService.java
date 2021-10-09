@@ -341,7 +341,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
             currentJobMasterId = jobMasterId;
             rpcConnection =
                     new JobManagerRegisteredRpcConnection(
-                            LOG, leaderAddress, jobMasterId, rpcService.getExecutor());
+                            LOG, leaderAddress, jobMasterId, rpcService.getScheduledExecutor());
 
             LOG.info(
                     "Try to register at job manager {} with leader id {}.",

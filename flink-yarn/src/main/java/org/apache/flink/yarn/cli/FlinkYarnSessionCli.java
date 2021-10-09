@@ -35,7 +35,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.ConfigurationException;
@@ -43,6 +42,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
@@ -685,7 +685,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
     }
 
     private void shutdownCluster(
-            ClusterClient clusterClient,
+            ClusterClient<ApplicationId> clusterClient,
             ScheduledExecutorService scheduledExecutorService,
             YarnApplicationStatusMonitor yarnApplicationStatusMonitor) {
         try {
@@ -827,7 +827,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 
                 if (firstEquals >= 0) {
                     String key = propLine.substring(0, firstEquals).trim();
-                    String value = propLine.substring(firstEquals + 1, propLine.length()).trim();
+                    String value = propLine.substring(firstEquals + 1).trim();
 
                     if (!key.isEmpty()) {
                         properties.put(key, value);

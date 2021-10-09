@@ -20,12 +20,14 @@ package org.apache.flink.table.runtime.typeutils.serializers.python;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.IntType;
 
 /** Test for {@link ArrayDataSerializer}. */
 public class ArrayDataSerializerTest {
@@ -81,6 +83,37 @@ public class ArrayDataSerializerTest {
             BinaryArrayData array = new BinaryArrayData();
             BinaryArrayWriter writer = new BinaryArrayWriter(array, 1, 8);
             writer.writeArray(0, elementArray, elementTypeSerializer);
+            writer.complete();
+            return new BinaryArrayData[] {array};
+        }
+    }
+
+    /** Test for ArrayData with ArrayData data type. */
+    public static class BaseArrayWithNullTest extends SerializerTestBase<ArrayData> {
+
+        @Override
+        protected TypeSerializer<ArrayData> createSerializer() {
+            return new ArrayDataSerializer(new IntType(), IntSerializer.INSTANCE);
+        }
+
+        @Override
+        protected int getLength() {
+            return -1;
+        }
+
+        @Override
+        protected Class<ArrayData> getTypeClass() {
+            return ArrayData.class;
+        }
+
+        @Override
+        protected ArrayData[] getTestData() {
+            BinaryArrayData array = new BinaryArrayData();
+            BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 4);
+            BinaryArrayWriter.NullSetter nullSetter =
+                    BinaryArrayWriter.createNullSetter(new IntType());
+            nullSetter.setNull(writer, 0);
+            nullSetter.setNull(writer, 1);
             writer.complete();
             return new BinaryArrayData[] {array};
         }

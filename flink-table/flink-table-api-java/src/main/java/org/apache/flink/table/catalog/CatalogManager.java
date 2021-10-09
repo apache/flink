@@ -335,26 +335,32 @@ public final class CatalogManager {
      */
     public static class TableLookupResult {
 
-        private final boolean isTemporary;
+        private final @Nullable Catalog catalog;
         private final ResolvedCatalogBaseTable<?> resolvedTable;
 
         @VisibleForTesting
         public static TableLookupResult temporary(ResolvedCatalogBaseTable<?> resolvedTable) {
-            return new TableLookupResult(true, resolvedTable);
+            return new TableLookupResult(null, resolvedTable);
         }
 
         @VisibleForTesting
-        public static TableLookupResult permanent(ResolvedCatalogBaseTable<?> resolvedTable) {
-            return new TableLookupResult(false, resolvedTable);
+        public static TableLookupResult permanent(
+                Catalog catalog, ResolvedCatalogBaseTable<?> resolvedTable) {
+            return new TableLookupResult(Preconditions.checkNotNull(catalog), resolvedTable);
         }
 
-        private TableLookupResult(boolean isTemporary, ResolvedCatalogBaseTable<?> resolvedTable) {
-            this.isTemporary = isTemporary;
+        private TableLookupResult(
+                @Nullable Catalog catalog, ResolvedCatalogBaseTable<?> resolvedTable) {
+            this.catalog = catalog;
             this.resolvedTable = resolvedTable;
         }
 
         public boolean isTemporary() {
-            return isTemporary;
+            return catalog == null;
+        }
+
+        public Optional<Catalog> getCatalog() {
+            return Optional.ofNullable(catalog);
         }
 
         /** Returns a fully resolved catalog object. */
@@ -418,7 +424,7 @@ public final class CatalogManager {
             try {
                 final CatalogBaseTable table = currentCatalog.getTable(objectPath);
                 final ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(table);
-                return Optional.of(TableLookupResult.permanent(resolvedTable));
+                return Optional.of(TableLookupResult.permanent(currentCatalog, resolvedTable));
             } catch (TableNotExistException e) {
                 // Ignore.
             }

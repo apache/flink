@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -26,10 +27,12 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStoreUtils;
 import org.apache.flink.runtime.checkpoint.DefaultLastStateConnectionStateListener;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointStoreUtil;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -46,13 +49,21 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriverFactory;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.ACLProvider;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.UnhandledErrorListener;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.imps.DefaultACLProvider;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCacheListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCacheSelector;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.SessionConnectionStateErrorPolicy;
 import org.apache.flink.shaded.curator4.org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.ZooDefs;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
@@ -141,9 +152,12 @@ public class ZooKeeperUtils {
      * Starts a {@link CuratorFramework} instance and connects it to the given ZooKeeper quorum.
      *
      * @param configuration {@link Configuration} object containing the configuration values
-     * @return {@link CuratorFramework} instance
+     * @param fatalErrorHandler {@link FatalErrorHandler} fatalErrorHandler to handle unexpected
+     *     errors of {@link CuratorFramework}
+     * @return {@link CuratorFrameworkWithUnhandledErrorListener} instance
      */
-    public static CuratorFramework startCuratorFramework(Configuration configuration) {
+    public static CuratorFrameworkWithUnhandledErrorListener startCuratorFramework(
+            Configuration configuration, FatalErrorHandler fatalErrorHandler) {
         checkNotNull(configuration, "configuration");
         String zkQuorum = configuration.getValue(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM);
 
@@ -201,7 +215,7 @@ public class ZooKeeperUtils {
 
         LOG.info("Using '{}' as Zookeeper namespace.", rootWithNamespace);
 
-        CuratorFramework cf =
+        final CuratorFrameworkFactory.Builder curatorFrameworkBuilder =
                 CuratorFrameworkFactory.builder()
                         .connectString(zkQuorum)
                         .sessionTimeoutMs(sessionTimeout)
@@ -210,12 +224,42 @@ public class ZooKeeperUtils {
                         // Curator prepends a '/' manually and throws an Exception if the
                         // namespace starts with a '/'.
                         .namespace(trimStartingSlash(rootWithNamespace))
-                        .aclProvider(aclProvider)
-                        .build();
+                        .aclProvider(aclProvider);
 
+        if (configuration.get(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS)) {
+            curatorFrameworkBuilder.connectionStateErrorPolicy(
+                    new SessionConnectionStateErrorPolicy());
+        }
+        return startCuratorFramework(curatorFrameworkBuilder, fatalErrorHandler);
+    }
+
+    /**
+     * Starts a {@link CuratorFramework} instance and connects it to the given ZooKeeper quorum from
+     * a builder.
+     *
+     * @param builder {@link CuratorFrameworkFactory.Builder} A builder for curatorFramework.
+     * @param fatalErrorHandler {@link FatalErrorHandler} fatalErrorHandler to handle unexpected
+     *     errors of {@link CuratorFramework}
+     * @return {@link CuratorFrameworkWithUnhandledErrorListener} instance
+     */
+    @VisibleForTesting
+    public static CuratorFrameworkWithUnhandledErrorListener startCuratorFramework(
+            CuratorFrameworkFactory.Builder builder, FatalErrorHandler fatalErrorHandler) {
+        CuratorFramework cf = builder.build();
+        UnhandledErrorListener unhandledErrorListener =
+                (message, throwable) -> {
+                    LOG.error(
+                            "Unhandled error in curator framework, error message: {}",
+                            message,
+                            throwable);
+                    // The exception thrown in UnhandledErrorListener will be caught by
+                    // CuratorFramework. So we mostly trigger exit process or interact with main
+                    // thread to inform the failure in FatalErrorHandler.
+                    fatalErrorHandler.onFatalError(throwable);
+                };
+        cf.getUnhandledErrorListenable().addListener(unhandledErrorListener);
         cf.start();
-
-        return cf;
+        return new CuratorFrameworkWithUnhandledErrorListener(cf, unhandledErrorListener);
     }
 
     /** Returns whether {@link HighAvailabilityMode#ZOOKEEPER} is configured. */
@@ -251,7 +295,7 @@ public class ZooKeeperUtils {
      */
     public static DefaultLeaderRetrievalService createLeaderRetrievalService(
             final CuratorFramework client) {
-        return createLeaderRetrievalService(client, "");
+        return createLeaderRetrievalService(client, "", new Configuration());
     }
 
     /**
@@ -260,11 +304,13 @@ public class ZooKeeperUtils {
      *
      * @param client The {@link CuratorFramework} ZooKeeper client to use
      * @param path The path for the leader retrieval
+     * @param configuration configuration for further config options
      * @return {@link DefaultLeaderRetrievalService} instance.
      */
     public static DefaultLeaderRetrievalService createLeaderRetrievalService(
-            final CuratorFramework client, final String path) {
-        return new DefaultLeaderRetrievalService(createLeaderRetrievalDriverFactory(client, path));
+            final CuratorFramework client, final String path, final Configuration configuration) {
+        return new DefaultLeaderRetrievalService(
+                createLeaderRetrievalDriverFactory(client, path, configuration));
     }
 
     /**
@@ -275,7 +321,7 @@ public class ZooKeeperUtils {
      */
     public static ZooKeeperLeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(
             final CuratorFramework client) {
-        return createLeaderRetrievalDriverFactory(client, "");
+        return createLeaderRetrievalDriverFactory(client, "", new Configuration());
     }
 
     /**
@@ -283,11 +329,26 @@ public class ZooKeeperUtils {
      *
      * @param client The {@link CuratorFramework} ZooKeeper client to use
      * @param path The path for the leader zNode
+     * @param configuration configuration for further config options
      * @return {@link LeaderRetrievalDriverFactory} instance.
      */
     public static ZooKeeperLeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(
-            final CuratorFramework client, final String path) {
-        return new ZooKeeperLeaderRetrievalDriverFactory(client, path);
+            final CuratorFramework client, final String path, final Configuration configuration) {
+        final ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+                leaderInformationClearancePolicy;
+
+        if (configuration.get(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS)) {
+            leaderInformationClearancePolicy =
+                    ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+                            .ON_LOST_CONNECTION;
+        } else {
+            leaderInformationClearancePolicy =
+                    ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+                            .ON_SUSPENDED_CONNECTION;
+        }
+
+        return new ZooKeeperLeaderRetrievalDriverFactory(
+                client, path, leaderInformationClearancePolicy);
     }
 
     /**
@@ -409,6 +470,9 @@ public class ZooKeeperUtils {
                         maxNumberOfCheckpointsToRetain,
                         completedCheckpointStateHandleStore,
                         ZooKeeperCheckpointStoreUtil.INSTANCE,
+                        DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                                completedCheckpointStateHandleStore,
+                                ZooKeeperCheckpointStoreUtil.INSTANCE),
                         executor);
 
         LOG.info(
@@ -532,6 +596,65 @@ public class ZooKeeperUtils {
                 // Curator prepends a '/' manually and throws an Exception if the
                 // namespace starts with a '/'.
                 trimStartingSlash(newNamespace));
+    }
+
+    /**
+     * Creates a {@link TreeCache} that only observes a specific node.
+     *
+     * @param client ZK client
+     * @param pathToNode full path of the node to observe
+     * @param nodeChangeCallback callback to run if the node has changed
+     * @return tree cache
+     */
+    public static TreeCache createTreeCache(
+            final CuratorFramework client,
+            final String pathToNode,
+            final RunnableWithException nodeChangeCallback) {
+        final TreeCache cache =
+                TreeCache.newBuilder(client, pathToNode)
+                        .setCacheData(true)
+                        .setCreateParentNodes(false)
+                        .setSelector(ZooKeeperUtils.treeCacheSelectorForPath(pathToNode))
+                        .setExecutor(Executors.newDirectExecutorService())
+                        .build();
+
+        cache.getListenable().addListener(createTreeCacheListener(nodeChangeCallback));
+
+        return cache;
+    }
+
+    @VisibleForTesting
+    static TreeCacheListener createTreeCacheListener(RunnableWithException nodeChangeCallback) {
+        return (ignored, event) -> {
+            // only notify listener if nodes have changed
+            // connection issues are handled separately from the cache
+            switch (event.getType()) {
+                case NODE_ADDED:
+                case NODE_UPDATED:
+                case NODE_REMOVED:
+                    nodeChangeCallback.run();
+            }
+        };
+    }
+
+    /**
+     * Returns a {@link TreeCacheSelector} that only accepts a specific node.
+     *
+     * @param fullPath node to accept
+     * @return tree cache selector
+     */
+    private static TreeCacheSelector treeCacheSelectorForPath(String fullPath) {
+        return new TreeCacheSelector() {
+            @Override
+            public boolean traverseChildren(String childPath) {
+                return false;
+            }
+
+            @Override
+            public boolean acceptChild(String childPath) {
+                return fullPath.equals(childPath);
+            }
+        };
     }
 
     /** Secure {@link ACLProvider} implementation. */

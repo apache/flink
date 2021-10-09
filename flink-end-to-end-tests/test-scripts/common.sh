@@ -27,7 +27,7 @@ if [[ -z $FLINK_DIR ]]; then
 fi
 
 if [ -z "$FLINK_LOG_DIR" ] ; then
-    export FLINK_LOG_DIR="$FLINK_DIR/logs"
+    export FLINK_LOG_DIR="$FLINK_DIR/log"
 fi
 
 case "$(uname -s)" in
@@ -354,7 +354,7 @@ function check_logs_for_errors {
       | grep -v "AskTimeoutException" \
       | grep -v "Error while loading kafka-version.properties" \
       | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
-      | grep -v "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
+      | grep -v "WARN  org.jboss.netty.channel.DefaultChannelPipeline" \
       | grep -v "jvm-exit-on-fatal-error" \
       | grep -v 'INFO.*AWSErrorCode' \
       | grep -v "RejectedExecutionException" \
@@ -382,6 +382,7 @@ function check_logs_for_errors {
 function check_logs_for_exceptions {
   echo "Checking for exceptions..."
   exception_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_LOG_DIR \
+   | grep -v "due to CancelTaskException" \
    | grep -v "RetriableCommitFailedException" \
    | grep -v "NoAvailableBrokersException" \
    | grep -v "Async Kafka commit failed" \
@@ -389,7 +390,7 @@ function check_logs_for_exceptions {
    | grep -v "Cannot connect to ResourceManager right now" \
    | grep -v "AskTimeoutException" \
    | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
-   | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
+   | grep -v  "WARN  org.jboss.netty.channel.DefaultChannelPipeline" \
    | grep -v 'INFO.*AWSErrorCode' \
    | grep -v "RejectedExecutionException" \
    | grep -v "CancellationException" \
@@ -407,6 +408,7 @@ function check_logs_for_exceptions {
    | grep -v "Elasticsearch exception" \
    | grep -v "org.apache.flink.runtime.JobException: Recovery is suppressed" \
    | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
+   | grep -v "RecipientUnreachableException" \
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files; printing first 500 lines; see full logs for details:"

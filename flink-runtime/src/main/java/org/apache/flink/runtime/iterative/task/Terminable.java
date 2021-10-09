@@ -26,6 +26,4 @@ public interface Terminable {
     boolean terminationRequested();
 
     void requestTermination();
-
-    void terminationCompleted();
 }

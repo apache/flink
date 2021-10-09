@@ -23,16 +23,16 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
@@ -53,7 +53,7 @@ public class DefaultLogicalTopologyTest extends TestLogger {
     @Before
     public void setUp() throws Exception {
         jobGraph = createJobGraph();
-        logicalTopology = new DefaultLogicalTopology(jobGraph);
+        logicalTopology = DefaultLogicalTopology.fromJobGraph(jobGraph);
     }
 
     @Test
@@ -75,9 +75,7 @@ public class DefaultLogicalTopologyTest extends TestLogger {
 
     @Test
     public void testGetLogicalPipelinedRegions() {
-        final Set<DefaultLogicalPipelinedRegion> regions =
-                logicalTopology.getLogicalPipelinedRegions();
-        assertEquals(2, regions.size());
+        assertEquals(2, IterableUtils.toStream(logicalTopology.getAllPipelinedRegions()).count());
     }
 
     private JobGraph createJobGraph() {

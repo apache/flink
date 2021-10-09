@@ -22,6 +22,7 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -159,5 +160,21 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 
     public boolean isInternalServiceEnabled() {
         return !HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig);
+    }
+
+    public int getReplicas() {
+        final int replicas =
+                flinkConfig.get(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS);
+        if (replicas < 1) {
+            throw new IllegalConfigurationException(
+                    String.format(
+                            "'%s' should not be configured less than one.",
+                            KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS.key()));
+        } else if (replicas > 1
+                && !HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig)) {
+            throw new IllegalConfigurationException(
+                    "High availability should be enabled when starting standby JobManagers.");
+        }
+        return replicas;
     }
 }

@@ -505,7 +505,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                     userDefinedFunctionOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
                     new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     false);

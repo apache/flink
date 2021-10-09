@@ -266,7 +266,7 @@ class CountWithTimeoutFunction(KeyedProcessFunction):
 
     def open(self, runtime_context: RuntimeContext):
         self.state = runtime_context.get_state(ValueStateDescriptor(
-            "my_state", Types.ROW([Types.STRING(), Types.LONG(), Types.LONG()])))
+            "my_state", Types.PICKLED_BYTE_ARRAY()))
 
     def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
         # retrieve the current count

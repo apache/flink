@@ -68,7 +68,6 @@ do
     cat > "$INIT_SQL" << EOF
 ${SOURCES_SQL}
 ${SINK_SQL}
-SET table.planner=blink;
 SET execution.runtime-mode=batch;
 SET parallelism.default=2;
 EOF

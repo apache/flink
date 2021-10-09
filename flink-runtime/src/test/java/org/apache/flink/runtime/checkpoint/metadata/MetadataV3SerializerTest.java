@@ -46,6 +46,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -108,7 +109,8 @@ public class MetadataV3SerializerTest {
             final int numTasks = rnd.nextInt(maxTaskStates) + 1;
             final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
             final Collection<OperatorState> taskStates =
-                    CheckpointTestUtils.createOperatorStates(rnd, basePath, numTasks, numSubtasks);
+                    CheckpointTestUtils.createOperatorStates(
+                            rnd, basePath, numTasks, 0, 0, numSubtasks);
 
             final Collection<MasterState> masterStates = Collections.emptyList();
 
@@ -139,7 +141,8 @@ public class MetadataV3SerializerTest {
             final int numTasks = rnd.nextInt(maxTaskStates) + 1;
             final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
             final Collection<OperatorState> taskStates =
-                    CheckpointTestUtils.createOperatorStates(rnd, basePath, numTasks, numSubtasks);
+                    CheckpointTestUtils.createOperatorStates(
+                            rnd, basePath, numTasks, 0, 0, numSubtasks);
 
             final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
             final Collection<MasterState> masterStates =
@@ -147,6 +150,48 @@ public class MetadataV3SerializerTest {
 
             testCheckpointSerialization(checkpointId, taskStates, masterStates, basePath);
         }
+    }
+
+    @Test
+    public void testCheckpointWithFinishedTasksForCheckpoint() throws Exception {
+        testCheckpointWithFinishedTasks(null);
+    }
+
+    @Test
+    public void testCheckpointWithFinishedTasksForSavepoint() throws Exception {
+        testCheckpointWithFinishedTasks(temporaryFolder.newFolder().toURI().toString());
+    }
+
+    private void testCheckpointWithFinishedTasks(String basePath) throws Exception {
+        final Random rnd = new Random();
+
+        final int maxNumMasterStates = 5;
+        final int maxNumSubtasks = 20;
+
+        final int maxAllRunningTaskStates = 20;
+        final int maxPartlyFinishedStates = 10;
+        final int maxFullyFinishedSubtasks = 10;
+
+        final long checkpointId = rnd.nextLong() & 0x7fffffffffffffffL;
+
+        final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
+        final int numAllRunningTasks = rnd.nextInt(maxAllRunningTaskStates) + 1;
+        final int numPartlyFinishedTasks = rnd.nextInt(maxPartlyFinishedStates) + 1;
+        final int numFullyFinishedTasks = rnd.nextInt(maxFullyFinishedSubtasks) + 1;
+        final Collection<OperatorState> taskStates =
+                CheckpointTestUtils.createOperatorStates(
+                        rnd,
+                        basePath,
+                        numAllRunningTasks,
+                        numPartlyFinishedTasks,
+                        numFullyFinishedTasks,
+                        numSubtasks);
+
+        final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
+        final Collection<MasterState> masterStates =
+                CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
+
+        testCheckpointSerialization(checkpointId, taskStates, masterStates, basePath);
     }
 
     /**
@@ -198,6 +243,13 @@ public class MetadataV3SerializerTest {
                 serializer.deserialize(in, getClass().getClassLoader(), basePath);
         assertEquals(checkpointId, deserialized.getCheckpointId());
         assertEquals(operatorStates, deserialized.getOperatorStates());
+        assertEquals(
+                operatorStates.stream()
+                        .map(OperatorState::isFullyFinished)
+                        .collect(Collectors.toList()),
+                deserialized.getOperatorStates().stream()
+                        .map(OperatorState::isFullyFinished)
+                        .collect(Collectors.toList()));
 
         assertEquals(masterStates.size(), deserialized.getMasterStates().size());
         for (Iterator<MasterState> a = masterStates.iterator(),

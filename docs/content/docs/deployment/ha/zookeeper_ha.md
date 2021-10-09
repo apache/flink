@@ -49,7 +49,7 @@ JobManager metadata is persisted in the file system `high-availability.storageDi
 
   The `storageDir` stores all metadata needed to recover a JobManager failure.
 
-- [high-availability.zookeeper.quorum]({%link deployment/config.md %}#high-availability-zookeeper-quorum) (required): 
+- [high-availability.zookeeper.quorum]({{< ref "docs/deployment/config.md" >}}#high-availability-zookeeper-quorum) (required): 
 A *ZooKeeper quorum* is a replicated group of ZooKeeper servers, which provide the distributed coordination service.
 
   <pre>high-availability.zookeeper.quorum: address1:2181[,...],addressX:2181</pre>
@@ -104,6 +104,19 @@ For more information on Flink configuration for Kerberos security, please refer 
 You can also find further details on [how Flink sets up Kerberos-based security internally]({{< ref "docs/deployment/security/security-kerberos" >}}).
 
 {{< top >}}
+
+## Advanced Configuration
+
+### Tolerating Suspended ZooKeeper Connections
+
+Per default, Flink's ZooKeeper client treats suspended ZooKeeper connections as an error.
+This means that Flink will invalidate all leaderships of its components and thereby triggering a failover if a connection is suspended.
+
+This behaviour might be too disruptive in some cases (e.g., unstable network environment).
+If you are willing to take a more aggressive approach, then you can tolerate suspended ZooKeeper connections and only treat lost connections as an error via [high-availability.zookeeper.client.tolerate-suspended-connections]({{< ref "docs/deployment/config" >}}#high-availability-zookeeper-client-tolerate-suspended-connection).
+Enabling this feature will make Flink more resilient against temporary connection problems but also increase the risk of running into ZooKeeper timing problems.
+
+For more information take a look at [Curator's error handling](https://curator.apache.org/errors.html).
 
 ## ZooKeeper Versions
 

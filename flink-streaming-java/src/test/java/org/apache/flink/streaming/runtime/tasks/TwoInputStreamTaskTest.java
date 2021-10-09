@@ -19,21 +19,28 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -47,9 +54,8 @@ import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.hamcrest.collection.IsMapContaining;
@@ -66,12 +72,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link TwoInputStreamTask}. Theses tests implicitly also test the {@link
- * StreamTwoInputProcessor}.
+ * Tests for {@link TwoInputStreamTask}.
  *
  * <p>Note:<br>
  * We only use a {@link CoStreamMap} operator here. We also test the individual operators but Map is
@@ -131,12 +137,12 @@ public class TwoInputStreamTaskTest {
     }
 
     /**
-     * This test verifies that watermarks and stream statuses are correctly forwarded. This also
+     * This test verifies that watermarks and watermark statuses are correctly forwarded. This also
      * checks whether watermarks are forwarded only when we have received watermarks from all
      * inputs. The forwarded watermark must be the minimum of the watermarks of all active inputs.
      */
     @Test
-    public void testWatermarkAndStreamStatusForwarding() throws Exception {
+    public void testWatermarkAndWatermarkStatusForwarding() throws Exception {
 
         final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
                 new TwoInputStreamTaskTestHarness<>(
@@ -218,12 +224,12 @@ public class TwoInputStreamTaskTest {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // test whether idle input channels are acknowledged correctly when forwarding watermarks
-        testHarness.processElement(StreamStatus.IDLE, 0, 1);
-        testHarness.processElement(StreamStatus.IDLE, 1, 0);
+        testHarness.processElement(WatermarkStatus.IDLE, 0, 1);
+        testHarness.processElement(WatermarkStatus.IDLE, 1, 0);
         testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
         testHarness.processElement(
                 new Watermark(initialTime + 5), 1, 1); // this watermark should be advanced first
-        testHarness.processElement(StreamStatus.IDLE, 1, 1); // once this is acknowledged,
+        testHarness.processElement(WatermarkStatus.IDLE, 1, 1); // once this is acknowledged,
 
         testHarness.waitForInputProcessing();
         expectedOutput.add(new Watermark(initialTime + 5));
@@ -232,18 +238,18 @@ public class TwoInputStreamTaskTest {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // make all input channels idle and check that the operator's idle status is forwarded
-        testHarness.processElement(StreamStatus.IDLE, 0, 0);
+        testHarness.processElement(WatermarkStatus.IDLE, 0, 0);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(StreamStatus.IDLE);
+        expectedOutput.add(WatermarkStatus.IDLE);
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // make some input channels active again and check that the operator's active status is
         // forwarded only once
-        testHarness.processElement(StreamStatus.ACTIVE, 1, 0);
-        testHarness.processElement(StreamStatus.ACTIVE, 0, 1);
+        testHarness.processElement(WatermarkStatus.ACTIVE, 1, 0);
+        testHarness.processElement(WatermarkStatus.ACTIVE, 0, 1);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(StreamStatus.ACTIVE);
+        expectedOutput.add(WatermarkStatus.ACTIVE);
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -469,14 +475,16 @@ public class TwoInputStreamTaskTest {
                 .finish();
 
         final TaskMetricGroup taskMetricGroup =
-                new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
-                    @Override
-                    public OperatorMetricGroup getOrAddOperator(
-                            OperatorID operatorID, String name) {
-                        return new OperatorMetricGroup(
-                                NoOpMetricRegistry.INSTANCE, this, operatorID, name);
-                    }
-                };
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                                NoOpMetricRegistry.INSTANCE, "host", ResourceID.generate())
+                        .addTaskForJob(
+                                new JobID(),
+                                "jobname",
+                                new JobVertexID(),
+                                new ExecutionAttemptID(),
+                                "task",
+                                0,
+                                0);
 
         final StreamMockEnvironment env =
                 new StreamMockEnvironment(
@@ -517,6 +525,31 @@ public class TwoInputStreamTaskTest {
 
         testHarness.endInput();
         testHarness.waitForTaskCompletion();
+    }
+
+    @Test
+    public void testSkipExecutionsIfFinishedOnRestore() throws Exception {
+        OperatorID nonSourceOperatorId = new OperatorID();
+
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .setCollectNetworkEvents()
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
+                        .setupOperatorChain(
+                                nonSourceOperatorId, new TestFinishedOnRestoreStreamOperator())
+                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .build()) {
+
+            testHarness.processElement(Watermark.MAX_WATERMARK, 0);
+            testHarness.processElement(Watermark.MAX_WATERMARK, 1);
+            testHarness.waitForTaskCompletion();
+            assertThat(
+                    testHarness.getOutput(), contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
+        }
     }
 
     static class DuplicatingOperator extends AbstractStreamOperator<String>
@@ -572,7 +605,8 @@ public class TwoInputStreamTaskTest {
         InterceptingTaskMetricGroup taskMetricGroup =
                 new InterceptingTaskMetricGroup() {
                     @Override
-                    public OperatorMetricGroup getOrAddOperator(OperatorID id, String name) {
+                    public InternalOperatorMetricGroup getOrAddOperator(
+                            OperatorID id, String name) {
                         if (id.equals(headOperatorId)) {
                             return headOperatorMetricGroup;
                         } else if (id.equals(chainedOperatorId)) {
@@ -703,16 +737,16 @@ public class TwoInputStreamTaskTest {
 
         testHarness.waitForTaskCompletion();
 
-        ArrayList<StreamRecord<String>> expected = new ArrayList<>();
+        ArrayList<Object> expected = new ArrayList<>();
         Collections.addAll(
                 expected,
                 new StreamRecord<>("[Operator0-1]: Hello-1"),
                 new StreamRecord<>("[Operator0-1]: End of input"),
                 new StreamRecord<>("[Operator0-2]: Hello-2"),
                 new StreamRecord<>("[Operator0-2]: End of input"),
-                new StreamRecord<>("[Operator0]: Bye"),
+                new StreamRecord<>("[Operator0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"));
 
         final Object[] output = testHarness.getOutput().toArray();
         assertArrayEquals("Output was not correct.", expected.toArray(), output);
@@ -738,7 +772,7 @@ public class TwoInputStreamTaskTest {
 
         final Map<String, Metric> metrics = new ConcurrentHashMap<>();
         final TaskMetricGroup taskMetricGroup =
-                new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+                StreamTaskTestHarness.createTaskMetricGroup(metrics);
         final StreamMockEnvironment environment = testHarness.createEnvironment();
         environment.setTaskMetricGroup(taskMetricGroup);
 

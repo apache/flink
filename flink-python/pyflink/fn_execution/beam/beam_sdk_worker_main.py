@@ -25,6 +25,10 @@ import pyflink.fn_execution.beam.beam_coders # noqa # pylint: disable=unused-imp
 
 import apache_beam.runners.worker.sdk_worker_main
 
+# disable bundle processor shutdown
+from apache_beam.runners.worker import sdk_worker
+sdk_worker.DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 86400 * 365 * 100
+
 
 def print_to_logging(logging_func, msg, *args, **kwargs):
     if msg != '\n':

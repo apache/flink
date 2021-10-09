@@ -106,7 +106,7 @@ be removed in a future release. However, users that experience issues related to
 scheduling can fallback to the legacy scheduler by setting
 `jobmanager.scheduler` to `legacy` in their `flink-conf.yaml` for the time
 being. Note, however, that using the legacy scheduler with the [Pipelined Region
-Failover Strategy]({{< ref "docs/dev/execution/task_failure_recovery" >}}#restart-pipelined-region-failover-strategy)
+Failover Strategy]({{< ref "docs/ops/state/task_failure_recovery" >}}#restart-pipelined-region-failover-strategy)
 enabled has the following caveats:
 
 * Exceptions that caused a job to restart will not be shown on the job overview page of the Web UI 
@@ -359,7 +359,7 @@ Previously, if the user had set `restart-strategy.fixed-delay.attempts` or
 `restart-strategy`, the cluster-level restart strategy would have been
 `fixed-delay`. Now the cluster-level restart strategy is only determined by
 the config option `restart-strategy` and whether checkpointing is enabled. See
-[_"Task Failure Recovery"_]({{< ref "docs/dev/execution/task_failure_recovery" >}})
+[_"Task Failure Recovery"_]({{< ref "docs/ops/state/task_failure_recovery" >}})
 for details.
 
 #### Disable memory-mapped BoundedBlockingSubpartition by default 

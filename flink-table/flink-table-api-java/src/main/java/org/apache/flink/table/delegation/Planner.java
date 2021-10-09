@@ -93,8 +93,6 @@ public interface Planner {
      * given statement. An ExecNode plan can be serialized to json plan, and a json plan can be
      * deserialized to an ExecNode plan.
      *
-     * <p>NOTES: Only the Blink planner supports this method.
-     *
      * <p><b>NOTES:</b>: This is an experimental feature now.
      *
      * @param modifyOperations the {@link ModifyOperation}s to generate json plan.
@@ -106,8 +104,6 @@ public interface Planner {
 
     /**
      * Returns the execution plan for the given json plan.
-     *
-     * <p>NOTES: Only the Blink planner supports this method.
      *
      * <p><b>NOTES:</b>: This is an experimental feature now.
      *
@@ -125,8 +121,6 @@ public interface Planner {
      * <p>The json plan is the string json representation of an optimized ExecNode plan for the
      * given statement. An ExecNode plan can be serialized to json plan, and a json plan can be
      * deserialized to an ExecNode plan.
-     *
-     * <p>NOTES: Only the Blink planner supports this method.
      *
      * <p><b>NOTES:</b>: This is an experimental feature now.
      *

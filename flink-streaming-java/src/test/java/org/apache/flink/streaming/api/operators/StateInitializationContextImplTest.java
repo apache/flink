@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskLocalStateStore;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -69,6 +70,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.Set;
 
 import static org.mockito.Mockito.mock;
@@ -166,6 +168,7 @@ public class StateInitializationContextImplTest {
                         new JobID(),
                         new ExecutionAttemptID(),
                         new TestTaskLocalStateStore(),
+                        new InMemoryStateChangelogStorage(),
                         jobManagerTaskRestore,
                         mock(CheckpointResponder.class));
 
@@ -215,9 +218,10 @@ public class StateInitializationContextImplTest {
                         1.0,
                         false);
 
+        OptionalLong restoredCheckpointId = stateContext.getRestoredCheckpointId();
         this.initializationContext =
                 new StateInitializationContextImpl(
-                        stateContext.isRestored(),
+                        restoredCheckpointId.isPresent() ? restoredCheckpointId.getAsLong() : null,
                         stateContext.operatorStateBackend(),
                         mock(KeyedStateStore.class),
                         stateContext.rawKeyedStateInputs(),

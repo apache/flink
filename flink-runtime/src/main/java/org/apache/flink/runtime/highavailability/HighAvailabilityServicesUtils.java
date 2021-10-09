@@ -24,6 +24,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
@@ -34,15 +35,15 @@ import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaSe
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientHAServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.rpc.AddressResolution;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.RpcServiceUtils;
+import org.apache.flink.runtime.rpc.RpcSystemUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
-
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -55,7 +56,8 @@ import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 public class HighAvailabilityServicesUtils {
 
     public static HighAvailabilityServices createAvailableOrEmbeddedServices(
-            Configuration config, Executor executor) throws Exception {
+            Configuration config, Executor executor, FatalErrorHandler fatalErrorHandler)
+            throws Exception {
         HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
 
         switch (highAvailabilityMode) {
@@ -66,7 +68,7 @@ public class HighAvailabilityServicesUtils {
                 BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
                 return new ZooKeeperHaServices(
-                        ZooKeeperUtils.startCuratorFramework(config),
+                        ZooKeeperUtils.startCuratorFramework(config, fatalErrorHandler),
                         executor,
                         config,
                         blobStoreService);
@@ -81,7 +83,11 @@ public class HighAvailabilityServicesUtils {
     }
 
     public static HighAvailabilityServices createHighAvailabilityServices(
-            Configuration configuration, Executor executor, AddressResolution addressResolution)
+            Configuration configuration,
+            Executor executor,
+            AddressResolution addressResolution,
+            RpcSystemUtils rpcSystemUtils,
+            FatalErrorHandler fatalErrorHandler)
             throws Exception {
 
         HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(configuration);
@@ -91,18 +97,18 @@ public class HighAvailabilityServicesUtils {
                 final Tuple2<String, Integer> hostnamePort = getJobManagerAddress(configuration);
 
                 final String resourceManagerRpcUrl =
-                        AkkaRpcServiceUtils.getRpcUrl(
+                        rpcSystemUtils.getRpcUrl(
                                 hostnamePort.f0,
                                 hostnamePort.f1,
-                                AkkaRpcServiceUtils.createWildcardName(
+                                RpcServiceUtils.createWildcardName(
                                         ResourceManager.RESOURCE_MANAGER_NAME),
                                 addressResolution,
                                 configuration);
                 final String dispatcherRpcUrl =
-                        AkkaRpcServiceUtils.getRpcUrl(
+                        rpcSystemUtils.getRpcUrl(
                                 hostnamePort.f0,
                                 hostnamePort.f1,
-                                AkkaRpcServiceUtils.createWildcardName(Dispatcher.DISPATCHER_NAME),
+                                RpcServiceUtils.createWildcardName(Dispatcher.DISPATCHER_NAME),
                                 addressResolution,
                                 configuration);
                 final String webMonitorAddress =
@@ -115,7 +121,7 @@ public class HighAvailabilityServicesUtils {
                         BlobUtils.createBlobStoreFromConfig(configuration);
 
                 return new ZooKeeperHaServices(
-                        ZooKeeperUtils.startCuratorFramework(configuration),
+                        ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler),
                         executor,
                         configuration,
                         blobStoreService);
@@ -128,8 +134,8 @@ public class HighAvailabilityServicesUtils {
         }
     }
 
-    public static ClientHighAvailabilityServices createClientHAService(Configuration configuration)
-            throws Exception {
+    public static ClientHighAvailabilityServices createClientHAService(
+            Configuration configuration, FatalErrorHandler fatalErrorHandler) throws Exception {
         HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(configuration);
 
         switch (highAvailabilityMode) {
@@ -139,8 +145,9 @@ public class HighAvailabilityServicesUtils {
                                 configuration, AddressResolution.TRY_ADDRESS_RESOLUTION);
                 return new StandaloneClientHAServices(webMonitorAddress);
             case ZOOKEEPER:
-                final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
-                return new ZooKeeperClientHAServices(client);
+                return new ZooKeeperClientHAServices(
+                        ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler),
+                        configuration);
             case FACTORY_CLASS:
                 return createCustomClientHAServices(configuration);
             default:
@@ -190,22 +197,21 @@ public class HighAvailabilityServicesUtils {
      * @return Address of WebMonitor.
      */
     public static String getWebMonitorAddress(
-            Configuration configuration, HighAvailabilityServicesUtils.AddressResolution resolution)
-            throws UnknownHostException {
+            Configuration configuration, AddressResolution resolution) throws UnknownHostException {
         final String address =
                 checkNotNull(
                         configuration.getString(RestOptions.ADDRESS),
                         "%s must be set",
                         RestOptions.ADDRESS.key());
 
-        if (resolution == HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION) {
+        if (resolution == AddressResolution.TRY_ADDRESS_RESOLUTION) {
             // Fail fast if the hostname cannot be resolved
             //noinspection ResultOfMethodCallIgnored
             InetAddress.getByName(address);
         }
 
         final int port = configuration.getInteger(RestOptions.PORT);
-        final boolean enableSSL = SSLUtils.isRestSSLEnabled(configuration);
+        final boolean enableSSL = SecurityOptions.isRestSSLEnabled(configuration);
         final String protocol = enableSSL ? "https://" : "http://";
 
         return String.format("%s%s:%s", protocol, address, port);
@@ -297,14 +303,5 @@ public class HighAvailabilityServicesUtils {
                             highAvailabilityServicesFactory.getClass().getName()),
                     e);
         }
-    }
-
-    /**
-     * Enum specifying whether address resolution should be tried or not when creating the {@link
-     * HighAvailabilityServices}.
-     */
-    public enum AddressResolution {
-        TRY_ADDRESS_RESOLUTION,
-        NO_ADDRESS_RESOLUTION
     }
 }

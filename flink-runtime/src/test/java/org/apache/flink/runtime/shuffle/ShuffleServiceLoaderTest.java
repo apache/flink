@@ -76,7 +76,8 @@ public class ShuffleServiceLoaderTest extends TestLogger {
             implements ShuffleServiceFactory<
                     ShuffleDescriptor, ResultPartitionWriter, IndexedInputGate> {
         @Override
-        public ShuffleMaster<ShuffleDescriptor> createShuffleMaster(Configuration configuration) {
+        public ShuffleMaster<ShuffleDescriptor> createShuffleMaster(
+                ShuffleMasterContext shuffleMasterContext) {
             throw new UnsupportedOperationException();
         }
 

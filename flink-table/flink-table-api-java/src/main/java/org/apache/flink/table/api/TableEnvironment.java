@@ -21,10 +21,10 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.descriptors.ConnectTableDescriptor;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -54,12 +54,13 @@ import java.util.Optional;
  *   <li>Offering further configuration options.
  * </ul>
  *
- * <p>The syntax for path in methods such as {@link #createTemporaryView(String, Table)}is following
- * [[catalog-name.]database-name.]object-name, where the catalog name and database are optional. For
- * path resolution see {@link #useCatalog(String)} and {@link #useDatabase(String)}.
+ * <p>The syntax for path in methods such as {@link #createTemporaryView(String, Table)} is
+ * following {@code [[catalog-name.]database-name.]object-name}, where the catalog name and database
+ * are optional. For path resolution see {@link #useCatalog(String)} and {@link
+ * #useDatabase(String)}.
  *
- * <p>Example: `cat.1`.`db`.`Table` resolves to an object named 'Table' in a catalog named 'cat.1'
- * and database named 'db'.
+ * <p>Example: {@code `cat.1`.`db`.`Table`} resolves to an object named 'Table' in a catalog named
+ * 'cat.1' and database named 'db'.
  *
  * <p>Note: This environment is meant for pure table programs. If you would like to convert from or
  * to other Flink APIs, it might be necessary to use one of the available language-specific table
@@ -585,6 +586,61 @@ public interface TableEnvironment {
     boolean dropTemporaryFunction(String path);
 
     /**
+     * Registers the given {@link TableDescriptor} as a temporary catalog table.
+     *
+     * <p>The {@link TableDescriptor descriptor} is converted into a {@link CatalogTable} and stored
+     * in the catalog.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+     * it will be inaccessible in the current session. To make the permanent object available again
+     * one can drop the corresponding temporary object.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * tEnv.createTemporaryTable("MyTable", TableDescriptor.forConnector("datagen")
+     *   .schema(Schema.newBuilder()
+     *     .column("f0", DataTypes.STRING())
+     *     .build())
+     *   .option(DataGenOptions.ROWS_PER_SECOND, 10)
+     *   .option("fields.f0.kind", "random")
+     *   .build());
+     * }</pre>
+     *
+     * @param path The path under which the table will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor Template for creating a {@link CatalogTable} instance.
+     */
+    void createTemporaryTable(String path, TableDescriptor descriptor);
+
+    /**
+     * Registers the given {@link TableDescriptor} as a catalog table.
+     *
+     * <p>The {@link TableDescriptor descriptor} is converted into a {@link CatalogTable} and stored
+     * in the catalog.
+     *
+     * <p>If the table should not be permanently stored in a catalog, use {@link
+     * #createTemporaryTable(String, TableDescriptor)} instead.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * tEnv.createTable("MyTable", TableDescriptor.forConnector("datagen")
+     *   .schema(Schema.newBuilder()
+     *     .column("f0", DataTypes.STRING())
+     *     .build())
+     *   .option(DataGenOptions.ROWS_PER_SECOND, 10)
+     *   .option("fields.f0.kind", "random")
+     *   .build());
+     * }</pre>
+     *
+     * @param path The path under which the table will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor Template for creating a {@link CatalogTable} instance.
+     */
+    void createTable(String path, TableDescriptor descriptor);
+
+    /**
      * Registers a {@link Table} under a unique name in the TableEnvironment's catalog. Registered
      * tables can be referenced in SQL queries.
      *
@@ -673,12 +729,44 @@ public interface TableEnvironment {
      * Table tab = tableEnv.from("catalogName.`db.Name`.Table");
      * }</pre>
      *
+     * <p>Note that the returned {@link Table} is an API object and only contains a pipeline
+     * description. It actually corresponds to a <i>view</i> in SQL terms. Call {@link
+     * Table#execute()} to trigger an execution.
+     *
      * @param path The path of a table API object to scan.
-     * @return Either a table or virtual table (=view).
+     * @return The {@link Table} object describing the pipeline for further transformations.
      * @see TableEnvironment#useCatalog(String)
      * @see TableEnvironment#useDatabase(String)
      */
     Table from(String path);
+
+    /**
+     * Returns a {@link Table} backed by the given {@link TableDescriptor descriptor}.
+     *
+     * <p>The {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
+     * temporary table (see {@link #createTemporaryTable(String, TableDescriptor)}) using a unique
+     * identifier and then read. Note that calling this method multiple times, even with the same
+     * descriptor, results in multiple temporary tables. In such cases, it is recommended to
+     * register it under a name using #createTemporaryTable(String, TableDescriptor) and reference
+     * it via {@link #from(String)}.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * Table table = tEnv.from(TableDescriptor.forConnector("datagen")
+     *   .schema(Schema.newBuilder()
+     *     .column("f0", DataTypes.STRING())
+     *     .build())
+     *   .build());
+     * }</pre>
+     *
+     * <p>Note that the returned {@link Table} is an API object and only contains a pipeline
+     * description. It actually corresponds to a <i>view</i> in SQL terms. Call {@link
+     * Table#execute()} to trigger an execution.
+     *
+     * @return The {@link Table} object describing the pipeline for further transformations.
+     */
+    Table from(TableDescriptor descriptor);
 
     /**
      * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
@@ -712,40 +800,6 @@ public interface TableEnvironment {
      */
     @Deprecated
     void insertInto(String targetPath, Table table);
-
-    /**
-     * Creates a temporary table from a descriptor.
-     *
-     * <p>Descriptors allow for declaring the communication to external systems in an
-     * implementation-agnostic way. The classpath is scanned for suitable table factories that match
-     * the desired configuration.
-     *
-     * <p>The following example shows how to read from a connector using a JSON format and register
-     * a temporary table as "MyTable":
-     *
-     * <pre>{@code
-     * tableEnv
-     *   .connect(
-     *     new ExternalSystemXYZ()
-     *       .version("0.11"))
-     *   .withFormat(
-     *     new Json()
-     *       .jsonSchema("{...}")
-     *       .failOnMissingField(false))
-     *   .withSchema(
-     *     new Schema()
-     *       .field("user-name", "VARCHAR").from("u_name")
-     *       .field("count", "DECIMAL")
-     *   .createTemporaryTable("MyTable");
-     * }</pre>
-     *
-     * @param connectorDescriptor connector descriptor describing the external system
-     * @deprecated The SQL {@code CREATE TABLE} DDL is richer than this part of the API. This method
-     *     might be refactored in the next versions. Please use {@link #executeSql(String)
-     *     executeSql(ddl)} to register a table instead.
-     */
-    @Deprecated
-    ConnectTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
     /**
      * Gets the names of all catalogs registered in this environment.
@@ -898,31 +952,47 @@ public interface TableEnvironment {
     String[] getCompletionHints(String statement, int position);
 
     /**
-     * Evaluates a SQL query on registered tables and retrieves the result as a {@link Table}.
+     * Evaluates a SQL query on registered tables and returns a {@link Table} object describing the
+     * pipeline for further transformations.
      *
-     * <p>All tables referenced by the query must be registered in the TableEnvironment. A {@link
-     * Table} is automatically registered when its {@link Table#toString()} method is called, for
-     * example when it is embedded into a String. Hence, SQL queries can directly reference a {@link
-     * Table} as follows:
+     * <p>All tables and other objects referenced by the query must be registered in the {@link
+     * TableEnvironment}. For example, use {@link #createTemporaryView(String, Table)}) for
+     * referencing a {@link Table} object or {@link #createTemporarySystemFunction(String, Class)}
+     * for functions.
+     *
+     * <p>Alternatively, a {@link Table} object is automatically registered when its {@link
+     * Table#toString()} method is called, for example when it is embedded into a string. Hence, SQL
+     * queries can directly reference a {@link Table} object inline (i.e. anonymous) as follows:
      *
      * <pre>{@code
      * Table table = ...;
      * String tableName = table.toString();
      * // the table is not registered to the table environment
-     * tEnv.sqlQuery("SELECT * FROM tableName");
+     * tEnv.sqlQuery("SELECT * FROM " + tableName + " WHERE a > 12");
      * }</pre>
      *
+     * <p>Note that the returned {@link Table} is an API object and only contains a pipeline
+     * description. It actually corresponds to a <i>view</i> in SQL terms. Call {@link
+     * Table#execute()} to trigger an execution or use {@link #executeSql(String)} directly.
+     *
      * @param query The SQL query to evaluate.
-     * @return The result of the query as Table
+     * @return The {@link Table} object describing the pipeline for further transformations.
      */
     Table sqlQuery(String query);
 
     /**
-     * Execute the given single statement, and return the execution result.
+     * Executes the given single statement and returns the execution result.
      *
      * <p>The statement can be DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE. For DML and DQL, this method
-     * returns TableResult once the job has been submitted. For DDL and DCL statements, TableResult
-     * is returned once the operation has finished.
+     * returns {@link TableResult} once the job has been submitted. For DDL and DCL statements,
+     * {@link TableResult} is returned once the operation has finished.
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
+     * <p>By default, all DML operations are executed asynchronously. Use {@link
+     * TableResult#await()} or {@link TableResult#getJobClient()} to monitor the execution. Set
+     * {@link TableConfigOptions#TABLE_DML_SYNC} for always synchronous execution.
      *
      * @return content for DQL/SHOW/DESCRIBE/EXPLAIN, the affected row count for `DML` (-1 means
      *     unknown), or a string message ("OK") for other statements.
@@ -1178,8 +1248,9 @@ public interface TableEnvironment {
     JobExecutionResult execute(String jobName) throws Exception;
 
     /**
-     * Create a {@link StatementSet} instance which accepts DML statements or Tables, the planner
-     * can optimize all added statements and Tables together and then submit as one job.
+     * Returns a {@link StatementSet} that accepts pipelines defined by DML statements or {@link
+     * Table} objects. The planner can optimize all added statements together and then submit them
+     * as one job.
      */
     StatementSet createStatementSet();
 }

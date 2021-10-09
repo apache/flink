@@ -34,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class JobManagerJobMetricGroup extends JobMetricGroup<JobManagerMetricGroup> {
-    public JobManagerJobMetricGroup(
+    JobManagerJobMetricGroup(
             MetricRegistry registry,
             JobManagerMetricGroup parent,
             JobID jobId,

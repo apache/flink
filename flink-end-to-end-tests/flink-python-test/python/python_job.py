@@ -33,10 +33,9 @@ def word_count():
               "License you may not use this file except in compliance " \
               "with the License"
 
-    env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
-    t_env = TableEnvironment.create(environment_settings=env_settings)
+    t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
 
-    # used to test pipeline.jars and pipleline.classpaths
+    # used to test pipeline.jars and pipeline.classpaths
     config_key = sys.argv[1]
     config_value = sys.argv[2]
     t_env.get_config().get_configuration().set_string(config_key, config_value)

@@ -28,7 +28,7 @@ import org.apache.flink.test.util.TestingSecurityContext;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.TestHadoopModuleFactory;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -214,10 +214,4 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
      */
     @Override
     public void testQueryCluster() {}
-
-    @Override
-    public void testResourceComputation() {}
-
-    @Override
-    public void testfullAlloc() {}
 }

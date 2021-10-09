@@ -38,9 +38,9 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Function;
-import org.apache.flink.shaded.guava18.com.google.common.collect.FluentIterable;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.base.Function;
+import org.apache.flink.shaded.guava30.com.google.common.collect.FluentIterable;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import java.util.Collection;
 
@@ -482,12 +482,6 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
     @Override
     public void close() throws Exception {
         super.close();
-        evictorContext = null;
-    }
-
-    @Override
-    public void dispose() throws Exception {
-        super.dispose();
         evictorContext = null;
     }
 

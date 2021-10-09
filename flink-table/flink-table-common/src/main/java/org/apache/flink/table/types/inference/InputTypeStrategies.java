@@ -19,11 +19,10 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.CastInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
@@ -32,18 +31,20 @@ import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeS
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FamilyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.LiteralArgumentTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.MapInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OutputArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.RepeatingSequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.RootArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SubsequenceInputTypeStrategy.SubsequenceStrategyBuilder;
+import org.apache.flink.table.types.inference.strategies.SymbolArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.TypeLiteralArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.VaryingSequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.WildcardInputTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
+import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 
 import java.util.Arrays;
 import java.util.List;
@@ -105,6 +106,11 @@ public final class InputTypeStrategies {
             String[] argumentNames, ArgumentTypeStrategy[] strategies) {
         return new VaryingSequenceInputTypeStrategy(
                 Arrays.asList(strategies), Arrays.asList(argumentNames));
+    }
+
+    /** Arbitrarily often repeating sequence of argument type strategies. */
+    public static InputTypeStrategy repeatingSequence(ArgumentTypeStrategy... strategies) {
+        return new RepeatingSequenceInputTypeStrategy(Arrays.asList(strategies));
     }
 
     /**
@@ -172,8 +178,8 @@ public final class InputTypeStrategies {
      * argument.
      */
     public static InputTypeStrategy comparable(
-            ConstantArgumentCount argumentCount, StructuredComparision requiredComparision) {
-        return new ComparableTypeStrategy(argumentCount, requiredComparision);
+            ConstantArgumentCount argumentCount, StructuredComparison requiredComparison) {
+        return new ComparableTypeStrategy(argumentCount, requiredComparison);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -197,6 +203,10 @@ public final class InputTypeStrategies {
     /** Strategy that checks if an argument is a literal or NULL. */
     public static final LiteralArgumentTypeStrategy LITERAL_OR_NULL =
             new LiteralArgumentTypeStrategy(true);
+
+    /** Strategy that checks if an argument is a type literal. */
+    public static final TypeLiteralArgumentTypeStrategy TYPE_LITERAL =
+            new TypeLiteralArgumentTypeStrategy();
 
     /** Strategy that checks that the argument has a composite type. */
     public static final ArgumentTypeStrategy COMPOSITE = new CompositeArgumentTypeStrategy();
@@ -294,49 +304,18 @@ public final class InputTypeStrategies {
         return new OrArgumentTypeStrategy(Arrays.asList(strategies));
     }
 
+    /** Strategy for a symbol argument of a specific {@link TableSymbol} enum. */
+    public static SymbolArgumentTypeStrategy symbol(
+            Class<? extends Enum<? extends TableSymbol>> clazz) {
+        return new SymbolArgumentTypeStrategy(clazz);
+    }
+
     /**
      * An {@link InputTypeStrategy} that expects {@code count} arguments that have a common type.
      */
     public static InputTypeStrategy commonType(int count) {
         return new CommonInputTypeStrategy(ConstantArgumentCount.of(count));
     }
-
-    // --------------------------------------------------------------------------------------------
-    // Specific input type strategies
-    // --------------------------------------------------------------------------------------------
-
-    /** Strategy specific for {@link BuiltInFunctionDefinitions#CAST}. */
-    public static final InputTypeStrategy SPECIFIC_FOR_CAST = new CastInputTypeStrategy();
-
-    /**
-     * Strategy specific for {@link BuiltInFunctionDefinitions#ARRAY}.
-     *
-     * <p>It expects at least one argument. All the arguments must have a common super type.
-     */
-    public static final InputTypeStrategy SPECIFIC_FOR_ARRAY =
-            new CommonInputTypeStrategy(ConstantArgumentCount.from(1));
-
-    /**
-     * Strategy specific for {@link BuiltInFunctionDefinitions#MAP}.
-     *
-     * <p>It expects at least two arguments. There must be even number of arguments. All the keys
-     * and values must have a common super type respectively.
-     */
-    public static final InputTypeStrategy SPECIFIC_FOR_MAP = new MapInputTypeStrategy();
-
-    /**
-     * Strategy that checks all types are fully comparable with each other. Requires exactly two
-     * arguments.
-     */
-    public static final InputTypeStrategy TWO_FULLY_COMPARABLE =
-            comparable(ConstantArgumentCount.of(2), StructuredComparision.FULL);
-
-    /**
-     * Strategy that checks all types are equals comparable with each other. Requires exactly two
-     * arguments.
-     */
-    public static final InputTypeStrategy TWO_EQUALS_COMPARABLE =
-            comparable(ConstantArgumentCount.of(2), StructuredComparision.EQUALS);
 
     // --------------------------------------------------------------------------------------------
 

@@ -18,11 +18,11 @@
 @import "theme.less";
 
 .trigger {
+  padding: 0 24px;
   font-size: 18px;
   line-height: 64px;
-  padding: 0 24px;
   cursor: pointer;
-  transition: color .3s;
+  transition: color 0.3s;
 }
 
 .trigger:hover {
@@ -30,62 +30,62 @@
 }
 
 .logo {
-  height: 64px;
   position: relative;
-  line-height: 64px;
-  padding-left: 24px;
-  transition: all 0.3s ease 0s;
-  background: @layout-header-background;
   overflow: hidden;
+  height: 64px;
+  padding-left: 24px;
+  background: @layout-header-background;
+  line-height: 64px;
+  transition: all 0.3s ease 0s;
 
   a {
     line-height: 64px;
 
     h1 {
-      color: #ffffff;
-      font-size: 14px;
-      font-family: "Myriad Pro", "Helvetica Neue", Arial, Helvetica, sans-serif;
-      font-weight: 600;
-      margin: 0px 0px 0px 12px;
       display: inline-block;
       vertical-align: middle;
+      margin: 0 0 0 12px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      font-family: "Myriad Pro", "Helvetica Neue", Arial, Helvetica, sans-serif;
     }
 
     img {
-      height: 32px;
-      width: 32px;
+      position: relative;
+      top: -4px;
       display: inline-block;
       vertical-align: middle;
-      top: -4px;
-      position: relative;
+      width: 32px;
+      height: 32px;
     }
   }
-
 }
 
 nz-layout {
-  min-height: 100vh;
   overflow: hidden;
+  min-height: 100vh;
   background: darken(@component-background, 5%);
 }
 
 nz-sider {
-  min-height: 100vh;
-  box-shadow: rgba(0, 21, 41, 0.35) 2px 0px 6px;
   position: relative;
   z-index: 10;
+  min-height: 100vh;
+  box-shadow: rgba(0, 21, 41, 0.35) 2px 0 6px;
 }
 
 nz-header {
-  background: @component-background;
-  border-bottom: 1px solid @border-color-split;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, .08);
   position: relative;
-  padding: 0px 12px 0px 0px;
   flex: 0 0 auto;
   overflow: hidden;
+  padding: 0 12px 0 0;
+  border-bottom: 1px solid @border-color-split;
+  background: @component-background;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
 
   nz-badge {
+    vertical-align: middle;
     margin-left: 12px;
     cursor: pointer;
 
@@ -111,22 +111,22 @@ nz-header {
     height: 100%;
 
     .text {
-      padding: 0 12px;
       display: inline-block;
       height: 100%;
+      padding: 0 12px;
       color: @text-color;
     }
 
     .action {
-      transition: all .3s;
+      transition: all 0.3s;
 
       &:hover {
         background: @background-color-light;
       }
 
       i {
-        font-size: 16px;
         vertical-align: middle;
+        font-size: 16px;
       }
     }
 
@@ -137,13 +137,13 @@ nz-header {
 }
 
 nz-content {
-  margin: 24px;
-  height: 100%;
   flex: 1 1 auto;
+  height: 100%;
+  margin: 24px;
 }
 
 .menu {
-  padding: 16px 0px;
+  padding: 16px 0;
 }
 
 nz-alert {
@@ -159,11 +159,12 @@ nz-alert {
   0% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.2;
   }
+
   100% {
     opacity: 1;
   }
 }
-

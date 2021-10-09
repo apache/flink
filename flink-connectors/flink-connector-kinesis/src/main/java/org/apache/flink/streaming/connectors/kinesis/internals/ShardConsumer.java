@@ -158,6 +158,8 @@ public class ShardConsumer<T> implements Runnable {
             }
         } catch (Throwable t) {
             fetcherRef.stopWithError(t);
+        } finally {
+            this.shardConsumerMetricsReporter.unregister();
         }
     }
 

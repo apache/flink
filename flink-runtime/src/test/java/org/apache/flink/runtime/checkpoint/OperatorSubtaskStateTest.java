@@ -86,12 +86,12 @@ public class OperatorSubtaskStateTest {
                                 StateObjectCollection.singleton(
                                         createNewResultSubpartitionStateHandle(3, random)))
                         .setInputRescalingDescriptor(
-                                new InflightDataRescalingDescriptor(
+                                InflightDataRescalingDescriptorUtil.rescalingDescriptor(
                                         new int[1],
                                         new RescaleMappings[0],
                                         Collections.singleton(1)))
                         .setOutputRescalingDescriptor(
-                                new InflightDataRescalingDescriptor(
+                                InflightDataRescalingDescriptorUtil.rescalingDescriptor(
                                         new int[1],
                                         new RescaleMappings[0],
                                         Collections.singleton(2)))

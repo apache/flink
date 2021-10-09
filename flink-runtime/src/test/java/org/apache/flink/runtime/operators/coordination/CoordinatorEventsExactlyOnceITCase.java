@@ -53,7 +53,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -586,13 +586,12 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         }
 
         @Override
-        public Future<Void> cancel() throws Exception {
+        public void cancel() throws Exception {
             running = false;
-            return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public Future<Boolean> triggerCheckpointAsync(
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
                 CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             actions.add(checkpointMetaData); // this signals the main thread should do a checkpoint
             return CompletableFuture.completedFuture(true);
@@ -604,7 +603,8 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         }
 
         @Override
-        public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+        public Future<Void> notifyCheckpointAbortAsync(
+                long checkpointId, long latestCompletedCheckpointId) {
             return CompletableFuture.completedFuture(null);
         }
 

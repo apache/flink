@@ -25,15 +25,15 @@ import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseSerde;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
@@ -59,7 +59,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The HBaseRowDataAsyncLookupFunction is an implemenation to lookup HBase data by rowkey in async
+ * The HBaseRowDataAsyncLookupFunction is an implementation to lookup HBase data by rowkey in async
  * fashion. It looks up the result as {@link RowData}.
  */
 @Internal
@@ -108,7 +108,7 @@ public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
                 Executors.newFixedThreadPool(
                         THREAD_POOL_SIZE,
                         new ExecutorThreadFactory(
-                                "hbase-aysnc-lookup-worker", Threads.LOGGING_EXCEPTION_HANDLER));
+                                "hbase-async-lookup-worker", Threads.LOGGING_EXCEPTION_HANDLER));
         Configuration config = prepareRuntimeConfiguration();
         CompletableFuture<AsyncConnection> asyncConnectionFuture =
                 ConnectionFactory.createAsyncConnection(config);

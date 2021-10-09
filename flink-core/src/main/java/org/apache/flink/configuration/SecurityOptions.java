@@ -28,6 +28,7 @@ import static org.apache.flink.configuration.description.LineBreakElement.linebr
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The set of configuration options relating to security. */
 public class SecurityOptions {
@@ -89,7 +90,7 @@ public class SecurityOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Specify the local location of the krb5.conf file. If defined, this conf would be mounted on the JobManager and "
-                                    + "TaskManager containers/pods for Kubernetes, Yarn and Mesos. Note: The KDC defined needs to be visible from inside the containers.");
+                                    + "TaskManager containers/pods for Kubernetes and Yarn. Note: The KDC defined needs to be visible from inside the containers.");
 
     @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
     public static final ConfigOption<Boolean> KERBEROS_LOGIN_USETICKETCACHE =
@@ -510,4 +511,26 @@ public class SecurityOptions {
                                     + "channel. If the `close_notify` was not flushed in the given timeout the channel will be closed "
                                     + "forcibly. (-1 = use system default)")
                     .withDeprecatedKeys("security.ssl.close-notify-flush-timeout");
+
+    /**
+     * Checks whether SSL for internal communication (rpc, data transport, blob server) is enabled.
+     */
+    public static boolean isInternalSSLEnabled(Configuration sslConfig) {
+        @SuppressWarnings("deprecation")
+        final boolean fallbackFlag = sslConfig.getBoolean(SSL_ENABLED);
+        return sslConfig.getBoolean(SSL_INTERNAL_ENABLED, fallbackFlag);
+    }
+
+    /** Checks whether SSL for the external REST endpoint is enabled. */
+    public static boolean isRestSSLEnabled(Configuration sslConfig) {
+        @SuppressWarnings("deprecation")
+        final boolean fallbackFlag = sslConfig.getBoolean(SSL_ENABLED);
+        return sslConfig.getBoolean(SSL_REST_ENABLED, fallbackFlag);
+    }
+
+    /** Checks whether mutual SSL authentication for the external REST endpoint is enabled. */
+    public static boolean isRestSSLAuthenticationEnabled(Configuration sslConfig) {
+        checkNotNull(sslConfig, "sslConfig");
+        return isRestSSLEnabled(sslConfig) && sslConfig.getBoolean(SSL_REST_AUTHENTICATION_ENABLED);
+    }
 }

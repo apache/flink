@@ -30,9 +30,7 @@ import java.io.IOException;
 import java.sql.Date;
 
 /**
- * Takes int instead of long as the serialized value. It not only reduces the length of the
- * serialized value, but also makes the serialized value consistent between the legacy planner and
- * the blink planner.
+ * Takes int instead of long as the serialized value. It reduces the length of the serialized value.
  */
 @Internal
 public class DateSerializer extends TypeSerializerSingleton<Date> {

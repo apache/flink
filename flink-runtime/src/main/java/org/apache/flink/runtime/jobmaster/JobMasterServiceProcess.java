@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nonnull;
 

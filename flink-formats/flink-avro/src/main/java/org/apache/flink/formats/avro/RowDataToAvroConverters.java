@@ -67,7 +67,7 @@ public class RowDataToAvroConverters {
     // --------------------------------------------------------------------------------
 
     /**
-     * Creates a runtime converter accroding to the given logical type that converts objects of
+     * Creates a runtime converter according to the given logical type that converts objects of
      * Flink Table & SQL internal data structures to corresponding Avro data structures.
      */
     public static RowDataToAvroConverter createConverter(LogicalType type) {
@@ -242,10 +242,17 @@ public class RowDataToAvroConverters {
                 final GenericRecord record = new GenericData.Record(schema);
                 for (int i = 0; i < length; ++i) {
                     final Schema.Field schemaField = fields.get(i);
-                    Object avroObject =
-                            fieldConverters[i].convert(
-                                    schemaField.schema(), fieldGetters[i].getFieldOrNull(row));
-                    record.put(i, avroObject);
+                    try {
+                        Object avroObject =
+                                fieldConverters[i].convert(
+                                        schemaField.schema(), fieldGetters[i].getFieldOrNull(row));
+                        record.put(i, avroObject);
+                    } catch (Throwable t) {
+                        throw new RuntimeException(
+                                String.format(
+                                        "Fail to serialize at field: %s.", schemaField.name()),
+                                t);
+                    }
                 }
                 return record;
             }

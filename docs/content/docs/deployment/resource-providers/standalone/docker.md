@@ -219,7 +219,7 @@ There are two distribution channels for the Flink Docker images:
 
 We recommend using the official images on Docker Hub, as they are reviewed by Docker. The images on `apache/flink` are provided in case of delays in the review process by Docker.
 
-Launching an image named `flink:latest` will pull the latest image from Docker Hub. In order to use the images hosted in `apache/flink`, replace `flink` by `apache/flink`. Any of the image tags (starting from Flink 1.11.3) are avaialble on `apache/flink` as well.
+Launching an image named `flink:latest` will pull the latest image from Docker Hub. In order to use the images hosted in `apache/flink`, replace `flink` by `apache/flink`. Any of the image tags (starting from Flink 1.11.3) are available on `apache/flink` as well.
 
 ### Image tags
 
@@ -232,7 +232,7 @@ Images for each supported combination of Flink and Scala versions are available,
 For example, you can use the following aliases:
 
 * `flink:latest` → `flink:<latest-flink>-scala_<latest-scala>`
-* `flink:1.11` → `flink:1.11.<latest-flink-1.11>-scala_2.11`
+* `flink:1.11` → `flink:1.11.<latest-flink-1.11>-scala_2.12`
 
 <span class="label label-info">Note</span> It is recommended to always use an explicit version tag of the docker image that specifies both the needed Flink and Scala
 versions (for example `flink:1.11-scala_2.12`).
@@ -295,7 +295,7 @@ As described in the [plugins]({{< ref "docs/deployment/filesystems/plugins" >}})
 copied to the correct location in the Flink installation in the Docker container for them to work.
 
 If you want to enable plugins provided with Flink (in the `opt/` directory of the Flink distribution), you can pass the environment variable `ENABLE_BUILT_IN_PLUGINS` when you run the Flink image.
-The `ENABLE_BUILT_IN_PLUGINS` should contain a list of plugin jar file names separated by `;`. A valid plugin name is for example `flink-s3-fs-hadoop-{{site.version}}.jar`
+The `ENABLE_BUILT_IN_PLUGINS` should contain a list of plugin jar file names separated by `;`. A valid plugin name is for example `flink-s3-fs-hadoop-{{< version >}}.jar`
 
 ```sh
     $ docker run \
@@ -316,19 +316,44 @@ FROM flink:{{< version >}}
 FROM flink:latest
 {{< /unstable >}}
 
-# install python3 and pip3
+# install python3: it has updated Python to 3.9 in Debian 11 and so install Python 3.7 from source
+# it currently only supports Python 3.6, 3.7 and 3.8 in PyFlink officially.
+
+RUN apt-get update -y && \
+apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev libffi-dev && \
+wget https://www.python.org/ftp/python/3.7.9/Python-3.7.9.tgz && \
+tar -xvf Python-3.7.9.tgz && \
+cd Python-3.7.9 && \
+./configure --without-tests --enable-shared && \
+make -j6 && \
+make install && \
+ldconfig /usr/local/lib && \
+cd .. && rm -f Python-3.7.9.tgz && rm -rf Python-3.7.9 && \
+ln -s /usr/local/bin/python3 /usr/local/bin/python && \
+apt-get clean && \
+rm -rf /var/lib/apt/lists/*
+
+# install PyFlink
+{{< stable >}}
+RUN pip3 install apache-flink=={{< version >}}
+{{< /stable >}}
+{{< unstable >}}
+COPY apache-flink*.tar.gz /
+RUN pip3 install /apache-flink-libraries*.tar.gz && pip3 install /apache-flink*.tar.gz
+{{< /unstable >}}
+```
+
+<span class="label label-info">Note</span> For Debian 10 and below, Python 3 could also be installed
+alternatively as following:
+```Dockerfile
 RUN apt-get update -y && \
 apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*
 RUN ln -s /usr/bin/python3 /usr/bin/python
-
-# install Python Flink
-{{< stable >}}
-RUN pip3 install apache-flink[=={{site.version}}]
-{{< /stable >}}
-{{< unstable >}}
-RUN pip3 install apache-flink
-{{< /unstable >}}
 ```
+
+{{< unstable >}}
+<span class="label label-info">Note</span> PyFlink packages could be built-in according to [development guide]({{< ref "docs/flinkDev/building" >}}#build-pyflink)
+{{< /unstable >}}
 
 Build the image named as **pyflink:latest**:
 
@@ -346,6 +371,15 @@ You could switch back to use `glibc` as the memory allocator to restore the old 
 ```sh
     $ docker run \
       --env DISABLE_JEMALLOC=true \
+      flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}} <jobmanager|standalone-job|taskmanager>
+```
+
+For users that are still using `glibc` memory allocator, the [glibc bug](https://sourceware.org/bugzilla/show_bug.cgi?id=15321) can easily be reproduced, especially while savepoints or full checkpoints with RocksDBStateBackend are created. 
+Setting the environment variable `MALLOC_ARENA_MAX` can avoid unlimited memory growth:
+
+```sh
+    $ docker run \
+      --env MALLOC_ARENA_MAX=1 \
       flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}} <jobmanager|standalone-job|taskmanager>
 ```
 

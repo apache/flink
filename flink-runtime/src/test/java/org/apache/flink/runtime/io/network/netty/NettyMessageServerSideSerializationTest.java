@@ -126,4 +126,24 @@ public class NettyMessageServerSideSerializationTest extends TestLogger {
 
         assertEquals(expected.receiverId, actual.receiverId);
     }
+
+    @Test
+    public void testAckAllUserRecordsProcessed() {
+        NettyMessage.AckAllUserRecordsProcessed expected =
+                new NettyMessage.AckAllUserRecordsProcessed(new InputChannelID());
+        NettyMessage.AckAllUserRecordsProcessed actual = encodeAndDecode(expected, channel);
+
+        assertEquals(expected.receiverId, actual.receiverId);
+    }
+
+    @Test
+    public void testNewBufferSize() {
+        NettyMessage.NewBufferSize expected =
+                new NettyMessage.NewBufferSize(
+                        random.nextInt(Integer.MAX_VALUE), new InputChannelID());
+        NettyMessage.NewBufferSize actual = encodeAndDecode(expected, channel);
+
+        assertEquals(expected.bufferSize, actual.bufferSize);
+        assertEquals(expected.receiverId, actual.receiverId);
+    }
 }

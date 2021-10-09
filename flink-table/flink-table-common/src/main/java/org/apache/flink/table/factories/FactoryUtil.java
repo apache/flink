@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
+import org.apache.flink.configuration.FallbackKey;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.api.TableException;
@@ -36,6 +38,7 @@ import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.module.Module;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -44,7 +47,10 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -55,6 +61,11 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
+import static org.apache.flink.configuration.ConfigurationUtils.filterPrefixMapKey;
+import static org.apache.flink.table.module.CommonModuleOptions.MODULE_TYPE;
 
 /** Utility for working with {@link Factory}s. */
 @PublicEvolving
@@ -116,10 +127,12 @@ public final class FactoryUtil {
     /**
      * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
      *
-     * <p>It considers {@link Catalog#getFactory()} if provided.
+     * <p>If {@param preferredFactory} is passed, the table source is created from that factory.
+     * Otherwise, an attempt is made to discover a matching factory using Java SPI (see {@link
+     * Factory} for details).
      */
-    public static DynamicTableSource createTableSource(
-            @Nullable Catalog catalog,
+    public static DynamicTableSource createDynamicTableSource(
+            @Nullable DynamicTableSourceFactory preferredFactory,
             ObjectIdentifier objectIdentifier,
             ResolvedCatalogTable catalogTable,
             ReadableConfig configuration,
@@ -130,7 +143,9 @@ public final class FactoryUtil {
                         objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
         try {
             final DynamicTableSourceFactory factory =
-                    getDynamicTableFactory(DynamicTableSourceFactory.class, catalog, context);
+                    preferredFactory != null
+                            ? preferredFactory
+                            : discoverTableFactory(DynamicTableSourceFactory.class, context);
             return factory.createDynamicTableSource(context);
         } catch (Throwable t) {
             throw new ValidationException(
@@ -148,11 +163,15 @@ public final class FactoryUtil {
     }
 
     /**
-     * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
+     * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
      *
      * <p>It considers {@link Catalog#getFactory()} if provided.
+     *
+     * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
+     *     ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)} instead.
      */
-    public static DynamicTableSink createTableSink(
+    @Deprecated
+    public static DynamicTableSource createTableSource(
             @Nullable Catalog catalog,
             ObjectIdentifier objectIdentifier,
             ResolvedCatalogTable catalogTable,
@@ -162,9 +181,40 @@ public final class FactoryUtil {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
                         objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+
+        return createDynamicTableSource(
+                getDynamicTableFactory(DynamicTableSourceFactory.class, catalog, context),
+                objectIdentifier,
+                catalogTable,
+                configuration,
+                classLoader,
+                isTemporary);
+    }
+
+    /**
+     * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
+     *
+     * <p>If {@param preferredFactory} is passed, the table sink is created from that factory.
+     * Otherwise, an attempt is made to discover a matching factory using Java SPI (see {@link
+     * Factory} for details).
+     */
+    public static DynamicTableSink createDynamicTableSink(
+            @Nullable DynamicTableSinkFactory preferredFactory,
+            ObjectIdentifier objectIdentifier,
+            ResolvedCatalogTable catalogTable,
+            ReadableConfig configuration,
+            ClassLoader classLoader,
+            boolean isTemporary) {
+        final DefaultDynamicTableContext context =
+                new DefaultDynamicTableContext(
+                        objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+
         try {
             final DynamicTableSinkFactory factory =
-                    getDynamicTableFactory(DynamicTableSinkFactory.class, catalog, context);
+                    preferredFactory != null
+                            ? preferredFactory
+                            : discoverTableFactory(DynamicTableSinkFactory.class, context);
+
             return factory.createDynamicTableSink(context);
         } catch (Throwable t) {
             throw new ValidationException(
@@ -182,6 +232,35 @@ public final class FactoryUtil {
     }
 
     /**
+     * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
+     *
+     * <p>It considers {@link Catalog#getFactory()} if provided.
+     *
+     * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
+     *     ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)} instead.
+     */
+    @Deprecated
+    public static DynamicTableSink createTableSink(
+            @Nullable Catalog catalog,
+            ObjectIdentifier objectIdentifier,
+            ResolvedCatalogTable catalogTable,
+            ReadableConfig configuration,
+            ClassLoader classLoader,
+            boolean isTemporary) {
+        final DefaultDynamicTableContext context =
+                new DefaultDynamicTableContext(
+                        objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
+
+        return createDynamicTableSink(
+                getDynamicTableFactory(DynamicTableSinkFactory.class, catalog, context),
+                objectIdentifier,
+                catalogTable,
+                configuration,
+                classLoader,
+                isTemporary);
+    }
+
+    /**
      * Creates a utility that helps validating options for a {@link CatalogFactory}.
      *
      * <p>Note: This utility checks for left-over options in the final step.
@@ -189,6 +268,16 @@ public final class FactoryUtil {
     public static CatalogFactoryHelper createCatalogFactoryHelper(
             CatalogFactory factory, CatalogFactory.Context context) {
         return new CatalogFactoryHelper(factory, context);
+    }
+
+    /**
+     * Creates a utility that helps validating options for a {@link ModuleFactory}.
+     *
+     * <p>Note: This utility checks for left-over options in the final step.
+     */
+    public static ModuleFactoryHelper createModuleFactoryHelper(
+            ModuleFactory factory, ModuleFactory.Context context) {
+        return new ModuleFactoryHelper(factory, context);
     }
 
     /**
@@ -263,13 +352,70 @@ public final class FactoryUtil {
                 final DefaultCatalogContext context =
                         new DefaultCatalogContext(
                                 catalogName, factoryOptions, configuration, classLoader);
-
                 return factory.createCatalog(context);
             } catch (Throwable t) {
                 throw new ValidationException(
                         String.format(
                                 "Unable to create catalog '%s'.%n%nCatalog options are:%n%s",
                                 catalogName,
+                                options.entrySet().stream()
+                                        .map(
+                                                optionEntry ->
+                                                        stringifyOption(
+                                                                optionEntry.getKey(),
+                                                                optionEntry.getValue()))
+                                        .sorted()
+                                        .collect(Collectors.joining("\n"))),
+                        t);
+            }
+        }
+    }
+
+    /**
+     * Discovers a matching module factory and creates an instance of it.
+     *
+     * <p>This first uses the legacy {@link TableFactory} stack to discover a matching {@link
+     * ModuleFactory}. If none is found, it falls back to the new stack using {@link Factory}
+     * instead.
+     */
+    public static Module createModule(
+            String moduleName,
+            Map<String, String> options,
+            ReadableConfig configuration,
+            ClassLoader classLoader) {
+        if (options.containsKey(MODULE_TYPE.key())) {
+            throw new ValidationException(
+                    String.format(
+                            "Option '%s' = '%s' is not supported since module name "
+                                    + "is used to find module",
+                            MODULE_TYPE.key(), options.get(MODULE_TYPE.key())));
+        }
+
+        try {
+            final Map<String, String> optionsWithType = new HashMap<>(options);
+            optionsWithType.put(MODULE_TYPE.key(), moduleName);
+
+            final ModuleFactory legacyFactory =
+                    TableFactoryService.find(ModuleFactory.class, optionsWithType, classLoader);
+            return legacyFactory.createModule(optionsWithType);
+        } catch (NoMatchingTableFactoryException e) {
+            final DefaultModuleContext discoveryContext =
+                    new DefaultModuleContext(options, configuration, classLoader);
+            try {
+                final ModuleFactory factory =
+                        discoverFactory(
+                                ((ModuleFactory.Context) discoveryContext).getClassLoader(),
+                                ModuleFactory.class,
+                                moduleName);
+
+                final DefaultModuleContext context =
+                        new DefaultModuleContext(options, configuration, classLoader);
+                return factory.createModule(context);
+            } catch (Throwable t) {
+                throw new ValidationException(
+                        String.format(
+                                "Unable to create module '%s'.%n%nModule options are:%n%s",
+                                moduleName,
                                 options.entrySet().stream()
                                         .map(
                                                 optionEntry ->
@@ -370,7 +516,10 @@ public final class FactoryUtil {
                 requiredOptions.stream()
                         // Templated options will never appear with their template key, so we need
                         // to ignore them as required properties here
-                        .filter(option -> !option.key().contains(PLACEHOLDER_SYMBOL))
+                        .filter(
+                                option ->
+                                        allKeys(option)
+                                                .noneMatch(k -> k.contains(PLACEHOLDER_SYMBOL)))
                         .filter(option -> readOption(options, option) == null)
                         .map(ConfigOption::key)
                         .sorted()
@@ -390,7 +539,10 @@ public final class FactoryUtil {
 
     /** Validates unconsumed option keys. */
     public static void validateUnconsumedKeys(
-            String factoryIdentifier, Set<String> allOptionKeys, Set<String> consumedOptionKeys) {
+            String factoryIdentifier,
+            Set<String> allOptionKeys,
+            Set<String> consumedOptionKeys,
+            Set<String> deprecatedOptionKeys) {
         final Set<String> remainingOptionKeys = new HashSet<>(allOptionKeys);
         remainingOptionKeys.removeAll(consumedOptionKeys);
         if (!remainingOptionKeys.isEmpty()) {
@@ -404,8 +556,42 @@ public final class FactoryUtil {
                             factoryIdentifier,
                             remainingOptionKeys.stream().sorted().collect(Collectors.joining("\n")),
                             consumedOptionKeys.stream()
+                                    .map(
+                                            k -> {
+                                                if (deprecatedOptionKeys.contains(k)) {
+                                                    return String.format("%s (deprecated)", k);
+                                                }
+                                                return k;
+                                            })
                                     .sorted()
                                     .collect(Collectors.joining("\n"))));
+        }
+    }
+
+    /** Validates unconsumed option keys. */
+    public static void validateUnconsumedKeys(
+            String factoryIdentifier, Set<String> allOptionKeys, Set<String> consumedOptionKeys) {
+        validateUnconsumedKeys(
+                factoryIdentifier, allOptionKeys, consumedOptionKeys, Collections.emptySet());
+    }
+
+    /** Returns the required option prefix for options of the given format. */
+    public static String getFormatPrefix(
+            ConfigOption<String> formatOption, String formatIdentifier) {
+        final String formatOptionKey = formatOption.key();
+        if (formatOptionKey.equals(FORMAT.key())) {
+            return formatIdentifier + ".";
+        } else if (formatOptionKey.endsWith(FORMAT_SUFFIX)) {
+            // extract the key prefix, e.g. extract 'key' from 'key.format'
+            String keyPrefix =
+                    formatOptionKey.substring(0, formatOptionKey.length() - FORMAT_SUFFIX.length());
+            return keyPrefix + "." + formatIdentifier + ".";
+        } else {
+            throw new ValidationException(
+                    "Format identifier key should be 'format' or suffix with '.format', "
+                            + "don't support format identifier key '"
+                            + formatOptionKey
+                            + "'.");
         }
     }
 
@@ -415,19 +601,24 @@ public final class FactoryUtil {
 
     @SuppressWarnings("unchecked")
     private static <T extends DynamicTableFactory> T getDynamicTableFactory(
-            Class<T> factoryClass, @Nullable Catalog catalog, DefaultDynamicTableContext context) {
-        // catalog factory has highest precedence
-        if (catalog != null) {
-            final Factory factory =
-                    catalog.getFactory()
-                            .filter(f -> factoryClass.isAssignableFrom(f.getClass()))
-                            .orElse(null);
-            if (factory != null) {
-                return (T) factory;
-            }
+            Class<T> factoryClass, @Nullable Catalog catalog, DynamicTableFactory.Context context) {
+        return getDynamicTableFactory(factoryClass, catalog)
+                .orElseGet(() -> discoverTableFactory(factoryClass, context));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends DynamicTableFactory> Optional<T> getDynamicTableFactory(
+            Class<T> factoryClass, @Nullable Catalog catalog) {
+        if (catalog == null) {
+            return Optional.empty();
         }
 
-        // fallback to factory discovery
+        return catalog.getFactory()
+                .map(f -> factoryClass.isAssignableFrom(f.getClass()) ? (T) f : null);
+    }
+
+    private static <T extends DynamicTableFactory> T discoverTableFactory(
+            Class<T> factoryClass, DynamicTableFactory.Context context) {
         final String connectorOption = context.getCatalogTable().getOptions().get(CONNECTOR.key());
         if (connectorOption == null) {
             throw new ValidationException(
@@ -456,7 +647,7 @@ public final class FactoryUtil {
     }
 
     private static ValidationException enrichNoMatchingConnectorError(
-            Class<?> factoryClass, DefaultDynamicTableContext context, String connectorOption) {
+            Class<?> factoryClass, DynamicTableFactory.Context context, String connectorOption) {
         final DynamicTableFactory factory;
         try {
             factory =
@@ -523,50 +714,92 @@ public final class FactoryUtil {
         }
     }
 
+    private static Set<String> allKeysExpanded(ConfigOption<?> option, Set<String> actualKeys) {
+        return allKeysExpanded("", option, actualKeys);
+    }
+
+    private static Set<String> allKeysExpanded(
+            String prefix, ConfigOption<?> option, Set<String> actualKeys) {
+        final Set<String> staticKeys =
+                allKeys(option).map(k -> prefix + k).collect(Collectors.toSet());
+        if (!canBePrefixMap(option)) {
+            return staticKeys;
+        }
+        // include all prefix keys of a map option by considering the actually provided keys
+        return Stream.concat(
+                        staticKeys.stream(),
+                        staticKeys.stream()
+                                .flatMap(
+                                        k ->
+                                                actualKeys.stream()
+                                                        .filter(c -> filterPrefixMapKey(k, c))))
+                .collect(Collectors.toSet());
+    }
+
+    private static Stream<String> allKeys(ConfigOption<?> option) {
+        return Stream.concat(Stream.of(option.key()), fallbackKeys(option));
+    }
+
+    private static Stream<String> fallbackKeys(ConfigOption<?> option) {
+        return StreamSupport.stream(option.fallbackKeys().spliterator(), false)
+                .map(FallbackKey::getKey);
+    }
+
+    private static Stream<String> deprecatedKeys(ConfigOption<?> option) {
+        return StreamSupport.stream(option.fallbackKeys().spliterator(), false)
+                .filter(FallbackKey::isDeprecated)
+                .map(FallbackKey::getKey);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper classes
     // --------------------------------------------------------------------------------------------
 
-    /**
-     * Helper utility for catalog implementations to validate options provided by {@link
-     * CatalogFactory}.
-     */
-    @PublicEvolving
-    public static class CatalogFactoryHelper {
+    private static class FactoryHelper<F extends Factory> {
 
-        private final CatalogFactory catalogFactory;
-        private final CatalogFactory.Context context;
-        private final Configuration configuration;
+        protected final F factory;
 
-        private final Set<String> consumedOptionKeys;
+        protected final Configuration allOptions;
 
-        public CatalogFactoryHelper(CatalogFactory catalogFactory, CatalogFactory.Context context) {
-            this.catalogFactory = catalogFactory;
-            this.context = context;
-            this.configuration = Configuration.fromMap(context.getOptions());
+        protected final Set<String> consumedOptionKeys;
 
-            consumedOptionKeys = new HashSet<>();
-            consumedOptionKeys.add(PROPERTY_VERSION.key());
-            Stream.concat(
-                            catalogFactory.requiredOptions().stream(),
-                            catalogFactory.optionalOptions().stream())
-                    .map(ConfigOption::key)
-                    .forEach(consumedOptionKeys::add);
+        protected final Set<String> deprecatedOptionKeys;
+
+        FactoryHelper(
+                F factory, Map<String, String> configuration, ConfigOption<?>... implicitOptions) {
+            this.factory = factory;
+            this.allOptions = Configuration.fromMap(configuration);
+
+            final List<ConfigOption<?>> consumedOptions = new ArrayList<>();
+            consumedOptions.addAll(Arrays.asList(implicitOptions));
+            consumedOptions.addAll(factory.requiredOptions());
+            consumedOptions.addAll(factory.optionalOptions());
+
+            consumedOptionKeys =
+                    consumedOptions.stream()
+                            .flatMap(
+                                    option -> allKeysExpanded(option, allOptions.keySet()).stream())
+                            .collect(Collectors.toSet());
+
+            deprecatedOptionKeys =
+                    consumedOptions.stream()
+                            .flatMap(FactoryUtil::deprecatedKeys)
+                            .collect(Collectors.toSet());
         }
 
-        /**
-         * Validates the options of the {@link CatalogFactory}. It checks for unconsumed option
-         * keys.
-         */
+        /** Validates the options of the factory. It checks for unconsumed option keys. */
         public void validate() {
-            validateFactoryOptions(catalogFactory, configuration);
+            validateFactoryOptions(factory, allOptions);
             validateUnconsumedKeys(
-                    catalogFactory.factoryIdentifier(), configuration.keySet(), consumedOptionKeys);
+                    factory.factoryIdentifier(),
+                    allOptions.keySet(),
+                    consumedOptionKeys,
+                    deprecatedOptionKeys);
         }
 
         /**
-         * Validates the options of the {@link CatalogFactory}. It checks for unconsumed option keys
-         * while ignoring the options with given prefixes.
+         * Validates the options of the factory. It checks for unconsumed option keys while ignoring
+         * the options with given prefixes.
          *
          * <p>The option keys that have given prefix {@code prefixToSkip} would just be skipped for
          * validation.
@@ -578,15 +811,38 @@ public final class FactoryUtil {
                     prefixesToSkip.length > 0, "Prefixes to skip can not be empty.");
             final List<String> prefixesList = Arrays.asList(prefixesToSkip);
             consumedOptionKeys.addAll(
-                    configuration.keySet().stream()
+                    allOptions.keySet().stream()
                             .filter(key -> prefixesList.stream().anyMatch(key::startsWith))
                             .collect(Collectors.toSet()));
             validate();
         }
 
-        /** Returns all options of the catalog. */
+        /** Returns all options currently being consumed by the factory. */
         public ReadableConfig getOptions() {
-            return configuration;
+            return allOptions;
+        }
+    }
+
+    /**
+     * Helper utility for validating all options for a {@link CatalogFactory}.
+     *
+     * @see #createCatalogFactoryHelper(CatalogFactory, CatalogFactory.Context)
+     */
+    public static class CatalogFactoryHelper extends FactoryHelper<CatalogFactory> {
+
+        public CatalogFactoryHelper(CatalogFactory catalogFactory, CatalogFactory.Context context) {
+            super(catalogFactory, context.getOptions(), PROPERTY_VERSION);
+        }
+    }
+
+    /**
+     * Helper utility for validating all options for a {@link ModuleFactory}.
+     *
+     * @see #createModuleFactoryHelper(ModuleFactory, ModuleFactory.Context)
+     */
+    public static class ModuleFactoryHelper extends FactoryHelper<ModuleFactory> {
+        public ModuleFactoryHelper(ModuleFactory moduleFactory, ModuleFactory.Context context) {
+            super(moduleFactory, context.getOptions(), PROPERTY_VERSION);
         }
     }
 
@@ -596,32 +852,18 @@ public final class FactoryUtil {
      *
      * @see #createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)
      */
-    public static class TableFactoryHelper {
-
-        private final DynamicTableFactory tableFactory;
+    public static class TableFactoryHelper extends FactoryHelper<DynamicTableFactory> {
 
         private final DynamicTableFactory.Context context;
 
-        private final Configuration allOptions;
-
-        private final Set<String> consumedOptionKeys;
-
         private TableFactoryHelper(
                 DynamicTableFactory tableFactory, DynamicTableFactory.Context context) {
-            this.tableFactory = tableFactory;
+            super(
+                    tableFactory,
+                    context.getCatalogTable().getOptions(),
+                    PROPERTY_VERSION,
+                    CONNECTOR);
             this.context = context;
-            this.allOptions = Configuration.fromMap(context.getCatalogTable().getOptions());
-            this.consumedOptionKeys = new HashSet<>();
-            this.consumedOptionKeys.add(PROPERTY_VERSION.key());
-            this.consumedOptionKeys.add(CONNECTOR.key());
-            this.consumedOptionKeys.addAll(
-                    tableFactory.requiredOptions().stream()
-                            .map(ConfigOption::key)
-                            .collect(Collectors.toSet()));
-            this.consumedOptionKeys.addAll(
-                    tableFactory.optionalOptions().stream()
-                            .map(ConfigOption::key)
-                            .collect(Collectors.toSet()));
         }
 
         /**
@@ -704,41 +946,6 @@ public final class FactoryUtil {
                             });
         }
 
-        /**
-         * Validates the options of the {@link DynamicTableFactory}. It checks for unconsumed option
-         * keys.
-         */
-        public void validate() {
-            validateFactoryOptions(tableFactory, allOptions);
-            validateUnconsumedKeys(
-                    tableFactory.factoryIdentifier(), allOptions.keySet(), consumedOptionKeys);
-        }
-
-        /**
-         * Validates the options of the {@link DynamicTableFactory}. It checks for unconsumed option
-         * keys while ignoring the options with given prefixes.
-         *
-         * <p>The option keys that have given prefix {@code prefixToSkip} would just be skipped for
-         * validation.
-         *
-         * @param prefixesToSkip Set of option key prefixes to skip validation
-         */
-        public void validateExcept(String... prefixesToSkip) {
-            Preconditions.checkArgument(
-                    prefixesToSkip.length > 0, "Prefixes to skip can not be empty.");
-            final List<String> prefixesList = Arrays.asList(prefixesToSkip);
-            consumedOptionKeys.addAll(
-                    allOptions.keySet().stream()
-                            .filter(key -> prefixesList.stream().anyMatch(key::startsWith))
-                            .collect(Collectors.toSet()));
-            validate();
-        }
-
-        /** Returns all options of the table. */
-        public ReadableConfig getOptions() {
-            return allOptions;
-        }
-
         // ----------------------------------------------------------------------------------------
 
         private <F extends Factory> Optional<F> discoverOptionalFormatFactory(
@@ -750,38 +957,30 @@ public final class FactoryUtil {
             final F factory =
                     discoverFactory(context.getClassLoader(), formatFactoryClass, identifier);
             String formatPrefix = formatPrefix(factory, formatOption);
+
             // log all used options of other factories
-            consumedOptionKeys.addAll(
-                    factory.requiredOptions().stream()
-                            .map(ConfigOption::key)
-                            .map(k -> formatPrefix + k)
-                            .collect(Collectors.toSet()));
-            consumedOptionKeys.addAll(
-                    factory.optionalOptions().stream()
-                            .map(ConfigOption::key)
-                            .map(k -> formatPrefix + k)
-                            .collect(Collectors.toSet()));
+            final List<ConfigOption<?>> consumedOptions = new ArrayList<>();
+            consumedOptions.addAll(factory.requiredOptions());
+            consumedOptions.addAll(factory.optionalOptions());
+
+            consumedOptions.stream()
+                    .flatMap(
+                            option ->
+                                    allKeysExpanded(formatPrefix, option, allOptions.keySet())
+                                            .stream())
+                    .forEach(consumedOptionKeys::add);
+
+            consumedOptions.stream()
+                    .flatMap(FactoryUtil::deprecatedKeys)
+                    .map(k -> formatPrefix + k)
+                    .forEach(deprecatedOptionKeys::add);
+
             return Optional.of(factory);
         }
 
         private String formatPrefix(Factory formatFactory, ConfigOption<String> formatOption) {
             String identifier = formatFactory.factoryIdentifier();
-            if (formatOption.key().equals(FORMAT.key())) {
-                return identifier + ".";
-            } else if (formatOption.key().endsWith(FORMAT_SUFFIX)) {
-                // extract the key prefix, e.g. extract 'key' from 'key.format'
-                String keyPrefix =
-                        formatOption
-                                .key()
-                                .substring(0, formatOption.key().length() - FORMAT_SUFFIX.length());
-                return keyPrefix + "." + identifier + ".";
-            } else {
-                throw new ValidationException(
-                        "Format identifier key should be 'format' or suffix with '.format', "
-                                + "don't support format identifier key '"
-                                + formatOption.key()
-                                + "'.");
-            }
+            return getFormatPrefix(formatOption, identifier);
         }
 
         private ReadableConfig projectOptions(String formatPrefix) {
@@ -790,6 +989,7 @@ public final class FactoryUtil {
     }
 
     /** Default implementation of {@link DynamicTableFactory.Context}. */
+    @Internal
     public static class DefaultDynamicTableContext implements DynamicTableFactory.Context {
 
         private final ObjectIdentifier objectIdentifier;
@@ -838,6 +1038,7 @@ public final class FactoryUtil {
     }
 
     /** Default implementation of {@link CatalogFactory.Context}. */
+    @Internal
     public static class DefaultCatalogContext implements CatalogFactory.Context {
         private final String name;
         private final Map<String, String> options;
@@ -858,6 +1059,38 @@ public final class FactoryUtil {
         @Override
         public String getName() {
             return name;
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return options;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
+    }
+
+    /** Default implementation of {@link ModuleFactory.Context}. */
+    @Internal
+    public static class DefaultModuleContext implements ModuleFactory.Context {
+        private final Map<String, String> options;
+        private final ReadableConfig configuration;
+        private final ClassLoader classLoader;
+
+        public DefaultModuleContext(
+                Map<String, String> options,
+                ReadableConfig configuration,
+                ClassLoader classLoader) {
+            this.options = options;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
         }
 
         @Override

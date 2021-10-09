@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.tasks.RegularOperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
@@ -183,27 +184,25 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 
         // run and wait to be stopped
         OperatorChain<?, ?> operatorChain =
-                new OperatorChain<>(
+                new RegularOperatorChain<>(
                         operator.getContainingTask(),
                         StreamTask.createRecordWriterDelegate(
                                 operator.getOperatorConfig(),
                                 new MockEnvironmentBuilder().build()));
         try {
             operator.run(new Object(), new CollectorOutput<>(output), operatorChain);
-            operator.close();
+            operator.finish();
         } finally {
-            operatorChain.releaseOutputs();
+            operatorChain.close();
         }
 
-        assertEquals(
-                numberLatencyMarkers + 1, // + 1 is the final watermark element
-                output.size());
+        assertEquals(numberLatencyMarkers, output.size());
 
         long timestamp = 0L;
         int expectedLatencyIndex = 0;
 
         int i = 0;
-        // verify that its only latency markers + a final watermark
+        // verify that its only latency markers
         for (; i < numberLatencyMarkers; i++) {
             StreamElement se = output.get(i);
             Assert.assertTrue(se.isLatencyMarker());
@@ -222,8 +221,6 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 
             timestamp += latencyMarkInterval;
         }
-
-        Assert.assertTrue(output.get(i).isWatermark());
     }
 
     // ------------------------------------------------------------------------

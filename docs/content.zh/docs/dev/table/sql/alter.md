@@ -33,6 +33,7 @@ ALTER 语句用于修改一个已经在 [Catalog]({{< ref "docs/dev/table/catalo
 Flink SQL 目前支持以下 ALTER 语句：
 
 - ALTER TABLE
+- ALTER VIEW
 - ALTER DATABASE
 - ALTER FUNCTION
 
@@ -68,8 +69,7 @@ Flink SQL 目前支持以下 ALTER 语句：
 {{< tabs "147c58e0-44d1-4f78-b995-88b3edba7bec" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tableEnv = TableEnvironment.create(settings);
+TableEnvironment tableEnv = TableEnvironment.create(...);
 
 // 注册名为 “Orders” 的表
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
@@ -88,8 +88,7 @@ String[] tables = tableEnv.listTables();
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // 注册名为 “Orders” 的表
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
@@ -108,8 +107,7 @@ val tables = tableEnv.listTables()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # 字符串数组： ["Orders"]
 tables = table_env.list_tables()
@@ -158,6 +156,20 @@ ALTER TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
 
 为指定的表设置一个或多个属性。若个别属性已经存在于表中，则使用新的值覆盖旧的值。
 
+## ALTER VIEW
+
+```sql
+ALTER VIEW [catalog_name.][db_name.]view_name RENAME TO new_view_name
+```
+
+Renames a given view to a new name within the same catalog and database.
+
+```sql
+ALTER VIEW [catalog_name.][db_name.]view_name AS new_query_expression
+```
+
+Changes the underlying query defining the given view to a new query.
+
 ## ALTER DATABASE
 
 ```sql
@@ -168,7 +180,7 @@ ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
 
 ## ALTER FUNCTION
 
-{% highlight sql%}
+```sql
 ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF EXISTS] [catalog_name.][db_name.]function_name
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]

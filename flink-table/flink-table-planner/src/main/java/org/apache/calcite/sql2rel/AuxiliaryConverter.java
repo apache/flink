@@ -17,7 +17,8 @@
 package org.apache.calcite.sql2rel;
 
 /*
- * THIS FILE HAS BEEN COPIED FROM THE APACHE CALCITE PROJECT UNTIL CALCITE-1761 IS FIXED.
+ * THIS FILE HAS BEEN COPIED FROM THE APACHE CALCITE PROJECT.
+ * We need support extended TUMBLE_ROWTIME and so on in FlinkSqlOperatorTable.
  */
 
 import org.apache.calcite.rex.RexBuilder;

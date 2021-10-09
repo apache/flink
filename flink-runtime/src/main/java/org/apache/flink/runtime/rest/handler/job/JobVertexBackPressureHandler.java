@@ -69,8 +69,7 @@ public class JobVertexBackPressureHandler
 
     @Override
     protected CompletableFuture<JobVertexBackPressureInfo> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
-            @Nonnull RestfulGateway gateway)
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         metricFetcher.update();
 

@@ -30,7 +30,6 @@ import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -64,6 +63,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.Matcher;
 import org.junit.After;
@@ -119,7 +119,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
     @After
     public void shutdownScheduler() throws Exception {
         if (createdScheduler != null) {
-            createdScheduler.close();
+            closeScheduler(createdScheduler);
         }
     }
 
@@ -140,7 +140,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final DefaultScheduler scheduler = createAndStartScheduler();
         final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
 
-        scheduler.close();
+        closeScheduler(scheduler);
 
         assertTrue(coordinator.isClosed());
     }
@@ -866,6 +866,12 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         }
 
         return checkpointId;
+    }
+
+    private void closeScheduler(DefaultScheduler scheduler) throws Exception {
+        final CompletableFuture<Void> closeFuture = scheduler.closeAsync();
+        executor.triggerAll();
+        closeFuture.get();
     }
 
     // ------------------------------------------------------------------------

@@ -26,7 +26,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.LogListInfo;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogListHeaders;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
@@ -57,7 +57,7 @@ import static org.junit.Assert.assertThat;
 /** Unit tests for {@link JobManagerLogListHandler}. */
 public class JobManagerLogListHandlerTest extends TestLogger {
 
-    private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> testRequest;
+    private static HandlerRequest<EmptyRequestBody> testRequest;
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -66,11 +66,10 @@ public class JobManagerLogListHandlerTest extends TestLogger {
     @BeforeClass
     public static void setupClass() throws HandlerRequestException {
         testRequest =
-                new HandlerRequest<>(
+                HandlerRequest.create(
                         EmptyRequestBody.getInstance(),
                         EmptyMessageParameters.getInstance(),
-                        Collections.emptyMap(),
-                        Collections.emptyMap());
+                        Collections.emptyList());
     }
 
     @Before
@@ -109,7 +108,7 @@ public class JobManagerLogListHandlerTest extends TestLogger {
     private JobManagerLogListHandler createHandler(@Nullable final File jobManagerLogRoot) {
         return new JobManagerLogListHandler(
                 () -> CompletableFuture.completedFuture(dispatcherGateway),
-                TestingUtils.TIMEOUT(),
+                TestingUtils.TIMEOUT,
                 Collections.emptyMap(),
                 JobManagerLogListHeaders.getInstance(),
                 jobManagerLogRoot);

@@ -26,13 +26,16 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
@@ -49,6 +52,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.URI;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.containsString;
@@ -72,6 +76,8 @@ import static org.junit.Assume.assumeNoException;
 @NotThreadSafe
 public class TaskManagerRunnerConfigurationTest extends TestLogger {
 
+    private static final RpcSystem RPC_SYSTEM = RpcSystem.load();
+
     private static final int TEST_TIMEOUT_SECONDS = 10;
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -88,7 +94,8 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
         RpcService taskManagerRpcService = null;
         try {
             taskManagerRpcService =
-                    TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+                    TaskManagerRunner.createRpcService(
+                            config, highAvailabilityServices, RPC_SYSTEM);
 
             assertThat(taskManagerRpcService.getPort(), is(greaterThanOrEqualTo(0)));
             assertThat(taskManagerRpcService.getAddress(), is(equalTo(taskmanagerHost)));
@@ -107,7 +114,8 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
         RpcService taskManagerRpcService = null;
         try {
             taskManagerRpcService =
-                    TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+                    TaskManagerRunner.createRpcService(
+                            config, highAvailabilityServices, RPC_SYSTEM);
             assertThat(taskManagerRpcService.getAddress(), not(isEmptyOrNullString()));
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
@@ -128,7 +136,8 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
         RpcService taskManagerRpcService = null;
         try {
             taskManagerRpcService =
-                    TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+                    TaskManagerRunner.createRpcService(
+                            config, highAvailabilityServices, RPC_SYSTEM);
             assertThat(taskManagerRpcService.getAddress(), is(ipAddress()));
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
@@ -149,7 +158,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
                 createHighAvailabilityServices(config);
 
         try {
-            TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+            TaskManagerRunner.createRpcService(config, highAvailabilityServices, RPC_SYSTEM);
             fail("Should fail because -1 is not a valid port range");
         } catch (final IllegalArgumentException e) {
             assertThat(e.getMessage(), containsString("Invalid port range definition: -1"));
@@ -221,7 +230,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
         final Configuration config = new Configuration();
         config.setString(TaskManagerOptions.HOST_BIND_POLICY, bindPolicy.toString());
         config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setString(AkkaOptions.LOOKUP_TIMEOUT, "10 ms");
+        config.set(AkkaOptions.LOOKUP_TIMEOUT_DURATION, Duration.ofMillis(10));
         return new UnmodifiableConfiguration(config);
     }
 
@@ -237,7 +246,9 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
         return HighAvailabilityServicesUtils.createHighAvailabilityServices(
                 config,
                 Executors.directExecutor(),
-                HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+                AddressResolution.NO_ADDRESS_RESOLUTION,
+                RpcSystem.load(),
+                NoOpFatalErrorHandler.INSTANCE);
     }
 
     private static ServerSocket openServerSocket() {

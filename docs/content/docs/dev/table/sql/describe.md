@@ -61,8 +61,7 @@ The following examples show how to run a DESCRIBE statement in SQL CLI.
 {{< tabs "a5de1760-e363-4b8d-9d6f-0bacb35b9dcf" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tableEnv = TableEnvironment.create(settings);
+TableEnvironment tableEnv = TableEnvironment.create(...);
 
 // register a table named "Orders"
 tableEnv.executeSql(
@@ -85,8 +84,7 @@ tableEnv.executeSql("DESC Orders").print();
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // register a table named "Orders"
  tableEnv.executeSql(
@@ -109,8 +107,7 @@ tableEnv.executeSql("DESC Orders").print()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # register a table named "Orders"
 table_env.execute_sql( \

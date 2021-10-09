@@ -94,7 +94,7 @@ public class JarPlanHandler
 
     @Override
     protected CompletableFuture<JobPlanInfo> handleRequest(
-            @Nonnull final HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> request,
+            @Nonnull final HandlerRequest<JarPlanRequestBody> request,
             @Nonnull final RestfulGateway gateway)
             throws RestHandlerException {
         final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);

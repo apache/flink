@@ -68,14 +68,13 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  *   <li>{@link SubscriptionErrorEvent} - passes an exception from the network to the consumer
  * </ul>
  *
- * <p>The blocking queue has a maximum capacity of 1 record. This allows backpressure to be applied
- * closer to the network stack and results in record prefetch. At maximum capacity we will have
- * three {@link SubscribeToShardEvent} in memory (per instance of this class):
+ * <p>The blocking queue has a maximum capacity of two. One slot is used for a record batch, the
+ * remaining slot is reserved to completion events. At maximum capacity we will have two {@link
+ * SubscribeToShardEvent} in memory (per instance of this class):
  *
  * <ul>
  *   <li>1 event being processed by the consumer
  *   <li>1 event enqueued in the blocking queue
- *   <li>1 event being added to the queue by the network (blocking)
  * </ul>
  */
 @Internal
@@ -86,9 +85,11 @@ public class FanOutShardSubscriber {
     /**
      * The maximum capacity of the queue between the network and consumption thread. The queue is
      * mainly used to isolate networking from consumption such that errors do not bubble up. This
-     * queue also acts as a buffer resulting in a record prefetch and reduced latency.
+     * queue also acts as a buffer resulting in a record prefetch and reduced latency. Capacity is 2
+     * to allow 1 pending record batch and leave room for a completion event to avoid any writer
+     * thread blocking on the queue.
      */
-    private static final int QUEUE_CAPACITY = 1;
+    private static final int QUEUE_CAPACITY = 2;
 
     /**
      * Read timeout will occur after 30 seconds, a sanity timeout to prevent lockup in unexpected
@@ -350,6 +351,9 @@ public class FanOutShardSubscriber {
                 result = false;
                 break;
             } else if (subscriptionEvent.isSubscribeToShardEvent()) {
+                // Request for KDS to send the next record batch
+                subscription.requestRecord();
+
                 SubscribeToShardEvent event = subscriptionEvent.getSubscribeToShardEvent();
                 continuationSequenceNumber = event.continuationSequenceNumber();
                 if (!event.records().isEmpty()) {
@@ -412,7 +416,6 @@ public class FanOutShardSubscriber {
                         @Override
                         public void visit(SubscribeToShardEvent event) {
                             enqueueEvent(new SubscriptionNextEvent(event));
-                            requestRecord();
                         }
                     });
         }

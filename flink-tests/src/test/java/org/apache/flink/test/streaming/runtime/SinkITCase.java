@@ -39,6 +39,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.joining;
+import static org.apache.flink.streaming.runtime.operators.sink.TestSink.END_OF_INPUT_STR;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
@@ -46,7 +47,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
  * Integration test for {@link org.apache.flink.api.connector.sink.Sink} run time implementation.
  */
 public class SinkITCase extends AbstractTestBase {
-
     static final List<Integer> SOURCE_DATA =
             Arrays.asList(
                     895, 127, 148, 161, 148, 662, 822, 491, 275, 122, 850, 630, 682, 765, 434, 970,
@@ -86,7 +86,7 @@ public class SinkITCase extends AbstractTestBase {
                             .map(x -> Tuple3.of(x, null, Long.MIN_VALUE).toString())
                             .sorted()
                             .collect(joining("+")),
-                    "end of input");
+                    END_OF_INPUT_STR);
 
     static final Queue<String> COMMIT_QUEUE = new ConcurrentLinkedQueue<>();
 
@@ -131,6 +131,13 @@ public class SinkITCase extends AbstractTestBase {
                                 .build());
 
         env.execute();
+
+        // TODO: At present, for a bounded scenario, the occurrence of final checkpoint is not a
+        // deterministic event, so
+        // we do not need to verify this matter. After the final checkpoint becomes ready in the
+        // future,
+        // the verification of "end of input" would be restored.
+        GLOBAL_COMMIT_QUEUE.remove(END_OF_INPUT_STR);
 
         assertThat(
                 COMMIT_QUEUE,
@@ -215,6 +222,14 @@ public class SinkITCase extends AbstractTestBase {
                                 .build());
 
         env.execute();
+
+        // TODO: At present, for a bounded scenario, the occurrence of final checkpoint is not a
+        // deterministic event, so
+        // we do not need to verify this matter. After the final checkpoint becomes ready in the
+        // future,
+        // the verification of "end of input" would be restored.
+        GLOBAL_COMMIT_QUEUE.remove(END_OF_INPUT_STR);
+
         assertThat(
                 getSplittedGlobalCommittedData(),
                 containsInAnyOrder(EXPECTED_GLOBAL_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));

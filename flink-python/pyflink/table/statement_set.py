@@ -15,7 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from typing import Union
+
 from pyflink.table import ExplainDetail
+from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
@@ -52,21 +55,68 @@ class StatementSet(object):
         self._j_statement_set.addInsertSql(stmt)
         return self
 
-    def add_insert(self, target_path: str, table, overwrite: bool = False) -> 'StatementSet':
+    def add_insert(self,
+                   target_path_or_descriptor: Union[str, TableDescriptor],
+                   table,
+                   overwrite: bool = False) -> 'StatementSet':
         """
-        add Table with the given sink table name to the set.
+        Adds a statement that the pipeline defined by the given Table object should be written to a
+        table (backed by a DynamicTableSink) that was registered under the specified path or
+        expressed via the given TableDescriptor.
 
-        :param target_path: The path of the registered :class:`~pyflink.table.TableSink` to which
-                            the :class:`~pyflink.table.Table` is written.
+        1. When target_path_or_descriptor is a tale path:
+
+            See the documentation of :func:`~TableEnvironment.use_database` or
+            :func:`~TableEnvironment.use_catalog` for the rules on the path resolution.
+
+        2. When target_path_or_descriptor is a table descriptor:
+
+            The given TableDescriptor is registered as an inline (i.e. anonymous) temporary catalog
+            table (see :func:`~TableEnvironment.create_temporary_table`).
+
+            Then a statement is added to the statement set that inserts the Table object's pipeline
+            into that temporary table.
+
+            This method allows to declare a Schema for the sink descriptor. The declaration is
+            similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+
+                1. overwrite automatically derived columns with a custom DataType
+                2. add metadata columns next to the physical columns
+                3. declare a primary key
+
+            It is possible to declare a schema without physical/regular columns. In this case, those
+            columns will be automatically derived and implicitly put at the beginning of the schema
+            declaration.
+
+            Examples:
+            ::
+
+                >>> stmt_set = table_env.create_statement_set()
+                >>> source_table = table_env.from_path("SourceTable")
+                >>> sink_descriptor = TableDescriptor.for_connector("blackhole")
+                ...     .schema(Schema.new_builder()
+                ...         .build())
+                ...     .build()
+                >>> stmt_set.add_insert(sink_descriptor, source_table)
+
+            .. note:: add_insert for a table descriptor (case 2.) was added from
+                flink 1.14.0.
+
+        :param target_path_or_descriptor: The path of the registered
+            :class:`~pyflink.table.TableSink` or the descriptor describing the sink table into which
+            data should be inserted to which the :class:`~pyflink.table.Table` is written.
         :param table: The Table to add.
         :type table: pyflink.table.Table
-        :param overwrite: The flag that indicates whether the insert
-                          should overwrite existing data or not.
+        :param overwrite: Indicates whether the insert should overwrite existing data or not.
         :return: current StatementSet instance.
 
         .. versionadded:: 1.11.0
         """
-        self._j_statement_set.addInsert(target_path, table._j_table, overwrite)
+        if isinstance(target_path_or_descriptor, str):
+            self._j_statement_set.addInsert(target_path_or_descriptor, table._j_table, overwrite)
+        else:
+            self._j_statement_set.addInsert(
+                target_path_or_descriptor._j_table_descriptor, table._j_table, overwrite)
         return self
 
     def explain(self, *extra_details: ExplainDetail) -> str:

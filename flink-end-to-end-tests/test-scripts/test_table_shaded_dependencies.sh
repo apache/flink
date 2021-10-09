@@ -19,7 +19,7 @@
 
 source "$(dirname "$0")"/common.sh
 
-FLINK_SCALA_VERSION=`ls "${END_TO_END_DIR}/../flink-table/flink-table-runtime-blink/target" | sed -n "s/.*flink-table-runtime-blink_\(.*\)-tests\.jar/\1/p" | uniq`
+FLINK_SCALA_VERSION=`ls "${END_TO_END_DIR}/../flink-table/flink-table-runtime/target" | sed -n "s/.*flink-table-runtime_\(.*\)-tests\.jar/\1/p" | uniq`
 FLINK_VERSION=`ls "${END_TO_END_DIR}/../flink-table/flink-table-api-java/target" | sed -n "s/.*flink-table-api-java-\(.*\)-tests\.jar/\1/p" | uniq`
 
 # This checks the bytecode for dependencies on external classes. Some classes below
@@ -89,6 +89,7 @@ function checkAllowedPackages {
       grep -v "org/apache/calcite" |\
       grep -v "com/esri/core" |\
       grep -v "com/ibm/icu" |\
+      grep -v "scala/util/parsing" |\
       grep -v "org/apache/flink" > $CONTENTS_FILE
   if [[ `cat $CONTENTS_FILE | wc -l` -eq '0' ]]; then
       echo "Success: There are no unwanted classes in the ${JAR} jar."
@@ -104,9 +105,7 @@ checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-api-java-bri
 checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-api-scala-bridge/target/flink-table-api-scala-bridge_${FLINK_SCALA_VERSION}.jar"
 
 checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-planner/target/flink-table-planner_${FLINK_SCALA_VERSION}.jar"
-checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-planner-blink/target/flink-table-planner-blink_${FLINK_SCALA_VERSION}.jar"
-checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-runtime-blink/target/flink-table-runtime-blink_${FLINK_SCALA_VERSION}.jar"
-checkCodeDependencies "${FLINK_DIR}/lib/flink-table-blink_${FLINK_SCALA_VERSION}.jar"
+checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-runtime/target/flink-table-runtime_${FLINK_SCALA_VERSION}.jar"
 checkCodeDependencies "${FLINK_DIR}/lib/flink-table_${FLINK_SCALA_VERSION}.jar"
 
 checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-api-java/target/flink-table-api-java-${FLINK_VERSION}.jar"
@@ -115,7 +114,5 @@ checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-api-java-brid
 checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-api-scala-bridge/target/flink-table-api-scala-bridge_${FLINK_SCALA_VERSION}.jar"
 
 checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-planner/target/flink-table-planner_${FLINK_SCALA_VERSION}.jar"
-checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-planner-blink/target/flink-table-planner-blink_${FLINK_SCALA_VERSION}.jar"
-checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-runtime-blink/target/flink-table-runtime-blink_${FLINK_SCALA_VERSION}.jar"
-checkAllowedPackages "${FLINK_DIR}/lib/flink-table-blink_${FLINK_SCALA_VERSION}.jar"
+checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-runtime/target/flink-table-runtime_${FLINK_SCALA_VERSION}.jar"
 checkAllowedPackages "${FLINK_DIR}/lib/flink-table_${FLINK_SCALA_VERSION}.jar"

@@ -53,7 +53,7 @@ public class CheckpointStatsSnapshotTest {
                         null);
 
         CheckpointStatsSnapshot snapshot =
-                new CheckpointStatsSnapshot(counts, summary, history, restored);
+                new CheckpointStatsSnapshot(counts, summary.createSnapshot(), history, restored);
 
         CheckpointStatsSnapshot copy = CommonTestUtils.createCopySerializable(snapshot);
 

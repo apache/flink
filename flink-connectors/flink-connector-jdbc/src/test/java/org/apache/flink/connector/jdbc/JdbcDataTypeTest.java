@@ -19,7 +19,6 @@
 package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
@@ -150,7 +149,7 @@ public class JdbcDataTypeTest {
 
     private static TestItem createTestItem(Object... args) {
         assert args.length >= 2;
-        TestItem item = TestItem.fromDialetAndType((String) args[0], (String) args[1]);
+        TestItem item = TestItem.fromDialectAndType((String) args[0], (String) args[1]);
         if (args.length == 3) {
             item.withExpectError((String) args[2]);
         }
@@ -164,9 +163,7 @@ public class JdbcDataTypeTest {
         String sqlDDL = String.format(DDL_FORMAT, testItem.dataTypeExpr, testItem.dialect);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         tEnv.executeSql(sqlDDL);
 
@@ -196,7 +193,7 @@ public class JdbcDataTypeTest {
             this.dataTypeExpr = dataTypeExpr;
         }
 
-        static TestItem fromDialetAndType(String dialect, String dataTypeExpr) {
+        static TestItem fromDialectAndType(String dialect, String dataTypeExpr) {
             return new TestItem(dialect, dataTypeExpr);
         }
 

@@ -18,18 +18,41 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Group of consumed {@link IntermediateResultPartitionID}s. */
 public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartitionID> {
+
     private final List<IntermediateResultPartitionID> resultPartitions;
 
+    private final AtomicInteger unfinishedPartitions;
+
+    private final IntermediateDataSetID intermediateDataSetID;
+
     private ConsumedPartitionGroup(List<IntermediateResultPartitionID> resultPartitions) {
+        checkArgument(
+                resultPartitions.size() > 0,
+                "The size of result partitions in the ConsumedPartitionGroup should be larger than 0.");
+        this.intermediateDataSetID = resultPartitions.get(0).getIntermediateDataSetID();
+
+        // Sanity check: all the partitions in one ConsumedPartitionGroup should have the same
+        // IntermediateDataSetID
+        for (IntermediateResultPartitionID resultPartition : resultPartitions) {
+            checkArgument(
+                    resultPartition.getIntermediateDataSetID().equals(this.intermediateDataSetID));
+        }
         this.resultPartitions = resultPartitions;
+
+        this.unfinishedPartitions = new AtomicInteger(resultPartitions.size());
     }
 
     public static ConsumedPartitionGroup fromMultiplePartitions(
@@ -57,5 +80,27 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     public IntermediateResultPartitionID getFirst() {
         return iterator().next();
+    }
+
+    /** Get the ID of IntermediateDataSet this ConsumedPartitionGroup belongs to. */
+    public IntermediateDataSetID getIntermediateDataSetID() {
+        return intermediateDataSetID;
+    }
+
+    public int partitionUnfinished() {
+        return unfinishedPartitions.incrementAndGet();
+    }
+
+    public int partitionFinished() {
+        return unfinishedPartitions.decrementAndGet();
+    }
+
+    @VisibleForTesting
+    public int getNumberOfUnfinishedPartitions() {
+        return unfinishedPartitions.get();
+    }
+
+    public boolean areAllPartitionsFinished() {
+        return unfinishedPartitions.get() == 0;
     }
 }

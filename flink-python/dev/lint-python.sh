@@ -396,7 +396,7 @@ function install_environment() {
     fi
     print_function "STEP" "install miniconda... [SUCCESS]"
 
-    # step-3 install python environment whcih includes
+    # step-3 install python environment which includes
     # 3.6 3.7 3.8
     if [ $STEP -lt 3 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
@@ -460,7 +460,7 @@ function create_dir() {
 # Set created py-env in $PATH for tox's creating virtual env
 function activate () {
     if [ ! -d $CURRENT_DIR/.conda/envs ]; then
-        echo "For some unkown reasons,missing the directory $CURRENT_DIR/.conda/envs,\
+        echo "For some unknown reasons, missing the directory $CURRENT_DIR/.conda/envs,\
         you should exec the script with the option: -f"
         exit 1
     fi
@@ -471,7 +471,7 @@ function activate () {
     done
     export PATH 2>/dev/null
     if [ $? -ne 0 ]; then
-        echo "For some unkown reasons, the py package is not complete,\
+        echo "For some unknown reasons, the py package is not complete,\
         you should exec the script with the option: -f"
         exit 1
     fi
@@ -613,7 +613,7 @@ function flake8_check() {
 
     print_function "STAGE" "flake8 checks"
     if [ ! -f "$FLAKE8_PATH" ]; then
-        echo "For some unkown reasons, the flake8 package is not complete,\
+        echo "For some unknown reasons, the flake8 package is not complete,\
         you should exec the script with the parameter: -f"
     fi
 

@@ -23,43 +23,47 @@
   top: 0;
   left: 0;
   z-index: 10;
+  background: transparent;
+
   &.vertical {
-    border-left: 1px solid @border-color-split;
     width: 7px;
     height: 100%;
+    border-left: 1px solid @border-color-split;
     cursor: col-resize;
   }
+
   &.horizontal {
     width: 100%;
     height: 7px;
-    transform: translateY(-3.5px);
     cursor: row-resize;
+    transform: translateY(-3.5px);
   }
-  background: transparent;
 }
 
 .resize-handle {
-  pointer-events: none;
   position: relative;
+  top: -2px;
   left: 50%;
-  margin-right: 15px;
   width: 30px;
   height: 10px;
-  line-height: 10px;
-  text-align: center;
-  background: #fbfbfb;
-  top: -2px;
+  margin-right: 15px;
   border: 1px solid #e8e8e8;
   border-radius: 2px;
+  background: #fbfbfb;
+  line-height: 10px;
+  text-align: center;
+  pointer-events: none;
+
   &.vertical {
-    transform: rotate(90deg);
-    transform-origin: left top;
     top: 50%;
-    margin-top: -15px;
     left: auto;
+    margin-top: -15px;
     margin-right: auto;
     margin-left: 5px;
+    transform: rotate(90deg);
+    transform-origin: left top;
   }
+
   i {
     position: relative;
     top: -2px;

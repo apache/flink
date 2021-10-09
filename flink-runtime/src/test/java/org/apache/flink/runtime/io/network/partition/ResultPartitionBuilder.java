@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;

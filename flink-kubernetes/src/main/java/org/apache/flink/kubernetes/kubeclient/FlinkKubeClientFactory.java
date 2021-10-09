@@ -18,17 +18,15 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
-import io.fabric8.kubernetes.client.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,30 +92,11 @@ public class FlinkKubeClientFactory {
         LOG.debug("Setting namespace of Kubernetes client to {}", namespace);
         config.setNamespace(namespace);
 
-        // This could be removed after we bump the fabric8 Kubernetes client version to 4.13.0+ or
-        // use the a shared connection for all ConfigMap watches. See FLINK-22006 for more
-        // information.
-        trySetMaxConcurrentRequest(config);
-
         final NamespacedKubernetesClient client = new DefaultKubernetesClient(config);
         final int poolSize =
                 flinkConfig.get(KubernetesConfigOptions.KUBERNETES_CLIENT_IO_EXECUTOR_POOL_SIZE);
         return new Fabric8FlinkKubeClient(
                 flinkConfig, client, createThreadPoolForAsyncIO(poolSize, useCase));
-    }
-
-    @VisibleForTesting
-    static void trySetMaxConcurrentRequest(Config config) {
-        final String configuredMaxConcurrentRequests =
-                Utils.getSystemPropertyOrEnvVar(
-                        Config.KUBERNETES_MAX_CONCURRENT_REQUESTS,
-                        String.valueOf(Config.DEFAULT_MAX_CONCURRENT_REQUESTS));
-        if (configuredMaxConcurrentRequests != null) {
-            LOG.debug(
-                    "Setting max concurrent requests of Kubernetes client to {}",
-                    configuredMaxConcurrentRequests);
-            config.setMaxConcurrentRequests(Integer.parseInt(configuredMaxConcurrentRequests));
-        }
     }
 
     private static ExecutorService createThreadPoolForAsyncIO(int poolSize, String useCase) {

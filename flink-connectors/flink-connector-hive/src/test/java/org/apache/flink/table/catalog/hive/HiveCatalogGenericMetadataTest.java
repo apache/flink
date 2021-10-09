@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -40,6 +41,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -315,6 +317,23 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
         CatalogFunction catalogFunction = catalog.getFunction(path1);
         assertEquals("class.name", catalogFunction.getClassName());
         assertEquals(FunctionLanguage.JAVA, catalogFunction.getFunctionLanguage());
+    }
+
+    @Test
+    public void testGenericTableWithoutConnectorProp() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
+        TableSchema tableSchema =
+                TableSchema.builder()
+                        .fields(
+                                new String[] {"s", "ts"},
+                                new DataType[] {DataTypes.STRING(), DataTypes.TIMESTAMP_LTZ(3)})
+                        .watermark("ts", "ts-INTERVAL '1' SECOND", DataTypes.TIMESTAMP_LTZ(3))
+                        .build();
+        CatalogTable catalogTable = new CatalogTableImpl(tableSchema, Collections.emptyMap(), null);
+        catalog.createTable(path1, catalogTable, false);
+        CatalogTable retrievedTable = (CatalogTable) catalog.getTable(path1);
+        assertEquals(tableSchema, retrievedTable.getSchema());
+        assertEquals(Collections.emptyMap(), retrievedTable.getOptions());
     }
 
     // ------ functions ------

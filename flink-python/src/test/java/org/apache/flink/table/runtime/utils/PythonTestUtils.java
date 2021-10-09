@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.utils;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
@@ -27,9 +28,14 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
 
+import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
+import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -47,12 +53,24 @@ public final class PythonTestUtils {
         JobBundleFactory jobBundleFactorySpy = spy(JobBundleFactory.class);
         StageBundleFactory stageBundleFactorySpy = spy(StageBundleFactory.class);
         when(jobBundleFactorySpy.forStage(any())).thenReturn(stageBundleFactorySpy);
+
+        ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor =
+                spy(ProcessBundleDescriptors.ExecutableProcessBundleDescriptor.class);
+        when(stageBundleFactorySpy.getProcessBundleDescriptor())
+                .thenReturn(processBundleDescriptor);
+
         RemoteBundle remoteBundleSpy = spy(RemoteBundle.class);
         try {
-            when(stageBundleFactorySpy.getBundle(any(), any(), any())).thenReturn(remoteBundleSpy);
+            when(stageBundleFactorySpy.getBundle(
+                            any(OutputReceiverFactory.class),
+                            any(TimerReceiverFactory.class),
+                            any(StateRequestHandler.class),
+                            any(BundleProgressHandler.class)))
+                    .thenReturn(remoteBundleSpy);
         } catch (Exception e) {
             // ignore
         }
+
         Map<String, FnDataReceiver> inputReceivers = new HashMap<>();
         FnDataReceiver<WindowedValue<?>> windowedValueReceiverSpy = spy(FnDataReceiver.class);
         inputReceivers.put("input", windowedValueReceiverSpy);
@@ -74,6 +92,7 @@ public final class PythonTestUtils {
         return new ProcessPythonEnvironmentManager(
                 new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
                 new String[] {System.getProperty("java.io.tmpdir")},
-                env);
+                env,
+                new JobID());
     }
 }

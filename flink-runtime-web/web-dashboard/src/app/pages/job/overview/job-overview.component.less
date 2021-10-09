@@ -19,20 +19,21 @@
 @import "theme";
 
 .container {
-  width: 100%;
-  overflow: hidden;
-  height: 500px;
   position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 500px;
   border-bottom: solid 1px @border-color-split;
 }
 
 nz-radio-group {
   position: absolute;
+  top: 15px;
   right: 24px;
   z-index: 1;
-  top: 15px;
-  opacity: .7;
-  transition: opacity ease-in .28s;
+  opacity: 0.7;
+  transition: opacity ease-in 0.28s;
+
   &:hover {
     opacity: 1;
   }
@@ -40,23 +41,22 @@ nz-radio-group {
 
 flink-dagre {
   position: absolute;
+  left: 0;
   width: 100%;
   height: 100%;
-  left: 0;
 }
 
 flink-job-overview-drawer {
-  width: 60%;
-  height: 100%;
   position: absolute;
   right: 0;
-  background: #ffffff;
+  width: 60%;
+  height: 100%;
   border-left: solid 1px @border-color-split;
+  background: #fff;
 }
 
 :host {
-  height: 100%;
-  display: block;
   position: relative;
+  display: block;
+  height: 100%;
 }
-

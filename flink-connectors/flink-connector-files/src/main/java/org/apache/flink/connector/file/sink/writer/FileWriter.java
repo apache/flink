@@ -25,6 +25,8 @@ import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
@@ -85,10 +87,13 @@ public class FileWriter<IN>
 
     private final OutputFileConfig outputFileConfig;
 
+    private final Counter recordsOutCounter;
+
     /**
      * A constructor creating a new empty bucket manager.
      *
      * @param basePath The base path for our buckets.
+     * @param metricGroup {@link SinkWriterMetricGroup} to set sink writer specific metrics.
      * @param bucketAssigner The {@link BucketAssigner} provided by the user.
      * @param bucketFactory The {@link FileWriterBucketFactory} to be used to create buckets.
      * @param bucketWriter The {@link BucketWriter} to be used when writing data.
@@ -96,6 +101,7 @@ public class FileWriter<IN>
      */
     public FileWriter(
             final Path basePath,
+            final SinkWriterMetricGroup metricGroup,
             final BucketAssigner<IN, String> bucketAssigner,
             final FileWriterBucketFactory<IN> bucketFactory,
             final BucketWriter<IN, String> bucketWriter,
@@ -115,6 +121,8 @@ public class FileWriter<IN>
         this.activeBuckets = new HashMap<>();
         this.bucketerContext = new BucketerContext();
 
+        this.recordsOutCounter =
+                checkNotNull(metricGroup).getIOMetricGroup().getNumRecordsOutCounter();
         this.processingTimeService = checkNotNull(processingTimeService);
         checkArgument(
                 bucketCheckInterval > 0,
@@ -181,6 +189,7 @@ public class FileWriter<IN>
         final String bucketId = bucketAssigner.getBucketId(element, bucketerContext);
         final FileWriterBucket<IN> bucket = getOrCreateBucketForBucketId(bucketId);
         bucket.write(element, processingTimeService.getCurrentProcessingTime());
+        recordsOutCounter.inc();
     }
 
     @Override
@@ -205,7 +214,7 @@ public class FileWriter<IN>
     }
 
     @Override
-    public List<FileWriterBucketState> snapshotState() throws IOException {
+    public List<FileWriterBucketState> snapshotState(long checkpointId) throws IOException {
         checkState(bucketWriter != null, "sink has not been initialized");
 
         List<FileWriterBucketState> state = new ArrayList<>();

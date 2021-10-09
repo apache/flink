@@ -47,7 +47,7 @@ The config options could be set as following in a Table API program:
 ```python
 from pyflink.table import TableEnvironment, EnvironmentSettings
 
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(env_settings)
 
 config = t_env.get_config().get_configuration()

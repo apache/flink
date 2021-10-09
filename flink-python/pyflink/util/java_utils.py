@@ -19,6 +19,7 @@
 from datetime import timedelta
 
 from py4j.java_gateway import JavaClass, get_java_class, JavaObject
+from py4j.protocol import Py4JJavaError
 
 from pyflink.java_gateway import get_gateway
 
@@ -84,11 +85,32 @@ def get_j_env_configuration(j_env):
     if is_instance_of(j_env, "org.apache.flink.api.java.ExecutionEnvironment"):
         return j_env.getConfiguration()
     else:
-        return invoke_method(
-            j_env,
-            "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment",
-            "getConfiguration"
-        )
+        env_clazz = load_java_class(
+            "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
+        field = env_clazz.getDeclaredField("configuration")
+        field.setAccessible(True)
+        return field.get(j_env)
+
+
+def get_field_value(java_obj, field_name):
+    field = get_field(java_obj.getClass(), field_name)
+    return field.get(java_obj)
+
+
+def get_field(cls, field_name):
+    try:
+        field = cls.getDeclaredField(field_name)
+        field.setAccessible(True)
+        return field
+    except Py4JJavaError:
+        while cls.getSuperclass() is not None:
+            cls = cls.getSuperclass()
+            try:
+                field = cls.getDeclaredField(field_name)
+                field.setAccessible(True)
+                return field
+            except Py4JJavaError:
+                pass
 
 
 def invoke_method(obj, object_type, method_name, args=None, arg_types=None):
@@ -143,7 +165,9 @@ def to_j_explain_detail_arr(p_extra_details):
     gateway = get_gateway()
 
     def to_j_explain_detail(p_extra_detail):
-        if p_extra_detail == ExplainDetail.CHANGELOG_MODE:
+        if p_extra_detail == ExplainDetail.JSON_EXECUTION_PLAN:
+            return gateway.jvm.org.apache.flink.table.api.ExplainDetail.JSON_EXECUTION_PLAN
+        elif p_extra_detail == ExplainDetail.CHANGELOG_MODE:
             return gateway.jvm.org.apache.flink.table.api.ExplainDetail.CHANGELOG_MODE
         else:
             return gateway.jvm.org.apache.flink.table.api.ExplainDetail.ESTIMATED_COST

@@ -70,12 +70,6 @@ sed -i -e "s/org.apache.flink.quickstart.StreamingJob/org.apache.flink.quickstar
 
 case $PROFILE in
 *"scala-2.12"*)
-  echo "Changing scala version"
-  sed -i -e "s/scala.binary.version>2.11<\/scala.binary/scala.binary.version>2.12<\/scala.binary/" pom.xml
-  # for flink-quickstart-scala, also change scala version
-  sed -i -e "s/scala.version>2.11.12<\/scala.ver/scala.version>2.12.7<\/scala.ver/" pom.xml
-  ;;
-*"scala-2.11"*)
   # all good
   ;;
 *"scala-"*)

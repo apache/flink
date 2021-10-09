@@ -44,6 +44,12 @@ public class VoidBlobWriter implements BlobWriter {
     }
 
     @Override
+    public boolean deletePermanent(JobID jobId, PermanentBlobKey key) {
+        throw new UnsupportedOperationException(
+                "The VoidBlobWriter cannot delete data from the BLOB store.");
+    }
+
+    @Override
     public int getMinOffloadingSize() {
         return Integer.MAX_VALUE;
     }

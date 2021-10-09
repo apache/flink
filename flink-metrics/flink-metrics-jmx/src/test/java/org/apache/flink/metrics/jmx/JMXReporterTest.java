@@ -18,18 +18,14 @@
 
 package org.apache.flink.metrics.jmx;
 
+import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.runtime.management.JMXService;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.ReporterSetup;
-import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
-import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.metrics.util.TestMetricGroup;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -46,19 +42,29 @@ import javax.management.remote.JMXServiceURL;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.metrics.jmx.JMXReporter.JMX_DOMAIN_PREFIX;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /** Tests for the JMXReporter. */
 public class JMXReporterTest extends TestLogger {
+
+    private static final Map<String, String> variables;
+    private static final MetricGroup metricGroup;
+
+    static {
+        variables = new HashMap<>();
+        variables.put("<host>", "localhost");
+
+        metricGroup =
+                TestMetricGroup.newBuilder()
+                        .setLogicalScopeFunction((characterFilter, character) -> "taskmanager")
+                        .setVariables(variables)
+                        .build();
+    }
 
     @After
     public void shutdownService() throws IOException {
@@ -105,128 +111,60 @@ public class JMXReporterTest extends TestLogger {
      */
     @Test
     public void testPortConflictHandling() throws Exception {
-        ReporterSetup reporterSetup1 =
-                ReporterSetup.forReporter("test1", new JMXReporter("9020-9035"));
-        ReporterSetup reporterSetup2 =
-                ReporterSetup.forReporter("test2", new JMXReporter("9020-9035"));
+        final MetricReporter rep1 = new JMXReporter("9020-9035");
+        final MetricReporter rep2 = new JMXReporter("9020-9035");
 
-        MetricRegistryImpl reg =
-                new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-                        Arrays.asList(reporterSetup1, reporterSetup2));
+        Gauge<Integer> g1 = () -> 1;
+        Gauge<Integer> g2 = () -> 2;
 
-        TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
-
-        List<MetricReporter> reporters = reg.getReporters();
-
-        assertTrue(reporters.size() == 2);
-
-        MetricReporter rep1 = reporters.get(0);
-        MetricReporter rep2 = reporters.get(1);
-
-        Gauge<Integer> g1 =
-                new Gauge<Integer>() {
-                    @Override
-                    public Integer getValue() {
-                        return 1;
-                    }
-                };
-        Gauge<Integer> g2 =
-                new Gauge<Integer>() {
-                    @Override
-                    public Integer getValue() {
-                        return 2;
-                    }
-                };
-
-        rep1.notifyOfAddedMetric(
-                g1, "rep1", new FrontMetricGroup<>(createReporterScopedSettings(0), mg));
-        rep2.notifyOfAddedMetric(
-                g2, "rep2", new FrontMetricGroup<>(createReporterScopedSettings(0), mg));
+        rep1.notifyOfAddedMetric(g1, "rep1", metricGroup);
+        rep2.notifyOfAddedMetric(g2, "rep2", metricGroup);
 
         MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
         ObjectName objectName1 =
                 new ObjectName(
                         JMX_DOMAIN_PREFIX + "taskmanager.rep1",
-                        JMXReporter.generateJmxTable(mg.getAllVariables()));
+                        JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
         ObjectName objectName2 =
                 new ObjectName(
                         JMX_DOMAIN_PREFIX + "taskmanager.rep2",
-                        JMXReporter.generateJmxTable(mg.getAllVariables()));
+                        JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
 
         assertEquals(1, mBeanServer.getAttribute(objectName1, "Value"));
         assertEquals(2, mBeanServer.getAttribute(objectName2, "Value"));
 
         rep1.notifyOfRemovedMetric(g1, "rep1", null);
         rep1.notifyOfRemovedMetric(g2, "rep2", null);
-
-        mg.close();
-        reg.shutdown().get();
     }
 
-    /**
-     * Verifies that we can connect to multiple JMXReporters running on the same machine.
-     *
-     * @throws Exception
-     */
+    /** Verifies that we can connect to multiple JMXReporters running on the same machine. */
     @Test
     public void testJMXAvailability() throws Exception {
-        ReporterSetup reporterSetup1 =
-                ReporterSetup.forReporter("test1", new JMXReporter("9040-9055"));
-        ReporterSetup reporterSetup2 =
-                ReporterSetup.forReporter("test2", new JMXReporter("9040-9055"));
+        final JMXReporter rep1 = new JMXReporter("9040-9055");
+        final JMXReporter rep2 = new JMXReporter("9040-9055");
 
-        MetricRegistryImpl reg =
-                new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-                        Arrays.asList(reporterSetup1, reporterSetup2));
+        Gauge<Integer> g1 = () -> 1;
+        Gauge<Integer> g2 = () -> 2;
 
-        TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
-
-        List<MetricReporter> reporters = reg.getReporters();
-
-        assertTrue(reporters.size() == 2);
-
-        MetricReporter rep1 = reporters.get(0);
-        MetricReporter rep2 = reporters.get(1);
-
-        Gauge<Integer> g1 =
-                new Gauge<Integer>() {
-                    @Override
-                    public Integer getValue() {
-                        return 1;
-                    }
-                };
-        Gauge<Integer> g2 =
-                new Gauge<Integer>() {
-                    @Override
-                    public Integer getValue() {
-                        return 2;
-                    }
-                };
-
-        rep1.notifyOfAddedMetric(
-                g1, "rep1", new FrontMetricGroup<>(createReporterScopedSettings(0), mg));
-
-        rep2.notifyOfAddedMetric(
-                g2, "rep2", new FrontMetricGroup<>(createReporterScopedSettings(1), mg));
+        rep1.notifyOfAddedMetric(g1, "rep1", metricGroup);
+        rep2.notifyOfAddedMetric(g2, "rep2", metricGroup);
 
         ObjectName objectName1 =
                 new ObjectName(
                         JMX_DOMAIN_PREFIX + "taskmanager.rep1",
-                        JMXReporter.generateJmxTable(mg.getAllVariables()));
+                        JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
         ObjectName objectName2 =
                 new ObjectName(
                         JMX_DOMAIN_PREFIX + "taskmanager.rep2",
-                        JMXReporter.generateJmxTable(mg.getAllVariables()));
+                        JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
 
         JMXServiceURL url1 =
                 new JMXServiceURL(
                         "service:jmx:rmi://localhost:"
-                                + ((JMXReporter) rep1).getPort().get()
+                                + rep1.getPort().get()
                                 + "/jndi/rmi://localhost:"
-                                + ((JMXReporter) rep1).getPort().get()
+                                + rep1.getPort().get()
                                 + "/jmxrmi");
         JMXConnector jmxCon1 = JMXConnectorFactory.connect(url1);
         MBeanServerConnection mCon1 = jmxCon1.getMBeanServerConnection();
@@ -239,9 +177,9 @@ public class JMXReporterTest extends TestLogger {
         JMXServiceURL url2 =
                 new JMXServiceURL(
                         "service:jmx:rmi://localhost:"
-                                + ((JMXReporter) rep2).getPort().get()
+                                + rep2.getPort().get()
                                 + "/jndi/rmi://localhost:"
-                                + ((JMXReporter) rep2).getPort().get()
+                                + rep2.getPort().get()
                                 + "/jmxrmi");
         JMXConnector jmxCon2 = JMXConnectorFactory.connect(url2);
         MBeanServerConnection mCon2 = jmxCon2.getMBeanServerConnection();
@@ -259,118 +197,80 @@ public class JMXReporterTest extends TestLogger {
 
         rep1.close();
         rep2.close();
-        mg.close();
-        reg.shutdown().get();
     }
 
     /** Tests that histograms are properly reported via the JMXReporter. */
     @Test
     public void testHistogramReporting() throws Exception {
-        MetricRegistryImpl registry = null;
         String histogramName = "histogram";
 
-        try {
-            registry =
-                    new MetricRegistryImpl(
-                            MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-                            Collections.singletonList(
-                                    ReporterSetup.forReporter("test", new JMXReporter(null))));
+        final JMXReporter reporter = new JMXReporter(null);
 
-            TaskManagerMetricGroup metricGroup =
-                    new TaskManagerMetricGroup(registry, "localhost", "tmId");
+        TestHistogram histogram = new TestHistogram();
 
-            TestHistogram histogram = new TestHistogram();
+        reporter.notifyOfAddedMetric(histogram, histogramName, metricGroup);
 
-            metricGroup.histogram(histogramName, histogram);
+        MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
-            MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+        ObjectName objectName =
+                new ObjectName(
+                        JMX_DOMAIN_PREFIX + "taskmanager." + histogramName,
+                        JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
 
-            ObjectName objectName =
-                    new ObjectName(
-                            JMX_DOMAIN_PREFIX + "taskmanager." + histogramName,
-                            JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
+        MBeanInfo info = mBeanServer.getMBeanInfo(objectName);
 
-            MBeanInfo info = mBeanServer.getMBeanInfo(objectName);
+        MBeanAttributeInfo[] attributeInfos = info.getAttributes();
 
-            MBeanAttributeInfo[] attributeInfos = info.getAttributes();
+        assertEquals(11, attributeInfos.length);
 
-            assertEquals(11, attributeInfos.length);
-
-            assertEquals(histogram.getCount(), mBeanServer.getAttribute(objectName, "Count"));
-            HistogramStatistics statistics = histogram.getStatistics();
-            assertEquals(statistics.getMean(), mBeanServer.getAttribute(objectName, "Mean"));
-            assertEquals(statistics.getStdDev(), mBeanServer.getAttribute(objectName, "StdDev"));
-            assertEquals(statistics.getMax(), mBeanServer.getAttribute(objectName, "Max"));
-            assertEquals(statistics.getMin(), mBeanServer.getAttribute(objectName, "Min"));
-            assertEquals(
-                    statistics.getQuantile(0.5), mBeanServer.getAttribute(objectName, "Median"));
-            assertEquals(
-                    statistics.getQuantile(0.75),
-                    mBeanServer.getAttribute(objectName, "75thPercentile"));
-            assertEquals(
-                    statistics.getQuantile(0.95),
-                    mBeanServer.getAttribute(objectName, "95thPercentile"));
-            assertEquals(
-                    statistics.getQuantile(0.98),
-                    mBeanServer.getAttribute(objectName, "98thPercentile"));
-            assertEquals(
-                    statistics.getQuantile(0.99),
-                    mBeanServer.getAttribute(objectName, "99thPercentile"));
-            assertEquals(
-                    statistics.getQuantile(0.999),
-                    mBeanServer.getAttribute(objectName, "999thPercentile"));
-
-        } finally {
-            if (registry != null) {
-                registry.shutdown().get();
-            }
-        }
+        assertEquals(histogram.getCount(), mBeanServer.getAttribute(objectName, "Count"));
+        HistogramStatistics statistics = histogram.getStatistics();
+        assertEquals(statistics.getMean(), mBeanServer.getAttribute(objectName, "Mean"));
+        assertEquals(statistics.getStdDev(), mBeanServer.getAttribute(objectName, "StdDev"));
+        assertEquals(statistics.getMax(), mBeanServer.getAttribute(objectName, "Max"));
+        assertEquals(statistics.getMin(), mBeanServer.getAttribute(objectName, "Min"));
+        assertEquals(statistics.getQuantile(0.5), mBeanServer.getAttribute(objectName, "Median"));
+        assertEquals(
+                statistics.getQuantile(0.75),
+                mBeanServer.getAttribute(objectName, "75thPercentile"));
+        assertEquals(
+                statistics.getQuantile(0.95),
+                mBeanServer.getAttribute(objectName, "95thPercentile"));
+        assertEquals(
+                statistics.getQuantile(0.98),
+                mBeanServer.getAttribute(objectName, "98thPercentile"));
+        assertEquals(
+                statistics.getQuantile(0.99),
+                mBeanServer.getAttribute(objectName, "99thPercentile"));
+        assertEquals(
+                statistics.getQuantile(0.999),
+                mBeanServer.getAttribute(objectName, "999thPercentile"));
     }
 
     /** Tests that meters are properly reported via the JMXReporter. */
     @Test
     public void testMeterReporting() throws Exception {
-        MetricRegistryImpl registry = null;
         String meterName = "meter";
 
-        try {
-            registry =
-                    new MetricRegistryImpl(
-                            MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-                            Collections.singletonList(
-                                    ReporterSetup.forReporter("test", new JMXReporter(null))));
+        final JMXReporter reporter = new JMXReporter(null);
 
-            TaskManagerMetricGroup metricGroup =
-                    new TaskManagerMetricGroup(registry, "localhost", "tmId");
+        TestMeter meter = new TestMeter();
+        reporter.notifyOfAddedMetric(meter, meterName, metricGroup);
 
-            TestMeter meter = new TestMeter();
+        MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
-            metricGroup.meter(meterName, meter);
+        ObjectName objectName =
+                new ObjectName(
+                        JMX_DOMAIN_PREFIX + "taskmanager." + meterName,
+                        JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
 
-            MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+        MBeanInfo info = mBeanServer.getMBeanInfo(objectName);
 
-            ObjectName objectName =
-                    new ObjectName(
-                            JMX_DOMAIN_PREFIX + "taskmanager." + meterName,
-                            JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
+        MBeanAttributeInfo[] attributeInfos = info.getAttributes();
 
-            MBeanInfo info = mBeanServer.getMBeanInfo(objectName);
+        assertEquals(2, attributeInfos.length);
 
-            MBeanAttributeInfo[] attributeInfos = info.getAttributes();
-
-            assertEquals(2, attributeInfos.length);
-
-            assertEquals(meter.getRate(), mBeanServer.getAttribute(objectName, "Rate"));
-            assertEquals(meter.getCount(), mBeanServer.getAttribute(objectName, "Count"));
-
-        } finally {
-            if (registry != null) {
-                registry.shutdown().get();
-            }
-        }
-    }
-
-    private static ReporterScopedSettings createReporterScopedSettings(int reporterIndex) {
-        return new ReporterScopedSettings(reporterIndex, ',', Collections.emptySet());
+        assertEquals(meter.getRate(), mBeanServer.getAttribute(objectName, "Rate"));
+        assertEquals(meter.getCount(), mBeanServer.getAttribute(objectName, "Count"));
     }
 }

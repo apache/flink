@@ -18,6 +18,8 @@
 
 import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
 
+import { SafeAny } from 'interfaces';
+
 @Component({
   selector: 'flink-backpressure-badge',
   templateUrl: './backpressure-badge.component.html',
@@ -25,8 +27,8 @@ import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BackpressureBadgeComponent {
-  @Input() state: any;
-  colorMap: any = {
+  @Input() state: SafeAny;
+  colorMap: SafeAny = {
     'in-progress': '#f5222d',
     ok: '#52c41a',
     low: '#faad14',

@@ -58,7 +58,7 @@ import java.util.regex.Pattern;
 
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.getQueryParameter;
-import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emptyToNull;
+import static org.apache.flink.shaded.guava30.com.google.common.base.Strings.emptyToNull;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -91,7 +91,7 @@ public class JarHandlerUtils {
         }
 
         public static <R extends JarRequestBody> JarHandlerContext fromRequest(
-                @Nonnull final HandlerRequest<R, ?> request,
+                @Nonnull final HandlerRequest<R> request,
                 @Nonnull final Path jarDir,
                 @Nonnull final Logger log)
                 throws RestHandlerException {
@@ -188,7 +188,7 @@ public class JarHandlerUtils {
 
     /** Parse program arguments in jar run or plan request. */
     private static <R extends JarRequestBody, M extends MessageParameters>
-            List<String> getProgramArgs(HandlerRequest<R, M> request, Logger log)
+            List<String> getProgramArgs(HandlerRequest<R> request, Logger log)
                     throws RestHandlerException {
         JarRequestBody requestBody = request.getRequestBody();
         @SuppressWarnings("deprecation")

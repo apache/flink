@@ -202,24 +202,40 @@ public class ManuallyTriggeredScheduledExecutorService implements ScheduledExecu
         }
     }
 
-    public Collection<ScheduledFuture<?>> getScheduledTasks() {
+    public Collection<ScheduledFuture<?>> getActiveScheduledTasks() {
         final ArrayList<ScheduledFuture<?>> scheduledTasks =
                 new ArrayList<>(nonPeriodicScheduledTasks.size() + periodicScheduledTasks.size());
-        scheduledTasks.addAll(getNonPeriodicScheduledTask());
-        scheduledTasks.addAll(getPeriodicScheduledTask());
+        scheduledTasks.addAll(getActiveNonPeriodicScheduledTask());
+        scheduledTasks.addAll(getActivePeriodicScheduledTask());
         return scheduledTasks;
     }
 
-    public Collection<ScheduledFuture<?>> getPeriodicScheduledTask() {
+    public Collection<ScheduledFuture<?>> getActivePeriodicScheduledTask() {
         return periodicScheduledTasks.stream()
                 .filter(scheduledTask -> !scheduledTask.isCancelled())
                 .collect(Collectors.toList());
     }
 
-    public Collection<ScheduledFuture<?>> getNonPeriodicScheduledTask() {
+    public Collection<ScheduledFuture<?>> getActiveNonPeriodicScheduledTask() {
         return nonPeriodicScheduledTasks.stream()
                 .filter(scheduledTask -> !scheduledTask.isCancelled())
                 .collect(Collectors.toList());
+    }
+
+    public List<ScheduledFuture<?>> getAllScheduledTasks() {
+        final ArrayList<ScheduledFuture<?>> scheduledTasks =
+                new ArrayList<>(nonPeriodicScheduledTasks.size() + periodicScheduledTasks.size());
+        scheduledTasks.addAll(getAllNonPeriodicScheduledTask());
+        scheduledTasks.addAll(getAllPeriodicScheduledTask());
+        return scheduledTasks;
+    }
+
+    public List<ScheduledFuture<?>> getAllPeriodicScheduledTask() {
+        return new ArrayList<>(periodicScheduledTasks);
+    }
+
+    public List<ScheduledFuture<?>> getAllNonPeriodicScheduledTask() {
+        return new ArrayList<>(nonPeriodicScheduledTasks);
     }
 
     /** Triggers all registered tasks. */

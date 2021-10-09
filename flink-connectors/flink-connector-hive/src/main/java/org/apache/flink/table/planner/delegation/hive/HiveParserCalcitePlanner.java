@@ -47,9 +47,8 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSubQueryUti
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeCheckCtx;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserWindowingSpec;
-import org.apache.flink.table.planner.delegation.hive.desc.CreateTableASDesc;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateViewDesc;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
@@ -197,8 +196,8 @@ public class HiveParserCalcitePlanner {
     // this will be used in HiveParserRexNodeConverter to create cor var
     private int subqueryId = 0;
 
-    private HiveParserCreateViewDesc createViewDesc;
-    private CreateTableASDesc ctasDesc;
+    private HiveParserCreateViewInfo createViewInfo;
+    private List<FieldSchema> ctasCols;
 
     public HiveParserCalcitePlanner(
             HiveParserQueryState queryState,
@@ -224,15 +223,15 @@ public class HiveParserCalcitePlanner {
                         cluster, frameworkConfig.getOperatorTable(), catalogReader.nameMatcher());
     }
 
-    public void setCtasDesc(CreateTableASDesc ctasDesc) {
-        this.ctasDesc = ctasDesc;
+    public void setCtasCols(List<FieldSchema> ctasCols) {
+        this.ctasCols = ctasCols;
     }
 
-    public void setCreateViewDesc(HiveParserCreateViewDesc createViewDesc) {
-        if (createViewDesc != null) {
+    public void setCreatViewInfo(HiveParserCreateViewInfo createViewInfo) {
+        if (createViewInfo != null) {
             semanticAnalyzer.unparseTranslator.enable();
         }
-        this.createViewDesc = createViewDesc;
+        this.createViewInfo = createViewInfo;
     }
 
     public void initCtx(HiveParserContext context) {
@@ -283,22 +282,22 @@ public class HiveParserCalcitePlanner {
 
         try {
             RelNode plan = genLogicalPlan(getQB(), true, null, null);
-            if (createViewDesc != null) {
+            if (createViewInfo != null) {
                 semanticAnalyzer.resultSchema =
                         HiveParserUtils.convertRowSchemaToResultSetSchema(
                                 relToRowResolver.get(plan), false);
                 HiveParserUtils.saveViewDefinition(
                         semanticAnalyzer.resultSchema,
-                        createViewDesc,
+                        createViewInfo,
                         semanticAnalyzer.ctx.getTokenRewriteStream(),
                         semanticAnalyzer.unparseTranslator,
                         semanticAnalyzer.getConf());
-            } else if (ctasDesc != null) {
+            } else if (ctasCols != null) {
                 // CTAS doesn't allow specifying col list, so we set it according to result schema
                 semanticAnalyzer.resultSchema =
                         HiveParserUtils.convertRowSchemaToResultSetSchema(
                                 relToRowResolver.get(plan), false);
-                ctasDesc.getCreateTableDesc().getCols().addAll(semanticAnalyzer.resultSchema);
+                ctasCols.addAll(semanticAnalyzer.resultSchema);
             }
             return plan;
         } catch (SemanticException e) {
@@ -807,7 +806,12 @@ public class HiveParserCalcitePlanner {
             if (table.isTemporary()) {
                 // Hive creates a temp table for VALUES, we need to convert it to LogicalValues
                 RelNode values =
-                        genValues(tableAlias, table, rowResolver, semanticAnalyzer, cluster);
+                        genValues(
+                                tableAlias,
+                                table,
+                                rowResolver,
+                                cluster,
+                                getQB().getValuesTableToData().get(tableAlias));
                 relToRowResolver.put(values, rowResolver);
                 relToHiveColNameCalcitePosMap.put(values, buildHiveToCalciteColumnMap(rowResolver));
                 return values;
@@ -815,7 +819,7 @@ public class HiveParserCalcitePlanner {
                 // 3. Get Table Logical Schema (Row Type)
                 // NOTE: Table logical schema = Non Partition Cols + Partition Cols + Virtual Cols
 
-                // 3.1 Add Column info for non partion cols (Object Inspector fields)
+                // 3.1 Add Column info for non partition cols (Object Inspector fields)
                 StructObjectInspector rowObjectInspector =
                         (StructObjectInspector) table.getDeserializer().getObjectInspector();
                 List<? extends StructField> fields = rowObjectInspector.getAllStructFieldRefs();
@@ -1243,33 +1247,6 @@ public class HiveParserCalcitePlanner {
         if (semanticAnalyzer.getConf().getBoolVar(HiveConf.ConfVars.HIVEGROUPBYSKEW)
                 && qbp.getDistinctFuncExprsForClause(detsClauseName).size() > 1) {
             throw new SemanticException(ErrorMsg.UNSUPPORTED_MULTIPLE_DISTINCTS.getMsg());
-        }
-        if (cubeRollupGrpSetPresent) {
-            if (!HiveConf.getBoolVar(
-                    semanticAnalyzer.getConf(), HiveConf.ConfVars.HIVEMAPSIDEAGGREGATE)) {
-                throw new SemanticException(ErrorMsg.HIVE_GROUPING_SETS_AGGR_NOMAPAGGR.getMsg());
-            }
-
-            if (semanticAnalyzer.getConf().getBoolVar(HiveConf.ConfVars.HIVEGROUPBYSKEW)) {
-                semanticAnalyzer.checkExpressionsForGroupingSet(
-                        gbAstExprs,
-                        qb.getParseInfo().getDistinctFuncExprsForClause(detsClauseName),
-                        aggregationTrees,
-                        this.relToRowResolver.get(srcRel));
-
-                if (qbp.getDestGroupingSets().size()
-                        > semanticAnalyzer
-                                .getConf()
-                                .getIntVar(
-                                        HiveConf.ConfVars.HIVE_NEW_JOB_GROUPING_SET_CARDINALITY)) {
-                    String errorMsg =
-                            "The number of rows per input row due to grouping sets is "
-                                    + qbp.getDestGroupingSets().size();
-                    throw new SemanticException(
-                            ErrorMsg.HIVE_GROUPING_SETS_THRESHOLD_NOT_ALLOWED_WITH_SKEW.getMsg(
-                                    errorMsg));
-                }
-            }
         }
 
         if (hasGrpByAstExprs || hasAggregationTrees) {
@@ -2325,7 +2302,7 @@ public class HiveParserCalcitePlanner {
                                     tabAlias,
                                     false);
                     colInfo.setSkewedCol(
-                            (exprDesc instanceof ExprNodeColumnDesc)
+                            exprDesc instanceof ExprNodeColumnDesc
                                     && ((ExprNodeColumnDesc) exprDesc).isSkewedCol());
                     // Hive errors out in case of duplication. We allow it and see what happens.
                     outRR.put(tabAlias, colAlias, colInfo);

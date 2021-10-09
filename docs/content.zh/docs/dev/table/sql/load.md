@@ -24,38 +24,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# LOAD Statements
+<a name="load-statements"></a>
 
-LOAD statements are used to load a built-in or user-defined module.
+# LOAD 语句
 
-## Run a LOAD statement
+LOAD 语句用于加载内置的或用户自定义的模块。
+
+<a name="run-a-load-statement"></a>
+
+## 执行 LOAD 语句
 
 {{< tabs "load statement" >}}
 {{< tab "Java" >}}
 
-LOAD statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns 'OK' for a successful LOAD operation; otherwise, it will throw an exception.
+可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 LOAD 语句。如果 LOAD 操作执行成功，`executeSql()` 方法会返回 'OK'，否则会抛出异常。
 
-The following examples show how to run a LOAD statement in `TableEnvironment`.
+以下示例展示了如何在 `TableEnvironment` 中执行一条 LOAD 语句。
 
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-LOAD statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns 'OK' for a successful LOAD operation; otherwise, it will throw an exception.
+可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 LOAD 语句。如果 LOAD 操作执行成功，`executeSql()` 方法会返回 'OK'，否则会抛出异常。
 
-The following examples show how to run a LOAD statement in `TableEnvironment`.
-{{< /tab >}}
+以下示例展示了如何在 `TableEnvironment` 中执行一条 LOAD 语句。{{< /tab >}}
 {{< tab "Python" >}}
 
-LOAD statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns 'OK' for a successful LOAD operation; otherwise, it will throw an exception.
+可以使用 `TableEnvironment` 的 `execute_sql()` 方法执行 LOAD 语句。如果 LOAD 操作执行成功，`execute_sql()` 方法会返回 'OK'，否则会抛出异常。
 
-The following examples show how to run a LOAD statement in `TableEnvironment`.
+以下示例展示了如何在 `TableEnvironment` 中执行一条 LOAD 语句。
 
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-LOAD statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+LOAD 语句可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行。
 
-The following examples show how to run a LOAD statement in SQL CLI.
+以下示例展示了如何在 SQL CLI 中执行一条 LOAD 语句。
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -66,7 +69,7 @@ The following examples show how to run a LOAD statement in SQL CLI.
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
-// load a hive module
+// 加载 hive 模块
 tEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '3.1.2')");
 tEnv.executeSql("SHOW MODULES").print();
 // +-------------+
@@ -83,7 +86,7 @@ tEnv.executeSql("SHOW MODULES").print();
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tEnv = StreamTableEnvironment.create(env)
 
-// load a hive module
+// 加载 hive 模块
 tEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '3.1.2')")
 tEnv.executeSql("SHOW MODULES").print()
 // +-------------+
@@ -97,10 +100,9 @@ tEnv.executeSql("SHOW MODULES").print()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = StreamTableEnvironment.create(...)
 
-# load a hive module
+# 加载 hive 模块
 table_env.execute_sql("LOAD MODULE hive WITH ('hive-version' = '3.1.2')")
 table_env.execute_sql("SHOW MODULES").print()
 # +-------------+
@@ -131,13 +133,14 @@ Flink SQL> SHOW MODULES;
 
 {{< top >}}
 
+<a name="load-module"></a>
+
 ## LOAD MODULE
 
-The following grammar gives an overview of the available syntax:
+以下语法概述了可用的语法规则：
 ```sql
 LOAD MODULE module_name [WITH ('key1' = 'val1', 'key2' = 'val2', ...)]
 ```
 {{< hint warning >}}
-`module_name` is a simple identifier. It is case-sensitive and should be identical to the module type defined in the module factory because it is used to perform module discovery.
-Properties `('key1' = 'val1', 'key2' = 'val2', ...)` is a map that contains a set of key-value pairs (except for the key `'type'`) and passed to the discovery service to instantiate the corresponding module.
+`module_name` 是一个简单的标识符。它是区分大小写的，由于它被用于执行模块发现，因此也要与模块工厂（module factory）中定义的模块类型相同。属性 `('key1' = 'val1', 'key2' = 'val2', ...)` 是一个 map 结构，它包含一组键值对（不包括 'type' 的键），这些属性会被传递给模块发现服务以实例化相应的模块。
 {{< /hint >}}

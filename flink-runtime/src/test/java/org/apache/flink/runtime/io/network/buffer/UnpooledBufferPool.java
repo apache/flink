@@ -29,6 +29,9 @@ public class UnpooledBufferPool implements BufferPool {
     private static final int SEGMENT_SIZE = 1024;
 
     @Override
+    public void reserveSegments(int numberOfSegmentsToReserve) {}
+
+    @Override
     public void lazyDestroy() {}
 
     @Override
@@ -41,8 +44,14 @@ public class UnpooledBufferPool implements BufferPool {
         return new BufferBuilder(requestMemorySegment(), this);
     }
 
-    private MemorySegment requestMemorySegment() {
+    @Override
+    public MemorySegment requestMemorySegment() {
         return MemorySegmentFactory.allocateUnpooledOffHeapMemory(SEGMENT_SIZE, null);
+    }
+
+    @Override
+    public MemorySegment requestMemorySegmentBlocking() throws InterruptedException {
+        return requestMemorySegment();
     }
 
     @Override

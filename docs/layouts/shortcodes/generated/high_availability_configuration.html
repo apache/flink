@@ -18,7 +18,7 @@
             <td><h5>high-availability.cluster-id</h5></td>
             <td style="word-wrap: break-word;">"/default"</td>
             <td>String</td>
-            <td>The ID of the Flink cluster, used to separate multiple Flink clusters from each other. Needs to be set for standalone clusters but is automatically inferred in YARN and Mesos.</td>
+            <td>The ID of the Flink cluster, used to separate multiple Flink clusters from each other. Needs to be set for standalone clusters but is automatically inferred in YARN.</td>
         </tr>
         <tr>
             <td><h5>high-availability.jobmanager.port</h5></td>
@@ -63,16 +63,16 @@
             <td>Defines the session timeout for the ZooKeeper session in ms.</td>
         </tr>
         <tr>
+            <td><h5>high-availability.zookeeper.client.tolerate-suspended-connections</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Defines whether a suspended ZooKeeper connection will be treated as an error that causes the leader information to be invalidated or not. In case you set this option to <code class="highlighter-rouge">true</code>, Flink will wait until a ZooKeeper connection is marked as lost before it revokes the leadership of components. This has the effect that Flink is more resilient against temporary connection instabilities at the cost of running more likely into timing issues with ZooKeeper.</td>
+        </tr>
+        <tr>
             <td><h5>high-availability.zookeeper.path.jobgraphs</h5></td>
             <td style="word-wrap: break-word;">"/jobgraphs"</td>
             <td>String</td>
             <td>ZooKeeper root path (ZNode) for job graphs</td>
-        </tr>
-        <tr>
-            <td><h5>high-availability.zookeeper.path.mesos-workers</h5></td>
-            <td style="word-wrap: break-word;">"/mesos-workers"</td>
-            <td>String</td>
-            <td>The ZooKeeper root path for persisting the Mesos worker information.</td>
         </tr>
         <tr>
             <td><h5>high-availability.zookeeper.path.root</h5></td>

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -46,11 +45,13 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -59,7 +60,7 @@ import static org.junit.Assert.assertEquals;
  */
 public class RestoreStreamTaskTest extends TestLogger {
 
-    private static final Set<OperatorID> RESTORED_OPERATORS = ConcurrentHashMap.newKeySet();
+    private static final Map<OperatorID, Long> RESTORED_OPERATORS = new ConcurrentHashMap();
 
     @Before
     public void setup() {
@@ -92,7 +93,11 @@ public class RestoreStreamTaskTest extends TestLogger {
                 Optional.of(restore));
 
         assertEquals(
-                new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)), RESTORED_OPERATORS);
+                new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)),
+                RESTORED_OPERATORS.keySet());
+        assertThat(
+                new HashSet<>(RESTORED_OPERATORS.values()),
+                contains(restore.getRestoreCheckpointId()));
     }
 
     @Test
@@ -119,7 +124,10 @@ public class RestoreStreamTaskTest extends TestLogger {
                 new CounterOperator(),
                 Optional.of(restore));
 
-        assertEquals(Collections.singleton(tailOperatorID), RESTORED_OPERATORS);
+        assertEquals(Collections.singleton(tailOperatorID), RESTORED_OPERATORS.keySet());
+        assertThat(
+                new HashSet<>(RESTORED_OPERATORS.values()),
+                contains(restore.getRestoreCheckpointId()));
     }
 
     @Test
@@ -144,7 +152,10 @@ public class RestoreStreamTaskTest extends TestLogger {
                 new CounterOperator(),
                 Optional.of(restore));
 
-        assertEquals(Collections.singleton(headOperatorID), RESTORED_OPERATORS);
+        assertEquals(Collections.singleton(headOperatorID), RESTORED_OPERATORS.keySet());
+        assertThat(
+                new HashSet<>(RESTORED_OPERATORS.values()),
+                contains(restore.getRestoreCheckpointId()));
     }
 
     @Test
@@ -178,7 +189,11 @@ public class RestoreStreamTaskTest extends TestLogger {
                 Optional.of(restore));
 
         assertEquals(
-                new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)), RESTORED_OPERATORS);
+                new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)),
+                RESTORED_OPERATORS.keySet());
+        assertThat(
+                new HashSet<>(RESTORED_OPERATORS.values()),
+                contains(restore.getRestoreCheckpointId()));
     }
 
     @Test
@@ -205,7 +220,11 @@ public class RestoreStreamTaskTest extends TestLogger {
                 Optional.of(restore));
 
         assertEquals(
-                new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)), RESTORED_OPERATORS);
+                new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)),
+                RESTORED_OPERATORS.keySet());
+        assertThat(
+                new HashSet<>(RESTORED_OPERATORS.values()),
+                contains(restore.getRestoreCheckpointId()));
     }
 
     private JobManagerTaskRestore createRunAndCheckpointOperatorChain(
@@ -273,8 +292,6 @@ public class RestoreStreamTaskTest extends TestLogger {
         long checkpointId = 1L;
         CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, 1L);
 
-        testHarness.taskStateManager.setWaitForReportLatch(new OneShotLatch());
-
         streamTask.triggerCheckpointAsync(
                 checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation());
 
@@ -306,8 +323,13 @@ public class RestoreStreamTaskTest extends TestLogger {
 
         @Override
         public void initializeState(StateInitializationContext context) throws Exception {
+            assertEquals(
+                    "Restored context id should be set iff is restored",
+                    context.isRestored(),
+                    context.getRestoredCheckpointId().isPresent());
             if (context.isRestored()) {
-                RESTORED_OPERATORS.add(getOperatorID());
+                RESTORED_OPERATORS.put(
+                        getOperatorID(), context.getRestoredCheckpointId().getAsLong());
             }
         }
     }

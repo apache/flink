@@ -131,7 +131,10 @@ class PartitionRequestClientFactory {
     private NettyPartitionRequestClient connect(ConnectionID connectionId)
             throws RemoteTransportException, InterruptedException {
         try {
-            Channel channel = nettyClient.connect(connectionId.getAddress()).await().channel();
+            // It's important to use `sync` here because it waits for this future until it is
+            // done, and rethrows the cause of the failure if this future failed. `await` only
+            // waits for this future to be completed, without throwing the error.
+            Channel channel = nettyClient.connect(connectionId.getAddress()).sync().channel();
             NetworkClientHandler clientHandler = channel.pipeline().get(NetworkClientHandler.class);
             return new NettyPartitionRequestClient(channel, clientHandler, connectionId, this);
         } catch (InterruptedException e) {

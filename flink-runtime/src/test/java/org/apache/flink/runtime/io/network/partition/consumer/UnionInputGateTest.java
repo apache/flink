@@ -65,18 +65,26 @@ public class UnionInputGateTest extends InputGateTestBase {
                 };
 
         inputChannels[0][0].readBuffer(); // 0 => 0
+        inputChannels[0][0].readEndOfData(); // 0 => 0
         inputChannels[0][0].readEndOfPartitionEvent(); // 0 => 0
         inputChannels[1][2].readBuffer(); // 2 => 5
+        inputChannels[1][2].readEndOfData(); // 2 => 5
         inputChannels[1][2].readEndOfPartitionEvent(); // 2 => 5
         inputChannels[1][0].readBuffer(); // 0 => 3
         inputChannels[1][1].readBuffer(); // 1 => 4
         inputChannels[0][1].readBuffer(); // 1 => 1
         inputChannels[1][3].readBuffer(); // 3 => 6
+        inputChannels[0][1].readEndOfData(); // 1 => 1
+        inputChannels[1][3].readEndOfData(); // 3 => 6
         inputChannels[0][1].readEndOfPartitionEvent(); // 1 => 1
         inputChannels[1][3].readEndOfPartitionEvent(); // 3 => 6
         inputChannels[0][2].readBuffer(); // 1 => 2
+        inputChannels[0][2].readEndOfData(); // 1 => 2
         inputChannels[0][2].readEndOfPartitionEvent(); // 1 => 2
         inputChannels[1][4].readBuffer(); // 4 => 7
+        inputChannels[1][4].readEndOfData(); // 4 => 7
+        inputChannels[1][1].readEndOfData(); // 0 => 3
+        inputChannels[1][0].readEndOfData(); // 0 => 3
         inputChannels[1][4].readEndOfPartitionEvent(); // 4 => 7
         inputChannels[1][1].readEndOfPartitionEvent(); // 0 => 3
         inputChannels[1][0].readEndOfPartitionEvent(); // 0 => 3
@@ -102,6 +110,17 @@ public class UnionInputGateTest extends InputGateTestBase {
         verifyBufferOrEvent(union, false, 1, true); // gate 1, channel 1
         verifyBufferOrEvent(union, true, 7, true); // gate 2, channel 1
         verifyBufferOrEvent(union, false, 2, true); // gate 1, channel 2
+        verifyBufferOrEvent(union, false, 3, true); // gate 2, channel 0
+        verifyBufferOrEvent(union, false, 0, true); // gate 1, channel 0
+        verifyBufferOrEvent(union, false, 4, true); // gate 1, channel 1
+        verifyBufferOrEvent(union, false, 1, true); // gate 1, channel 1
+        assertFalse(union.hasReceivedEndOfData());
+        verifyBufferOrEvent(union, false, 5, true); // gate 2, channel 2
+        verifyBufferOrEvent(union, false, 2, true); // gate 1, channel 2
+        verifyBufferOrEvent(union, false, 6, true); // gate 2, channel 3
+        verifyBufferOrEvent(union, false, 7, true); // gate 2, channel 4
+        assertTrue(union.hasReceivedEndOfData());
+        assertFalse(union.isFinished());
         verifyBufferOrEvent(union, false, 3, true); // gate 2, channel 0
         verifyBufferOrEvent(union, false, 4, true); // gate 2, channel 1
         verifyBufferOrEvent(union, false, 5, true); // gate 2, channel 2

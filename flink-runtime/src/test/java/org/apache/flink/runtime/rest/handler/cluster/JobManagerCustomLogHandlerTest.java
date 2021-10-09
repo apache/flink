@@ -23,7 +23,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.cluster.FileMessageParameters;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerCustomLogHeaders;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.TestLogger;
 
@@ -71,7 +71,7 @@ public class JobManagerCustomLogHandlerTest extends TestLogger {
         testInstance =
                 new JobManagerCustomLogHandler(
                         () -> CompletableFuture.completedFuture(dispatcherGateway),
-                        TestingUtils.TIMEOUT(),
+                        TestingUtils.TIMEOUT,
                         Collections.emptyMap(),
                         JobManagerCustomLogHeaders.getInstance(),
                         logRoot);
@@ -90,17 +90,18 @@ public class JobManagerCustomLogHandlerTest extends TestLogger {
         FileUtils.writeStringToFile(file, content, StandardCharsets.UTF_8);
     }
 
-    private static HandlerRequest<EmptyRequestBody, FileMessageParameters> createHandlerRequest(
-            String path) throws HandlerRequestException {
+    private static HandlerRequest<EmptyRequestBody> createHandlerRequest(String path)
+            throws HandlerRequestException {
         FileMessageParameters messageParameters = new FileMessageParameters();
         Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(messageParameters.logFileNamePathParameter.getKey(), path);
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 messageParameters,
                 pathParameters,
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptyList());
     }
 
     @Test

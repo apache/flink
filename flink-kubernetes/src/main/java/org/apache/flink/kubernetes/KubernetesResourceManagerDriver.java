@@ -37,7 +37,6 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.resourcemanager.active.AbstractResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
@@ -46,6 +45,7 @@ import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
@@ -114,9 +114,9 @@ public class KubernetesResourceManagerDriver
     }
 
     @Override
-    public CompletableFuture<Void> terminate() {
+    public void terminate() throws Exception {
         if (!running) {
-            return FutureUtils.completedVoidFuture();
+            return;
         }
         running = false;
 
@@ -135,9 +135,9 @@ public class KubernetesResourceManagerDriver
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
         }
 
-        return exception == null
-                ? FutureUtils.completedVoidFuture()
-                : FutureUtils.completedExceptionally(exception);
+        if (exception != null) {
+            throw exception;
+        }
     }
 
     @Override
@@ -326,7 +326,7 @@ public class KubernetesResourceManagerDriver
                         });
     }
 
-    private Optional<KubernetesWatch> watchTaskManagerPods() {
+    private Optional<KubernetesWatch> watchTaskManagerPods() throws Exception {
         return Optional.of(
                 flinkKubeClient.watchPodsAndDoCallback(
                         KubernetesUtils.getTaskManagerLabels(clusterId),
@@ -368,7 +368,11 @@ public class KubernetesResourceManagerDriver
                                     if (running) {
                                         podsWatchOpt.ifPresent(KubernetesWatch::close);
                                         log.info("Creating a new watch on TaskManager pods.");
-                                        podsWatchOpt = watchTaskManagerPods();
+                                        try {
+                                            podsWatchOpt = watchTaskManagerPods();
+                                        } catch (Exception e) {
+                                            getResourceEventHandler().onError(e);
+                                        }
                                     }
                                 });
             } else {

@@ -31,7 +31,7 @@ under the License.
 Apache Flink provides efficient workloads on top of the JVM by tightly controlling the memory usage of its various components.
 While the community strives to offer sensible defaults to all configurations, the full breadth of applications
 that users deploy on Flink means this isn't always possible. To provide the most production value to our users,
-Flink allows both high level and fine-grained tuning of memory allocation within clusters.
+Flink allows both high-level and fine-grained tuning of memory allocation within clusters. To optimize memory requirements, check the [network memory tuning guide]({{< ref "docs/deployment/memory/network_mem_tuning" >}}). 
 
 The further described memory configuration is applicable starting with the release version *1.10* for TaskManager and
 *1.11* for JobManager processes. If you upgrade Flink from earlier versions, check the [migration guide]({{< ref "docs/deployment/memory/mem_migration" >}})
@@ -71,7 +71,7 @@ See also [how to configure memory for standalone deployments]({{< ref "docs/depl
 If you configure *total process memory* you declare how much memory in total should be assigned to the Flink *JVM process*.
 For the containerized deployments it corresponds to the size of the requested container, see also
 [how to configure memory for containers]({{< ref "docs/deployment/memory/mem_tuning" >}}#configure-memory-for-containers)
-([Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}), [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) or [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}})).
+([Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}) or [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}})).
 
 Another way to set up the memory is to configure the required internal components of the *total Flink memory* which are
 specific to the concrete Flink process. Check how to configure them for [TaskManager]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#configure-heap-and-managed-memory)

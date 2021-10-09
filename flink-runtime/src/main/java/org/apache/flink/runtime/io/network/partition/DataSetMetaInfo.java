@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Optional;
+import java.util.OptionalInt;
 
 /** Container for meta-data of a data set. */
 public final class DataSetMetaInfo {
@@ -34,10 +34,10 @@ public final class DataSetMetaInfo {
         this.numTotalPartitions = numTotalPartitions;
     }
 
-    public Optional<Integer> getNumRegisteredPartitions() {
+    public OptionalInt getNumRegisteredPartitions() {
         return numRegisteredPartitions == UNKNOWN
-                ? Optional.empty()
-                : Optional.of(numRegisteredPartitions);
+                ? OptionalInt.empty()
+                : OptionalInt.of(numRegisteredPartitions);
     }
 
     public int getNumTotalPartitions() {

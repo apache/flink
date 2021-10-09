@@ -19,20 +19,17 @@
 package org.apache.flink.runtime.resourcemanager.utils;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.DefaultJobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
+import org.apache.flink.runtime.resourcemanager.slotmanager.DeclarativeSlotManagerBuilder;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
-
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -51,7 +48,7 @@ public class MockResourceManagerRuntimeServices {
         this(
                 rpcService,
                 timeout,
-                SlotManagerBuilder.newBuilder()
+                DeclarativeSlotManagerBuilder.newBuilder()
                         .setScheduledExecutor(
                                 new ScheduledExecutorServiceAdapter(
                                         new DirectScheduledExecutorService()))
@@ -75,16 +72,5 @@ public class MockResourceManagerRuntimeServices {
                         highAvailabilityServices,
                         rpcService.getScheduledExecutor(),
                         Time.minutes(5L));
-    }
-
-    public void grantLeadership() throws Exception {
-        UUID rmLeaderSessionId = UUID.randomUUID();
-        rmLeaderElectionService
-                .isLeader(rmLeaderSessionId)
-                .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-    }
-
-    public void revokeLeadership() {
-        rmLeaderElectionService.notLeader();
     }
 }

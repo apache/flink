@@ -423,6 +423,39 @@ SqlShowTables SqlShowTables() :
 }
 
 /**
+* SHOW COLUMNS FROM [[catalog.] database.]sqlIdentifier sql call.
+*/
+SqlShowColumns SqlShowColumns() :
+{
+    SqlIdentifier tableName;
+    SqlCharStringLiteral likeLiteral = null;
+    String prep = "FROM";
+    boolean notLike = false;
+    SqlParserPos pos;
+}
+{
+    <SHOW> <COLUMNS> ( <FROM> | <IN> { prep = "IN"; } )
+    { pos = getPos();}
+    tableName = CompoundIdentifier()
+    [
+        [
+            <NOT>
+            {
+                notLike = true;
+            }
+        ]
+        <LIKE>  <QUOTED_STRING>
+        {
+            String likeCondition = SqlParserUtil.parseString(token.image);
+            likeLiteral = SqlLiteral.createCharString(likeCondition, getPos());
+        }
+    ]
+    {
+        return new SqlShowColumns(pos, prep, tableName, notLike, likeLiteral);
+    }
+}
+
+/**
 * Parse a "Show Create Table" query command.
 */
 SqlShowCreateTable SqlShowCreateTable() :
@@ -1134,6 +1167,31 @@ SqlDrop SqlDropView(Span s, boolean replace, boolean isTemporary) :
     }
 }
 
+SqlAlterView SqlAlterView() :
+{
+  SqlParserPos startPos;
+  SqlIdentifier viewName;
+  SqlIdentifier newViewName;
+  SqlNode newQuery;
+}
+{
+  <ALTER> <VIEW> { startPos = getPos(); }
+  viewName = CompoundIdentifier()
+  (
+      <RENAME> <TO>
+      newViewName = CompoundIdentifier()
+      {
+        return new SqlAlterViewRename(startPos.plus(getPos()), viewName, newViewName);
+      }
+  |
+      <AS>
+      newQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+      {
+        return new SqlAlterViewAs(startPos.plus(getPos()), viewName, newQuery);
+      }
+  )
+}
+
 /**
 * A sql type name extended basic data type, it has a counterpart basic
 * sql type name but always represents as a special alias compared with the standard name.
@@ -1634,16 +1692,48 @@ SqlEndStatementSet SqlEndStatementSet() :
 SqlNode SqlRichExplain() :
 {
     SqlNode stmt;
+    Set<String> explainDetails = new HashSet<String>();
 }
 {
-    <EXPLAIN> [ <PLAN> <FOR> ]
+    <EXPLAIN> 
+    [
+        <PLAN> <FOR> 
+        |
+            ParseExplainDetail(explainDetails)
+        (
+            <COMMA>
+            ParseExplainDetail(explainDetails)
+        )*
+    ]
     (
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
         |
         stmt = RichSqlInsert()
     )
     {
-        return new SqlRichExplain(getPos(), stmt);
+        return new SqlRichExplain(getPos(), stmt, explainDetails);
+    }
+}
+
+void ParseExplainDetail(Set<String> explainDetails):
+{
+}
+{
+    (
+        <ESTIMATED_COST> 
+        | 
+        <CHANGELOG_MODE> 
+        | 
+        <JSON_EXECUTION_PLAN>
+    ) 
+    {
+        if (explainDetails.contains(token.image.toUpperCase())) {
+            throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.explainDetailIsDuplicate());
+        } else {
+            explainDetails.add(token.image.toUpperCase());
+        }
     }
 }
 
@@ -1662,6 +1752,39 @@ SqlAddJar SqlAddJar() :
     }
     {
         return new SqlAddJar(getPos(), jarPath);
+    }
+}
+
+/**
+* Parses a remove jar statement.
+* REMOVE JAR jar_path;
+*/
+SqlRemoveJar SqlRemoveJar() :
+{
+    SqlCharStringLiteral jarPath;
+}
+{
+    <REMOVE> <JAR> <QUOTED_STRING>
+    {
+        String path = SqlParserUtil.parseString(token.image);
+        jarPath = SqlLiteral.createCharString(path, getPos());
+    }
+    {
+        return new SqlRemoveJar(getPos(), jarPath);
+    }
+}
+
+/**
+* Parses a show jars statement.
+* SHOW JARS;
+*/
+SqlShowJars SqlShowJars() :
+{
+}
+{
+    <SHOW> <JARS>
+    {
+        return new SqlShowJars(getPos());
     }
 }
 

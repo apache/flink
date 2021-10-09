@@ -26,29 +26,32 @@ import time
 import unittest
 import uuid
 
-from pyflink.common import ExecutionConfig, RestartStrategies
+from pyflink.common import Configuration, ExecutionConfig, RestartStrategies
 from pyflink.common.serialization import JsonRowDeserializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
-                                CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
+                                CheckpointingMode, MemoryStateBackend, TimeCharacteristic,
+                                SlotSharingGroup)
 from pyflink.datastream.connectors import FlinkKafkaConsumer
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
+from pyflink.datastream.slot_sharing_group import MemorySize
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment, \
     EnvironmentSettings
-from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table, \
-    invoke_java_object_method
+from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
 from pyflink.util.java_utils import get_j_env_configuration
 
 
 class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def setUp(self):
+        os.environ['_python_worker_execution_mode'] = "loopback"
         self.env = StreamExecutionEnvironment.get_execution_environment()
+        os.environ['_python_worker_execution_mode'] = "process"
         self.env.set_parallelism(2)
         self.test_sink = DataStreamTestSinkFunction()
 
@@ -127,8 +130,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
     def test_set_runtime_mode(self):
         self.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
 
-        config = invoke_java_object_method(
-            self.env._j_stream_execution_environment, "getConfiguration")
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
         runtime_mode = config.getValue(
             get_gateway().jvm.org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE)
 
@@ -178,6 +180,19 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(output_backend._j_memory_state_backend,
                          input_backend._j_memory_state_backend)
 
+    def test_is_changelog_state_backend_enabled(self):
+        self.assertIsNone(self.env.is_changelog_state_backend_enabled())
+
+    def test_enable_changelog_state_backend(self):
+
+        self.env.enable_changelog_state_backend(True)
+
+        self.assertTrue(self.env.is_changelog_state_backend_enabled())
+
+        self.env.enable_changelog_state_backend(False)
+
+        self.assertFalse(self.env.is_changelog_state_backend_enabled())
+
     def test_get_set_stream_time_characteristic(self):
         default_time_characteristic = self.env.get_stream_time_characteristic()
 
@@ -188,6 +203,21 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         time_characteristic = self.env.get_stream_time_characteristic()
 
         self.assertEqual(time_characteristic, TimeCharacteristic.ProcessingTime)
+
+    def test_configure(self):
+        configuration = Configuration()
+        configuration.set_string('pipeline.operator-chaining', 'false')
+        configuration.set_string('pipeline.time-characteristic', 'IngestionTime')
+        configuration.set_string('execution.buffer-timeout', '1 min')
+        configuration.set_string('execution.checkpointing.timeout', '12000')
+        configuration.set_string('state.backend', 'jobmanager')
+        self.env.configure(configuration)
+        self.assertEqual(self.env.is_chaining_enabled(), False)
+        self.assertEqual(self.env.get_stream_time_characteristic(),
+                         TimeCharacteristic.IngestionTime)
+        self.assertEqual(self.env.get_buffer_timeout(), 60000)
+        self.assertEqual(self.env.get_checkpoint_config().get_checkpoint_timeout(), 12000)
+        self.assertTrue(isinstance(self.env.get_state_backend(), MemoryStateBackend))
 
     @unittest.skip("Python API does not support DataStream now. refactor this test later")
     def test_get_execution_plan(self):
@@ -337,6 +367,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_add_python_file(self):
         import uuid
+        env = self.env
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_dep1.py")
@@ -347,10 +378,10 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             from test_dep1 import add_two
             return add_two(value)
 
-        get_j_env_configuration(self.env._j_stream_execution_environment).\
+        get_j_env_configuration(env._j_stream_execution_environment).\
             setString("taskmanager.numberOfTaskSlots", "10")
-        self.env.add_python_file(python_file_path)
-        ds = self.env.from_collection([1, 2, 3, 4, 5])
+        env.add_python_file(python_file_path)
+        ds = env.from_collection([1, 2, 3, 4, 5])
         ds = ds.map(plus_two_map, Types.LONG()) \
                .slot_sharing_group("data_stream") \
                .map(lambda i: i, Types.LONG()) \
@@ -365,9 +396,9 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             return add_three(value)
 
         t_env = StreamTableEnvironment.create(
-            stream_execution_environment=self.env,
-            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
-        self.env.add_python_file(python_file_path)
+            stream_execution_environment=env,
+            environment_settings=EnvironmentSettings.in_streaming_mode())
+        env.add_python_file(python_file_path)
 
         from pyflink.table.udf import udf
         from pyflink.table.expressions import col
@@ -378,9 +409,56 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         t_env.to_append_stream(tab, Types.ROW([Types.LONG()])) \
              .map(lambda i: i[0]) \
              .add_sink(self.test_sink)
-        self.env.execute("test add_python_file")
+        env.execute("test add_python_file")
         result = self.test_sink.get_results(True)
         expected = ['6', '7', '8', '9', '10']
+        result.sort()
+        expected.sort()
+        self.assertEqual(expected, result)
+
+    def test_add_python_file_2(self):
+        import uuid
+        env = self.env
+        python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
+        os.mkdir(python_file_dir)
+        python_file_path = os.path.join(python_file_dir, "test_dep1.py")
+        with open(python_file_path, 'w') as f:
+            f.write("def add_two(a):\n    return a + 2")
+
+        def plus_two_map(value):
+            from test_dep1 import add_two
+            return add_two(value)
+
+        get_j_env_configuration(env._j_stream_execution_environment).\
+            setString("taskmanager.numberOfTaskSlots", "10")
+        env.add_python_file(python_file_path)
+        ds = env.from_collection([1, 2, 3, 4, 5])
+        ds = ds.map(plus_two_map, Types.LONG()) \
+               .slot_sharing_group("data_stream") \
+               .map(lambda i: i, Types.LONG()) \
+               .slot_sharing_group("table")
+
+        python_file_path = os.path.join(python_file_dir, "test_dep2.py")
+        with open(python_file_path, 'w') as f:
+            f.write("def add_three(a):\n    return a + 3")
+
+        def plus_three(value):
+            from test_dep2 import add_three
+            return add_three(value)
+
+        t_env = StreamTableEnvironment.create(
+            stream_execution_environment=env,
+            environment_settings=EnvironmentSettings.in_streaming_mode())
+        env.add_python_file(python_file_path)
+
+        from pyflink.table.udf import udf
+        from pyflink.table.expressions import col
+        add_three = udf(plus_three, result_type=DataTypes.BIGINT())
+
+        tab = t_env.from_data_stream(ds, col('a')) \
+                   .select(add_three(col('a')))
+        result = [i[0] for i in tab.execute().collect()]
+        expected = [6, 7, 8, 9, 10]
         result.sort()
         expected.sort()
         self.assertEqual(expected, result)
@@ -393,9 +471,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.env.set_python_requirements(requirements_txt_path)
 
         def check_requirements(i):
-            import cloudpickle
-            assert os.path.abspath(cloudpickle.__file__).startswith(
-                os.environ['_PYTHON_REQUIREMENTS_INSTALL_DIR'])
+            import cloudpickle  # noqa # pylint: disable=unused-import
             return i
 
         ds = self.env.from_collection([1, 2, 3, 4, 5])
@@ -410,6 +486,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
     def test_set_requirements_with_cached_directory(self):
         import uuid
         tmp_dir = self.tempdir
+        env = self.env
         requirements_txt_path = os.path.join(tmp_dir, "requirements_txt_" + str(uuid.uuid4()))
         with open(requirements_txt_path, 'w') as f:
             f.write("python-package1==0.0.0")
@@ -436,15 +513,15 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                 "7or3/88i0H/tfBFW7s/s/avRInQH06ieEy7tDrQeYHUdRN7wP+n/vf62LOH/pld7f9xz7a5Pfufedy0oP"
                 "86iJI8KxStAq6yLC4JWdbbVbWRikR2z1ZGytk5vauW3QdnBFE6XqwmykazCesAAAAAAAAAAAAAAAAAAAA"
                 "AAAAAAAAAAAAAAOBw/AJw5CHBAFAAAA=="))
-        self.env.set_python_requirements(requirements_txt_path, requirements_dir_path)
+        env.set_python_requirements(requirements_txt_path, requirements_dir_path)
 
         def add_one(i):
             from python_package1 import plus
             return plus(i, 1)
 
-        ds = self.env.from_collection([1, 2, 3, 4, 5])
+        ds = env.from_collection([1, 2, 3, 4, 5])
         ds.map(add_one).add_sink(self.test_sink)
-        self.env.execute("test set requirements with cachd dir")
+        env.execute("test set requirements with cachd dir")
         result = self.test_sink.get_results(True)
         expected = ['2', '3', '4', '5', '6']
         result.sort()
@@ -455,21 +532,22 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         import uuid
         import shutil
         tmp_dir = self.tempdir
+        env = self.env
         archive_dir_path = os.path.join(tmp_dir, "archive_" + str(uuid.uuid4()))
         os.mkdir(archive_dir_path)
         with open(os.path.join(archive_dir_path, "data.txt"), 'w') as f:
             f.write("2")
         archive_file_path = \
             shutil.make_archive(os.path.dirname(archive_dir_path), 'zip', archive_dir_path)
-        self.env.add_python_archive(archive_file_path, "data")
+        env.add_python_archive(archive_file_path, "data")
 
         def add_from_file(i):
             with open("data/data.txt", 'r') as f:
                 return i + int(f.read())
 
-        ds = self.env.from_collection([1, 2, 3, 4, 5])
+        ds = env.from_collection([1, 2, 3, 4, 5])
         ds.map(add_from_file).add_sink(self.test_sink)
-        self.env.execute("test set python archive")
+        env.execute("test set python archive")
         result = self.test_sink.get_results(True)
         expected = ['3', '4', '5', '6', '7']
         result.sort()
@@ -481,18 +559,19 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         import sys
         python_exec = sys.executable
         tmp_dir = self.tempdir
+        env = self.env
         python_exec_link_path = os.path.join(tmp_dir, "py_exec")
         os.symlink(python_exec, python_exec_link_path)
-        self.env.set_python_executable(python_exec_link_path)
+        env.set_python_executable(python_exec_link_path)
 
         def check_python_exec(i):
             import os
             assert os.environ["python"] == python_exec_link_path
             return i
 
-        ds = self.env.from_collection([1, 2, 3, 4, 5])
+        ds = env.from_collection([1, 2, 3, 4, 5])
         ds.map(check_python_exec).add_sink(self.test_sink)
-        self.env.execute("test set python executable")
+        env.execute("test set python executable")
         result = self.test_sink.get_results(True)
         expected = ['1', '2', '3', '4', '5']
         result.sort()
@@ -548,7 +627,8 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         python_file_path = os.path.join(python_file_dir, "test_stream_dependency_manage_lib.py")
         with open(python_file_path, 'w') as f:
             f.write("def add_two(a):\n    return a + 2")
-        self.env.add_python_file(python_file_path)
+        env = self.env
+        env.add_python_file(python_file_path)
 
         def plus_two_map(value):
             from test_stream_dependency_manage_lib import add_two
@@ -558,10 +638,10 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             with open("data/data.txt", 'r') as f:
                 return i[0], i[1] + int(f.read())
 
-        from_collection_source = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1),
-                                                           ('e', 2)],
-                                                          type_info=Types.ROW([Types.STRING(),
-                                                                               Types.INT()]))
+        from_collection_source = env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1),
+                                                      ('e', 2)],
+                                                     type_info=Types.ROW([Types.STRING(),
+                                                                          Types.INT()]))
         from_collection_source.name("From Collection")
         keyed_stream = from_collection_source.key_by(lambda x: x[1], key_type=Types.INT())
 
@@ -578,9 +658,9 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             f.write("3")
         archive_file_path = \
             shutil.make_archive(os.path.dirname(archive_dir_path), 'zip', archive_dir_path)
-        self.env.add_python_archive(archive_file_path, "data")
+        env.add_python_archive(archive_file_path, "data")
 
-        nodes = eval(self.env.get_execution_plan())['nodes']
+        nodes = eval(env.get_execution_plan())['nodes']
 
         # The StreamGraph should be as bellow:
         # Source: From Collection -> _stream_key_by_map_operator ->
@@ -605,11 +685,42 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         env_config_with_dependencies = dict(get_gateway().jvm.org.apache.flink.python.util
                                             .PythonConfigUtil.getEnvConfigWithDependencies(
-            self.env._j_stream_execution_environment).toMap())
+            env._j_stream_execution_environment).toMap())
 
         # Make sure that user specified files and archives are correctly added.
         self.assertIsNotNone(env_config_with_dependencies['python.files'])
         self.assertIsNotNone(env_config_with_dependencies['python.archives'])
+
+    def test_register_slot_sharing_group(self):
+        slot_sharing_group_1 = SlotSharingGroup.builder('slot_sharing_group_1') \
+            .set_cpu_cores(1.0).set_task_heap_memory_mb(100).build()
+        slot_sharing_group_2 = SlotSharingGroup.builder('slot_sharing_group_2') \
+            .set_cpu_cores(2.0).set_task_heap_memory_mb(200).build()
+        slot_sharing_group_3 = SlotSharingGroup.builder('slot_sharing_group_3').build()
+        self.env.register_slot_sharing_group(slot_sharing_group_1)
+        self.env.register_slot_sharing_group(slot_sharing_group_2)
+        self.env.register_slot_sharing_group(slot_sharing_group_3)
+        ds = self.env.from_collection([1, 2, 3]).slot_sharing_group(
+            'slot_sharing_group_1')
+        ds.map(lambda x: x + 1).set_parallelism(3) \
+            .slot_sharing_group('slot_sharing_group_2') \
+            .add_sink(self.test_sink)
+
+        j_generated_stream_graph = self.env._j_stream_execution_environment \
+            .getStreamGraph(True)
+        j_resource_profile_1 = j_generated_stream_graph.getSlotSharingGroupResource(
+            'slot_sharing_group_1').get()
+        j_resource_profile_2 = j_generated_stream_graph.getSlotSharingGroupResource(
+            'slot_sharing_group_2').get()
+        j_resource_profile_3 = j_generated_stream_graph.getSlotSharingGroupResource(
+            'slot_sharing_group_3')
+        self.assertEqual(j_resource_profile_1.getCpuCores().getValue(), 1.0)
+        self.assertEqual(MemorySize(j_memory_size=j_resource_profile_1.getTaskHeapMemory()),
+                         MemorySize.of_mebi_bytes(100))
+        self.assertEqual(j_resource_profile_2.getCpuCores().getValue(), 2.0)
+        self.assertEqual(MemorySize(j_memory_size=j_resource_profile_2.getTaskHeapMemory()),
+                         MemorySize.of_mebi_bytes(200))
+        self.assertFalse(j_resource_profile_3.isPresent())
 
     def tearDown(self) -> None:
         self.test_sink.clear()

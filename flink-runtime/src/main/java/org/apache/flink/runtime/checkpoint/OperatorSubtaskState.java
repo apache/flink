@@ -224,6 +224,10 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         return stateSize;
     }
 
+    public boolean isFinished() {
+        return false;
+    }
+
     // --------------------------------------------------------------------------------------------
 
     @Override

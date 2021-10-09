@@ -20,7 +20,7 @@ package org.apache.flink.table.tpcds;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
+import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -134,19 +134,19 @@ public class TpcdsTestProgram {
      */
     private static TableEnvironment prepareTableEnv(String sourceTablePath, Boolean useTableStats) {
         // init Table Env
-        EnvironmentSettings environmentSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+        EnvironmentSettings environmentSettings = EnvironmentSettings.inBatchMode();
         TableEnvironment tEnv = TableEnvironment.create(environmentSettings);
 
         // config Optimizer parameters
         tEnv.getConfig()
                 .getConfiguration()
                 .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4);
+        // TODO use the default shuffle mode of batch runtime mode once FLINK-23470 is implemented
         tEnv.getConfig()
                 .getConfiguration()
                 .setString(
                         ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
-                        GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED.toString());
+                        GlobalStreamExchangeMode.POINTWISE_EDGES_PIPELINED.toString());
         tEnv.getConfig()
                 .getConfiguration()
                 .setLong(

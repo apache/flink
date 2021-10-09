@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.testutils.ScheduledTask;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -42,7 +42,9 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRe
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.TestFailoverStrategyFactory;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -60,6 +62,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.scheduler.strategy.TestSchedulingStrategy;
+import org.apache.flink.runtime.shuffle.TestingShuffleMaster;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -69,8 +72,9 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsIterableContainingInOrder;
@@ -87,7 +91,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -103,6 +109,7 @@ import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableChe
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.getCheckpointCoordinator;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -114,7 +121,6 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -125,7 +131,7 @@ public class DefaultSchedulerTest extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-    private ManuallyTriggeredScheduledExecutor taskRestartExecutor =
+    private final ManuallyTriggeredScheduledExecutor taskRestartExecutor =
             new ManuallyTriggeredScheduledExecutor();
 
     private ExecutorService executor;
@@ -144,6 +150,12 @@ public class DefaultSchedulerTest extends TestLogger {
 
     private TestExecutionSlotAllocator testExecutionSlotAllocator;
 
+    private TestingShuffleMaster shuffleMaster;
+
+    private TestingJobMasterPartitionTracker partitionTracker;
+
+    private Time timeout;
+
     @Before
     public void setUp() throws Exception {
         executor = Executors.newSingleThreadExecutor();
@@ -160,6 +172,11 @@ public class DefaultSchedulerTest extends TestLogger {
 
         executionSlotAllocatorFactory = new TestExecutionSlotAllocatorFactory();
         testExecutionSlotAllocator = executionSlotAllocatorFactory.getTestExecutionSlotAllocator();
+
+        shuffleMaster = new TestingShuffleMaster();
+        partitionTracker = new TestingJobMasterPartitionTracker();
+
+        timeout = Time.seconds(60);
     }
 
     @After
@@ -1035,6 +1052,56 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     @Test
+    public void pendingSlotRequestsOfVerticesToRestartWillNotBeFulfilledByReturnedSlots()
+            throws Exception {
+        final int parallelism = 10;
+        final JobGraph jobGraph = sourceSinkJobGraph(parallelism);
+        testExecutionSlotAllocator.disableAutoCompletePendingRequests();
+        testExecutionSlotAllocator.enableCompletePendingRequestsWithReturnedSlots();
+
+        final DefaultScheduler scheduler =
+                createScheduler(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        new PipelinedRegionSchedulingStrategy.Factory(),
+                        new RestartAllFailoverStrategy.Factory());
+        scheduler.startScheduling();
+
+        final ExecutionVertex ev1 =
+                Iterables.get(scheduler.getExecutionGraph().getAllExecutionVertices(), 0);
+
+        final Set<CompletableFuture<LogicalSlot>> pendingLogicalSlotFutures =
+                testExecutionSlotAllocator.getPendingRequests().values().stream()
+                        .map(SlotExecutionVertexAssignment::getLogicalSlotFuture)
+                        .collect(Collectors.toSet());
+        assertThat(pendingLogicalSlotFutures, hasSize(parallelism * 2));
+
+        testExecutionSlotAllocator.completePendingRequest(ev1.getID());
+        assertThat(
+                pendingLogicalSlotFutures.stream().filter(CompletableFuture::isDone).count(),
+                is(1L));
+
+        final String exceptionMessage = "expected exception";
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(
+                        ev1.getCurrentExecutionAttempt().getAttemptId(),
+                        ExecutionState.FAILED,
+                        new RuntimeException(exceptionMessage)));
+
+        assertThat(testExecutionSlotAllocator.getPendingRequests().keySet(), hasSize(0));
+
+        // the failed task will return its slot before triggering failover. And the slot
+        // will be returned and re-assigned to another task which is waiting for a slot.
+        // failover will be triggered after that and the re-assigned slot will be returned
+        // once the attached task is canceled, but the slot will not be assigned to other
+        // tasks which are identified to be restarted soon.
+        assertThat(testExecutionSlotAllocator.getReturnedSlots(), hasSize(2));
+        assertThat(
+                pendingLogicalSlotFutures.stream().filter(CompletableFuture::isCancelled).count(),
+                is(parallelism * 2L - 2L));
+    }
+
+    @Test
     public void testExceptionHistoryWithGlobalFailOver() {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
         final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
@@ -1056,7 +1123,6 @@ public class DefaultSchedulerTest extends TestLogger {
         scheduler.updateTaskExecutionState(
                 new TaskExecutionState(attemptId, ExecutionState.CANCELED, expectedException));
         taskRestartExecutor.triggerScheduledTasks();
-        final long end = System.currentTimeMillis();
 
         final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
                 scheduler.getExceptionHistory();
@@ -1303,6 +1369,116 @@ public class DefaultSchedulerTest extends TestLogger {
                                 executionVertex1.getCurrentAssignedResourceLocation())));
     }
 
+    @Test
+    public void testDeploymentWaitForProducedPartitionRegistration() {
+        shuffleMaster.setAutoCompleteRegistration(false);
+
+        final List<ResultPartitionID> trackedPartitions = new ArrayList<>();
+        partitionTracker.setStartTrackingPartitionsConsumer(
+                (resourceID, resultPartitionDeploymentDescriptor) ->
+                        trackedPartitions.add(
+                                resultPartitionDeploymentDescriptor
+                                        .getShuffleDescriptor()
+                                        .getResultPartitionID()));
+
+        final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
+
+        createSchedulerAndStartScheduling(jobGraph);
+
+        assertThat(trackedPartitions, hasSize(0));
+        assertThat(testExecutionVertexOperations.getDeployedVertices(), hasSize(0));
+
+        shuffleMaster.completeAllPendingRegistrations();
+        assertThat(trackedPartitions, hasSize(1));
+        assertThat(testExecutionVertexOperations.getDeployedVertices(), hasSize(2));
+    }
+
+    @Test
+    public void testFailedProducedPartitionRegistration() {
+        shuffleMaster.setAutoCompleteRegistration(false);
+
+        final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
+
+        createSchedulerAndStartScheduling(jobGraph);
+
+        assertThat(testExecutionVertexOperations.getCanceledVertices(), hasSize(0));
+        assertThat(testExecutionVertexOperations.getFailedVertices(), hasSize(0));
+
+        shuffleMaster.failAllPendingRegistrations();
+        assertThat(testExecutionVertexOperations.getCanceledVertices(), hasSize(2));
+        assertThat(testExecutionVertexOperations.getFailedVertices(), hasSize(1));
+    }
+
+    @Test
+    public void testDirectExceptionOnProducedPartitionRegistration() {
+        shuffleMaster.setThrowExceptionalOnRegistration(true);
+
+        final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
+
+        createSchedulerAndStartScheduling(jobGraph);
+
+        assertThat(testExecutionVertexOperations.getCanceledVertices(), hasSize(2));
+        assertThat(testExecutionVertexOperations.getFailedVertices(), hasSize(1));
+    }
+
+    @Test
+    public void testProducedPartitionRegistrationTimeout() throws Exception {
+        ScheduledExecutorService scheduledExecutorService = null;
+        try {
+            scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+            final ComponentMainThreadExecutor mainThreadExecutor =
+                    ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                            scheduledExecutorService);
+
+            shuffleMaster.setAutoCompleteRegistration(false);
+
+            final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
+
+            timeout = Time.milliseconds(1);
+            createSchedulerAndStartScheduling(jobGraph, mainThreadExecutor);
+
+            testExecutionVertexOperations.awaitCanceledVertices(2);
+            testExecutionVertexOperations.awaitFailedVertices(1);
+        } finally {
+            if (scheduledExecutorService != null) {
+                scheduledExecutorService.shutdown();
+            }
+        }
+    }
+
+    @Test
+    public void testLateRegisteredPartitionsWillBeReleased() {
+        shuffleMaster.setAutoCompleteRegistration(false);
+
+        final List<ResultPartitionID> trackedPartitions = new ArrayList<>();
+        partitionTracker.setStartTrackingPartitionsConsumer(
+                (resourceID, resultPartitionDeploymentDescriptor) ->
+                        trackedPartitions.add(
+                                resultPartitionDeploymentDescriptor
+                                        .getShuffleDescriptor()
+                                        .getResultPartitionID()));
+
+        final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+        final ArchivedExecutionVertex sourceExecutionVertex =
+                scheduler
+                        .requestJob()
+                        .getArchivedExecutionGraph()
+                        .getAllExecutionVertices()
+                        .iterator()
+                        .next();
+        final ExecutionAttemptID attemptId =
+                sourceExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+        scheduler.updateTaskExecutionState(createFailedTaskExecutionState(attemptId));
+
+        // late registered partitions will not be tracked and will be released
+        shuffleMaster.completeAllPendingRegistrations();
+        assertThat(trackedPartitions, hasSize(0));
+        assertThat(shuffleMaster.getExternallyReleasedPartitions(), hasSize(1));
+    }
+
     private static TaskExecutionState createFailedTaskExecutionState(
             ExecutionAttemptID executionAttemptID) {
         return new TaskExecutionState(
@@ -1382,6 +1558,21 @@ public class DefaultSchedulerTest extends TestLogger {
         return JobGraphTestUtils.streamingJobGraph(source, sink);
     }
 
+    private static JobGraph sourceSinkJobGraph(final int parallelism) {
+        final JobVertex source = new JobVertex("source");
+        source.setParallelism(parallelism);
+        source.setInvokableClass(NoOpInvokable.class);
+
+        final JobVertex sink = new JobVertex("sink");
+        sink.setParallelism(parallelism);
+        sink.setInvokableClass(NoOpInvokable.class);
+
+        sink.connectNewDataSetAsInput(
+                source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+
+        return JobGraphTestUtils.streamingJobGraph(source, sink);
+    }
+
     private static JobVertex getOnlyJobVertex(final JobGraph jobGraph) {
         final List<JobVertex> sortedVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
         Preconditions.checkState(sortedVertices.size() == 1);
@@ -1389,16 +1580,19 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     private DefaultScheduler createSchedulerAndStartScheduling(final JobGraph jobGraph) {
+        return createSchedulerAndStartScheduling(
+                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread());
+    }
+
+    private DefaultScheduler createSchedulerAndStartScheduling(
+            final JobGraph jobGraph, final ComponentMainThreadExecutor mainThreadExecutor) {
         final SchedulingStrategyFactory schedulingStrategyFactory =
                 new PipelinedRegionSchedulingStrategy.Factory();
 
         try {
             final DefaultScheduler scheduler =
-                    createScheduler(
-                            jobGraph,
-                            ComponentMainThreadExecutorServiceAdapter.forMainThread(),
-                            schedulingStrategyFactory);
-            scheduler.startScheduling();
+                    createScheduler(jobGraph, mainThreadExecutor, schedulingStrategyFactory);
+            mainThreadExecutor.execute(scheduler::startScheduling);
             return scheduler;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -1450,6 +1644,9 @@ public class DefaultSchedulerTest extends TestLogger {
                 .setExecutionVertexOperations(testExecutionVertexOperations)
                 .setExecutionVertexVersioner(executionVertexVersioner)
                 .setExecutionSlotAllocatorFactory(executionSlotAllocatorFactory)
+                .setShuffleMaster(shuffleMaster)
+                .setPartitionTracker(partitionTracker)
+                .setRpcTimeout(timeout)
                 .build();
     }
 

@@ -116,7 +116,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
@@ -282,7 +281,6 @@ public class HiveCatalog extends AbstractCatalog {
         return hiveConf;
     }
 
-    @VisibleForTesting
     public HiveConf getHiveConf() {
         return hiveConf;
     }
@@ -705,7 +703,6 @@ public class HiveCatalog extends AbstractCatalog {
             Table table = client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
             boolean isHiveTable;
             if (table.getParameters().containsKey(CatalogPropertiesUtil.IS_GENERIC)) {
-                // check is_generic to be backward compatible
                 isHiveTable =
                         !Boolean.parseBoolean(
                                 table.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC));
@@ -744,25 +741,7 @@ public class HiveCatalog extends AbstractCatalog {
 
         if (isHiveTable) {
             // Table schema
-            List<FieldSchema> fields = getNonPartitionFields(hiveConf, hiveTable);
-            Set<String> notNullColumns =
-                    client.getNotNullColumns(
-                            hiveConf, hiveTable.getDbName(), hiveTable.getTableName());
-            Optional<UniqueConstraint> primaryKey =
-                    isView
-                            ? Optional.empty()
-                            : client.getPrimaryKey(
-                                    hiveTable.getDbName(),
-                                    hiveTable.getTableName(),
-                                    HiveTableUtil.relyConstraint((byte) 0));
-            // PK columns cannot be null
-            primaryKey.ifPresent(pk -> notNullColumns.addAll(pk.getColumns()));
-            tableSchema =
-                    HiveTableUtil.createTableSchema(
-                            fields,
-                            hiveTable.getPartitionKeys(),
-                            notNullColumns,
-                            primaryKey.orElse(null));
+            tableSchema = HiveTableUtil.createTableSchema(hiveConf, hiveTable, client, hiveShim);
 
             if (!hiveTable.getPartitionKeys().isEmpty()) {
                 partitionKeys = getFieldNames(hiveTable.getPartitionKeys());
@@ -771,7 +750,6 @@ public class HiveCatalog extends AbstractCatalog {
             properties = retrieveFlinkProperties(properties);
             DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
             tableSchemaProps.putProperties(properties);
-            ObjectPath tablePath = new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName());
             // try to get table schema with both new and old (1.10) key, in order to support tables
             // created in old version
             tableSchema =
@@ -781,11 +759,8 @@ public class HiveCatalog extends AbstractCatalog {
                                     () ->
                                             tableSchemaProps
                                                     .getOptionalTableSchema("generic.table.schema")
-                                                    .orElseThrow(
-                                                            () ->
-                                                                    new CatalogException(
-                                                                            "Failed to get table schema from properties for generic table "
-                                                                                    + tablePath)));
+                                                    .orElseGet(
+                                                            () -> TableSchema.builder().build()));
             partitionKeys = tableSchemaProps.getPartitionKeys();
             // remove the schema from properties
             properties = CatalogTableImpl.removeRedundant(properties, tableSchema, partitionKeys);
@@ -802,17 +777,6 @@ public class HiveCatalog extends AbstractCatalog {
                     comment);
         } else {
             return new CatalogTableImpl(tableSchema, partitionKeys, properties, comment);
-        }
-    }
-
-    private List<FieldSchema> getNonPartitionFields(HiveConf hiveConf, Table hiveTable) {
-        if (org.apache.hadoop.hive.ql.metadata.Table.hasMetastoreBasedSchema(
-                hiveConf, hiveTable.getSd().getSerdeInfo().getSerializationLib())) {
-            // get schema from metastore
-            return hiveTable.getSd().getCols();
-        } else {
-            // get schema from deserializer
-            return hiveShim.getFieldsFromDeserializer(hiveConf, hiveTable, true);
         }
     }
 
@@ -980,7 +944,7 @@ public class HiveCatalog extends AbstractCatalog {
         List<String> partColNames = getFieldNames(hiveTable.getPartitionKeys());
         Optional<String> filter =
                 HiveTableUtil.makePartitionFilter(
-                        getNonPartitionFields(hiveConf, hiveTable).size(),
+                        HiveTableUtil.getNonPartitionFields(hiveConf, hiveTable, hiveShim).size(),
                         partColNames,
                         expressions,
                         hiveShim);
@@ -1762,7 +1726,6 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     private static Database alterDatabase(Database hiveDB, CatalogDatabase newDatabase) {
-        Map<String, String> params = hiveDB.getParameters();
         Map<String, String> newParams = newDatabase.getProperties();
         String opStr = newParams.remove(ALTER_DATABASE_OP);
         if (opStr == null) {
@@ -1774,11 +1737,7 @@ public class HiveCatalog extends AbstractCatalog {
                 SqlAlterHiveDatabase.AlterHiveDatabaseOp.valueOf(opStr);
         switch (op) {
             case CHANGE_PROPS:
-                if (params == null) {
-                    hiveDB.setParameters(newParams);
-                } else {
-                    params.putAll(newParams);
-                }
+                hiveDB.setParameters(newParams);
                 break;
             case CHANGE_LOCATION:
                 hiveDB.setLocationUri(newLocation);

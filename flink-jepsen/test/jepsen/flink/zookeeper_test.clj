@@ -23,6 +23,4 @@
 
 (deftest zookeeper-uri-test
   (is (= (zookeeper-uri {:nodes ["n1" "n2" "n3"]}) "zk://n1:2181,n2:2181,n3:2181/"))
-  (is (= (zookeeper-uri {:nodes ["n1"]}) "zk://n1:2181/"))
-  (is (= (zookeeper-uri {:nodes ["n1" "n2" "n3"]} :mesos) "zk://n1:2181,n2:2181,n3:2181/mesos"))
-  (is (= (zookeeper-uri {:nodes ["n1" "n2" "n3"]} "mesos") "zk://n1:2181,n2:2181,n3:2181/mesos")))
+  (is (= (zookeeper-uri {:nodes ["n1"]}) "zk://n1:2181/")))

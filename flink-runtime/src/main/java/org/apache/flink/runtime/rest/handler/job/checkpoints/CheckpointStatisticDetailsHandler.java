@@ -71,8 +71,7 @@ public class CheckpointStatisticDetailsHandler
 
     @Override
     protected CheckpointStatistics handleCheckpointRequest(
-            HandlerRequest<EmptyRequestBody, CheckpointMessageParameters> ignored,
-            AbstractCheckpointStats checkpointStats) {
+            HandlerRequest<EmptyRequestBody> ignored, AbstractCheckpointStats checkpointStats) {
         return CheckpointStatistics.generateCheckpointStatistics(checkpointStats, true);
     }
 

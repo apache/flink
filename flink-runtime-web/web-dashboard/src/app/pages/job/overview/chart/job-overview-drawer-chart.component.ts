@@ -27,8 +27,10 @@ import {
 } from '@angular/core';
 import { Subject } from 'rxjs';
 import { distinctUntilChanged, filter, flatMap, takeUntil } from 'rxjs/operators';
-import { JobService, MetricsService } from 'services';
+
 import { JobChartComponent } from 'share/customize/job-chart/job-chart.component';
+
+import { JobService, MetricsService } from 'services';
 
 @Component({
   selector: 'flink-job-overview-drawer-chart',
@@ -45,7 +47,7 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
   cacheMetricKey: string;
   @ViewChildren(JobChartComponent) listOfJobChartComponent: QueryList<JobChartComponent>;
 
-  loadMetricList(jobId: string, vertexId: string) {
+  loadMetricList(jobId: string, vertexId: string): void {
     this.cacheMetricKey = `${jobId}/${vertexId}`;
     this.metricsService.getAllAvailableMetrics(jobId, vertexId).subscribe(data => {
       this.listOfMetricName = data.map(item => item.id);
@@ -55,25 +57,25 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
     });
   }
 
-  updateMetric(metric: string) {
+  updateMetric(metric: string): void {
     this.listOfSelectedMetric = [...this.listOfSelectedMetric, metric];
     this.jobService.metricsCacheMap.set(this.cacheMetricKey, this.listOfSelectedMetric);
     this.updateUnselectedMetricList();
   }
 
-  closeMetric(metric: string) {
+  closeMetric(metric: string): void {
     this.listOfSelectedMetric = this.listOfSelectedMetric.filter(item => item !== metric);
     this.jobService.metricsCacheMap.set(this.cacheMetricKey, this.listOfSelectedMetric);
     this.updateUnselectedMetricList();
   }
 
-  updateUnselectedMetricList() {
+  updateUnselectedMetricList(): void {
     this.listOfUnselectedMetric = this.listOfMetricName.filter(item => this.listOfSelectedMetric.indexOf(item) === -1);
   }
 
   constructor(private metricsService: MetricsService, private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
@@ -98,7 +100,7 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

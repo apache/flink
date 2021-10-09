@@ -111,15 +111,6 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
             TaskManagerGateway taskManagerGateway,
             Collection<SlotOffer> offers);
 
-    /**
-     * Fails the slot with the given allocation id.
-     *
-     * @param allocationID identifying the slot which is being failed
-     * @param cause of the failure
-     * @return An optional task executor id if this task executor has no more slots registered
-     */
-    Optional<ResourceID> failAllocation(AllocationID allocationID, Exception cause);
-
     // ------------------------------------------------------------------------
     //  allocating and disposing slots
     // ------------------------------------------------------------------------

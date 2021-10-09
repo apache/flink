@@ -156,6 +156,11 @@ public class NetworkBufferPool
         }
     }
 
+    public List<MemorySegment> requestMemorySegmentsBlocking(int numberOfSegmentsToRequest)
+            throws IOException {
+        return internalRequestMemorySegments(numberOfSegmentsToRequest);
+    }
+
     public void recycle(MemorySegment segment) {
         // Adds the segment back to the queue, which does not immediately free the memory
         // however, since this happens when references to the global pool are also released,
@@ -167,17 +172,26 @@ public class NetworkBufferPool
     public List<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest)
             throws IOException {
         checkArgument(
-                numberOfSegmentsToRequest > 0,
-                "Number of buffers to request must be larger than 0.");
+                numberOfSegmentsToRequest >= 0,
+                "Number of buffers to request must be non-negative.");
 
         synchronized (factoryLock) {
             if (isDestroyed) {
                 throw new IllegalStateException("Network buffer pool has already been destroyed.");
             }
 
+            if (numberOfSegmentsToRequest == 0) {
+                return Collections.emptyList();
+            }
+
             tryRedistributeBuffers(numberOfSegmentsToRequest);
         }
 
+        return internalRequestMemorySegments(numberOfSegmentsToRequest);
+    }
+
+    private List<MemorySegment> internalRequestMemorySegments(int numberOfSegmentsToRequest)
+            throws IOException {
         final List<MemorySegment> segments = new ArrayList<>(numberOfSegmentsToRequest);
         try {
             final Deadline deadline = Deadline.fromNow(requestSegmentsTimeout);

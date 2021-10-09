@@ -55,6 +55,10 @@ public final class SymbolType<T extends TableSymbol> extends LogicalType {
         this(true, symbolClass);
     }
 
+    public Class<T> getSymbolClass() {
+        return symbolClass;
+    }
+
     @Override
     public LogicalType copy(boolean isNullable) {
         return new SymbolType<>(isNullable, symbolClass);

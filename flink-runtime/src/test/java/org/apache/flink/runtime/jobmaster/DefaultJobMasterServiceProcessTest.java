@@ -199,20 +199,6 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
                 is(JobStatus.FINISHED));
     }
 
-    @Test
-    public void testJobFinishedByOther() {
-        final CompletableFuture<JobMasterService> jobMasterServiceFuture =
-                new CompletableFuture<>();
-        DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
-        jobMasterServiceFuture.complete(new TestingJobMasterService());
-
-        serviceProcess.jobFinishedByOther();
-
-        assertThat(
-                serviceProcess.getResultFuture(),
-                futureWillCompleteExceptionally(JobNotFinishedException.class, TIMEOUT));
-    }
-
     private DefaultJobMasterServiceProcess createTestInstance(
             CompletableFuture<JobMasterService> jobMasterServiceFuture) {
 

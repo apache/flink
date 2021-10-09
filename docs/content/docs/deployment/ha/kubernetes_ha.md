@@ -55,7 +55,7 @@ high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServ
 JobManager metadata is persisted in the file system `high-availability.storageDir` and only a pointer to this state is stored in Kubernetes.
 
 ```yaml
-high-availability.storageDir: s3:///flink/recovery
+high-availability.storageDir: s3://flink/recovery
 ```
 
 The `storageDir` stores all metadata needed to recover a JobManager failure.

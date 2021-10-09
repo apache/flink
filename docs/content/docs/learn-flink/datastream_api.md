@@ -79,7 +79,7 @@ public class Person {
 Person person = new Person("Fred Flintstone", 35);
 ```
 
-Flink's serializer [supports schema evolution for POJO types]({{< ref "docs/dev/datastream/fault-tolerance/schema_evolution" >}}#pojo-types).
+Flink's serializer [supports schema evolution for POJO types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/schema_evolution" >}}#pojo-types).
 
 ### Scala tuples and case classes
 

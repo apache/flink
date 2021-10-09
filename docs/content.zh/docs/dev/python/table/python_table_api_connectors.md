@@ -41,7 +41,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 
 ## 如何使用连接器
 
-在 PyFink Table API 中，DDL 是定义 source 和 sink 比较推荐的方式，这可以通过
+在 PyFlink Table API 中，DDL 是定义 source 和 sink 比较推荐的方式，这可以通过
 `TableEnvironment` 中的 `execute_sql()` 方法来完成，然后就可以在作业中使用这张表了。
 
 ```python
@@ -83,7 +83,7 @@ t_env.sql_query("SELECT a FROM source_table") \
 from pyflink.table import TableEnvironment, EnvironmentSettings
 
 def log_processing():
-    env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+    env_settings = EnvironmentSettings.in_streaming_mode()
     t_env = TableEnvironment.create(env_settings)
     # specify connector and format jars
     t_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")

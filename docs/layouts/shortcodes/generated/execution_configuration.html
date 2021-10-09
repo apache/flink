@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>execution.batch-shuffle-mode</h5></td>
+            <td style="word-wrap: break-word;">ALL_EXCHANGES_BLOCKING</td>
+            <td><p>Enum</p></td>
+            <td>Defines how data is exchanged between tasks in batch 'execution.runtime-mode' if the shuffling behavior has not been set explicitly for an individual exchange.<br />With pipelined exchanges, upstream and downstream tasks run simultaneously. In order to achieve lower latency, a result record is immediately sent to and processed by the downstream task. Thus, the receiver back-pressures the sender. The streaming mode always uses this exchange.<br />With blocking exchanges, upstream and downstream tasks run in stages. Records are persisted to some storage between stages. Downstream tasks then fetch these records after the upstream tasks finished. Such an exchange reduces the resources required to execute the job as it does not need to run upstream and downstream tasks simultaneously.<br /><br />Possible values:<ul><li>"ALL_EXCHANGES_PIPELINED": Upstream and downstream tasks run simultaneously. This leads to lower latency and more evenly distributed (but higher) resource usage across tasks.</li><li>"ALL_EXCHANGES_BLOCKING": Upstream and downstream tasks run subsequently. This reduces the resource usage as downstream tasks are started after upstream tasks finished.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>execution.buffer-timeout</h5></td>
             <td style="word-wrap: break-word;">100 ms</td>
             <td>Duration</td>
@@ -23,8 +29,8 @@
         <tr>
             <td><h5>execution.runtime-mode</h5></td>
             <td style="word-wrap: break-word;">STREAMING</td>
-            <td><p>Enum</p>Possible values: [STREAMING, BATCH, AUTOMATIC]</td>
-            <td>Runtime execution mode of DataStream programs. Among other things, this controls task scheduling, network shuffle behavior, and time semantics.</td>
+            <td><p>Enum</p></td>
+            <td>Runtime execution mode of DataStream programs. Among other things, this controls task scheduling, network shuffle behavior, and time semantics.<br /><br />Possible values:<ul><li>"STREAMING"</li><li>"BATCH"</li><li>"AUTOMATIC"</li></ul></td>
         </tr>
     </tbody>
 </table>

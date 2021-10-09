@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
@@ -39,11 +39,12 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -179,7 +180,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
         // Verify the expected Exceptions
         assertNotNull(ASYNC_PRODUCER_EXCEPTION);
-        assertEquals(IllegalStateException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
+        assertEquals(CancelTaskException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
 
         assertNotNull(ASYNC_CONSUMER_EXCEPTION);
         assertEquals(IllegalStateException.class, ASYNC_CONSUMER_EXCEPTION.getClass());

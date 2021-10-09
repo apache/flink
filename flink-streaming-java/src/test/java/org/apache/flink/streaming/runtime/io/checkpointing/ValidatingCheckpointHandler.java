@@ -41,13 +41,14 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
     private CheckpointFailureReason failureReason;
     private long lastCanceledCheckpointId = -1L;
     private long abortedCheckpointCounter = 0;
-    private final List<CheckpointOptions> triggeredCheckpointOptions = new ArrayList<>();
+    final List<Long> abortedCheckpoints = new ArrayList<>();
 
     long nextExpectedCheckpointId;
     long triggeredCheckpointCounter = 0;
     CompletableFuture<Long> lastAlignmentDurationNanos;
     CompletableFuture<Long> lastBytesProcessedDuringAlignment;
     final List<Long> triggeredCheckpoints = new ArrayList<>();
+    private final List<CheckpointOptions> triggeredCheckpointOptions = new ArrayList<>();
 
     ValidatingCheckpointHandler() {
         this(-1);
@@ -100,7 +101,7 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
     }
 
     @Override
-    public Future<Boolean> triggerCheckpointAsync(
+    public CompletableFuture<Boolean> triggerCheckpointAsync(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         throw new UnsupportedOperationException("should never be called");
     }
@@ -135,6 +136,7 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
         lastCanceledCheckpointId = checkpointId;
         failureReason = cause.getCheckpointFailureReason();
         abortedCheckpointCounter++;
+        abortedCheckpoints.add(checkpointId);
     }
 
     @Override

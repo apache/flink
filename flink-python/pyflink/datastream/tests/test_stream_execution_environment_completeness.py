@@ -47,9 +47,9 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
                 'readFileStream', 'isForceCheckpointing', 'readFile', 'clean',
                 'createInput', 'createLocalEnvironmentWithWebUI', 'fromCollection',
                 'socketTextStream', 'initializeContextEnvironment', 'readTextFile',
-                'setNumberOfExecutionRetries', 'configure', 'executeAsync', 'registerJobListener',
-                'clearJobListeners', 'getJobListeners', "fromSequence",
-                'setDefaultSavepointDirectory', 'getDefaultSavepointDirectory'}
+                'setNumberOfExecutionRetries', 'executeAsync', 'registerJobListener',
+                'clearJobListeners', 'getJobListeners', 'fromSequence', 'getConfiguration',
+                'generateStreamGraph'}
 
 
 if __name__ == '__main__':
