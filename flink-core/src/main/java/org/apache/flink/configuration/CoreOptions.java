@@ -38,13 +38,14 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class CoreOptions {
 
     @Internal
-    public static final String[] PARENT_FIRST_LOGGING_PATTERNS = new String[]{
-            "org.slf4j",
-            "org.apache.log4j",
-            "org.apache.logging",
-            "org.apache.commons.logging",
-            "ch.qos.logback"
-    };
+    public static final String[] PARENT_FIRST_LOGGING_PATTERNS =
+            new String[] {
+                "org.slf4j",
+                "org.apache.log4j",
+                "org.apache.logging",
+                "org.apache.commons.logging",
+                "ch.qos.logback"
+            };
 
     // ------------------------------------------------------------------------
     //  Classloading Parameters
@@ -105,19 +106,22 @@ public class CoreOptions {
             ConfigOptions.key("classloader.parent-first-patterns.default")
                     .stringType()
                     .asList()
-                    .defaultValues(ArrayUtils.concat(new String[]{
-                            "java.",
-                            "scala.",
-                            "org.apache.flink.",
-                            "com.esotericsoftware.kryo",
-                            "org.apache.hadoop.",
-                            "javax.annotation.",
-                            "org.xml",
-                            "javax.xml",
-                            "org.apache.xerces",
-                            "org.w3c",
-                            "org.rocksdb."
-                    }, PARENT_FIRST_LOGGING_PATTERNS))
+                    .defaultValues(
+                            ArrayUtils.concat(
+                                    new String[] {
+                                        "java.",
+                                        "scala.",
+                                        "org.apache.flink.",
+                                        "com.esotericsoftware.kryo",
+                                        "org.apache.hadoop.",
+                                        "javax.annotation.",
+                                        "org.xml",
+                                        "javax.xml",
+                                        "org.apache.xerces",
+                                        "org.w3c",
+                                        "org.rocksdb."
+                                    },
+                                    PARENT_FIRST_LOGGING_PATTERNS))
                     .withDeprecatedKeys("classloader.parent-first-patterns")
                     .withDescription(
                             "A (semicolon-separated) list of patterns that specifies which classes should always be"
@@ -176,11 +180,12 @@ public class CoreOptions {
             ConfigOptions.key("plugin.classloader.parent-first-patterns.default")
                     .stringType()
                     .asList()
-                    .defaultValues(ArrayUtils.concat(new String[]{
-                            "java.",
-                            "org.apache.flink.",
-                            "javax.annotation."
-                    }, PARENT_FIRST_LOGGING_PATTERNS))
+                    .defaultValues(
+                            ArrayUtils.concat(
+                                    new String[] {
+                                        "java.", "org.apache.flink.", "javax.annotation."
+                                    },
+                                    PARENT_FIRST_LOGGING_PATTERNS))
                     .withDescription(
                             "A (semicolon-separated) list of patterns that specifies which classes should always be"
                                     + " resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked "
@@ -192,16 +197,16 @@ public class CoreOptions {
                     + "Configuration only included in case to mitigate unintended side-effects of this young feature.")
     public static final ConfigOption<List<String>>
             PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL =
-            ConfigOptions.key("plugin.classloader.parent-first-patterns.additional")
-                    .stringType()
-                    .asList()
-                    .defaultValues()
-                    .withDescription(
-                            "A (semicolon-separated) list of patterns that specifies which classes should always be"
-                                    + " resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked "
-                                    + " against the fully qualified class name. These patterns are appended to \""
-                                    + PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key()
-                                    + "\".");
+                    ConfigOptions.key("plugin.classloader.parent-first-patterns.additional")
+                            .stringType()
+                            .asList()
+                            .defaultValues()
+                            .withDescription(
+                                    "A (semicolon-separated) list of patterns that specifies which classes should always be"
+                                            + " resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked "
+                                            + " against the fully qualified class name. These patterns are appended to \""
+                                            + PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key()
+                                            + "\".");
 
     public static String[] getPluginParentFirstLoaderPatterns(Configuration config) {
         List<String> base = config.get(PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
