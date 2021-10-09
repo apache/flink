@@ -33,4 +33,49 @@ public class PartitionPathUtilsTest {
             assertEquals(expected, actual);
         }
     }
+
+    @Test
+    public void testEscapePathNameWithHeadControl() {
+        String origin = "[00";
+        String expected = "%5B00";
+        String actual = PartitionPathUtils.escapePathName(origin);
+        assertEquals(expected, actual);
+        assertEquals(origin, PartitionPathUtils.unescapePathName(actual));
+    }
+
+    @Test
+    public void testEscapePathNameWithTailControl() {
+        String origin = "00]";
+        String expected = "00%5D";
+        String actual = PartitionPathUtils.escapePathName(origin);
+        assertEquals(expected, actual);
+        assertEquals(origin, PartitionPathUtils.unescapePathName(actual));
+    }
+
+    @Test
+    public void testEscapePathNameWithMidControl() {
+        String origin = "00:00";
+        String expected = "00%3A00";
+        String actual = PartitionPathUtils.escapePathName(origin);
+        assertEquals(expected, actual);
+        assertEquals(origin, PartitionPathUtils.unescapePathName(actual));
+    }
+
+    @Test
+    public void testEscapePathName() {
+        String origin = "[00:00]";
+        String expected = "%5B00%3A00%5D";
+        String actual = PartitionPathUtils.escapePathName(origin);
+        assertEquals(expected, actual);
+        assertEquals(origin, PartitionPathUtils.unescapePathName(actual));
+    }
+
+    @Test
+    public void testEscapePathNameWithoutControl() {
+        String origin = "0000";
+        String expected = "0000";
+        String actual = PartitionPathUtils.escapePathName(origin);
+        assertEquals(expected, actual);
+        assertEquals(origin, PartitionPathUtils.unescapePathName(actual));
+    }
 }

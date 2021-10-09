@@ -108,7 +108,7 @@ public class PartitionPathUtils {
      * @param path The path to escape.
      * @return An escaped path name.
      */
-    private static String escapePathName(String path) {
+    static String escapePathName(String path) {
         if (path == null || path.length() == 0) {
             throw new TableException("Path should not be null or empty: " + path);
         }
