@@ -144,6 +144,23 @@ class SqlExpressionTest extends ExpressionTestBase {
     // Decimal(2,1) / Decimal(10,0) => Decimal(23,12)
     testSqlApi("2.0/(-3)", "-0.666666666667")
     testSqlApi("-7.9/2", "-3.950000000000")
+
+    // invalid division
+    val divisorZeroException = "Division by zero"
+    testExpectedSqlException(
+      "1/cast(0.00 as decimal)", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/cast(0.00 as double)", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/cast(0.00 as float)", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/cast(0 as tinyint)", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/cast(0 as smallint)", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/0", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/cast(0 as bigint)", divisorZeroException, classOf[ArithmeticException])
   }
 
   @Test
