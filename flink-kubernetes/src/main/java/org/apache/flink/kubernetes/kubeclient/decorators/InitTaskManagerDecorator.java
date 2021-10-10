@@ -34,6 +34,7 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -144,6 +145,7 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                                 .withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
                                 .build())
                 .addAllToEnv(getCustomizedEnvs());
+        getFlinkLogDirEnv().ifPresent(mainContainerBuilder::addToEnv);
 
         return mainContainerBuilder.build();
     }
@@ -152,5 +154,11 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
         return kubernetesTaskManagerParameters.getEnvironments().entrySet().stream()
                 .map(kv -> new EnvVar(kv.getKey(), kv.getValue(), null))
                 .collect(Collectors.toList());
+    }
+
+    private Optional<EnvVar> getFlinkLogDirEnv() {
+        return kubernetesTaskManagerParameters
+                .getFlinkLogDirInPod()
+                .map(logDir -> new EnvVar(Constants.ENV_FLINK_LOG_DIR, logDir, null));
     }
 }
