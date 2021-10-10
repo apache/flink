@@ -60,6 +60,7 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
@@ -389,9 +390,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         this.stateBackend = createStateBackend();
         this.checkpointStorage = createCheckpointStorage(stateBackend);
 
+        CheckpointStorageAccess checkpointStorageAccess =
+                checkpointStorage.createCheckpointStorage(getEnvironment().getJobID());
+
+        environment.setCheckpointStorageAccess(checkpointStorageAccess);
+
         this.subtaskCheckpointCoordinator =
                 new SubtaskCheckpointCoordinatorImpl(
-                        checkpointStorage.createCheckpointStorage(environment.getJobID()),
+                        checkpointStorageAccess,
                         getName(),
                         actionExecutor,
                         getCancelables(),

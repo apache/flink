@@ -433,6 +433,17 @@ public class MockEnvironment implements Environment, AutoCloseable {
         return asyncOperationsThreadPool;
     }
 
+    @Override
+    public void setCheckpointStorageAccess(
+            @NotNull CheckpointStorageAccess checkpointStorageAccess) {
+        this.checkpointStorageAccess = checkpointStorageAccess;
+    }
+
+    @Override
+    public CheckpointStorageAccess getCheckpointStorageAccess() {
+        return checkNotNull(checkpointStorageAccess);
+    }
+
     public void setExpectedExternalFailureCause(Class<? extends Throwable> expectedThrowableClass) {
         this.expectedExternalFailureCause = Optional.of(expectedThrowableClass);
     }

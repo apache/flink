@@ -44,6 +44,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 
+import static org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.DummyCheckpointingStorageAccess;
 import static org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.createKeyedBackend;
 import static org.junit.Assert.assertSame;
 
@@ -62,6 +63,7 @@ public class ChangelogDelegateStateTest {
     @Before
     public void before() {
         env = MockEnvironment.builder().build();
+        env.setCheckpointStorageAccess(new DummyCheckpointingStorageAccess());
     }
 
     @After
