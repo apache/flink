@@ -82,7 +82,7 @@ public interface KubernetesParameters {
     String getFlinkConfDirInPod();
 
     /** Directory in Pod that saves the log files. */
-    String getFlinkLogDirInPod();
+    Optional<String> getFlinkLogDirInPod();
 
     /** The docker entrypoint that starts processes in the container. */
     String getContainerEntrypoint();
