@@ -72,6 +72,8 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
     private static final Long RESOURCE_AMOUNT = 2L;
     private static final String RESOURCE_CONFIG_KEY = "test.com/test";
 
+    private static final String USER_DEFINED_FLINK_LOG_DIR = "/path/of/flink-log";
+
     private Pod resultPod;
     private Container resultMainContainer;
 
@@ -98,6 +100,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
                         RESOURCE_NAME,
                         KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX),
                 RESOURCE_CONFIG_KEY);
+        this.flinkConfig.set(KubernetesConfigOptions.FLINK_LOG_DIR, USER_DEFINED_FLINK_LOG_DIR);
     }
 
     @Override
@@ -177,8 +180,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
         final Map<String, String> resultEnvVars =
                 this.resultMainContainer.getEnv().stream()
                         .collect(Collectors.toMap(EnvVar::getName, EnvVar::getValue));
-
-        assertEquals(expectedEnvVars, resultEnvVars);
+        expectedEnvVars.forEach((k, v) -> assertThat(resultEnvVars.get(k), is(v)));
     }
 
     @Test
@@ -234,5 +236,18 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
         assertThat(
                 this.resultPod.getSpec().getTolerations(),
                 Matchers.containsInAnyOrder(TOLERATION.toArray()));
+    }
+
+    @Test
+    public void testFlinkLogDirEnvShouldBeSetIfConfiguredViaOptions() {
+        final List<EnvVar> envVars = this.resultMainContainer.getEnv();
+        assertThat(
+                envVars.stream()
+                        .anyMatch(
+                                envVar ->
+                                        envVar.getName().equals(Constants.ENV_FLINK_LOG_DIR)
+                                                && envVar.getValue()
+                                                        .equals(USER_DEFINED_FLINK_LOG_DIR)),
+                is(true));
     }
 }
