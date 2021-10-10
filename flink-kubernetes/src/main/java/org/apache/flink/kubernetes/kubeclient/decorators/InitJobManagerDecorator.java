@@ -39,6 +39,7 @@ import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
@@ -149,6 +150,7 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                                 .withNewFieldRef(API_VERSION, POD_IP_FIELD_PATH)
                                 .build())
                 .endEnv();
+        getFlinkLogDirEnv().ifPresent(mainContainerBuilder::addToEnv);
         return mainContainerBuilder.build();
     }
 
@@ -177,5 +179,11 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                                         .withValue(kv.getValue())
                                         .build())
                 .collect(Collectors.toList());
+    }
+
+    private Optional<EnvVar> getFlinkLogDirEnv() {
+        return kubernetesJobManagerParameters
+                .getFlinkLogDirInPod()
+                .map(logDir -> new EnvVar(Constants.ENV_FLINK_LOG_DIR, logDir, null));
     }
 }

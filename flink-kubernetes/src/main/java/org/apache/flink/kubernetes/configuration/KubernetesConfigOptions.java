@@ -245,9 +245,10 @@ public class KubernetesConfigOptions {
     public static final ConfigOption<String> FLINK_LOG_DIR =
             key("kubernetes.flink.log.dir")
                     .stringType()
-                    .defaultValue("/opt/flink/log")
+                    .noDefaultValue()
                     .withDescription(
-                            "The directory that logs of jobmanager and taskmanager be saved in the pod.");
+                            "The directory that logs of jobmanager and taskmanager be saved in the pod. "
+                                    + "The default value is $FLINK_HOME/log.");
 
     public static final ConfigOption<String> HADOOP_CONF_CONFIG_MAP =
             key("kubernetes.hadoop.conf.config-map.name")
