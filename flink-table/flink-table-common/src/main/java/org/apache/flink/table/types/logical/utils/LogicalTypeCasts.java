@@ -48,6 +48,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.NUMERIC;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.PREDEFINED;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIMESTAMP;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ARRAY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
@@ -128,12 +129,14 @@ public final class LogicalTypeCasts {
                 .implicitFrom(BINARY)
                 .explicitFromFamily(CHARACTER_STRING)
                 .explicitFrom(VARBINARY)
+                .explicitFrom(RAW)
                 .build();
 
         castTo(VARBINARY)
                 .implicitFromFamily(BINARY_STRING)
                 .explicitFromFamily(CHARACTER_STRING)
                 .explicitFrom(BINARY)
+                .explicitFrom(RAW)
                 .build();
 
         castTo(DECIMAL)
@@ -319,7 +322,8 @@ public final class LogicalTypeCasts {
         } else if (sourceRoot == STRUCTURED_TYPE || targetRoot == STRUCTURED_TYPE) {
             return supportsStructuredCasting(
                     sourceType, targetType, (s, t) -> supportsCasting(s, t, allowExplicit));
-        } else if (sourceRoot == RAW || targetRoot == RAW) {
+        } else if ((sourceRoot == RAW && !targetRoot.getFamilies().contains(BINARY_STRING))
+                || targetRoot == RAW) {
             // the two raw types are not equal (from initial invariant), casting is not possible
             return false;
         } else if (sourceRoot == SYMBOL || targetRoot == SYMBOL) {
@@ -400,6 +404,8 @@ public final class LogicalTypeCasts {
                     return false;
                 }
             }
+            return true;
+        } else if (sourceRoot == ARRAY && (targetRoot == CHAR || targetRoot == VARCHAR)) {
             return true;
         }
         return false;
