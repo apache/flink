@@ -201,6 +201,19 @@ applications do not interfere with each other.
 
 ### DataStream API
 
+#### Fixed idleness handling for two/multi input operators
+
+##### [FLINK-18934](https://issues.apache.org/jira/browse/FLINK-18934)
+
+##### [FLINK-23767](https://issues.apache.org/jira/browse/FLINK-23767)
+
+We added `processWatermarkStatusX` method to classes such as `AbstractStreamOperator`, `Input` etc.
+It allows to take the `WatermarkStatus` into account when combining watermarks in two/multi input
+operators.
+
+Moreover, we clarified the contract of semi-internal, semi-public `StreamStatus` class and renamed
+it to `WatermarkStatus` in order to better reflect its purpose.
+
 #### Allow @TypeInfo annotation on POJO field declarations
 
 ##### [FLINK-12141](https://issues.apache.org/jira/browse/FLINK-12141)
