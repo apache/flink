@@ -117,8 +117,10 @@ public class PeriodicMaterializationManager implements Closeable {
     public void close() {
         shutdown = true;
 
+        LOG.info("Shutting down PeriodicMaterializationManager.");
+
         if (!periodicExecutor.isShutdown()) {
-            shutdownAndAwaitTermination(periodicExecutor);
+            periodicExecutor.shutdownNow();
         }
     }
 
@@ -261,26 +263,6 @@ public class PeriodicMaterializationManager implements Closeable {
         if (!shutdown) {
             periodicExecutor.schedule(
                     this::triggerMaterialization, periodicMaterializeDelay, TimeUnit.MILLISECONDS);
-        }
-    }
-
-    private void shutdownAndAwaitTermination(ExecutorService executorService) {
-        executorService.shutdown();
-
-        try {
-            // Wait a while for existing tasks to terminate
-            if (!executorService.awaitTermination(2, TimeUnit.MINUTES)) {
-                executorService.shutdownNow();
-
-                if (!executorService.awaitTermination(1, TimeUnit.MINUTES)) {
-                    LOG.warn(
-                            "{}: PeriodicExecutor Executor did not terminate after 3 minutes",
-                            subtaskName);
-                }
-            }
-        } catch (InterruptedException ie) {
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
         }
     }
 
