@@ -23,8 +23,7 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
-
-import org.apache.calcite.avatica.util.{TimeUnit, TimeUnitRange}
+import org.apache.flink.table.utils.DateTimeUtils.{TimeUnit, TimeUnitRange}
 
 import java.lang.reflect.Method
 

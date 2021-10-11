@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForType, qualifyMethod, TIMESTAMP_DATA}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{TIMESTAMP_DATA, getEnum, primitiveTypeTermForType, qualifyMethod}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
 
-import org.apache.calcite.avatica.util.TimeUnitRange
-import org.apache.calcite.avatica.util.TimeUnitRange._
+import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange
+import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange._
 
 import java.lang.reflect.Method
 import java.util.TimeZone

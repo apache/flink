@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.utils.DateTimeUtils.{TimeUnit, TimeUnitRange}
 
-import org.apache.calcite.avatica.util.{TimeUnit, TimeUnitRange}
 import org.apache.calcite.sql.fun.SqlTrimFunction
 
 import scala.language.{existentials, implicitConversions}

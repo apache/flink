@@ -887,12 +887,16 @@ public class DateTimeUtils {
         return convertExtract(range, ts, REUSE_TIMESTAMP_TYPE, tz);
     }
 
-    private static long unixDateExtract(TimeUnitRange range, long date) {
+    public static long unixDateExtract(TimeUnitRange range, long date) {
+        return unixDateExtract(range, (int) date);
+    }
+
+    public static long unixDateExtract(TimeUnitRange range, int date) {
         switch (range) {
             case EPOCH:
                 return date * 86400L;
             default:
-                return (long) julianExtract(range, (int) date + 2440588);
+                return julianExtract(range, date + 2440588);
         }
     }
 
@@ -1743,8 +1747,8 @@ public class DateTimeUtils {
                 return null;
             }
             hour = Integer.parseInt(v.substring(start, end).trim());
-            minute = 1;
-            second = 1;
+            minute = 0;
+            second = 0;
             milli = 0;
         } else {
             if (!isInteger(v.substring(start, colon1).trim())) {
@@ -1757,7 +1761,7 @@ public class DateTimeUtils {
                     return null;
                 }
                 minute = Integer.parseInt(v.substring(colon1 + 1, end).trim());
-                second = 1;
+                second = 0;
                 milli = 0;
             } else {
                 if (!isInteger(v.substring(colon1 + 1, colon2).trim())) {
@@ -1909,7 +1913,23 @@ public class DateTimeUtils {
     }
 
     public static long unixDateCeil(TimeUnitRange range, long date) {
-        return (long) julianDateFloor(range, (int) date + 2440588, false);
+        return julianDateFloor(range, (int) date + 2440588, false);
+    }
+
+    public static long unixDateFloor(TimeUnitRange range, long date) {
+        return julianDateFloor(range, (int) date + EPOCH_JULIAN, true);
+    }
+
+    public static long unixTimestampFloor(TimeUnitRange range, long timestamp) {
+        int date = (int) (timestamp / MILLIS_PER_DAY);
+        final long f = julianDateFloor(range, date + EPOCH_JULIAN, true);
+        return f * MILLIS_PER_DAY;
+    }
+
+    public static long unixTimestampCeil(TimeUnitRange range, long timestamp) {
+        int date = (int) (timestamp / MILLIS_PER_DAY);
+        final long f = julianDateFloor(range, date + EPOCH_JULIAN, false);
+        return f * MILLIS_PER_DAY;
     }
 
     // --------------------------------------------------------------------------------------------

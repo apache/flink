@@ -103,7 +103,7 @@ under the License.
 				Dependencies that are not needed for how we use Avatica right now.
 
 				We exclude all the dependencies of Avatica because currently we only use
-				TimeUnit, TimeUnitRange and SqlDateTimeUtils which only dependent JDK.
+				TimeUnit, TimeUnitRange and DateTimeUtils which only dependent JDK.
 
 				"mvn dependency:tree" as of Avatica 1.17:
 
