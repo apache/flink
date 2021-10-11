@@ -138,8 +138,11 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                         .cast(ROW(BIGINT(), STRING())),
                                 Row.of(12L, "Ingo"),
                                 ROW(BIGINT(), STRING())),
+
+                // https://issues.apache.org/jira/browse/FLINK-24419  Not trimmed to 3
                 TestSpec.forFunction(
-                                BuiltInFunctionDefinitions.CAST, "cast from RAW(Integer) to BYTES")
+                                BuiltInFunctionDefinitions.CAST,
+                                "cast from RAW(Integer) to BINARY(3)")
                         .onFieldsWithData(123456)
                         .andDataTypes(INT())
                         .withFunction(IntegerToRaw.class)
@@ -157,7 +160,8 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 new byte[] {0, 1, -30, 64},
                                 BYTES()),
                 TestSpec.forFunction(
-                                BuiltInFunctionDefinitions.CAST, "cast from RAW(UserPojo) to BYTES")
+                                BuiltInFunctionDefinitions.CAST,
+                                "cast from RAW(UserPojo) to VARBINARY")
                         .onFieldsWithData(123456, "Flink")
                         .andDataTypes(INT(), STRING())
                         .withFunction(StructuredTypeConstructor.class)
