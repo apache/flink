@@ -30,7 +30,6 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
-import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionEventHandler;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
@@ -65,11 +64,9 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
     private static final String CLUSTER_ID = "leader-test-cluster";
 
     public static final String LOCK_IDENTITY = UUID.randomUUID().toString();
-    public static final String LEADER_URL = "akka.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
+    public static final String LEADER_ADDRESS =
+            "akka.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
     public static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
-
-    public static final LeaderInformation LEADER_INFORMATION =
-            LeaderInformation.known(UUID.randomUUID(), LEADER_URL);
 
     protected static final long TIMEOUT = 30L * 1000L;
 
@@ -125,7 +122,7 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
                             KubernetesUtils.getConfigMapLabels(
                                     CLUSTER_ID, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
 
-            electionEventHandler = new TestingLeaderElectionEventHandler(LEADER_INFORMATION);
+            electionEventHandler = new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
             leaderElectionDriver = createLeaderElectionDriver();
 
             retrievalEventHandler = new TestingLeaderRetrievalEventHandler();
@@ -270,7 +267,7 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
                             watchCallbackExecutorService,
                             leaderConfig);
             return factory.createLeaderElectionDriver(
-                    electionEventHandler, electionEventHandler::handleError, LEADER_URL);
+                    electionEventHandler, electionEventHandler::handleError, LEADER_ADDRESS);
         }
 
         private LeaderRetrievalDriver createLeaderRetrievalDriver() {

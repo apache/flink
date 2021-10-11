@@ -192,7 +192,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
         @Override
         public void isLeader() {
-            leaderElectionEventHandler.onGrantLeadership();
+            leaderElectionEventHandler.onGrantLeadership(UUID.randomUUID());
         }
 
         @Override

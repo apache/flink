@@ -189,10 +189,10 @@ public class DefaultLeaderElectionService
 
     @Override
     @GuardedBy("lock")
-    public void onGrantLeadership() {
+    public void onGrantLeadership(UUID newLeaderSessionId) {
         synchronized (lock) {
             if (running) {
-                issuedLeaderSessionID = UUID.randomUUID();
+                issuedLeaderSessionID = newLeaderSessionId;
                 clearConfirmedLeaderInformation();
 
                 if (LOG.isDebugEnabled()) {
