@@ -115,6 +115,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   private val reusableExternalSerializers: mutable.Map[DataType, String] =
     mutable.Map[DataType,  String]()
 
+  // map of common expressions
+  // string_code -> reused_term
+  private val reusableCommonExpression: mutable.Map[String, String] =
+    mutable.Map[String, String]()
+
   /**
     * The current method name for [[reusableLocalVariableStatements]]. You can start a new
     * local variable statements for another method using [[startNewLocalVariableStatement()]]
@@ -154,6 +159,24 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   def startNewLocalVariableStatement(methodName: String): Unit = {
     currentMethodNameForLocalVariables = methodName
     reusableLocalVariableStatements(methodName) = mutable.LinkedHashSet[String]()
+  }
+
+  /**
+   * Add a reusable expression code and it's reusable term.
+   * @param code the reusable expression code
+   * @param term the reusable term
+   */
+  def addReusableCommonExpression(code: String, term: String): Unit = {
+    reusableCommonExpression.put(code, term)
+  }
+
+  /**
+   * Get the reusable term by generate code.
+   * @param code the generate code
+   * @return the reusable term if not found return the code
+   */
+  def getReusableCommonExpression(code: String) : String = {
+    reusableCommonExpression.getOrElse(code, code)
   }
 
   /**

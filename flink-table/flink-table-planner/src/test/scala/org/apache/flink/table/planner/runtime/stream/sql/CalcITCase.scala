@@ -26,6 +26,7 @@ import org.apache.flink.table.api.{TableDescriptor, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.{GenericRowData, MapData, RowData}
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils._
@@ -546,5 +547,28 @@ class CalcITCase extends StreamingTestBase {
 
     val result = tEnv.sqlQuery("SELECT * FROM T").execute().collect().toList
     TestBaseUtils.compareResultAsText(result, "42")
+  }
+
+  @Test
+  def testReusableCommonExpression(): Unit = {
+    val t = env.fromElements("aa_bb", "cc_dd", "ee_ff", "gg_hh")
+      .toTable(tEnv).as("f1")
+    tEnv.createTemporaryView("t1", t)
+    tEnv.createTemporaryFunction("str_split", StringSplitFunc)
+    val stream = tEnv.sqlQuery("select str_split(f1, '_')[1], str_split(f1, '_')[2] from t1")
+      .toAppendStream[Row]
+    stream.addSink(new TestingAppendSink)
+    env.execute()
+  }
+
+  object StringSplitFunc extends ScalarFunction {
+
+    var count: Int = 0
+
+    def eval(a: String, split: String): Array[String] = {
+      count += 1
+      Assert.assertTrue(count <= 4)
+      a.split(split)
+    }
   }
 }
