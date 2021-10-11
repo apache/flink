@@ -290,15 +290,19 @@ object BridgingFunctionGenUtil {
     val externalResultTerm = ctx.addReusableLocalVariable(externalResultTypeTerm, "externalResult")
     val externalInvokeCode =
       s"""$externalResultCasting $functionTerm
-         | .$SCALAR_EVAL(${externalOperands.map(_.resultTerm).mkString(", ")});
+         | .$SCALAR_EVAL(${externalOperands.map(_.resultTerm)
+              .map(ctx.getReusableCommonTerm).mkString(", ")});
          |""".stripMargin
-    val reusableCommonExpression = ctx.getReusableCommonExpression(externalInvokeCode)
+    val reusableCommonExpression = ctx.getReusableCommonCode(externalInvokeCode)
     val externalCode =
       s"""
          |${externalOperands.map(_.code).mkString("\n")}
-         |$externalResultTerm = $reusableCommonExpression
+         |$externalResultTerm = $reusableCommonExpression;
          |""".stripMargin
-    ctx.addReusableCommonExpression(externalInvokeCode, s"""$externalResultTerm;""".stripMargin)
+    ctx.addReusableCommonCode(externalInvokeCode, externalResultTerm)
+    if (reusableCommonExpression != externalInvokeCode) {
+      ctx.addReusableCommonTerm(externalResultTerm, reusableCommonExpression)
+    }
 
     val internalExpr = genToInternalConverterAll(ctx, outputDataType, externalResultTerm)
 

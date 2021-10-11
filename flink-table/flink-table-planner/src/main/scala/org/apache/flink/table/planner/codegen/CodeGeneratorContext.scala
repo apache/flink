@@ -115,10 +115,16 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   private val reusableExternalSerializers: mutable.Map[DataType, String] =
     mutable.Map[DataType,  String]()
 
-  // map of common expressions
+  // map of common code
   // string_code -> reused_term
-  private val reusableCommonExpression: mutable.Map[String, String] =
+  private val reusableCommonCode: mutable.Map[String, String] =
     mutable.Map[String, String]()
+
+  // map of common term
+  // term -> reused_term
+  private val reusableCommonTerm: mutable.Map[String, String] =
+    mutable.Map[String, String]()
+
 
   /**
     * The current method name for [[reusableLocalVariableStatements]]. You can start a new
@@ -166,8 +172,10 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
    * @param code the reusable expression code
    * @param term the reusable term
    */
-  def addReusableCommonExpression(code: String, term: String): Unit = {
-    reusableCommonExpression.put(code, term)
+  def addReusableCommonCode(code: String, term: String): Unit = {
+    if (!reusableCommonCode.contains(code)) {
+      reusableCommonCode.put(code, term)
+    }
   }
 
   /**
@@ -175,8 +183,28 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
    * @param code the generate code
    * @return the reusable term if not found return the code
    */
-  def getReusableCommonExpression(code: String) : String = {
-    reusableCommonExpression.getOrElse(code, code)
+  def getReusableCommonCode(code: String) : String = {
+    reusableCommonCode.getOrElse(code, code)
+  }
+
+  /**
+   * Add a reusable term and it's originalTerm term.
+   * @param newTerm the new term
+   * @param originalTerm the reusable term
+   */
+  def addReusableCommonTerm(newTerm: String, originalTerm: String): Unit = {
+    if (!reusableCommonTerm.contains(newTerm)) {
+      reusableCommonTerm.put(newTerm, originalTerm)
+    }
+  }
+
+  /**
+   * Get the reusable term by generate code.
+   * @param newTerm the generate code
+   * @return the reusable term if not found return the code
+   */
+  def getReusableCommonTerm(newTerm: String) : String = {
+    reusableCommonTerm.getOrElse(newTerm, newTerm)
   }
 
   /**

@@ -551,11 +551,16 @@ class CalcITCase extends StreamingTestBase {
 
   @Test
   def testReusableCommonExpression(): Unit = {
-    val t = env.fromElements("aa_bb", "cc_dd", "ee_ff", "gg_hh")
+    val t = env.fromElements("aa_bb_oo", "cc_dd_pp", "ee_ff_qq", "gg_hh_rr")
       .toTable(tEnv).as("f1")
     tEnv.createTemporaryView("t1", t)
     tEnv.createTemporaryFunction("str_split", StringSplitFunc)
-    val stream = tEnv.sqlQuery("select str_split(f1, '_')[1], str_split(f1, '_')[2] from t1")
+    val sql = s"""
+                 | select str_split(f1, '_')[1],
+                 | str_split(f1, '_')[2],
+                 | str_split(f1, '_')[3],
+                 | str_split(f1, '_')[1] from t1""".stripMargin
+    val stream = tEnv.sqlQuery(sql)
       .toAppendStream[Row]
     stream.addSink(new TestingAppendSink)
     env.execute()
