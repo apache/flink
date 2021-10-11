@@ -92,55 +92,6 @@ under the License.
 			<version>${janino.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.calcite.avatica</groupId>
-			<artifactId>avatica-core</artifactId>
-			<!-- When updating the Calcite version, make sure to update the version and dependency exclusions -->
-			<version>1.17.0</version>
-			<exclusions>
-				<!--
-
-				Dependencies that are not needed for how we use Avatica right now.
-
-				We exclude all the dependencies of Avatica because currently we only use
-				TimeUnit, TimeUnitRange and SqlDateTimeUtils which only dependent JDK.
-
-				"mvn dependency:tree" as of Avatica 1.17:
-
-				[INFO] +- org.apache.calcite.avatica:avatica-core:jar:1.17.0:compile
-
-				-->
-				<exclusion>
-					<groupId>org.apache.calcite.avatica</groupId>
-					<artifactId>avatica-metrics</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.protobuf</groupId>
-					<artifactId>protobuf-java</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpclient</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpcore</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
 		<!-- test dependencies -->
 
 		<dependency>

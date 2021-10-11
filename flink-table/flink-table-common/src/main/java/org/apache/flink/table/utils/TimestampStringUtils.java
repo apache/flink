@@ -117,7 +117,7 @@ public class TimestampStringUtils {
 
     /**
      * Cast TIME type value to VARCHAR(N), we use same SQL format with codegen in
-     * org.apache.flink.table.runtime.functions.SqlDateTimeUtils.
+     * org.apache.flink.table.utils.DateTimeUtils.
      */
     public static String unixTimeToString(int time) {
         final StringBuilder buf = new StringBuilder(8);

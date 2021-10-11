@@ -42,7 +42,6 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTem
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.{SqlKind, SqlOperator}
@@ -419,7 +418,15 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case _ =>
         literal.getValue3
     }
-    generateLiteral(ctx, resultType, value)
+    // Make sure to convert avatica time types to flink internal types
+    val convertedValue = value match {
+      case tu: org.apache.calcite.avatica.util.TimeUnit =>
+        org.apache.flink.table.utils.DateTimeUtils.TimeUnit.valueOf(tu.name())
+      case tur: org.apache.calcite.avatica.util.TimeUnitRange =>
+        org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange.valueOf(tur.name())
+      case _ => value
+    }
+    generateLiteral(ctx, resultType, convertedValue)
   }
 
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = {
