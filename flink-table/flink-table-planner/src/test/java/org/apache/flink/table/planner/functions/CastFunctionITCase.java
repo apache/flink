@@ -234,8 +234,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // MAP
                         // ROW
                         //
-                        // https://issues.apache.org/jira/browse/FLINK-24418
-                        // .fromCase(RAW(byte[].class), new byte[] {1}, new byte[] {1})
+                        // RAW supported - check CastFunctionMiscITCase
                         .build(),
                 CastTestSpecBuilder.testCastTo(VARBINARY(4))
                         .fromCase(CHAR(3), "foo", new byte[] {102, 111, 111})
@@ -268,8 +267,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // MAP
                         // ROW
                         //
-                        // https://issues.apache.org/jira/browse/FLINK-24418
-                        // .fromCase(RAW(byte[].class), new byte[] {1}, new byte[] {1})
+                        // RAW supported - check CastFunctionMiscITCase
                         .build(),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(CHAR(3), "foo", new byte[] {102, 111, 111})
@@ -300,8 +298,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // MAP
                         // ROW
                         //
-                        // https://issues.apache.org/jira/browse/FLINK-24418
-                        // RAW
+                        // RAW supported - check CastFunctionMiscITCase
                         .build(),
                 CastTestSpecBuilder.testCastTo(DECIMAL(4, 3))
                         .fromCase(CHAR(3), "foo", null)

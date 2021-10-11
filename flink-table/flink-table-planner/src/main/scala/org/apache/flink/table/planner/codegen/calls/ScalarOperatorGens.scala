@@ -1050,6 +1050,13 @@ object ScalarOperatorGens {
           s""" "" + $converterTerm.toExternal(${terms.head})"""
       }
 
+    case (RAW, BINARY | VARBINARY) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+        val serializer = operand.resultType.asInstanceOf[RawType[_]].getTypeSerializer
+        val serTerm = ctx.addReusableObject(serializer, "serializer")
+        operandTerm => s"$operandTerm.toBytes($serTerm)"
+      }
+
     // * (not Date/Time/Timestamp) -> String
     // TODO: GenericType with Date/Time/Timestamp -> String would call toString implicitly
     case (_, VARCHAR | CHAR) =>
