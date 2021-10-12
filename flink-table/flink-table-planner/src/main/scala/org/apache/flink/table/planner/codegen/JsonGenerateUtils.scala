@@ -154,7 +154,7 @@ object JsonGenerateUtils {
       ctx: CodeGeneratorContext,
       elementType: LogicalType): String = {
     val fieldAccessCode = toExternalTypeTerm(
-      rowFieldReadAccess(ctx, "i", "arrData", elementType), elementType)
+      rowFieldReadAccess("i", "arrData", elementType), elementType)
 
     val methodName = newName("convertArray")
     val methodCode =
@@ -182,7 +182,7 @@ object JsonGenerateUtils {
       case (fieldName, idx) =>
         val fieldType = rowType.getTypeAt(idx)
         val fieldAccessCode = toExternalTypeTerm(
-          rowFieldReadAccess(ctx, idx.toString, "rowData", fieldType), fieldType)
+          rowFieldReadAccess(idx.toString, "rowData", fieldType), fieldType)
 
         s"""
            |objNode.set("$fieldName",
@@ -217,9 +217,9 @@ object JsonGenerateUtils {
     }
 
     val keyAccessCode = toExternalTypeTerm(
-      rowFieldReadAccess(ctx, "i", "mapData.keyArray()", keyType), keyType)
+      rowFieldReadAccess("i", "mapData.keyArray()", keyType), keyType)
     val valueAccessCode = toExternalTypeTerm(
-      rowFieldReadAccess(ctx, "i", "mapData.valueArray()", valueType), valueType)
+      rowFieldReadAccess("i", "mapData.valueArray()", valueType), valueType)
 
     val methodName = newName("convertMap")
     val methodCode =
