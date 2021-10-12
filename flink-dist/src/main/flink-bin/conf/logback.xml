@@ -38,21 +38,11 @@
     <!-- The following lines keep the log level of common libraries/connectors on
          log level INFO. The root logger does not override this. You have to manually
          change the log levels here. -->
-    <logger name="akka" level="INFO">
-        <appender-ref ref="file"/>
-    </logger>
-    <logger name="org.apache.kafka" level="INFO">
-        <appender-ref ref="file"/>
-    </logger>
-    <logger name="org.apache.hadoop" level="INFO">
-        <appender-ref ref="file"/>
-    </logger>
-    <logger name="org.apache.zookeeper" level="INFO">
-        <appender-ref ref="file"/>
-    </logger>
+    <logger name="akka" level="INFO"/>
+    <logger name="org.apache.kafka" level="INFO"/>
+    <logger name="org.apache.hadoop" level="INFO"/>
+    <logger name="org.apache.zookeeper" level="INFO"/>
 
     <!-- Suppress the irrelevant (wrong) warnings from the Netty channel handler -->
-    <logger name="org.jboss.netty.channel.DefaultChannelPipeline" level="ERROR">
-        <appender-ref ref="file"/>
-    </logger>
+    <logger name="org.jboss.netty.channel.DefaultChannelPipeline" level="ERROR"/>
 </configuration>
