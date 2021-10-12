@@ -33,6 +33,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -88,8 +89,11 @@ import java.util.concurrent.CompletableFuture;
  */
 public abstract class AbstractAsynchronousOperationHandlers<K extends OperationKey, R> {
 
-    private final CompletedOperationCache<K, R> completedOperationCache =
-            new CompletedOperationCache<>();
+    private final CompletedOperationCache<K, R> completedOperationCache;
+
+    protected AbstractAsynchronousOperationHandlers(Duration cacheDuration) {
+        completedOperationCache = new CompletedOperationCache<>(cacheDuration);
+    }
 
     /**
      * Handler which is responsible for triggering an asynchronous operation. After the operation

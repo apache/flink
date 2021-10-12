@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -344,6 +345,10 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
     private static final class TestingAsynchronousOperationHandlers
             extends AbstractAsynchronousOperationHandlers<TestOperationKey, Acknowledge> {
+
+        protected TestingAsynchronousOperationHandlers() {
+            super(RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue());
+        }
 
         class TestingTriggerHandler
                 extends TriggerHandler<RestfulGateway, EmptyRequestBody, EmptyMessageParameters> {

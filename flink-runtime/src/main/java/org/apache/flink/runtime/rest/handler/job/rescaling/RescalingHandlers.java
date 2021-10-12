@@ -35,12 +35,17 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Rest handler to trigger and poll the rescaling of a running job. */
 public class RescalingHandlers
         extends AbstractAsynchronousOperationHandlers<AsynchronousJobOperationKey, Acknowledge> {
+
+    public RescalingHandlers(Duration cacheDuration) {
+        super(cacheDuration);
+    }
 
     private static RestHandlerException featureDisabledException() {
         return new RestHandlerException(

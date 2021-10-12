@@ -40,12 +40,17 @@ import org.apache.flink.util.SerializedThrowable;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Handlers to trigger the disposal of a savepoint. */
 public class SavepointDisposalHandlers
         extends AbstractAsynchronousOperationHandlers<OperationKey, Acknowledge> {
+
+    public SavepointDisposalHandlers(Duration cacheDuration) {
+        super(cacheDuration);
+    }
 
     /** {@link TriggerHandler} implementation for the savepoint disposal operation. */
     public class SavepointDisposalTriggerHandler

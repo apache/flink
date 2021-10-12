@@ -38,12 +38,17 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.SerializedThrowable;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Handler for {@link ClusterDataSetDeleteTriggerHeaders}. */
 public class ClusterDataSetDeleteHandlers
         extends AbstractAsynchronousOperationHandlers<OperationKey, Void> {
+
+    public ClusterDataSetDeleteHandlers(Duration cacheDuration) {
+        super(cacheDuration);
+    }
 
     /** {@link TriggerHandler} implementation for the cluster data set delete operation. */
     public class ClusterDataSetDeleteTriggerHandler

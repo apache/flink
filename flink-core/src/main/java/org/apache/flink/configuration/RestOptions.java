@@ -230,4 +230,12 @@ public class RestOptions {
                     .intType()
                     .defaultValue(100)
                     .withDescription("Maximum depth of stack traces used to create FlameGraphs.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> ASYNC_OPERATION_STORE_DURATION =
+            key("rest.async.store-duration")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(5))
+                    .withDescription(
+                            "Maximum duration that the result of an async operation is stored. Once elapsed the result of the operation can no longer be retrieved.");
 }

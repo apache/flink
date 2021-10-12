@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -35,6 +36,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -56,8 +58,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 @ThreadSafe
 public class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseableAsync {
 
-    private static final long COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS = 300L;
-
     private static final Logger LOGGER = LoggerFactory.getLogger(CompletedOperationCache.class);
 
     /** In-progress asynchronous operations. */
@@ -70,17 +70,29 @@ public class CompletedOperationCache<K extends OperationKey, R> implements AutoC
     private final Object lock = new Object();
 
     @Nullable private CompletableFuture<Void> terminationFuture;
+    private Duration cacheDuration;
 
-    public CompletedOperationCache() {
-        this(Ticker.systemTicker());
+    public CompletedOperationCache(final Duration cacheDuration) {
+        this(cacheDuration, Ticker.systemTicker());
     }
 
     @VisibleForTesting
     CompletedOperationCache(final Ticker ticker) {
+        this(RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue(), ticker);
+    }
+
+    @VisibleForTesting
+    CompletedOperationCache(final Duration cacheDuration, final Ticker ticker) {
+        this.cacheDuration = Preconditions.checkNotNull(cacheDuration);
+
+        CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
+
+        if (cacheDuration.getSeconds() != 0) {
+            cacheBuilder = cacheBuilder.expireAfterWrite(cacheDuration);
+        }
+
         completedOperations =
-                CacheBuilder.newBuilder()
-                        .expireAfterWrite(
-                                COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS, TimeUnit.SECONDS)
+                cacheBuilder
                         .removalListener(
                                 (RemovalListener<K, ResultAccessTracker<R>>)
                                         removalNotification -> {
@@ -103,7 +115,7 @@ public class CompletedOperationCache<K extends OperationKey, R> implements AutoC
                                                 LOGGER.info(
                                                         "Evicted result with trigger id {} because its TTL of {}s has expired.",
                                                         removalNotification.getKey().getTriggerId(),
-                                                        COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS);
+                                                        cacheDuration.getSeconds());
                                             }
                                         })
                         .ticker(ticker)
@@ -166,7 +178,7 @@ public class CompletedOperationCache<K extends OperationKey, R> implements AutoC
                 terminationFuture =
                         FutureUtils.orTimeout(
                                 asyncWaitForResultsToBeAccessed(),
-                                COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS,
+                                cacheDuration.getSeconds(),
                                 TimeUnit.SECONDS);
             }
 
