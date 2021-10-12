@@ -33,7 +33,9 @@ import org.apache.flink.util.CloseableIterator;
 
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Spliterators;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.StreamSupport;
 
 /** {@link TableResult} for testing. */
 public class TestTableResult implements TableResultInternal {
@@ -106,22 +108,11 @@ public class TestTableResult implements TableResultInternal {
     public CloseableIterator<RowData> collectInternal() {
         DataStructureConverter<Object, Object> converter =
                 DataStructureConverters.getConverter(resolvedSchema.toPhysicalRowDataType());
-        return new CloseableIterator<RowData>() {
-            @Override
-            public void close() throws Exception {
-                data.close();
-            }
-
-            @Override
-            public boolean hasNext() {
-                return data.hasNext();
-            }
-
-            @Override
-            public RowData next() {
-                Row row = data.next();
-                return (RowData) converter.toInternalOrNull(row);
-            }
-        };
+        converter.open(TestTableResult.class.getClassLoader());
+        return CloseableIterator.adapterForIterator(
+                StreamSupport.stream(Spliterators.spliteratorUnknownSize(data, 0), false)
+                        .map(row -> (RowData) converter.toInternalOrNull(row))
+                        .iterator(),
+                data);
     }
 }

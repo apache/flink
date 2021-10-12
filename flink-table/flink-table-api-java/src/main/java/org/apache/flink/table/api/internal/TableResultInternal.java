@@ -24,9 +24,7 @@ import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -39,9 +37,7 @@ public interface TableResultInternal extends TableResult {
             TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
-                    .data(
-                            Collections.singletonList(Row.of("OK")),
-                            r -> GenericRowData.of(StringData.fromString("OK")))
+                    .data(Collections.singletonList(Row.of("OK")))
                     .build();
 
     /** Returns an iterator that returns the iterator with the internal row data type. */

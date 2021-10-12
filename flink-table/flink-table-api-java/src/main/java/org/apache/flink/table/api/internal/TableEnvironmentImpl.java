@@ -67,9 +67,6 @@ import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.data.GenericRowData;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Parser;
@@ -162,7 +159,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -1169,8 +1165,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                         result.get().getResolvedTable(),
                                                         showCreateTableOperation
                                                                 .getTableIdentifier(),
-                                                        result.get().isTemporary()))),
-                                TableEnvironmentImpl::convertOneColumnStringRow)
+                                                        result.get().isTemporary()))))
                         .setPrintStyle(TableResultImpl.PrintStyle.rawContent())
                         .build();
             } else {
@@ -1274,9 +1269,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
-                    .data(
-                            Collections.singletonList(Row.of(explanation)),
-                            TableEnvironmentImpl::convertOneColumnStringRow)
+                    .data(Collections.singletonList(Row.of(explanation)))
                     .setPrintStyle(TableResultImpl.PrintStyle.rawContent())
                     .setSessionTimeZone(getConfig().getLocalTimeZone())
                     .build();
@@ -1302,11 +1295,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
-    }
-
-    private static RowData convertOneColumnStringRow(Row row) {
-        String val = row.getFieldAs(0);
-        return GenericRowData.of(StringData.fromString(val));
     }
 
     private TableResultInternal createCatalog(CreateCatalogOperation operation) {
@@ -1371,8 +1359,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return buildResult(
                 new String[] {columnName},
                 new DataType[] {DataTypes.STRING()},
-                Arrays.stream(objects).map((c) -> new String[] {c}).toArray(String[][]::new),
-                TableEnvironmentImpl::convertOneColumnStringRow);
+                Arrays.stream(objects).map((c) -> new String[] {c}).toArray(String[][]::new));
     }
 
     private String buildShowCreateTableRow(
@@ -1456,11 +1443,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private TableResultInternal buildDescribeResult(ResolvedSchema schema) {
         Object[][] rows = buildTableColumns(schema);
-        return buildResult(
-                generateTableColumnsNames(),
-                generateTableColumnsDataTypes(),
-                rows,
-                TableEnvironmentImpl::generateTableColumnsDataTypesConverter);
+        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
     }
 
     private DataType[] generateTableColumnsDataTypes() {
@@ -1478,16 +1461,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return new String[] {"name", "type", "null", "key", "extras", "watermark"};
     }
 
-    private static RowData generateTableColumnsDataTypesConverter(Row row) {
-        return GenericRowData.of(
-                StringData.fromString(row.getFieldAs(0)),
-                StringData.fromString(row.getFieldAs(1)),
-                row.getField(2),
-                StringData.fromString(row.getFieldAs(3)),
-                StringData.fromString(row.getFieldAs(4)),
-                StringData.fromString(row.getFieldAs(5)));
-    }
-
     private TableResultInternal buildShowColumnsResult(
             ResolvedSchema schema, ShowColumnsOperation showColumnsOp) {
         Object[][] rows = buildTableColumns(schema);
@@ -1503,11 +1476,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                             "\\"))
                             .toArray(Object[][]::new);
         }
-        return buildResult(
-                generateTableColumnsNames(),
-                generateTableColumnsDataTypes(),
-                rows,
-                TableEnvironmentImpl::generateTableColumnsDataTypesConverter);
+        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
     }
 
     private String getColumnString(Column column) {
@@ -1545,10 +1514,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return buildResult(
                 new String[] {"module name", "used"},
                 new DataType[] {DataTypes.STRING(), DataTypes.BOOLEAN()},
-                rows,
-                row ->
-                        GenericRowData.of(
-                                StringData.fromString(row.getFieldAs(0)), row.getField(1)));
+                rows);
     }
 
     private Object[][] buildTableColumns(ResolvedSchema schema) {
@@ -1589,15 +1555,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 .toArray(Object[][]::new);
     }
 
-    private TableResultInternal buildResult(
-            String[] headers,
-            DataType[] types,
-            Object[][] rows,
-            Function<Row, RowData> rowConverter) {
+    private TableResultInternal buildResult(String[] headers, DataType[] types, Object[][] rows) {
         return TableResultImpl.builder()
                 .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                 .schema(ResolvedSchema.physical(headers, types))
-                .data(Arrays.stream(rows).map(Row::of).collect(Collectors.toList()), rowConverter)
+                .data(Arrays.stream(rows).map(Row::of).collect(Collectors.toList()))
                 .setPrintStyle(
                         TableResultImpl.PrintStyle.tableau(Integer.MAX_VALUE, "", false, false))
                 .setSessionTimeZone(getConfig().getLocalTimeZone())

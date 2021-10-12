@@ -37,7 +37,7 @@ class InsertResultProvider implements ResultProvider {
 
     private final Long[] affectedRowCountsRow;
 
-    @Nullable private Boolean hasNext = null;
+    private @Nullable Boolean hasNext = null;
     private JobClient jobClient;
 
     InsertResultProvider(Long[] affectedRowCountsRow) {

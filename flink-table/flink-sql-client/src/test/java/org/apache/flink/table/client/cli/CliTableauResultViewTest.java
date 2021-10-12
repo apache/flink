@@ -29,11 +29,9 @@ import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -52,7 +50,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
@@ -81,7 +78,8 @@ public class CliTableauResultViewTest {
                         Column.physical("bigint", DataTypes.BIGINT()),
                         Column.physical("varchar", DataTypes.STRING()),
                         Column.physical("decimal(10, 5)", DataTypes.DECIMAL(10, 5)),
-                        Column.physical("timestamp", DataTypes.TIMESTAMP(6)));
+                        Column.physical(
+                                "timestamp", DataTypes.TIMESTAMP(6).bridgedTo(Timestamp.class)));
 
         List<Row> rows =
                 Arrays.asList(
@@ -150,24 +148,17 @@ public class CliTableauResultViewTest {
                                 BigDecimal.valueOf(-12345.06789),
                                 Timestamp.valueOf("2020-03-04 18:39:14")));
 
-        Function<Row, RowData> toInternalMapper =
-                row ->
-                        GenericRowData.ofKind(
-                                row.getKind(),
-                                row.getField(0),
-                                row.getField(1),
-                                row.getField(2),
-                                (row.getField(3) == null)
-                                        ? null
-                                        : StringData.fromString(row.getFieldAs(3)),
-                                (row.getField(4) == null)
-                                        ? null
-                                        : DecimalData.fromBigDecimal(row.getFieldAs(4), 10, 5),
-                                (row.getField(5) == null)
-                                        ? null
-                                        : TimestampData.fromTimestamp(row.getFieldAs(5)));
-        data = rows.stream().map(toInternalMapper).collect(Collectors.toList());
-        streamingData = rows.stream().map(toInternalMapper).collect(Collectors.toList());
+        final DataStructureConverter<Object, Object> dataStructureConverter =
+                DataStructureConverters.getConverter(schema.toPhysicalRowDataType());
+
+        data =
+                rows.stream()
+                        .map(r -> (RowData) (dataStructureConverter.toInternal(r)))
+                        .collect(Collectors.toList());
+        streamingData =
+                rows.stream()
+                        .map(r -> (RowData) (dataStructureConverter.toInternal(r)))
+                        .collect(Collectors.toList());
     }
 
     @Test

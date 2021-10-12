@@ -43,7 +43,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 
 /** Implementation for {@link TableResult}. */
 @Internal
@@ -148,7 +147,7 @@ public class TableResultImpl implements TableResultInternal {
 
     @Override
     public void print() {
-        Iterator<RowData> it = this.resultProvider.toInternalIterator();
+        Iterator<RowData> it = resultProvider.toInternalIterator();
         if (printStyle instanceof TableauStyle) {
             int maxColumnWidth = ((TableauStyle) printStyle).getMaxColumnWidth();
             String nullColumn = ((TableauStyle) printStyle).getNullColumn();
@@ -236,9 +235,9 @@ public class TableResultImpl implements TableResultInternal {
          *
          * @param rowList a row list as the execution result.
          */
-        public Builder data(List<Row> rowList, Function<Row, RowData> externalToInternalConverter) {
+        public Builder data(List<Row> rowList) {
             Preconditions.checkNotNull(rowList, "listRows should not be null");
-            this.resultProvider = new StaticResultProvider(rowList, externalToInternalConverter);
+            this.resultProvider = new StaticResultProvider(rowList);
             return this;
         }
 

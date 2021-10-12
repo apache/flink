@@ -19,8 +19,12 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -29,10 +33,14 @@ import java.util.function.Function;
 
 /** Create result provider from a static set of data using external types. */
 @Internal
-public class StaticResultProvider implements ResultProvider {
+class StaticResultProvider implements ResultProvider {
 
     private final List<Row> rows;
     private final Function<Row, RowData> externalToInternalConverter;
+
+    public StaticResultProvider(List<Row> rows) {
+        this(rows, StaticResultProvider::rowToInternalRow);
+    }
 
     public StaticResultProvider(
             List<Row> rows, Function<Row, RowData> externalToInternalConverter) {
@@ -59,5 +67,27 @@ public class StaticResultProvider implements ResultProvider {
     @Override
     public boolean isFirstRowReady() {
         return true;
+    }
+
+    /** This function supports only String, long, int and boolean fields. */
+    @VisibleForTesting
+    static RowData rowToInternalRow(Row row) {
+        Object[] values = new Object[row.getArity()];
+        for (int i = 0; i < row.getArity(); i++) {
+            Object value = row.getField(i);
+            if (value == null) {
+                values[i] = null;
+            } else if (value instanceof String) {
+                values[i] = StringData.fromString((String) value);
+            } else if (value instanceof Boolean
+                    || value instanceof Long
+                    || value instanceof Integer) {
+                values[i] = value;
+            } else {
+                throw new TableException("Cannot convert row type");
+            }
+        }
+
+        return GenericRowData.of(values);
     }
 }

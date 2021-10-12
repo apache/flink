@@ -26,6 +26,8 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Map;
 
@@ -42,7 +44,7 @@ public interface Executor {
      * @return used session identifier to track the session.
      * @throws SqlExecutionException if any error happen
      */
-    String openSession(@javax.annotation.Nullable String sessionId) throws SqlExecutionException;
+    String openSession(@Nullable String sessionId) throws SqlExecutionException;
 
     /**
      * Close the resources of session for given session id.
