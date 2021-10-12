@@ -33,7 +33,7 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for the {@link AkkaRpcSystemLoader}. */
-public class AkkaRpcSystemLoaderTest extends TestLogger {
+public class AkkaRpcSystemLoaderITCase extends TestLogger {
 
     private static final AkkaRpcSystemLoader LOADER = new AkkaRpcSystemLoader();
 
