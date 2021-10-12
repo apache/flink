@@ -624,10 +624,19 @@ DataStream<String> stream = ...
 Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
 
+KafkaSerializationSchema<String> serializationSchema = new KafkaSerializationSchema<String>() {
+        @Override
+        public ProducerRecord<byte[], byte[]> serialize(String element, @Nullable Long timestamp) {
+            return new ProducerRecord<>(
+                    "my-topic", // target topic
+                    element.getBytes(StandardCharsets.UTF_8)); // record contents
+            }
+        };
+
 FlinkKafkaProducer<String> myProducer = new FlinkKafkaProducer<>(
-        "my-topic",                  // target topic
-        new SimpleStringSchema(),    // serialization schema
-        properties,                  // producer config
+        "my-topic",             // target topic
+        serializationSchema,    // serialization schema
+        properties,             // producer config
         FlinkKafkaProducer.Semantic.EXACTLY_ONCE); // fault-tolerance
 
 stream.addSink(myProducer);
@@ -640,9 +649,17 @@ val stream: DataStream[String] = ...
 val properties = new Properties
 properties.setProperty("bootstrap.servers", "localhost:9092")
 
+val serializationSchema = new KafkaSerializationSchema[String] {
+        override def serialize(element: String,
+                               timestamp: lang.Long): ProducerRecord[Array[Byte], Array[Byte]] =
+            new ProducerRecord[Array[Byte], Array[Byte]](
+                    "my-topic",      // target topic
+                    element.getBytes(StandardCharsets.UTF_8)) // record contents
+        }
+
 val myProducer = new FlinkKafkaProducer[String](
         "my-topic",                  // target topic
-        new SimpleStringSchema(),    // serialization schema
+        serializationSchema,         // serialization schema
         properties,                  // producer config
         FlinkKafkaProducer.Semantic.EXACTLY_ONCE) // fault-tolerance
 
