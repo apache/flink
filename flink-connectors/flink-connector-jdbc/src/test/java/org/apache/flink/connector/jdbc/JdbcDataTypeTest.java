@@ -32,6 +32,8 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.fail;
+
 /** Tests for all DataTypes and Dialects of JDBC connector. */
 @RunWith(Parameterized.class)
 public class JdbcDataTypeTest {
@@ -40,11 +42,11 @@ public class JdbcDataTypeTest {
             "CREATE TABLE T(\n"
                     + "f0 %s\n"
                     + ") WITH (\n"
-                    + "  'connector.type'='jdbc',\n"
-                    + "  'connector.url'='"
+                    + "  'connector'='jdbc',\n"
+                    + "  'url'='"
                     + "jdbc:%s:memory:test"
                     + "',\n"
-                    + "  'connector.table'='myTable'\n"
+                    + "  'table-name'='myTable'\n"
                     + ")";
 
     @Parameterized.Parameters(name = "{index}: {0}")
@@ -142,9 +144,7 @@ public class JdbcDataTypeTest {
                         "TIMESTAMP(9) WITHOUT TIME ZONE",
                         "The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by PostgreSQL dialect."),
                 createTestItem(
-                        "postgresql",
-                        "TIMESTAMP_LTZ(3)",
-                        "The PostgreSQL dialect doesn't support type: TIMESTAMP_LTZ(3)."));
+                        "postgresql", "TIMESTAMP_LTZ(3)", "Unsupported type:TIMESTAMP_LTZ(3)"));
     }
 
     private static TestItem createTestItem(Object... args) {
@@ -170,9 +170,13 @@ public class JdbcDataTypeTest {
         if (testItem.expectError != null) {
             try {
                 tEnv.sqlQuery("SELECT * FROM T");
-            } catch (Exception ex) {
-                Assert.assertTrue(ex.getCause() instanceof ValidationException);
+                fail();
+            } catch (ValidationException ex) {
                 Assert.assertEquals(testItem.expectError, ex.getCause().getMessage());
+            } catch (UnsupportedOperationException ex) {
+                Assert.assertEquals(testItem.expectError, ex.getMessage());
+            } catch (Exception e) {
+                fail(e);
             }
         } else {
             tEnv.sqlQuery("SELECT * FROM T");

@@ -20,12 +20,12 @@ package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -207,23 +207,16 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 
             ResultSetMetaData rsmd = ps.getMetaData();
 
-            String[] names = new String[rsmd.getColumnCount()];
-            DataType[] types = new DataType[rsmd.getColumnCount()];
-
+            Schema.Builder builder = Schema.newBuilder();
             for (int i = 1; i <= rsmd.getColumnCount(); i++) {
-                names[i - 1] = rsmd.getColumnName(i);
-                types[i - 1] = fromJDBCType(rsmd, i);
+                DataType type = fromJDBCType(rsmd, i);
                 if (rsmd.isNullable(i) == ResultSetMetaData.columnNoNulls) {
-                    types[i - 1] = types[i - 1].notNull();
+                    type = type.notNull();
                 }
+                builder.column(rsmd.getColumnName(i), type);
             }
 
-            TableSchema.Builder tableBuilder = new TableSchema.Builder().fields(names, types);
-            primaryKey.ifPresent(
-                    pk ->
-                            tableBuilder.primaryKey(
-                                    pk.getName(), pk.getColumns().toArray(new String[0])));
-            TableSchema tableSchema = tableBuilder.build();
+            primaryKey.ifPresent(pk -> builder.primaryKeyNamed(pk.getName(), pk.getColumns()));
 
             Map<String, String> props = new HashMap<>();
             props.put(CONNECTOR.key(), IDENTIFIER);
@@ -232,7 +225,7 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
             props.put(USERNAME.key(), username);
             props.put(PASSWORD.key(), pwd);
 
-            return new CatalogTableImpl(tableSchema, props, "");
+            return CatalogTable.of(builder.build(), "", Collections.emptyList(), props);
         } catch (Exception e) {
             throw new CatalogException(
                     String.format("Failed getting table %s", tablePath.getFullName()), e);

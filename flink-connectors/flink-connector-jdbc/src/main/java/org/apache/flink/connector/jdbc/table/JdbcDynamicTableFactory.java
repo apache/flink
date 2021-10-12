@@ -23,18 +23,19 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialectLoader;
 import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
@@ -79,15 +80,17 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 
         helper.validate();
         validateConfigOptions(config);
+        validateDataTypeWithJdbcDialect(context.getPhysicalRowDataType(), config.get(URL));
         JdbcConnectorOptions jdbcOptions = getJdbcOptions(config);
-        TableSchema physicalSchema =
-                TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
 
         return new JdbcDynamicTableSink(
                 jdbcOptions,
                 getJdbcExecutionOptions(config),
-                getJdbcDmlOptions(jdbcOptions, physicalSchema),
-                physicalSchema);
+                getJdbcDmlOptions(
+                        jdbcOptions,
+                        context.getPhysicalRowDataType(),
+                        context.getPrimaryKeyIndexes()),
+                context.getPhysicalRowDataType());
     }
 
     @Override
@@ -98,13 +101,17 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 
         helper.validate();
         validateConfigOptions(config);
-        TableSchema physicalSchema =
-                TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+        validateDataTypeWithJdbcDialect(context.getPhysicalRowDataType(), config.get(URL));
         return new JdbcDynamicTableSource(
                 getJdbcOptions(helper.getOptions()),
                 getJdbcReadOptions(helper.getOptions()),
                 getJdbcLookupOptions(helper.getOptions()),
-                physicalSchema);
+                context.getPhysicalRowDataType());
+    }
+
+    private static void validateDataTypeWithJdbcDialect(DataType dataType, String url) {
+        final JdbcDialect dialect = JdbcDialectLoader.load(url);
+        dialect.validate((RowType) dataType.getLogicalType());
     }
 
     private JdbcConnectorOptions getJdbcOptions(ReadableConfig readableConfig) {
@@ -154,17 +161,19 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         return builder.build();
     }
 
-    private JdbcDmlOptions getJdbcDmlOptions(JdbcConnectorOptions jdbcOptions, TableSchema schema) {
+    private JdbcDmlOptions getJdbcDmlOptions(
+            JdbcConnectorOptions jdbcOptions, DataType dataType, int[] primaryKeyIndexes) {
+
         String[] keyFields =
-                schema.getPrimaryKey()
-                        .map(pk -> pk.getColumns().toArray(new String[0]))
-                        .orElse(null);
+                Arrays.stream(primaryKeyIndexes)
+                        .mapToObj(i -> DataType.getFieldNames(dataType).get(i))
+                        .toArray(String[]::new);
 
         return JdbcDmlOptions.builder()
                 .withTableName(jdbcOptions.getTableName())
                 .withDialect(jdbcOptions.getDialect())
-                .withFieldNames(schema.getFieldNames())
-                .withKeyFields(keyFields)
+                .withFieldNames(DataType.getFieldNames(dataType).toArray(new String[0]))
+                .withKeyFields(keyFields.length > 0 ? keyFields : null)
                 .build();
     }
 
