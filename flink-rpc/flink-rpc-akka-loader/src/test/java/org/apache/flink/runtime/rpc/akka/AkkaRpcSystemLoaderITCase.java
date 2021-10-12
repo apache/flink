@@ -32,7 +32,12 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/** Tests for the {@link AkkaRpcSystemLoader}. */
+/**
+ * Tests for the {@link AkkaRpcSystemLoader}.
+ *
+ * <p>This must be an ITCase so that it runs after the 'package' phase of maven. Otherwise the
+ * flink-rpc-akka jar will not be available.
+ */
 public class AkkaRpcSystemLoaderITCase extends TestLogger {
 
     private static final AkkaRpcSystemLoader LOADER = new AkkaRpcSystemLoader();
