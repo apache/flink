@@ -19,7 +19,7 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.function.FutureTaskWithException;
+import org.apache.flink.util.function.FutureWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -28,6 +28,8 @@ import javax.annotation.Nonnull;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+
+import static org.apache.flink.util.function.FunctionUtils.asCallable;
 
 /**
  * {@link java.util.concurrent.Executor} like interface for an build around a mailbox-based
@@ -143,9 +145,7 @@ public interface MailboxExecutor {
             @Nonnull RunnableWithException command,
             String descriptionFormat,
             Object... descriptionArgs) {
-        FutureTaskWithException<Void> future = new FutureTaskWithException<>(command);
-        execute(future, descriptionFormat, descriptionArgs);
-        return future;
+        return submit(asCallable(command, null), descriptionFormat, descriptionArgs);
     }
 
     /**
@@ -166,9 +166,7 @@ public interface MailboxExecutor {
      */
     default @Nonnull Future<Void> submit(
             @Nonnull RunnableWithException command, String description) {
-        FutureTaskWithException<Void> future = new FutureTaskWithException<>(command);
-        execute(future, description, EMPTY_ARGS);
-        return future;
+        return submit(command, description, EMPTY_ARGS);
     }
 
     /**
@@ -190,7 +188,7 @@ public interface MailboxExecutor {
      */
     default @Nonnull <T> Future<T> submit(
             @Nonnull Callable<T> command, String descriptionFormat, Object... descriptionArgs) {
-        FutureTaskWithException<T> future = new FutureTaskWithException<>(command);
+        FutureWithException<T> future = new FutureWithException<>(command);
         execute(future, descriptionFormat, descriptionArgs);
         return future;
     }
@@ -212,9 +210,7 @@ public interface MailboxExecutor {
      *     because the mailbox is quiesced or closed.
      */
     default @Nonnull <T> Future<T> submit(@Nonnull Callable<T> command, String description) {
-        FutureTaskWithException<T> future = new FutureTaskWithException<>(command);
-        execute(future, description, EMPTY_ARGS);
-        return future;
+        return submit(command, description, EMPTY_ARGS);
     }
 
     /**

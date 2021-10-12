@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.function.FutureTaskWithException;
+import org.apache.flink.util.function.FutureWithException;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.Assert;
@@ -55,7 +55,7 @@ public class TaskMailboxProcessorTest {
     }
 
     @Test
-    public void testSubmittingRunnableWithException() throws Exception {
+    public void testExecutingRunnableWithException() throws Exception {
         expectedException.expectMessage("Expected");
         try (MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {})) {
             final Thread submitThread =
@@ -74,6 +74,26 @@ public class TaskMailboxProcessorTest {
         }
     }
 
+    @Test
+    public void testSubmittingRunnableWithException() throws Exception {
+        expectedException.expectMessage("Expected");
+        try (MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {})) {
+            final Thread submitThread =
+                    new Thread(
+                            () -> {
+                                mailboxProcessor
+                                        .getMainMailboxExecutor()
+                                        .submit(
+                                                this::throwFlinkException,
+                                                "testSubmittingRunnableWithException");
+                            });
+
+            submitThread.start();
+            mailboxProcessor.runMailboxLoop();
+            submitThread.join();
+        }
+    }
+
     private void throwFlinkException() throws FlinkException {
         throw new FlinkException("Expected");
     }
@@ -81,7 +101,7 @@ public class TaskMailboxProcessorTest {
     @Test
     public void testShutdown() {
         MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {});
-        FutureTaskWithException<Void> testRunnableFuture = new FutureTaskWithException<>(() -> {});
+        FutureWithException<Void> testRunnableFuture = new FutureWithException<>(() -> {});
         mailboxProcessor
                 .getMailboxExecutor(DEFAULT_PRIORITY)
                 .execute(testRunnableFuture, "testRunnableFuture");
