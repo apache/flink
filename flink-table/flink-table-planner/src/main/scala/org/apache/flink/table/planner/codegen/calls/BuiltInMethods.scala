@@ -26,6 +26,8 @@ import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
 import org.apache.calcite.sql.{SqlJsonConstructorNullClause, SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
+import org.apache.calcite.sql.{SqlJsonConstructorNullClause, SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
+import org.apache.flink.table.data.binary.BinaryStringData
 
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
@@ -540,4 +542,10 @@ object BuiltInMethods {
   val JSON_QUERY = Types.lookupMethod(classOf[JsonFunctions], "jsonQuery",
     classOf[String], classOf[String], classOf[SqlJsonQueryWrapperBehavior],
     classOf[SqlJsonQueryEmptyOrErrorBehavior], classOf[SqlJsonQueryEmptyOrErrorBehavior])
+
+  // STRING functions
+
+  val BINARY_STRING_DATA_FROM_STRING = Types.lookupMethod(classOf[BinaryStringData], "fromString",
+    classOf[String])
+
 }

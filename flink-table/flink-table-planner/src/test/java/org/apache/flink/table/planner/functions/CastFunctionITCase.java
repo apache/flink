@@ -140,6 +140,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 TIMESTAMP(4),
                                 LocalDateTime.parse("2021-09-24T12:34:56.123456"),
                                 "2021-09-24 12:34:56.1234")
+                        .fromCase(TIMESTAMP(4).nullable(), null, null)
 
                         // https://issues.apache.org/jira/browse/FLINK-20869
                         // TIMESTAMP_WITH_TIME_ZONE
@@ -875,6 +876,27 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // single type
                         // .fromCase(INT(), 10, new int[] {10})
                         .fromCase(ARRAY(INT()), new int[] {1, 2, 3}, new Integer[] {1, 2, 3})
+                        .build(),
+                CastTestSpecBuilder.testCastTo(ARRAY(STRING().nullable()))
+                        .fromCase(
+                                ARRAY(TIMESTAMP().nullable()),
+                                new LocalDateTime[] {
+                                    LocalDateTime.parse("2021-09-24T12:34:56.123456"),
+                                    null,
+                                    LocalDateTime.parse("2021-09-24T14:34:56.123456")
+                                },
+                                new String[] {
+                                    "2021-09-24 12:34:56.123456", null, "2021-09-24 14:34:56.123456"
+                                })
+                        .build(),
+                CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().nullable()))
+                        .fromCase(
+                                ARRAY(INT().nullable()),
+                                new Integer[] {1, null, 2},
+                                new Long[] {1L, null, 2L})
+                        .build(),
+                CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().notNull()))
+                        .fromCase(ARRAY(INT().notNull()), new Integer[] {1, 2}, new Long[] {1L, 2L})
                         .build()
                 // https://issues.apache.org/jira/browse/FLINK-17321
                 // ARRAY
