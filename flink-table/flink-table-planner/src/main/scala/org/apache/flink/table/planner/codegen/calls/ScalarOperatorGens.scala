@@ -40,14 +40,15 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExpli
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.util.Preconditions.checkArgument
+
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
-import org.apache.flink.table.api.DataTypes.BYTES
 
 import java.lang.{StringBuilder => JStringBuilder}
 import java.nio.charset.StandardCharsets
 import java.util.Arrays.asList
+
 import scala.collection.JavaConversions._
 
 /**

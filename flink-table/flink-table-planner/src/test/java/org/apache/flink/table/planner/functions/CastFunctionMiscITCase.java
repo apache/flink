@@ -39,7 +39,6 @@ import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
-import static org.apache.flink.table.api.DataTypes.of;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.row;
@@ -54,13 +53,13 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 BuiltInFunctionDefinitions.CAST,
                                 "implicit with different field names")
                         .onFieldsWithData(Row.of(12, "Hello"))
-                        .andDataTypes(of("ROW<otherNameInt INT, otherNameString STRING>"))
+                        .andDataTypes(DataTypes.of("ROW<otherNameInt INT, otherNameString STRING>"))
                         .withFunction(RowToFirstField.class)
                         .testResult(
                                 call("RowToFirstField", $("f0")), "RowToFirstField(f0)", 12, INT()),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "implicit with type widening")
                         .onFieldsWithData(Row.of((byte) 12, "Hello"))
-                        .andDataTypes(of("ROW<i TINYINT, s STRING>"))
+                        .andDataTypes(DataTypes.of("ROW<i TINYINT, s STRING>"))
                         .withFunction(RowToFirstField.class)
                         .testResult(
                                 call("RowToFirstField", $("f0")), "RowToFirstField(f0)", 12, INT()),
@@ -68,18 +67,18 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 BuiltInFunctionDefinitions.CAST,
                                 "implicit with nested type widening")
                         .onFieldsWithData(Row.of(Row.of(12, 42), "Hello"))
-                        .andDataTypes(of("ROW<r ROW<i1 INT, i2 INT>, s STRING>"))
+                        .andDataTypes(DataTypes.of("ROW<r ROW<i1 INT, i2 INT>, s STRING>"))
                         .withFunction(NestedRowToFirstField.class)
                         .testResult(
                                 call("NestedRowToFirstField", $("f0")),
                                 "NestedRowToFirstField(f0)",
                                 Row.of(12, 42.0),
-                                of("ROW<i INT, d DOUBLE>")),
+                                DataTypes.of("ROW<i INT, d DOUBLE>")),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "explicit with nested rows and implicit nullability change")
                         .onFieldsWithData(Row.of(Row.of(12, 42, null), "Hello"))
-                        .andDataTypes(of("ROW<r ROW<i1 INT, i2 INT, i3 INT>, s STRING>"))
+                        .andDataTypes(DataTypes.of("ROW<r ROW<i1 INT, i2 INT, i3 INT>, s STRING>"))
                         .testResult(
                                 $("f0").cast(
                                                 ROW(
@@ -95,12 +94,12 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 // the inner NOT NULL is ignored in SQL because the outer ROW is
                                 // nullable and the cast does not allow setting the outer
                                 // nullability but derives it from the source operand
-                                of("ROW<r ROW<s STRING, b BOOLEAN, i INT>, s STRING>")),
+                                DataTypes.of("ROW<r ROW<s STRING, b BOOLEAN, i INT>, s STRING>")),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "explicit with nested rows and explicit nullability change")
                         .onFieldsWithData(Row.of(Row.of(12, 42, null), "Hello"))
-                        .andDataTypes(of("ROW<r ROW<i1 INT, i2 INT, i3 INT>, s STRING>"))
+                        .andDataTypes(DataTypes.of("ROW<r ROW<i1 INT, i2 INT, i3 INT>, s STRING>"))
                         .testTableApiResult(
                                 $("f0").cast(
                                                 ROW(
@@ -114,7 +113,8 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                                                         FIELD("i", INT()))),
                                                         FIELD("s", STRING()))),
                                 Row.of(Row.of("12", true, null), "Hello"),
-                                of("ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>")),
+                                DataTypes.of(
+                                        "ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>")),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "implicit between structured type and row")

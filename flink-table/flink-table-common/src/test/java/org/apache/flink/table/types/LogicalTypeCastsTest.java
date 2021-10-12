@@ -19,7 +19,7 @@
 package org.apache.flink.table.types;
 
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -260,7 +260,7 @@ public class LogicalTypeCastsTest {
 
                     // raw to binary
                     {
-                        new RawType(Integer.class, new ValueSerializer(Integer.class)),
+                        new RawType(Integer.class, IntSerializer.INSTANCE),
                         new BinaryType(),
                         false,
                         true
