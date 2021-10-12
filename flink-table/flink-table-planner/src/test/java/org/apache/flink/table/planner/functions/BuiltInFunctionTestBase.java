@@ -411,7 +411,7 @@ public abstract class BuiltInFunctionTestBase {
             return "[API] "
                     + expression.stream()
                             .map(Expression::asSummaryString)
-                            .collect(Collectors.joining());
+                            .collect(Collectors.joining(", "));
         }
     }
 
