@@ -55,7 +55,7 @@ public class KubernetesConfigOptions {
     public static final ConfigOption<ServiceExposedType> REST_SERVICE_EXPOSED_TYPE =
             key("kubernetes.rest-service.exposed.type")
                     .enumType(ServiceExposedType.class)
-                    .defaultValue(ServiceExposedType.LoadBalancer)
+                    .defaultValue(ServiceExposedType.ClusterIP)
                     .withDescription(
                             "The exposed type of the rest service. "
                                     + "The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.");
