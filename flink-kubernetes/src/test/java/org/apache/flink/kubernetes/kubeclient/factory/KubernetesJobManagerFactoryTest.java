@@ -294,7 +294,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
         final Service resultRestService = restServiceCandidates.get(0);
         assertEquals(2, resultRestService.getMetadata().getLabels().size());
 
-        assertEquals(resultRestService.getSpec().getType(), "LoadBalancer");
+        assertEquals("ClusterIP", resultRestService.getSpec().getType());
         assertEquals(1, resultRestService.getSpec().getPorts().size());
         assertEquals(5, resultRestService.getSpec().getSelector().size());
     }
