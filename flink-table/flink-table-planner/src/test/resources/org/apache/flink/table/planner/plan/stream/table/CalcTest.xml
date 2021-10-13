@@ -25,7 +25,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], kid=[CONCAT($2, _UTF-16LE'_kid_last')], _
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c, CONCAT(c, _UTF-16LE'_kid_last') AS kid, (a + 2) AS _c4, b AS b2, _UTF-16LE'literal_value' AS _c6])
+Calc(select=[a, b, c, CONCAT(c, '_kid_last') AS kid, (a + 2) AS _c4, b AS b2, 'literal_value' AS _c6])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -54,7 +54,7 @@ LogicalFilter(condition=[AND(SEARCH($1, Sarg[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]) AND SEARCH(c, Sarg[_UTF-16LE'xx']:CHAR(2) CHARACTER SET "UTF-16LE"))])
+Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]) AND SEARCH(c, Sarg[_UTF-16LE'xx']))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -114,7 +114,7 @@ LogicalFilter(condition=[OR(SEARCH($1, Sarg[(-∞..1), (1..2), (2..3), (3..4), (
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[(-∞..1), (1..2), (2..3), (3..4), (4..5), (5..6), (6..7), (7..8), (8..9), (9..10), (10..11), (11..12), (12..13), (13..14), (14..15), (15..16), (16..17), (17..18), (18..19), (19..20), (20..21), (21..22), (22..23), (23..24), (24..25), (25..26), (26..27), (27..28), (28..29), (29..30), (30..+∞)]) OR SEARCH(c, Sarg[(-∞.._UTF-16LE'xx'), (_UTF-16LE'xx'..+∞)]:CHAR(2) CHARACTER SET "UTF-16LE"))])
+Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[(-∞..1), (1..2), (2..3), (3..4), (4..5), (5..6), (6..7), (7..8), (8..9), (9..10), (10..11), (11..12), (12..13), (13..14), (14..15), (15..16), (16..17), (17..18), (18..19), (19..20), (20..21), (21..22), (22..23), (23..24), (24..25), (25..26), (26..27), (27..28), (28..29), (29..30), (30..+∞)]) OR SEARCH(c, Sarg[(-∞.._UTF-16LE'xx'), (_UTF-16LE'xx'..+∞)]))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

@@ -348,7 +348,7 @@
         "c1" : "BIGINT"
       } ]
     },
-    "description" : "Calc(select=[CAST(b) AS b, a1, a2, a3, c1])"
+    "description" : "Calc(select=[CAST(b AS BIGINT) AS b, a1, a2, a3, c1])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

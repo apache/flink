@@ -80,7 +80,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1:BIGINT AS w0$o0])
+Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1 AS w0$o0])
 +- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time])
    +- Exchange(distribution=[hash[a]])
       +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
@@ -164,7 +164,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1:BIGINT AS w0$o0])
+Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1 AS w0$o0])
 +- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
    +- Exchange(distribution=[hash[a]])
       +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
@@ -239,7 +239,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1:BIGINT AS w0$o0])
+Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1 AS w0$o0])
 +- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
    +- Exchange(distribution=[hash[a]])
       +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
@@ -276,7 +276,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1:BIGINT AS w0$o0])
+Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1 AS w0$o0])
 +- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[FirstRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
    +- Exchange(distribution=[hash[a]])
       +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])

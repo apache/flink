@@ -40,7 +40,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBL
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[(($f0 - (($f1 * $f1) / $f2)) / $f2) AS EXPR$0, (($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
+Calc(select=[(($f0 - (($f1 * $f1) / $f2)) / $f2) AS EXPR$0, (($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5) AS BIGINT) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5) AS BIGINT) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
 +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[SUM($f2) AS $f0, SUM(c) AS $f1, COUNT(c) AS $f2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[rowtime, c, (c * c) AS $f2])
@@ -97,7 +97,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(FLAG(QUARTER), w$start) = 1:BIGINT))])
+Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(QUARTER, w$start) = 1))])
 +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, rowtime, 60000, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS EXPR$0, SUM(a) AS $f1, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[rowtime, a])
@@ -129,7 +129,7 @@ LogicalProject(EXPR$0=[$1], wAvg=[$2], EXPR$2=[HOP_START($0)], EXPR$3=[HOP_END($
 Calc(select=[EXPR$0, wAvg, w$start AS EXPR$2, w$end AS EXPR$3])
 +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, proctime, 3600000, 900000)], properties=[w$start, w$end, w$proctime], select=[COUNT(*) AS EXPR$0, weightedAvg(c, a) AS wAvg, start('w$) AS w$start, end('w$) AS w$end, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
-      +- Calc(select=[proctime, c, CAST(a) AS a])
+      +- Calc(select=[proctime, c, CAST(a AS BIGINT) AS a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -345,7 +345,7 @@ LogicalProject(EXPR$0=[$2])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[b, d], select=[b, d, weightedAvg(c, $f3) AS EXPR$0])
    +- Exchange(distribution=[hash[b, d]])
-      +- Calc(select=[b, d, c, CAST(a) AS $f3])
+      +- Calc(select=[b, d, c, CAST(a AS BIGINT) AS $f3])
          +- GroupWindowAggregate(groupBy=[a, b, c], window=[TumblingGroupWindow('w$, rowtime, 900000)], select=[a, b, c, COUNT(*) AS d])
             +- Exchange(distribution=[hash[a, b, c]])
                +- Calc(select=[a, b, c, rowtime])
@@ -380,7 +380,7 @@ LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(s) AS s, CAST(a) AS a, w$start AS wStart])
+Calc(select=[CAST(s AS INTEGER) AS s, CAST(a AS INTEGER) AS a, w$start AS wStart])
 +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[SUM($f1) AS s, AVG($f1) AS a, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[rowtime, CASE((a = 1), 1, 99) AS $f1])
@@ -412,7 +412,7 @@ LogicalProject(EXPR$0=[$1], wAvg=[$2], EXPR$2=[SESSION_START($0)], EXPR$3=[SESSI
 Calc(select=[EXPR$0, wAvg, w$start AS EXPR$2, w$end AS EXPR$3])
 +- GroupWindowAggregate(window=[SessionGroupWindow('w$, proctime, 900000)], properties=[w$start, w$end, w$proctime], select=[COUNT(*) AS EXPR$0, weightedAvg(c, a) AS wAvg, start('w$) AS w$start, end('w$) AS w$end, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
-      +- Calc(select=[proctime, c, CAST(a) AS a])
+      +- Calc(select=[proctime, c, CAST(a AS BIGINT) AS a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -467,7 +467,7 @@ LogicalProject(EXPR$0=[$3])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[b, d, ping_start], select=[b, d, ping_start, weightedAvg(c, $f4) AS EXPR$0])
    +- Exchange(distribution=[hash[b, d, ping_start]])
-      +- Calc(select=[b, d, w$start AS ping_start, c, CAST(a) AS $f4])
+      +- Calc(select=[b, d, w$start AS ping_start, c, CAST(a AS BIGINT) AS $f4])
          +- GroupWindowAggregate(groupBy=[a, b, c], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[a, b, c, COUNT(*) AS d, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
             +- Exchange(distribution=[hash[a, b, c]])
                +- Calc(select=[a, b, c, rowtime])
@@ -499,7 +499,7 @@ LogicalProject(EXPR$0=[$1], wAvg=[$2], EXPR$2=[TUMBLE_START($0)], EXPR$3=[TUMBLE
 Calc(select=[EXPR$0, wAvg, w$start AS EXPR$2, w$end AS EXPR$3])
 +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS EXPR$0, weightedAvg(c, a) AS wAvg, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
-      +- Calc(select=[rowtime, c, CAST(a) AS a])
+      +- Calc(select=[rowtime, c, CAST(a AS BIGINT) AS a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -531,7 +531,7 @@ LogicalProject(EXPR$0=[$2])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[b, ping_start], select=[b, ping_start, weightedAvg(c, $f3) AS EXPR$0])
    +- Exchange(distribution=[hash[b, ping_start]])
-      +- Calc(select=[b, w$start AS ping_start, c, CAST(a) AS $f3])
+      +- Calc(select=[b, w$start AS ping_start, c, CAST(a AS BIGINT) AS $f3])
          +- GroupWindowAggregate(groupBy=[a, b, c], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[a, b, c, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
             +- Exchange(distribution=[hash[a, b, c]])
                +- Calc(select=[a, b, c, rowtime])
@@ -565,7 +565,7 @@ LogicalProject(EXPR$0=[$1])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[b], select=[b, weightedAvg(c, $f2) AS EXPR$0])
    +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[b, c, CAST(a) AS $f2])
+      +- Calc(select=[b, c, CAST(a AS BIGINT) AS $f2])
          +- GroupWindowAggregate(groupBy=[a, b, c], window=[TumblingGroupWindow('w$, rowtime, 900000)], select=[a, b, c])
             +- Exchange(distribution=[hash[a, b, c]])
                +- Calc(select=[a, b, c, rowtime])
@@ -808,7 +808,7 @@ LogicalProject(EXPR$0=[$2], wAvg=[$3], EXPR$2=[TUMBLE_START($1)], EXPR$3=[TUMBLE
 Calc(select=[EXPR$0, wAvg, w$start AS EXPR$2, w$end AS EXPR$3])
 +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS EXPR$0, weightedAvg(c, a) AS wAvg, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
-      +- Calc(select=[rowtime, c, CAST(a) AS a])
+      +- Calc(select=[rowtime, c, CAST(a AS BIGINT) AS a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>

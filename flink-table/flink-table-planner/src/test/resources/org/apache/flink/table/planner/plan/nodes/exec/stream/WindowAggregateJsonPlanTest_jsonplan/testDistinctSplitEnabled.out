@@ -1105,7 +1105,7 @@
         "cnt_distinct_c" : "BIGINT"
       } ]
     },
-    "description" : "Calc(select=[CAST(a) AS a, CAST(window_start) AS window_start, CAST(window_end) AS window_end, CAST($f1) AS cnt_star, $f2 AS sum_b, CAST($f3) AS cnt_distinct_c])"
+    "description" : "Calc(select=[CAST(a AS BIGINT) AS a, CAST(window_start AS TIMESTAMP(3)) AS window_start, CAST(window_end AS TIMESTAMP(3)) AS window_end, CAST($f1 AS BIGINT) AS cnt_star, $f2 AS sum_b, CAST($f3 AS BIGINT) AS cnt_distinct_c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

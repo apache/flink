@@ -101,7 +101,7 @@
         "EXPR$2" : "VARCHAR(2147483647) NOT NULL"
       } ]
     },
-    "description" : "Calc(select=[a, b, _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET \"UTF-16LE\" AS EXPR$2])"
+    "description" : "Calc(select=[a, b, 'A' AS EXPR$2])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

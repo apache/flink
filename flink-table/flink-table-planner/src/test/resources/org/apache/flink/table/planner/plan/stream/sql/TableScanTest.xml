@@ -192,7 +192,7 @@ LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metada
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, CAST(metadata_3) AS other_metadata, b, c, metadata_1, UPPER(metadata_1) AS computed])
+Calc(select=[a, CAST(metadata_3 AS INTEGER) AS other_metadata, b, c, metadata_1, UPPER(metadata_1) AS computed])
 +- TableSourceScan(table=[[default_catalog, default_database, MetadataTable]], fields=[a, b, c, metadata_1, metadata_3])
 ]]>
     </Resource>
@@ -209,7 +209,7 @@ LogicalProject(b=[$1], other_metadata=[CAST($4):INTEGER])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, CAST(metadata_3) AS other_metadata])
+Calc(select=[b, CAST(metadata_3 AS INTEGER) AS other_metadata])
 +- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, project=[b], metadata=[metadata_3]]], fields=[b, metadata_3])
 ]]>
     </Resource>
@@ -550,7 +550,7 @@ LogicalProject(b=[$2], ts=[$0], a=[$1])
     <Resource name="optimized rel plan">
       <![CDATA[
 Union(all=[true], union=[b, ts, a], changelogMode=[I,UA,D])
-:- Calc(select=[b, ts, CAST(a) AS a], changelogMode=[I,UA,D])
+:- Calc(select=[b, ts, CAST(a AS INTEGER) AS a], changelogMode=[I,UA,D])
 :  +- ChangelogNormalize(key=[a], changelogMode=[I,UA,D])
 :     +- Exchange(distribution=[hash[a]], changelogMode=[UA,D])
 :        +- TableSourceScan(table=[[default_catalog, default_database, upsert_src]], fields=[ts, a, b], changelogMode=[UA,D])

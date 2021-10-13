@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 
 import com.google.common.collect.ImmutableMap
 import org.apache.calcite.rel.`type`.RelDataType
@@ -31,7 +32,7 @@ import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.{RelCollation, RelWriter}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.{SqlExplainLevel, SqlKind}
 import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
 
 import java.util
@@ -56,6 +57,11 @@ object RelExplainUtil {
     case _: RelDescriptionWriterImpl => ExpressionFormat.Infix
     // traditional writer prefers prefix expression format, e.g. +(x, y)
     case _ => ExpressionFormat.Prefix
+  }
+
+  def preferExpressionDetail(pw: RelWriter): ExpressionDetail = pw.getDetailLevel match {
+    case SqlExplainLevel.EXPPLAN_ATTRIBUTES => ExpressionDetail.Explain
+    case _ => ExpressionDetail.Digest
   }
 
   /**
@@ -556,7 +562,9 @@ object RelExplainUtil {
             outputFieldName
           }
         case (l: RexLiteral, i) => s"${l.getValue3} AS ${outFieldNames.get(i)}"
-        case (_, i) => outFieldNames.get(i)
+        case (n, i) =>
+          val exprStr = FlinkRexUtil.getExpressionString(n, inFieldNames)
+          s"$exprStr AS ${outFieldNames.get(i)}"
       }.mkString("{", ", ", "}")
     }.mkString(", ")
   }
@@ -603,16 +611,39 @@ object RelExplainUtil {
     buf.toString
   }
 
+  /**
+   * Converts conditions list to String.
+   */
+  def conditionsToString(
+      conditions : Option[util.List[RexNode]],
+      inputRowType: RelDataType,
+      f: (RexNode, List[String], Option[List[RexNode]],
+        ExpressionFormat, ExpressionDetail) => String,
+      expressionFormat: ExpressionFormat = ExpressionFormat.Prefix,
+      expressionDetail: ExpressionDetail = ExpressionDetail.Digest): String = {
+    if (conditions.isEmpty) {
+      return "[]"
+    }
+    val inFieldNames = inputRowType.getFieldNames.toList
+    conditions.get.map {cond => if (cond == null) {
+      "NULL"
+    } else {
+      f(cond, inFieldNames, None, expressionFormat, expressionDetail)
+    }}.mkString(", ")
+  }
+
   def conditionToString(
       calcProgram: RexProgram,
-      f: (RexNode, List[String], Option[List[RexNode]], ExpressionFormat) => String,
-      expressionFormat: ExpressionFormat = ExpressionFormat.Prefix): String = {
+      f: (RexNode, List[String], Option[List[RexNode]],
+        ExpressionFormat, ExpressionDetail) => String,
+      expressionFormat: ExpressionFormat = ExpressionFormat.Prefix,
+      expressionDetail: ExpressionDetail = ExpressionDetail.Digest): String = {
     val cond = calcProgram.getCondition
     val inputFieldNames = calcProgram.getInputRowType.getFieldNames.toList
     val localExprs = calcProgram.getExprList.toList
 
     if (cond != null) {
-      f(cond, inputFieldNames, Some(localExprs), expressionFormat)
+      f(cond, inputFieldNames, Some(localExprs), expressionFormat, expressionDetail)
     } else {
       ""
     }
@@ -620,15 +651,17 @@ object RelExplainUtil {
 
   def selectionToString(
       calcProgram: RexProgram,
-      expression: (RexNode, List[String], Option[List[RexNode]], ExpressionFormat) => String,
-      expressionFormat: ExpressionFormat = ExpressionFormat.Prefix): String = {
+      expression: (RexNode, List[String], Option[List[RexNode]],
+        ExpressionFormat, ExpressionDetail) => String,
+      expressionFormat: ExpressionFormat = ExpressionFormat.Prefix,
+      expressionDetail: ExpressionDetail = ExpressionDetail.Digest): String = {
 
     val proj = calcProgram.getProjectList.toList
     val inFields = calcProgram.getInputRowType.getFieldNames.toList
     val localExprs = calcProgram.getExprList.toList
     val outFields = calcProgram.getOutputRowType.getFieldNames.toList
 
-    proj.map(expression(_, inFields, Some(localExprs), expressionFormat))
+    proj.map(expression(_, inFields, Some(localExprs), expressionFormat, expressionDetail))
         .zip(outFields).map { case (e, o) =>
       if (e != o) {
         e + " AS " + o
@@ -641,10 +674,12 @@ object RelExplainUtil {
   def correlateToString(
       inputType: RelDataType,
       rexCall: RexCall,
-      expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+      expression: (RexNode, List[String], Option[List[RexNode]], ExpressionDetail) => String,
+      expressionDetail: ExpressionDetail): String = {
     val name = rexCall.getOperator.toString
     val inFields = inputType.getFieldNames.toList
-    val operands = rexCall.getOperands.map(expression(_, inFields, None)).mkString(",")
+    val operands = rexCall.getOperands.map(
+        expression(_, inFields, None, expressionDetail)).mkString(",")
     s"table($name($operands))"
   }
 
@@ -817,9 +852,10 @@ object RelExplainUtil {
   def measuresDefineToString(
     measures: ImmutableMap[String, RexNode],
     fieldNames: List[String],
-    expression: (RexNode, List[String], Option[List[RexNode]]) => String): String =
+    expression: (RexNode, List[String], Option[List[RexNode]], ExpressionDetail) => String,
+    expressionDetail: ExpressionDetail): String =
     measures.map {
-      case (k, v) => s"${expression(v, fieldNames, None)} AS $k"
+      case (k, v) => s"${expression(v, fieldNames, None, expressionDetail)} AS $k"
     }.mkString(", ")
 
   /**

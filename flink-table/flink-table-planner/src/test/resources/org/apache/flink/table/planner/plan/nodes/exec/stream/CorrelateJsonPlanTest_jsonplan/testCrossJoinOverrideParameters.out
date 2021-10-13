@@ -136,7 +136,7 @@
         "f0" : "VARCHAR(2147483647)"
       } ]
     },
-    "description" : "Correlate(invocation=[func1($cor0.c, _UTF-16LE'$')], correlate=[table(func1($cor0.c,_UTF-16LE'$'))], select=[a,b,c,d,f0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) d, VARCHAR(2147483647) f0)], joinType=[INNER])"
+    "description" : "Correlate(invocation=[func1($cor0.c, _UTF-16LE'$')], correlate=[table(func1($cor0.c,'$'))], select=[a,b,c,d,f0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) d, VARCHAR(2147483647) f0)], joinType=[INNER])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {

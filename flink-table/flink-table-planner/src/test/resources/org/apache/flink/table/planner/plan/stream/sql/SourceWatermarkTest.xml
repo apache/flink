@@ -162,7 +162,7 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[EXTRACT(FLAG(SECOND), $3)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, EXTRACT(FLAG(SECOND), CAST(Reinterpret((c + 5000:INTERVAL SECOND)))) AS EXPR$2])
+Calc(select=[a, b, EXTRACT(SECOND, CAST(Reinterpret((c + 5000:INTERVAL SECOND)) AS TIMESTAMP(3))) AS EXPR$2])
 +- TableSourceScan(table=[[default_catalog, default_database, VirtualTable, watermark=[-(+(c, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)]]], fields=[a, b, c])
 ]]>
     </Resource>

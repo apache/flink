@@ -418,7 +418,7 @@
         "cnt_c" : "BIGINT"
       } ]
     },
-    "description" : "Calc(select=[d, CAST(cnt_a1) AS cnt_a1, CAST(cnt_a2) AS cnt_a2, sum_a, CAST(sum_b) AS sum_b, CAST(avg_b) AS avg_b, CAST(cnt_d) AS cnt_c])"
+    "description" : "Calc(select=[d, CAST(cnt_a1 AS BIGINT) AS cnt_a1, CAST(cnt_a2 AS BIGINT) AS cnt_a2, sum_a, CAST(sum_b AS INTEGER) AS sum_b, CAST(avg_b AS DOUBLE) AS avg_b, CAST(cnt_d AS BIGINT) AS cnt_c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

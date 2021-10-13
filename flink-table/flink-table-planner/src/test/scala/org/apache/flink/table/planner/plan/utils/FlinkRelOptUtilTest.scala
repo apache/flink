@@ -81,7 +81,8 @@ class FlinkRelOptUtilTest {
         |      +- LogicalFilter(condition=[<($1, 50)])
         |         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       """.stripMargin
-    assertEquals(expected1.trim, FlinkRelOptUtil.toString(rel).trim)
+    assertEquals(expected1.trim,
+      FlinkRelOptUtil.toString(rel, SqlExplainLevel.EXPPLAN_ATTRIBUTES).trim)
 
     val expected2 =
       """
