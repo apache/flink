@@ -52,73 +52,40 @@ class CalcITCase extends StreamingTestBase {
   def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
-  def testCastIntegerToBooleanTrueInProjection(): Unit ={
-    val sqlQuery = "SELECT CAST(1 AS BOOLEAN)"
+  def testCastNumericToBooleanInProjection(): Unit ={
+    val sqlQuery =
+      "SELECT CAST(1 AS BOOLEAN), CAST(0 AS BOOLEAN), CAST(1.1 AS BOOLEAN), CAST(0.00 AS BOOLEAN)"
 
     val outputType = InternalTypeInfo.ofFields(
-      new BooleanType())
+      new BooleanType(),
+      new BooleanType(),
+      new BooleanType(),
+      new BooleanType()
+    )
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
     val sink = new TestingAppendRowDataSink(outputType)
     result.addSink(sink)
     env.execute()
 
-    val expected = List("+I(true)")
+    val expected = List(
+      "+I(true,false,true,false)"
+    )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
-  def testCastIntegerToBooleanFalseInProjection(): Unit ={
-    val sqlQuery = "SELECT CAST(0 AS BOOLEAN)"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new BooleanType())
-
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
-    val sink = new TestingAppendRowDataSink(outputType)
-    result.addSink(sink)
-    env.execute()
-
-    val expected = List("+I(false)")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-  @Test
-  def testCastDecimalToBooleanTrueInProjection(): Unit ={
-    val sqlQuery = "SELECT CAST(1.1 AS BOOLEAN)"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new BooleanType())
-
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
-    val sink = new TestingAppendRowDataSink(outputType)
-    result.addSink(sink)
-    env.execute()
-
-    val expected = List("+I(true)")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-  @Test
-  def testCastDecimalToBooleanFalseInProjection(): Unit ={
-    val sqlQuery = "SELECT CAST(0.00 AS BOOLEAN)"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new BooleanType())
-
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
-    val sink = new TestingAppendRowDataSink(outputType)
-    result.addSink(sink)
-    env.execute()
-
-    val expected = List("+I(false)")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-
-  @Test
-  def testCastIntegerToBooleanTrueInCondition(): Unit ={
-    val sqlQuery = "SELECT * FROM MyTableRow WHERE b = CAST(1 AS BOOLEAN)"
+  def testCastNumericToBooleanInCondition(): Unit ={
+    val sqlQuery =
+      s"""
+         | SELECT * FROM MyTableRow WHERE b = CAST(1 AS BOOLEAN)
+         | UNION ALL
+         | SELECT * FROM MyTableRow WHERE b = CAST(0 AS BOOLEAN)
+         | UNION ALL
+         | SELECT * FROM MyTableRow WHERE b = CAST(1.1 AS BOOLEAN)
+         | UNION ALL
+         | SELECT * FROM MyTableRow WHERE b = CAST(0.0 AS BOOLEAN)
+         |""".stripMargin
 
     val rowData1: GenericRowData = new GenericRowData(2)
     rowData1.setField(0, 1)
@@ -149,47 +116,14 @@ class CalcITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val expected = List("+I(1,true)")
+    val expected = List(
+      "+I(1,true)",
+      "+I(2,false)",
+      "+I(1,true)",
+      "+I(2,false)"
+    )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
-
-  @Test
-  def testCastIntegerToBooleanFalseInCondition(): Unit ={
-    val sqlQuery = "SELECT * FROM MyTableRow WHERE b = CAST(0 AS BOOLEAN)"
-
-    val rowData1: GenericRowData = new GenericRowData(2)
-    rowData1.setField(0, 1)
-    rowData1.setField(1, true)
-
-    val rowData2: GenericRowData = new GenericRowData(2)
-    rowData2.setField(0, 2)
-    rowData2.setField(1, false)
-
-    val data = List(rowData1,rowData2)
-
-    implicit val dataType: TypeInformation[GenericRowData] =
-      InternalTypeInfo.ofFields(
-        new IntType(),
-        new BooleanType()).asInstanceOf[TypeInformation[GenericRowData]]
-
-    val ds = env.fromCollection(data)
-
-    val t = ds.toTable(tEnv, 'a, 'b)
-    tEnv.registerTable("MyTableRow", t)
-
-    val outputType = InternalTypeInfo.ofFields(
-      new IntType(),
-      new BooleanType())
-
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
-    val sink = new TestingAppendRowDataSink(outputType)
-    result.addSink(sink)
-    env.execute()
-
-    val expected = List("+I(2,false)")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
 
   @Test
   def testGenericRowAndRowData(): Unit = {

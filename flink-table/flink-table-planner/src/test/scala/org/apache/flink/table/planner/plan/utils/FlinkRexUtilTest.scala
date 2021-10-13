@@ -502,7 +502,7 @@ class FlinkRexUtilTest {
     FlinkRexUtil.simplify(rexBuilder, expr, expressionReducer)
   }
 
-  def makeToBooleanCast(fromData: RexNode): RexNode ={
+  private def makeToBooleanCast(fromData: RexNode): RexNode ={
     val booleanType = new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.BOOLEAN)
     rexBuilder.makeCall(
       booleanType,
