@@ -326,7 +326,11 @@ public class KafkaRecordSerializationSchemaBuilder<IN> {
                             : OptionalInt.empty();
 
             return new ProducerRecord<>(
-                    targetTopic, partition.isPresent() ? partition.getAsInt() : null, key, value);
+                    targetTopic,
+                    partition.isPresent() ? partition.getAsInt() : null,
+                    timestamp == null || timestamp < 0L ? null : timestamp,
+                    key,
+                    value);
         }
     }
 }
