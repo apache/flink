@@ -114,6 +114,7 @@ public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
     @Override
     public void refresh() throws RocksDBException {
         iterator.refresh();
+        status();
     }
 
     public byte[] key() {
