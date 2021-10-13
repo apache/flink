@@ -80,26 +80,30 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(CHAR(3))
                         .fromCase(CHAR(3), "foo", "foo")
-                        .fromCase(CHAR(4), "foo", "foo ")
-                        .fromCase(CHAR(4), "foo ", "foo ")
+                        .fromCase(CHAR(4), "foo", "foo")
+                        .fromCase(CHAR(4), "foo ", "foo")
                         .fromCase(VARCHAR(3), "foo", "foo")
                         .fromCase(VARCHAR(5), "foo", "foo")
-                        .fromCase(VARCHAR(5), "foo ", "foo ")
+                        .fromCase(VARCHAR(5), "foo ", "foo")
                         // https://issues.apache.org/jira/browse/FLINK-24413 - Trim to precision
                         // in this case down to 3 chars
-                        .fromCase(STRING(), "abcdef", "abcdef") // "abc"
-                        .fromCase(DATE(), LocalDate.parse("2021-09-30"), "2021-09-30") // "202"
+                        .fromCase(STRING(), "abcdef", "abc") // "abc"
+                        .fromCase(CHAR(5), "abcdef", "abc")
+                        .fromCase(VARCHAR(5), "abcdef", "abc")
+                        .fromCase(CHAR(2), "ab", "ab ")
+                        .fromCase(VARCHAR(2), "ab", "ab ")
+                        .fromCase(DATE(), LocalDate.parse("2021-09-30"), "202") // "202"
                         .build(),
                 CastTestSpecBuilder.testCastTo(VARCHAR(3))
                         .fromCase(CHAR(3), "foo", "foo")
-                        .fromCase(CHAR(4), "foo", "foo ")
-                        .fromCase(CHAR(4), "foo ", "foo ")
+                        .fromCase(CHAR(4), "foo", "foo")
+                        .fromCase(CHAR(4), "foo ", "foo")
                         .fromCase(VARCHAR(3), "foo", "foo")
                         .fromCase(VARCHAR(5), "foo", "foo")
-                        .fromCase(VARCHAR(5), "foo ", "foo ")
+                        .fromCase(VARCHAR(5), "foo ", "foo")
                         // https://issues.apache.org/jira/browse/FLINK-24413 - Trim to precision
                         // in this case down to 3 chars
-                        .fromCase(STRING(), "abcdef", "abcdef")
+                        .fromCase(STRING(), "abcdef", "abc")
                         .build(),
                 CastTestSpecBuilder.testCastTo(STRING())
                         .fromCase(STRING(), null, null)

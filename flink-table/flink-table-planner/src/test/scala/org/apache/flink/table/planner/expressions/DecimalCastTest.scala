@@ -164,16 +164,17 @@ class DecimalCastTest extends ExpressionTestBase {
 
   @Test
   def testCastToString(): Unit = {
-    def test(t: String): Unit = {
-      testSqlApi(s"CAST(${decimal_38_2(null)} AS $t)", "null")
-      testSqlApi(s"CAST(${decimal_38_2(0)} AS $t)", "0.00")
-      testSqlApi(s"CAST(${decimal_38_2(12.2)} AS $t)", "12.20")
-      testSqlApi(s"CAST(${decimal_38_2(-12.2)} AS $t)", "-12.20")
-      testSqlApi(s"CAST(${decimal_38_2(5.26)} AS $t)", "5.26")
-    }
+    testSqlApi(s"CAST(${decimal_38_2(null)} AS VARCHAR)", "null")
+    testSqlApi(s"CAST(${decimal_38_2(0)} AS VARCHAR)", "0.00")
+    testSqlApi(s"CAST(${decimal_38_2(12.2)} AS VARCHAR)", "12.20")
+    testSqlApi(s"CAST(${decimal_38_2(-12.2)} AS VARCHAR)", "-12.20")
+    testSqlApi(s"CAST(${decimal_38_2(5.26)} AS VARCHAR)", "5.26")
 
-    test("VARCHAR")
-    test("CHAR") // current CHAR is same to VARCHAR
+    testSqlApi(s"CAST(${decimal_38_2(null)} AS CHAR(4))", "null")
+    testSqlApi(s"CAST(${decimal_38_2(0)} AS CHAR(4))", "0.00")
+    testSqlApi(s"CAST(${decimal_38_2(12.2)} AS CHAR(5))", "12.20")
+    testSqlApi(s"CAST(${decimal_38_2(-12.2)} AS CHAR(6))", "-12.20")
+    testSqlApi(s"CAST(${decimal_38_2(5.26)} AS CHAR(4))", "5.26")
   }
 
   @Test

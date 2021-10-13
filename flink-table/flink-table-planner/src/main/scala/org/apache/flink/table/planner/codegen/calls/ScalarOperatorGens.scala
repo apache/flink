@@ -36,7 +36,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getLength, getFieldTypes}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.util.Preconditions.checkArgument
@@ -984,6 +984,18 @@ object ScalarOperatorGens {
         generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
           operandTerm =>
             s"$method($operandTerm, ${toType.getPrecision})"
+        }
+      }
+
+    // String - > String with precision
+    case (VARCHAR | CHAR, VARCHAR | CHAR) =>
+      val fromPrecision = getLength(operand.resultType)
+      val toPrecision = getLength(targetType)
+      if (fromPrecision <= toPrecision) {
+        operand.copy(resultType = targetType)
+      } else {
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm => s"$BINARY_STRING_UTIL.substringSQL($operandTerm, 1, $toPrecision)"
         }
       }
 
