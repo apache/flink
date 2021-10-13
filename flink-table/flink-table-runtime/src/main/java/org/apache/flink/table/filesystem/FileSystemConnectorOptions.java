@@ -210,7 +210,7 @@ public class FileSystemConnectorOptions {
                                     + " to decide the partition should commit or not."
                                     + " The default value is 'UTC', which means the watermark is defined on TIMESTAMP column or not defined."
                                     + " If the watermark is defined on TIMESTAMP_LTZ column, the time zone of watermark is user configured time zone,"
-                                    + " the the value should be the user configured local time zone. The option value is either a full name"
+                                    + " the value should be the user configured local time zone. The option value is either a full name"
                                     + " such as 'America/Los_Angeles', or a custom timezone id such as 'GMT-08:00'.");
 
     public static final ConfigOption<String> SINK_PARTITION_COMMIT_POLICY_KIND =

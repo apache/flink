@@ -283,7 +283,7 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
                 // metadata more robust" is fixed) places a heavy load on
                 // the metadata system.
                 //
-                // So we choose to imagine the the input is already unique, which is
+                // So we choose to imagine the input is already unique, which is
                 // untrue but harmless.
                 //
                 Util.discard(Bug.CALCITE_1048_FIXED);
