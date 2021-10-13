@@ -113,7 +113,7 @@ LogicalProject(a=[$0], b=[$1])
       <![CDATA[
 GroupTableAggregate(select=[EmptyTableAggFunc(d, e) AS (f0, f1)])
 +- Exchange(distribution=[single])
-   +- Calc(select=[a, b, c, CAST(d) AS d, PROCTIME_MATERIALIZE(e) AS e])
+   +- Calc(select=[a, b, c, CAST(d AS TIMESTAMP(3)) AS d, PROCTIME_MATERIALIZE(e) AS e])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>

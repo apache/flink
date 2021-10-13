@@ -188,9 +188,9 @@ Calc(select=[c0 AS c])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(vcol_marker) AS sum_vcol_marker])
          +- Exchange(distribution=[hash[c]])
             +- Union(all=[true], union=[c, vcol_marker])
-               :- Calc(select=[c, 1:BIGINT AS vcol_marker])
+               :- Calc(select=[c, 1 AS vcol_marker])
                :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-               +- Calc(select=[f, -1:BIGINT AS vcol_marker])
+               +- Calc(select=[f, -1 AS vcol_marker])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
@@ -280,7 +280,7 @@ LogicalUnion(all=[true])
 Union(all=[true], union=[a])
 :- Calc(select=[a])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
-+- Calc(select=[CASE((c > 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2)) AS EXPR$0])
++- Calc(select=[CASE((c > 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)) AS EXPR$0])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>

@@ -117,7 +117,9 @@ class StreamPlanner(
     sb.append("== Abstract Syntax Tree ==")
     sb.append(System.lineSeparator)
     sinkRelNodes.foreach { sink =>
-      sb.append(FlinkRelOptUtil.toString(sink))
+      // use EXPPLAN_ATTRIBUTES to make the ast result more readable
+      // and to keep the previous behavior
+      sb.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
       sb.append(System.lineSeparator)
     }
 
