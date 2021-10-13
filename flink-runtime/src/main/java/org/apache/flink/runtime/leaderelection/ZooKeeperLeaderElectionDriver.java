@@ -30,17 +30,10 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.lea
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.leader.LeaderLatchListener;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionStateListener;
-import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.CreateMode;
-import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
-import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -171,18 +164,8 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
         if (leaderLatch.hasLeadership()) {
             ChildData childData = cache.getCurrentData(connectionInformationPath);
             if (childData != null) {
-                final byte[] data = childData.getData();
-                if (data != null && data.length > 0) {
-                    final ByteArrayInputStream bais = new ByteArrayInputStream(data);
-                    final ObjectInputStream ois = new ObjectInputStream(bais);
-
-                    final String leaderAddress = ois.readUTF();
-                    final UUID leaderSessionID = (UUID) ois.readObject();
-
-                    leaderElectionEventHandler.onLeaderInformationChange(
-                            LeaderInformation.known(leaderSessionID, leaderAddress));
-                    return;
-                }
+                leaderElectionEventHandler.onLeaderInformationChange(
+                        ZooKeeperUtils.readLeaderInformation(childData.getData()));
             }
             leaderElectionEventHandler.onLeaderInformationChange(LeaderInformation.empty());
         }
@@ -204,51 +187,11 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
         }
 
         try {
-            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            final ObjectOutputStream oos = new ObjectOutputStream(baos);
-
-            oos.writeUTF(leaderInformation.getLeaderAddress());
-            oos.writeObject(leaderInformation.getLeaderSessionID());
-
-            oos.close();
-
-            boolean dataWritten = false;
-
-            while (!dataWritten && leaderLatch.hasLeadership()) {
-                Stat stat = client.checkExists().forPath(connectionInformationPath);
-
-                if (stat != null) {
-                    long owner = stat.getEphemeralOwner();
-                    long sessionID = client.getZookeeperClient().getZooKeeper().getSessionId();
-
-                    if (owner == sessionID) {
-                        try {
-                            client.setData().forPath(connectionInformationPath, baos.toByteArray());
-
-                            dataWritten = true;
-                        } catch (KeeperException.NoNodeException noNode) {
-                            // node was deleted in the meantime
-                        }
-                    } else {
-                        try {
-                            client.delete().forPath(connectionInformationPath);
-                        } catch (KeeperException.NoNodeException noNode) {
-                            // node was deleted in the meantime --> try again
-                        }
-                    }
-                } else {
-                    try {
-                        client.create()
-                                .creatingParentsIfNeeded()
-                                .withMode(CreateMode.EPHEMERAL)
-                                .forPath(connectionInformationPath, baos.toByteArray());
-
-                        dataWritten = true;
-                    } catch (KeeperException.NodeExistsException nodeExists) {
-                        // node has been created in the meantime --> try again
-                    }
-                }
-            }
+            ZooKeeperUtils.writeLeaderInformationToZooKeeper(
+                    leaderInformation,
+                    client,
+                    leaderLatch::hasLeadership,
+                    connectionInformationPath);
 
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Successfully wrote leader information: {}.", leaderInformation);

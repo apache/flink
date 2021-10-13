@@ -253,8 +253,10 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     /**
      * Closes the components which is used for external operations(e.g. Zookeeper Client, Kubernetes
      * Client).
+     *
+     * @throws Exception if the close operation failed
      */
-    protected abstract void internalClose();
+    protected abstract void internalClose() throws Exception;
 
     /**
      * Clean up the meta data in the distributed system(e.g. Zookeeper, Kubernetes ConfigMap).

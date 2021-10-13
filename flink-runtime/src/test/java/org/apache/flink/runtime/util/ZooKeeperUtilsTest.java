@@ -37,13 +37,15 @@ public class ZooKeeperUtilsTest extends TestLogger {
 
     @Test
     public void testZookeeperPathGeneration() {
-        runZookeeperPathGenerationTest("root", "namespace", "/root/namespace");
-        runZookeeperPathGenerationTest("/root/", "/namespace/", "/root/namespace");
-        runZookeeperPathGenerationTest("//root//", "//namespace//", "/root/namespace");
-        runZookeeperPathGenerationTest("////", "namespace", "/namespace");
-        runZookeeperPathGenerationTest("//a//", "/b/", "/a/b");
-        runZookeeperPathGenerationTest("", "", "/");
-        runZookeeperPathGenerationTest("root", "////", "/root");
+        runZookeeperPathGenerationTest("/root/namespace", "root", "namespace");
+        runZookeeperPathGenerationTest("/root/namespace", "/root/", "/namespace/");
+        runZookeeperPathGenerationTest("/root/namespace", "//root//", "//namespace//");
+        runZookeeperPathGenerationTest("/namespace", "////", "namespace");
+        runZookeeperPathGenerationTest("/a/b", "//a//", "/b/");
+        runZookeeperPathGenerationTest("/", "", "");
+        runZookeeperPathGenerationTest("/root", "root", "////");
+        runZookeeperPathGenerationTest("/", "");
+        runZookeeperPathGenerationTest("/a/b/c/d", "a", "b", "c", "d");
     }
 
     @Test
@@ -106,9 +108,8 @@ public class ZooKeeperUtilsTest extends TestLogger {
         Assert.assertEquals(errorMsg, handler.getErrorFuture().get().getMessage());
     }
 
-    private void runZookeeperPathGenerationTest(
-            String root, String namespace, String expectedValue) {
-        final String result = ZooKeeperUtils.generateZookeeperPath(root, namespace);
+    private void runZookeeperPathGenerationTest(String expectedValue, String... paths) {
+        final String result = ZooKeeperUtils.generateZookeeperPath(paths);
 
         assertThat(result, is(expectedValue));
     }
