@@ -21,8 +21,8 @@ package org.apache.flink.tests.util.kafka;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.categories.TravisGroup1;
-import org.apache.flink.tests.util.flink.FlinkContainer;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
+import org.apache.flink.tests.util.flink.container.FlinkContainers;
 import org.apache.flink.tests.util.kafka.containers.SchemaRegistryContainer;
 import org.apache.flink.util.DockerImageVersions;
 
@@ -35,9 +35,9 @@ import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
@@ -91,17 +91,22 @@ public class SQLClientSchemaRegistryITCase {
                     .withNetworkAliases(INTER_CONTAINER_REGISTRY_ALIAS)
                     .dependsOn(kafka);
 
-    @Rule
-    public final FlinkContainer flink =
-            FlinkContainer.builder().build().withNetwork(network).dependsOn(kafka);
+    public final FlinkContainers flink =
+            FlinkContainers.builder().setNetwork(network).setLogger(LOG).dependsOn(kafka).build();
 
     private KafkaContainerClient kafkaClient;
     private CachedSchemaRegistryClient registryClient;
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
+        flink.start();
         kafkaClient = new KafkaContainerClient(kafka);
         registryClient = new CachedSchemaRegistryClient(registry.getSchemaRegistryUrl(), 10);
+    }
+
+    @After
+    public void tearDown() {
+        flink.stop();
     }
 
     @Test

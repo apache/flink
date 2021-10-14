@@ -42,7 +42,8 @@ public class PulsarSourceUnorderedE2ECase extends UnorderedSourceTestSuiteBase<S
 
     // Defines ConnectorExternalSystem.
     @ExternalSystem
-    PulsarTestEnvironment pulsar = new PulsarTestEnvironment(container(flink.getFlinkContainer()));
+    PulsarTestEnvironment pulsar =
+            new PulsarTestEnvironment(container(flink.getFlinkContainers().getJobManager()));
 
     // Defines a set of external context Factories for different test cases.
     @ExternalContextFactory
