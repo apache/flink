@@ -40,5 +40,6 @@ Flink supports the following formats:
     <li><a href="/dev/batch/connectors/formats/azure_table_storage.html">Microsoft Azure tale storage format</a></li>
     <li><a href="/dev/batch/connectors/formats/mongodb.html">MongoDb format</a></li>
 </ul>
+These formats are gradually replaced with new Flink Source API starting with Flink 1.14.0. 
 
 {{< top >}}
