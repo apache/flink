@@ -23,6 +23,15 @@ under the License.
   {{ hugo.Generator }}
   {{ partial "docs/html-head" . }}
   {{ partial "docs/inject/head" . }}
+    <!-- Global site tag (gtag.js) - Google Analytics GA4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8ML5TM8Q0M"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-8ML5TM8Q0M');
+    </script>
 </head>
 
 <body dir={{ .Site.Language.LanguageDirection }}>
@@ -66,7 +75,7 @@ under the License.
 
   {{ partial "docs/inject/body" . }}
 
-  <!-- Google Analytics -->
+  <!-- Google Analytics UA -->
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
