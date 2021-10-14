@@ -25,6 +25,10 @@ import org.apache.flink.connectors.test.common.environment.TestEnvironment;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.tests.util.flink.container.FlinkContainer;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 
@@ -35,6 +39,8 @@ import static org.apache.flink.configuration.TaskManagerOptions.NUM_TASK_SLOTS;
 
 /** Test environment running job on {@link FlinkContainer}. */
 public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterControllable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(FlinkContainerTestEnvironment.class);
 
     private final FlinkContainer flinkContainer;
     private final String[] jarPath;
@@ -48,13 +54,15 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
         this.flinkContainer =
                 FlinkContainer.builder()
                         .numTaskManagers(numTaskManagers)
-                        .withFlinkConfiguration(flinkConfiguration)
+                        .setConfiguration(flinkConfiguration)
+                        .setLogger(LOG)
+                        .enableHAService()
                         .build();
         this.jarPath = jarPath;
     }
 
     @Override
-    public void startUp() {
+    public void startUp() throws Exception {
         if (!flinkContainer.isRunning()) {
             this.flinkContainer.start();
         }
@@ -70,13 +78,16 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
     @Override
     public StreamExecutionEnvironment createExecutionEnvironment() {
         return StreamExecutionEnvironment.createRemoteEnvironment(
-                this.flinkContainer.getHost(),
-                this.flinkContainer.getMappedPort(FlinkContainer.JOB_MANAGER_REST_PORT),
+                this.flinkContainer.getJobManagerHost(),
+                this.flinkContainer.getJobManagerPort(),
                 this.jarPath);
     }
 
     @Override
-    public void triggerJobManagerFailover(JobClient jobClient, Runnable afterFailAction) {}
+    public void triggerJobManagerFailover(JobClient jobClient, Runnable afterFailAction)
+            throws Exception {
+        flinkContainer.restartJobManager(afterFailAction::run);
+    }
 
     @Override
     public void triggerTaskManagerFailover(JobClient jobClient, Runnable afterFailAction)
