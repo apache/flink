@@ -26,6 +26,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessin
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
@@ -38,6 +39,11 @@ public class SqlJsonUtils {
 
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
     private static final ObjectMapper MAPPER = new ObjectMapper(JSON_FACTORY);
+
+    /** Returns the {@link JsonNodeFactory} for creating nodes. */
+    public static JsonNodeFactory getNodeFactory() {
+        return MAPPER.getNodeFactory();
+    }
 
     /** Returns a new {@link ObjectNode}. */
     public static ObjectNode createObjectNode() {
