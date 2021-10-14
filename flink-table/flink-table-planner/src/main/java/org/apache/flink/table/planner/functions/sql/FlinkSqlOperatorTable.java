@@ -878,6 +878,15 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                             OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
                     SqlFunctionCategory.STRING);
 
+    public static final SqlFunction ROW_KIND =
+            new SqlFunction("ROW_KIND",
+                    SqlKind.OTHER_FUNCTION,
+                    ReturnTypes.explicit(SqlTypeName.VARCHAR, 2),
+                    null,
+                    OperandTypes.NILADIC,
+                    SqlFunctionCategory.STRING
+            );
+
     /** <code>AUXILIARY_GROUP</code> aggregate function. Only be used in internally. */
     public static final SqlAggFunction AUXILIARY_GROUP = new SqlAuxiliaryGroupAggFunction();
 

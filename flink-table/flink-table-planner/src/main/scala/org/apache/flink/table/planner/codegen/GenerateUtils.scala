@@ -504,6 +504,19 @@ object GenerateUtils {
     GeneratedExpression(resultTerm, NEVER_NULL, resultCode, resultType)
   }
 
+  def generateRowKind(ctx: CodeGeneratorContext): GeneratedExpression = {
+    val resultType = new VarCharType(2)
+    val resultTypeTerm = primitiveTypeTermForType(resultType)
+    val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "rowKind")
+    val resultCode =
+      s"""
+         |$resultTerm = org.apache.flink.table.data.binary.BinaryStringData.fromString(
+         |$DEFAULT_INPUT1_TERM.getRowKind().shortString());
+         |""".stripMargin.trim
+    // the proctime has been materialized, so it's TIMESTAMP now, not PROCTIME_INDICATOR
+    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, resultType)
+  }
+
   def generateCurrentTimestamp(
       ctx: CodeGeneratorContext): GeneratedExpression = {
     new CurrentTimePointCallGen(true, true).generate(ctx, Seq(), new LocalZonedTimestampType(3))
