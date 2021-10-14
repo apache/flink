@@ -69,7 +69,7 @@ public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
 
     @Override
     public void seekToLast() {
-        iterator.seekToFirst();
+        iterator.seekToLast();
     }
 
     @Override
