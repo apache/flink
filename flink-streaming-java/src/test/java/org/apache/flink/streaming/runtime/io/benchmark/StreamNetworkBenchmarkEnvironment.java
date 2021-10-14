@@ -276,7 +276,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
         return new InputGateWithMetrics(
                 singleGate,
                 new SimpleCounter(),
-                new ThroughputCalculator(SystemClock.getInstance(), 10));
+                new ThroughputCalculator(SystemClock.getInstance()));
     }
 
     private static ShuffleDescriptor createShuffleDescriptor(

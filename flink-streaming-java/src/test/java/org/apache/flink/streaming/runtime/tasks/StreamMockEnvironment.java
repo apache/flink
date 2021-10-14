@@ -149,7 +149,7 @@ public class StreamMockEnvironment implements Environment {
                 inputSplitProvider,
                 bufferSize,
                 taskStateManager,
-                new ThroughputCalculator(SystemClock.getInstance(), 10),
+                new ThroughputCalculator(SystemClock.getInstance()),
                 false);
     }
 

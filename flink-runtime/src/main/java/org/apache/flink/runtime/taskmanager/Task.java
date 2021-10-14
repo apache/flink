@@ -115,7 +115,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Consumer;
 
-import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_SAMPLES;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -420,9 +419,7 @@ public class Task
                         .toArray(new IndexedInputGate[0]);
 
         this.inputGates = new IndexedInputGate[gates.length];
-        this.throughputCalculator =
-                new ThroughputCalculator(
-                        SystemClock.getInstance(), taskConfiguration.get(BUFFER_DEBLOAT_SAMPLES));
+        this.throughputCalculator = new ThroughputCalculator(SystemClock.getInstance());
         int counter = 0;
         for (IndexedInputGate gate : gates) {
             inputGates[counter++] =
