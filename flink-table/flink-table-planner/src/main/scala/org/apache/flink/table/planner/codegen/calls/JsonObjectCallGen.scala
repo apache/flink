@@ -17,6 +17,7 @@
  */
 
 package org.apache.flink.table.planner.codegen.calls
+
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createNodeTerm, getOnNullBehavior}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
@@ -56,7 +57,7 @@ class JsonObjectCallGen(call: RexCall) extends CallGenerator {
     val onNull = getOnNullBehavior(operands.head)
     val populateNodeCode = operands.zipWithIndex.drop(1).grouped(2).map {
       case Seq((keyExpr, _), (valueExpr, valueIdx)) =>
-        val valueTerm = createNodeTerm(ctx, nodeTerm, valueExpr, call.operands.get(valueIdx))
+        val valueTerm = createNodeTerm(ctx, valueExpr, call.operands.get(valueIdx))
 
         onNull match {
           case NULL_ON_NULL =>
