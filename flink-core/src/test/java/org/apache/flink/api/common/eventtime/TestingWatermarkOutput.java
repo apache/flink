@@ -36,6 +36,11 @@ final class TestingWatermarkOutput implements WatermarkOutput {
         isIdle = true;
     }
 
+    @Override
+    public void markActive() {
+        isIdle = false;
+    }
+
     public Watermark lastWatermark() {
         return lastWatermark;
     }

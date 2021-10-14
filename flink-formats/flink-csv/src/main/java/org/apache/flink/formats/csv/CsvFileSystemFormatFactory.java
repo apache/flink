@@ -48,14 +48,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.formats.csv.CsvFormatFactory.validateFormatOptions;
-import static org.apache.flink.formats.csv.CsvOptions.ALLOW_COMMENTS;
-import static org.apache.flink.formats.csv.CsvOptions.ARRAY_ELEMENT_DELIMITER;
-import static org.apache.flink.formats.csv.CsvOptions.DISABLE_QUOTE_CHARACTER;
-import static org.apache.flink.formats.csv.CsvOptions.ESCAPE_CHARACTER;
-import static org.apache.flink.formats.csv.CsvOptions.FIELD_DELIMITER;
-import static org.apache.flink.formats.csv.CsvOptions.IGNORE_PARSE_ERRORS;
-import static org.apache.flink.formats.csv.CsvOptions.NULL_LITERAL;
-import static org.apache.flink.formats.csv.CsvOptions.QUOTE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_COMMENTS;
+import static org.apache.flink.formats.csv.CsvFormatOptions.ARRAY_ELEMENT_DELIMITER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.DISABLE_QUOTE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.ESCAPE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.FIELD_DELIMITER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_PARSE_ERRORS;
+import static org.apache.flink.formats.csv.CsvFormatOptions.NULL_LITERAL;
+import static org.apache.flink.formats.csv.CsvFormatOptions.QUOTE_CHARACTER;
 
 /** CSV format factory for file system. */
 public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {

@@ -76,7 +76,9 @@ public class AvroKryoClassloadingTest {
                 FlinkUserCodeClassLoaders.childFirst(
                         new URL[] {avroLocation, kryoLocation},
                         parentClassLoader,
-                        CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue().split(";"),
+                        CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS
+                                .defaultValue()
+                                .toArray(new String[0]),
                         NOOP_EXCEPTION_HANDLER,
                         true);
 

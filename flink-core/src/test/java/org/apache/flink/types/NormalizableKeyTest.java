@@ -140,7 +140,7 @@ public class NormalizableKeyTest {
 
             if ((comp = (normKey1 - normKey2)) != 0) {
                 if (Math.signum(key1.compareTo((T) key2)) != Math.signum(comp)) {
-                    Assert.fail("Normalized key comparison differs from actual key comparision");
+                    Assert.fail("Normalized key comparison differs from actual key comparison");
                 }
                 return;
             }

@@ -67,7 +67,7 @@ public abstract class AbstractOrcNoHiveVector
             return new OrcNoHiveTimestampVector((TimestampColumnVector) vector);
         } else {
             throw new UnsupportedOperationException(
-                    "Unsupport vector: " + vector.getClass().getName());
+                    "Unsupported vector: " + vector.getClass().getName());
         }
     }
 

@@ -46,6 +46,8 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 
     private boolean autoCompletePendingRequests = true;
 
+    private boolean completePendingRequestsWithReturnedSlots = false;
+
     private final List<LogicalSlot> returnedSlots = new ArrayList<>();
 
     public TestExecutionSlotAllocator() {
@@ -133,6 +135,10 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
         autoCompletePendingRequests = false;
     }
 
+    public void enableCompletePendingRequestsWithReturnedSlots() {
+        completePendingRequestsWithReturnedSlots = true;
+    }
+
     @Override
     public void cancel(final ExecutionVertexID executionVertexId) {
         final SlotExecutionVertexAssignment slotVertexAssignment =
@@ -145,6 +151,19 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
     @Override
     public void returnLogicalSlot(final LogicalSlot logicalSlot) {
         returnedSlots.add(logicalSlot);
+
+        if (completePendingRequestsWithReturnedSlots) {
+            if (pendingRequests.size() > 0) {
+                // logical slots are not re-usable, creating a new one instead.
+                final LogicalSlot slot =
+                        logicalSlotBuilder.setSlotOwner(this).createTestingLogicalSlot();
+
+                final SlotExecutionVertexAssignment slotVertexAssignment =
+                        pendingRequests.remove(pendingRequests.keySet().stream().findAny().get());
+
+                slotVertexAssignment.getLogicalSlotFuture().complete(slot);
+            }
+        }
     }
 
     public List<LogicalSlot> getReturnedSlots() {

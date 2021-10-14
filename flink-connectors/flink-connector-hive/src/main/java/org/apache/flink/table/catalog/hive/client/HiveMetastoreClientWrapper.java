@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -51,8 +50,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-
 /**
  * Wrapper class for Hive Metastore Client, which embeds a HiveShim layer to handle different Hive
  * versions. Methods provided mostly conforms to IMetaStoreClient interfaces except those that
@@ -68,11 +65,12 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
     private final HiveShim hiveShim;
 
     public HiveMetastoreClientWrapper(HiveConf hiveConf, String hiveVersion) {
+        this(hiveConf, HiveShimLoader.loadHiveShim(hiveVersion));
+    }
+
+    public HiveMetastoreClientWrapper(HiveConf hiveConf, HiveShim hiveShim) {
         this.hiveConf = Preconditions.checkNotNull(hiveConf, "HiveConf cannot be null");
-        checkArgument(
-                !StringUtils.isNullOrWhitespaceOnly(hiveVersion),
-                "hiveVersion cannot be null or empty");
-        hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+        this.hiveShim = hiveShim;
         // use synchronized client in case we're talking to a remote HMS
         client =
                 HiveCatalog.isEmbeddedMetastore(hiveConf)
@@ -137,6 +135,11 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
     public Partition getPartition(String databaseName, String tableName, List<String> list)
             throws NoSuchObjectException, MetaException, TException {
         return client.getPartition(databaseName, tableName, list);
+    }
+
+    public List<Partition> getPartitionsByNames(
+            String databaseName, String tableName, List<String> partitionNames) throws TException {
+        return client.getPartitionsByNames(databaseName, tableName, partitionNames);
     }
 
     public List<String> listPartitionNames(

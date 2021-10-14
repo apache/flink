@@ -19,6 +19,7 @@ from enum import Enum
 from typing import Optional
 
 from pyflink.common import Duration
+from pyflink.datastream.checkpoint_storage import CheckpointStorage, _from_j_checkpoint_storage
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.java_gateway import get_gateway
 
@@ -213,6 +214,35 @@ class CheckpointConfig(object):
         self._j_checkpoint_config.setFailOnCheckpointingErrors(fail_on_checkpointing_errors)
         return self
 
+    def get_tolerable_checkpoint_failure_number(self) -> int:
+        """
+        Get the defined number of consecutive checkpoint failures that will be tolerated, before the
+        whole job is failed over.
+
+        :return: The maximum number of tolerated checkpoint failures.
+        """
+        return self._j_checkpoint_config.getTolerableCheckpointFailureNumber()
+
+    def set_tolerable_checkpoint_failure_number(self,
+                                                tolerable_checkpoint_failure_number: int
+                                                ) -> 'CheckpointConfig':
+        """
+        This defines how many consecutive checkpoint failures will be tolerated, before the whole
+        job is failed over. The default value is `0`, which means no checkpoint failures will be
+        tolerated, and the job will fail on first reported checkpoint failure.
+
+        Example:
+        ::
+
+            >>> config.set_tolerable_checkpoint_failure_number(2)
+
+        :param tolerable_checkpoint_failure_number: The maximum number of tolerated checkpoint
+                                                    failures.
+        """
+        self._j_checkpoint_config.setTolerableCheckpointFailureNumber(
+            tolerable_checkpoint_failure_number)
+        return self
+
     def enable_externalized_checkpoints(
             self,
             cleanup_mode: 'ExternalizedCheckpointCleanup') -> 'CheckpointConfig':
@@ -253,28 +283,6 @@ class CheckpointConfig(object):
         :return: ``True`` if checkpoints should be externalized, false otherwise.
         """
         return self._j_checkpoint_config.isExternalizedCheckpointsEnabled()
-
-    def is_prefer_checkpoint_for_recovery(self) -> bool:
-        """
-        Returns whether a job recovery should fallback to checkpoint when there is a more recent
-        savepoint.
-
-        :return: ``True`` if a job recovery should fallback to checkpoint, false otherwise.
-        """
-        return self._j_checkpoint_config.isPreferCheckpointForRecovery()
-
-    def set_prefer_checkpoint_for_recovery(
-            self,
-            prefer_checkpoint_for_recovery: bool) -> 'CheckpointConfig':
-        """
-        Sets whether a job recovery should fallback to checkpoint when there is a more recent
-        savepoint.
-
-        :param prefer_checkpoint_for_recovery: ``True`` if a job recovery should fallback to
-                                               checkpoint, false otherwise.
-        """
-        self._j_checkpoint_config.setPreferCheckpointForRecovery(prefer_checkpoint_for_recovery)
-        return self
 
     def get_externalized_checkpoint_cleanup(self) -> Optional['ExternalizedCheckpointCleanup']:
         """
@@ -375,6 +383,44 @@ class CheckpointConfig(object):
         :return: True, if unaligned checkpoints are forced, false otherwise.
         """
         return self._j_checkpoint_config.isForceUnalignedCheckpoints()
+
+    def set_checkpoint_storage(self, storage: CheckpointStorage) -> 'CheckpointConfig':
+        """
+        Checkpoint storage defines how stat backends checkpoint their state for fault
+        tolerance in streaming applications. Various implementations store their checkpoints
+        in different fashions and have different requirements and availability guarantees.
+
+        For example, `JobManagerCheckpointStorage` stores checkpoints in the memory of the
+        JobManager. It is lightweight and without additional dependencies but is not highly
+        available and only supports small state sizes. This checkpoint storage policy is convenient
+        for local testing and development.
+
+        The `FileSystemCheckpointStorage` stores checkpoints in a filesystem. For systems like
+        HDFS, NFS Drivs, S3, and GCS, this storage policy supports large state size, in the
+        magnitude of many terabytes while providing a highly available foundation for stateful
+        applications. This checkpoint storage policy is recommended for most production deployments.
+        """
+        self._j_checkpoint_config.setCheckpointStorage(storage._j_checkpoint_storage)
+        return self
+
+    def set_checkpoint_storage_dir(self, checkpoint_path: str) -> 'CheckpointConfig':
+        """
+        Configures the application to write out checkpoint snapshots to the configured directory.
+        See `FileSystemCheckpointStorage` for more details on checkpointing to a file system.
+        """
+        self._j_checkpoint_config.setCheckpointStorage(checkpoint_path)
+        return self
+
+    def get_checkpoint_storage(self) -> Optional[CheckpointStorage]:
+        """
+        The checkpoint storage that has been configured for the Job, or None if
+        none has been set.
+        """
+        j_storage = self._j_checkpoint_config.getCheckpointStorage()
+        if j_storage is None:
+            return None
+        else:
+            return _from_j_checkpoint_storage(j_storage)
 
 
 class ExternalizedCheckpointCleanup(Enum):

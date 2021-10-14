@@ -24,8 +24,10 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
@@ -70,6 +72,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
@@ -90,12 +93,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBackend
         implements ConfigurableStateBackend {
-
-    /** The options to chose for the type of priority queue state. */
-    public enum PriorityQueueStateType {
-        HEAP,
-        ROCKSDB
-    }
 
     private static final long serialVersionUID = 1L;
 
@@ -138,7 +135,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     private final RocksDBMemoryConfiguration memoryConfiguration;
 
     /** This determines the type of priority queue state. */
-    @Nullable private EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType;
+    @Nullable private PriorityQueueStateType priorityQueueStateType;
 
     /** The default rocksdb metrics options. */
     private final RocksDBNativeMetricOptions defaultMetricOptions;
@@ -663,7 +660,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      *
      * @return The type of the priority queue state.
      */
-    public EmbeddedRocksDBStateBackend.PriorityQueueStateType getPriorityQueueStateType() {
+    public PriorityQueueStateType getPriorityQueueStateType() {
         return priorityQueueStateType == null
                 ? TIMER_SERVICE_FACTORY.defaultValue()
                 : priorityQueueStateType;
@@ -673,8 +670,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * Sets the type of the priority queue state. It will fallback to the default value, if it is
      * not explicitly set.
      */
-    public void setPriorityQueueStateType(
-            EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType) {
+    public void setPriorityQueueStateType(PriorityQueueStateType priorityQueueStateType) {
         this.priorityQueueStateType = checkNotNull(priorityQueueStateType);
     }
 
@@ -894,5 +890,26 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                 org.rocksdb.NativeLibraryLoader.class.getDeclaredField("initialized");
         initField.setAccessible(true);
         initField.setBoolean(null, false);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Enums
+    // ---------------------------------------------------------------------------------------------
+
+    /** The options to chose for the type of priority queue state. */
+    public enum PriorityQueueStateType implements DescribedEnum {
+        HEAP(text("Heap-based")),
+        ROCKSDB(text("Implementation based on RocksDB"));
+
+        private final InlineElement description;
+
+        PriorityQueueStateType(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 }

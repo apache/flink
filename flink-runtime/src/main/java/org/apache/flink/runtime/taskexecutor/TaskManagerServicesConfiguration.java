@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -26,7 +27,6 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
@@ -260,7 +260,8 @@ public class TaskManagerServicesConfiguration {
         final QueryableStateConfiguration queryableStateConfig =
                 QueryableStateConfiguration.fromConfiguration(configuration);
 
-        long timerServiceShutdownTimeout = AkkaUtils.getTimeout(configuration).toMillis();
+        long timerServiceShutdownTimeout =
+                configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION).toMillis();
 
         final RetryingRegistrationConfiguration retryingRegistrationConfiguration =
                 RetryingRegistrationConfiguration.fromConfiguration(configuration);

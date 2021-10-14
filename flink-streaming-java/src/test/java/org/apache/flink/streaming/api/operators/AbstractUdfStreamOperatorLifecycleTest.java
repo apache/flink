@@ -36,7 +36,6 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -68,9 +67,9 @@ public class AbstractUdfStreamOperatorLifecycleTest {
                     "UDF::run",
                     "OPERATOR::prepareSnapshotPreBarrier",
                     "OPERATOR::snapshotState",
+                    "OPERATOR::finish",
                     "OPERATOR::close",
-                    "UDF::close",
-                    "OPERATOR::dispose");
+                    "UDF::close");
 
     private static final List<String> EXPECTED_CALL_ORDER_CANCEL_RUNNING =
             Arrays.asList(
@@ -83,13 +82,13 @@ public class AbstractUdfStreamOperatorLifecycleTest {
                     "UDF::run",
                     "OPERATOR::cancel",
                     "UDF::cancel",
-                    "OPERATOR::dispose",
+                    "OPERATOR::close",
                     "UDF::close");
 
     private static final String ALL_METHODS_STREAM_OPERATOR =
             "["
                     + "close[], "
-                    + "dispose[], "
+                    + "finish[], "
                     + "getCurrentKey[], "
                     + "getMetricGroup[], "
                     + "getOperatorID[], "
@@ -253,12 +252,11 @@ public class AbstractUdfStreamOperatorLifecycleTest {
         @Override
         public void run(
                 Object lockingObject,
-                StreamStatusMaintainer streamStatusMaintainer,
                 Output<StreamRecord<OUT>> collector,
                 OperatorChain<?, ?> operatorChain)
                 throws Exception {
             ACTUAL_ORDER_TRACKING.add("OPERATOR::run");
-            super.run(lockingObject, streamStatusMaintainer, collector, operatorChain);
+            super.run(lockingObject, collector, operatorChain);
             runStarted.trigger();
             runFinish.await();
         }
@@ -322,6 +320,12 @@ public class AbstractUdfStreamOperatorLifecycleTest {
         }
 
         @Override
+        public void finish() throws Exception {
+            ACTUAL_ORDER_TRACKING.add("OPERATOR::finish");
+            super.finish();
+        }
+
+        @Override
         public void close() throws Exception {
             ACTUAL_ORDER_TRACKING.add("OPERATOR::close");
             super.close();
@@ -331,15 +335,6 @@ public class AbstractUdfStreamOperatorLifecycleTest {
         public void cancel() {
             ACTUAL_ORDER_TRACKING.add("OPERATOR::cancel");
             super.cancel();
-        }
-
-        @Override
-        public void dispose() throws Exception {
-            ACTUAL_ORDER_TRACKING.add("OPERATOR::dispose");
-            super.dispose();
-            if (simulateCheckpointing) {
-                testCheckpointer.join();
-            }
         }
     }
 }

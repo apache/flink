@@ -90,8 +90,7 @@ public class JobExceptionsHandler
 
     @Override
     protected JobExceptionsInfoWithHistory handleRequest(
-            HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request,
-            ExecutionGraphInfo executionGraph) {
+            HandlerRequest<EmptyRequestBody> request, ExecutionGraphInfo executionGraph) {
         List<Integer> exceptionToReportMaxSizes =
                 request.getQueryParameter(UpperLimitExceptionParameter.class);
         final int exceptionToReportMaxSize =
@@ -215,9 +214,6 @@ public class JobExceptionsHandler
         Preconditions.checkArgument(
                 exceptionHistoryEntry.getFailingTaskName() != null,
                 "The taskName must not be null for a non-global failure.");
-        Preconditions.checkArgument(
-                exceptionHistoryEntry.getTaskManagerLocation() != null,
-                "The location must not be null for a non-global failure.");
     }
 
     @VisibleForTesting

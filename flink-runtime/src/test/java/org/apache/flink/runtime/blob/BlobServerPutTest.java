@@ -23,11 +23,11 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;

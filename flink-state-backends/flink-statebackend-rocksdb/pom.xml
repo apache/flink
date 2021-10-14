@@ -27,7 +27,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-state-backends</artifactId>
-		<version>1.14-SNAPSHOT</version>
+		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -55,9 +55,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
+			<groupId>com.ververica</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>5.17.2-artisans-2.0</version>
+			<version>6.20.3-ververica-1.0</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -76,7 +76,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>

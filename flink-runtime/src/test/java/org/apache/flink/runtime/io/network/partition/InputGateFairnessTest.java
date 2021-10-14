@@ -116,7 +116,7 @@ public class InputGateFairnessTest {
             int max = 0;
 
             for (PipelinedSubpartition source : sources) {
-                int size = source.getCurrentNumberOfBuffers();
+                int size = source.getNumberOfQueuedBuffers();
                 min = Math.min(min, size);
                 max = Math.max(max, size);
             }
@@ -181,7 +181,7 @@ public class InputGateFairnessTest {
                 int max = 0;
 
                 for (PipelinedSubpartition source : sources) {
-                    int size = source.getCurrentNumberOfBuffers();
+                    int size = source.getNumberOfQueuedBuffers();
                     min = Math.min(min, size);
                     max = Math.max(max, size);
                 }

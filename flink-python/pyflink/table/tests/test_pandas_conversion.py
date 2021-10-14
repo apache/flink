@@ -18,13 +18,13 @@
 import datetime
 import decimal
 
-from pandas.util.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal
 
 from pyflink.common import Row
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkOldStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
+    PyFlinkStreamTableTestCase
 
 
 class PandasConversionTestBase(object):
@@ -172,19 +172,14 @@ class PandasConversionITTests(PandasConversionTestBase):
             self.assertTrue(expected_field == result_field)
 
 
+class BatchPandasConversionTests(PandasConversionTests,
+                                 PandasConversionITTests,
+                                 PyFlinkBatchTableTestCase):
+    pass
+
+
 class StreamPandasConversionTests(PandasConversionITTests,
-                                  PyFlinkOldStreamTableTestCase):
-    pass
-
-
-class BlinkBatchPandasConversionTests(PandasConversionTests,
-                                      PandasConversionITTests,
-                                      PyFlinkBlinkBatchTableTestCase):
-    pass
-
-
-class BlinkStreamPandasConversionTests(PandasConversionITTests,
-                                       PyFlinkBlinkStreamTableTestCase):
+                                  PyFlinkStreamTableTestCase):
     def test_to_pandas_with_event_time(self):
         self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         # create source file path

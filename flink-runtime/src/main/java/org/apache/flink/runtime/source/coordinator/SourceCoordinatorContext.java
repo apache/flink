@@ -27,16 +27,16 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ThrowableCatchingRunnable;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -142,7 +142,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     @Override
-    public MetricGroup metricGroup() {
+    public SplitEnumeratorMetricGroup metricGroup() {
         return null;
     }
 
@@ -376,7 +376,18 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         // Ensure the split assignment is done by the the coordinator executor.
         if (!coordinatorThreadFactory.isCurrentThreadCoordinatorThread()) {
             try {
-                return coordinatorExecutor.submit(callable).get();
+                final Callable<V> guardedCallable =
+                        () -> {
+                            try {
+                                return callable.call();
+                            } catch (Throwable t) {
+                                LOG.error("Uncaught Exception in Source Coordinator Executor", t);
+                                ExceptionUtils.rethrowException(t);
+                                return null;
+                            }
+                        };
+
+                return coordinatorExecutor.submit(guardedCallable).get();
             } catch (InterruptedException | ExecutionException e) {
                 throw new FlinkRuntimeException(errorMessage, e);
             }
@@ -384,8 +395,9 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
         try {
             return callable.call();
-        } catch (Exception e) {
-            throw new FlinkRuntimeException(errorMessage, e);
+        } catch (Throwable t) {
+            LOG.error("Uncaught Exception in Source Coordinator Executor", t);
+            throw new FlinkRuntimeException(errorMessage, t);
         }
     }
 }

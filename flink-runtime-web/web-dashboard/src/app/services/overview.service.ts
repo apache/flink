@@ -18,9 +18,10 @@
 
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY } from 'rxjs';
+import { EMPTY, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { BASE_URL } from '../app.config';
+
+import { BASE_URL } from 'config';
 import { OverviewInterface } from 'interfaces';
 
 @Injectable({
@@ -32,7 +33,7 @@ export class OverviewService {
   /**
    * Get cluster overview status
    */
-  loadOverview() {
+  loadOverview(): Observable<OverviewInterface> {
     return this.httpClient.get<OverviewInterface>(`${BASE_URL}/overview`).pipe(catchError(() => EMPTY));
   }
 }

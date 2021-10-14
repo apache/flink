@@ -80,7 +80,7 @@ public class DelegatingConfigurationTest {
     @Test
     public void testDelegationConfigurationWithNullPrefix() {
         Configuration backingConf = new Configuration();
-        backingConf.setValueInternal("test-key", "value");
+        backingConf.setValueInternal("test-key", "value", false);
 
         DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, null);
         Set<String> keySet = configuration.keySet();
@@ -97,7 +97,7 @@ public class DelegatingConfigurationTest {
          * Key matches the prefix
          */
         Configuration backingConf = new Configuration();
-        backingConf.setValueInternal(prefix + expectedKey, "value");
+        backingConf.setValueInternal(prefix + expectedKey, "value", false);
 
         DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, prefix);
         Set<String> keySet = configuration.keySet();
@@ -109,7 +109,7 @@ public class DelegatingConfigurationTest {
          * Key does not match the prefix
          */
         backingConf = new Configuration();
-        backingConf.setValueInternal("test-key", "value");
+        backingConf.setValueInternal("test-key", "value", false);
 
         configuration = new DelegatingConfiguration(backingConf, prefix);
         keySet = configuration.keySet();

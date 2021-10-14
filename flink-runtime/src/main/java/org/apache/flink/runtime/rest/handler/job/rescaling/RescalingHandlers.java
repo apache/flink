@@ -62,9 +62,7 @@ public class RescalingHandlers
 
         @Override
         public CompletableFuture<TriggerResponse> handleRequest(
-                @Nonnull
-                        final HandlerRequest<EmptyRequestBody, RescalingTriggerMessageParameters>
-                                request,
+                @Nonnull final HandlerRequest<EmptyRequestBody> request,
                 @Nonnull final RestfulGateway gateway)
                 throws RestHandlerException {
             throw featureDisabledException();
@@ -72,14 +70,13 @@ public class RescalingHandlers
 
         @Override
         protected CompletableFuture<Acknowledge> triggerOperation(
-                HandlerRequest<EmptyRequestBody, RescalingTriggerMessageParameters> request,
-                RestfulGateway gateway) {
+                HandlerRequest<EmptyRequestBody> request, RestfulGateway gateway) {
             throw new UnsupportedOperationException();
         }
 
         @Override
         protected AsynchronousJobOperationKey createOperationKey(
-                HandlerRequest<EmptyRequestBody, RescalingTriggerMessageParameters> request) {
+                HandlerRequest<EmptyRequestBody> request) {
             throw new UnsupportedOperationException();
         }
     }
@@ -99,10 +96,7 @@ public class RescalingHandlers
         @Override
         public CompletableFuture<AsynchronousOperationResult<AsynchronousOperationInfo>>
                 handleRequest(
-                        @Nonnull
-                                final HandlerRequest<
-                                                EmptyRequestBody, RescalingStatusMessageParameters>
-                                        request,
+                        @Nonnull final HandlerRequest<EmptyRequestBody> request,
                         @Nonnull final RestfulGateway gateway)
                         throws RestHandlerException {
             throw featureDisabledException();
@@ -110,7 +104,7 @@ public class RescalingHandlers
 
         @Override
         protected AsynchronousJobOperationKey getOperationKey(
-                HandlerRequest<EmptyRequestBody, RescalingStatusMessageParameters> request) {
+                HandlerRequest<EmptyRequestBody> request) {
             throw new UnsupportedOperationException();
         }
 

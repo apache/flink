@@ -53,7 +53,7 @@ and use it in a query:
 def add(i, j):
   return i + j
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 # use the vectorized Python scalar function in Python Table API
@@ -76,8 +76,6 @@ to [the relevant documentation]({{< ref "docs/dev/table/tableApi" >}}?code_tab=p
 
 <span class="label label-info">Note</span> Pandas UDAF does not support partial aggregation. Besides, all the data for a group or window will be loaded into memory at the same time during execution and so you must make sure that the data of a group or window could fit into the memory.
 
-<span class="label label-info">Note</span> Pandas UDAF is only supported in Blink Planner.
-
 The following example shows how to define your own vectorized Python aggregate function which computes mean,
 and use it in `GroupBy Aggregation`, `GroupBy Window Aggregation` and `Over Window Aggregation`:
 
@@ -86,7 +84,7 @@ and use it in `GroupBy Aggregation`, `GroupBy Window Aggregation` and `Over Wind
 def mean_udaf(v):
     return v.mean()
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 my_table = ...  # type: Table, table schema: [a: String, b: BigInt, c: BigInt]

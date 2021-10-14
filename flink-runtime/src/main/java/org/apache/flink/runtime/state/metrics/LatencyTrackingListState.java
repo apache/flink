@@ -50,7 +50,8 @@ class LatencyTrackingListState<K, N, T>
                         stateName,
                         latencyTrackingStateConfig.getMetricGroup(),
                         latencyTrackingStateConfig.getSampleInterval(),
-                        latencyTrackingStateConfig.getHistorySize()));
+                        latencyTrackingStateConfig.getHistorySize(),
+                        latencyTrackingStateConfig.isStateNameAsVariable()));
     }
 
     @Override
@@ -131,8 +132,12 @@ class LatencyTrackingListState<K, N, T>
         private int mergeNamespaceCount = 0;
 
         private ListStateLatencyMetrics(
-                String stateName, MetricGroup metricGroup, int sampleInterval, int historySize) {
-            super(stateName, metricGroup, sampleInterval, historySize);
+                String stateName,
+                MetricGroup metricGroup,
+                int sampleInterval,
+                int historySize,
+                boolean stateNameAsVariable) {
+            super(stateName, metricGroup, sampleInterval, historySize, stateNameAsVariable);
         }
 
         int getGetCount() {

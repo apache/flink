@@ -51,7 +51,7 @@ from pyflink.datastream.state import ValueStateDescriptor
 class MyMapFunction(MapFunction):
 
     def open(self, runtime_context: RuntimeContext):
-        state_desc = ValueStateDescriptor('cnt', Types.LONG())
+        state_desc = ValueStateDescriptor('cnt', Types.PICKLED_BYTE_ARRAY())
         self.cnt_state = runtime_context.get_state(state_desc)
 
     def map(self, value):

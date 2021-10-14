@@ -17,8 +17,8 @@
 
 package org.apache.flink.metrics.jmx;
 
+import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.metrics.util.MetricReporterTestUtils;
-import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;

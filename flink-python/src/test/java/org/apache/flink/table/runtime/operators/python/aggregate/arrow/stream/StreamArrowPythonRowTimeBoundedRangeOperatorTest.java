@@ -307,7 +307,6 @@ public class StreamArrowPythonRowTimeBoundedRangeOperatorTest
                     userDefinedFunctionOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
                     new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     false);

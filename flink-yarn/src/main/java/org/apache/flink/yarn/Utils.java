@@ -437,7 +437,7 @@ public final class Utils {
         LocalResource keytabResource = null;
         if (remoteKeytabPath != null) {
             log.info(
-                    "Adding keytab {} to the AM container local resource bucket", remoteKeytabPath);
+                    "TM:Adding keytab {} to the container local resource bucket", remoteKeytabPath);
             Path keytabPath = new Path(remoteKeytabPath);
             FileSystem fs = keytabPath.getFileSystem(yarnConfig);
             keytabResource = registerLocalResource(fs, keytabPath, LocalResourceType.FILE);

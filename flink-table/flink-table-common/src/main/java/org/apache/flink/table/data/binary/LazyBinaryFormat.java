@@ -62,7 +62,7 @@ public abstract class LazyBinaryFormat<T> implements BinaryFormat {
     BinarySection binarySection;
 
     public LazyBinaryFormat() {
-        this(null, -1, -1, null);
+        this(null, null);
     }
 
     public LazyBinaryFormat(MemorySegment[] segments, int offset, int sizeInBytes, T javaObject) {

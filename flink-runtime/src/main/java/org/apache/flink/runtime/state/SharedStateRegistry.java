@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

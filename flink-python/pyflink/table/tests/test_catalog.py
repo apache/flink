@@ -258,10 +258,10 @@ class CatalogTestBase(PyFlinkTestCase):
         new_db = self.create_another_db()
         self.catalog.alter_database(self.db1, new_db, False)
 
-        merged_properties = db.get_properties().copy()
-        merged_properties.update(new_db.get_properties())
         new_properties = self.catalog.get_database(self.db1).get_properties()
-        self.assertTrue(all(kv in new_properties.items() for kv in merged_properties.items()))
+        old_properties = db.get_properties()
+        self.assertFalse(all(k in new_properties for k in old_properties.keys()))
+        self.check_catalog_database_equals(new_db, self.catalog.get_database(self.db1))
 
     def test_alter_db_database_not_exist_exception(self):
         with self.assertRaises(DatabaseNotExistException):

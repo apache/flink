@@ -126,6 +126,68 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
         assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MAX), is(networkMemorySize));
     }
 
+    @Test
+    public void testCalculateTotalFlinkMemoryWithAllFactorsBeingSet() {
+        Configuration config = new Configuration();
+
+        config.set(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY, new MemorySize(1));
+        config.set(TaskManagerOptions.TASK_HEAP_MEMORY, new MemorySize(2));
+        config.set(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY, new MemorySize(3));
+        config.set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, new MemorySize(4));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, new MemorySize(6));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, new MemorySize(6));
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, new MemorySize(7));
+
+        assertThat(
+                TaskExecutorResourceUtils.calculateTotalFlinkMemoryFromComponents(config), is(23L));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testCalculateTotalFlinkMemoryWithMissingFactors() {
+        Configuration config = new Configuration();
+
+        config.set(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY, new MemorySize(1));
+        config.set(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY, new MemorySize(3));
+        config.set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, new MemorySize(4));
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, new MemorySize(7));
+
+        TaskExecutorResourceUtils.calculateTotalFlinkMemoryFromComponents(config);
+    }
+
+    @Test
+    public void testCalculateTotalProcessMemoryWithAllFactorsBeingSet() {
+        Configuration config = new Configuration();
+
+        config.set(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY, new MemorySize(1));
+        config.set(TaskManagerOptions.TASK_HEAP_MEMORY, new MemorySize(2));
+        config.set(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY, new MemorySize(3));
+        config.set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, new MemorySize(4));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, new MemorySize(6));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, new MemorySize(6));
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, new MemorySize(7));
+        config.set(TaskManagerOptions.JVM_METASPACE, new MemorySize(8));
+        config.set(TaskManagerOptions.JVM_OVERHEAD_MAX, new MemorySize(10));
+        config.set(TaskManagerOptions.JVM_OVERHEAD_MIN, new MemorySize(10));
+
+        assertThat(
+                TaskExecutorResourceUtils.calculateTotalProcessMemoryFromComponents(config),
+                is(41L));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testCalculateTotalProcessMemoryWithMissingFactors() {
+        Configuration config = new Configuration();
+
+        config.set(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY, new MemorySize(1));
+        config.set(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY, new MemorySize(3));
+        config.set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, new MemorySize(4));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, new MemorySize(6));
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, new MemorySize(7));
+        config.set(TaskManagerOptions.JVM_METASPACE, new MemorySize(8));
+
+        TaskExecutorResourceUtils.calculateTotalProcessMemoryFromComponents(config);
+    }
+
     private static Configuration createValidConfig() {
         Configuration configuration = new Configuration();
         configuration.set(TaskManagerOptions.CPU_CORES, CPU_CORES);

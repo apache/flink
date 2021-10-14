@@ -27,17 +27,14 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatelessPythonFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -61,9 +58,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
     /** The offsets of user-defined function inputs. */
     protected final int[] userDefinedFunctionInputOffsets;
-
-    /** The options used to configure the Python worker process. */
-    private final Map<String, String> jobOptions;
 
     /** The user-defined function input logical type. */
     protected transient RowType userDefinedFunctionInputType;
@@ -98,7 +92,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
         this.outputType = Preconditions.checkNotNull(outputType);
         this.userDefinedFunctionInputOffsets =
                 Preconditions.checkNotNull(userDefinedFunctionInputOffsets);
-        this.jobOptions = buildJobOptions(config);
     }
 
     @Override
@@ -109,6 +102,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                         Arrays.stream(userDefinedFunctionInputOffsets)
                                 .mapToObj(i -> inputType.getFields().get(i))
                                 .collect(Collectors.toList()));
+        userDefinedFunctionOutputType = createUserDefinedFunctionOutputType();
         bais = new ByteArrayInputStreamWithPos();
         baisWrapper = new DataInputViewStreamWrapper(bais);
         baos = new ByteArrayOutputStreamWithPos();
@@ -128,14 +122,11 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
-        return new BeamTableStatelessPythonFunctionRunner(
+        return BeamTablePythonFunctionRunner.stateless(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
-                getInputOutputCoderUrn(),
                 jobOptions,
                 getFlinkMetricContainer(),
                 getContainingTask().getEnvironment().getMemoryManager(),
@@ -150,7 +141,8 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
                                         .asClassLoader()),
-                FlinkFnApi.CoderParam.OutputMode.SINGLE);
+                createInputCoderInfoDescriptor(userDefinedFunctionInputType),
+                createOutputCoderInfoDescriptor(userDefinedFunctionOutputType));
     }
 
     /**
@@ -164,17 +156,15 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     /** Gets the proto representation of the Python user-defined functions to be executed. */
     public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
 
-    public abstract String getInputOutputCoderUrn();
-
     public abstract String getFunctionUrn();
 
-    public abstract void processElementInternal(IN value) throws Exception;
+    public abstract RowType createUserDefinedFunctionOutputType();
 
-    private Map<String, String> buildJobOptions(Configuration config) {
-        Map<String, String> jobOptions = new HashMap<>();
-        if (config.containsKey("table.exec.timezone")) {
-            jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
-        }
-        return jobOptions;
-    }
+    public abstract FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
+            RowType runnerInputType);
+
+    public abstract FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            RowType runnerOutType);
+
+    public abstract void processElementInternal(IN value) throws Exception;
 }

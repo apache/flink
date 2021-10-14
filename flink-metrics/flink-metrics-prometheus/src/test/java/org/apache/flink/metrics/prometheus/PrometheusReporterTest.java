@@ -28,12 +28,14 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
-import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 
@@ -85,13 +87,14 @@ public class PrometheusReporterTest extends TestLogger {
     public void setupReporter() {
         registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
                                 createReporterSetup("test1", portRangeProvider.next())));
         metricGroup =
                 new FrontMetricGroup<>(
                         createReporterScopedSettings(),
-                        new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER));
+                        TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                                registry, HOST_NAME, new ResourceID(TASK_MANAGER)));
         reporter = (PrometheusReporter) registry.getReporters().get(0);
     }
 
@@ -213,25 +216,23 @@ public class PrometheusReporterTest extends TestLogger {
 
     @Test
     public void metricIsRemovedWhenCollectorIsNotUnregisteredYet() throws UnirestException {
-        TaskManagerMetricGroup tmMetricGroup =
-                new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER);
+        JobManagerMetricGroup jmMetricGroup =
+                JobManagerMetricGroup.createJobManagerMetricGroup(registry, HOST_NAME);
 
         String metricName = "metric";
 
         Counter metric1 = new SimpleCounter();
-        FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup1 =
+        FrontMetricGroup<JobManagerJobMetricGroup> metricGroup1 =
                 new FrontMetricGroup<>(
                         createReporterScopedSettings(),
-                        new TaskManagerJobMetricGroup(
-                                registry, tmMetricGroup, JobID.generate(), "job_1"));
+                        jmMetricGroup.addJob(JobID.generate(), "job_1"));
         reporter.notifyOfAddedMetric(metric1, metricName, metricGroup1);
 
         Counter metric2 = new SimpleCounter();
-        FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup2 =
+        FrontMetricGroup<JobManagerJobMetricGroup> metricGroup2 =
                 new FrontMetricGroup<>(
                         createReporterScopedSettings(),
-                        new TaskManagerJobMetricGroup(
-                                registry, tmMetricGroup, JobID.generate(), "job_2"));
+                        jmMetricGroup.addJob(JobID.generate(), "job_2"));
         reporter.notifyOfAddedMetric(metric2, metricName, metricGroup2);
 
         reporter.notifyOfRemovedMetric(metric1, metricName, metricGroup1);
@@ -413,6 +414,6 @@ public class PrometheusReporterTest extends TestLogger {
     }
 
     private static ReporterScopedSettings createReporterScopedSettings() {
-        return new ReporterScopedSettings(0, ',', Collections.emptySet());
+        return new ReporterScopedSettings(0, ',', Collections.emptySet(), Collections.emptyMap());
     }
 }

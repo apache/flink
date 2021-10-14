@@ -83,11 +83,15 @@ public class SchemaResolutionTest {
             Schema.newBuilder()
                     .primaryKeyNamed("primary_constraint", "id") // out of order
                     .column("id", DataTypes.INT().notNull())
+                    .withComment("people id")
                     .column("counter", DataTypes.INT().notNull())
                     .column("payload", "ROW<name STRING, age INT, flag BOOLEAN>")
                     .columnByMetadata("topic", DataTypes.STRING(), true)
+                    .withComment("kafka topic")
                     .columnByExpression("ts", callSql(COMPUTED_SQL)) // out of order API expression
+                    .withComment("rowtime")
                     .columnByMetadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp")
+                    .withComment("the 'origin' timestamp")
                     .watermark("ts", WATERMARK_SQL)
                     .columnByExpression("proctime", PROCTIME_SQL)
                     .build();
@@ -116,7 +120,8 @@ public class SchemaResolutionTest {
         final ResolvedSchema expectedSchema =
                 new ResolvedSchema(
                         Arrays.asList(
-                                Column.physical("id", DataTypes.INT().notNull()),
+                                Column.physical("id", DataTypes.INT().notNull())
+                                        .withComment("people id"),
                                 Column.physical("counter", DataTypes.INT().notNull()),
                                 Column.physical(
                                         "payload",
@@ -124,10 +129,16 @@ public class SchemaResolutionTest {
                                                 DataTypes.FIELD("name", DataTypes.STRING()),
                                                 DataTypes.FIELD("age", DataTypes.INT()),
                                                 DataTypes.FIELD("flag", DataTypes.BOOLEAN()))),
-                                Column.metadata("topic", DataTypes.STRING(), null, true),
-                                Column.computed("ts", COMPUTED_COLUMN_RESOLVED),
+                                Column.metadata("topic", DataTypes.STRING(), null, true)
+                                        .withComment("kafka topic"),
+                                Column.computed("ts", COMPUTED_COLUMN_RESOLVED)
+                                        .withComment("rowtime"),
                                 Column.metadata(
-                                        "orig_ts", DataTypes.TIMESTAMP(3), "timestamp", false),
+                                                "orig_ts",
+                                                DataTypes.TIMESTAMP(3),
+                                                "timestamp",
+                                                false)
+                                        .withComment("the 'origin' timestamp"),
                                 Column.computed("proctime", PROCTIME_RESOLVED)),
                         Collections.singletonList(WatermarkSpec.of("ts", WATERMARK_RESOLVED)),
                         UniqueConstraint.primaryKey(
@@ -289,12 +300,12 @@ public class SchemaResolutionTest {
                 SCHEMA.toString(),
                 equalTo(
                         "(\n"
-                                + "  `id` INT NOT NULL,\n"
+                                + "  `id` INT NOT NULL COMMENT 'people id',\n"
                                 + "  `counter` INT NOT NULL,\n"
                                 + "  `payload` [ROW<name STRING, age INT, flag BOOLEAN>],\n"
-                                + "  `topic` METADATA VIRTUAL,\n"
-                                + "  `ts` AS [orig_ts - INTERVAL '60' MINUTE],\n"
-                                + "  `orig_ts` METADATA FROM 'timestamp',\n"
+                                + "  `topic` METADATA VIRTUAL COMMENT 'kafka topic',\n"
+                                + "  `ts` AS [orig_ts - INTERVAL '60' MINUTE] COMMENT 'rowtime',\n"
+                                + "  `orig_ts` METADATA FROM 'timestamp' COMMENT 'the ''origin'' timestamp',\n"
                                 + "  `proctime` AS [PROCTIME()],\n"
                                 + "  WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND],\n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
@@ -308,12 +319,12 @@ public class SchemaResolutionTest {
                 resolvedSchema.toString(),
                 equalTo(
                         "(\n"
-                                + "  `id` INT NOT NULL,\n"
+                                + "  `id` INT NOT NULL COMMENT 'people id',\n"
                                 + "  `counter` INT NOT NULL,\n"
                                 + "  `payload` ROW<`name` STRING, `age` INT, `flag` BOOLEAN>,\n"
-                                + "  `topic` STRING METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) *ROWTIME* AS orig_ts - INTERVAL '60' MINUTE,\n"
-                                + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp',\n"
+                                + "  `topic` STRING METADATA VIRTUAL COMMENT 'kafka topic',\n"
+                                + "  `ts` TIMESTAMP(3) *ROWTIME* AS orig_ts - INTERVAL '60' MINUTE COMMENT 'rowtime',\n"
+                                + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp' COMMENT 'the ''origin'' timestamp',\n"
                                 + "  `proctime` TIMESTAMP_LTZ(3) NOT NULL *PROCTIME* AS PROCTIME(),\n"
                                 + "  WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - INTERVAL '5' SECOND,\n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"

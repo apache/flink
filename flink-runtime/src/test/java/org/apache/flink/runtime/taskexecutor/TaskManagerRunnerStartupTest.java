@@ -41,7 +41,7 @@ import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;

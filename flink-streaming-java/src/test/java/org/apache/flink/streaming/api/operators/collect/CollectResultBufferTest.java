@@ -159,8 +159,27 @@ public class CollectResultBufferTest {
             Assert.assertEquals(expectedValue, buffer.next());
         }
 
+        // send some uncommitted data
+        response =
+                new CollectCoordinationResponse(
+                        version, 6, createSerializedResults(Arrays.asList(8, 9, 10)));
+        buffer.dealWithResponse(response, 7);
+        // send some committed data, but less than uncommitted data we've already sent
+        expected = Arrays.asList(7);
+        response =
+                new CollectCoordinationResponse(
+                        version, 7, createSerializedResults(Arrays.asList(8, 9)));
+        buffer.dealWithResponse(response, 7);
+        // results before checkpoint can be seen now
+        for (Integer expectedValue : expected) {
+            Assert.assertEquals(expectedValue, buffer.next());
+        }
+
         buffer.complete();
-        Assert.assertEquals((Integer) 7, buffer.next());
+        expected = Arrays.asList(8, 9, 10);
+        for (Integer expectedValue : expected) {
+            Assert.assertEquals(expectedValue, buffer.next());
+        }
         Assert.assertNull(buffer.next());
     }
 

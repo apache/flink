@@ -30,30 +30,27 @@ from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.data_stream import DataStream
 
 from pyflink.common import JobExecutionResult
-from pyflink.dataset import ExecutionEnvironment
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
-    Module, ModuleEntry, TableSink
+    Module, ModuleEntry, TableSink, Schema, ChangelogMode
 from pyflink.table.catalog import Catalog
-from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor, \
-    ConnectorDescriptor, ConnectTableDescriptor
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
+from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
     _to_java_data_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
-    UserDefinedAggregateFunctionWrapper, udtaf, TableAggregateFunction
+    udtaf, TableAggregateFunction
 from pyflink.table.utils import to_expression_jarray
 from pyflink.util import java_utils
 from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr, to_jarray
+    to_j_explain_detail_arr, to_jarray, get_field
 
 __all__ = [
-    'BatchTableEnvironment',
     'StreamTableEnvironment',
     'TableEnvironment'
 ]
@@ -93,12 +90,13 @@ class TableEnvironment(object):
 
     def __init__(self, j_tenv, serializer=PickleSerializer()):
         self._j_tenv = j_tenv
-        self._is_blink_planner = TableEnvironment._judge_blink_planner(j_tenv)
         self._serializer = serializer
         # When running in MiniCluster, launch the Python UDF worker using the Python executable
         # specified by sys.executable if users have not specified it explicitly via configuration
         # python.executable.
         self._set_python_executable_for_local_executor()
+        self._config_chaining_optimization()
+        self._open()
 
     @staticmethod
     def create(environment_settings: EnvironmentSettings) -> 'TableEnvironment':
@@ -114,16 +112,6 @@ class TableEnvironment(object):
         j_tenv = gateway.jvm.TableEnvironment.create(
             environment_settings._j_environment_settings)
         return TableEnvironment(j_tenv)
-
-    @staticmethod
-    def _judge_blink_planner(j_tenv):
-        if "getPlanner" not in dir(j_tenv):
-            return False
-        else:
-            j_planner_class = j_tenv.getPlanner().getClass()
-            j_blink_planner_class = get_java_class(
-                get_gateway().jvm.org.apache.flink.table.planner.delegation.PlannerBase)
-            return j_blink_planner_class.isAssignableFrom(j_planner_class)
 
     def from_table_source(self, table_source: 'TableSource') -> 'Table':
         """
@@ -430,6 +418,61 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryFunction(path)
 
+    def create_temporary_table(self, path: str, descriptor: TableDescriptor):
+        """
+        Registers the given :class:`~pyflink.table.TableDescriptor` as a temporary catalog table.
+
+        The TableDescriptor is converted into a CatalogTable and stored in the catalog.
+
+        Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+        it will be inaccessible in the current session. To make the permanent object available again
+        one can drop the corresponding temporary object.
+
+        Examples:
+        ::
+
+            >>> table_env.create_temporary_table("MyTable", TableDescriptor.for_connector("datagen")
+            ...     .schema(Schema.new_builder()
+            ...         .column("f0", DataTypes.STRING())
+            ...         .build())
+            ...     .option("rows-per-second", 10)
+            ...     .option("fields.f0.kind", "random")
+            ...     .build())
+
+        :param path: The path under which the table will be registered.
+        :param descriptor: Template for creating a CatalogTable instance.
+
+        .. versionadded:: 1.14.0
+        """
+        self._j_tenv.createTemporaryTable(path, descriptor._j_table_descriptor)
+
+    def create_table(self, path: str, descriptor: TableDescriptor):
+        """
+        Registers the given :class:`~pyflink.table.TableDescriptor` as a catalog table.
+
+        The TableDescriptor is converted into a CatalogTable and stored in the catalog.
+
+        If the table should not be permanently stored in a catalog, use
+        :func:`create_temporary_table` instead.
+
+        Examples:
+        ::
+
+            >>> table_env.create_table("MyTable", TableDescriptor.for_connector("datagen")
+            ...     .schema(Schema.new_builder()
+            ...                   .column("f0", DataTypes.STRING())
+            ...                   .build())
+            ...     .option("rows-per-second", 10)
+            ...     .option("fields.f0.kind", "random")
+            ...     .build())
+
+        :param path: The path under which the table will be registered.
+        :param descriptor: Template for creating a CatalogTable instance.
+
+        .. versionadded:: 1.14.0
+        """
+        self._j_tenv.createTable(path, descriptor._j_table_descriptor)
+
     def register_table(self, name: str, table: Table):
         """
         Registers a :class:`~pyflink.table.Table` under a unique name in the TableEnvironment's
@@ -469,7 +512,7 @@ class TableEnvironment(object):
 
         .. note:: Deprecated in 1.10. Use :func:`execute_sql` instead.
         """
-        warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
+        warnings.warn("Deprecated in 1.10. Use create_table instead.", DeprecationWarning)
         self._j_tenv.registerTableSourceInternal(name, table_source._j_table_source)
 
     def register_table_sink(self, name: str, table_sink: TableSink):
@@ -492,7 +535,7 @@ class TableEnvironment(object):
 
         .. note:: Deprecated in 1.10. Use :func:`execute_sql` instead.
         """
-        warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
+        warnings.warn("Deprecated in 1.10. Use create_table instead.", DeprecationWarning)
         self._j_tenv.registerTableSinkInternal(name, table_sink._j_table_sink)
 
     def scan(self, *table_path: str) -> Table:
@@ -563,6 +606,35 @@ class TableEnvironment(object):
         .. versionadded:: 1.10.0
         """
         return Table(get_method(self._j_tenv, "from")(path), self)
+
+    def from_descriptor(self, descriptor: TableDescriptor) -> Table:
+        """
+        Returns a Table backed by the given TableDescriptor.
+
+        The TableDescriptor is registered as an inline (i.e. anonymous) temporary table
+        (see :func:`create_temporary_table`) using a unique identifier and then read. Note that
+        calling this method multiple times, even with the same descriptor, results in multiple
+        temporary tables. In such cases, it is recommended to register it under a name using
+        :func:`create_temporary_table` and reference it via :func:`from_path`
+
+        Examples:
+        ::
+
+            >>> table_env.from_descriptor(TableDescriptor.for_connector("datagen")
+            ...     .schema(Schema.new_builder()
+            ...         .column("f0", DataTypes.STRING())
+            ...         .build())
+            ...     .build()
+
+        Note that the returned Table is an API object and only contains a pipeline description.
+        It actually corresponds to a <i>view</i> in SQL terms. Call :func:`execute` in Table to
+        trigger an execution.
+
+        :return: The Table object describing the pipeline for further transformations.
+
+        .. versionadded:: 1.14.0
+        """
+        return Table(get_method(self._j_tenv, "from")(descriptor._j_table_descriptor), self)
 
     def insert_into(self, target_path: str, table: Table):
         """
@@ -1023,40 +1095,6 @@ class TableEnvironment(object):
             setattr(self, "table_config", table_config)
         return getattr(self, "table_config")
 
-    def connect(self, connector_descriptor: ConnectorDescriptor) -> ConnectTableDescriptor:
-        """
-        Creates a temporary table from a descriptor.
-
-        Descriptors allow for declaring the communication to external systems in an
-        implementation-agnostic way. The classpath is scanned for suitable table factories that
-        match the desired configuration.
-
-        The following example shows how to read from a connector using a JSON format and
-        registering a temporary table as "MyTable":
-        ::
-
-            >>> table_env \\
-            ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11")) \\
-            ...     .with_format(Json()
-            ...                  .json_schema("{...}")
-            ...                  .fail_on_missing_field(False)) \\
-            ...     .with_schema(Schema()
-            ...                  .field("user-name", "VARCHAR")
-            ...                  .from_origin_field("u_name")
-            ...                  .field("count", "DECIMAL")) \\
-            ...     .create_temporary_table("MyTable")
-
-        :param connector_descriptor: Connector descriptor describing the external system.
-        :return: A :class:`~pyflink.table.descriptors.ConnectTableDescriptor` used to build the
-                 temporary table.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_sql` to register a table instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_sql instead.", DeprecationWarning)
-        return StreamTableDescriptor(
-            self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
-
     def register_java_function(self, name: str, function_class_name: str):
         """
         Registers a java user defined function under a unique name. Replaces already existing
@@ -1082,8 +1120,7 @@ class TableEnvironment(object):
             .loadClass(function_class_name).newInstance()
         # this is a temporary solution and will be unified later when we use the new type
         # system(DataType) to replace the old type system(TypeInformation).
-        if (self._is_blink_planner and not isinstance(self, StreamTableEnvironment)) or \
-                self.__class__ == TableEnvironment:
+        if not isinstance(self, StreamTableEnvironment) or self.__class__ == TableEnvironment:
             if self._is_table_function(java_function):
                 self._register_table_function(name, java_function)
             elif self._is_aggregate_function(java_function):
@@ -1128,8 +1165,7 @@ class TableEnvironment(object):
         java_function = function._java_user_defined_function()
         # this is a temporary solution and will be unified later when we use the new type
         # system(DataType) to replace the old type system(TypeInformation).
-        if (self._is_blink_planner and isinstance(self, BatchTableEnvironment)) or \
-                self.__class__ == TableEnvironment:
+        if self.__class__ == TableEnvironment:
             if self._is_table_function(java_function):
                 self._register_table_function(name, java_function)
             elif self._is_aggregate_function(java_function):
@@ -1139,23 +1175,133 @@ class TableEnvironment(object):
         else:
             self._j_tenv.registerFunction(name, java_function)
 
-    def create_temporary_view(self, view_path: str, table: Table):
+    def create_temporary_view(self,
+                              view_path: str,
+                              table_or_data_stream: Union[Table, DataStream],
+                              *fields_or_schema: Union[str, Expression, Schema]):
         """
-        Registers a :class:`~pyflink.table.Table` API object as a temporary view similar to SQL
-        temporary views.
+        1. When table_or_data_stream is a :class:`~pyflink.table.Table`:
 
-        Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-        it will be inaccessible in the current session. To make the permanent object available
-        again you can drop the corresponding temporary object.
+            Registers a :class:`~pyflink.table.Table` API object as a temporary view similar to SQL
+            temporary views.
+
+            Temporary objects can shadow permanent ones. If a permanent object in a given path
+            exists, it will be inaccessible in the current session. To make the permanent object
+            available again you can drop the corresponding temporary object.
+
+        2. When table_or_data_stream is a :class:`~pyflink.datastream.DataStream`:
+
+            2.1 When fields_or_schema is a str or a sequence of :class:`~pyflink.table.Expression`:
+
+                Creates a view from the given {@link DataStream} in a given path with specified
+                field names. Registered views can be referenced in SQL queries.
+
+                1. Reference input fields by name: All fields in the schema definition are
+                referenced by name (and possibly renamed using an alias (as). Moreover, we can
+                define proctime and rowtime attributes at arbitrary positions using arbitrary names
+                (except those that exist in the result schema). In this mode, fields can be
+                reordered and projected out. This mode can be used for any input type, including
+                POJOs.
+
+                Example:
+                ::
+
+                    >>> stream = ...
+                    # reorder the fields, rename the original 'f0' field to 'name' and add
+                    # event-time attribute named 'rowtime'
+
+                    # use str
+                    >>> table_env.create_temporary_view(
+                    ...     "cat.db.myTable",
+                    ...     stream,
+                    ...     "f1, rowtime.rowtime, f0 as 'name'")
+
+                    # or use a sequence of expression
+                    >>> table_env.create_temporary_view(
+                    ...     "cat.db.myTable",
+                    ...     stream,
+                    ...     col("f1"),
+                    ...     col("rowtime").rowtime,
+                    ...     col("f0").alias('name'))
+
+                2. Reference input fields by position: In this mode, fields are simply renamed.
+                Event-time attributes can replace the field on their position in the input data
+                (if it is of correct type) or be appended at the end. Proctime attributes must be
+                appended at the end. This mode can only be used if the input type has a defined
+                field order (tuple, case class, Row) and none of the {@code fields} references a
+                field of the input type.
+
+                Example:
+                ::
+
+                    >>> stream = ...
+                    # rename the original fields to 'a' and 'b' and extract the internally attached
+                    # timestamp into an event-time attribute named 'rowtime'
+
+                    # use str
+                    >>> table_env.create_temporary_view(
+                    ...     "cat.db.myTable", stream, "a, b, rowtime.rowtime")
+
+                    # or use a sequence of expressions
+                    >>> table_env.create_temporary_view(
+                    ...     "cat.db.myTable",
+                    ...     stream,
+                    ...     col("a"),
+                    ...     col("b"),
+                    ...     col("rowtime").rowtime)
+
+                Temporary objects can shadow permanent ones. If a permanent object in a given path
+                exists, it will be inaccessible in the current session. To make the permanent object
+                available again you can drop the corresponding temporary object.
+
+            2.2 When fields_or_schema is a :class:`~pyflink.table.Schema`:
+
+                Creates a view from the given {@link DataStream} in a given path. Registered views
+                can be referenced in SQL queries.
+
+                See :func:`from_data_stream` for more information on how a
+                :class:`~pyflink.datastream.DataStream` is translated into a table.
+
+                Temporary objects can shadow permanent ones. If a permanent object in a given path
+                exists, it will be inaccessible in the current session. To make the permanent object
+                available again you can drop the corresponding temporary object.
+
+                .. note:: create_temporary_view by providing a Schema (case 2.) was added from flink
+                    1.14.0.
 
         :param view_path: The path under which the view will be registered. See also the
                           :class:`~pyflink.table.TableEnvironment` class description for the format
                           of the path.
-        :param table: The view to register.
+        :param table_or_data_stream: The Table or DataStream out of which to create the view.
+        :param fields_or_schema: The fields expressions(str) to map original fields of the
+                        DataStream to the fields of the View or the customized schema for the final
+                        table.
 
         .. versionadded:: 1.10.0
         """
-        self._j_tenv.createTemporaryView(view_path, table._j_table)
+        if isinstance(table_or_data_stream, Table):
+            self._j_tenv.createTemporaryView(view_path, table_or_data_stream._j_table)
+        elif len(fields_or_schema) == 0:
+            self._j_tenv.createTemporaryView(view_path, table_or_data_stream._j_data_stream)
+        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
+            self._j_tenv.createTemporaryView(
+                view_path,
+                table_or_data_stream._j_data_stream,
+                fields_or_schema[0])
+        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
+            self._j_tenv.createTemporaryView(
+                view_path,
+                table_or_data_stream._j_data_stream,
+                fields_or_schema[0]._j_schema)
+        elif (len(fields_or_schema) > 0 and
+              all(isinstance(elem, Expression) for elem in fields_or_schema)):
+            self._j_tenv.createTemporaryView(
+                view_path,
+                table_or_data_stream._j_data_stream,
+                to_expression_jarray(fields_or_schema))
+        else:
+            raise ValueError("Invalid arguments for 'fields': %r" %
+                             ','.join([repr(item) for item in fields_or_schema]))
 
     def add_python_file(self, file_path: str):
         """
@@ -1357,7 +1503,7 @@ class TableEnvironment(object):
             >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
             ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
             ...                                        DataTypes.FIELD("b", DataTypes.STRING())]))
-            # use the thrid parameter to switch whether to verify the elements against the schema
+            # use the third parameter to switch whether to verify the elements against the schema
             >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
             ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
             ...                                        DataTypes.FIELD("b", DataTypes.STRING())]),
@@ -1442,14 +1588,10 @@ class TableEnvironment(object):
             execution_config = self._get_j_env().getConfig()
             gateway = get_gateway()
             j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
-            if self._is_blink_planner:
-                PythonTableUtils = gateway.jvm \
-                    .org.apache.flink.table.planner.utils.python.PythonTableUtils
-                PythonInputFormatTableSource = gateway.jvm \
-                    .org.apache.flink.table.planner.utils.python.PythonInputFormatTableSource
-            else:
-                PythonTableUtils = gateway.jvm.PythonTableUtils
-                PythonInputFormatTableSource = gateway.jvm.PythonInputFormatTableSource
+            PythonTableUtils = gateway.jvm \
+                .org.apache.flink.table.planner.utils.python.PythonTableUtils
+            PythonInputFormatTableSource = gateway.jvm \
+                .org.apache.flink.table.planner.utils.python.PythonInputFormatTableSource
             j_input_format = PythonTableUtils.getInputFormat(
                 j_objs, row_type_info, execution_config)
             j_table_source = PythonInputFormatTableSource(
@@ -1488,10 +1630,6 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.11.0
         """
-
-        if not self._is_blink_planner and isinstance(self, BatchTableEnvironment):
-            raise TypeError("It doesn't support to convert from Pandas DataFrame in the batch "
-                            "mode of old planner")
 
         import pandas as pd
         if not isinstance(pdf, pd.DataFrame):
@@ -1535,9 +1673,8 @@ class TableEnvironment(object):
 
             data_type = jvm.org.apache.flink.table.types.utils.TypeConversions\
                 .fromLegacyInfoToDataType(_to_java_type(result_type)).notNull()
-            if self._is_blink_planner:
-                data_type = data_type.bridgedTo(
-                    load_java_class('org.apache.flink.table.data.RowData'))
+            data_type = data_type.bridgedTo(
+                load_java_class('org.apache.flink.table.data.RowData'))
 
             j_arrow_table_source = \
                 jvm.org.apache.flink.table.runtime.arrow.ArrowUtils.createArrowTableSource(
@@ -1557,22 +1694,18 @@ class TableEnvironment(object):
         jvm = get_gateway().jvm
         jar_urls = self.get_config().get_configuration().get_string(config_key, None)
         if jar_urls is not None:
-            # normalize and remove duplicates
-            jar_urls_set = set([jvm.java.net.URL(url).toString() for url in jar_urls.split(";")])
+            # normalize
+            jar_urls_list = [jvm.java.net.URL(url).toString() for url in jar_urls.split(";")]
             j_configuration = get_j_env_configuration(self._get_j_env())
             if j_configuration.containsKey(config_key):
                 for url in j_configuration.getString(config_key, "").split(";"):
-                    jar_urls_set.add(url)
-            j_configuration.setString(config_key, ";".join(jar_urls_set))
+                    url = url.strip()
+                    if url != "" and url not in jar_urls_list:
+                        jar_urls_list.append(url)
+            j_configuration.setString(config_key, ";".join(jar_urls_list))
 
     def _get_j_env(self):
-        if self._is_blink_planner:
-            return self._j_tenv.getPlanner().getExecEnv()
-        else:
-            try:
-                return self._j_tenv.execEnv()
-            except:
-                return self._j_tenv.getPlanner().getExecutionEnvironment()
+        return self._j_tenv.getPlanner().getExecEnv()
 
     @staticmethod
     def _is_table_function(java_function):
@@ -1618,10 +1751,6 @@ class TableEnvironment(object):
         self._add_jars_to_j_env_config(classpaths_key)
 
     def _wrap_aggregate_function_if_needed(self, function) -> UserDefinedFunctionWrapper:
-        if isinstance(function, (AggregateFunction, TableAggregateFunction,
-                                 UserDefinedAggregateFunctionWrapper)):
-            if not self._is_blink_planner:
-                raise Exception("Python UDAF and UDTAF are only supported in blink planner")
         if isinstance(function, AggregateFunction):
             function = udaf(function,
                             result_type=function.get_result_type(),
@@ -1634,12 +1763,46 @@ class TableEnvironment(object):
                              name=str(function.__class__.__name__))
         return function
 
+    def _config_chaining_optimization(self):
+        JChainingOptimizingExecutor = get_gateway().jvm.org.apache.flink.table.executor.python.\
+            ChainingOptimizingExecutor
+        exec_env_field = get_field(self._j_tenv.getClass(), "execEnv")
+        exec_env_field.set(self._j_tenv,
+                           JChainingOptimizingExecutor(exec_env_field.get(self._j_tenv)))
+
+    def _open(self):
+        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
+        def startup_loopback_server():
+            from pyflink.common import Configuration
+            from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                BeamFnLoopbackWorkerPoolServicer
+
+            j_configuration = get_j_env_configuration(self._get_j_env())
+            config = Configuration(j_configuration=j_configuration)
+            config.set_string(
+                "PYFLINK_LOOPBACK_SERVER_ADDRESS", BeamFnLoopbackWorkerPoolServicer().start())
+
+        python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
+
+        if python_worker_execution_mode is None:
+            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
+                startup_loopback_server()
+        elif python_worker_execution_mode == 'loopback':
+            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
+                startup_loopback_server()
+            else:
+                raise ValueError("Loopback mode is enabled, however the job wasn't configured to "
+                                 "run in local deployment mode")
+        elif python_worker_execution_mode != 'process':
+            raise ValueError(
+                "It only supports to execute the Python worker in 'loopback' mode and 'process' "
+                "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
+
 
 class StreamTableEnvironment(TableEnvironment):
 
     def __init__(self, j_tenv):
         super(StreamTableEnvironment, self).__init__(j_tenv)
-        self._j_tenv = j_tenv
 
     @staticmethod
     def create(stream_execution_environment: StreamExecutionEnvironment = None,  # type: ignore
@@ -1659,8 +1822,7 @@ class StreamTableEnvironment(TableEnvironment):
             >>> table_config.set_null_check(False)
             >>> table_env = StreamTableEnvironment.create(env, table_config)
             # create with StreamExecutionEnvironment and EnvironmentSettings.
-            >>> environment_settings = EnvironmentSettings.new_instance().use_blink_planner() \\
-            ...     .build()
+            >>> environment_settings = EnvironmentSettings.in_streaming_mode()
             >>> table_env = StreamTableEnvironment.create(
             ...     env, environment_settings=environment_settings)
             # create with EnvironmentSettings.
@@ -1672,8 +1834,7 @@ class StreamTableEnvironment(TableEnvironment):
                                              of the TableEnvironment.
         :param table_config: The configuration of the TableEnvironment, optional.
         :param environment_settings: The environment settings used to instantiate the
-                                     TableEnvironment. It provides the interfaces about planner
-                                     selection(flink or blink), optional.
+                                     TableEnvironment.
         :return: The StreamTableEnvironment created from given StreamExecutionEnvironment and
                  configuration.
         """
@@ -1694,9 +1855,6 @@ class StreamTableEnvironment(TableEnvironment):
 
         gateway = get_gateway()
         if environment_settings is not None:
-            if not environment_settings.is_streaming_mode():
-                raise ValueError("The environment settings for StreamTableEnvironment must be "
-                                 "set to streaming mode.")
             if stream_execution_environment is None:
                 j_tenv = gateway.jvm.TableEnvironment.create(
                     environment_settings._j_environment_settings)
@@ -1714,48 +1872,307 @@ class StreamTableEnvironment(TableEnvironment):
                     stream_execution_environment._j_stream_execution_environment)
         return StreamTableEnvironment(j_tenv)
 
-    def from_data_stream(self, data_stream: DataStream, *fields: Union[str, Expression]) -> Table:
+    def from_data_stream(self,
+                         data_stream: DataStream,
+                         *fields_or_schema: Union[str, Expression, Schema]) -> Table:
         """
-        Converts the given DataStream into a Table with specified field names.
+        1. When fields_or_schema is a str or a sequence of Expression:
 
-        There are two modes for mapping original fields to the fields of the Table:
-            1. Reference input fields by name:
-            All fields in the schema definition are referenced by name (and possibly renamed using
-            and alias (as). Moreover, we can define proctime and rowtime attributes at arbitrary
-            positions using arbitrary names (except those that exist in the result schema). In this
-            mode, fields can be reordered and projected out. This mode can be used for any input
-            type.
-            2. Reference input fields by position:
-            In this mode, fields are simply renamed. Event-time attributes can replace the field on
-            their position in the input data (if it is of correct type) or be appended at the end.
-            Proctime attributes must be appended at the end. This mode can only be used if the input
-            type has a defined field order (tuple, case class, Row) and none of the fields
-            references a field of the input type.
+            Converts the given DataStream into a Table with specified field names.
+
+            There are two modes for mapping original fields to the fields of the Table:
+
+                1. Reference input fields by name:
+
+                All fields in the schema definition are referenced by name (and possibly renamed
+                using and alias (as). Moreover, we can define proctime and rowtime attributes at
+                arbitrary positions using arbitrary names (except those that exist in the result
+                schema). In this mode, fields can be reordered and projected out. This mode can be
+                used for any input type.
+
+                2. Reference input fields by position:
+
+                In this mode, fields are simply renamed. Event-time attributes can replace the field
+                on their position in the input data (if it is of correct type) or be appended at the
+                end. Proctime attributes must be appended at the end. This mode can only be used if
+                the input type has a defined field order (tuple, case class, Row) and none of the
+                fields references a field of the input type.
+
+        2. When fields_or_schema is a Schema:
+
+            Converts the given DataStream into a Table.
+
+            Column names and types of the Table are automatically derived from the TypeInformation
+            of the DataStream. If the outermost record's TypeInformation is a CompositeType, it will
+            be flattened in the first level. Composite nested fields will not be accessible.
+
+            Since the DataStream API does not support changelog processing natively, this method
+            assumes append-only/insert-only semantics during the stream-to-table conversion. Records
+            of class Row must describe RowKind.INSERT changes.
+
+            By default, the stream record's timestamp and watermarks are not propagated unless
+            explicitly declared.
+
+            This method allows to declare a Schema for the resulting table. The declaration is
+            similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+
+                1. enrich or overwrite automatically derived columns with a custom DataType
+                2. reorder columns
+                3. add computed or metadata columns next to the physical columns
+                4. access a stream record's timestamp
+                5. declare a watermark strategy or propagate the DataStream watermarks
+
+            It is possible to declare a schema without physical/regular columns. In this case, those
+            columns will be automatically derived and implicitly put at the beginning of the schema
+            declaration.
+
+            The following examples illustrate common schema declarations and their semantics:
+
+            Example:
+            ::
+
+                === EXAMPLE 1 ===
+
+                no physical columns defined, they will be derived automatically,
+                e.g. BigDecimal becomes DECIMAL(38, 18)
+
+                >>> Schema.new_builder() \
+                ...     .column_by_expression("c1", "f1 + 42") \
+                ...     .column_by_expression("c2", "f1 - 1") \
+                ...     .build()
+
+                equal to: CREATE TABLE (f0 STRING, f1 DECIMAL(38, 18), c1 AS f1 + 42, c2 AS f1 - 1)
+
+                === EXAMPLE 2 ===
+
+                physical columns defined, input fields and columns will be mapped by name,
+                columns are reordered and their data type overwritten,
+                all columns must be defined to show up in the final table's schema
+
+                >>> Schema.new_builder() \
+                ...     .column("f1", "DECIMAL(10, 2)") \
+                ...     .column_by_expression("c", "f1 - 1") \
+                ...     .column("f0", "STRING") \
+                ...     .build()
+
+                equal to: CREATE TABLE (f1 DECIMAL(10, 2), c AS f1 - 1, f0 STRING)
+
+                === EXAMPLE 3 ===
+
+                timestamp and watermarks can be added from the DataStream API,
+                physical columns will be derived automatically
+
+                >>> Schema.new_builder() \
+                ...     .column_by_metadata("rowtime", "TIMESTAMP_LTZ(3)") \
+                ...     .watermark("rowtime", "SOURCE_WATERMARK()") \
+                ...     .build()
+
+                equal to:
+                    CREATE TABLE (
+                        f0 STRING,
+                        f1 DECIMAL(38, 18),
+                        rowtime TIMESTAMP(3) METADATA,
+                        WATERMARK FOR rowtime AS SOURCE_WATERMARK()
+                    )
+
+            .. note:: create_temporary_view by providing a Schema (case 2.) was added from flink
+                    1.14.0.
 
         :param data_stream: The datastream to be converted.
-        :param fields: The fields expressions to map original fields of the DataStream to the fields
-                       of the Table
+        :param fields_or_schema: The fields expressions to map original fields of the DataStream to
+            the fields of the Table or the customized schema for the final table.
         :return: The converted Table.
 
         .. versionadded:: 1.12.0
         """
         j_data_stream = data_stream._j_data_stream
         JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
-        JPythonConfigUtil.declareManagedMemory(
-            j_data_stream.getTransformation(),
-            self._get_j_env(),
-            self._j_tenv.getConfig())
-        if len(fields) == 0:
+        JPythonConfigUtil.configPythonOperator(j_data_stream.getExecutionEnvironment())
+        if len(fields_or_schema) == 0:
             return Table(j_table=self._j_tenv.fromDataStream(j_data_stream), t_env=self)
-        elif all(isinstance(f, Expression) for f in fields):
+        elif all(isinstance(f, Expression) for f in fields_or_schema):
             return Table(j_table=self._j_tenv.fromDataStream(
-                j_data_stream, to_expression_jarray(fields)), t_env=self)
-        elif len(fields) == 1 and isinstance(fields[0], str):
+                j_data_stream, to_expression_jarray(fields_or_schema)), t_env=self)
+        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
             warnings.warn(
                 "Deprecated in 1.12. Use from_data_stream(DataStream, *Expression) instead.",
                 DeprecationWarning)
-            return Table(j_table=self._j_tenv.fromDataStream(j_data_stream, fields[0]), t_env=self)
-        raise ValueError("Invalid arguments for 'fields': %r" % fields)
+            return Table(j_table=self._j_tenv.fromDataStream(
+                j_data_stream, fields_or_schema[0]), t_env=self)
+        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
+            return Table(j_table=self._j_tenv.fromDataStream(
+                j_data_stream, fields_or_schema[0]._j_schema), t_env=self)
+        raise ValueError("Invalid arguments for 'fields': %r" % fields_or_schema)
+
+    def from_changelog_stream(self,
+                              data_stream: DataStream,
+                              schema: Schema = None,
+                              changelog_mode: ChangelogMode = None) -> Table:
+        """
+        Converts the given DataStream of changelog entries into a Table.
+
+        Compared to :func:`from_data_stream`, this method consumes instances of Row and evaluates
+        the RowKind flag that is contained in every record during runtime. The runtime behavior is
+        similar to that of a DynamicTableSource.
+
+        If you don't specify the changelog_mode, the changelog containing all kinds of changes
+        (enumerated in RowKind) as the default ChangelogMode.
+
+        Column names and types of the Table are automatically derived from the TypeInformation of
+        the DataStream. If the outermost record's TypeInformation is a CompositeType, it will be
+        flattened in the first level. Composite nested fields will not be accessible.
+
+        By default, the stream record's timestamp and watermarks are not propagated unless
+        explicitly declared.
+
+        This method allows to declare a Schema for the resulting table. The declaration is similar
+        to a {@code CREATE TABLE} DDL in SQL and allows to:
+
+            1. enrich or overwrite automatically derived columns with a custom DataType
+            2. reorder columns
+            3. add computed or metadata columns next to the physical columns
+            4. access a stream record's timestamp
+            5. declare a watermark strategy or propagate the DataStream watermarks
+            6. declare a primary key
+
+        See :func:`from_data_stream` for more information and examples of how to declare a Schema.
+
+        :param data_stream: The changelog stream of Row.
+        :param schema: The customized schema for the final table.
+        :param changelog_mode: The expected kinds of changes in the incoming changelog.
+        :return: The converted Table.
+        """
+        j_data_stream = data_stream._j_data_stream
+        JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
+        JPythonConfigUtil.configPythonOperator(j_data_stream.getExecutionEnvironment())
+        if schema is None:
+            return Table(self._j_tenv.fromChangelogStream(j_data_stream), t_env=self)
+        elif changelog_mode is None:
+            return Table(
+                self._j_tenv.fromChangelogStream(j_data_stream, schema._j_schema), t_env=self)
+        else:
+            return Table(
+                self._j_tenv.fromChangelogStream(
+                    j_data_stream,
+                    schema._j_schema,
+                    changelog_mode._j_changelog_mode),
+                t_env=self)
+
+    def to_data_stream(self, table: Table) -> DataStream:
+        """
+        Converts the given Table into a DataStream.
+
+        Since the DataStream API does not support changelog processing natively, this method
+        assumes append-only/insert-only semantics during the table-to-stream conversion. The records
+        of class Row will always describe RowKind#INSERT changes. Updating tables are
+        not supported by this method and will produce an exception.
+
+        Note that the type system of the table ecosystem is richer than the one of the DataStream
+        API. The table runtime will make sure to properly serialize the output records to the first
+        operator of the DataStream API. Afterwards, the Types semantics of the DataStream API
+        need to be considered.
+
+        If the input table contains a single rowtime column, it will be propagated into a stream
+        record's timestamp. Watermarks will be propagated as well.
+
+        :param table: The Table to convert.
+        :return: The converted DataStream.
+        """
+        return DataStream(self._j_tenv.toDataStream(table._j_table))
+
+    def to_changelog_stream(self,
+                            table: Table,
+                            target_schema: Schema = None,
+                            changelog_mode: ChangelogMode = None) -> DataStream:
+        """
+        Converts the given Table into a DataStream of changelog entries.
+
+        Compared to :func:`to_data_stream`, this method produces instances of Row and sets the
+        RowKind flag that is contained in every record during runtime. The runtime behavior is
+        similar to that of a DynamicTableSink.
+
+        If you don't specify the changelog_mode, the changelog containing all kinds of changes
+        (enumerated in RowKind) as the default ChangelogMode.
+
+        The given Schema is used to configure the table runtime to convert columns and internal data
+        structures to the desired representation. The following example shows how to
+        convert a table column into a Row type.
+
+        Example:
+        ::
+
+            >>> table_env.to_changelog_stream(
+            ...     table,
+            ...     Schema.new_builder() \
+            ...         .column("id", DataTypes.BIGINT())
+            ...         .column("payload", DataTypes.ROW(
+            ...                                     [DataTypes.FIELD("name", DataTypes.STRING()),
+            ...                                     DataTypes.FIELD("age", DataTypes.INT())]))
+            ...         .build())
+
+        Note that the type system of the table ecosystem is richer than the one of the DataStream
+        API. The table runtime will make sure to properly serialize the output records to the first
+        operator of the DataStream API. Afterwards, the Types semantics of the DataStream API need
+        to be considered.
+
+        If the input table contains a single rowtime column, it will be propagated into a stream
+        record's timestamp. Watermarks will be propagated as well.
+
+        If the rowtime should not be a concrete field in the final Row anymore, or the schema should
+        be symmetrical for both :func:`from_changelog_stream` and :func:`to_changelog_stream`, the
+        rowtime can also be declared as a metadata column that will be propagated into a stream
+        record's timestamp. It is possible to declare a schema without physical/regular columns.
+        In this case, those columns will be automatically derived and implicitly put at the
+        beginning of the schema declaration.
+
+        The following examples illustrate common schema declarations and their semantics:
+
+        Example:
+        ::
+
+            given a Table of (id INT, name STRING, my_rowtime TIMESTAMP_LTZ(3))
+
+            === EXAMPLE 1 ===
+
+            no physical columns defined, they will be derived automatically,
+            the last derived physical column will be skipped in favor of the metadata column
+
+            >>> Schema.new_builder() \
+            ...     .column_by_metadata("rowtime", "TIMESTAMP_LTZ(3)") \
+            ...     .build()
+
+            equal to: CREATE TABLE (id INT, name STRING, rowtime TIMESTAMP_LTZ(3) METADATA)
+
+            === EXAMPLE 2 ===
+
+            physical columns defined, all columns must be defined
+
+            >>> Schema.new_builder() \
+            ...     .column("id", "INT") \
+            ...     .column("name", "STRING") \
+            ...     .column_by_metadata("rowtime", "TIMESTAMP_LTZ(3)") \
+            ...     .build()
+
+            equal to: CREATE TABLE (id INT, name STRING, rowtime TIMESTAMP_LTZ(3) METADATA)
+
+        :param table: The Table to convert. It can be updating or insert-only.
+        :param target_schema: The Schema that decides about the final external representation in
+            DataStream records.
+        :param changelog_mode: The required kinds of changes in the result changelog. An exception
+            will be thrown if the given updating table cannot be represented in this changelog mode.
+        :return: The converted changelog stream of Row.
+        """
+        if target_schema is None:
+            return DataStream(self._j_tenv.toChangelogStream(table._j_table))
+        elif changelog_mode is None:
+            return DataStream(
+                self._j_tenv.toChangelogStream(table._j_table, target_schema._j_schema))
+        else:
+            return DataStream(
+                self._j_tenv.toChangelogStream(
+                    table._j_table,
+                    target_schema._j_schema,
+                    changelog_mode._j_changelog_mode))
 
     def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
         """
@@ -1794,147 +2211,3 @@ class StreamTableEnvironment(TableEnvironment):
         """
         j_data_stream = self._j_tenv.toRetractStream(table._j_table, type_info.get_java_type_info())
         return DataStream(j_data_stream=j_data_stream)
-
-
-class BatchTableEnvironment(TableEnvironment):
-    """
-    .. note:: BatchTableEnvironment will be dropped in Flink 1.14 because it only supports the old
-              planner. Use the unified :class:`~pyflink.table.TableEnvironment` instead, which
-              supports both batch and streaming. More advanced operations previously covered by
-              the DataSet API can now use the DataStream API in BATCH execution mode.
-    """
-
-    def __init__(self, j_tenv):
-        super(BatchTableEnvironment, self).__init__(j_tenv)
-        self._j_tenv = j_tenv
-
-    def connect(self, connector_descriptor: ConnectorDescriptor) -> \
-            Union[BatchTableDescriptor, StreamTableDescriptor]:
-        """
-        Creates a temporary table from a descriptor.
-
-        Descriptors allow for declaring the communication to external systems in an
-        implementation-agnostic way. The classpath is scanned for suitable table factories that
-        match the desired configuration.
-
-        The following example shows how to read from a connector using a JSON format and
-        registering a temporary table as "MyTable":
-        ::
-
-            >>> table_env \\
-            ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11")) \\
-            ...     .with_format(Json()
-            ...                  .json_schema("{...}")
-            ...                  .fail_on_missing_field(False)) \\
-            ...     .with_schema(Schema()
-            ...                  .field("user-name", "VARCHAR")
-            ...                  .from_origin_field("u_name")
-            ...                  .field("count", "DECIMAL")) \\
-            ...     .create_temporary_table("MyTable")
-
-        :param connector_descriptor: Connector descriptor describing the external system.
-        :return: A :class:`~pyflink.table.descriptors.BatchTableDescriptor` or a
-                 :class:`~pyflink.table.descriptors.StreamTableDescriptor` (for blink planner) used
-                 to build the temporary table.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_sql` to register a table instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_sql instead.", DeprecationWarning)
-        gateway = get_gateway()
-        blink_t_env_class = get_java_class(
-            gateway.jvm.org.apache.flink.table.api.internal.TableEnvironmentImpl)
-        if blink_t_env_class == self._j_tenv.getClass():
-            return StreamTableDescriptor(
-                self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
-        else:
-            return BatchTableDescriptor(
-                self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
-
-    @staticmethod
-    def create(execution_environment: ExecutionEnvironment = None,  # type: ignore
-               table_config: TableConfig = None,
-               environment_settings: EnvironmentSettings = None) -> 'BatchTableEnvironment':
-        """
-        Creates a :class:`~pyflink.table.BatchTableEnvironment`.
-
-        Example:
-        ::
-
-            # create with ExecutionEnvironment.
-            >>> env = ExecutionEnvironment.get_execution_environment()
-            >>> table_env = BatchTableEnvironment.create(env)
-            # create with ExecutionEnvironment and TableConfig.
-            >>> table_config = TableConfig()
-            >>> table_config.set_null_check(False)
-            >>> table_env = BatchTableEnvironment.create(env, table_config)
-            # create with EnvironmentSettings.
-            >>> environment_settings = EnvironmentSettings.new_instance().in_batch_mode() \\
-            ...     .use_blink_planner().build()
-            >>> table_env = BatchTableEnvironment.create(environment_settings=environment_settings)
-
-        :param execution_environment: The batch :class:`~pyflink.dataset.ExecutionEnvironment` of
-                                      the TableEnvironment.
-        :param table_config: The configuration of the TableEnvironment, optional.
-        :param environment_settings: The environment settings used to instantiate the
-                                     TableEnvironment. It provides the interfaces about planner
-                                     selection(flink or blink), optional.
-        :return: The BatchTableEnvironment created from given ExecutionEnvironment and
-                 configuration.
-
-        .. note:: This part of the API will be dropped in Flink 1.14 because it only supports the
-                  old planner. Use the unified :class:`~pyflink.table.TableEnvironment` instead, it
-                  supports both batch and streaming. For more advanced operations, the new batch
-                  mode of the DataStream API might be useful.
-        """
-        warnings.warn(
-            "Deprecated in 1.14. Use the unified TableEnvironment instead.",
-            DeprecationWarning)
-        if execution_environment is None and \
-                table_config is None and \
-                environment_settings is None:
-            raise ValueError("No argument found, the param 'execution_environment' "
-                             "or 'environment_settings' is required.")
-        elif execution_environment is None and \
-                table_config is not None and \
-                environment_settings is None:
-            raise ValueError("Only the param 'table_config' is found, "
-                             "the param 'execution_environment' is also required.")
-        elif execution_environment is not None and \
-                environment_settings is not None:
-            raise ValueError("The param 'execution_environment' and "
-                             "'environment_settings' cannot be used at the same time")
-        elif table_config is not None and \
-                environment_settings is not None:
-            raise ValueError("The param 'table_config' and "
-                             "'environment_settings' cannot be used at the same time")
-
-        gateway = get_gateway()
-        if environment_settings is not None:
-            if environment_settings.is_streaming_mode():
-                raise ValueError("The environment settings for BatchTableEnvironment must be "
-                                 "set to batch mode.")
-            JEnvironmentSettings = get_gateway().jvm.org.apache.flink.table.api.EnvironmentSettings
-
-            old_planner_class_name = EnvironmentSettings.new_instance().in_batch_mode() \
-                .use_old_planner().build()._j_environment_settings \
-                .toPlannerProperties()[JEnvironmentSettings.CLASS_NAME]
-            planner_properties = environment_settings._j_environment_settings.toPlannerProperties()
-            if JEnvironmentSettings.CLASS_NAME in planner_properties and \
-                    planner_properties[JEnvironmentSettings.CLASS_NAME] == old_planner_class_name:
-                # The Java EnvironmentSettings API does not support creating table environment with
-                # old planner. Create it from other API.
-                j_tenv = gateway.jvm.BatchTableEnvironment.create(
-                    ExecutionEnvironment.get_execution_environment()._j_execution_environment)
-            else:
-                j_tenv = gateway.jvm.TableEnvironment.create(
-                    environment_settings._j_environment_settings)
-        else:
-            if table_config is None:
-                j_tenv = gateway.jvm.BatchTableEnvironment.create(
-                    execution_environment._j_execution_environment)
-            else:
-                j_tenv = gateway.jvm.BatchTableEnvironment.create(
-                    execution_environment._j_execution_environment,
-                    table_config._j_table_config)
-        return BatchTableEnvironment(j_tenv)

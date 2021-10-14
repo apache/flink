@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.jdbc.table;
 
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
@@ -72,8 +72,8 @@ public class JdbcTableSourceSinkFactoryTest {
                 TableFactoryService.find(StreamTableSourceFactory.class, properties)
                         .createStreamTableSource(properties);
 
-        final JdbcOptions options =
-                JdbcOptions.builder()
+        final JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl("jdbc:derby:memory:mydb")
                         .setTableName("mytable")
                         .setDriverName("org.apache.derby.jdbc.EmbeddedDriver")
@@ -103,8 +103,8 @@ public class JdbcTableSourceSinkFactoryTest {
                 TableFactoryService.find(StreamTableSourceFactory.class, properties)
                         .createStreamTableSource(properties);
 
-        final JdbcOptions options =
-                JdbcOptions.builder()
+        final JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl("jdbc:derby:memory:mydb")
                         .setTableName("mytable")
                         .build();
@@ -138,8 +138,8 @@ public class JdbcTableSourceSinkFactoryTest {
                 TableFactoryService.find(StreamTableSourceFactory.class, properties)
                         .createStreamTableSource(properties);
 
-        final JdbcOptions options =
-                JdbcOptions.builder()
+        final JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl("jdbc:derby:memory:mydb")
                         .setTableName("mytable")
                         .build();
@@ -170,8 +170,8 @@ public class JdbcTableSourceSinkFactoryTest {
                 TableFactoryService.find(StreamTableSinkFactory.class, properties)
                         .createStreamTableSink(properties);
 
-        final JdbcOptions options =
-                JdbcOptions.builder()
+        final JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl("jdbc:derby:memory:mydb")
                         .setTableName("mytable")
                         .build();

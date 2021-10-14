@@ -36,7 +36,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
+import java.util.OptionalLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -117,7 +117,7 @@ public final class ChannelStatePersister {
         }
     }
 
-    protected Optional<Long> checkForBarrier(Buffer buffer) throws IOException {
+    protected OptionalLong checkForBarrier(Buffer buffer) throws IOException {
         AbstractEvent event = parseEvent(buffer);
         if (event instanceof CheckpointBarrier) {
             long barrierId = ((CheckpointBarrier) event).getId();
@@ -129,7 +129,7 @@ public final class ChannelStatePersister {
                 logEvent("found barrier", barrierId);
                 checkpointStatus = CheckpointStatus.BARRIER_RECEIVED;
                 lastSeenBarrier = barrierId;
-                return Optional.of(lastSeenBarrier);
+                return OptionalLong.of(lastSeenBarrier);
             } else {
                 logEvent("ignoring barrier", barrierId);
             }
@@ -139,10 +139,10 @@ public final class ChannelStatePersister {
             if (announcement.getAnnouncedEvent() instanceof CheckpointBarrier) {
                 long barrierId = ((CheckpointBarrier) announcement.getAnnouncedEvent()).getId();
                 logEvent("found announcement for barrier", barrierId);
-                return Optional.of(barrierId);
+                return OptionalLong.of(barrierId);
             }
         }
-        return Optional.empty();
+        return OptionalLong.empty();
     }
 
     private void logEvent(String event, long barrierId) {

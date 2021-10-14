@@ -165,7 +165,7 @@ public class RocksDBResource extends ExternalResource {
                         handlesToClose);
         this.writeOptions = new WriteOptions();
         this.writeOptions.disableWAL();
-        this.readOptions = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
+        this.readOptions = new ReadOptions();
         this.columnFamilyHandles = new ArrayList<>(1);
         this.rocksDB =
                 RocksDB.open(

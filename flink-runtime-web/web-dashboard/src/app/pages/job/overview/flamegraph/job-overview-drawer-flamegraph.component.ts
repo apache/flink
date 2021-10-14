@@ -19,6 +19,7 @@
 import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil, tap } from 'rxjs/operators';
+
 import { JobFlameGraphInterface, NodesItemCorrectInterface } from 'interfaces';
 import { JobService } from 'services';
 
@@ -39,11 +40,11 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.requestFlameGraph();
   }
 
-  private requestFlameGraph() {
+  private requestFlameGraph(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
@@ -67,7 +68,7 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
       );
   }
 
-  selectFrameGraphType() {
+  selectFrameGraphType(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.destroy$ = new Subject();
@@ -75,7 +76,7 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
     this.requestFlameGraph();
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

@@ -49,7 +49,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -342,7 +342,8 @@ public class CheckpointedInputGateTest {
                             @Override
                             public void invoke() {}
                         },
-                        SystemClock.getInstance());
+                        SystemClock.getInstance(),
+                        true);
 
         CheckpointedInputGate checkpointedInputGate =
                 new CheckpointedInputGate(

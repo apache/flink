@@ -29,8 +29,8 @@ import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -47,22 +47,23 @@ public class JobMasterITCase extends TestLogger {
 
     @Test
     public void testRejectionOfEmptyJobGraphs() throws Exception {
-        MiniCluster miniCluster =
-                new MiniCluster(
-                        new MiniClusterConfiguration.Builder()
-                                .setNumTaskManagers(1)
-                                .setNumSlotsPerTaskManager(1)
+        MiniClusterResource miniCluster =
+                new MiniClusterResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setNumberTaskManagers(1)
+                                .setNumberSlotsPerTaskManager(1)
                                 .build());
-        miniCluster.start();
+        miniCluster.before();
         JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
 
         try {
-            miniCluster.submitJob(jobGraph).get();
+            miniCluster.getMiniCluster().submitJob(jobGraph).get();
             fail("Expect failure");
         } catch (Throwable t) {
             assertThat(t, containsMessage("The given job is empty"));
+        } finally {
+            miniCluster.after();
         }
-        miniCluster.close();
     }
 
     /**

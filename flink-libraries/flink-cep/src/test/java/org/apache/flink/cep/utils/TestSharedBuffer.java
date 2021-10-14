@@ -32,8 +32,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -207,7 +205,7 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
                 @Override
                 public Iterator<Map.Entry<UK, UV>> iterator() throws Exception {
                     if (values == null) {
-                        return Iterators.emptyIterator();
+                        return Collections.emptyIterator();
                     }
 
                     return new CountingIterator<>(values.entrySet().iterator());

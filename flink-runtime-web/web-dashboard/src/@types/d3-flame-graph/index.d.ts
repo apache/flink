@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
+import { SafeAny } from 'interfaces';
+
 declare module 'd3-flame-graph' {
-  type ColorMapper = (node: any, originalColor: string) => string;
+  type ColorMapper = (node: SafeAny, originalColor: string) => string;
 
   export function flamegraph(): FlameGraph;
   export const offCpuColorMapper: ColorMapper;
-  export function defaultFlamegraphTooltip(): any;
+  export function defaultFlamegraphTooltip(): SafeAny;
 
   export interface StackFrame {
     name: string;
@@ -29,14 +31,14 @@ declare module 'd3-flame-graph' {
     children: StackFrame[];
   }
 
-  type LabelHandler = (node: any) => string;
-  type ClickHandler = (node: any) => void;
-  type DetailsHandler = (node: any) => void;
-  type SearchHandler = (results: any, sum: any, totalValue: any) => void;
-  type SearchMatch = (node: any, term: string) => boolean;
+  type LabelHandler = (node: SafeAny) => string;
+  type ClickHandler = (node: SafeAny) => void;
+  type DetailsHandler = (node: SafeAny) => void;
+  type SearchHandler = (results: SafeAny, sum: SafeAny, totalValue: SafeAny) => void;
+  type SearchMatch = (node: SafeAny, term: string) => boolean;
 
   interface FlameGraph {
-    (selection: any): any;
+    (selection: SafeAny): SafeAny;
 
     selfValue(val: boolean): FlameGraph;
     selfValue(): boolean;

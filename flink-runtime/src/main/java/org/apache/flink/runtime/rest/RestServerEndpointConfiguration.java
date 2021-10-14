@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
@@ -153,7 +154,7 @@ public final class RestServerEndpointConfiguration {
         final String portRangeDefinition = config.getString(RestOptions.BIND_PORT);
 
         final SSLHandlerFactory sslHandlerFactory;
-        if (SSLUtils.isRestSSLEnabled(config)) {
+        if (SecurityOptions.isRestSSLEnabled(config)) {
             try {
                 sslHandlerFactory = SSLUtils.createRestServerSSLEngineFactory(config);
             } catch (Exception e) {

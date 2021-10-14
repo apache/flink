@@ -191,7 +191,7 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
      * "redirect" the compatibility check to the corresponding {code TypeSerializerSnapshot} class.
      *
      * <p>Please note that if it is possible to directly override {@link
-     * TypeSerializerConfigSnapshot#resolveSchemaCompatibility} and preform the redirection logic
+     * TypeSerializerConfigSnapshot#resolveSchemaCompatibility} and perform the redirection logic
      * there, then that is the preferred way. This interface is useful for cases where there is not
      * enough information, and the new serializer should assist with the redirection.
      */

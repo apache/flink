@@ -58,25 +58,50 @@ public class EdgeManagerBuildUtil {
         }
     }
 
+    /**
+     * Given parallelisms of two job vertices, compute the max number of edges connected to a target
+     * execution vertex from the source execution vertices. Note that edge is considered undirected
+     * here. It can be an edge connected from an upstream job vertex to a downstream job vertex, or
+     * in a reversed way.
+     *
+     * @param targetParallelism parallelism of the target job vertex.
+     * @param sourceParallelism parallelism of the source job vertex.
+     * @param distributionPattern the {@link DistributionPattern} of the connecting edge.
+     */
+    public static int computeMaxEdgesToTargetExecutionVertex(
+            int targetParallelism, int sourceParallelism, DistributionPattern distributionPattern) {
+        switch (distributionPattern) {
+            case POINTWISE:
+                return (sourceParallelism + targetParallelism - 1) / targetParallelism;
+            case ALL_TO_ALL:
+                return sourceParallelism;
+            default:
+                throw new IllegalArgumentException("Unrecognized distribution pattern.");
+        }
+    }
+
     private static void connectAllToAll(
             ExecutionVertex[] taskVertices, IntermediateResult intermediateResult) {
 
-        ConsumedPartitionGroup consumedPartitions =
-                ConsumedPartitionGroup.fromMultiplePartitions(
-                        Arrays.stream(intermediateResult.getPartitions())
-                                .map(IntermediateResultPartition::getPartitionId)
-                                .collect(Collectors.toList()));
+        List<IntermediateResultPartitionID> consumedPartitions =
+                Arrays.stream(intermediateResult.getPartitions())
+                        .map(IntermediateResultPartition::getPartitionId)
+                        .collect(Collectors.toList());
+        ConsumedPartitionGroup consumedPartitionGroup =
+                createAndRegisterConsumedPartitionGroupToEdgeManager(
+                        consumedPartitions, intermediateResult);
         for (ExecutionVertex ev : taskVertices) {
-            ev.addConsumedPartitionGroup(consumedPartitions);
+            ev.addConsumedPartitionGroup(consumedPartitionGroup);
         }
 
-        ConsumerVertexGroup vertices =
-                ConsumerVertexGroup.fromMultipleVertices(
-                        Arrays.stream(taskVertices)
-                                .map(ExecutionVertex::getID)
-                                .collect(Collectors.toList()));
+        List<ExecutionVertexID> consumerVertices =
+                Arrays.stream(taskVertices)
+                        .map(ExecutionVertex::getID)
+                        .collect(Collectors.toList());
+        ConsumerVertexGroup consumerVertexGroup =
+                ConsumerVertexGroup.fromMultipleVertices(consumerVertices);
         for (IntermediateResultPartition partition : intermediateResult.getPartitions()) {
-            partition.addConsumers(vertices);
+            partition.addConsumers(consumerVertexGroup);
         }
     }
 
@@ -96,7 +121,8 @@ public class EdgeManagerBuildUtil {
                 partition.addConsumers(consumerVertexGroup);
 
                 ConsumedPartitionGroup consumedPartitionGroup =
-                        ConsumedPartitionGroup.fromSinglePartition(partition.getPartitionId());
+                        createAndRegisterConsumedPartitionGroupToEdgeManager(
+                                partition.getPartitionId(), intermediateResult);
                 executionVertex.addConsumedPartitionGroup(consumedPartitionGroup);
             }
         } else if (sourceCount > targetCount) {
@@ -120,7 +146,8 @@ public class EdgeManagerBuildUtil {
                 }
 
                 ConsumedPartitionGroup consumedPartitionGroup =
-                        ConsumedPartitionGroup.fromMultiplePartitions(consumedPartitions);
+                        createAndRegisterConsumedPartitionGroupToEdgeManager(
+                                consumedPartitions, intermediateResult);
                 executionVertex.addConsumedPartitionGroup(consumedPartitionGroup);
             }
         } else {
@@ -128,18 +155,18 @@ public class EdgeManagerBuildUtil {
 
                 IntermediateResultPartition partition =
                         intermediateResult.getPartitions()[partitionNum];
-                ConsumedPartitionGroup consumerPartitionGroup =
-                        ConsumedPartitionGroup.fromSinglePartition(partition.getPartitionId());
+                ConsumedPartitionGroup consumedPartitionGroup =
+                        createAndRegisterConsumedPartitionGroupToEdgeManager(
+                                partition.getPartitionId(), intermediateResult);
 
-                float factor = ((float) targetCount) / sourceCount;
-                int start = (int) (Math.ceil(partitionNum * factor));
-                int end = (int) (Math.ceil((partitionNum + 1) * factor));
+                int start = (partitionNum * targetCount + sourceCount - 1) / sourceCount;
+                int end = ((partitionNum + 1) * targetCount + sourceCount - 1) / sourceCount;
 
                 List<ExecutionVertexID> consumers = new ArrayList<>(end - start);
 
                 for (int i = start; i < end; i++) {
                     ExecutionVertex executionVertex = taskVertices[i];
-                    executionVertex.addConsumedPartitionGroup(consumerPartitionGroup);
+                    executionVertex.addConsumedPartitionGroup(consumedPartitionGroup);
 
                     consumers.add(executionVertex.getID());
                 }
@@ -149,5 +176,32 @@ public class EdgeManagerBuildUtil {
                 partition.addConsumers(consumerVertexGroup);
             }
         }
+    }
+
+    private static ConsumedPartitionGroup createAndRegisterConsumedPartitionGroupToEdgeManager(
+            IntermediateResultPartitionID consumedPartitionId,
+            IntermediateResult intermediateResult) {
+        ConsumedPartitionGroup consumedPartitionGroup =
+                ConsumedPartitionGroup.fromSinglePartition(consumedPartitionId);
+        registerConsumedPartitionGroupToEdgeManager(consumedPartitionGroup, intermediateResult);
+        return consumedPartitionGroup;
+    }
+
+    private static ConsumedPartitionGroup createAndRegisterConsumedPartitionGroupToEdgeManager(
+            List<IntermediateResultPartitionID> consumedPartitions,
+            IntermediateResult intermediateResult) {
+        ConsumedPartitionGroup consumedPartitionGroup =
+                ConsumedPartitionGroup.fromMultiplePartitions(consumedPartitions);
+        registerConsumedPartitionGroupToEdgeManager(consumedPartitionGroup, intermediateResult);
+        return consumedPartitionGroup;
+    }
+
+    private static void registerConsumedPartitionGroupToEdgeManager(
+            ConsumedPartitionGroup consumedPartitionGroup, IntermediateResult intermediateResult) {
+        intermediateResult
+                .getProducer()
+                .getGraph()
+                .getEdgeManager()
+                .registerConsumedPartitionGroup(consumedPartitionGroup);
     }
 }

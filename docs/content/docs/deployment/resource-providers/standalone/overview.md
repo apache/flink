@@ -36,7 +36,7 @@ under the License.
 
 ## Getting Started
 
-This *Getting Started* section guides you through the local setup (on one machine, but in separate processes) of a Flink cluster. This can easily be expanded to set up a distributed standalone cluster, which we describe in the [reference section](#example-2-start-a-distributed-cluster-jobmangers).
+This *Getting Started* section guides you through the local setup (on one machine, but in separate processes) of a Flink cluster. This can easily be expanded to set up a distributed standalone cluster, which we describe in the [reference section](#example-2-start-a-distributed-cluster-jobmanagers).
 
 ### Introduction
 
@@ -49,7 +49,7 @@ In the additional subpages of the standalone mode resource provider, we describe
 Flink runs on all *UNIX-like environments*, e.g. **Linux**, **Mac OS X**, and **Cygwin** (for Windows). Before you start to setup the system, make sure your system fulfils the following requirements.
 
 - **Java 1.8.x** or higher installed,
-- Downloaded a recent Flink distribution from the [download page]({{ site.download_url }}) and unpacked it.
+- Downloaded a recent Flink distribution from the [download page]({{< downloads >}}) and unpacked it.
 
 ### Starting a Standalone Cluster (Session Mode)
 
@@ -131,7 +131,7 @@ The log files are located in the `logs/` directory. There's a `.log` file for ea
 Alternatively, logs are available from the Flink web frontend (both for the JobManager and each TaskManager).
 
 By default, Flink is logging on the "INFO" log level, which provides basic information for all obvious issues. For cases where Flink seems to behave wrongly, reducing the log level to "DEBUG" is advised. The logging level is controlled via the `conf/log4.properties` file.
-Setting `rootLogger.level = DEBUG` will boostrap Flink on the DEBUG log level.
+Setting `rootLogger.level = DEBUG` will bootstrap Flink on the DEBUG log level.
 
 There's a dedicated page on the [logging]({{< ref "docs/deployment/advanced/logging" >}}) in Flink.
 
@@ -156,7 +156,7 @@ localhost
 localhost
 ```
 
-##### Example 2: Start a distributed cluster JobMangers
+##### Example 2: Start a distributed cluster JobManagers
 
 This assumes a cluster with 4 machines (`master1, worker1, worker2, worker3`), which all can reach each other over the network.
 

@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-import {ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit} from '@angular/core';
-import {ActivatedRoute} from '@angular/router';
-import {EMPTY, Subject} from 'rxjs';
-import {catchError, flatMap, takeUntil} from 'rxjs/operators';
-import {JobService, StatusService} from 'services';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { EMPTY, Subject } from 'rxjs';
+import { catchError, flatMap, takeUntil } from 'rxjs/operators';
+
+import { JobService, StatusService } from 'services';
 
 @Component({
   selector: 'flink-job',
@@ -41,7 +42,7 @@ export class JobComponent implements OnInit, OnDestroy {
     private statusService: StatusService
   ) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.statusService.refresh$
       .pipe(
         takeUntil(this.destroy$),
@@ -67,7 +68,7 @@ export class JobComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

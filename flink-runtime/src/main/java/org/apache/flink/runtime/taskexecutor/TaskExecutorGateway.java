@@ -156,11 +156,15 @@ public interface TaskExecutorGateway
      *
      * @param executionAttemptID identifying the task
      * @param checkpointId unique id for the checkpoint
+     * @param latestCompletedCheckpointId the id of the latest completed checkpoint
      * @param checkpointTimestamp is the timestamp when the checkpoint has been initiated
      * @return Future acknowledge if the checkpoint has been successfully confirmed
      */
     CompletableFuture<Acknowledge> abortCheckpoint(
-            ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            long latestCompletedCheckpointId,
+            long checkpointTimestamp);
 
     /**
      * Cancel the given task.
@@ -176,16 +180,18 @@ public interface TaskExecutorGateway
      * Heartbeat request from the job manager.
      *
      * @param heartbeatOrigin unique id of the job manager
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromJobManager(
+    CompletableFuture<Void> heartbeatFromJobManager(
             ResourceID heartbeatOrigin, AllocatedSlotReport allocatedSlotReport);
 
     /**
      * Heartbeat request from the resource manager.
      *
      * @param heartbeatOrigin unique id of the resource manager
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromResourceManager(ResourceID heartbeatOrigin);
+    CompletableFuture<Void> heartbeatFromResourceManager(ResourceID heartbeatOrigin);
 
     /**
      * Disconnects the given JobManager from the TaskManager.

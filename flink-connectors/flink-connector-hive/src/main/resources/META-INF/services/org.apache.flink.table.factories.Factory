@@ -14,3 +14,5 @@
 # limitations under the License.
 
 org.apache.flink.table.catalog.hive.factories.HiveCatalogFactory
+org.apache.flink.table.module.hive.HiveModuleFactory
+org.apache.flink.table.planner.delegation.hive.HiveParserFactory

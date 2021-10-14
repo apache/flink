@@ -25,17 +25,22 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * An embedded in-memory checkpoint store, which supports shutdown and suspend. You can use this to
- * test HA as long as the factory always returns the same store instance.
- */
+/** An embedded in-memory checkpoint store, which supports shutdown and suspend. */
 public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStore {
+
+    private static void throwAlreadyShutdownException(JobStatus status) {
+        throw new IllegalStateException(
+                String.format("Store has been already shutdown with %s.", status));
+    }
 
     private final ArrayDeque<CompletedCheckpoint> checkpoints = new ArrayDeque<>(2);
 
-    private final Collection<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
+    private final AtomicReference<JobStatus> shutdownStatus = new AtomicReference<>();
 
     private final int maxRetainedCheckpoints;
 
@@ -43,15 +48,15 @@ public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStor
         this(1);
     }
 
-    EmbeddedCompletedCheckpointStore(int maxRetainedCheckpoints) {
-        Preconditions.checkArgument(maxRetainedCheckpoints > 0);
-        this.maxRetainedCheckpoints = maxRetainedCheckpoints;
+    public EmbeddedCompletedCheckpointStore(int maxRetainedCheckpoints) {
+        this(maxRetainedCheckpoints, Collections.emptyList());
     }
 
-    @Override
-    public void recover() {
-        checkpoints.addAll(suspended);
-        suspended.clear();
+    public EmbeddedCompletedCheckpointStore(
+            int maxRetainedCheckpoints, Collection<CompletedCheckpoint> initialCheckpoints) {
+        Preconditions.checkArgument(maxRetainedCheckpoints > 0);
+        this.maxRetainedCheckpoints = maxRetainedCheckpoints;
+        this.checkpoints.addAll(initialCheckpoints);
     }
 
     @Override
@@ -60,8 +65,10 @@ public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStor
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup)
             throws Exception {
+        if (shutdownStatus.get() != null) {
+            throwAlreadyShutdownException(shutdownStatus.get());
+        }
         checkpoints.addLast(checkpoint);
-
         CheckpointSubsumeHelper.subsume(
                 checkpoints, maxRetainedCheckpoints, CompletedCheckpoint::discardOnSubsume);
     }
@@ -75,13 +82,13 @@ public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStor
     @Override
     public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
             throws Exception {
-        if (jobStatus.isGloballyTerminalState()) {
-            checkpoints.clear();
-            suspended.clear();
+        if (shutdownStatus.compareAndSet(null, jobStatus)) {
+            if (jobStatus.isGloballyTerminalState()) {
+                // We are done with this store. We should leave no checkpoints for recovery.
+                checkpoints.clear();
+            }
         } else {
-            suspended.clear();
-            suspended.addAll(checkpoints);
-            checkpoints.clear();
+            throwAlreadyShutdownException(shutdownStatus.get());
         }
     }
 
@@ -103,5 +110,10 @@ public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStor
     @Override
     public boolean requiresExternalizedCheckpoints() {
         return false;
+    }
+
+    @VisibleForTesting
+    public Optional<JobStatus> getShutdownStatus() {
+        return Optional.ofNullable(shutdownStatus.get());
     }
 }

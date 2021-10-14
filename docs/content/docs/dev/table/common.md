@@ -38,68 +38,91 @@ The following code example shows the common structure of Table API and SQL progr
 {{< tabs "0727d1e7-3f22-4eba-a25f-6a554b6a1359" >}}
 {{< tab "Java" >}}
 ```java
+import org.apache.flink.table.api.*;
+import org.apache.flink.connector.datagen.table.DataGenOptions;
 
-// create a TableEnvironment for batch or streaming execution
-TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// Create a TableEnvironment for batch or streaming execution.
+// See the "Create a TableEnvironment" section for details.
+TableEnvironment tableEnv = TableEnvironment.create(/*…*/);
 
-// create an input Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )");
-// register an output Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )");
+// Create a source table
+tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datagen")
+    .schema(Schema.newBuilder()
+      .column("f0", DataTypes.STRING())
+      .build())
+    .option(DataGenOptions.ROWS_PER_SECOND, 100)
+    .build())
 
-// create a Table object from a Table API query
-Table table2 = tableEnv.from("table1").select(...);
-// create a Table object from a SQL query
-Table table3 = tableEnv.sqlQuery("SELECT ... FROM table1 ... ");
+// Create a sink table (using SQL DDL)
+tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable");
 
-// emit a Table API result Table to a TableSink, same for SQL result
-TableResult tableResult = table2.executeInsert("outputTable");
-tableResult...
+// Create a Table object from a Table API query
+Table table2 = tableEnv.from("SourceTable");
 
+// Create a Table object from a SQL query
+Table table3 = tableEnv.sqlQuery("SELECT * FROM SourceTable");
+
+// Emit a Table API result Table to a TableSink, same for SQL result
+TableResult tableResult = table2.executeInsert("SinkTable");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
+import org.apache.flink.table.api._
+import org.apache.flink.connector.datagen.table.DataGenOptions
 
-// create a TableEnvironment for batch or streaming execution
-val tableEnv = ... // see "Create a TableEnvironment" section
+// Create a TableEnvironment for batch or streaming execution.
+// See the "Create a TableEnvironment" section for details.
+val tableEnv = TableEnvironment.create(/*…*/)
 
-// create an input Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )")
-// register an output Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )")
+// Create a source table
+tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datagen")
+  .schema(Schema.newBuilder()
+    .column("f0", DataTypes.STRING())
+    .build())
+  .option(DataGenOptions.ROWS_PER_SECOND, 100)
+  .build())
 
-// create a Table from a Table API query
-val table2 = tableEnv.from("table1").select(...)
-// create a Table from a SQL query
-val table3 = tableEnv.sqlQuery("SELECT ... FROM table1 ...")
+// Create a sink table (using SQL DDL)
+tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable");
 
-// emit a Table API result Table to a TableSink, same for SQL result
-val tableResult = table2.executeInsert("outputTable")
-tableResult...
+// Create a Table object from a Table API query
+val table1 = tableEnv.from("SourceTable");
 
+// Create a Table object from a SQL query
+val table2 = tableEnv.sqlQuery("SELECT * FROM SourceTable");
+
+// Emit a Table API result Table to a TableSink, same for SQL result
+val tableResult = table1.executeInsert("SinkTable");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
+from pyflink.table import *
 
-# create a TableEnvironment for batch or streaming execution
+# Create a TableEnvironment for batch or streaming execution
 table_env = ... # see "Create a TableEnvironment" section
 
-# register an input Table
-table_env.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )")
-# register an output Table
-table_env.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )")
+# Create a source table
+table_env.executeSql("""CREATE TEMPORARY TABLE SourceTable (
+  f0 STRING
+) WITH (
+  'connector' = 'datagen',
+  'rows-per-second' = '100'
+)
+""")
 
-# create a Table from a Table API query
-table2 = table_env.from_path("table1").select(...)
-# create a Table from a SQL query
-table3 = table_env.sql_query("SELECT ... FROM table1 ...")
+# Create a sink table
+table_env.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable")
 
-# emit a Table API result Table to a TableSink, same for SQL result
-table_result = table3.execute_insert("outputTable")
-table_result...
+# Create a Table from a Table API query
+table1 = table_env.from_path("SourceTable").select(...)
 
+# Create a Table from a SQL query
+table2 = table_env.sql_query("SELECT ... FROM SourceTable ...")
+
+# Emit a Table API result Table to a TableSink, same for SQL result
+table_result = table1.execute_insert("SinkTable")
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -140,7 +163,7 @@ EnvironmentSettings settings = EnvironmentSettings
     //.inBatchMode()
     .build();
 
-TableEnvironment tEnv = TableEnvironment.create(setting);
+TableEnvironment tEnv = TableEnvironment.create(settings);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -153,19 +176,19 @@ val settings = EnvironmentSettings
     //.inBatchMode()
     .build()
 
-val tEnv = TableEnvironment.create(setting)
+val tEnv = TableEnvironment.create(settings)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# create a blink streaming TableEnvironment
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().build()
+# create a streaming TableEnvironment
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
-# create a blink batch TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+# create a batch TableEnvironment
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 ```
@@ -251,7 +274,7 @@ the query is correct it can be run against the real production table.
 
 #### Virtual Tables
 
-A `Table` API object corresponds to a `VIEW` (virtual table) in a SQL terms. It encapsulates a logical
+A `Table` API object corresponds to a `VIEW` (virtual table) in SQL terms. It encapsulates a logical
 query plan. It can be created in a catalog as follows:
 
 {{< tabs "180b1bfe-5749-4b96-a120-e186fd361c8d" >}}
@@ -306,8 +329,22 @@ registered `Table` will *not* be shared.
 It is also possible to create a `TABLE` as known from relational databases from a [connector]({{< ref "docs/connectors/table/overview" >}}) declaration.
 The connector describes the external system that stores the data of a table. Storage systems such as Apache Kafka or a regular file system can be declared here.
 
-```sql
-tableEnvironment.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
+Such tables can either be created using the Table API directly, or by switching to SQL DDL.
+
+```java
+// Using table descriptors
+final TableDescriptor sourceDescriptor = TableDescriptor.forConnector("datagen")
+    .schema(Schema.newBuilder()
+    .column("f0", DataTypes.STRING())
+    .build())
+    .option(DataGenOptions.ROWS_PER_SECOND, 100)
+    .build();
+
+tableEnv.createTable("SourceTableA", sourceDescriptor);
+tableEnv.createTemporaryTable("SourceTableB", sourceDescriptor);
+
+// Using SQL DDL
+tableEnv.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
 ```
 
 ### Expanding Table identifiers
@@ -618,15 +655,19 @@ The following examples shows how to emit a `Table`:
 TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 // create an output Table
-final Schema schema = new Schema()
-    .field("a", DataTypes.INT())
-    .field("b", DataTypes.STRING())
-    .field("c", DataTypes.BIGINT());
+final Schema schema = Schema.newBuilder()
+    .column("a", DataTypes.INT())
+    .column("b", DataTypes.STRING())
+    .column("c", DataTypes.BIGINT())
+    .build();
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("CsvSinkTable");
+tableEnv.createTemporaryTable("CsvSinkTable", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/path/to/file")
+    .format(FormatDescriptor.forFormat("csv")
+        .option("field-delimiter", "|")
+        .build())
+    .build());
 
 // compute a result Table using Table API operators and/or SQL queries
 Table result = ...
@@ -642,15 +683,19 @@ result.executeInsert("CsvSinkTable");
 val tableEnv = ... // see "Create a TableEnvironment" section
 
 // create an output Table
-val schema = new Schema()
-    .field("a", DataTypes.INT())
-    .field("b", DataTypes.STRING())
-    .field("c", DataTypes.BIGINT())
+val schema = Schema.newBuilder()
+    .column("a", DataTypes.INT())
+    .column("b", DataTypes.STRING())
+    .column("c", DataTypes.BIGINT())
+    .build()
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("CsvSinkTable")
+tableEnv.createTemporaryTable("CsvSinkTable", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/path/to/file")
+    .format(FormatDescriptor.forFormat("csv")
+        .option("field-delimiter", "|")
+        .build())
+    .build())
 
 // compute a result Table using Table API operators and/or SQL queries
 val result: Table = ...
@@ -666,15 +711,19 @@ result.executeInsert("CsvSinkTable")
 table_env = ... # see "Create a TableEnvironment" section
 
 # create a TableSink
-table_env.connect(FileSystem().path("/path/to/file")))
-    .with_format(Csv()
-                 .field_delimiter(',')
-                 .deriveSchema())
-    .with_schema(Schema()
-                 .field("a", DataTypes.INT())
-                 .field("b", DataTypes.STRING())
-                 .field("c", DataTypes.BIGINT()))
-    .create_temporary_table("CsvSinkTable")
+schema = Schema.new_builder()
+    .column("a", DataTypes.INT())
+    .column("b", DataTypes.STRING())
+    .column("c", DataTypes.BIGINT())
+    .build()
+    
+table_env.create_temporary_table("CsvSinkTable", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/path/to/file")
+    .format(FormatDescriptor.for_format("csv")
+        .option("field-delimiter", "|")
+        .build())
+    .build())
 
 # compute a result Table using Table API operators and/or SQL queries
 result = ...
@@ -692,14 +741,13 @@ result.execute_insert("CsvSinkTable")
 Translate and Execute a Query
 -----------------------------
 
-The behavior of translating and executing a query is different for the two planners.
 Table API and SQL queries are translated into [DataStream]({{< ref "docs/dev/datastream/overview" >}}) programs whether their input is streaming or batch.
 A query is internally represented as a logical query plan and is translated in two phases:
 
 1. Optimization of the logical plan,
 2. Translation into a DataStream program.
 
-a Table API or SQL query is translated when:
+A Table API or SQL query is translated when:
 
 * `TableEnvironment.executeSql()` is called. This method is used for executing a given statement, and the sql query is translated immediately once this method is called.
 * `Table.executeInsert()` is called. This method is used for inserting the table content to the given sink path, and the Table API is translated immediately once this method is called.
@@ -796,41 +844,28 @@ print(table.explain())
 {{< /tab >}}
 {{< /tabs >}}
 
-The result of the above exmaple is
+The result of the above example is
 
 {{< expand "Explain" >}}
 ```text
 
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
-    FlinkLogicalDataStreamScan(id=[1], fields=[count, word])
-  FlinkLogicalDataStreamScan(id=[2], fields=[count, word])
+:- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
+:  +- LogicalTableScan(table=[[Unregistered_DataStream_1]])
++- LogicalTableScan(table=[[Unregistered_DataStream_2]])
 
-== Optimized Logical Plan ==
-DataStreamUnion(all=[true], union all=[count, word])
-  DataStreamCalc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
-    DataStreamScan(id=[1], fields=[count, word])
-  DataStreamScan(id=[2], fields=[count, word])
+== Optimized Physical Plan ==
+Union(all=[true], union=[count, word])
+:- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+:  +- DataStreamScan(table=[[Unregistered_DataStream_1]], fields=[count, word])
++- DataStreamScan(table=[[Unregistered_DataStream_2]], fields=[count, word])
 
-== Physical Execution Plan ==
-Stage 1 : Data Source
-	content : collect elements with CollectionInputFormat
-
-Stage 2 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 3 : Operator
-		content : from: (count, word)
-		ship_strategy : REBALANCE
-
-		Stage 4 : Operator
-			content : where: (LIKE(word, _UTF-16LE'F%')), select: (count, word)
-			ship_strategy : FORWARD
-
-			Stage 5 : Operator
-				content : from: (count, word)
-				ship_strategy : REBALANCE
+== Optimized Execution Plan ==
+Union(all=[true], union=[count, word])
+:- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+:  +- DataStreamScan(table=[[Unregistered_DataStream_1]], fields=[count, word])
++- DataStreamScan(table=[[Unregistered_DataStream_2]], fields=[count, word])
 
 ```
 {{< /expand >}}
@@ -841,30 +876,35 @@ The following code shows an example and the corresponding output for multiple-si
 {{< tab "Java" >}}
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 
-final Schema schema = new Schema()
-    .field("count", DataTypes.INT())
-    .field("word", DataTypes.STRING());
+final Schema schema = Schema.newBuilder()
+    .column("count", DataTypes.INT())
+    .column("word", DataTypes.STRING())
+    .build();
 
-tEnv.connect(new FileSystem().path("/source/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource1");
-tEnv.connect(new FileSystem().path("/source/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource2");
-tEnv.connect(new FileSystem().path("/sink/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink1");
-tEnv.connect(new FileSystem().path("/sink/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink2");
-    
+tEnv.createTemporaryTable("MySource1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path1")
+    .format("csv")
+    .build());
+tEnv.createTemporaryTable("MySource2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path2")
+    .format("csv")
+    .build());
+tEnv.createTemporaryTable("MySink1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path1")
+    .format("csv")
+    .build());
+tEnv.createTemporaryTable("MySink2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path2")
+    .format("csv")
+    .build());
+
 StatementSet stmtSet = tEnv.createStatementSet();
 
 Table table1 = tEnv.from("MySource1").where($("word").like("F%"));
@@ -880,29 +920,34 @@ System.out.println(explanation);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance.useBlinkPlanner.inStreamingMode.build
+val settings = EnvironmentSettings.inStreamingMode()
 val tEnv = TableEnvironment.create(settings)
 
-val schema = new Schema()
-    .field("count", DataTypes.INT())
-    .field("word", DataTypes.STRING())
+val schema = Schema.newBuilder()
+    .column("count", DataTypes.INT())
+    .column("word", DataTypes.STRING())
+    .build()
 
-tEnv.connect(new FileSystem().path("/source/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource1")
-tEnv.connect(new FileSystem().path("/source/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource2")
-tEnv.connect(new FileSystem().path("/sink/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink1")
-tEnv.connect(new FileSystem().path("/sink/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink2")
+tEnv.createTemporaryTable("MySource1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path1")
+    .format("csv")
+    .build())
+tEnv.createTemporaryTable("MySource2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path2")
+    .format("csv")
+    .build())
+tEnv.createTemporaryTable("MySink1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path1")
+    .format("csv")
+    .build())
+tEnv.createTemporaryTable("MySink2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path2")
+    .format("csv")
+    .build())
     
 val stmtSet = tEnv.createStatementSet()
 
@@ -919,30 +964,35 @@ println(explanation)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
+settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(environment_settings=settings)
 
-schema = Schema()
-    .field("count", DataTypes.INT())
-    .field("word", DataTypes.STRING())
+schema = Schema.new_builder()
+    .column("count", DataTypes.INT())
+    .column("word", DataTypes.STRING())
+    .build()
 
-t_env.connect(FileSystem().path("/source/path1")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySource1")
-t_env.connect(FileSystem().path("/source/path2")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySource2")
-t_env.connect(FileSystem().path("/sink/path1")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySink1")
-t_env.connect(FileSystem().path("/sink/path2")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySink2")
-    
+t_env.create_temporary_table("MySource1", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path1")
+    .format("csv")
+    .build())
+t_env.create_temporary_table("MySource2", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path2")
+    .format("csv")
+    .build())
+t_env.create_temporary_table("MySink1", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path1")
+    .format("csv")
+    .build())
+t_env.create_temporary_table("MySink2", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path2")
+    .format("csv")
+    .build())
+
 stmt_set = t_env.create_statement_set()
 
 table1 = t_env.from_path("MySource1").where(col('word').like('F%'))
@@ -962,79 +1012,40 @@ the result of multiple-sinks plan is
 
 {{< expand "MultiTable Explain" >}}
 ```text
+
 == Abstract Syntax Tree ==
-LogicalLegacySink(name=[MySink1], fields=[count, word])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
 +- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
 
-LogicalLegacySink(name=[MySink2], fields=[count, word])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
 +- LogicalUnion(all=[true])
    :- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]])
 
-== Optimized Logical Plan ==
-Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')], reuse_id=[1])
-+- TableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
++- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
-LegacySink(name=[MySink1], fields=[count, word])
+LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
++- Union(all=[true], union=[count, word])
+   :- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+
+== Optimized Execution Plan ==
+Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])(reuse_id=[1])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+
+LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
 +- Reused(reference_id=[1])
 
-LegacySink(name=[MySink2], fields=[count, word])
+LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
 +- Union(all=[true], union=[count, word])
    :- Reused(reference_id=[1])
-   +- TableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
-
-== Physical Execution Plan ==
-Stage 1 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 2 : Operator
-		content : CsvTableSource(read fields: count, word)
-		ship_strategy : REBALANCE
-
-		Stage 3 : Operator
-			content : SourceConversion(table:Buffer(default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]), fields:(count, word))
-			ship_strategy : FORWARD
-
-			Stage 4 : Operator
-				content : Calc(where: (word LIKE _UTF-16LE'F%'), select: (count, word))
-				ship_strategy : FORWARD
-
-				Stage 5 : Operator
-					content : SinkConversionToRow
-					ship_strategy : FORWARD
-
-					Stage 6 : Operator
-						content : Map
-						ship_strategy : FORWARD
-
-Stage 8 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 9 : Operator
-		content : CsvTableSource(read fields: count, word)
-		ship_strategy : REBALANCE
-
-		Stage 10 : Operator
-			content : SourceConversion(table:Buffer(default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]), fields:(count, word))
-			ship_strategy : FORWARD
-
-			Stage 12 : Operator
-				content : SinkConversionToRow
-				ship_strategy : FORWARD
-
-				Stage 13 : Operator
-					content : Map
-					ship_strategy : FORWARD
-
-					Stage 7 : Data Sink
-						content : Sink: CsvTableSink(count, word)
-						ship_strategy : FORWARD
-
-						Stage 14 : Data Sink
-							content : Sink: CsvTableSink(count, word)
-							ship_strategy : FORWARD
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
 ```
 {{< /expand >}}

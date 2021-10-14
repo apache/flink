@@ -82,7 +82,7 @@ public abstract class AbstractSubtaskAttemptHandler<
 
     @Override
     protected R handleRequest(
-            HandlerRequest<EmptyRequestBody, M> request, AccessExecutionVertex executionVertex)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionVertex executionVertex)
             throws RestHandlerException {
         final Integer attemptNumber = request.getPathParameter(SubtaskAttemptPathParameter.class);
 
@@ -119,6 +119,6 @@ public abstract class AbstractSubtaskAttemptHandler<
      * @throws RestHandlerException the rest handler exception
      */
     protected abstract R handleRequest(
-            HandlerRequest<EmptyRequestBody, M> request, AccessExecution execution)
+            HandlerRequest<EmptyRequestBody> request, AccessExecution execution)
             throws RestHandlerException;
 }

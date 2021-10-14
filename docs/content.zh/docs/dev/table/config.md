@@ -75,23 +75,21 @@ configuration.setString("table.exec.mini-batch.size", "5000")
 t_env = ...
 
 # access flink configuration
-configuration = t_env.get_config().get_configuration();
+configuration = t_env.get_config().get_configuration()
 # set low-level key-value options
-configuration.set_string("table.exec.mini-batch.enabled", "true");
-configuration.set_string("table.exec.mini-batch.allow-latency", "5 s");
-configuration.set_string("table.exec.mini-batch.size", "5000");
+configuration.set_string("table.exec.mini-batch.enabled", "true")
+configuration.set_string("table.exec.mini-batch.allow-latency", "5 s")
+configuration.set_string("table.exec.mini-batch.size", "5000")
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 ```
-Flink SQL> SET table.exec.mini-batch.enabled = true;
-Flink SQL> SET table.exec.mini-batch.allow-latency = 5s;
-Flink SQL> SET table.exec.mini-batch.size = 5000;
+Flink SQL> SET 'table.exec.mini-batch.enabled' = 'true';
+Flink SQL> SET 'table.exec.mini-batch.allow-latency' = '5s';
+Flink SQL> SET 'table.exec.mini-batch.size' = '5000';
 ```
 {{< /tab >}}
 {{< /tabs >}}
-
-<span class="label label-danger">注意</span> 目前，key-value 配置项仅被 Blink planner 支持。
 
 ### 执行配置
 

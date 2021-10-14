@@ -216,7 +216,7 @@ public class KinesisDynamicTableFactoryTest extends TestLogger {
         ResolvedSchema sinkSchema = defaultSinkSchema();
         Map<String, String> sinkOptions =
                 defaultTableOptions()
-                        .withTableOption(KinesisOptions.SINK_PARTITIONER, "random")
+                        .withTableOption(KinesisConnectorOptions.SINK_PARTITIONER, "random")
                         .build();
 
         thrown.expect(ValidationException.class);
@@ -225,7 +225,7 @@ public class KinesisDynamicTableFactoryTest extends TestLogger {
                         new ValidationException(
                                 String.format(
                                         "Cannot set %s option for a table defined with a PARTITIONED BY clause",
-                                        KinesisOptions.SINK_PARTITIONER.key()))));
+                                        KinesisConnectorOptions.SINK_PARTITIONER.key()))));
 
         try {
             createTableSink(sinkSchema, Arrays.asList("name", "curr_id"), sinkOptions);
@@ -239,7 +239,7 @@ public class KinesisDynamicTableFactoryTest extends TestLogger {
         ResolvedSchema sinkSchema = defaultSinkSchema();
         Map<String, String> sinkOptions =
                 defaultTableOptions()
-                        .withTableOption(KinesisOptions.SINK_PARTITIONER, "abc")
+                        .withTableOption(KinesisConnectorOptions.SINK_PARTITIONER, "abc")
                         .build();
 
         thrown.expect(ValidationException.class);
@@ -284,7 +284,7 @@ public class KinesisDynamicTableFactoryTest extends TestLogger {
         String format = TestFormatFactory.IDENTIFIER;
         return new TableOptionsBuilder(connector, format)
                 // default table options
-                .withTableOption(KinesisOptions.STREAM, STREAM_NAME)
+                .withTableOption(KinesisConnectorOptions.STREAM, STREAM_NAME)
                 .withTableOption("aws.region", "us-west-2")
                 .withTableOption("aws.credentials.provider", "BASIC")
                 .withTableOption("aws.credentials.basic.accesskeyid", "ververicka")

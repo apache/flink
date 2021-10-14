@@ -21,29 +21,33 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceFactory;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
+import org.apache.flink.util.FatalExitExceptionHandler;
 
 import java.util.function.BiConsumer;
 
-/** A settable testing {@link StreamTask}. */
+/**
+ * A settable testing {@link StreamTask}.
+ *
+ * @deprecated This class is deprecated in favour of using {@link
+ *     org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder}.
+ */
+@Deprecated
 public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamTask<OUT, OP> {
 
     private final Object checkpointLock;
     private final StreamConfig config;
     private final ExecutionConfig executionConfig;
     private StreamTaskStateInitializer streamTaskStateInitializer;
-    private final StreamStatusMaintainer streamStatusMaintainer;
     private final CheckpointStorageWorkerView checkpointStorage;
     private final ProcessingTimeService processingTimeService;
     private final BiConsumer<String, Throwable> handleAsyncException;
@@ -54,7 +58,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
             StreamConfig config,
             ExecutionConfig executionConfig,
             StreamTaskStateInitializer streamTaskStateInitializer,
-            StreamStatusMaintainer streamStatusMaintainer,
             CheckpointStorageWorkerView checkpointStorage,
             TimerService timerService,
             BiConsumer<String, Throwable> handleAsyncException,
@@ -73,7 +76,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
         this.config = config;
         this.executionConfig = executionConfig;
         this.streamTaskStateInitializer = streamTaskStateInitializer;
-        this.streamStatusMaintainer = streamStatusMaintainer;
         this.checkpointStorage = checkpointStorage;
         this.processingTimeService = timerService;
         this.handleAsyncException = handleAsyncException;
@@ -84,7 +86,7 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
     public void init() {}
 
     @Override
-    protected void cleanup() {
+    protected void cleanUpInternal() {
         mailboxProcessor.allActionsCompleted();
     }
 
@@ -116,11 +118,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
     public void setStreamTaskStateInitializer(
             StreamTaskStateInitializer streamTaskStateInitializer) {
         this.streamTaskStateInitializer = streamTaskStateInitializer;
-    }
-
-    @Override
-    public StreamStatusMaintainer getStreamStatusMaintainer() {
-        return streamStatusMaintainer;
     }
 
     @Override

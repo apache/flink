@@ -300,7 +300,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
         String format = TestFormatFactory.IDENTIFIER;
         return new TableOptionsBuilder(connector, format)
                 // default table options
-                .withTableOption(KinesisOptions.STREAM, TABLE_NAME)
+                .withTableOption(KinesisConnectorOptions.STREAM, TABLE_NAME)
                 .withTableOption("properties.aws.region", "us-west-2")
                 // default format options
                 .withFormatOption(TestFormatFactory.DELIMITER, ",");

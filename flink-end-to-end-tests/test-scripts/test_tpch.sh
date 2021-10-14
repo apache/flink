@@ -51,29 +51,25 @@ ORIGIN_QUERY_DIR="$TARGET_DIR/query"
 MODIFIED_QUERY_DIR="$TPCH_DATA_DIR/modified-query"
 EXPECTED_DIR="$TARGET_DIR/expected"
 RESULT_DIR="$TEST_DATA_DIR/result"
-SQL_CONF="$TEST_DATA_DIR/sql-client-session.conf"
+INIT_SQL="$TEST_DATA_DIR/init_table.sql"
 
 mkdir "$RESULT_DIR"
 
-SOURCES_YAML=$(cat "$TPCH_DATA_DIR/source.yaml")
-SOURCES_YAML=${SOURCES_YAML//\$TABLE_DIR/"$TABLE_DIR"}
+SOURCES_SQL=$(cat "$TPCH_DATA_DIR/source.sql")
+SOURCES_SQL=${SOURCES_SQL//\$TABLE_DIR/"$TABLE_DIR"}
 
 for i in {1..22}
 do
     echo "Running query #$i..."
 
-    # First line in sink yaml is ignored
-    SINK_YAML=$(tail -n +2 "$TPCH_DATA_DIR/sink/q${i}.yaml")
-    SINK_YAML=${SINK_YAML//\$RESULT_DIR/"$RESULT_DIR"}
+    SINK_SQL=$(cat "$TPCH_DATA_DIR/sink/q${i}.sql")
+    SINK_SQL=${SINK_SQL//\$RESULT_DIR/"$RESULT_DIR"}
 
-    cat > "$SQL_CONF" << EOF
-${SOURCES_YAML}
-${SINK_YAML}
-execution:
-  planner: blink
-  type: batch
-  result-mode: table
-  parallelism: 2
+    cat > "$INIT_SQL" << EOF
+${SOURCES_SQL}
+${SINK_SQL}
+SET execution.runtime-mode=batch;
+SET parallelism.default=2;
 EOF
 
     if [[ -e "$MODIFIED_QUERY_DIR/q$i.sql" ]]
@@ -84,10 +80,10 @@ EOF
     fi
 
     JOB_ID=$("$FLINK_DIR/bin/sql-client.sh" \
-        --environment "$SQL_CONF" \
+        -i "$INIT_SQL" \
         --update "$SQL_STATEMENT" | grep "Job ID:" | sed 's/.* //g')
 
     wait_job_terminal_state "$JOB_ID" "FINISHED"
 
-    java -cp "$TARGET_DIR/TpchTestProgram.jar" org.apache.flink.table.tpch.TpchResultComparator "$EXPECTED_DIR/q$i.csv" "$RESULT_DIR/q$i.csv"
+    java -cp "$TARGET_DIR/TpchTestProgram.jar" org.apache.flink.table.tpch.TpchResultComparator "$EXPECTED_DIR/q$i.csv" "$RESULT_DIR/q$i"
 done

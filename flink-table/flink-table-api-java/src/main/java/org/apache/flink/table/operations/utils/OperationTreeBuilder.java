@@ -43,7 +43,6 @@ import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
-import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
@@ -70,6 +69,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
@@ -470,7 +470,7 @@ public final class OperationTreeBuilder {
 
         Expression resolvedMapFunction = mapFunction.accept(lookupResolver);
 
-        if (!ApiExpressionUtils.isFunctionOfKind(resolvedMapFunction, FunctionKind.SCALAR)) {
+        if (!isFunctionOfKind(resolvedMapFunction, FunctionKind.SCALAR)) {
             throw new ValidationException(
                     "Only a scalar function can be used in the map operator.");
         }
@@ -480,25 +480,18 @@ public final class OperationTreeBuilder {
         return project(Collections.singletonList(expandedFields), child, false);
     }
 
-    public QueryOperation flatMap(Expression tableFunction, QueryOperation child) {
+    public QueryOperation flatMap(Expression tableFunctionCall, QueryOperation child) {
+        final ExpressionResolver resolver = getResolverBuilder(child).build();
+        final ResolvedExpression resolvedCall =
+                resolveSingleExpression(tableFunctionCall, resolver);
 
-        Expression resolvedTableFunction = tableFunction.accept(lookupResolver);
-
-        if (!ApiExpressionUtils.isFunctionOfKind(resolvedTableFunction, FunctionKind.TABLE)) {
+        if (!isFunctionOfKind(resolvedCall, FunctionKind.TABLE)) {
             throw new ValidationException(
                     "Only a table function can be used in the flatMap operator.");
         }
 
-        FunctionDefinition functionDefinition =
-                ((UnresolvedCallExpression) resolvedTableFunction).getFunctionDefinition();
-        if (!(functionDefinition instanceof TableFunctionDefinition)) {
-            throw new ValidationException(
-                    "The new type inference for functions is not supported in the flatMap yet.");
-        }
-
-        TypeInformation<?> resultType =
-                ((TableFunctionDefinition) functionDefinition).getResultType();
-        List<String> originFieldNames = Arrays.asList(FieldInfoUtils.getFieldNames(resultType));
+        final List<String> originFieldNames =
+                DataTypeUtils.flattenToNames(resolvedCall.getOutputDataType());
 
         List<String> childFields = child.getResolvedSchema().getColumnNames();
         Set<String> usedFieldNames = new HashSet<>(childFields);
@@ -510,7 +503,7 @@ public final class OperationTreeBuilder {
             args.add(valueLiteral(resultName));
         }
 
-        args.add(0, resolvedTableFunction);
+        args.add(0, tableFunctionCall);
         Expression renamedTableFunction =
                 unresolvedCall(BuiltInFunctionDefinitions.AS, args.toArray(new Expression[0]));
         QueryOperation joinNode =
@@ -670,7 +663,7 @@ public final class OperationTreeBuilder {
         private Optional<AggregateWithAlias> getAggregate(
                 UnresolvedCallExpression unresolvedCall, List<String> aliases) {
             FunctionDefinition functionDefinition = unresolvedCall.getFunctionDefinition();
-            if (ApiExpressionUtils.isFunctionOfKind(unresolvedCall, FunctionKind.AGGREGATE)) {
+            if (isFunctionOfKind(unresolvedCall, FunctionKind.AGGREGATE)) {
                 final List<String> fieldNames;
                 if (aliases.isEmpty()) {
                     if (functionDefinition instanceof AggregateFunctionDefinition) {
@@ -914,7 +907,7 @@ public final class OperationTreeBuilder {
 
         @Override
         public Void visit(UnresolvedCallExpression call) {
-            if (ApiExpressionUtils.isFunctionOfKind(call, FunctionKind.AGGREGATE)) {
+            if (isFunctionOfKind(call, FunctionKind.AGGREGATE)) {
                 throw new ValidationException(exceptionMessage);
             }
             call.getChildren().forEach(expr -> expr.accept(this));

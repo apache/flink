@@ -64,7 +64,7 @@ public class AbstractPartitionTrackerTest extends TestLogger {
                 is(false));
     }
 
-    static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(
+    public static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(
             ResultPartitionID resultPartitionId, boolean hasLocalResources) {
         return createResultPartitionDeploymentDescriptor(
                 resultPartitionId, ResultPartitionType.BLOCKING, hasLocalResources);

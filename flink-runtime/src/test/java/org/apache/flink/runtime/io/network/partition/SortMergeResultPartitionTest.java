@@ -209,7 +209,8 @@ public class SortMergeResultPartitionTest extends TestLogger {
 
                     if (!buffer.isBuffer()) {
                         ++numEndOfPartitionEvents;
-                        assertFalse(view.isAvailable(Integer.MAX_VALUE));
+                        assertFalse(
+                                view.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable());
                         view.releaseAllResources();
                     }
                     bufferAndBacklog = view.getNextBuffer();

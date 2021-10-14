@@ -83,7 +83,7 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
             CuratorFramework client, LastStateConnectionStateListener connectionStateListener) {
         this.client = checkNotNull(client, "Curator client");
         this.counterPath = ZooKeeperUtils.getCheckpointIdCounterPath();
-        this.sharedCount = new SharedCount(client, counterPath, 1);
+        this.sharedCount = new SharedCount(client, counterPath, INITIAL_CHECKPOINT_ID);
         this.connectionStateListener = connectionStateListener;
     }
 

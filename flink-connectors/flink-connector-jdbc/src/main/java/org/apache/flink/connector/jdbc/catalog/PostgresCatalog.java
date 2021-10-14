@@ -52,11 +52,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.PASSWORD;
+import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.TABLE_NAME;
+import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.URL;
+import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.USERNAME;
 import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.IDENTIFIER;
-import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.PASSWORD;
-import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.TABLE_NAME;
-import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.URL;
-import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.USERNAME;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 
 /** Catalog for PostgreSQL. */

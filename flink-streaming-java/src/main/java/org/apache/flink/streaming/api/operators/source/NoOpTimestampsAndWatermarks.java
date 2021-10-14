@@ -116,6 +116,11 @@ public class NoOpTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T
         }
 
         @Override
+        public void markActive() {
+            // do nothing, it was never idle
+        }
+
+        @Override
         public SourceOutput<T> createOutputForSplit(String splitId) {
             // we don't need per-partition instances, because we do not generate watermarks
             return this;

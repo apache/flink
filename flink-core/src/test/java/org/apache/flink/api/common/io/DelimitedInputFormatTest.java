@@ -349,7 +349,7 @@ public class DelimitedInputFormatTest {
         assertTrue(format.reachedEnd());
         format.close();
 
-        // this one must have read one too many, because the next split will skipp the trailing
+        // this one must have read one too many, because the next split will skip the trailing
         // remainder
         // which happens to be one full record
         assertEquals(3, count);

@@ -32,13 +32,13 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.BULK_FLUSH_INTERVAL_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.FAILURE_HANDLER_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.PASSWORD_OPTION;
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.USERNAME_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.BULK_FLUSH_INTERVAL_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.FAILURE_HANDLER_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.PASSWORD_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.USERNAME_OPTION;
 
 /** Accessor methods to elasticsearch options. */
 @Internal
@@ -80,17 +80,18 @@ class ElasticsearchConfiguration {
     }
 
     public String getDocumentType() {
-        return config.get(ElasticsearchOptions.DOCUMENT_TYPE_OPTION);
+        return config.get(ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION);
     }
 
     public int getBulkFlushMaxActions() {
-        int maxActions = config.get(ElasticsearchOptions.BULK_FLUSH_MAX_ACTIONS_OPTION);
+        int maxActions = config.get(ElasticsearchConnectorOptions.BULK_FLUSH_MAX_ACTIONS_OPTION);
         // convert 0 to -1, because Elasticsearch client use -1 to disable this configuration.
         return maxActions == 0 ? -1 : maxActions;
     }
 
     public long getBulkFlushMaxByteSize() {
-        long maxSize = config.get(ElasticsearchOptions.BULK_FLASH_MAX_SIZE_OPTION).getBytes();
+        long maxSize =
+                config.get(ElasticsearchConnectorOptions.BULK_FLASH_MAX_SIZE_OPTION).getBytes();
         // convert 0 to -1, because Elasticsearch client use -1 to disable this configuration.
         return maxSize == 0 ? -1 : maxSize;
     }
@@ -111,7 +112,7 @@ class ElasticsearchConfiguration {
 
     public boolean isBulkFlushBackoffEnabled() {
         return config.get(BULK_FLUSH_BACKOFF_TYPE_OPTION)
-                != ElasticsearchOptions.BackOffType.DISABLED;
+                != ElasticsearchConnectorOptions.BackOffType.DISABLED;
     }
 
     public Optional<ElasticsearchSinkBase.FlushBackoffType> getBulkFlushBackoffType() {
@@ -134,19 +135,19 @@ class ElasticsearchConfiguration {
     }
 
     public boolean isDisableFlushOnCheckpoint() {
-        return !config.get(ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION);
+        return !config.get(ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION);
     }
 
     public String getIndex() {
-        return config.get(ElasticsearchOptions.INDEX_OPTION);
+        return config.get(ElasticsearchConnectorOptions.INDEX_OPTION);
     }
 
     public String getKeyDelimiter() {
-        return config.get(ElasticsearchOptions.KEY_DELIMITER_OPTION);
+        return config.get(ElasticsearchConnectorOptions.KEY_DELIMITER_OPTION);
     }
 
     public Optional<String> getPathPrefix() {
-        return config.getOptional(ElasticsearchOptions.CONNECTION_PATH_PREFIX);
+        return config.getOptional(ElasticsearchConnectorOptions.CONNECTION_PATH_PREFIX);
     }
 
     @Override

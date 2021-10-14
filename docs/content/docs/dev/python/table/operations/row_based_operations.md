@@ -37,7 +37,7 @@ from pyflink.table import EnvironmentSettings, TableEnvironment
 from pyflink.table.expressions import col
 from pyflink.table.types import DataTypes
 
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
@@ -61,7 +61,7 @@ It also supports to take a Row object (containing all the columns of the input t
 @udf(result_type=DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT()),
                                DataTypes.FIELD("data", DataTypes.STRING())]))
 def func2(data: Row) -> Row:
-    return Row(data[0], data[1] * 2)
+    return Row(data.id, data.data * 2)
 
 # specify the function without the input columns
 table.map(func2).alias('id', 'data').to_pandas()
@@ -101,15 +101,15 @@ from pyflink.common import Row
 from pyflink.table.udf import udtf
 from pyflink.table import DataTypes, EnvironmentSettings, TableEnvironment
 
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi,Flink'), (2, 'Hello')], ['id', 'data'])
 
 @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
 def split(x: Row) -> Row:
-    for s in x[1].split(","):
-        yield x[0], s
+    for s in x.data.split(","):
+        yield x.id, s
 
 # use split in `flat_map`
 table.flat_map(split).to_pandas()
@@ -150,13 +150,13 @@ class CountAndSumAggregateFunction(AggregateFunction):
     def create_accumulator(self):
         return Row(0, 0)
 
-    def accumulate(self, accumulator, *args):
+    def accumulate(self, accumulator, row):
         accumulator[0] += 1
-        accumulator[1] += args[0][1]
+        accumulator[1] += row.b
 
-    def retract(self, accumulator, *args):
+    def retract(self, accumulator, row):
         accumulator[0] -= 1
-        accumulator[1] -= args[0][1]
+        accumulator[1] -= row.b
 
     def merge(self, accumulator, accumulators):
         for other_acc in accumulators:
@@ -181,7 +181,7 @@ agg = udaf(function,
 
 # aggregate with a python general aggregate function
 
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 t = table_env.from_elements([(1, 2), (2, 1), (1, 3)], ['a', 'b'])
 
@@ -196,7 +196,7 @@ result.to_pandas()
 # 1  2  1  1
 
 # aggregate with a python vectorized aggregate function
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 t = table_env.from_elements([(1, 2), (2, 1), (1, 3)], ['a', 'b'])
@@ -241,12 +241,12 @@ class Top2(TableAggregateFunction):
         return [None, None]
 
     def accumulate(self, accumulator, row):
-        if row[0] is not None:
-            if accumulator[0] is None or row[0] > accumulator[0]:
+        if row.a is not None:
+            if accumulator[0] is None or row.a > accumulator[0]:
                 accumulator[1] = accumulator[0]
-                accumulator[0] = row[0]
-            elif accumulator[1] is None or row[0] > accumulator[1]:
-                accumulator[1] = row[0]
+                accumulator[0] = row.a
+            elif accumulator[1] is None or row.a > accumulator[1]:
+                accumulator[1] = row.a
 
     def get_accumulator_type(self):
         return DataTypes.ARRAY(DataTypes.BIGINT())
@@ -256,7 +256,7 @@ class Top2(TableAggregateFunction):
             [DataTypes.FIELD("a", DataTypes.BIGINT())])
 
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 # the result type and accumulator type can also be specified in the udtaf decorator:
 # top2 = udtaf(Top2(), result_type=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]), accumulator_type=DataTypes.ARRAY(DataTypes.BIGINT()))

@@ -19,12 +19,11 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
-import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolImpl;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.util.TestLogger;
 
@@ -91,7 +90,7 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
                 jobType,
                 iApproximateLocalRecoveryEnabled,
                 configuration,
-                new TestingSlotPoolImpl(new JobID()),
+                SlotPoolUtils.createDeclarativeSlotPoolBridge(),
                 Time.milliseconds(10L));
     }
 }

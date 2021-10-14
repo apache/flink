@@ -138,7 +138,7 @@ public class BlockSplittingRecursiveEnumerator extends NonSplittingRecursiveEnum
         // the
         // file (too expensive) but make some sanity checks to catch early the common cases where
         // incorrect
-        // bloc info is returned by the implementation.
+        // block info is returned by the implementation.
 
         long totalLen = 0L;
         for (BlockLocation block : blocks) {

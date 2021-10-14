@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.14-SNAPSHOT</version>
+		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -71,6 +71,7 @@ under the License.
 									<include>commons-logging:commons-logging</include>
 									<include>org.apache.commons:commons-lang3</include>
 									<include>com.google.guava:guava</include>
+									<include>com.google.guava:failureaccess</include>
 								</includes>
 							</artifactSet>
 							<filters>

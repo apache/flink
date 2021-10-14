@@ -44,7 +44,7 @@ public class CheckpointMetadataTest {
 
         Collection<OperatorState> taskStates =
                 CheckpointTestUtils.createOperatorStates(
-                        rnd, null, numTaskStates, numSubtaskStates);
+                        rnd, null, numTaskStates, 0, 0, numSubtaskStates);
 
         Collection<MasterState> masterStates =
                 CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);

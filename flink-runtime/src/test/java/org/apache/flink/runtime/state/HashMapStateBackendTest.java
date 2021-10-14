@@ -66,7 +66,7 @@ public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBa
     public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
 
     @Override
-    protected HashMapStateBackend getStateBackend() {
+    protected ConfigurableStateBackend getStateBackend() {
         return new HashMapStateBackend();
     }
 

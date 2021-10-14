@@ -1,0 +1,723 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testEventTimeLeftTemporalJoinWithViewWithPredicates">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o LEFT JOIN rates_last_row_rowtime FOR SYSTEM_TIME AS OF o.rowtime AS r ON o.currency = r.currency AND amount > 10 AND r.rate < 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 1, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+            +- LogicalFilter(condition=[=($3, 1)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[LeftOuterJoin], where=[((currency = currency0) AND (amount > 10) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Calc(select=[currency, rate, rowtime], where=[(rate < 100)])
+         +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+            +- Exchange(distribution=[hash[currency]])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTemporalJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r ON o.currency = r.currency]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[=($cor0.currency, $0)])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistoryWithPK]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, RatesHistoryWithPK]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTemporalJoinOnLegacySource">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN RatesHistoryLegacy FOR SYSTEM_TIME AS OF o.rowtime AS r ON o.currency = r.currency]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[=($cor0.currency, $0)])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistoryLegacy, source: [CollectionTableSource(currency, rate, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, RatesHistoryLegacy, source: [CollectionTableSource(currency, rate, rowtime)]]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTemporalJoinOnTimestampLtzRowtime">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM OrdersLtz AS o JOIN RatesLtz FOR SYSTEM_TIME AS OF o.rowtime AS r ON o.currency = r.currency]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], ts=[$2], rowtime=[$3], currency0=[$4], rate=[$5], ts0=[$6], rowtime0=[$7])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
+   :  +- LogicalProject(amount=[$0], currency=[$1], ts=[$2], rowtime=[TO_TIMESTAMP_LTZ($2, 3)])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, OrdersLtz]])
+   +- LogicalFilter(condition=[=($cor0.currency, $0)])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
+            +- LogicalProject(currency=[$0], rate=[$1], ts=[$2], rowtime=[TO_TIMESTAMP_LTZ($2, 3)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, RatesLtz]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, ts, rowtime, currency0, rate, ts0, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, ts, rowtime, currency0, rate, ts0, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, ts, TO_TIMESTAMP_LTZ(ts, 3) AS rowtime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, OrdersLtz]], fields=[amount, currency, ts])
+   +- Exchange(distribution=[hash[currency]])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+         +- Calc(select=[currency, rate, ts, TO_TIMESTAMP_LTZ(ts, 3) AS rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, RatesLtz]], fields=[currency, rate, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTemporalJoinWithComputedColumnAndPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT o.currency, r.currency, rate1 FROM Orders AS o JOIN RatesBinlogWithComputedColumn FOR SYSTEM_TIME AS OF o.rowtime AS r on o.currency = r.currency AND o.amount > 10 AND r.rate < 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(currency=[$1], currency0=[$4], rate1=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
+            +- LogicalProject(currency=[$0], rate=[$1], rate1=[+($1, 1)], proctime=[PROCTIME()], rowtime=[$2])
+               +- LogicalTableScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[currency, currency0, rate1])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[currency, rowtime, currency0, rate1, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- Calc(select=[currency, rowtime], where=[(amount > 10)])
+   :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Calc(select=[currency, rate1, rowtime], where=[(rate < 100)])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+            +- Calc(select=[currency, rate, (rate + 1) AS rate1, PROCTIME() AS proctime, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTemporalJoinWithView">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN rates_last_row_rowtime FOR SYSTEM_TIME AS OF o.rowtime AS r ON o.currency = r.currency]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[=($cor0.currency, $0)])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+            +- LogicalFilter(condition=[=($3, 1)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+         +- Exchange(distribution=[hash[currency]])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTemporalJoinWithViewNonEqui">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN rates_last_row_rowtime FOR SYSTEM_TIME AS OF o.rowtime AS r ON o.currency = r.currency AND o.amount > r.rate]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, $1))])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+            +- LogicalFilter(condition=[=($3, 1)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND (amount > rate) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+         +- Exchange(distribution=[hash[currency]])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTemporalJoinWithViewWithConstantCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN rates_last_row_rowtime FOR SYSTEM_TIME AS OF o.rowtime AS r ON o.currency = r.currency AND r.rate + 1 = 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), =(+($1, 1), 100))])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+            +- LogicalFilter(condition=[=($3, 1)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Calc(select=[currency, rate, rowtime], where=[((rate + 1) = 100)])
+         +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+            +- Exchange(distribution=[hash[currency]])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTemporalJoinWithViewWithFunctionCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN rates_last_row_rowtime FOR SYSTEM_TIME AS OF o.rowtime AS r ON o.currency = r.currency AND 'RMB-100' = concat('RMB-', cast(r.rate AS STRING))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), =(_UTF-16LE'RMB-100', CONCAT(_UTF-16LE'RMB-', CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE")))])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+            +- LogicalFilter(condition=[=($3, 1)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Calc(select=[currency, rate, rowtime], where=[(_UTF-16LE'RMB-100':VARCHAR(2147483647) CHARACTER SET "UTF-16LE" = CONCAT(_UTF-16LE'RMB-', CAST(rate)))])
+         +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+            +- Exchange(distribution=[hash[currency]])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTemporalJoinWithViewWithPredicates">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN rates_last_row_rowtime FOR SYSTEM_TIME AS OF o.rowtime AS r ON o.currency = r.currency AND amount > 10 AND r.rate < 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+            +- LogicalFilter(condition=[=($3, 1)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- Calc(select=[amount, currency, rowtime, proctime], where=[(amount > 10)])
+   :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :        +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Calc(select=[currency, rate, rowtime], where=[(rate < 100)])
+         +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+            +- Exchange(distribution=[hash[currency]])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeLeftTemporalJoinWithViewWithConstantCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o LEFT JOIN rates_last_row_rowtime FOR SYSTEM_TIME AS OF o.proctime AS r on o.currency = r.currency AND r.rate + 1 = 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), =(+($1, 1), 100))])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+            +- LogicalFilter(condition=[=($3, 1)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[LeftOuterJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Calc(select=[currency, rate, rowtime], where=[((rate + 1) = 100)])
+         +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+            +- Exchange(distribution=[hash[currency]])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeTemporalJoinOnLegacySource">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN RatesHistoryLegacy FOR SYSTEM_TIME AS OF o.proctime AS r ON o.currency = r.currency]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[=($cor0.currency, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistoryLegacy, source: [CollectionTableSource(currency, rate, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, RatesHistoryLegacy, source: [CollectionTableSource(currency, rate, rowtime)]]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeTemporalJoinWithBinlogSource">
+    <Resource name="sql">
+      <![CDATA[SELECT o.currency, r.currency, rate1 FROM Orders AS o JOIN RatesBinlogWithoutWatermark FOR SYSTEM_TIME AS OF o.proctime AS r on o.currency = r.currency AND o.amount > 10 AND r.rate < 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(currency=[$1], currency0=[$4], rate1=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalProject(currency=[$0], rate=[$1], rate1=[+($1, 1)], proctime=[PROCTIME()], rowtime=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, RatesBinlogWithoutWatermark]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[currency, currency0, rate1])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[currency, proctime, currency0, rate1])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- Calc(select=[currency, proctime], where=[(amount > 10)])
+   :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :        +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Calc(select=[currency, (rate + 1) AS rate1], where=[(rate < 100)])
+         +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithoutWatermark, filter=[]]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeTemporalJoinWithComputedColumnAndPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT o.currency, r.currency, rate1 FROM Orders AS o JOIN RatesBinlogWithComputedColumn FOR SYSTEM_TIME AS OF o.proctime AS r on o.currency = r.currency AND o.amount > 10 AND r.rate < 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(currency=[$1], currency0=[$4], rate1=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
+            +- LogicalProject(currency=[$0], rate=[$1], rate1=[+($1, 1)], proctime=[PROCTIME()], rowtime=[$2])
+               +- LogicalTableScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[currency, currency0, rate1])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[currency, proctime, currency0, rate1])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- Calc(select=[currency, proctime], where=[(amount > 10)])
+   :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :        +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Calc(select=[currency, rate1], where=[(rate < 100)])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+            +- Calc(select=[currency, rate, (rate + 1) AS rate1, PROCTIME() AS proctime, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeTemporalJoinWithLastRowView">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN rates_last_row_proctime FOR SYSTEM_TIME AS OF o.proctime AS r on o.currency = r.currency]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], proctime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[=($cor0.currency, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalProject(currency=[$0], rate=[$1], proctime=[$2])
+            +- LogicalFilter(condition=[=($3, 1)])
+               +- LogicalProject(currency=[$0], rate=[$1], proctime=[PROCTIME()], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() DESC NULLS LAST)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, RatesOnly]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, PROCTIME_MATERIALIZE($2) AS $2])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, $2])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Deduplicate(keep=[LastRow], key=[currency], order=[PROCTIME])
+         +- Exchange(distribution=[hash[currency]])
+            +- Calc(select=[currency, rate, PROCTIME() AS $2])
+               +- TableSourceScan(table=[[default_catalog, default_database, RatesOnly]], fields=[currency, rate])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeTemporalJoinWithLastValueView">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN rates_last_value FOR SYSTEM_TIME AS OF o.proctime AS r on o.currency = r.currency]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[=($cor0.currency, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalAggregate(group=[{0}], rate=[LAST_VALUE($1)])
+            +- LogicalProject(currency=[$0], rate=[$1])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- GroupAggregate(groupBy=[currency], select=[currency, LAST_VALUE(rate) AS rate])
+         +- Exchange(distribution=[hash[currency]])
+            +- Calc(select=[currency, rate])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeTemporalJoinWithViewNonEqui">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN rates_last_value FOR SYSTEM_TIME AS OF o.proctime AS r on o.currency = r.currency AND o.amount > r.rate]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, $1))])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalAggregate(group=[{0}], rate=[LAST_VALUE($1)])
+            +- LogicalProject(currency=[$0], rate=[$1])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND (amount > rate) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- GroupAggregate(groupBy=[currency], select=[currency, LAST_VALUE(rate) AS rate])
+         +- Exchange(distribution=[hash[currency]])
+            +- Calc(select=[currency, rate])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeTemporalJoinWithViewWithPredicates">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN rates_last_value FOR SYSTEM_TIME AS OF o.proctime AS r on o.currency = r.currency AND o.amount > 10 AND r.rate < 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalAggregate(group=[{0}], rate=[LAST_VALUE($1)])
+            +- LogicalProject(currency=[$0], rate=[$1])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- Calc(select=[amount, currency, rowtime, proctime], where=[(amount > 10)])
+   :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :        +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Calc(select=[currency, rate], where=[(rate < 100)])
+         +- GroupAggregate(groupBy=[currency], select=[currency, LAST_VALUE(rate) AS rate])
+            +- Exchange(distribution=[hash[currency]])
+               +- Calc(select=[currency, rate])
+                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeTemporalJoinWithViewWithConstantCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN rates_last_row_rowtime FOR SYSTEM_TIME AS OF o.proctime AS r on o.currency = r.currency AND r.rate + 1 = 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), =(+($1, 1), 100))])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+            +- LogicalFilter(condition=[=($3, 1)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Calc(select=[currency, rate, rowtime], where=[((rate + 1) = 100)])
+         +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+            +- Exchange(distribution=[hash[currency]])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeTemporalJoinWithViewWithFunctionCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Orders AS o JOIN rates_last_row_rowtime FOR SYSTEM_TIME AS OF o.proctime AS r on o.currency = r.currency AND 'RMB-100' = concat('RMB-', cast(r.rate AS STRING))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalFilter(condition=[AND(=($cor0.currency, $0), =(_UTF-16LE'RMB-100', CONCAT(_UTF-16LE'RMB-', CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE")))])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+            +- LogicalFilter(condition=[=($3, 1)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- Calc(select=[currency, rate, rowtime], where=[(_UTF-16LE'RMB-100':VARCHAR(2147483647) CHARACTER SET "UTF-16LE" = CONCAT(_UTF-16LE'RMB-', CAST(rate)))])
+         +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+            +- Exchange(distribution=[hash[currency]])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

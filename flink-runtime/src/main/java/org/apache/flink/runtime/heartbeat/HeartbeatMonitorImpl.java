@@ -19,11 +19,15 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -32,6 +36,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * @param <O> Type of the payload being sent to the associated heartbeat target
  */
 public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(HeartbeatMonitorImpl.class);
 
     /** Resource ID of the monitored heartbeat target. */
     private final ResourceID resourceID;
@@ -47,9 +53,13 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
     /** Maximum heartbeat timeout interval. */
     private final long heartbeatTimeoutIntervalMs;
 
+    private final int failedRpcRequestsUntilUnreachable;
+
     private volatile ScheduledFuture<?> futureTimeout;
 
     private final AtomicReference<State> state = new AtomicReference<>(State.RUNNING);
+
+    private final AtomicInteger numberFailedRpcRequestsSinceLastSuccess = new AtomicInteger(0);
 
     private volatile long lastHeartbeat;
 
@@ -58,7 +68,8 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
             HeartbeatTarget<O> heartbeatTarget,
             ScheduledExecutor scheduledExecutor,
             HeartbeatListener<?, O> heartbeatListener,
-            long heartbeatTimeoutIntervalMs) {
+            long heartbeatTimeoutIntervalMs,
+            int failedRpcRequestsUntilUnreachable) {
 
         this.resourceID = Preconditions.checkNotNull(resourceID);
         this.heartbeatTarget = Preconditions.checkNotNull(heartbeatTarget);
@@ -69,6 +80,11 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
                 heartbeatTimeoutIntervalMs > 0L,
                 "The heartbeat timeout interval has to be larger than 0.");
         this.heartbeatTimeoutIntervalMs = heartbeatTimeoutIntervalMs;
+
+        Preconditions.checkArgument(
+                failedRpcRequestsUntilUnreachable > 0 || failedRpcRequestsUntilUnreachable == -1,
+                "The number of failed heartbeat RPC requests has to be larger than 0 or -1 (deactivated).");
+        this.failedRpcRequestsUntilUnreachable = failedRpcRequestsUntilUnreachable;
 
         lastHeartbeat = 0L;
 
@@ -88,6 +104,34 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
     @Override
     public long getLastHeartbeat() {
         return lastHeartbeat;
+    }
+
+    @Override
+    public void reportHeartbeatRpcFailure() {
+        final int failedRpcRequestsSinceLastSuccess =
+                numberFailedRpcRequestsSinceLastSuccess.incrementAndGet();
+
+        if (isHeartbeatRpcFailureDetectionEnabled()
+                && failedRpcRequestsSinceLastSuccess >= failedRpcRequestsUntilUnreachable) {
+            if (state.compareAndSet(State.RUNNING, State.UNREACHABLE)) {
+                LOG.debug(
+                        "Mark heartbeat target {} as unreachable because {} consecutive heartbeat RPCs have failed.",
+                        resourceID,
+                        failedRpcRequestsSinceLastSuccess);
+
+                cancelTimeout();
+                heartbeatListener.notifyTargetUnreachable(resourceID);
+            }
+        }
+    }
+
+    private boolean isHeartbeatRpcFailureDetectionEnabled() {
+        return failedRpcRequestsUntilUnreachable > 0;
+    }
+
+    @Override
+    public void reportHeartbeatRpcSuccess() {
+        numberFailedRpcRequestsSinceLastSuccess.set(0);
     }
 
     @Override
@@ -139,6 +183,7 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
     private enum State {
         RUNNING,
         TIMEOUT,
+        UNREACHABLE,
         CANCELED
     }
 
@@ -155,14 +200,16 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
                 HeartbeatTarget<O> heartbeatTarget,
                 ScheduledExecutor mainThreadExecutor,
                 HeartbeatListener<?, O> heartbeatListener,
-                long heartbeatTimeoutIntervalMs) {
+                long heartbeatTimeoutIntervalMs,
+                int failedRpcRequestsUntilUnreachable) {
 
             return new HeartbeatMonitorImpl<>(
                     resourceID,
                     heartbeatTarget,
                     mainThreadExecutor,
                     heartbeatListener,
-                    heartbeatTimeoutIntervalMs);
+                    heartbeatTimeoutIntervalMs,
+                    failedRpcRequestsUntilUnreachable);
         }
     }
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -26,6 +25,7 @@ import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.jline.terminal.Terminal;
 
@@ -140,10 +140,11 @@ public class CliTableauResultView implements AutoCloseable {
                                 Stream.of(PrintUtils.ROW_KIND_COLUMN),
                                 columns.stream().map(Column::getName))
                         .toArray(String[]::new);
+
         final int[] colWidths =
                 PrintUtils.columnWidthsByType(
                         columns,
-                        PrintUtils.MAX_COLUMN_WIDTH,
+                        resultDescriptor.maxColumnWidth(),
                         PrintUtils.NULL_COLUMN,
                         PrintUtils.ROW_KIND_COLUMN);
 

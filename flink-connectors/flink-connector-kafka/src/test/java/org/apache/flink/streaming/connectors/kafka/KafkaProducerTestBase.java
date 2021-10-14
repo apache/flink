@@ -418,8 +418,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
         for (int i = 0; i < sinksCount; i++) {
             // assert that before failure we successfully snapshot/flushed all expected elements
-            assertExactlyOnceForTopic(
-                    properties, topic + i, partition, expectedElements, KAFKA_READ_TIMEOUT);
+            assertExactlyOnceForTopic(properties, topic + i, expectedElements);
             deleteTestTopic(topic + i);
         }
     }

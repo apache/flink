@@ -31,7 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
@@ -192,7 +192,7 @@ public class JarRunHandlerParameterTest
 
     @Test
     public void testRestHandlerExceptionThrownWithEagerSinks() throws Exception {
-        final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request =
+        final HandlerRequest<JarRunRequestBody> request =
                 createRequest(
                         getDefaultJarRequestBody(),
                         getUnresolvedJarMessageParameters(),
@@ -226,8 +226,7 @@ public class JarRunHandlerParameterTest
     }
 
     @Override
-    void handleRequest(HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request)
-            throws Exception {
+    void handleRequest(HandlerRequest<JarRunRequestBody> request) throws Exception {
         handler.handleRequest(request, restfulGateway).get();
     }
 

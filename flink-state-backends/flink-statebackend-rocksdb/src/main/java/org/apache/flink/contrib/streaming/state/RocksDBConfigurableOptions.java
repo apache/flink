@@ -29,16 +29,12 @@ import java.io.Serializable;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
+import static org.apache.flink.configuration.description.TextElement.code;
 import static org.rocksdb.CompactionStyle.FIFO;
 import static org.rocksdb.CompactionStyle.LEVEL;
+import static org.rocksdb.CompactionStyle.NONE;
 import static org.rocksdb.CompactionStyle.UNIVERSAL;
-import static org.rocksdb.InfoLogLevel.DEBUG_LEVEL;
-import static org.rocksdb.InfoLogLevel.ERROR_LEVEL;
-import static org.rocksdb.InfoLogLevel.FATAL_LEVEL;
 import static org.rocksdb.InfoLogLevel.HEADER_LEVEL;
-import static org.rocksdb.InfoLogLevel.INFO_LEVEL;
-import static org.rocksdb.InfoLogLevel.NUM_INFO_LOG_LEVELS;
-import static org.rocksdb.InfoLogLevel.WARN_LEVEL;
 
 /**
  * This class contains the configuration options for the {@link DefaultConfigurableOptionsFactory}.
@@ -61,7 +57,7 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .intType()
                     .noDefaultValue()
                     .withDescription(
-                            "The maximum number of concurrent background flush and compaction jobs (per TaskManager). "
+                            "The maximum number of concurrent background flush and compaction jobs (per stateful operator). "
                                     + "RocksDB has default configuration as '1'.");
 
     public static final ConfigOption<Integer> MAX_OPEN_FILES =
@@ -69,28 +65,57 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .intType()
                     .noDefaultValue()
                     .withDescription(
-                            "The maximum number of open files (per TaskManager) that can be used by the DB, '-1' means no limit. "
+                            "The maximum number of open files (per stateful operator) that can be used by the DB, '-1' means no limit. "
                                     + "RocksDB has default configuration as '-1'.");
+
+    public static final ConfigOption<MemorySize> LOG_MAX_FILE_SIZE =
+            key("state.backend.rocksdb.log.max-file-size")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The maximum size of RocksDB's file used for information logging. "
+                                    + "If the log files becomes larger than this, a new file will be created. "
+                                    + "If 0 (RocksDB default setting), all logs will be written to one log file.");
+
+    public static final ConfigOption<Integer> LOG_FILE_NUM =
+            key("state.backend.rocksdb.log.file-num")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The maximum number of files RocksDB should keep for information logging (RocksDB default setting: 1000).");
+
+    public static final ConfigOption<String> LOG_DIR =
+            key("state.backend.rocksdb.log.dir")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The directory for RocksDB's information logging files. "
+                                    + "If empty (RocksDB default setting), log files will be in the same directory as data files. "
+                                    + "If non-empty, this directory will be used and the data directory's absolute path will be used as the prefix of the log file name.");
 
     public static final ConfigOption<InfoLogLevel> LOG_LEVEL =
             key("state.backend.rocksdb.log.level")
                     .enumType(InfoLogLevel.class)
                     .noDefaultValue()
                     .withDescription(
-                            String.format(
-                                    "The specified log level for DB. Candidate log level is %s, %s, %s, %s, %s, %s or %s, "
-                                            + "and Flink choose '%s' as default style. "
-                                            + "Note: RocksDB logs will not be output to TaskManager logs, and there is no rolling strategy. "
-                                            + "If the Flink task runs for a long time, it may lead to uncontrolled disk space usage. "
-                                            + "There is no need to modify the RocksDB log level, unless troubleshooting RocksDB.",
-                                    DEBUG_LEVEL.name(),
-                                    INFO_LEVEL.name(),
-                                    WARN_LEVEL.name(),
-                                    ERROR_LEVEL.name(),
-                                    FATAL_LEVEL.name(),
-                                    HEADER_LEVEL.name(),
-                                    NUM_INFO_LOG_LEVELS.name(),
-                                    HEADER_LEVEL.name()));
+                            Description.builder()
+                                    .text(
+                                            "The specified information logging level for RocksDB. "
+                                                    + "If unset, Flink will use %s.",
+                                            code(HEADER_LEVEL.name()))
+                                    .linebreak()
+                                    .text(
+                                            "Note: RocksDB info logs will not be written to the TaskManager logs and there "
+                                                    + "is no rolling strategy, unless you configure %s, %s, and %s accordingly. "
+                                                    + "Without a rolling strategy, long-running tasks may lead to uncontrolled "
+                                                    + "disk space usage if configured with increased log levels!",
+                                            code(LOG_DIR.key()),
+                                            code(LOG_MAX_FILE_SIZE.key()),
+                                            code(LOG_FILE_NUM.key()))
+                                    .linebreak()
+                                    .text(
+                                            "There is no need to modify the RocksDB log level, unless for troubleshooting RocksDB.")
+                                    .build());
 
     // --------------------------------------------------------------------------
     // Provided configurable ColumnFamilyOptions within Flink
@@ -102,9 +127,13 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .noDefaultValue()
                     .withDescription(
                             String.format(
-                                    "The specified compaction style for DB. Candidate compaction style is %s, %s or %s, "
+                                    "The specified compaction style for DB. Candidate compaction style is %s, %s, %s or %s, "
                                             + "and RocksDB choose '%s' as default style.",
-                                    LEVEL.name(), FIFO.name(), UNIVERSAL.name(), LEVEL.name()));
+                                    LEVEL.name(),
+                                    FIFO.name(),
+                                    UNIVERSAL.name(),
+                                    NONE.name(),
+                                    LEVEL.name()));
 
     public static final ConfigOption<Boolean> USE_DYNAMIC_LEVEL_SIZE =
             key("state.backend.rocksdb.compaction.level.use-dynamic-size")
@@ -198,4 +227,25 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .withDescription(
                             "The max size of the consumed memory for RocksDB batch write, "
                                     + "will flush just based on item count if this config set to 0.");
+
+    public static final ConfigOption<Boolean> USE_BLOOM_FILTER =
+            key("state.backend.rocksdb.use-bloom-filter")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If true, every newly created SST file will contain a Bloom filter. RocksDB disables it by default.");
+
+    public static final ConfigOption<Double> BLOOM_FILTER_BITS_PER_KEY =
+            key("state.backend.rocksdb.bloom-filter.bits-per-key")
+                    .doubleType()
+                    .defaultValue(10.0)
+                    .withDescription(
+                            "Bits per key that bloom filter will use, this only take effect when bloom filter is used.");
+
+    public static final ConfigOption<Boolean> BLOOM_FILTER_BLOCK_BASED_MODE =
+            key("state.backend.rocksdb.bloom-filter.block-based-mode")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If true, RocksDB will use block-based filter instead of full filter, this only take effect when bloom filter is used.");
 }

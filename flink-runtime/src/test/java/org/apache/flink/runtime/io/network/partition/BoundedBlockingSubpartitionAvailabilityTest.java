@@ -72,7 +72,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
         final List<BufferAndBacklog> data = drainAvailableData(reader);
 
         // assert
-        assertFalse(reader.isAvailable(Integer.MAX_VALUE));
+        assertFalse(reader.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable());
         assertFalse(data.get(data.size() - 1).isDataAvailable());
 
         // cleanup
@@ -93,7 +93,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
         data.get(1).buffer().recycleBuffer();
 
         // assert
-        assertTrue(reader.isAvailable(Integer.MAX_VALUE));
+        assertTrue(reader.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable());
         assertEquals(1, listener.numNotifications);
 
         // cleanup
@@ -112,7 +112,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
         drainAllData(reader);
 
         // assert
-        assertFalse(reader.isAvailable(Integer.MAX_VALUE));
+        assertFalse(reader.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable());
 
         // cleanup
         reader.releaseAllResources();

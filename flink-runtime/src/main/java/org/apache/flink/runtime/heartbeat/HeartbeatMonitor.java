@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 /**
  * Heartbeat monitor which manages the heartbeat state of the associated heartbeat target. The
@@ -57,6 +57,12 @@ public interface HeartbeatMonitor<O> {
      */
     long getLastHeartbeat();
 
+    /** Reports that the heartbeat rpc could not be sent to the target. */
+    void reportHeartbeatRpcFailure();
+
+    /** Reports that the heartbeat rpc could be sent to the target. */
+    void reportHeartbeatRpcSuccess();
+
     /**
      * This factory provides an indirection way to create {@link HeartbeatMonitor}.
      *
@@ -71,6 +77,8 @@ public interface HeartbeatMonitor<O> {
          * @param mainThreadExecutor the main thread executor
          * @param heartbeatListener the heartbeat listener
          * @param heartbeatTimeoutIntervalMs the heartbeat timeout interval ms
+         * @param failedRpcRequestsUntilUnreachable the number of failed heartbeat RPCs until the
+         *     target is marked as unreachable
          * @return the heartbeat monitor
          */
         HeartbeatMonitor<O> createHeartbeatMonitor(
@@ -78,6 +86,7 @@ public interface HeartbeatMonitor<O> {
                 HeartbeatTarget<O> heartbeatTarget,
                 ScheduledExecutor mainThreadExecutor,
                 HeartbeatListener<?, O> heartbeatListener,
-                long heartbeatTimeoutIntervalMs);
+                long heartbeatTimeoutIntervalMs,
+                int failedRpcRequestsUntilUnreachable);
     }
 }

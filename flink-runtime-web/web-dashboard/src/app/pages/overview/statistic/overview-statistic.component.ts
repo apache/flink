@@ -17,9 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { OverviewInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
+
+import { OverviewInterface } from 'interfaces';
 import { OverviewService, StatusService } from 'services';
 
 @Component({
@@ -38,7 +39,7 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.statusService.refresh$
       .pipe(
         takeUntil(this.destroy$),
@@ -50,7 +51,7 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

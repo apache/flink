@@ -74,20 +74,20 @@ CLI 为维护和可视化结果提供**三种模式**。
 **表格模式**（table mode）在内存中实体化结果，并将结果用规则的分页表格可视化展示出来。执行如下命令启用：
 
 ```text
-SET sql-client.execution.result-mode=table;
+SET 'sql-client.execution.result-mode' = 'table';
 ```
 
 **变更日志模式**（changelog mode）不会实体化和可视化结果，而是由插入（`+`）和撤销（`-`）组成的持续查询产生结果流。
 
 ```text
-SET sql-client.execution.result-mode=changelog;
+SET 'sql-client.execution.result-mode' = 'changelog';
 ```
 
 **Tableau模式**（tableau mode）更接近传统的数据库，会将执行的结果以制表的形式直接打在屏幕之上。具体显示的内容会取决于作业
 执行模式的不同(`execution.type`)：
 
 ```text
-SET sql-client.execution.result-mode=tableau;
+SET 'sql-client.execution.result-mode' = 'tableau';
 ```
 
 注意当你使用这个模式运行一个流式查询的时候，Flink 会将结果持续的打印在当前的屏幕之上。如果这个流式查询的输入是有限的数据集，
@@ -171,15 +171,6 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
 
   Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
-         -d,--defaults <environment file>      Deprecated feature: the environment
-                                               properties with which every new
-                                               session is initialized. Properties
-                                               might be overwritten by session
-                                               properties.
-         -e,--environment <environment file>   Deprecated feature: the environment
-                                               properties to be imported into the
-                                               session. It might overwrite default
-                                               environment properties.
          -f,--file <script file>               Script file that should be executed.
                                                In this mode, the client will not
                                                open an interactive terminal.
@@ -210,8 +201,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
          -pyarch,--pyArchives <arg>            Add python archive files for job. The
                                                archive files will be extracted to
                                                the working directory of python UDF
-                                               worker. Currently only zip-format is
-                                               supported. For each archive file, a
+                                               worker. For each archive file, a
                                                target directory be specified. If the
                                                target directory name is specified,
                                                the archive file will be extracted to
@@ -339,21 +329,20 @@ CREATE FUNCTION foo.bar.AggregateUDF AS myUDF;
 
 -- Properties that change the fundamental execution behavior of a table program.
 
-SET table.planner = blink; -- planner: either 'blink' (default) or 'old'
-SET execution.runtime-mode = streaming; -- execution mode either 'batch' or 'streaming'
-SET sql-client.execution.result-mode = table; -- available values: 'table', 'changelog' and 'tableau'
-SET sql-client.execution.max-table-result.rows = 10000; -- optional: maximum number of maintained rows
-SET parallelism.default = 1; -- optional: Flink's parallelism (1 by default)
-SET pipeline.auto-watermark-interval = 200; --optional: interval for periodic watermarks
-SET pipeline.max-parallelism = 10; -- optional: Flink's maximum parallelism
-SET table.exec.state.ttl=1000; -- optional: table program's idle state time
-SET restart-strategy = fixed-delay;
+SET 'execution.runtime-mode' = 'streaming'; -- execution mode either 'batch' or 'streaming'
+SET 'sql-client.execution.result-mode' = 'table'; -- available values: 'table', 'changelog' and 'tableau'
+SET 'sql-client.execution.max-table-result.rows' = '10000'; -- optional: maximum number of maintained rows
+SET 'parallelism.default' = '1'; -- optional: Flink's parallelism (1 by default)
+SET 'pipeline.auto-watermark-interval' = '200'; --optional: interval for periodic watermarks
+SET 'pipeline.max-parallelism' = '10'; -- optional: Flink's maximum parallelism
+SET 'table.exec.state.ttl' = '1000'; -- optional: table program's idle state time
+SET 'restart-strategy' = 'fixed-delay';
 
 -- Configuration options for adjusting and tuning table programs.
 
-SET table.optimizer.join-reorder-enabled = true;
-SET table.exec.spill-compression.enabled = true;
-SET table.exec.spill-compression.block-size = 128kb;
+SET 'table.optimizer.join-reorder-enabled' = 'true';
+SET 'table.exec.spill-compression.enabled' = 'true';
+SET 'table.exec.spill-compression.block-size' = '128kb';
 ```
 
 This configuration:
@@ -362,7 +351,7 @@ This configuration:
 - defines a table `MyTableSource` that can read data from a CSV file,
 - defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name,
-- uses the blink planner in streaming mode for running statements and a parallelism of 1,
+- uses streaming mode for running statements and a parallelism of 1,
 - runs exploratory queries in the `table` result mode,
 - and makes some planner adjustments around join reordering and spilling via configuration options.
 
@@ -403,7 +392,7 @@ In interactive Command Line, the SQL Client reads user inputs and executes the s
 
 SQL Client will print success message if the statement is executed successfully. When getting errors, SQL Client will also print error messages.
 By default, the error message only contains the error cause. In order to print the full exception stack for debugging, please set the
-`sql-client.verbose` to true through command `SET sql-client.verbose = true;`.
+`sql-client.verbose` to true through command `SET 'sql-client.verbose' = 'true';`.
 
 ### Execute SQL Files
 
@@ -429,19 +418,19 @@ CREATE TEMPORARY TABLE users (
 );
 
 -- set sync mode
-SET table.dml-sync=true;
+SET 'table.dml-sync' = 'true';
 
 -- set the job name
-SET pipeline.name=SqlJob;
+SET 'pipeline.name' = 'SqlJob';
 
 -- set the queue that the job submit to
-SET yarn.application.queue=root;
+SET 'yarn.application.queue' = 'root';
 
 -- set the job parallism
-SET parallism.default=100;
+SET 'parallism.default' = '100';
 
 -- restore from the specific savepoint path
-SET execution.savepoint.path=/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab;
+SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
 
 INSERT INTO pageviews_enriched
 SELECT *
@@ -609,7 +598,7 @@ previous DML statement finishes. In order to execute DML statements synchronousl
 `table.dml-sync` option true in SQL Client.
 
 ```sql
-Flink SQL> SET table.dml-sync = true;
+Flink SQL> SET 'table.dml-sync' = 'true';
 [INFO] Session property has been set.
 
 Flink SQL> INSERT INTO MyTableSink SELECT * FROM MyTableSource;
@@ -625,7 +614,7 @@ Flink SQL> INSERT INTO MyTableSink SELECT * FROM MyTableSource;
 Flink supports to start the job with specified savepoint. In SQL Client, it's allowed to use `SET` command to specify the path of the savepoint.
 
 ```sql
-Flink SQL> SET execution.savepoint.path=/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab;
+Flink SQL> SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
 [INFO] Session property has been set.
 
 -- all the following DML statements will be restroed from the specified savepoint path
@@ -648,7 +637,7 @@ For more details about creating and managing savepoints, please refer to [Job Li
 SQL Client supports to define job name for queries and DML statements through `SET` command.
 
 ```sql
-Flink SQL> SET pipeline.name= 'kafka-to-hive' ;
+Flink SQL> SET 'pipeline.name' = 'kafka-to-hive';
 [INFO] Session property has been set.
 
 -- all the following DML statements will use the specified job name.
@@ -663,38 +652,6 @@ Flink SQL> RESET pipeline.name;
 ```
 
 If the option `pipeline.name` is not specified, SQL Client will generate a default name for the submitted job, e.g. `insert-into_<sink_table_name>` for `INSERT INTO` statements.
-
-{{< top >}}
-
-Compatibility
--------------
-
-To be compatible with before, SQL Client still supports to initialize with environment YAML file and allows to `SET` the key in YAML file.
-When set the key defined in YAML file, the SQL Client will print the warning messages to inform.
-
-```sql
-Flink SQL> SET execution.type = batch;
-[WARNING] The specified key 'execution.type' is deprecated. Please use 'execution.runtime-mode' instead.
-[INFO] Session property has been set.
-
--- all the following DML statements will be restored from the specified savepoint path
-Flink SQL> INSERT INTO ...
-```
-
-When using `SET` command to print the properties, the SQL Client will also print all the properties.
-To distinguish the deprecated key, the sql client use the '[DEPRECATED]' as the identifier.
-
-```sql
-Flink SQL>SET;
-execution.runtime-mode=batch
-sql-client.execution.result-mode=table
-table.planner=blink
-[DEPRECATED] execution.planner=blink
-[DEPRECATED] execution.result-mode=table
-[DEPRECATED] execution.type=batch
-```
-
-If you want to see more information about environment files, please refer to [previous docs version](https://ci.apache.org/projects/flink/flink-docs-release-1.12/dev/table/sqlClient.html#environment-files)
 
 {{< top >}}
 

@@ -29,6 +29,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -136,6 +137,7 @@ public class EmbeddedRocksDBStateBackendTest
     private String dbPath;
     private RocksDB db = null;
     private ColumnFamilyHandle defaultCFHandle = null;
+    private RocksDBStateUploader rocksDBStateUploader = null;
     private final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
     public void prepareRocksDB() throws Exception {
@@ -154,7 +156,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @Override
-    protected EmbeddedRocksDBStateBackend getStateBackend() throws IOException {
+    protected ConfigurableStateBackend getStateBackend() throws IOException {
         dbPath = TEMP_FOLDER.newFolder().getAbsolutePath();
         EmbeddedRocksDBStateBackend backend =
                 new EmbeddedRocksDBStateBackend(enableIncrementalCheckpointing);
@@ -209,10 +211,9 @@ public class EmbeddedRocksDBStateBackendTest
         testStreamFactory.setBlockerLatch(blocker);
         testStreamFactory.setWaiterLatch(waiter);
         testStreamFactory.setAfterNumberInvocations(10);
-
         prepareRocksDB();
 
-        keyedStateBackend =
+        RocksDBKeyedStateBackendBuilder keyedStateBackendBuilder =
                 RocksDBTestUtils.builderForTestDB(
                                 TEMP_FOLDER
                                         .newFolder(), // this is not used anyways because the DB is
@@ -221,8 +222,17 @@ public class EmbeddedRocksDBStateBackendTest
                                 spy(db),
                                 defaultCFHandle,
                                 optionsContainer.getColumnOptions())
-                        .setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
-                        .build();
+                        .setEnableIncrementalCheckpointing(enableIncrementalCheckpointing);
+
+        if (enableIncrementalCheckpointing) {
+            rocksDBStateUploader =
+                    spy(
+                            new RocksDBStateUploader(
+                                    RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue()));
+            keyedStateBackendBuilder.setRocksDBStateUploader(rocksDBStateUploader);
+        }
+
+        keyedStateBackend = keyedStateBackendBuilder.build();
 
         testState1 =
                 keyedStateBackend.getPartitionedState(
@@ -366,6 +376,7 @@ public class EmbeddedRocksDBStateBackendTest
             keyedStateBackend.dispose();
             keyedStateBackend = null;
         }
+        verifyRocksDBStateUploaderClosed();
     }
 
     @Test
@@ -384,6 +395,7 @@ public class EmbeddedRocksDBStateBackendTest
             this.keyedStateBackend.dispose();
             this.keyedStateBackend = null;
         }
+        verifyRocksDBStateUploaderClosed();
     }
 
     @Test
@@ -411,6 +423,7 @@ public class EmbeddedRocksDBStateBackendTest
             this.keyedStateBackend.dispose();
             this.keyedStateBackend = null;
         }
+        verifyRocksDBStateUploaderClosed();
     }
 
     @Test
@@ -447,6 +460,7 @@ public class EmbeddedRocksDBStateBackendTest
             this.keyedStateBackend.dispose();
             this.keyedStateBackend = null;
         }
+        verifyRocksDBStateUploaderClosed();
     }
 
     @Test
@@ -484,6 +498,7 @@ public class EmbeddedRocksDBStateBackendTest
             this.keyedStateBackend.dispose();
             this.keyedStateBackend = null;
         }
+        verifyRocksDBStateUploaderClosed();
     }
 
     @Test
@@ -638,6 +653,12 @@ public class EmbeddedRocksDBStateBackendTest
         keyedStateBackend.dispose();
         verify(spyDB, times(1)).close();
         assertEquals(true, keyedStateBackend.isDisposed());
+    }
+
+    private void verifyRocksDBStateUploaderClosed() {
+        if (enableIncrementalCheckpointing) {
+            verify(rocksDBStateUploader, times(1)).close();
+        }
     }
 
     private static class AcceptAllFilter implements IOFileFilter {

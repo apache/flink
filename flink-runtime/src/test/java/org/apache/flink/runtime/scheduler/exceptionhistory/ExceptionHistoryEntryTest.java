@@ -36,6 +36,7 @@ import java.util.Optional;
 
 import static org.apache.flink.runtime.scheduler.exceptionhistory.ArchivedTaskManagerLocationMatcher.isArchivedTaskManagerLocation;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 /** {@code ExceptionHistoryEntryTest} tests the creation of {@link ExceptionHistoryEntry}. */
@@ -69,6 +70,42 @@ public class ExceptionHistoryEntryTest extends TestLogger {
                 TestAccessExecution.createExecutionWithoutFailure(
                         new ExecutionAttemptID(), new LocalTaskManagerLocation()),
                 "task name");
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testNullExecution() {
+        ExceptionHistoryEntry.create(null, "task name");
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testNullTaskName() {
+        ExceptionHistoryEntry.create(
+                new TestAccessExecution(
+                        new ExecutionAttemptID(),
+                        new Exception("Expected failure"),
+                        System.currentTimeMillis(),
+                        new LocalTaskManagerLocation()),
+                null);
+    }
+
+    @Test
+    public void testWithMissingTaskManagerLocation() {
+        final Exception failure = new Exception("Expected failure");
+        final long timestamp = System.currentTimeMillis();
+        final String taskName = "task name";
+
+        final ExceptionHistoryEntry entry =
+                ExceptionHistoryEntry.create(
+                        new TestAccessExecution(new ExecutionAttemptID(), failure, timestamp, null),
+                        taskName);
+
+        assertThat(
+                entry.getException().deserializeError(ClassLoader.getSystemClassLoader()),
+                is(failure));
+        assertThat(entry.getTimestamp(), is(timestamp));
+        assertThat(entry.getFailingTaskName(), is(taskName));
+        assertThat(entry.getTaskManagerLocation(), is(nullValue()));
+        assertThat(entry.isGlobal(), is(false));
     }
 
     private static class TestAccessExecution implements AccessExecution {

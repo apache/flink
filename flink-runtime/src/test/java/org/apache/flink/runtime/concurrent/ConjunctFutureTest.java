@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.FutureUtils.ConjunctFuture;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

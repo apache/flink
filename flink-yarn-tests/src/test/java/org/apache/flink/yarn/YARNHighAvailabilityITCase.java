@@ -46,8 +46,9 @@ import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 import org.apache.flink.yarn.testjob.YarnTestJob;
 import org.apache.flink.yarn.util.TestUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -74,25 +75,30 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeTrue;
 
 /** Tests that verify correct HA behavior. */
@@ -258,6 +264,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
                             >= attemptId;
                 },
                 Deadline.fromNow(TIMEOUT));
+        log.info("Attempt {} id detected.", attemptId);
     }
 
     /** Stops a container running {@link YarnTaskExecutorRunner}. */
@@ -319,6 +326,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
     private void waitForJobTermination(
             final RestClusterClient<ApplicationId> restClusterClient, final JobID jobId)
             throws Exception {
+        log.info("Sending stop job signal");
         stopJobSignal.signal();
         final CompletableFuture<JobResult> jobResult = restClusterClient.requestJobResult(jobId);
         jobResult.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
@@ -370,10 +378,34 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
         return restClusterClient.submitJob(job).get();
     }
 
-    private void killApplicationMaster(final String processName)
-            throws IOException, InterruptedException {
+    private void killApplicationMaster(final String processName) throws Exception {
+        final Set<Integer> origPids = getApplicationMasterPids(processName);
+        assertThat(origPids, not(empty()));
+
         final Process exec = Runtime.getRuntime().exec("pkill -f " + processName);
         assertThat(exec.waitFor(), is(0));
+
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    final Set<Integer> curPids = getApplicationMasterPids(processName);
+                    return origPids.stream().noneMatch(curPids::contains);
+                },
+                Deadline.fromNow(TIMEOUT));
+    }
+
+    private Set<Integer> getApplicationMasterPids(final String processName)
+            throws IOException, InterruptedException {
+        final Process exec = Runtime.getRuntime().exec("pgrep -f " + processName);
+
+        if (exec.waitFor() != 0) {
+            return Collections.emptySet();
+        }
+
+        return Arrays.stream(
+                        IOUtils.toString(exec.getInputStream(), StandardCharsets.UTF_8)
+                                .split("\\s+"))
+                .map(Integer::valueOf)
+                .collect(Collectors.toSet());
     }
 
     private static void waitUntilJobIsRunning(

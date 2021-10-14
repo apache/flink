@@ -117,6 +117,55 @@ public class TwoPhaseCommitSinkFunctionTest {
     }
 
     @Test
+    public void testNoTransactionAfterSinkFunctionFinish() throws Exception {
+        harness.open();
+        harness.processElement("42", 0);
+        harness.snapshot(0, 1);
+        harness.processElement("43", 2);
+        harness.snapshot(1, 3);
+        harness.processElement("44", 4);
+
+        // do not expect new input after finish()
+        sinkFunction.finish();
+
+        harness.snapshot(2, 5);
+        harness.notifyOfCompletedCheckpoint(1);
+
+        // make sure the previous empty transaction will not be pre-committed
+        harness.snapshot(3, 6);
+
+        try {
+            harness.processElement("45", 7);
+            fail(
+                    "TwoPhaseCommitSinkFunctionTest should not process any more input data after finish!");
+        } catch (NullPointerException e) {
+            // expected and do nothing here
+        }
+
+        // Checkpoint2 has not complete
+        assertExactlyOnce(Arrays.asList("42", "43"));
+
+        // transaction for checkpoint2
+        assertEquals(1, tmpDirectory.listFiles().size());
+    }
+
+    @Test
+    public void testRecoverFromStateAfterFinished() throws Exception {
+        harness.open();
+        harness.processElement("42", 0);
+        sinkFunction.finish();
+
+        OperatorSubtaskState operatorSubtaskState = harness.snapshot(2, 5);
+
+        closeTestHarness();
+        setUpTestHarness();
+
+        harness.initializeState(operatorSubtaskState);
+        harness.open();
+        assertEquals(0, sinkFunction.abortedTransactions.size());
+    }
+
+    @Test
     public void testNotifyOfCompletedCheckpoint() throws Exception {
         harness.open();
         harness.processElement("42", 0);
@@ -267,12 +316,10 @@ public class TwoPhaseCommitSinkFunctionTest {
 
     private class ContentDumpSinkFunction
             extends TwoPhaseCommitSinkFunction<String, ContentTransaction, Void> {
+        final List<ContentTransaction> abortedTransactions = new ArrayList<>();
 
         public ContentDumpSinkFunction() {
-            super(
-                    new KryoSerializer<>(ContentTransaction.class, new ExecutionConfig()),
-                    VoidSerializer.INSTANCE,
-                    clock);
+            super(new ContentTransactionSerializer(), VoidSerializer.INSTANCE, clock);
         }
 
         @Override
@@ -303,6 +350,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 
         @Override
         protected void abort(ContentTransaction transaction) {
+            abortedTransactions.add(transaction);
             transaction.tmpContentWriter.close();
             tmpDirectory.delete(transaction.tmpContentWriter.getName());
         }
@@ -318,6 +366,23 @@ public class TwoPhaseCommitSinkFunctionTest {
         @Override
         public String toString() {
             return String.format("ContentTransaction[%s]", tmpContentWriter.getName());
+        }
+    }
+
+    private static class ContentTransactionSerializer extends KryoSerializer<ContentTransaction> {
+
+        public ContentTransactionSerializer() {
+            super(ContentTransaction.class, new ExecutionConfig());
+        }
+
+        @Override
+        public KryoSerializer<ContentTransaction> duplicate() {
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return "ContentTransactionSerializer";
         }
     }
 

@@ -28,10 +28,12 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.state.api.utils.MaxWatermarkSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -111,7 +113,9 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
 
     private static final List<Tuple2<String, StateBackend>> STATE_BACKENDS =
             Arrays.asList(
-                    Tuple2.of("MemoryStateBackend", new MemoryStateBackend()),
+                    Tuple2.of("HashMap", new HashMapStateBackend()),
+                    Tuple2.of("EmbeddedRocksDB", new EmbeddedRocksDBStateBackend()),
+                    Tuple2.of("Memory", new MemoryStateBackend()),
                     Tuple2.of(
                             "RocksDB",
                             new RocksDBStateBackend((StateBackend) new MemoryStateBackend())));

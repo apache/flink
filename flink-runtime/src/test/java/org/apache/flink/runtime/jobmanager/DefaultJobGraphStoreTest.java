@@ -68,7 +68,7 @@ public class DefaultJobGraphStoreTest extends TestLogger {
 
     @Before
     public void setup() {
-        builder = TestingStateHandleStore.builder();
+        builder = TestingStateHandleStore.newBuilder();
         testingJobGraphStoreWatcher = new TestingJobGraphStoreWatcher();
         testingJobGraphListener = new TestingJobGraphListener();
         jobGraphStorageHelper = new TestingRetrievableStateStorageHelper<>();

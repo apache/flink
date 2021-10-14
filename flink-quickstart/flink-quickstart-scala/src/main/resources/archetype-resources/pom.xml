@@ -46,8 +46,8 @@ under the License.
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>@project.version@</flink.version>
 		<target.java.version>@target.java.version@</target.java.version>
-		<scala.binary.version>2.11</scala.binary.version>
-		<scala.version>2.11.12</scala.version>
+		<scala.binary.version>2.12</scala.binary.version>
+		<scala.version>2.12.7</scala.version>
 		<log4j.version>@log4j.version@</log4j.version>
 	</properties>
 
@@ -132,7 +132,7 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<excludes>
-									<exclude>org.apache.flink:force-shading</exclude>
+									<exclude>org.apache.flink:flink-shaded-force-shading</exclude>
 									<exclude>com.google.code.findbugs:jsr305</exclude>
 									<exclude>org.slf4j:*</exclude>
 									<exclude>org.apache.logging.log4j:*</exclude>

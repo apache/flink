@@ -16,14 +16,23 @@
 # limitations under the License.
 ################################################################################
 from enum import Enum
-from typing import Union, TypeVar, Generic
+from typing import Union, TypeVar, Generic, Any
 
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, _to_java_data_type
+from pyflink.table.types import DataType, DataTypes, _to_java_data_type
 from pyflink.util.java_utils import to_jarray
 
-__all__ = ['Expression', 'TimeIntervalUnit', 'TimePointUnit']
+__all__ = [
+    'Expression',
+    'TimeIntervalUnit',
+    'TimePointUnit',
+    'JsonType',
+    'JsonExistsOnError',
+    'JsonValueOnEmptyOrError',
+    'JsonQueryWrapper',
+    'JsonQueryOnEmptyOrError'
+]
 
 
 _aggregation_doc = """
@@ -291,6 +300,14 @@ def _ternary_op(op_name: str):
     return _
 
 
+def _varargs_op(op_name: str):
+    def _(self, *args) -> 'Expression':
+        return Expression(
+            getattr(self._j_expr, op_name)(*[_get_java_expression(arg) for arg in args]))
+
+    return _
+
+
 def _expressions_op(op_name: str):
     def _(self, *args) -> 'Expression':
         from pyflink.table import expressions
@@ -350,6 +367,98 @@ class TimePointUnit(Enum):
         gateway = get_gateway()
         JTimePointUnit = gateway.jvm.org.apache.flink.table.expressions.TimePointUnit
         return getattr(JTimePointUnit, self.name)
+
+
+class JsonType(Enum):
+    """
+    Types of JSON objects for is_json().
+    """
+
+    VALUE = 0,
+    SCALAR = 1,
+    ARRAY = 2,
+    OBJECT = 3
+
+    def _to_j_json_type(self):
+        gateway = get_gateway()
+        JJsonType = gateway.jvm.org.apache.flink.table.api.JsonType
+        return getattr(JJsonType, self.name)
+
+
+class JsonExistsOnError(Enum):
+    """
+    Behavior in case of errors for json_exists().
+    """
+
+    TRUE = 0,
+    FALSE = 1,
+    UNKNOWN = 2,
+    ERROR = 3
+
+    def _to_j_json_exists_on_error(self):
+        gateway = get_gateway()
+        JJsonExistsOnError = gateway.jvm.org.apache.flink.table.api.JsonExistsOnError
+        return getattr(JJsonExistsOnError, self.name)
+
+
+class JsonValueOnEmptyOrError(Enum):
+    """
+    Behavior in case of emptiness or errors for json_value().
+    """
+
+    NULL = 0,
+    ERROR = 1,
+    DEFAULT = 2
+
+    def _to_j_json_value_on_empty_or_error(self):
+        gateway = get_gateway()
+        JJsonValueOnEmptyOrError = gateway.jvm.org.apache.flink.table.api.JsonValueOnEmptyOrError
+        return getattr(JJsonValueOnEmptyOrError, self.name)
+
+
+class JsonQueryWrapper(Enum):
+    """
+    Defines whether and when to wrap the result of json_query() into an array.
+    """
+
+    WITHOUT_ARRAY = 0,
+    CONDITIONAL_ARRAY = 1,
+    UNCONDITIONAL_ARRAY = 2
+
+    def _to_j_json_query_wrapper(self):
+        gateway = get_gateway()
+        JJsonQueryWrapper = gateway.jvm.org.apache.flink.table.api.JsonQueryWrapper
+        return getattr(JJsonQueryWrapper, self.name)
+
+
+class JsonQueryOnEmptyOrError(Enum):
+    """
+    Defines the behavior of json_query() in case of emptiness or errors.
+    """
+
+    NULL = 0,
+    EMPTY_ARRAY = 1,
+    EMPTY_OBJECT = 2,
+    ERROR = 3
+
+    def _to_j_json_query_on_error_or_empty(self):
+        gateway = get_gateway()
+        JJsonQueryOnEmptyOrError = gateway.jvm.org.apache.flink.table.api.JsonQueryOnEmptyOrError
+        return getattr(JJsonQueryOnEmptyOrError, self.name)
+
+
+class JsonOnNull(Enum):
+    """
+    Behavior for entries with a null value for json_object().
+    """
+
+    NULL = 0,
+    ABSENT = 1
+
+    def _to_j_json_on_null(self):
+        gateway = get_gateway()
+        JJsonOnNull = gateway.jvm.org.apache.flink.table.api.JsonOnNull
+        return getattr(JJsonOnNull, self.name)
 
 
 T = TypeVar('T')
@@ -1353,6 +1462,149 @@ class Expression(Generic[T]):
                      :py:attr:`~Expression.sha384`, :py:attr:`~Expression.sha512`
         """
         return _binary_op("sha2")(self, hash_length)
+
+    # ---------------------------- JSON functions -----------------------------
+
+    def is_json(self, json_type: JsonType = None) -> 'Expression[bool]':
+        """
+        Determine whether a given string is valid JSON.
+
+        Specifying the optional `json_type` argument puts a constraint on which type of JSON object
+        is allowed. If the string is valid JSON, but not that type, `false` is returned. The default
+        is `JsonType.VALUE`.
+
+        Examples:
+        ::
+
+            >>> lit('1').is_json() # True
+            >>> lit('[]').is_json() # True
+            >>> lit('{}').is_json() # True
+
+            >>> lit('"abc"').is_json() # True
+            >>> lit('abc').is_json() # False
+            >>> null_of(DataTypes.STRING()).is_json() # False
+
+            >>> lit('1').is_json(JsonType.SCALAR) # True
+            >>> lit('1').is_json(JsonType.ARRAY) # False
+            >>> lit('1').is_json(JsonType.OBJECT) # False
+
+            >>> lit('{}').is_json(JsonType.SCALAR) # False
+            >>> lit('{}').is_json(JsonType.ARRAY) # False
+            >>> lit('{}').is_json(JsonType.OBJECT) # True
+        """
+        if json_type is None:
+            return _unary_op("isJson")(self)
+        else:
+            return _binary_op("isJson")(self, json_type._to_j_json_type())
+
+    def json_exists(self, path: str, on_error: JsonExistsOnError = None) -> 'Expression[bool]':
+        """
+        Determines whether a JSON string satisfies a given search criterion.
+
+        This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
+
+        Examples:
+        ::
+
+            >>> lit('{"a": true}').json_exists('$.a') # True
+            >>> lit('{"a": true}').json_exists('$.b') # False
+            >>> lit('{"a": [{ "b": 1 }]}').json_exists('$.a[0].b') # True
+
+            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.TRUE) # True
+            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.FALSE) # False
+        """
+        if on_error is None:
+            return _binary_op("jsonExists")(self, path)
+        else:
+            return _ternary_op("jsonExists")(self, path, on_error._to_j_json_exists_on_error())
+
+    def json_value(self,
+                   path: str,
+                   returning_type: DataType = DataTypes.STRING(),
+                   on_empty: JsonValueOnEmptyOrError = JsonValueOnEmptyOrError.NULL,
+                   default_on_empty: Any = None,
+                   on_error: JsonValueOnEmptyOrError = JsonValueOnEmptyOrError.NULL,
+                   default_on_error: Any = None) -> 'Expression':
+        """
+        Extracts a scalar from a JSON string.
+
+        This method searches a JSON string for a given path expression and returns the value if the
+        value at that path is scalar. Non-scalar values cannot be returned. By default, the value is
+        returned as `DataTypes.STRING()`. Using `returningType` a different type can be chosen, with
+        the following types being supported:
+
+        * `STRING`
+        * `BOOLEAN`
+        * `INT`
+        * `DOUBLE`
+
+        For empty path expressions or errors a behavior can be defined to either return `null`,
+        raise an error or return a defined default value instead.
+
+        seealso:: :func:`~Expression.json_query`
+
+        Examples:
+        ::
+
+            >>> lit('{"a": true}').json_value('$.a') # STRING: 'true'
+            >>> lit('{"a.b": [0.998,0.996]}').json_value("$.['a.b'][0]", \
+                    DataTypes.DOUBLE()) # DOUBLE: 0.998
+            >>> lit('{"a": true}').json_value('$.a', DataTypes.BOOLEAN()) # BOOLEAN: True
+            >>> lit('{"a": true}').json_value('lax $.b', \
+                    JsonValueOnEmptyOrError.DEFAULT, False) # BOOLEAN: False
+            >>> lit('{"a": true}').json_value('strict $.b', \
+                    JsonValueOnEmptyOrError.NULL, None, \
+                    JsonValueOnEmptyOrError.DEFAULT, False) # BOOLEAN: False
+        """
+        return _varargs_op("jsonValue")(self, path, _to_java_data_type(returning_type),
+                                        on_empty._to_j_json_value_on_empty_or_error(),
+                                        default_on_empty,
+                                        on_error._to_j_json_value_on_empty_or_error(),
+                                        default_on_error)
+
+    def json_query(self, path: str, wrapping_behavior=JsonQueryWrapper.WITHOUT_ARRAY,
+                   on_empty=JsonQueryOnEmptyOrError.NULL,
+                   on_error=JsonQueryOnEmptyOrError.NULL) -> 'Expression':
+        """
+        Extracts JSON values from a JSON string.
+
+        This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL. The result is
+        always returned as a `STRING`.
+
+        The `wrapping_behavior` determines whether the extracted value should be wrapped into an
+        array, and whether to do so unconditionally or only if the value itself isn't an array
+        already.
+
+        `on_empty` and `on_error` determine the behavior in case the path expression is empty, or in
+        case an error was raised, respectively. By default, in both cases `null` is returned.
+        Other choices are to use an empty array, an empty object, or to raise an error.
+
+        seealso:: :func:`~Expression.json_value`
+
+        Examples:
+        ::
+
+            >>> lit('{"a":{"b":1}}').json_query('$.a') # '{"b":1}'
+            >>> lit('[1,2]').json_query('$') # '[1,2]'
+            >>> null_of(DataTypes.STRING()).json_query('$') # None
+
+            >>> lit('{}').json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[{}]'
+            >>> lit('[1,2]').json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[1,2]'
+            >>> lit('[1,2]').json_query('$', JsonQueryWrapper.UNCONDITIONAL_ARRAY) # '[[1,2]]'
+
+            >>> lit(1).json_query('$') # null
+            >>> lit(1).json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[1]'
+
+            >>> lit('{}').json_query('lax $.invalid', JsonQueryWrapper.WITHOUT_ARRAY, \
+                                     JsonQueryOnEmptyOrError.EMPTY_OBJECT, \
+                                    JsonQueryOnEmptyOrError.NULL) # '{}'
+            >>> lit('{}').json_query('strict $.invalid', JsonQueryWrapper.WITHOUT_ARRAY, \
+                                     JsonQueryOnEmptyOrError.NULL, \
+                                     JsonQueryOnEmptyOrError.EMPTY_ARRAY) # '[]'
+        """
+        return _varargs_op("jsonQuery")(self, path, wrapping_behavior._to_j_json_query_wrapper(),
+                                        on_empty._to_j_json_query_on_error_or_empty(),
+                                        on_error._to_j_json_query_on_error_or_empty())
 
 
 # add the docs

@@ -27,8 +27,7 @@ import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
@@ -69,10 +68,7 @@ public class MapDataSerializerTest extends SerializerTestBase<MapData> {
     @Override
     protected TypeSerializer<MapData> createSerializer() {
         return new MapDataSerializer(
-                new BigIntType(),
-                new FloatType(),
-                LongSerializer.INSTANCE,
-                FloatSerializer.INSTANCE);
+                BIGINT, FLOAT, LongSerializer.INSTANCE, FloatSerializer.INSTANCE);
     }
 
     @Override
@@ -89,8 +85,13 @@ public class MapDataSerializerTest extends SerializerTestBase<MapData> {
     protected MapData[] getTestData() {
         Map<Object, Object> first = new HashMap<>();
         first.put(1L, -100.1F);
-        BinaryArrayData keyBinary = BinaryArrayData.fromPrimitiveArray(new long[] {10L});
-        BinaryArrayData valueBinary = BinaryArrayData.fromPrimitiveArray(new float[] {10.2F});
+        BinaryArrayData keyBinary = BinaryArrayData.fromPrimitiveArray(new long[] {10L, 20L});
+        BinaryArrayData valueBinary = new BinaryArrayData();
+        BinaryArrayWriter writer = new BinaryArrayWriter(valueBinary, 2, 4);
+        BinaryArrayWriter.NullSetter nullSetter = BinaryArrayWriter.createNullSetter(FLOAT);
+        writer.writeFloat(0, 10.2F);
+        nullSetter.setNull(writer, 1);
+        writer.complete();
         return new MapData[] {
             new GenericMapData(first), BinaryMapData.valueOf(keyBinary, valueBinary)
         };

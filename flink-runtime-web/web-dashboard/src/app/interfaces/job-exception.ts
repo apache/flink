@@ -21,7 +21,7 @@ export interface JobExceptionInterface {
   timestamp: number;
   truncated: boolean;
   'all-exceptions': JobExceptionItemInterface[];
-  'exceptionHistory': JobExceptionHistoryInterface;
+  exceptionHistory: JobExceptionHistoryInterface;
 }
 
 export interface JobExceptionItemInterface {
@@ -35,7 +35,7 @@ export interface JobExceptionItemInterface {
 }
 
 export interface JobExceptionHistoryInterface {
-  entries: ExceptionInfoInterface[];
+  entries: RootExceptionInfoInterface[];
   truncated: boolean;
 }
 
@@ -45,4 +45,8 @@ export interface ExceptionInfoInterface {
   timestamp: number;
   taskName: string;
   location: string;
+}
+
+export interface RootExceptionInfoInterface extends ExceptionInfoInterface {
+  concurrentExceptions: ExceptionInfoInterface[];
 }

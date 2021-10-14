@@ -27,6 +27,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -35,6 +38,7 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.Test;
 
@@ -44,10 +48,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -55,6 +61,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /** Tests of {@link FineGrainedSlotManager}. */
@@ -947,5 +954,44 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                         });
             }
         };
+    }
+
+    @Test
+    public void testMetricsUnregisteredWhenSuspending() throws Exception {
+        testAccessMetricValueDuringItsUnregister(SlotManager::suspend);
+    }
+
+    @Test
+    public void testMetricsUnregisteredWhenClosing() throws Exception {
+        testAccessMetricValueDuringItsUnregister(AutoCloseable::close);
+    }
+
+    private void testAccessMetricValueDuringItsUnregister(
+            ThrowingConsumer<SlotManager, Exception> closeFn) throws Exception {
+        final AtomicInteger registeredMetrics = new AtomicInteger();
+        final MetricRegistry metricRegistry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer((a, b, c) -> registeredMetrics.incrementAndGet())
+                        .setUnregisterConsumer((a, b, c) -> registeredMetrics.decrementAndGet())
+                        .build();
+
+        final Context context = new Context();
+        context.setSlotManagerMetricGroup(
+                SlotManagerMetricGroup.create(metricRegistry, "localhost"));
+
+        context.runTest(
+                () -> {
+                    // sanity check to ensure metrics were actually registered
+                    assertThat(registeredMetrics.get(), greaterThan(0));
+                    context.runInMainThreadAndWait(
+                            () -> {
+                                try {
+                                    closeFn.accept(context.getSlotManager());
+                                } catch (Exception e) {
+                                    fail("Error when closing slot manager.");
+                                }
+                            });
+                    assertThat(registeredMetrics.get(), is(0));
+                });
     }
 }

@@ -47,6 +47,8 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.inference.TypeInferenceUtil.Result;
 import org.apache.flink.table.types.inference.TypeInferenceUtil.SurroundingInfo;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -61,6 +63,8 @@ import java.util.stream.IntStream;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasLegacyTypes;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -173,18 +177,48 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                 throw new ValidationException("Invalid number of arguments for flattening.");
             }
             final ResolvedExpression composite = args.get(0);
-            // TODO support the new type system with ROW and STRUCTURED_TYPE
-            final TypeInformation<?> resultType =
-                    fromDataTypeToLegacyInfo(composite.getOutputDataType());
-            if (resultType instanceof CompositeType) {
-                return flattenCompositeType(composite, (CompositeType<?>) resultType);
-            } else {
-                return singletonList(composite);
+            final LogicalType compositeType = composite.getOutputDataType().getLogicalType();
+            if (hasLegacyTypes(compositeType)) {
+                return flattenLegacyCompositeType(composite);
             }
+            return flattenCompositeType(composite);
         }
 
-        private List<ResolvedExpression> flattenCompositeType(
-                ResolvedExpression composite, CompositeType<?> resultType) {
+        private List<ResolvedExpression> flattenCompositeType(ResolvedExpression composite) {
+            final DataType dataType = composite.getOutputDataType();
+            final LogicalType type = dataType.getLogicalType();
+            if (!isCompositeType(type)) {
+                return singletonList(composite);
+            }
+            final List<DataType> fieldDataTypes = DataTypeUtils.flattenToDataTypes(dataType);
+            final List<String> fieldNames = DataTypeUtils.flattenToNames(dataType);
+            return IntStream.range(0, fieldDataTypes.size())
+                    .mapToObj(
+                            idx -> {
+                                final DataType fieldDataType = fieldDataTypes.get(idx);
+                                final DataType nullableFieldDataType;
+                                if (type.isNullable()) {
+                                    nullableFieldDataType = fieldDataType.nullable();
+                                } else {
+                                    nullableFieldDataType = fieldDataType;
+                                }
+                                return resolutionContext
+                                        .postResolutionFactory()
+                                        .get(
+                                                composite,
+                                                valueLiteral(fieldNames.get(idx)),
+                                                nullableFieldDataType);
+                            })
+                    .collect(Collectors.toList());
+        }
+
+        private List<ResolvedExpression> flattenLegacyCompositeType(ResolvedExpression composite) {
+            final TypeInformation<?> resultType =
+                    fromDataTypeToLegacyInfo(composite.getOutputDataType());
+            if (!(resultType instanceof CompositeType)) {
+                return singletonList(composite);
+            }
+            final CompositeType<?> compositeType = (CompositeType<?>) resultType;
             return IntStream.range(0, resultType.getArity())
                     .mapToObj(
                             idx ->
@@ -192,9 +226,10 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                                             .postResolutionFactory()
                                             .get(
                                                     composite,
-                                                    valueLiteral(resultType.getFieldNames()[idx]),
+                                                    valueLiteral(
+                                                            compositeType.getFieldNames()[idx]),
                                                     fromLegacyInfoToDataType(
-                                                            resultType.getTypeAt(idx))))
+                                                            compositeType.getTypeAt(idx))))
                     .collect(Collectors.toList());
         }
 

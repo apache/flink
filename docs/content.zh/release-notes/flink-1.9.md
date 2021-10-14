@@ -78,7 +78,7 @@ Related issues:
 
 ### Memory management
 
-In Fink 1.9.0 and prior version, the managed memory fraction of taskmanager is controlled by `taskmanager.memory.fraction`,
+In Flink 1.9.0 and prior version, the managed memory fraction of taskmanager is controlled by `taskmanager.memory.fraction`,
 and with 0.7 as the default value. However, sometimes this will cause OOMs due to the fact that the default value of JVM
 parameter `NewRatio` is 2, which means the old generation occupied only 2/3 (0.66) of the heap memory. So if you run into
 this case, please manually change this value to a lower value.
@@ -169,7 +169,7 @@ memory segments. The default timeout is 30 seconds, and is configurable via `tas
 It is possible that for some previously working deployments this default timeout value is too low
 and might have to be increased.
 
-Please also notice that several network I/O metrics have had their scope changed. See the [1.9 metrics documentation](https://ci.apache.org/projects/flink/flink-docs-master/ops/metrics.html)
+Please also notice that several network I/O metrics have had their scope changed. See the [1.9 metrics documentation](https://nightlies.apache.org/flink/flink-docs-master/ops/metrics.html)
 for which metrics are affected. In 1.9.0, these metrics will still be available under their previous scopes, but this
 may no longer be the case in future versions.
 
@@ -183,7 +183,7 @@ Related issues:
 Due to a bug in the `AsyncWaitOperator`, in 1.9.0 the default chaining behaviour of the operator is now changed so
 that it is never chained after another operator. This should not be problematic for migrating from older version
 snapshots as long as an uid was assigned to the operator. If an uid was not assigned to the operator, please see
-the instructions [here](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/upgrading.html#matching-operator-state)
+the instructions [here](https://nightlies.apache.org/flink/flink-docs-release-1.9/ops/upgrading.html#matching-operator-state)
 for a possible workaround.
 
 Related issues:
@@ -225,7 +225,7 @@ Related issues:
 ### MapR dependency removed
 
 Dependency on MapR vendor-specific artifacts has been removed, by changing the MapR filesystem connector to work
-purely based on reflection. This does not introduce any regession in the support for the MapR filesystem.
+purely based on reflection. This does not introduce any regression in the support for the MapR filesystem.
 The decision to remove hard dependencies on the MapR artifacts was made due to very flaky access to the secure https
 endpoint of the MapR artifact repository, and affected build stability of Flink.
 

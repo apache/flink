@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserWindowingSp
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
+import org.apache.flink.util.Preconditions;
 
 import org.antlr.runtime.ClassicToken;
 import org.antlr.runtime.Token;
@@ -40,9 +41,8 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.tools.FrameworkConfig;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.ObjectPair;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -83,12 +83,12 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeFieldDesc;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.PlanUtils;
 import org.apache.hadoop.hive.ql.session.SessionState;
-import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.mapred.InputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.io.File;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -108,7 +108,6 @@ import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBase
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.findTabRefIdxs;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getAliasId;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getColumnInternalName;
-import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getQualifiedTableName;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getUnescapedName;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.handleQueryWindowClauses;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.initPhase1Ctx;
@@ -601,25 +600,18 @@ public class HiveParserSemanticAnalyzer {
     // See also preProcessForInsert(HiveParserASTNode, HiveParserQB)
     private HiveParserASTNode genValuesTempTable(HiveParserASTNode originalFrom, HiveParserQB qb)
             throws SemanticException {
-        Path dataDir = null;
-        if (!qb.getEncryptedTargetTablePaths().isEmpty()) {
-            // currently only Insert into T values(...) is supported thus only 1 values clause
-            // and only 1 target table are possible.  If/when support for
-            // select ... from values(...) is added an insert statement may have multiple
-            // encrypted target tables.
-            dataDir = ctx.getMRTmpPath(qb.getEncryptedTargetTablePaths().get(0).toUri());
-        }
-        // Pick a name for the table
-        SessionState ss = SessionState.get();
-        String tableName = VALUES_TMP_TABLE_NAME_PREFIX + ss.getNextValuesTempTableSuffix();
+        // hive creates a temp table and writes the values data into it
+        // here we skip writing the data but remember the values data instead
+        // later calcite planner can generate LogicalValues from it
 
         // Step 1, parse the values clause we were handed
         List<? extends Node> fromChildren = originalFrom.getChildren();
         // First child should be the virtual table ref
         HiveParserASTNode virtualTableRef = (HiveParserASTNode) fromChildren.get(0);
-        assert virtualTableRef.getToken().getType() == HiveASTParser.TOK_VIRTUAL_TABREF
-                : "Expected first child of TOK_VIRTUAL_TABLE to be TOK_VIRTUAL_TABREF but was "
-                        + virtualTableRef.getName();
+        Preconditions.checkArgument(
+                virtualTableRef.getToken().getType() == HiveASTParser.TOK_VIRTUAL_TABREF,
+                "Expected first child of TOK_VIRTUAL_TABLE to be TOK_VIRTUAL_TABREF but was "
+                        + virtualTableRef.getName());
 
         List<? extends Node> virtualTableRefChildren = virtualTableRef.getChildren();
         // First child of this should be the table name.  If it's anonymous,
@@ -633,80 +625,63 @@ public class HiveParserSemanticAnalyzer {
 
         // The second child of the TOK_VIRTUAL_TABLE should be TOK_VALUES_TABLE
         HiveParserASTNode valuesTable = (HiveParserASTNode) fromChildren.get(1);
-        assert valuesTable.getToken().getType() == HiveASTParser.TOK_VALUES_TABLE
-                : "Expected second child of TOK_VIRTUAL_TABLE to be TOK_VALUE_TABLE but was "
-                        + valuesTable.getName();
-        // Each of the children of TOK_VALUES_TABLE will be a TOK_VALUE_ROW
-        List<? extends Node> valuesTableChildren = valuesTable.getChildren();
+        Preconditions.checkArgument(
+                valuesTable.getToken().getType() == HiveASTParser.TOK_VALUES_TABLE,
+                "Expected second child of TOK_VIRTUAL_TABLE to be TOK_VALUE_TABLE but was "
+                        + valuesTable.getName());
 
-        // Now that we're going to start reading through the rows, open a file to write the rows too
-        // If we leave this method before creating the temporary table we need to be sure to clean
-        // up this file.
-        Path tablePath = null;
-        FileSystem fs = null;
-        FSDataOutputStream out = null;
+        // Pick a name for the table
+        SessionState ss = SessionState.get();
+        String tableName =
+                (VALUES_TMP_TABLE_NAME_PREFIX + ss.getNextValuesTempTableSuffix()).toLowerCase();
+
+        List<? extends Node> rows = valuesTable.getChildren();
+        List<List<String>> valuesData = new ArrayList<>(rows.size());
         try {
-            if (dataDir == null) {
-                tablePath = Warehouse.getDnsPath(new Path(ss.getTempTableSpace(), tableName), conf);
-            } else {
-                // if target table of insert is encrypted, make sure temporary table data is stored
-                // similarly encrypted
-                tablePath = Warehouse.getDnsPath(new Path(dataDir, tableName), conf);
-            }
-            fs = tablePath.getFileSystem(conf);
-            fs.mkdirs(tablePath);
-            Path dataFile = new Path(tablePath, "data_file");
-            out = fs.create(dataFile);
             List<FieldSchema> fields = new ArrayList<>();
 
             boolean firstRow = true;
-            for (Node n : valuesTableChildren) {
-                HiveParserASTNode valuesRow = (HiveParserASTNode) n;
-                assert valuesRow.getToken().getType() == HiveASTParser.TOK_VALUE_ROW
-                        : "Expected child of TOK_VALUE_TABLE to be TOK_VALUE_ROW but was "
-                                + valuesRow.getName();
+            for (Node n : rows) {
+                // Each of the children of TOK_VALUES_TABLE will be a TOK_VALUE_ROW
+                HiveParserASTNode row = (HiveParserASTNode) n;
+                Preconditions.checkArgument(
+                        row.getToken().getType() == HiveASTParser.TOK_VALUE_ROW,
+                        "Expected child of TOK_VALUE_TABLE to be TOK_VALUE_ROW but was "
+                                + row.getName());
                 // Each of the children of this should be a literal
-                List<? extends Node> valuesRowChildren = valuesRow.getChildren();
-                boolean isFirst = true;
+                List<? extends Node> columns = row.getChildren();
+                List<String> data = new ArrayList<>(columns.size());
                 int nextColNum = 1;
-                for (Node n1 : valuesRowChildren) {
-                    HiveParserASTNode value = (HiveParserASTNode) n1;
+                for (Node n1 : columns) {
+                    HiveParserASTNode column = (HiveParserASTNode) n1;
                     if (firstRow) {
                         fields.add(new FieldSchema("tmp_values_col" + nextColNum++, "string", ""));
                     }
-                    if (isFirst) {
-                        isFirst = false;
-                    } else {
-                        HiveParserUtils.writeAsText("\u0001", out);
-                    }
-                    HiveParserUtils.writeAsText(unparseExprForValuesClause(value), out);
+                    data.add(unparseExprForValuesClause(column));
                 }
-                HiveParserUtils.writeAsText("\n", out);
                 firstRow = false;
+                valuesData.add(data);
             }
 
-            // Step 2, create a temp table, using the created file as the data
+            // Step 2, create a temp table
             Table table = db.newTable(tableName);
             table.setSerializationLib(conf.getVar(HiveConf.ConfVars.HIVEDEFAULTSERDE));
             HiveTableUtil.setStorageFormat(table.getSd(), "TextFile", conf);
             table.setFields(fields);
-            table.setDataLocation(tablePath);
-            table.getTTable().setTemporary(true);
-            table.setStoredAsSubDirectories(false);
-            db.createTable(table, false);
-        } catch (Exception e) {
-            String errMsg = ErrorMsg.INSERT_CANNOT_CREATE_TEMP_FILE.getMsg() + e.getMessage();
-            LOG.error(errMsg);
-            // Try to delete the file
-            if (fs != null && tablePath != null) {
-                try {
-                    fs.delete(tablePath, false);
-                } catch (IOException swallowIt) {
-                }
+            // make up a path for this table
+            File dataLocation = Files.createTempDirectory(tableName).toFile();
+            try {
+                table.setDataLocation(new Path(dataLocation.toURI().toString(), tableName));
+                table.getTTable().setTemporary(true);
+                table.setStoredAsSubDirectories(false);
+                db.createTable(table, false);
+            } finally {
+                FileUtils.deleteQuietly(dataLocation);
             }
-            throw new SemanticException(errMsg, e);
-        } finally {
-            IOUtils.closeStream(out);
+            // remember the data for this table
+            qb.getValuesTableToData().put(tableName, valuesData);
+        } catch (Exception e) {
+            throw new SemanticException("Failed to create temp table for VALUES", e);
         }
 
         // Step 3, return a new subtree with a from clause built around that temp table
@@ -2297,7 +2272,6 @@ public class HiveParserSemanticAnalyzer {
 
         // 4. continue analyzing from the child HiveParserASTNode.
         HiveParserBaseSemanticAnalyzer.Phase1Ctx ctx1 = initPhase1Ctx();
-        preProcessForInsert(ast);
         if (!doPhase1(ast, qb, ctx1, plannerCtx)) {
             // if phase1Result false return
             return false;
@@ -2310,48 +2284,6 @@ public class HiveParserSemanticAnalyzer {
         LOG.info("Completed getting MetaData in Semantic Analysis");
         plannerCtx.setParseTreeAttr(ast, ctx1);
         return true;
-    }
-
-    /**
-     * This will walk AST of an INSERT statement and assemble a list of target tables which are in
-     * an HDFS encryption zone. This is needed to make sure that so that the data from values clause
-     * of Insert ... select values(...) is stored securely. See also {@link
-     * #genValuesTempTable(HiveParserASTNode, HiveParserQB)}
-     */
-    private void preProcessForInsert(HiveParserASTNode node) throws SemanticException {
-        try {
-            if (!(node != null
-                    && node.getToken() != null
-                    && node.getToken().getType() == HiveASTParser.TOK_QUERY)) {
-                return;
-            }
-            for (Node child : node.getChildren()) {
-                // each insert of multi insert looks like
-                // (TOK_INSERT (TOK_INSERT_INTO (TOK_TAB (TOK_TABNAME T1)))
-                if (((HiveParserASTNode) child).getToken().getType() != HiveASTParser.TOK_INSERT) {
-                    continue;
-                }
-                HiveParserASTNode n =
-                        (HiveParserASTNode)
-                                ((HiveParserASTNode) child)
-                                        .getFirstChildWithType(HiveASTParser.TOK_INSERT_INTO);
-                if (n == null) {
-                    continue;
-                }
-                n = (HiveParserASTNode) n.getFirstChildWithType(HiveASTParser.TOK_TAB);
-                if (n == null) {
-                    continue;
-                }
-                n = (HiveParserASTNode) n.getFirstChildWithType(HiveASTParser.TOK_TABNAME);
-                if (n == null) {
-                    continue;
-                }
-                String[] dbTab = getQualifiedTableName(n);
-                db.getTable(dbTab[0], dbTab[1]);
-            }
-        } catch (Exception ex) {
-            throw new SemanticException(ex);
-        }
     }
 
     // Generates an expression node descriptor for the expression with HiveParserTypeCheckCtx.

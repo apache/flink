@@ -20,18 +20,15 @@ package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.ThresholdMeter;
@@ -44,6 +41,8 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import javax.annotation.Nullable;
 
@@ -53,6 +52,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -104,8 +104,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             ResourceManagerDriver<WorkerType> resourceManagerDriver,
             Configuration flinkConfig,
             RpcService rpcService,
+            UUID leaderSessionId,
             ResourceID resourceId,
-            HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
@@ -119,8 +119,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             Executor ioExecutor) {
         super(
                 rpcService,
+                leaderSessionId,
                 resourceId,
-                highAvailabilityServices,
                 heartbeatServices,
                 slotManager,
                 clusterPartitionTrackerFactory,
@@ -128,7 +128,9 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                 clusterInformation,
                 fatalErrorHandler,
                 resourceManagerMetricGroup,
-                AkkaUtils.getTimeoutAsTime(Preconditions.checkNotNull(flinkConfig)),
+                Time.fromDuration(
+                        Preconditions.checkNotNull(flinkConfig)
+                                .get(AkkaOptions.ASK_TIMEOUT_DURATION)),
                 ioExecutor);
 
         this.flinkConfig = flinkConfig;
@@ -160,20 +162,10 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     protected void terminate() throws ResourceManagerException {
         try {
-            resourceManagerDriver.terminate().get();
+            resourceManagerDriver.terminate();
         } catch (Exception e) {
             throw new ResourceManagerException("Cannot terminate resource provider.", e);
         }
-    }
-
-    @Override
-    protected CompletableFuture<Void> prepareLeadershipAsync() {
-        return resourceManagerDriver.onGrantLeadership();
-    }
-
-    @Override
-    protected CompletableFuture<Void> clearStateAsync() {
-        return resourceManagerDriver.onRevokeLeadership();
     }
 
     @Override
@@ -337,13 +329,6 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     private void internalStopWorker(final ResourceID resourceId) {
-        if (!hasLeadership()) {
-            log.warn(
-                    "Cannot stop worker {}. Does not have leadership.",
-                    resourceId.getStringWithMetadata());
-            return;
-        }
-
         log.info("Stopping worker {}.", resourceId.getStringWithMetadata());
 
         final WorkerType worker = workerNodeMap.get(resourceId);

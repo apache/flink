@@ -22,7 +22,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
@@ -33,25 +32,30 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
+import java.util.function.Function;
 
 /** Simple {@link ResourceManager} implementation for testing purposes. */
 public class TestingResourceManager extends ResourceManager<ResourceID> {
 
+    private final Function<ResourceID, Boolean> stopWorkerFunction;
+
     public TestingResourceManager(
             RpcService rpcService,
+            UUID leaderSessionId,
             ResourceID resourceId,
-            HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
             JobLeaderIdService jobLeaderIdService,
             FatalErrorHandler fatalErrorHandler,
-            ResourceManagerMetricGroup resourceManagerMetricGroup) {
+            ResourceManagerMetricGroup resourceManagerMetricGroup,
+            Function<ResourceID, Boolean> stopWorkerFunction) {
         super(
                 rpcService,
+                leaderSessionId,
                 resourceId,
-                highAvailabilityServices,
                 heartbeatServices,
                 slotManager,
                 clusterPartitionTrackerFactory,
@@ -61,6 +65,8 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
                 resourceManagerMetricGroup,
                 RpcUtils.INF_TIMEOUT,
                 ForkJoinPool.commonPool());
+
+        this.stopWorkerFunction = stopWorkerFunction;
     }
 
     @Override
@@ -92,7 +98,6 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 
     @Override
     public boolean stopWorker(ResourceID worker) {
-        // cannot stop workers
-        return false;
+        return stopWorkerFunction.apply(worker);
     }
 }

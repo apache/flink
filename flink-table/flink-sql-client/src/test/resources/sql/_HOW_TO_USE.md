@@ -26,7 +26,7 @@ This is a guideline about how to add SQL Script for testing SQL Client.
 Write the following script, and save it as `src/test/resources/sql/emp.q`:
 
 ```
-SET execution.result-mode = tableau;
+SET 'execution.result-mode' = 'tableau';
 !info
 
 SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi')) as T(id, str);
@@ -37,7 +37,7 @@ Run `org.apache.flink.table.client.cli.CliClientITCase` using IDE or using maven
 There should be JUnit comparison failure for the `emp.q`. The printed actual result should be:
 
 ```
-SET execution.result-mode = tableau;
+SET 'execution.result-mode' = 'tableau';
 [INFO] Session property has been set.
 !info
 
@@ -109,7 +109,7 @@ Example:
 
 ```
 # test set the removed key
-SET execution.max-idle-state-retention=1000;
+SET 'execution.max-idle-state-retention' = '1000';
 [WARNING] The specified key is not supported anymore.
 !warning
 ```
@@ -165,7 +165,7 @@ Example:
 
 ```
 # test set the deprecated key
-SET execution.planner=blink;
+SET 'execution.planner' = 'blink';
 [WARNING] The specified key 'execution.planner' is deprecated. Please use 'table.planner' instead.
 [INFO] Session property has been set.
 !warning

@@ -53,10 +53,12 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.UserCodeClassLoader;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.util.Collections;
 import java.util.Map;
@@ -283,6 +285,13 @@ public class SavepointEnvironment implements Environment {
     @Override
     public TaskEventDispatcher getTaskEventDispatcher() {
         throw new UnsupportedOperationException(ERROR_MSG);
+    }
+
+    @Override
+    public ThroughputCalculator getThroughputCalculator() {
+        // The throughput calculator doesn't make sense for savepoint but the not null value is
+        // preferable when StreamTask is instantiated.
+        return new ThroughputCalculator(SystemClock.getInstance(), 10);
     }
 
     /** {@link SavepointEnvironment} builder. */

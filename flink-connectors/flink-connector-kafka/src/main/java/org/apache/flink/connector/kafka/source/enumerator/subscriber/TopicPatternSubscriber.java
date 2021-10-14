@@ -21,6 +21,7 @@ package org.apache.flink.connector.kafka.source.enumerator.subscriber;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.TopicPartitionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,9 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriberUtils.getTopicMetadata;
-import static org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriberUtils.maybeLog;
-import static org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriberUtils.updatePartitionChanges;
+import static org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriberUtils.getAllTopicMetadata;
 
 /** A subscriber to a topic pattern. */
 class TopicPatternSubscriber implements KafkaSubscriber {
@@ -44,23 +43,23 @@ class TopicPatternSubscriber implements KafkaSubscriber {
     }
 
     @Override
-    public PartitionChange getPartitionChanges(
-            AdminClient adminClient, Set<TopicPartition> currentAssignment) {
-        Set<TopicPartition> newPartitions = new HashSet<>();
-        Set<TopicPartition> removedPartitions = new HashSet<>(currentAssignment);
+    public Set<TopicPartition> getSubscribedTopicPartitions(AdminClient adminClient) {
+        LOG.debug("Fetching descriptions for all topics on Kafka cluster");
+        final Map<String, TopicDescription> allTopicMetadata = getAllTopicMetadata(adminClient);
 
-        Map<String, TopicDescription> topicMetadata = getTopicMetadata(adminClient);
-        for (Map.Entry<String, TopicDescription> topicEntry : topicMetadata.entrySet()) {
-            String topic = topicEntry.getKey();
-            if (topicPattern.matcher(topic).matches()) {
-                updatePartitionChanges(
-                        topic,
-                        newPartitions,
-                        removedPartitions,
-                        topicEntry.getValue().partitions());
-            }
-        }
-        maybeLog(newPartitions, removedPartitions, LOG);
-        return new PartitionChange(newPartitions, removedPartitions);
+        Set<TopicPartition> subscribedTopicPartitions = new HashSet<>();
+
+        allTopicMetadata.forEach(
+                (topicName, topicDescription) -> {
+                    if (topicPattern.matcher(topicName).matches()) {
+                        for (TopicPartitionInfo partition : topicDescription.partitions()) {
+                            subscribedTopicPartitions.add(
+                                    new TopicPartition(
+                                            topicDescription.name(), partition.partition()));
+                        }
+                    }
+                });
+
+        return subscribedTopicPartitions;
     }
 }

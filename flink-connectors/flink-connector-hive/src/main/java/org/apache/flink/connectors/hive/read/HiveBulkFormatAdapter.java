@@ -135,6 +135,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
     private BulkFormat<RowData, ? super HiveSourceSplit> createBulkFormatForSplit(
             HiveSourceSplit split) {
         if (!useMapRedReader && useParquetVectorizedRead(split.getHiveTablePartition())) {
+            LOG.debug(String.format("Use native parquet reader for %s.", split.toString()));
             return ParquetColumnarRowInputFormat.createPartitionedFormat(
                     jobConfWrapper.conf(),
                     producedRowType,
@@ -144,8 +145,19 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
                     hiveVersion.startsWith("3"),
                     false);
         } else if (!useMapRedReader && useOrcVectorizedRead(split.getHiveTablePartition())) {
+            LOG.debug(String.format("Use native orc reader for %s.", split.toString()));
             return createOrcFormat();
         } else {
+            if (useMapRedReader) {
+                LOG.debug(
+                        String.format(
+                                "Use MapReduce RecordReader reader for %s.", split.toString()));
+            } else {
+                LOG.debug(
+                        String.format(
+                                "Use MapReduce RecordReader reader because the conditions of vectorized read are not met for %s.",
+                                split.toString()));
+            }
             return new HiveMapRedBulkFormat();
         }
     }

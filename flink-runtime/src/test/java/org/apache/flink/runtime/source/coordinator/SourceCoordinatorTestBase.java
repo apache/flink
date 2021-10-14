@@ -26,8 +26,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.junit.After;
 import org.junit.Before;

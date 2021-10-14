@@ -280,7 +280,7 @@ public class JobManagerOptions {
                                                     "'region': Restarts all tasks that could be affected by the task failure. "
                                                             + "More details can be found %s.",
                                                     link(
-                                                            "../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy",
+                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery/#restart-pipelined-region-failover-strategy",
                                                             "here")))
                                     .build());
 
@@ -330,6 +330,32 @@ public class JobManagerOptions {
                                     + "If the option is set to \"false\", TaskManager registration with "
                                     + "JobManager could be faster, since no reverse DNS lookup is performed. "
                                     + "However, local input split assignment (such as for HDFS files) may be impacted.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_JOB_MANAGER,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> JOB_MANAGER_FUTURE_POOL_SIZE =
+            key("jobmanager.future-pool.size")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The size of the future thread pool to execute future callbacks for all spawned JobMasters. "
+                                    + "If no value is specified, then Flink defaults to the number of available CPU cores.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_JOB_MANAGER,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> JOB_MANAGER_IO_POOL_SIZE =
+            key("jobmanager.io-pool.size")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The size of the IO thread pool to run blocking operations for all spawned JobMasters. "
+                                    + "This includes recovery and completion of checkpoints. "
+                                    + "Increase this value if you experience slow checkpoint operations when running many jobs. "
+                                    + "If no value is specified, then Flink defaults to the number of available CPU cores.");
 
     /** The timeout in milliseconds for requesting a slot from Slot Pool. */
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)

@@ -24,44 +24,12 @@ package org.apache.flink.runtime.io.network.buffer;
  */
 public interface BufferListener {
 
-    /** Status of the notification result from the buffer listener. */
-    enum NotificationResult {
-        BUFFER_NOT_USED(false, false),
-        BUFFER_USED_NO_NEED_MORE(true, false),
-        BUFFER_USED_NEED_MORE(true, true);
-
-        private final boolean isBufferUsed;
-        private final boolean needsMoreBuffers;
-
-        NotificationResult(boolean isBufferUsed, boolean needsMoreBuffers) {
-            this.isBufferUsed = isBufferUsed;
-            this.needsMoreBuffers = needsMoreBuffers;
-        }
-
-        /**
-         * Whether the notified buffer is accepted to use by the listener.
-         *
-         * @return <tt>true</tt> if the notified buffer is accepted.
-         */
-        boolean isBufferUsed() {
-            return isBufferUsed;
-        }
-
-        /**
-         * Whether the listener still needs more buffers to be notified.
-         *
-         * @return <tt>true</tt> if the listener is still waiting for more buffers.
-         */
-        boolean needsMoreBuffers() {
-            return needsMoreBuffers;
-        }
-    }
-
     /**
      * Notification callback if a buffer is recycled and becomes available in buffer pool.
      *
-     * <p>Note: responsibility on recycling the given buffer is transferred to this implementation,
-     * including any errors that lead to exceptions being thrown!
+     * <p>Note: 1) Responsibility on recycling the given buffer is transferred to this
+     * implementation, including any errors that lead to exceptions being thrown! 2) The listener
+     * must register itself again if it needs still need more buffers.
      *
      * <p><strong>BEWARE:</strong> since this may be called from outside the thread that relies on
      * the listener's logic, any exception that occurs with this handler should be forwarded to the
@@ -70,9 +38,9 @@ public interface BufferListener {
      * stack!
      *
      * @param buffer buffer that becomes available in buffer pool.
-     * @return NotificationResult if the listener wants to be notified next time.
+     * @return true if the buffer is accepted by the listener.
      */
-    NotificationResult notifyBufferAvailable(Buffer buffer);
+    boolean notifyBufferAvailable(Buffer buffer);
 
     /** Notification callback if the buffer provider is destroyed. */
     void notifyBufferDestroyed();

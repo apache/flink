@@ -243,7 +243,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
 {{< /tab >}}
 {{< /tabs >}}
 
-Flink does not provide a default implementation for `Histogram`, but offers a {% gh_link flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardHistogramWrapper.java "Wrapper" %} that allows usage of Codahale/DropWizard histograms.
+Flink does not provide a default implementation for `Histogram`, but offers a {{< gh_link file="flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardHistogramWrapper.java" name="Wrapper" >}} that allows usage of Codahale/DropWizard histograms.
 To use this wrapper add the following dependency in your `pom.xml`:
 ```xml
 <dependency>
@@ -916,8 +916,8 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="8">Task</th>
-      <td rowspan="2">Shuffle.Netty.Input.Buffers</td>
+      <th rowspan="18">Task</th>
+      <td rowspan="4">Shuffle.Netty.Input.Buffers</td>
       <td>inputQueueLength</td>
       <td>The number of queued input buffers.</td>
       <td>Gauge</td>
@@ -971,7 +971,6 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="8"><strong>Task</strong></th>
       <td rowspan="8">Shuffle.Netty.Input</td>
       <td>numBytesInLocal</td>
       <td>The total number of bytes this task has read from a local source.</td>
@@ -1195,7 +1194,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="14"><strong>Task</strong></th>
+      <th rowspan="16"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1274,6 +1273,17 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>busyTimeMsPerSecond</td>
       <td>The time (in milliseconds) this task is busy (neither idle nor back pressured) per second. Can be NaN, if the value could not be calculated.</td>
       <td>Meter</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>Task (only if buffer debloating is enabled and in non-source tasks)</strong></td>
+      <td>estimatedTimeToConsumeBuffersMs</td>
+      <td>The estimated time (in milliseconds) by the buffer debloater to consume all of the buffered data in the network exchange preceding this task. This value is calculated by approximated amount of the in-flight data and calculated throughput.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>debloatedBufferSize</td>
+      <td>The desired buffer size (in bytes) calculated by the buffer debloater. Buffer debloater is trying to reduce buffer size when the amount of in-flight data (after taking into account current throughput) exceeds the configured target value.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <th rowspan="6"><strong>Task/Operator</strong></th>
@@ -1642,7 +1652,7 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
   </tbody>
 </table>
 
-## Latency tracking
+## End-to-End latency tracking
 
 Flink allows to track the latency of records travelling through the system. This feature is disabled by default.
 To enable the latency tracking you must set the `latencyTrackingInterval` to a positive number in either the
@@ -1670,6 +1680,17 @@ up an automated clock synchronisation service (like NTP) to avoid false latency 
 <span class="label label-danger">Warning</span> Enabling latency metrics can significantly impact the performance
 of the cluster (in particular for `subtask` granularity). It is highly recommended to only use them for debugging 
 purposes.
+
+## State access latency tracking
+
+Flink also allows to track the keyed state access latency for standard Flink state-backends or customized state backends which extending from `AbstractStateBackend`. This feature is disabled by default.
+To enable this feature you must set the `state.backend.latency-track.keyed-state-enabled` to true in the [Flink configuration]({{< ref "docs/deployment/config" >}}#state-backends-latency-tracking-options).
+
+Once tracking keyed state access latency is enabled, Flink will sample the state access latency every `N` access, in which `N` is defined by `state.backend.latency-track.sample-interval`.
+This configuration has a default value of 100. A smaller value will get more accurate results but have a higher performance impact since it is sampled more frequently.
+
+As the type of this latency metrics is histogram, `state.backend.latency-track.history-size` will control the maximum number of recorded values in history, which has the default value of 128.
+A larger value of this configuration will require more memory, but will provide a more accurate result.
 
 ## REST API integration
 

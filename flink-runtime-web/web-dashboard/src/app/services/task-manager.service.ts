@@ -18,14 +18,16 @@
 
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY, of, ReplaySubject } from 'rxjs';
+import { EMPTY, Observable, of, ReplaySubject } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+
 import { BASE_URL } from 'config';
 import {
   TaskManagerListInterface,
   TaskManagerDetailInterface,
   TaskManagerLogInterface,
-  TaskManagerThreadDumpInterface
+  TaskManagerThreadDumpInterface,
+  TaskmanagersItemInterface
 } from 'interfaces';
 
 @Injectable({
@@ -37,7 +39,7 @@ export class TaskManagerService {
   /**
    * Load TM list
    */
-  loadManagers() {
+  loadManagers(): Observable<TaskmanagersItemInterface[]> {
     return this.httpClient.get<TaskManagerListInterface>(`${BASE_URL}/taskmanagers`).pipe(
       map(data => data.taskmanagers || []),
       catchError(() => of([]))
@@ -46,9 +48,10 @@ export class TaskManagerService {
 
   /**
    * Load specify TM
+   *
    * @param taskManagerId
    */
-  loadManager(taskManagerId: string) {
+  loadManager(taskManagerId: string): Observable<TaskManagerDetailInterface> {
     return this.httpClient
       .get<TaskManagerDetailInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}`)
       .pipe(catchError(() => EMPTY));
@@ -56,9 +59,10 @@ export class TaskManagerService {
 
   /**
    * Load TM log list
+   *
    * @param taskManagerId
    */
-  loadLogList(taskManagerId: string) {
+  loadLogList(taskManagerId: string): Observable<Array<{ name: string; size: number }>> {
     return this.httpClient
       .get<TaskManagerLogInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}/logs`)
       .pipe(map(data => data.logs));
@@ -66,10 +70,11 @@ export class TaskManagerService {
 
   /**
    * Load TM log
+   *
    * @param taskManagerId
    * @param logName
    */
-  loadLog(taskManagerId: string, logName: string) {
+  loadLog(taskManagerId: string, logName: string): Observable<{ data: string; url: string }> {
     const url = `${BASE_URL}/taskmanagers/${taskManagerId}/logs/${logName}`;
     return this.httpClient
       .get(url, { responseType: 'text', headers: new HttpHeaders().append('Cache-Control', 'no-cache') })
@@ -86,7 +91,7 @@ export class TaskManagerService {
   /**
    * Load TM thread dump
    */
-  loadThreadDump(taskManagerId: string) {
+  loadThreadDump(taskManagerId: string): Observable<string> {
     return this.httpClient
       .get<TaskManagerThreadDumpInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`)
       .pipe(
@@ -98,9 +103,10 @@ export class TaskManagerService {
 
   /**
    * Load TM logs
+   *
    * @param taskManagerId
    */
-  loadLogs(taskManagerId: string) {
+  loadLogs(taskManagerId: string): Observable<string> {
     return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/log`, {
       responseType: 'text',
       headers: new HttpHeaders().append('Cache-Control', 'no-cache')
@@ -109,9 +115,10 @@ export class TaskManagerService {
 
   /**
    * Load TM stdout
+   *
    * @param taskManagerId
    */
-  loadStdout(taskManagerId: string) {
+  loadStdout(taskManagerId: string): Observable<string> {
     return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/stdout`, {
       responseType: 'text',
       headers: new HttpHeaders().append('Cache-Control', 'no-cache')
@@ -120,10 +127,11 @@ export class TaskManagerService {
 
   /**
    * Get TM metric
+   *
    * @param taskManagerId
    * @param listOfMetricName
    */
-  getMetrics(taskManagerId: string, listOfMetricName: string[]) {
+  getMetrics(taskManagerId: string, listOfMetricName: string[]): Observable<{ [p: string]: number }> {
     const metricName = listOfMetricName.join(',');
     return this.httpClient
       .get<Array<{ id: string; value: string }>>(`${BASE_URL}/taskmanagers/${taskManagerId}/metrics?get=${metricName}`)

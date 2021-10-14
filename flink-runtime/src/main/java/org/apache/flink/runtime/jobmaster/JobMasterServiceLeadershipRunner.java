@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFactory;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
@@ -67,8 +67,6 @@ import java.util.function.Supplier;
  * <ul>
  *   <li>{@link JobManagerRunnerResult} to signal an initialization failure of the {@link
  *       JobMasterService} or the completion of a job
- *   <li>{@link JobNotFinishedException} to signal that the job has not been completed by the {@link
- *       JobMasterService}
  *   <li>{@link Exception} to signal an unexpected failure
  * </ul>
  */
@@ -134,7 +132,9 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                 jobMasterGatewayFuture.completeExceptionally(
                         new FlinkException(
                                 "JobMasterServiceLeadershipRunner is closed. Therefore, the corresponding JobMaster will never acquire the leadership."));
-                resultFuture.completeExceptionally(new JobNotFinishedException(getJobID()));
+                resultFuture.complete(
+                        JobManagerRunnerResult.forSuccess(
+                                createExecutionGraphInfoWithJobStatus(JobStatus.SUSPENDED)));
 
                 final CompletableFuture<Void> processTerminationFuture =
                         jobMasterServiceProcess.closeAsync();
@@ -225,12 +225,10 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                             .thenCompose(jobMasterGateway -> jobMasterGateway.requestJob(timeout));
                 } else {
                     return CompletableFuture.completedFuture(
-                            new ExecutionGraphInfo(
-                                    jobMasterServiceProcessFactory.createArchivedExecutionGraph(
-                                            hasCurrentLeaderBeenCancelled
-                                                    ? JobStatus.CANCELLING
-                                                    : JobStatus.INITIALIZING,
-                                            null)));
+                            createExecutionGraphInfoWithJobStatus(
+                                    hasCurrentLeaderBeenCancelled
+                                            ? JobStatus.CANCELLING
+                                            : JobStatus.INITIALIZING));
                 }
             } else {
                 return resultFuture.thenApply(JobManagerRunnerResult::getExecutionGraphInfo);
@@ -281,8 +279,18 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
         }
     }
 
+    private ExecutionGraphInfo createExecutionGraphInfoWithJobStatus(JobStatus jobStatus) {
+        return new ExecutionGraphInfo(
+                jobMasterServiceProcessFactory.createArchivedExecutionGraph(jobStatus, null));
+    }
+
     private void jobAlreadyDone() {
-        resultFuture.completeExceptionally(new JobNotFinishedException(getJobID()));
+        resultFuture.complete(
+                JobManagerRunnerResult.forSuccess(
+                        new ExecutionGraphInfo(
+                                jobMasterServiceProcessFactory.createArchivedExecutionGraph(
+                                        JobStatus.FAILED,
+                                        new JobAlreadyDoneException(getJobID())))));
     }
 
     private RunningJobsRegistry.JobSchedulingStatus getJobSchedulingStatus() throws FlinkException {

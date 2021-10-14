@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 
@@ -68,6 +68,7 @@ public class TestingHeartbeatServices extends HeartbeatServices {
         HeartbeatManagerImpl<I, O> heartbeatManager =
                 new HeartbeatManagerImpl<>(
                         heartbeatTimeout,
+                        failedRpcRequestsUntilUnreachable,
                         resourceId,
                         heartbeatListener,
                         mainThreadExecutor,
@@ -103,6 +104,7 @@ public class TestingHeartbeatServices extends HeartbeatServices {
                 new HeartbeatManagerSenderImpl<>(
                         heartbeatInterval,
                         heartbeatTimeout,
+                        failedRpcRequestsUntilUnreachable,
                         resourceId,
                         heartbeatListener,
                         mainThreadExecutor,
@@ -179,14 +181,16 @@ public class TestingHeartbeatServices extends HeartbeatServices {
                 HeartbeatTarget<O> heartbeatTarget,
                 ScheduledExecutor mainThreadExecutor,
                 HeartbeatListener<?, O> heartbeatListener,
-                long heartbeatTimeoutIntervalMs) {
+                long heartbeatTimeoutIntervalMs,
+                int failedRpcRequestsUntilUnreachable) {
 
             return new TestingHeartbeatMonitor<>(
                     resourceID,
                     heartbeatTarget,
                     mainThreadExecutor,
                     heartbeatListener,
-                    heartbeatTimeoutIntervalMs);
+                    heartbeatTimeoutIntervalMs,
+                    failedRpcRequestsUntilUnreachable);
         }
     }
 
@@ -204,14 +208,16 @@ public class TestingHeartbeatServices extends HeartbeatServices {
                 HeartbeatTarget<O> heartbeatTarget,
                 ScheduledExecutor scheduledExecutor,
                 HeartbeatListener<?, O> heartbeatListener,
-                long heartbeatTimeoutIntervalMs) {
+                long heartbeatTimeoutIntervalMs,
+                int failedRpcRequestsUntilUnreachable) {
 
             super(
                     resourceID,
                     heartbeatTarget,
                     scheduledExecutor,
                     heartbeatListener,
-                    heartbeatTimeoutIntervalMs);
+                    heartbeatTimeoutIntervalMs,
+                    failedRpcRequestsUntilUnreachable);
         }
 
         @Override

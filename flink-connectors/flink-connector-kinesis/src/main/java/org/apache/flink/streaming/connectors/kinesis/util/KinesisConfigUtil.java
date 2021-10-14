@@ -433,7 +433,7 @@ public class KinesisConfigUtil {
     }
 
     /**
-     * A set of configuration paremeters associated with the describeStreams API may be used if: 1)
+     * A set of configuration parameters associated with the describeStreams API may be used if: 1)
      * an legacy client wants to consume from Kinesis 2) a current client wants to consumer from
      * DynamoDB streams
      *

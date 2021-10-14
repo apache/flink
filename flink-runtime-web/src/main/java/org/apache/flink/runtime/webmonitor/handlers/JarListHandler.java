@@ -21,7 +21,6 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -32,6 +31,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nonnull;
 
@@ -83,8 +83,7 @@ public class JarListHandler
 
     @Override
     protected CompletableFuture<JarListInfo> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-            @Nonnull RestfulGateway gateway)
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         final String localAddress;
         Preconditions.checkState(localAddressFuture.isDone());

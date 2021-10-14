@@ -21,8 +21,8 @@ package org.apache.flink.connector.jdbc.table;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.jdbc.JdbcInputFormat;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.connector.jdbc.split.JdbcNumericBetweenParametersProvider;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatementImpl;
@@ -51,7 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class JdbcTableSource
         implements StreamTableSource<Row>, ProjectableTableSource<Row>, LookupableTableSource<Row> {
 
-    private final JdbcOptions options;
+    private final JdbcConnectorOptions options;
     private final JdbcReadOptions readOptions;
     private final JdbcLookupOptions lookupOptions;
     private final TableSchema schema;
@@ -61,7 +61,7 @@ public class JdbcTableSource
     private final DataType producedDataType;
 
     private JdbcTableSource(
-            JdbcOptions options,
+            JdbcConnectorOptions options,
             JdbcReadOptions readOptions,
             JdbcLookupOptions lookupOptions,
             TableSchema schema) {
@@ -69,7 +69,7 @@ public class JdbcTableSource
     }
 
     private JdbcTableSource(
-            JdbcOptions options,
+            JdbcConnectorOptions options,
             JdbcReadOptions readOptions,
             JdbcLookupOptions lookupOptions,
             TableSchema schema,
@@ -222,13 +222,13 @@ public class JdbcTableSource
     /** Builder for a {@link JdbcTableSource}. */
     public static class Builder {
 
-        private JdbcOptions options;
+        private JdbcConnectorOptions options;
         private JdbcReadOptions readOptions;
         private JdbcLookupOptions lookupOptions;
         protected TableSchema schema;
 
         /** required, jdbc options. */
-        public Builder setOptions(JdbcOptions options) {
+        public Builder setOptions(JdbcConnectorOptions options) {
             this.options = options;
             return this;
         }

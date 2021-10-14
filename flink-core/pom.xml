@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.14-SNAPSHOT</version>
+		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -203,6 +203,9 @@ under the License.
 
 							<!-- added method to interface in 1.13 -->
 							<exclude>org.apache.flink.api.common.functions.RuntimeContext#getJobId()</exclude>
+
+							<!-- added method to interface in 1.14 through FLIP-180 -->
+							<exclude>org.apache.flink.api.common.eventtime.WatermarkOutput#markActive()</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

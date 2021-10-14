@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.testutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTe
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -48,16 +50,21 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.UserCodeClassLoader;
+import org.apache.flink.util.concurrent.Executors;
+
+import com.sun.istack.NotNull;
 
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -120,6 +127,12 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
+    private MailboxExecutor mainMailboxExecutor;
+
+    private ExecutorService asyncOperationsThreadPool;
+
+    private final ThroughputCalculator throughputCalculator;
+
     public static MockEnvironmentBuilder builder() {
         return new MockEnvironmentBuilder();
     }
@@ -142,10 +155,12 @@ public class MockEnvironment implements Environment, AutoCloseable {
             TaskMetricGroup taskMetricGroup,
             TaskManagerRuntimeInfo taskManagerRuntimeInfo,
             MemoryManager memManager,
-            ExternalResourceInfoProvider externalResourceInfoProvider) {
+            ExternalResourceInfoProvider externalResourceInfoProvider,
+            ThroughputCalculator throughputCalculator) {
 
         this.jobID = jobID;
         this.jobVertexID = jobVertexID;
+        this.throughputCalculator = throughputCalculator;
 
         this.taskInfo = new TaskInfo(taskName, maxParallelism, subtaskIndex, parallelism, 0);
         this.jobConfiguration = new Configuration();
@@ -175,6 +190,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
         this.externalResourceInfoProvider =
                 Preconditions.checkNotNull(externalResourceInfoProvider);
+
+        this.mainMailboxExecutor = new SyncMailboxExecutor();
+
+        this.asyncOperationsThreadPool = Executors.newDirectExecutorService();
     }
 
     public IteratorWrappingTestSingleInputGate<Record> addInput(
@@ -299,6 +318,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
     }
 
     @Override
+    public ThroughputCalculator getThroughputCalculator() {
+        return throughputCalculator;
+    }
+
+    @Override
     public JobVertexID getJobVertexId() {
         return jobVertexID;
     }
@@ -384,6 +408,26 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
         memManager.shutdown();
         ioManager.close();
+    }
+
+    @Override
+    public void setMainMailboxExecutor(@NotNull MailboxExecutor mainMailboxExecutor) {
+        this.mainMailboxExecutor = mainMailboxExecutor;
+    }
+
+    @Override
+    public MailboxExecutor getMainMailboxExecutor() {
+        return mainMailboxExecutor;
+    }
+
+    @Override
+    public void setAsyncOperationsThreadPool(@NotNull ExecutorService executorService) {
+        this.asyncOperationsThreadPool = executorService;
+    }
+
+    @Override
+    public ExecutorService getAsyncOperationsThreadPool() {
+        return asyncOperationsThreadPool;
     }
 
     public void setExpectedExternalFailureCause(Class<? extends Throwable> expectedThrowableClass) {

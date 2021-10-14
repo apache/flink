@@ -37,16 +37,21 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
+import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
+import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.PrintUtils;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -78,10 +83,8 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.api.internal.TableResultImpl.TABLE_RESULT_OK;
-import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_DEPRECATED_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_EXECUTE_STATEMENT;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_FINISH_STATEMENT;
-import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_REMOVED_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_RESET_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_STATEMENT_SET_END_CALL_ERROR;
@@ -90,10 +93,6 @@ import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_STATEMENT_SUB
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_WAIT_EXECUTE;
 import static org.apache.flink.table.client.config.ResultMode.TABLEAU;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
-import static org.apache.flink.table.client.config.YamlConfigUtils.getOptionNameWithDeprecatedKey;
-import static org.apache.flink.table.client.config.YamlConfigUtils.getPropertiesInPretty;
-import static org.apache.flink.table.client.config.YamlConfigUtils.isDeprecatedKey;
-import static org.apache.flink.table.client.config.YamlConfigUtils.isRemovedKey;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** SQL CLI client. */
@@ -309,9 +308,7 @@ public class CliClient implements AutoCloseable {
 
         for (String statement : CliStatementSplitter.splitContent(content)) {
             terminal.writer()
-                    .println(
-                            new AttributedString(String.format("%s%s", prompt, statement))
-                                    .toString());
+                    .println(new AttributedString(String.format("%s%s", prompt, statement)));
             terminal.flush();
 
             if (!executeStatement(statement, mode)) {
@@ -325,7 +322,18 @@ public class CliClient implements AutoCloseable {
     private boolean executeStatement(String statement, ExecutionMode executionMode) {
         try {
             final Optional<Operation> operation = parseCommand(statement);
-            operation.ifPresent(op -> callOperation(op, executionMode));
+            operation.ifPresent(
+                    op -> {
+                        final Thread thread = Thread.currentThread();
+                        final Terminal.SignalHandler previousHandler =
+                                terminal.handle(
+                                        Terminal.Signal.INT, (signal) -> thread.interrupt());
+                        try {
+                            callOperation(op, executionMode);
+                        } finally {
+                            terminal.handle(Terminal.Signal.INT, previousHandler);
+                        }
+                    });
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return false;
@@ -342,7 +350,9 @@ public class CliClient implements AutoCloseable {
                     && !(operation instanceof UseOperation)
                     && !(operation instanceof AlterOperation)
                     && !(operation instanceof LoadModuleOperation)
-                    && !(operation instanceof UnloadModuleOperation)) {
+                    && !(operation instanceof UnloadModuleOperation)
+                    && !(operation instanceof AddJarOperation)
+                    && !(operation instanceof RemoveJarOperation)) {
                 throw new SqlExecutionException(
                         "Unsupported operation in sql init file: " + operation.asSummaryString());
             }
@@ -420,6 +430,15 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof EndStatementSetOperation) {
             // END
             callEndStatementSet();
+        } else if (operation instanceof AddJarOperation) {
+            // ADD JAR
+            callAddJar((AddJarOperation) operation);
+        } else if (operation instanceof RemoveJarOperation) {
+            // REMOVE JAR
+            callRemoveJar((RemoveJarOperation) operation);
+        } else if (operation instanceof ShowJarsOperation) {
+            // SHOW JARS
+            callShowJars();
         } else if (operation instanceof ShowCreateTableOperation) {
             // SHOW CREATE TABLE
             callShowCreateTable((ShowCreateTableOperation) operation);
@@ -427,6 +446,28 @@ public class CliClient implements AutoCloseable {
             // fallback to default implementation
             executeOperation(operation);
         }
+    }
+
+    private void callAddJar(AddJarOperation operation) {
+        String jarPath = operation.getPath();
+        executor.addJar(sessionId, jarPath);
+        printInfo(CliStrings.MESSAGE_ADD_JAR_STATEMENT);
+    }
+
+    private void callRemoveJar(RemoveJarOperation operation) {
+        String jarPath = operation.getPath();
+        executor.removeJar(sessionId, jarPath);
+        printInfo(CliStrings.MESSAGE_REMOVE_JAR_STATEMENT);
+    }
+
+    private void callShowJars() {
+        List<String> jars = executor.listJars(sessionId);
+        if (CollectionUtils.isEmpty(jars)) {
+            terminal.writer().println("Empty set");
+        } else {
+            jars.forEach(jar -> terminal.writer().println(jar));
+        }
+        terminal.flush();
     }
 
     private void callQuit() {
@@ -448,7 +489,7 @@ public class CliClient implements AutoCloseable {
         else {
             String key = resetOperation.getKey().get();
             executor.resetSessionProperty(sessionId, key);
-            printSetResetConfigKeyMessage(key, MESSAGE_RESET_KEY);
+            printInfo(MESSAGE_RESET_KEY);
         }
     }
 
@@ -458,7 +499,7 @@ public class CliClient implements AutoCloseable {
             String key = setOperation.getKey().get().trim();
             String value = setOperation.getValue().get().trim();
             executor.setSessionProperty(sessionId, key, value);
-            printSetResetConfigKeyMessage(key, MESSAGE_SET_KEY);
+            printInfo(MESSAGE_SET_KEY);
         }
         // show all properties
         else {
@@ -467,7 +508,15 @@ public class CliClient implements AutoCloseable {
                 terminal.writer()
                         .println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
             } else {
-                List<String> prettyEntries = getPropertiesInPretty(properties);
+                List<String> prettyEntries = new ArrayList<>();
+                for (String key : properties.keySet()) {
+                    prettyEntries.add(
+                            String.format(
+                                    "'%s' = '%s'",
+                                    EncodingUtils.escapeSingleQuotes(key),
+                                    EncodingUtils.escapeSingleQuotes(properties.get(key))));
+                }
+                prettyEntries.sort(String::compareTo);
                 prettyEntries.forEach(entry -> terminal.writer().println(entry));
             }
             terminal.flush();
@@ -610,29 +659,6 @@ public class CliClient implements AutoCloseable {
     private void printWarning(String message) {
         terminal.writer().println(CliStrings.messageWarning(message).toAnsi());
         terminal.flush();
-    }
-
-    private void printSetResetConfigKeyMessage(String key, String message) {
-        boolean isRemovedKey = isRemovedKey(key);
-        boolean isDeprecatedKey = isDeprecatedKey(key);
-
-        // print warning information if the given key is removed or deprecated
-        if (isRemovedKey || isDeprecatedKey) {
-            String warningMsg =
-                    isRemovedKey
-                            ? MESSAGE_REMOVED_KEY
-                            : String.format(
-                                    MESSAGE_DEPRECATED_KEY,
-                                    key,
-                                    getOptionNameWithDeprecatedKey(key));
-            printWarning(warningMsg);
-        }
-
-        // when the key is not removed, need to print normal message
-        if (!isRemovedKey) {
-            terminal.writer().println(CliStrings.messageInfo(message).toAnsi());
-            terminal.flush();
-        }
     }
 
     // --------------------------------------------------------------------------------------------

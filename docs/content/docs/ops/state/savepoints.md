@@ -95,9 +95,9 @@ With Flink >= 1.2.0 it is also possible to *resume from savepoints* using the we
 
 When triggering a savepoint, a new savepoint directory is created where the data as well as the meta data will be stored. The location of this directory can be controlled by [configuring a default target directory](#configuration) or by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
 
-<div class="alert alert-warning">
-<strong>Attention:</strong> The target directory has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system or Object Store.
-</div>
+{{< hint warning >}}
+**Attention:** The target directory has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system or Object Store.
+{{< /hint >}}
 
 For example with a `FsStateBackend` or `RocksDBStateBackend`:
 

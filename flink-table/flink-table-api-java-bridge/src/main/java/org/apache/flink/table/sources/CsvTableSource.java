@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.sources;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.io.RowCsvInputFormat;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -53,14 +53,15 @@ import java.util.stream.IntStream;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 
 /**
- * A {@link StreamTableSource} and {@link BatchTableSource} for simple CSV files with a (logically)
- * unlimited number of fields.
+ * A {@link StreamTableSource} for simple CSV files with a (logically) unlimited number of fields.
+ *
+ * @deprecated The legacy CSV connector has been replaced by {@link FileSource}. It is kept only to
+ *     support tests for the legacy connector stack.
  */
+@Internal
+@Deprecated
 public class CsvTableSource
-        implements StreamTableSource<Row>,
-                BatchTableSource<Row>,
-                LookupableTableSource<Row>,
-                ProjectableTableSource<Row> {
+        implements StreamTableSource<Row>, LookupableTableSource<Row>, ProjectableTableSource<Row> {
 
     private final CsvInputFormatConfig config;
 
@@ -219,12 +220,6 @@ public class CsvTableSource
 
     @Override
     public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-        return execEnv.createInput(config.createInputFormat(), getProducedTypeInformation())
-                .name(explainSource());
-    }
-
-    @Override
-    public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
         return execEnv.createInput(config.createInputFormat(), getProducedTypeInformation())
                 .name(explainSource());
     }

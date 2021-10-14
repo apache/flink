@@ -1,0 +1,231 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testBuiltInFunctionWithFilterPushdown">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM ProjectableTable WHERE IFNULL(a, 1) = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[=(IFNULL($0, 1), 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a], where=[(IFNULL(a, 1) = 1)])
++- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, filter=[], project=[a], metadata=[]]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedProject">
+    <Resource name="sql">
+      <![CDATA[
+SELECT id,
+    deepNested.nested1.name AS nestedName,
+    nested.`value` AS nestedValue,
+    deepNested.nested2.flag AS nestedFlag,
+    deepNested.nested2.num AS nestedNum
+FROM NestedTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, deepNested_nested1_name AS nestedName, nested_value AS nestedValue, deepNested_nested2_flag AS nestedFlag, deepNested_nested2_num AS nestedNum])
++- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value], metadata=[]]], fields=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleProject">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM ProjectableTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c], metadata=[]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedProjectFieldWithITEM">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  `result`.`data_arr`[`id`].`value`,
+  `result`.`data_map`['item'].`value`
+FROM NestedItemTable
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _UTF-16LE'item').value])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[ITEM(result_data_arr, id).value AS EXPR$0, ITEM(result_data_map, _UTF-16LE'item').value AS EXPR$1])
++- TableSourceScan(table=[[default_catalog, default_database, NestedItemTable, project=[result_data_arr, result_data_map, id], metadata=[]]], fields=[result_data_arr, result_data_map, id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestProjectWithMetadata">
+    <Resource name="sql">
+      <![CDATA[
+SELECT id,
+       deepNested.nested1 AS nested1,
+       deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results
+FROM T
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.nested2.num), $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, deepNested_nested1 AS nested1, ((deepNested_nested1.value + deepNested_nested2_num) + metadata_1) AS results])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested_nested1, deepNested_nested2_num, metadata_1], metadata=[metadata_1]]], fields=[id, deepNested_nested1, deepNested_nested2_num, metadata_1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithoutInputRef">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(1) FROM ProjectableTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalProject($f0=[0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+      +- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[], metadata=[]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableHintWithDigestReuseForLogicalTableScan">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalUnion(all=[true])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=0}]]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=2}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- Union(all=[true], union=[a, b, c])
+   :- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=0}]]])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])
+
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=2}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleProjectWithProctime">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c, PROCTIME() FROM ProjectableTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], EXPR$2=[PROCTIME()])
++- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, PROCTIME_MATERIALIZE(PROCTIME()) AS EXPR$2])
++- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c], metadata=[]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableHintWithSameOptions">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])(reuse_id=[1])
+
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- Reused(reference_id=[1])
+
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableHintWithDifferentOptions">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=2}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])
+
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=2}]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

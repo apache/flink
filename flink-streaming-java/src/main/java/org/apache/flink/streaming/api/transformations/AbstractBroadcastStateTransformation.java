@@ -35,7 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * function on the resulting connected stream.
  *
  * <p>For more information see the <a
- * href="https://ci.apache.org/projects/flink/flink-docs-stable/dev/stream/state/broadcast_state.html">
+ * href="https://nightlies.apache.org/flink/flink-docs-stable/dev/stream/state/broadcast_state.html">
  * Broadcast State Pattern documentation page</a>.
  *
  * @param <IN1> The type of the elements in the non-broadcasted input.

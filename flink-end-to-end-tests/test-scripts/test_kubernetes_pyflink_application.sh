@@ -77,17 +77,19 @@ PYFLINK_DOCKER_DIR="$TEST_DATA_DIR/pyflink_docker"
 mkdir -p "$PYFLINK_DOCKER_DIR"
 cp "${FLINK_PYTHON_DIR}/dist/${PYFLINK_PACKAGE_FILE}" $PYFLINK_DOCKER_DIR/
 cp "${FLINK_PYTHON_DIR}/apache-flink-libraries/dist/${PYFLINK_LIBRARIES_PACKAGE_FILE}" $PYFLINK_DOCKER_DIR/
+cp "${FLINK_PYTHON_DIR}/dev/lint-python.sh" $PYFLINK_DOCKER_DIR/
 if [[ -d "dist" ]]; then rm -Rf dist; fi
 cd ${PYFLINK_DOCKER_DIR}
 echo "FROM ${PURE_FLINK_IMAGE_NAME}" >> Dockerfile
-echo "RUN apt-get update -y && apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*" >> Dockerfile
-echo "RUN ln -s /usr/bin/python3 /usr/bin/python" >> Dockerfile
+echo "COPY lint-python.sh /tmp/lint-python.sh" >> Dockerfile
+echo "RUN bash /tmp/lint-python.sh -s basic" >> Dockerfile
 echo "COPY ${PYFLINK_PACKAGE_FILE} ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
 echo "COPY ${PYFLINK_LIBRARIES_PACKAGE_FILE} ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
-echo "RUN pip3 install ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
-echo "RUN pip3 install ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
-echo "RUN rm ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
+echo "RUN /tmp/.conda/bin/python -m pip install ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
+echo "RUN /tmp/.conda/bin/python -m pip install ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
 echo "RUN rm ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
+echo "RUN rm ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
+echo "ENV PATH /tmp/.conda/bin:\$PATH" >> Dockerfile
 docker build --no-cache --network="host" -t ${PYFLINK_IMAGE_NAME} .
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
@@ -102,7 +104,7 @@ mkdir -p "$LOCAL_LOGS_PATH"
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
     -Dkubernetes.rest-service.exposed.type=NodePort \
-    -pym word_count -pyfs /opt/flink/examples/python/table/batch
+    -pym word_count -pyfs /opt/flink/examples/python/table
 
 kubectl wait --for=condition=Available --timeout=60s deploy/${CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
@@ -111,4 +113,4 @@ wait_rest_endpoint_up_k8s $jm_pod_name
 # The Flink cluster will be destroyed immediately once the job finished or failed. So we check jobmanager logs
 # instead of checking the result
 kubectl logs -f $jm_pod_name >$LOCAL_LOGS_PATH/jobmanager.log
-grep -E "Job [A-Za-z0-9]+ reached globally terminal state FINISHED" $LOCAL_LOGS_PATH/jobmanager.log
+grep -E "Job [A-Za-z0-9]+ reached terminal state FINISHED" $LOCAL_LOGS_PATH/jobmanager.log

@@ -218,7 +218,7 @@ The `execute()` method will wait for the job to finish and then return a
 `JobExecutionResult`, this contains execution times and accumulator results.
 
 If you don't want to wait for the job to finish, you can trigger asynchronous
-job execution by calling `executeAysnc()` on the `StreamExecutionEnvironment`.
+job execution by calling `executeAsync()` on the `StreamExecutionEnvironment`.
 It will return a `JobClient` with which you can communicate with the job you
 just submitted. For instance, here is how to implement the semantics of
 `execute()` by using `executeAsync()`.
@@ -236,7 +236,7 @@ happen directly. Rather, each operation is created and added to a dataflow
 graph. The operations are actually executed when the execution is explicitly
 triggered by an `execute()` call on the execution environment.  Whether the
 program is executed locally or on a cluster depends on the type of execution
-environment
+environment.
 
 The lazy evaluation lets you construct sophisticated programs that Flink
 executes as one holistically planned unit.

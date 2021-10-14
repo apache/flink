@@ -20,7 +20,6 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.connector.jdbc.JdbcTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -100,9 +99,7 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
     @Test
     public void testJdbcSource() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         tEnv.executeSql(
                 "CREATE TABLE "
@@ -139,9 +136,7 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
     @Test
     public void testProjectableJdbcSource() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         tEnv.executeSql(
                 "CREATE TABLE "
@@ -178,9 +173,7 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
     @Test
     public void testScanQueryJDBCSource() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         final String testQuery = "SELECT id FROM " + INPUT_TABLE;
         tEnv.executeSql(

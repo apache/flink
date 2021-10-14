@@ -20,10 +20,10 @@
 
 :host {
   display: block;
-  background: @component-background;
+  margin: -24px -24px 0;
   padding: 16px 32px 0;
   border-bottom: 1px solid @border-color-split;
-  margin: -24px -24px 0px;
+  background: @component-background;
 }
 
 .wrapper {
@@ -31,9 +31,11 @@
 }
 
 .name {
-  h2, flink-job-badge {
+  h2,
+  flink-job-badge {
     display: inline-block;
   }
+
   nz-divider {
     margin: 0 12px;
   }
@@ -43,35 +45,38 @@
   display: flex;
   font-size: 14px;
   line-height: 22px;
+
   div {
     line-height: 22px;
+
     &:last-child {
       margin-left: 8px;
-      font-weight: 700;
       color: @heading-color;
+      font-weight: 700;
     }
   }
 }
 
 .status {
-  margin-bottom: 12px;
   display: flex;
   align-items: center;
+  margin-bottom: 12px;
+
   nz-divider {
     margin: 0 24px;
   }
 }
 
 .operate {
-  font-size: 24px;
   position: absolute;
-  right: 16px;
   top: 24px;
+  right: 16px;
+  font-size: 24px;
 }
 
 flink-navigation {
-  margin-bottom: -1px;
   display: block;
+  margin-bottom: -1px;
 }
 
 flink-task-badge {

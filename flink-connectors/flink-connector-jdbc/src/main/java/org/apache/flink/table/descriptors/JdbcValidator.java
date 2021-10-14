@@ -20,8 +20,11 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
-import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialectLoader;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -78,11 +81,16 @@ public class JdbcValidator extends ConnectorDescriptorValidator {
         properties.validateDuration(CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT, true, 1000);
 
         final String url = properties.getString(CONNECTOR_URL);
-        final Optional<JdbcDialect> dialect = JdbcDialects.get(url);
-        Preconditions.checkState(dialect.isPresent(), "Cannot handle such jdbc url: " + url);
+        final JdbcDialect dialect = JdbcDialectLoader.load(url);
 
         TableSchema schema = TableSchemaUtils.getPhysicalSchema(properties.getTableSchema(SCHEMA));
-        dialect.get().validate(schema);
+
+        DataType dataType = schema.toPhysicalRowDataType();
+        if (!(dataType.getLogicalType() instanceof RowType)) {
+            throw new ValidationException("Logical DataType must be a RowType");
+        }
+
+        dialect.validate((RowType) dataType.getLogicalType());
 
         Optional<String> password = properties.getOptionalString(CONNECTOR_PASSWORD);
         if (password.isPresent()) {

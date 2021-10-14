@@ -20,10 +20,13 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.util.FileUtils;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
@@ -33,6 +36,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -65,6 +69,8 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
         public long keepUntil = -1;
     }
 
+    private static final int DEFAULT_SIZE_LIMIT_MB = 100;
+
     /** Map to store the number of references to a specific job. */
     private final Map<JobID, RefCount> jobRefCounters = new HashMap<>();
 
@@ -73,6 +79,8 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
 
     /** Timer task to execute the cleanup at regular intervals. */
     private final Timer cleanupTimer;
+
+    private final BlobCacheSizeTracker blobCacheSizeTracker;
 
     /**
      * Instantiates a new cache for permanent BLOBs which are also available in an HA store.
@@ -90,6 +98,21 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
             @Nullable final InetSocketAddress serverAddress)
             throws IOException {
 
+        this(
+                blobClientConfig,
+                blobView,
+                serverAddress,
+                new BlobCacheSizeTracker(MemorySize.ofMebiBytes(DEFAULT_SIZE_LIMIT_MB).getBytes()));
+    }
+
+    @VisibleForTesting
+    public PermanentBlobCache(
+            final Configuration blobClientConfig,
+            final BlobView blobView,
+            @Nullable final InetSocketAddress serverAddress,
+            BlobCacheSizeTracker blobCacheSizeTracker)
+            throws IOException {
+
         super(
                 blobClientConfig,
                 blobView,
@@ -102,6 +125,8 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
         this.cleanupInterval = blobClientConfig.getLong(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
         this.cleanupTimer.schedule(
                 new PermanentBlobCleanupTask(), cleanupInterval, cleanupInterval);
+
+        this.blobCacheSizeTracker = blobCacheSizeTracker;
     }
 
     /**
@@ -188,6 +213,142 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
     }
 
     /**
+     * Returns the content of the file for the BLOB with the provided job ID the blob key.
+     *
+     * <p>The method will first attempt to serve the BLOB from the local cache. If the BLOB is not
+     * in the cache, the method will try to download it from the HA store, or directly from the
+     * {@link BlobServer}.
+     *
+     * <p>Compared to {@code getFile}, {@code readFile} makes sure that the file is fully read in
+     * the same write lock as the file is accessed. This avoids the scenario that the path is
+     * returned as the file is deleted concurrently by other threads.
+     *
+     * @param jobId ID of the job this blob belongs to
+     * @param blobKey BLOB key associated with the requested file
+     * @return The content of the BLOB.
+     * @throws java.io.FileNotFoundException if the BLOB does not exist;
+     * @throws IOException if any other error occurs when retrieving the file.
+     */
+    @Override
+    public byte[] readFile(JobID jobId, PermanentBlobKey blobKey) throws IOException {
+        checkNotNull(jobId);
+        checkNotNull(blobKey);
+
+        final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
+        readWriteLock.readLock().lock();
+
+        try {
+            if (localFile.exists()) {
+                blobCacheSizeTracker.update(jobId, blobKey);
+                return FileUtils.readAllBytes(localFile.toPath());
+            }
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
+
+        // first try the distributed blob store (if available)
+        // use a temporary file (thread-safe without locking)
+        File incomingFile = createTemporaryFilename();
+        try {
+            try {
+                if (blobView.get(jobId, blobKey, incomingFile)) {
+                    // now move the temp file to our local cache atomically
+                    readWriteLock.writeLock().lock();
+                    try {
+                        checkLimitAndMoveFile(incomingFile, jobId, blobKey, localFile, log, null);
+                        return FileUtils.readAllBytes(localFile.toPath());
+                    } finally {
+                        readWriteLock.writeLock().unlock();
+                    }
+                }
+            } catch (Exception e) {
+                log.info(
+                        "Failed to copy from blob store. Downloading from BLOB server instead.", e);
+            }
+
+            final InetSocketAddress currentServerAddress = serverAddress;
+
+            if (currentServerAddress != null) {
+                // fallback: download from the BlobServer
+                BlobClient.downloadFromBlobServer(
+                        jobId,
+                        blobKey,
+                        incomingFile,
+                        currentServerAddress,
+                        blobClientConfig,
+                        numFetchRetries);
+
+                readWriteLock.writeLock().lock();
+                try {
+                    checkLimitAndMoveFile(incomingFile, jobId, blobKey, localFile, log, null);
+                    return FileUtils.readAllBytes(localFile.toPath());
+                } finally {
+                    readWriteLock.writeLock().unlock();
+                }
+            } else {
+                throw new IOException(
+                        "Cannot download from BlobServer, because the server address is unknown.");
+            }
+
+        } finally {
+            // delete incomingFile from a failed download
+            if (!incomingFile.delete() && incomingFile.exists()) {
+                log.warn(
+                        "Could not delete the staging file {} for blob key {} and job {}.",
+                        incomingFile,
+                        blobKey,
+                        jobId);
+            }
+        }
+    }
+
+    private void checkLimitAndMoveFile(
+            File incomingFile,
+            JobID jobId,
+            BlobKey blobKey,
+            File localFile,
+            Logger log,
+            @Nullable BlobStore blobStore)
+            throws IOException {
+
+        // Check the size limit and delete the files that exceeds the limit
+        final long sizeOfIncomingFile = incomingFile.length();
+        final List<Tuple2<JobID, BlobKey>> blobsToDelete =
+                blobCacheSizeTracker.checkLimit(sizeOfIncomingFile);
+
+        for (Tuple2<JobID, BlobKey> key : blobsToDelete) {
+            if (deleteFile(key.f0, key.f1)) {
+                blobCacheSizeTracker.untrack(key);
+            }
+        }
+
+        // Move the file and register it to the tracker
+        BlobUtils.moveTempFileToStore(incomingFile, jobId, blobKey, localFile, log, blobStore);
+        blobCacheSizeTracker.track(jobId, blobKey, localFile.length());
+    }
+
+    /**
+     * Delete the blob file with the given key.
+     *
+     * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
+     * @param blobKey The key of the desired BLOB.
+     */
+    private boolean deleteFile(JobID jobId, BlobKey blobKey) {
+        final File localFile =
+                new File(
+                        BlobUtils.getStorageLocationPath(
+                                storageDir.getAbsolutePath(), jobId, blobKey));
+        if (!localFile.delete() && localFile.exists()) {
+            log.warn(
+                    "Failed to delete locally cached BLOB {} at {}",
+                    blobKey,
+                    localFile.getAbsolutePath());
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Returns a file handle to the file associated with the given blob key on the blob server.
      *
      * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
@@ -247,6 +408,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
 
                         boolean success = false;
                         try {
+                            blobCacheSizeTracker.untrackAll(jobId);
                             FileUtils.deleteDirectory(localFile);
                             success = true;
                         } catch (Throwable t) {

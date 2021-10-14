@@ -17,6 +17,7 @@
  */
 
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+
 import { COLOR_MAP } from 'config';
 
 @Component({
@@ -28,7 +29,7 @@ import { COLOR_MAP } from 'config';
 export class JobBadgeComponent {
   @Input() state: string;
 
-  backgroundColor(state: string) {
+  backgroundColor(state: string): string {
     // @ts-ignore
     return COLOR_MAP[state];
   }

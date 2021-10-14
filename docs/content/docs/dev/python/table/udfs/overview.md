@@ -61,3 +61,18 @@ class Predict(ScalarFunction):
 
 predict = udf(Predict(), result_type=DataTypes.DOUBLE(), func_type="pandas")
 ```
+
+## Testing User-Defined Functions
+
+Suppose you have defined a Python user-defined function as following:
+
+```python
+add = udf(lambda i, j: i + j, result_type=DataTypes.BIGINT())
+```
+
+To unit test it, you need to extract the original Python function using `._func` and then unit test it:
+
+```python
+f = add._func
+assert f(1, 2) == 3
+```

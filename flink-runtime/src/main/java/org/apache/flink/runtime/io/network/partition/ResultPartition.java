@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
@@ -190,6 +191,25 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 
     // ------------------------------------------------------------------------
 
+    @Override
+    public void notifyEndOfData() throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CompletableFuture<Void> getAllDataProcessedFuture() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * The subpartition notifies that the corresponding downstream task have processed all the user
+     * records.
+     *
+     * @see EndOfData
+     * @param subpartition The index of the subpartition sending the notification.
+     */
+    public void onSubpartitionAllDataProcessed(int subpartition) {}
+
     /**
      * Finishes the result partition.
      *
@@ -230,15 +250,21 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     /** Releases all produced data including both those stored in memory and persisted on disk. */
     protected abstract void releaseInternal();
 
-    @Override
-    public void close() {
+    private void closeBufferPool() {
         if (bufferPool != null) {
             bufferPool.lazyDestroy();
         }
     }
 
     @Override
+    public void close() {
+        closeBufferPool();
+    }
+
+    @Override
     public void fail(@Nullable Throwable throwable) {
+        // the task canceler thread will call this method to early release the output buffer pool
+        closeBufferPool();
         partitionManager.releasePartition(partitionId, throwable);
     }
 

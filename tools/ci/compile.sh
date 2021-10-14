@@ -94,7 +94,7 @@ cd ..
 
 echo "============ Checking scala suffixes ============"
 
-${CI_DIR}/verify_scala_suffixes.sh "${PROFILE}" || exit $?
+${CI_DIR}/verify_scala_suffixes.sh "$CI_DIR" "$(pwd)" || exit $?
 
 echo "============ Checking shaded dependencies ============"
 
@@ -113,9 +113,7 @@ echo "============ Run license check ============"
 
 find $MVN_VALIDATION_DIR
 
-if [[ ${PROFILE} != *"scala-2.12"* ]]; then
-  ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $CI_DIR $(pwd) $MVN_VALIDATION_DIR || exit $?
-fi
+${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $CI_DIR $(pwd) $MVN_VALIDATION_DIR || exit $?
 
 exit $EXIT_CODE
 

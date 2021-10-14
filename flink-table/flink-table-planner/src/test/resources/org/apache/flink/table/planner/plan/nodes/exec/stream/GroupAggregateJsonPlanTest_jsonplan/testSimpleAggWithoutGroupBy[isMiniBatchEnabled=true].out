@@ -1,0 +1,619 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MyTable"
+      },
+      "catalogTable" : {
+        "schema.3.data-type" : "BIGINT",
+        "schema.2.data-type" : "VARCHAR(2147483647)",
+        "schema.3.name" : "d",
+        "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "bounded" : "false",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "INT NOT NULL"
+      },
+      "sourceAbilitySpecs" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 1 ], [ 2 ] ],
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "BIGINT"
+          }, {
+            "b" : "INT NOT NULL"
+          }, {
+            "c" : "VARCHAR(2147483647)"
+          } ]
+        }
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "BIGINT"
+          }, {
+            "b" : "INT NOT NULL"
+          }, {
+            "c" : "VARCHAR(2147483647)"
+          } ]
+        }
+      } ]
+    },
+    "id" : 1,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner",
+    "miniBatchInterval" : {
+      "interval" : 10000,
+      "mode" : "ProcTime"
+    },
+    "id" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "IS TRUE",
+        "kind" : "IS_TRUE",
+        "syntax" : "POSTFIX"
+      },
+      "operands" : [ {
+        "kind" : "REX_CALL",
+        "operator" : {
+          "name" : ">",
+          "kind" : "GREATER_THAN",
+          "syntax" : "BINARY"
+        },
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : {
+            "typeName" : "BIGINT",
+            "nullable" : true
+          }
+        }, {
+          "kind" : "LITERAL",
+          "value" : "1",
+          "type" : {
+            "typeName" : "INTEGER",
+            "nullable" : false
+          }
+        } ],
+        "type" : {
+          "typeName" : "BOOLEAN",
+          "nullable" : true
+        }
+      } ],
+      "type" : {
+        "typeName" : "BOOLEAN",
+        "nullable" : false
+      }
+    } ],
+    "condition" : null,
+    "id" : 3,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "$f3" : "BOOLEAN NOT NULL"
+      } ]
+    },
+    "description" : "Calc(select=[a, b, c, (a > 1) IS TRUE AS $f3])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalGroupAggregate",
+    "grouping" : [ ],
+    "aggCalls" : [ {
+      "name" : "avg_a",
+      "aggFunction" : {
+        "name" : "AVG",
+        "kind" : "AVG",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 0 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "name" : "cnt",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "min_b",
+      "aggFunction" : {
+        "name" : "MIN",
+        "kind" : "MIN",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "name" : "max_c",
+      "aggFunction" : {
+        "name" : "MAX",
+        "kind" : "MAX",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 2 ],
+      "filterArg" : 3,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    } ],
+    "aggCallNeedRetractions" : [ false, false, false, false ],
+    "needRetraction" : false,
+    "id" : 4,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "sum$0" : "BIGINT"
+      }, {
+        "count$1" : "BIGINT"
+      }, {
+        "count1$2" : "BIGINT"
+      }, {
+        "min$3" : "INT"
+      }, {
+        "max$4" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "LocalGroupAggregate(select=[AVG(a) AS (sum$0, count$1), COUNT(*) AS count1$2, MIN(b) AS min$3, MAX(c) FILTER $f3 AS max$4])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 5,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "SINGLETON"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "sum$0" : "BIGINT"
+      }, {
+        "count$1" : "BIGINT"
+      }, {
+        "count1$2" : "BIGINT"
+      }, {
+        "min$3" : "INT"
+      }, {
+        "max$4" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Exchange(distribution=[single])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalGroupAggregate",
+    "grouping" : [ ],
+    "aggCalls" : [ {
+      "name" : "avg_a",
+      "aggFunction" : {
+        "name" : "AVG",
+        "kind" : "AVG",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 0 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "name" : "cnt",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "min_b",
+      "aggFunction" : {
+        "name" : "MIN",
+        "kind" : "MIN",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "name" : "max_c",
+      "aggFunction" : {
+        "name" : "MAX",
+        "kind" : "MAX",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 2 ],
+      "filterArg" : 3,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    } ],
+    "aggCallNeedRetractions" : [ false, false, false, false ],
+    "localAggInputRowType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "$f3" : "BOOLEAN NOT NULL"
+      } ]
+    },
+    "generateUpdateBefore" : true,
+    "needRetraction" : false,
+    "id" : 6,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "avg_a" : "BIGINT"
+      }, {
+        "cnt" : "BIGINT NOT NULL"
+      }, {
+        "min_b" : "INT"
+      }, {
+        "max_c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS avg_a, COUNT(count1$2) AS cnt, MIN(min$3) AS min_b, MAX(max$4) AS max_c])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "CAST",
+        "kind" : "CAST",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : {
+          "typeName" : "BIGINT",
+          "nullable" : true
+        }
+      } ],
+      "type" : {
+        "typeName" : "DOUBLE",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "CAST",
+        "kind" : "CAST",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : {
+          "typeName" : "BIGINT",
+          "nullable" : false
+        }
+      } ],
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "CAST",
+        "kind" : "CAST",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : {
+          "typeName" : "BIGINT",
+          "nullable" : false
+        }
+      } ],
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "CAST",
+        "kind" : "CAST",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : {
+          "typeName" : "INTEGER",
+          "nullable" : true
+        }
+      } ],
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    } ],
+    "condition" : null,
+    "id" : 7,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "avg_a" : "DOUBLE"
+      }, {
+        "cnt" : "BIGINT"
+      }, {
+        "cnt_b" : "BIGINT"
+      }, {
+        "min_b" : "BIGINT"
+      }, {
+        "max_c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Calc(select=[CAST(avg_a) AS avg_a, CAST(cnt) AS cnt, CAST(cnt) AS cnt_b, CAST(min_b) AS min_b, max_c])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "dynamicTableSink" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MySink"
+      },
+      "catalogTable" : {
+        "sink-insert-only" : "false",
+        "schema.0.data-type" : "DOUBLE",
+        "schema.2.name" : "cnt_b",
+        "schema.1.name" : "cnt",
+        "schema.4.name" : "max_c",
+        "schema.1.data-type" : "BIGINT",
+        "schema.3.data-type" : "BIGINT",
+        "table-sink-class" : "DEFAULT",
+        "schema.2.data-type" : "BIGINT",
+        "schema.3.name" : "min_b",
+        "connector" : "values",
+        "schema.4.data-type" : "VARCHAR(2147483647)",
+        "schema.0.name" : "avg_a"
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
+    "id" : 8,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "avg_a" : "DOUBLE"
+      }, {
+        "cnt" : "BIGINT"
+      }, {
+        "cnt_b" : "BIGINT"
+      }, {
+        "min_b" : "BIGINT"
+      }, {
+        "max_c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[avg_a, cnt, cnt_b, min_b, max_c])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

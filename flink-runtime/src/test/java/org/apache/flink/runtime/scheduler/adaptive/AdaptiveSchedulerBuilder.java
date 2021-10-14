@@ -41,10 +41,10 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.util.FatalExitExceptionHandler;
 
 import javax.annotation.Nullable;
 
@@ -70,7 +70,7 @@ public class AdaptiveSchedulerBuilder {
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
     private JobManagerJobMetricGroup jobManagerJobMetricGroup =
             UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
-    private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+    private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
     private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
     private RestartBackoffTimeStrategy restartBackoffTimeStrategy =
             NoRestartBackoffTimeStrategy.INSTANCE;

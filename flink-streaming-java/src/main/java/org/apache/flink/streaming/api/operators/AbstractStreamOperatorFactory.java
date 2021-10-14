@@ -18,8 +18,13 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
+
+import javax.annotation.Nullable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base class for all stream operator factories. It implements some common methods and the {@link
@@ -34,6 +39,8 @@ public abstract class AbstractStreamOperatorFactory<OUT>
 
     protected transient ProcessingTimeService processingTimeService;
 
+    @Nullable private transient MailboxExecutor mailboxExecutor;
+
     @Override
     public void setChainingStrategy(ChainingStrategy strategy) {
         this.chainingStrategy = strategy;
@@ -47,5 +54,17 @@ public abstract class AbstractStreamOperatorFactory<OUT>
     @Override
     public void setProcessingTimeService(ProcessingTimeService processingTimeService) {
         this.processingTimeService = processingTimeService;
+    }
+
+    public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
+        this.mailboxExecutor = mailboxExecutor;
+    }
+
+    /**
+     * Provides the mailbox executor iff this factory implements {@link YieldingOperatorFactory}.
+     */
+    protected MailboxExecutor getMailboxExecutor() {
+        return checkNotNull(
+                mailboxExecutor, "Factory does not implement %s", YieldingOperatorFactory.class);
     }
 }

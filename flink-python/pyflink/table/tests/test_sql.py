@@ -23,11 +23,11 @@ from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, ResultKind
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase, \
-    PyFlinkOldBatchTableTestCase, PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
+    PyFlinkTestCase
 
 
-class StreamSqlTests(PyFlinkBlinkStreamTableTestCase):
+class StreamSqlTests(PyFlinkStreamTableTestCase):
 
     def test_sql_ddl(self):
         self.t_env.execute_sql("create temporary function func1 as "
@@ -80,6 +80,14 @@ class StreamSqlTests(PyFlinkBlinkStreamTableTestCase):
             "sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
         table_result = t_env.execute_sql("insert into sinks select * from tbl")
+        from pyflink.common.job_status import JobStatus
+        from py4j.protocol import Py4JJavaError
+        try:
+            self.assertTrue(isinstance(table_result.get_job_client().get_job_status().result(),
+                                       JobStatus))
+        except Py4JJavaError as e:
+            self.assertIn('MiniCluster is not yet running or has already been shut down.', str(e))
+
         job_execution_result = table_result.get_job_client().get_job_execution_result().result()
         self.assertIsNotNone(job_execution_result.get_job_id())
         self.assert_equals(table_result.get_table_schema().get_field_names(),
@@ -108,16 +116,6 @@ class StreamSqlTests(PyFlinkBlinkStreamTableTestCase):
         actual = source_sink_utils.results()
         expected = ['+I[1, Hi, Hello]', '+I[2, Hello, Hello]']
         self.assert_equals(actual, expected)
-
-
-class BatchSqlTests(PyFlinkOldBatchTableTestCase):
-
-    def test_sql_ddl(self):
-        self.t_env.execute_sql("create temporary function func1 as "
-                               "'pyflink.table.tests.test_udf.add' language python")
-        table = self.t_env.from_elements([(1, 2)]).alias("a, b").select("func1(a, b)")
-        plan = table.explain()
-        self.assertTrue(plan.find("DataSetPythonCalc(select=[add(f0, f1) AS _c0])") >= 0)
 
 
 class JavaSqlTests(PyFlinkTestCase):

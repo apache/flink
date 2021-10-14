@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ReadableConfig;
 
 /** An interface for state backends that pick up additional parameters from a configuration. */
 @Internal
-public interface ConfigurableStateBackend {
+public interface ConfigurableStateBackend extends StateBackend {
 
     /**
      * Creates a variant of the state backend that applies additional configuration parameters.

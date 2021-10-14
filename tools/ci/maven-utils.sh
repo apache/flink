@@ -94,16 +94,18 @@ MAVEN_VERSIONED_DIR=${MAVEN_CACHE_DIR}/apache-maven-${MAVEN_VERSION}
 MAVEN_MIRROR_CONFIG_FILE=""
 set_mirror_config
 
-export MVN_GLOBAL_OPTIONS=""
+export MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR=""
 # see https://developercommunity.visualstudio.com/content/problem/851041/microsoft-hosted-agents-run-into-maven-central-tim.html
-MVN_GLOBAL_OPTIONS+="-Dmaven.wagon.http.pool=false "
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dmaven.wagon.http.pool=false "
+# logging 
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn "
+# suppress snapshot updates
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="--no-snapshot-updates "
+# enable non-interactive batch mode
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-B "
+# globally control the build profile details
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="$PROFILE "
+
+export MVN_GLOBAL_OPTIONS="${MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR} "
 # use google mirror everywhere
 MVN_GLOBAL_OPTIONS+="--settings $MAVEN_MIRROR_CONFIG_FILE "
-# logging 
-MVN_GLOBAL_OPTIONS+="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn "
-# suppress snapshot updates
-MVN_GLOBAL_OPTIONS+="--no-snapshot-updates "
-# enable non-interactive batch mode
-MVN_GLOBAL_OPTIONS+="-B "
-# globally control the build profile details
-MVN_GLOBAL_OPTIONS+="$PROFILE "

@@ -46,7 +46,7 @@ The following examples show how to run a UNLOAD statement in `TableEnvironment`.
 {{< /tab >}}
 {{< tab "Python" >}}
 
-UNLOAD statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns 'OK' for a successful LOAD operation; otherwise it will throw an exception.
+UNLOAD statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns 'OK' for a successful LOAD operation; otherwise it will throw an exception.
 
 The following examples show how to run a UNLOAD statement in `TableEnvironment`.
 
@@ -85,8 +85,7 @@ tEnv.executeSql("SHOW MODULES").print()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = StreamTableEnvironment.create(...)
 
 # unload a core module
 table_env.execute_sql("UNLOAD MODULE core")

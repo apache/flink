@@ -127,7 +127,7 @@ public class RocksDBIncrementalCheckpointUtils {
             throws RocksDBException {
 
         for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
-            try (ReadOptions readOptions = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
+            try (ReadOptions readOptions = new ReadOptions();
                     RocksIteratorWrapper iteratorWrapper =
                             RocksDBOperationUtils.getRocksIterator(
                                     db, columnFamilyHandle, readOptions);

@@ -1,0 +1,429 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggCallNotSupported">
+    <Resource name="sql">
+      <![CDATA[
+SELECT mf0, f1
+FROM
+  (SELECT max(f0) as mf0 FROM t1) t2,
+  LATERAL (
+    SELECT f1, f2
+    FROM t1
+    WHERE f0 = t2.mf0
+    ORDER BY f2
+    DESC LIMIT 3
+  )
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(mf0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{}], mf0=[MAX($0)])
+   :  +- LogicalProject(f0=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[=($0, $cor0.mf0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(mf0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{}], mf0=[MAX($0)])
+   :  +- LogicalProject(f0=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[=($0, $cor0.mf0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggInputNonMappingNotSupported">
+    <Resource name="sql">
+      <![CDATA[
+SELECT f0, f1
+FROM
+  (SELECT DISTINCT f0 FROM (SELECT f0 + f1 as f0 from t1)) t2,
+  LATERAL (
+    SELECT f1, f2
+    FROM t1
+    WHERE f0 = t2.f0
+    ORDER BY f2
+    DESC LIMIT 3
+  )
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(f0=[+($0, $1)])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[=(CAST($0):BIGINT, $cor0.f0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(f0=[+($0, $1)])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[=(CAST($0):BIGINT, $cor0.f0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCorrelateSortToRank">
+    <Resource name="sql">
+      <![CDATA[
+SELECT f0, f1
+FROM
+  (SELECT DISTINCT f0 FROM t1) t2,
+  LATERAL (
+    SELECT f1, f2
+    FROM t1
+    WHERE f0 = t2.f0
+    ORDER BY f2
+    DESC LIMIT 3
+  )
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(f0=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[=($0, $cor0.f0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[$0], orderBy=[$2 DESC], select=[f0=$0, f1=$1, f2=$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonInnerJoinNotSupported">
+    <Resource name="sql">
+      <![CDATA[
+SELECT f0, f1
+FROM
+  (SELECT DISTINCT f0 FROM t1) t2
+  NATURAL LEFT JOIN
+  LATERAL (
+    SELECT f1, f2
+    FROM t1
+    WHERE f0 = t2.f0
+    ORDER BY f2
+    DESC LIMIT 3
+  )
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(f0=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[=($0, $cor0.f0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(f0=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[=($0, $cor0.f0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterConditionNotCorrelationID">
+    <Resource name="sql">
+      <![CDATA[
+SELECT f0, f1
+FROM
+  (SELECT DISTINCT f0 FROM t1) t2,
+  LATERAL (
+    SELECT f1, f2
+    FROM t1
+    WHERE t2.f0 = f0 + 1
+    ORDER BY f2
+    DESC LIMIT 3
+  )
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(f0=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[=($cor0.f0, +($0, 1))])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(f0=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[=($cor0.f0, +($0, 1))])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCorrelateSortToRankWithMultipleGroupKeys">
+    <Resource name="sql">
+      <![CDATA[
+SELECT f0, f2
+FROM
+  (SELECT DISTINCT f0, f1 FROM t1) t2,
+  LATERAL (
+    SELECT f2
+    FROM t1
+    WHERE f0 = t2.f0 AND f1 = t2.f1
+    ORDER BY f2
+    DESC LIMIT 3
+  )
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f2=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
+   :- LogicalAggregate(group=[{0, 1}])
+   :  +- LogicalProject(f0=[$0], f1=[$1])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f2=[$2])
+         +- LogicalFilter(condition=[AND(=($0, $cor0.f0), =($1, $cor0.f1))])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(f0=[$0], f2=[$2])
++- LogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[$0,$1], orderBy=[$2 DESC], select=[f0=$0, f1=$1, f2=$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortWithOffsetNotSupported">
+    <Resource name="sql">
+      <![CDATA[
+SELECT f0, f1
+FROM
+  (SELECT DISTINCT f0 FROM t1) t2,
+  LATERAL (
+    SELECT f1, f2
+    FROM t1
+    WHERE f0 = t2.f0
+    ORDER BY f2 DESC
+    OFFSET 2 ROWS
+    FETCH NEXT 3 ROWS ONLY
+  )
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(f0=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[2], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[=($0, $cor0.f0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(f0=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[2], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[=($0, $cor0.f0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonEqualConditionNotSupported">
+    <Resource name="sql">
+      <![CDATA[
+SELECT f0, f1
+FROM
+  (SELECT DISTINCT f0 FROM t1) t2,
+  LATERAL (
+    SELECT f1, f2
+    FROM t1
+    WHERE f0 > t2.f0
+    ORDER BY f2
+    DESC LIMIT 3
+  )
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(f0=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[>($0, $cor0.f0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(f0=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f1=[$1], f2=[$2])
+         +- LogicalFilter(condition=[>($0, $cor0.f0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultipleGroupingsWithConstantNotSupported1">
+    <Resource name="sql">
+	  <![CDATA[
+SELECT f0, f2
+FROM
+  (SELECT DISTINCT f0, f1 FROM t1) t2,
+  LATERAL (
+    SELECT f2
+    FROM t1
+    WHERE f0 = 1 AND f1 = t2.f1
+    ORDER BY f2
+    DESC LIMIT 3
+  )
+      ]]>
+	</Resource>
+    <Resource name="ast">
+	  <![CDATA[
+LogicalProject(f0=[$0], f2=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+   :- LogicalAggregate(group=[{0, 1}])
+   :  +- LogicalProject(f0=[$0], f1=[$1])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f2=[$2])
+         +- LogicalFilter(condition=[AND(=($0, 1), =($1, $cor0.f1))])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(f0=[$0], f2=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+   :- LogicalAggregate(group=[{0, 1}])
+   :  +- LogicalProject(f0=[$0], f1=[$1])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f2=[$2])
+         +- LogicalFilter(condition=[AND(=($0, 1), =($1, $cor0.f1))])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultipleGroupingsWithConstantNotSupported2">
+    <Resource name="sql">
+    <![CDATA[
+SELECT f0, f2
+FROM
+  (SELECT DISTINCT f0, f1 FROM t1) t2,
+  LATERAL (
+    SELECT f2
+    FROM t1
+    WHERE 1 = t2.f0 AND f1 = t2.f1
+    ORDER BY f2
+    DESC LIMIT 3
+  )
+      ]]>
+  </Resource>
+    <Resource name="ast">
+    <![CDATA[
+LogicalProject(f0=[$0], f2=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
+   :- LogicalAggregate(group=[{0, 1}])
+   :  +- LogicalProject(f0=[$0], f1=[$1])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f2=[$2])
+         +- LogicalFilter(condition=[AND(=(1, $cor0.f0), =($1, $cor0.f1))])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(f0=[$0], f2=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
+   :- LogicalAggregate(group=[{0, 1}])
+   :  +- LogicalProject(f0=[$0], f1=[$1])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(f2=[$2])
+         +- LogicalFilter(condition=[AND(=(1, $cor0.f0), =($1, $cor0.f1))])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

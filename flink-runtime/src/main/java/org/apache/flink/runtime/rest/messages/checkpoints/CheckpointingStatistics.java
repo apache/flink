@@ -217,27 +217,27 @@ public class CheckpointingStatistics implements ResponseBody {
         public static final String FIELD_NAME_PERSISTED_DATA = "persisted_data";
 
         @JsonProperty(FIELD_NAME_STATE_SIZE)
-        private final MinMaxAvgStatistics stateSize;
+        private final StatsSummaryDto stateSize;
 
         @JsonProperty(FIELD_NAME_DURATION)
-        private final MinMaxAvgStatistics duration;
+        private final StatsSummaryDto duration;
 
         @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
-        private final MinMaxAvgStatistics alignmentBuffered;
+        private final StatsSummaryDto alignmentBuffered;
 
         @JsonProperty(FIELD_NAME_PROCESSED_DATA)
-        private final MinMaxAvgStatistics processedData;
+        private final StatsSummaryDto processedData;
 
         @JsonProperty(FIELD_NAME_PERSISTED_DATA)
-        private final MinMaxAvgStatistics persistedData;
+        private final StatsSummaryDto persistedData;
 
         @JsonCreator
         public Summary(
-                @JsonProperty(FIELD_NAME_STATE_SIZE) MinMaxAvgStatistics stateSize,
-                @JsonProperty(FIELD_NAME_DURATION) MinMaxAvgStatistics duration,
-                @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) MinMaxAvgStatistics alignmentBuffered,
-                @JsonProperty(FIELD_NAME_PROCESSED_DATA) MinMaxAvgStatistics processedData,
-                @JsonProperty(FIELD_NAME_PERSISTED_DATA) MinMaxAvgStatistics persistedData) {
+                @JsonProperty(FIELD_NAME_STATE_SIZE) StatsSummaryDto stateSize,
+                @JsonProperty(FIELD_NAME_DURATION) StatsSummaryDto duration,
+                @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) StatsSummaryDto alignmentBuffered,
+                @JsonProperty(FIELD_NAME_PROCESSED_DATA) StatsSummaryDto processedData,
+                @JsonProperty(FIELD_NAME_PERSISTED_DATA) StatsSummaryDto persistedData) {
             this.stateSize = stateSize;
             this.duration = duration;
             this.alignmentBuffered = alignmentBuffered;
@@ -245,11 +245,11 @@ public class CheckpointingStatistics implements ResponseBody {
             this.persistedData = persistedData;
         }
 
-        public MinMaxAvgStatistics getStateSize() {
+        public StatsSummaryDto getStateSize() {
             return stateSize;
         }
 
-        public MinMaxAvgStatistics getDuration() {
+        public StatsSummaryDto getDuration() {
             return duration;
         }
 

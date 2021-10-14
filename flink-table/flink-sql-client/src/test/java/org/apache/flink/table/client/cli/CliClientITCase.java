@@ -21,14 +21,13 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 import org.apache.flink.test.util.AbstractTestBase;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.PatternFilenameFilter;
+import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
 
 import org.apache.calcite.util.Util;
 import org.apache.commons.io.IOUtils;
@@ -73,8 +72,6 @@ import static org.junit.Assert.assertEquals;
 @RunWith(Parameterized.class)
 public class CliClientITCase extends AbstractTestBase {
 
-    // a generated UDF jar used for testing classloading of dependencies
-    private static URL udfDependency;
     private static Path historyPath;
     private static Map<String, String> replaceVars;
 
@@ -102,11 +99,12 @@ public class CliClientITCase extends AbstractTestBase {
         File udfJar =
                 TestUserClassLoaderJar.createJarFile(
                         tempFolder.newFolder("test-jar"), "test-classloader-udf.jar");
-        udfDependency = udfJar.toURI().toURL();
+        URL udfDependency = udfJar.toURI().toURL();
         historyPath = tempFolder.newFile("history").toPath();
 
         replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PIPELINE_JARS", udfDependency.toString());
+        replaceVars.put("$VAR_UDF_JAR_PATH", udfDependency.getPath());
+        replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
         replaceVars.put(
                 "$VAR_REST_PORT",
                 miniClusterResource.getClientConfiguration().get(PORT).toString());
@@ -144,8 +142,7 @@ public class CliClientITCase extends AbstractTestBase {
         final String sqlContent = String.join("\n", statements);
         DefaultContext defaultContext =
                 new DefaultContext(
-                        new Environment(),
-                        Collections.singletonList(udfDependency),
+                        Collections.emptyList(),
                         new Configuration(miniClusterResource.getClientConfiguration()),
                         Collections.singletonList(new DefaultCLI()));
         final Executor executor = new LocalExecutor(defaultContext);
@@ -303,11 +300,16 @@ public class CliClientITCase extends AbstractTestBase {
             out.append(sqlScript.comment).append(sqlScript.sql);
             if (i < results.size()) {
                 Result result = results.get(i);
-                out.append(result.content).append(result.highestTag.tag).append("\n");
+                String content = removeStreamNodeId(result.content);
+                out.append(content).append(result.highestTag.tag).append("\n");
             }
         }
 
         return out.toString();
+    }
+
+    private static String removeStreamNodeId(String s) {
+        return s.replaceAll("\"id\" : \\d+", "\"id\" : ");
     }
 
     private static final class Result {

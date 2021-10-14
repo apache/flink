@@ -21,7 +21,7 @@ package org.apache.flink.formats.json.debezium;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.common.TimestampFormat;
-import org.apache.flink.formats.json.JsonOptions;
+import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -83,7 +83,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                 new DebeziumJsonSerializationSchema(
                         (RowType) PHYSICAL_DATA_TYPE.getLogicalType(),
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 

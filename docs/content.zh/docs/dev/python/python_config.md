@@ -26,10 +26,33 @@ under the License.
 
 # 配置
 
-Depending on the requirements of a Python Table API program, it might be necessary to adjust certain parameters for optimization.
-All the config options available for Java/Scala Table API program could also be used in the Python Table API program.
-You could refer to the [Table API Configuration]({{< ref "docs/dev/table/config" >}}) for more details on all the available config options for Java/Scala Table API programs.
-It has also provided examples on how to set the config options in a Table API program.
+Depending on the requirements of a Python API program, it might be necessary to adjust certain parameters for optimization.
+
+For Python DataStream API program, the config options could be set as following:
+```python
+from pyflink.common import Configuration
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.util.java_utils import get_j_env_configuration
+
+env = StreamExecutionEnvironment.get_execution_environment()
+config = Configuration(j_configuration=get_j_env_configuration(env._j_stream_execution_environment))
+config.set_integer("python.fn-execution.bundle.size", 1000)
+```
+
+For Python Table API program, all the config options available for Java/Scala Table API
+program could also be used in the Python Table API program.
+You could refer to the [Table API Configuration]({{< ref "docs/dev/table/config" >}}) for more details
+on all the available config options for Table API programs.
+The config options could be set as following in a Table API program:
+```python
+from pyflink.table import TableEnvironment, EnvironmentSettings
+
+env_settings = EnvironmentSettings.in_streaming_mode()
+t_env = TableEnvironment.create(env_settings)
+
+config = t_env.get_config().get_configuration()
+config.set_integer("python.fn-execution.bundle.size", 1000)
+```
 
 ## Python Options
 

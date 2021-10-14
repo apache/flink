@@ -25,17 +25,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Zipping Elements in a DataSet
+<a name="zipping-elements-in-a-dataset"></a>
 
-In certain algorithms, one may need to assign unique identifiers to data set elements.
-This document shows how {{< gh_link file="/flink-java/src/main/java/org/apache/flink/api/java/utils/DataSetUtils.java" name="DataSetUtils" >}} can be used for that purpose.
+# 给 DataSet 中的元素编号
 
-### Zip with a Dense Index
+在一些算法中，可能需要为数据集元素分配唯一标识符。
+本文档阐述了如何将 {{< gh_link file="/flink-java/src/main/java/org/apache/flink/api/java/utils/DataSetUtils.java" name="DataSetUtils" >}} 用于此目的。
 
-`zipWithIndex` assigns consecutive labels to the elements, receiving a data set as input and returning a new data set of `(unique id, initial value)` 2-tuples.
-This process requires two passes, first counting then labeling elements, and cannot be pipelined due to the synchronization of counts.
-The alternative `zipWithUniqueId` works in a pipelined fashion and is preferred when a unique labeling is sufficient.
-For example, the following code:
+<a name="zip-with-a-dense-index"></a>
+
+### 以密集索引编号
+
+`zipWithIndex` 为元素分配连续的标签，接收数据集作为输入并返回一个新的 `(unique id, initial value)` 二元组的数据集。
+这个过程需要分为两个（子）过程，首先是计数，然后是标记元素，由于计数操作的同步性，这个过程不能被 pipelined（流水线化）。
+
+可供备选的 `zipWithUniqueId` 是以 pipelined 的方式进行工作的。当唯一标签足够时，首选 `zipWithUniqueId` 。
+例如，下面的代码：
 
 {{< tabs "083bbdc6-b9f9-4989-86a8-f32f0ac53111" >}}
 {{< tab "Java" >}}
@@ -80,15 +85,17 @@ env.execute()
 {{< /tab >}}
 {{< /tabs >}}
 
-may yield the tuples: (0,G), (1,H), (2,A), (3,B), (4,C), (5,D), (6,E), (7,F)
+可能会生成这些元组：(0,G)，(1,H)，(2,A)，(3,B)，(4,C)，(5,D)，(6,E)，(7,F)
 
 {{< top >}}
 
-### Zip with a Unique Identifier
+<a name="zip-with-a-unique-identifier"></a>
 
-In many cases one may not need to assign consecutive labels.
-`zipWithUniqueId` works in a pipelined fashion, speeding up the label assignment process. This method receives a data set as input and returns a new data set of `(unique id, initial value)` 2-tuples.
-For example, the following code:
+### 以唯一标识符编号
+
+在许多情况下，可能不需要指定连续的标签。
+`zipWithUniqueId` 以 pipelined 的方式工作，加快了标签分配的过程。该方法接收一个数据集作为输入，并返回一个新的 `(unique id, initial value)` 二元组的数据集。
+例如，下面的代码：
 
 {{< tabs "49a5535f-7835-4204-afd4-40bb1cbfa404" >}}
 {{< tab "Java" >}}
@@ -119,6 +126,6 @@ env.execute()
 {{< /tab >}}
 {{< /tabs >}}
 
-may yield the tuples: (0,G), (1,A), (2,H), (3,B), (5,C), (7,D), (9,E), (11,F)
+可能会产生这些元组：(0,G)，(1,A)，(2,H)，(3,B)，(5,C)，(7,D)，(9,E)，(11,F)
 
 {{< top >}}

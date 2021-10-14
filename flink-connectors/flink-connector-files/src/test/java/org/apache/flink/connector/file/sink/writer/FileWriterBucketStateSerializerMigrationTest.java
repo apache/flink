@@ -229,7 +229,7 @@ public class FileWriterBucketStateSerializerMigrationTest {
                             .map(file -> file.getFileName().toString())
                             .collect(Collectors.toSet());
 
-            // after restoring all pending files are comitted.
+            // after restoring all pending files are committed.
             // there is no "inporgress" in file name for the committed files.
             for (int i = 0; i < noOfPendingCheckpoints; i++) {
                 final String part = "part-0-" + i;

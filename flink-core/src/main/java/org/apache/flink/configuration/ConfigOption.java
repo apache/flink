@@ -161,7 +161,7 @@ public class ConfigOption<T> {
 
     /**
      * Creates a new config option, using this option's key and default value, and adding the given
-     * description. The given description is used when generation the configuration documention.
+     * description. The given description is used when generation the configuration documentation.
      *
      * @param description The description for this option.
      * @return A new config option, with given description.
@@ -172,7 +172,7 @@ public class ConfigOption<T> {
 
     /**
      * Creates a new config option, using this option's key and default value, and adding the given
-     * description. The given description is used when generation the configuration documention.
+     * description. The given description is used when generation the configuration documentation.
      *
      * @param description The description for this option.
      * @return A new config option, with given description.

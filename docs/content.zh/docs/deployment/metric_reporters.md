@@ -42,6 +42,7 @@ reporters will be instantiated on each job and task manager when they are starte
 - `metrics.reporter.<name>.scope.delimiter`: The delimiter to use for the identifier (default value use `metrics.scope.delimiter`) for the reporter named `<name>`.
 - `metrics.reporter.<name>.scope.variables.excludes`: (optional) A semi-colon (;) separate list of variables that should be ignored by tag-based reporters (e.g., Prometheus, InfluxDB). 
 - `metrics.reporters`: (optional) A comma-separated include list of reporter names. By default all configured reporters will be used.
+- `metrics.reporter.<name>.scope.variables.additional`: (optional) A comma separated map of variables and their values, which are separated by a colon (:). These mappings are added to the variable map by tag-based reporters (e.g. Prometheux, InfluxDB).
 
 All reporters must at least have either the `class` or `factory.class` property. Which property may/should be used depends on the reporter implementation. See the individual reporter configuration sections for more information.
 Some reporters (referred to as `Scheduled`) allow specifying a reporting `interval`.
@@ -55,11 +56,11 @@ metrics.reporters: my_jmx_reporter,my_other_reporter
 metrics.reporter.my_jmx_reporter.factory.class: org.apache.flink.metrics.jmx.JMXReporterFactory
 metrics.reporter.my_jmx_reporter.port: 9020-9040
 metrics.reporter.my_jmx_reporter.scope.variables.excludes:job_id;task_attempt_num
+metrics.reporter.my_jmx_reporter.scope.variables.additional: cluster_name:my_test_cluster,tag_name:tag_value
 
 metrics.reporter.my_other_reporter.class: org.apache.flink.metrics.graphite.GraphiteReporter
 metrics.reporter.my_other_reporter.host: 192.168.1.1
 metrics.reporter.my_other_reporter.port: 10000
-
 ```
 
 **Important:** The jar containing the reporter must be accessible when Flink is started. Reporters that support the
@@ -90,10 +91,8 @@ Metrics are always available on the default local JMX interface.
 Example configuration:
 
 ```yaml
-
 metrics.reporter.jmx.factory.class: org.apache.flink.metrics.jmx.JMXReporterFactory
 metrics.reporter.jmx.port: 8789
-
 ```
 
 Metrics exposed through JMX are identified by a domain and a list of key-properties, which together form the object name.
@@ -120,13 +119,11 @@ Parameters:
 Example configuration:
 
 ```yaml
-
 metrics.reporter.grph.factory.class: org.apache.flink.metrics.graphite.GraphiteReporterFactory
 metrics.reporter.grph.host: localhost
 metrics.reporter.grph.port: 2003
 metrics.reporter.grph.protocol: TCP
 metrics.reporter.grph.interval: 60 SECONDS
-
 ```
 
 ### InfluxDB
@@ -142,7 +139,6 @@ Parameters:
 Example configuration:
 
 ```yaml
-
 metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
 metrics.reporter.influxdb.scheme: http
 metrics.reporter.influxdb.host: localhost
@@ -155,7 +151,6 @@ metrics.reporter.influxdb.consistency: ANY
 metrics.reporter.influxdb.connectTimeout: 60000
 metrics.reporter.influxdb.writeTimeout: 60000
 metrics.reporter.influxdb.interval: 60 SECONDS
-
 ```
 
 The reporter would send metrics using http protocol to the InfluxDB server with the specified retention policy (or the default policy specified on the server).
@@ -172,9 +167,7 @@ Parameters:
 Example configuration:
 
 ```yaml
-
 metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
-
 ```
 
 Flink metric types are mapped to Prometheus metric types as follows: 
@@ -198,7 +191,6 @@ Parameters:
 Example configuration:
 
 ```yaml
-
 metrics.reporter.promgateway.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter
 metrics.reporter.promgateway.host: localhost
 metrics.reporter.promgateway.port: 9091
@@ -207,7 +199,6 @@ metrics.reporter.promgateway.randomJobNameSuffix: true
 metrics.reporter.promgateway.deleteOnShutdown: false
 metrics.reporter.promgateway.groupingKey: k1=v1;k2=v2
 metrics.reporter.promgateway.interval: 60 SECONDS
-
 ```
 
 The PrometheusPushGatewayReporter pushes metrics to a [Pushgateway](https://github.com/prometheus/pushgateway), which can be scraped by Prometheus.
@@ -225,12 +216,10 @@ Parameters:
 Example configuration:
 
 ```yaml
-
 metrics.reporter.stsd.factory.class: org.apache.flink.metrics.statsd.StatsDReporterFactory
 metrics.reporter.stsd.host: localhost
 metrics.reporter.stsd.port: 8125
 metrics.reporter.stsd.interval: 60 SECONDS
-
 ```
 
 ### Datadog
@@ -255,7 +244,6 @@ Parameters:
 Example configuration:
 
 ```yaml
-
 metrics.reporter.dghttp.factory.class: org.apache.flink.metrics.datadog.DatadogHttpReporterFactory
 metrics.reporter.dghttp.apikey: xxx
 metrics.reporter.dghttp.tags: myflinkapp,prod
@@ -264,7 +252,6 @@ metrics.reporter.dghttp.proxyPort: 8080
 metrics.reporter.dghttp.dataCenter: US
 metrics.reporter.dghttp.maxMetricsPerRequest: 2000
 metrics.reporter.dghttp.interval: 60 SECONDS
-
 ```
 
 
@@ -274,9 +261,7 @@ metrics.reporter.dghttp.interval: 60 SECONDS
 Example configuration:
 
 ```yaml
-
 metrics.reporter.slf4j.factory.class: org.apache.flink.metrics.slf4j.Slf4jReporterFactory
 metrics.reporter.slf4j.interval: 60 SECONDS
-
 ```
 {{< top >}}

@@ -60,13 +60,15 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -220,6 +222,8 @@ public class SingleInputGateTest extends InputGateTestBase {
         inputChannels[0].readBuffer();
         inputChannels[0].readBuffer();
         inputChannels[1].readBuffer();
+        inputChannels[1].readEndOfData();
+        inputChannels[0].readEndOfData();
         inputChannels[1].readEndOfPartitionEvent();
         inputChannels[0].readEndOfPartitionEvent();
 
@@ -230,9 +234,16 @@ public class SingleInputGateTest extends InputGateTestBase {
         verifyBufferOrEvent(inputGate, true, 1, true);
         verifyBufferOrEvent(inputGate, true, 0, true);
         verifyBufferOrEvent(inputGate, false, 1, true);
+        // we have received EndOfData on a single channel only
+        assertFalse(inputGate.hasReceivedEndOfData());
+        verifyBufferOrEvent(inputGate, false, 0, true);
+        assertFalse(inputGate.isFinished());
+        assertTrue(inputGate.hasReceivedEndOfData());
+        verifyBufferOrEvent(inputGate, false, 1, true);
         verifyBufferOrEvent(inputGate, false, 0, false);
 
         // Return null when the input gate has received all end-of-partition events
+        assertTrue(inputGate.hasReceivedEndOfData());
         assertTrue(inputGate.isFinished());
 
         for (TestInputChannel ic : inputChannels) {
@@ -885,12 +896,55 @@ public class SingleInputGateTest extends InputGateTestBase {
         }
     }
 
+    @Test
+    public void testGetUnfinishedChannels() throws IOException, InterruptedException {
+        SingleInputGate inputGate =
+                new SingleInputGateBuilder()
+                        .setSingleInputGateIndex(1)
+                        .setNumberOfChannels(3)
+                        .build();
+        final TestInputChannel[] inputChannels =
+                new TestInputChannel[] {
+                    new TestInputChannel(inputGate, 0),
+                    new TestInputChannel(inputGate, 1),
+                    new TestInputChannel(inputGate, 2)
+                };
+        inputGate.setInputChannels(inputChannels);
+
+        assertEquals(
+                Arrays.asList(
+                        inputChannels[0].getChannelInfo(),
+                        inputChannels[1].getChannelInfo(),
+                        inputChannels[2].getChannelInfo()),
+                inputGate.getUnfinishedChannels());
+
+        inputChannels[1].readEndOfPartitionEvent();
+        inputGate.notifyChannelNonEmpty(inputChannels[1]);
+        inputGate.getNext();
+        assertEquals(
+                Arrays.asList(inputChannels[0].getChannelInfo(), inputChannels[2].getChannelInfo()),
+                inputGate.getUnfinishedChannels());
+
+        inputChannels[0].readEndOfPartitionEvent();
+        inputGate.notifyChannelNonEmpty(inputChannels[0]);
+        inputGate.getNext();
+        assertEquals(
+                Collections.singletonList(inputChannels[2].getChannelInfo()),
+                inputGate.getUnfinishedChannels());
+
+        inputChannels[2].readEndOfPartitionEvent();
+        inputGate.notifyChannelNonEmpty(inputChannels[2]);
+        inputGate.getNext();
+        assertEquals(Collections.emptyList(), inputGate.getUnfinishedChannels());
+    }
+
     // ---------------------------------------------------------------------------------------------
 
     private static Map<InputGateID, SingleInputGate> createInputGateWithLocalChannels(
             NettyShuffleEnvironment network,
             int numberOfGates,
-            @SuppressWarnings("SameParameterValue") int numberOfLocalChannels) {
+            @SuppressWarnings("SameParameterValue") int numberOfLocalChannels)
+            throws IOException {
         ShuffleDescriptor[] channelDescs = new NettyShuffleDescriptor[numberOfLocalChannels];
         for (int i = 0; i < numberOfLocalChannels; i++) {
             channelDescs[i] =

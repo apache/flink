@@ -1,6 +1,6 @@
 ---
 title: Kafka
-weight: 2
+weight: 3
 type: docs
 aliases:
   - /zh/dev/connectors/kafka.html
@@ -90,8 +90,26 @@ Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 
 
 2. `JsonDeserializationSchema`（和 `JSONKeyValueDeserializationSchema`）将序列化的 JSON 转化为 ObjectNode 对象，可以使用 `objectNode.get("field").as(Int/String/...)()` 来访问某个字段。
     KeyValue objectNode 包含一个含所有字段的 key 和 values 字段，以及一个可选的"metadata"字段，可以访问到消息的 offset、partition、topic 等信息。
+    
+3. `GlueSchemaRegistryJsonDeserializationSchema` 可以在[AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html)
+    查找编写器的 schema（用于编写记录的 schema）。使用这些反序列化 schema 记录将读取从 AWS Glue Schema Registry 检索到的 schema 转换为代表通用记录的`com.amazonaws.services.schemaregistry.serializers.json.JsonDataWithSchema`
+    或者由[mbknor-jackson-jsonSchema](https://github.com/mbknor/mbknor-jackson-jsonSchema)生成的 Java POJO. 
+    
+    <br>要使用此反序列化 schema 必须添加以下依赖：
+    
+{{< tabs "8c6721c7-4a48-496e-b0fe-6522cf6a5e13" >}}
+{{< tab "GlueSchemaRegistryJsonDeserializationSchema" >}}
+```xml
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-jsonschema-confluent-registry</artifactId>
+  <version>{{< version >}}</version>
+</dependency>
+```
+{{< /tab >}}
+{{< /tabs >}}
 
-3. `AvroDeserializationSchema` 使用静态提供的 schema 读取 Avro 格式的序列化数据。
+4. `AvroDeserializationSchema` 使用静态提供的 schema 读取 Avro 格式的序列化数据。
     它能够从 Avro 生成的类（`AvroDeserializationSchema.forSpecific(...)`）中推断出 schema，或者可以与 `GenericRecords`
     一起使用手动提供的 schema（用 `AvroDeserializationSchema.forGeneric(...)`）。此反序列化 schema 要求序列化记录不能包含嵌入式架构！
 
@@ -110,7 +128,7 @@ Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-avro</artifactId>
-  <version>{{site.version }}</version>
+  <version>{{< version >}}</version>
 </dependency>
 ```
 {{< /tab >}}
@@ -119,7 +137,7 @@ Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-avro-confluent-registry</artifactId>
-  <version>{{site.version }}</version>
+  <version>{{< version >}}</version>
 </dependency>
 ```
 {{< /tab >}}
@@ -128,7 +146,7 @@ Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-avro-glue-schema-registry</artifactId>
-  <version>{{site.version }}</version>
+  <version>{{< version >}}</version>
 </dependency>
 ```
 {{< /tab >}}
@@ -315,7 +333,7 @@ properties.setProperty("group.id", "test");
 FlinkKafkaConsumer<String> myConsumer =
     new FlinkKafkaConsumer<>("topic", new SimpleStringSchema(), properties);
 myConsumer.assignTimestampsAndWatermarks(
-    WatermarkStrategy.
+    WatermarkStrategy
         .forBoundedOutOfOrderness(Duration.ofSeconds(20)));
 
 DataStream<String> stream = env.addSource(myConsumer);
@@ -330,7 +348,7 @@ properties.setProperty("group.id", "test")
 val myConsumer =
     new FlinkKafkaConsumer("topic", new SimpleStringSchema(), properties);
 myConsumer.assignTimestampsAndWatermarks(
-    WatermarkStrategy.
+    WatermarkStrategy
         .forBoundedOutOfOrderness(Duration.ofSeconds(20)))
 
 val stream = env.addSource(myConsumer)
@@ -338,7 +356,7 @@ val stream = env.addSource(myConsumer)
 {{< /tab >}}
 {{< /tabs >}}
 
-**请注意**：如果 watermark assigner 依赖于从 Kafka 读取的消息来上涨其 watermark （通常就是这种情况），那么所有主题和分区都需要有连续的消息流。否则，整个应用程序的 watermark 将无法上涨，所有基于时间的算子（例如时间窗口或带有计时器的函数）也无法运行。单个的 Kafka 分区也会导致这种反应。考虑设置适当的 [idelness timeouts]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#dealing-with-idle-sources) 来缓解这个问题。
+**请注意**：如果 watermark assigner 依赖于从 Kafka 读取的消息来上涨其 watermark （通常就是这种情况），那么所有主题和分区都需要有连续的消息流。否则，整个应用程序的 watermark 将无法上涨，所有基于时间的算子（例如时间窗口或带有计时器的函数）也无法运行。单个的 Kafka 分区也会导致这种反应。考虑设置适当的 [idleness timeouts]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#dealing-with-idle-sources) 来缓解这个问题。
 
 <a name="kafka-producer"></a>
 
@@ -364,7 +382,7 @@ properties.setProperty("bootstrap.servers", "localhost:9092");
 
 FlinkKafkaProducer<String> myProducer = new FlinkKafkaProducer<String>(
         "my-topic",                  // 目标 topic
-        new SimpleStringSchema()     // 序列化 schema
+        new SimpleStringSchema(),    // 序列化 schema
         properties,                  // producer 配置
         FlinkKafkaProducer.Semantic.EXACTLY_ONCE); // 容错
 
@@ -388,6 +406,13 @@ stream.addSink(myProducer)
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+除此之外，我们还可以使用下列配置方法：
+
+- {{< javadoc name="setWriteTimestampToKafka(boolean writeTimestampToKafka)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setWriteTimestampToKafka-boolean-" >}}，给每条记录设置时间戳
+- {{< javadoc name="setLogFailuresOnly(boolean logFailuresOnly)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setLogFailuresOnly-boolean-" >}}，设置是否在 Producer 发生异常时仅仅记录日志
+- {{< javadoc name="setTransactionalIdPrefix(String transactionalIdPrefix)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setTransactionalIdPrefix-java.lang.String-" >}}，设置自定义的 `transactional.id` 前缀
+- {{< javadoc name="ignoreFailuresAfterTransactionTimeout()" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#ignoreFailuresAfterTransactionTimeout--" >}}，在恢复时忽略事务超时异常
 
 <a name="the-serializationschema"></a>
 
@@ -438,7 +463,7 @@ Flink Kafka Producer 需要知道如何将 Java/Scala 对象转化为二进制�
 
 **注意**：`Semantic.EXACTLY_ONCE` 模式为每个 `FlinkKafkaProducer` 实例使用固定大小的 KafkaProducer 池。每个 checkpoint 使用其中一个 producer。如果并发 checkpoint 的数量超过池的大小，`FlinkKafkaProducer` 将抛出异常，并导致整个应用程序失败。请合理地配置最大池大小和最大并发 checkpoint 数量。
 
-**注意**：`Semantic.EXACTLY_ONCE` 会尽一切可能不留下任何逗留的事务，否则会阻塞其他消费者从这个 Kafka topic 中读取数据。但是，如果 Flink 应用程序在第一次 checkpoint 之前就失败了，那么在重新启动此类应用程序后，系统中不会有先前池大小（pool size）相关的信息。因此，在第一次 checkpoint 完成前对 Flink 应用程序进行缩容，且并发数缩容倍数大于安全系数 `FlinkKafkaProducer.SAFE_SCALE_DOWN_FACTOR` 的值的话，是不安全的。
+**注意**：`Semantic.EXACTLY_ONCE` 会尽一切可能不留下任何逗留的事务，否则会阻塞其他消费者从这个 Kafka topic 中读取数据。但是，如果 Flink 应用程序在第一次 checkpoint 之前就失败了，那么在重新启动此类应用程序后，系统中不会有先前池大小（pool size）相关的信息。因此，在第一次 checkpoint 完成前对 Flink 应用程序进行缩容，且并发数缩容倍数大于安全系数 `FlinkKafkaProducer.SAFE_SCALE_DOWN_FACTOR` 的值的话，是不安全的。同样，在这种情况使用 `setTransactionalIdPrefix()` 改变 `transactional.id` 也是不安全的，因为系统也不知道先前使用的 `transactional.id` 前缀。
 
 <a name="kafka-connector-metrics"></a>
 
@@ -457,7 +482,7 @@ Flink 的 Kafka 连接器通过 Flink 的 [metric 系统]({{< ref "docs/ops/metr
 Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置的 Kafka 安装进行身份验证。只需在 `flink-conf.yaml` 中配置 Flink。像这样为 Kafka 启用 Kerberos 身份验证：
 
 1. 通过设置以下内容配置 Kerberos 票据 
- - `security.kerberos.login.use-ticket-cache`：默认情况下，这个值是 `true`，Flink 将尝试在 `kinit` 管理的票据缓存中使用 Kerberos 票据。注意！在 YARN 上部署的 Flink  jobs 中使用 Kafka 连接器时，使用票据缓存的 Kerberos 授权将不起作用。使用 Mesos 进行部署时也是如此，因为 Mesos 部署不支持使用票据缓存进行授权。
+ - `security.kerberos.login.use-ticket-cache`：默认情况下，这个值是 `true`，Flink 将尝试在 `kinit` 管理的票据缓存中使用 Kerberos 票据。注意！在 YARN 上部署的 Flink  jobs 中使用 Kafka 连接器时，使用票据缓存的 Kerberos 授权将不起作用。
  - `security.kerberos.login.keytab` 和 `security.kerberos.login.principal`：要使用 Kerberos keytabs，需为这两个属性设置值。
 
 2. 将 `KafkaClient` 追加到 `security.kerberos.login.contexts`：这告诉 Flink 将配置的 Kerberos 票据提供给 Kafka 登录上下文以用于 Kafka 身份验证。
@@ -486,9 +511,9 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 
 ## 问题排查
 
-<div class="alert alert-warning">
+{{< hint warning >}}
 如果你在使用 Flink 时对 Kafka 有问题，请记住，Flink 只封装 <a href="https://kafka.apache.org/documentation/#consumerapi">KafkaConsumer</a> 或 <a href="https://kafka.apache.org/documentation/#producerapi">KafkaProducer</a>，你的问题可能独立于 Flink，有时可以通过升级 Kafka broker 程序、重新配置 Kafka broker 程序或在 Flink 中重新配置 <tt>KafkaConsumer</tt> 或 <tt>KafkaProducer</tt> 来解决。下面列出了一些常见问题的示例。
-</div>
+{{< /hint >}}
 
 <a name="data-loss"></a>
 
@@ -508,5 +533,11 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 ### UnknownTopicOrPartitionException
 
 导致此错误的一个可能原因是正在进行新的 leader 选举，例如在重新启动 Kafka broker 之后或期间。这是一个可重试的异常，因此 Flink job 应该能够重启并恢复正常运行。也可以通过更改 producer 设置中的 `retries` 属性来规避。但是，这可能会导致重新排序消息，反过来可以通过将 `max.in.flight.requests.per.connection` 设置为 1 来避免不需要的消息。
+
+
+### ProducerFencedException
+
+这个错误是由于 `FlinkKafkaProducer` 所生成的 `transactional.id` 与其他应用所使用的的产生了冲突。多数情况下，由于 `FlinkKafkaProducer` 产生的 ID 都是以 `taskName + "-" + operatorUid` 为前缀的，这些产生冲突的应用也是使用了相同 Job Graph 的 Flink Job。
+我们可以使用 `setTransactionalIdPrefix()` 方法来覆盖默认的行为，为每个不同的 Job 分配不同的 `transactional.id` 前缀来解决这个问题。
 
 {{< top >}}

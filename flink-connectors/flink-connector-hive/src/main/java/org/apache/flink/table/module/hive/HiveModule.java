@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.module.Module;
+import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFGrouping;
 import org.apache.flink.util.StringUtils;
 
@@ -101,6 +102,7 @@ public class HiveModule implements Module {
             functionNames = hiveShim.listBuiltInFunctions();
             functionNames.removeAll(BUILT_IN_FUNC_BLACKLIST);
             functionNames.add("grouping");
+            functionNames.add(GenericUDFLegacyGroupingID.NAME);
         }
         return functionNames;
     }
@@ -115,6 +117,13 @@ public class HiveModule implements Module {
             return Optional.of(
                     factory.createFunctionDefinitionFromHiveFunction(
                             name, HiveGenericUDFGrouping.class.getName()));
+        }
+
+        // this function is used to generate legacy GROUPING__ID value for old hive versions
+        if (name.equalsIgnoreCase(GenericUDFLegacyGroupingID.NAME)) {
+            return Optional.of(
+                    factory.createFunctionDefinitionFromHiveFunction(
+                            name, GenericUDFLegacyGroupingID.class.getName()));
         }
 
         Optional<FunctionInfo> info = hiveShim.getBuiltInFunctionInfo(name);

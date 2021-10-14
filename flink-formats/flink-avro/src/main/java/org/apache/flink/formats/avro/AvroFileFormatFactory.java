@@ -18,9 +18,9 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
@@ -45,16 +45,13 @@ import java.io.OutputStream;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_OUTPUT_CODEC;
+
 /** Avro format factory for file system. */
+@Internal
 public class AvroFileFormatFactory implements BulkWriterFormatFactory {
 
     public static final String IDENTIFIER = "avro";
-
-    public static final ConfigOption<String> AVRO_OUTPUT_CODEC =
-            ConfigOptions.key("codec")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("The compression codec for avro");
 
     @Override
     public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(

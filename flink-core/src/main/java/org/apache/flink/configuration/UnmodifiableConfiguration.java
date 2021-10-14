@@ -59,7 +59,7 @@ public class UnmodifiableConfiguration extends Configuration {
     }
 
     @Override
-    final <T> void setValueInternal(String key, T value) {
+    final <T> void setValueInternal(String key, T value, boolean canBePrefixMap) {
         error();
     }
 

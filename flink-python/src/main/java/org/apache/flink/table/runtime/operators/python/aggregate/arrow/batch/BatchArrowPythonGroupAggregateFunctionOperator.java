@@ -53,16 +53,6 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
     }
 
     @Override
-    public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(groupingSet.length, outputType.getFieldCount()));
-        super.open();
-    }
-
-    @Override
     protected void invokeCurrentBatch() throws Exception {
         if (currentBatchCount > 0) {
             arrowSerializer.finishCurrentBatch();
@@ -86,6 +76,12 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
             lastGroupSet = groupSetProjection.apply(input).copy();
             forwardedInputQueue.add(lastGroupSet);
         }
+    }
+
+    @Override
+    public RowType createUserDefinedFunctionOutputType() {
+        return new RowType(
+                outputType.getFields().subList(groupingSet.length, outputType.getFieldCount()));
     }
 
     @Override

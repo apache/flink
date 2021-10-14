@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -143,6 +144,11 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 
         public ColumnsExpressionExpander(List<UnresolvedReferenceExpression> inputFieldReferences) {
             this.inputFieldReferences = inputFieldReferences;
+        }
+
+        @Override
+        public List<UnresolvedReferenceExpression> visit(FieldReferenceExpression fieldReference) {
+            return Collections.singletonList(unresolvedRef(fieldReference.getName()));
         }
 
         @Override

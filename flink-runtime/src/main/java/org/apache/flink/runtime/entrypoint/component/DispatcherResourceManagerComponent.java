@@ -19,17 +19,17 @@
 package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,7 +98,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
                             if (isRunning.get()) {
                                 fatalErrorHandler.onFatalError(
                                         new FlinkException(
-                                                "Unexpected termination of ResourceManager.",
+                                                "Unexpected termination of ResourceManagerService.",
                                                 throwable));
                             }
                         });
@@ -122,7 +122,8 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
      */
     public CompletableFuture<Void> stopApplication(
             final ApplicationStatus applicationStatus, final @Nullable String diagnostics) {
-        return internalShutdown(() -> deregisterApplication(applicationStatus, diagnostics));
+        return internalShutdown(
+                () -> resourceManagerService.deregisterApplication(applicationStatus, diagnostics));
     }
 
     /**
@@ -147,15 +148,6 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
         } else {
             return terminationFuture;
         }
-    }
-
-    private CompletableFuture<Void> deregisterApplication(
-            final ApplicationStatus applicationStatus, final @Nullable String diagnostics) {
-
-        final ResourceManagerGateway selfGateway = resourceManagerService.getGateway();
-        return selfGateway
-                .deregisterApplication(applicationStatus, diagnostics)
-                .thenApply(ack -> null);
     }
 
     private CompletableFuture<Void> closeAsyncInternal() {
@@ -204,13 +196,5 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
     public CompletableFuture<Void> closeAsync() {
         return stopApplication(
                 ApplicationStatus.CANCELED, "DispatcherResourceManagerComponent has been closed.");
-    }
-
-    /** Service which gives access to a {@link ResourceManagerGateway}. */
-    interface ResourceManagerService extends AutoCloseableAsync {
-
-        ResourceManagerGateway getGateway();
-
-        CompletableFuture<Void> getTerminationFuture();
     }
 }

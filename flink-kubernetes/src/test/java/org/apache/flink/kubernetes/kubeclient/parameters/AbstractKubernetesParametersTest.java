@@ -39,8 +39,8 @@ import java.util.Optional;
 import java.util.Random;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /** General tests for the {@link AbstractKubernetesParameters}. */
 public class AbstractKubernetesParametersTest extends TestLogger {

@@ -59,4 +59,10 @@ public interface PullingAsyncDataInput<T> extends AvailabilityProvider {
 
     /** @return true if is finished and for example end of input was reached, false otherwise. */
     boolean isFinished();
+
+    /**
+     * @return true if the input has seen all data. It might see only control events after that
+     *     point
+     */
+    boolean hasReceivedEndOfData();
 }

@@ -175,47 +175,6 @@ above).
 $ bin/flink run -s :checkpointMetaDataPath [:runArgs]
 ```
 
-### Unaligned checkpoints
 
-Starting with Flink 1.11, checkpoints can be unaligned.
-[Unaligned checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#unaligned-checkpointing) contain in-flight data (i.e., data stored in
-buffers) as part of the checkpoint state, which allows checkpoint barriers to
-overtake these buffers. Thus, the checkpoint duration becomes independent of the
-current throughput as checkpoint barriers are effectively not embedded into 
-the stream of data anymore.
-
-You should use unaligned checkpoints if your checkpointing durations are very
-high due to backpressure. Then, checkpointing time becomes mostly
-independent of the end-to-end latency. Be aware unaligned checkpointing
-adds to I/O to the state backends, so you shouldn't use it when the I/O to
-the state backend is actually the bottleneck during checkpointing.
-
-Note that unaligned checkpointing is a new feature that currently has the
-following limitations:
-
-- Flink currently does not support concurrent unaligned checkpoints. However,
-  due to the more predictable and shorter checkpointing times, concurrent 
-  checkpoints might not be needed at all. However, savepoints can also not 
-  happen concurrently to unaligned checkpoints, so they will take slightly 
-  longer.
-- Unaligned checkpoints break with an implicit guarantee in respect to 
-  watermarks during recovery:
-
-Currently, Flink generates the watermark as a first step of recovery instead of 
-storing the latest watermark in the operators to ease rescaling. In unaligned 
-checkpoints, that means on recovery, **Flink generates watermarks after it 
-restores in-flight data**. If your pipeline uses an **operator that applies the
-latest watermark on each record**, it will produce **different results** than 
-for aligned checkpoints. If your operator depends on the latest watermark being
-always available, then the workaround is to store the watermark in the operator 
-state. To support rescaling, watermarks should be stored per key-group in a 
-union-state. We most likely will implement this approach as a general solution 
-(didn't make it into Flink 1.11.0).
-
-After enabling unaligned checkpoints, you can also specify the alignment timeout via
-`CheckpointConfig.setAlignmentTimeout(Duration)` or `execution.checkpointing.alignment-timeout` in
-the configuration file. When activated, each checkpoint will still begin as an aligned checkpoint,
-but if the alignment time for some subtask exceeds this timeout, then the checkpoint will proceed as an
-unaligned checkpoint.
 
 {{< top >}}

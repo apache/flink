@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.shuffle;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.MemorySize;
+
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -28,18 +31,48 @@ import java.util.concurrent.CompletableFuture;
  * @param <T> partition shuffle descriptor used for producer/consumer deployment and their data
  *     exchange.
  */
-public interface ShuffleMaster<T extends ShuffleDescriptor> {
+public interface ShuffleMaster<T extends ShuffleDescriptor> extends AutoCloseable {
+
+    /**
+     * Starts this shuffle master as a service. One can do some initialization here, for example
+     * getting access and connecting to the external system.
+     */
+    default void start() throws Exception {}
+
+    /**
+     * Closes this shuffle master service which should release all resources. A shuffle master will
+     * only be closed when the cluster is shut down.
+     */
+    @Override
+    default void close() throws Exception {}
+
+    /**
+     * Registers the target job together with the corresponding {@link JobShuffleContext} to this
+     * shuffle master. Through the shuffle context, one can obtain some basic information like job
+     * ID, job configuration. It enables ShuffleMaster to notify JobMaster about lost result
+     * partitions, so that JobMaster can identify and reproduce unavailable partitions earlier.
+     *
+     * @param context the corresponding shuffle context of the target job.
+     */
+    default void registerJob(JobShuffleContext context) {}
+
+    /**
+     * Unregisters the target job from this shuffle master, which means the corresponding job has
+     * reached a global termination state and all the allocated resources except for the cluster
+     * partitions can be cleared.
+     *
+     * @param jobID ID of the target job to be unregistered.
+     */
+    default void unregisterJob(JobID jobID) {}
 
     /**
      * Asynchronously register a partition and its producer with the shuffle service.
-     *
-     * <p>IMPORTANT: the returned future must be completed due to limitations in the default
-     * scheduler.
      *
      * <p>The returned shuffle descriptor is an internal handle which identifies the partition
      * internally within the shuffle service. The descriptor should provide enough information to
      * read from or write data to the partition.
      *
+     * @param jobID job ID of the corresponding job which registered the partition
      * @param partitionDescriptor general job graph information about the partition
      * @param producerDescriptor general producer information (location, execution id, connection
      *     info)
@@ -47,7 +80,9 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> {
      *     and their data exchange.
      */
     CompletableFuture<T> registerPartitionWithProducer(
-            PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor);
+            JobID jobID,
+            PartitionDescriptor partitionDescriptor,
+            ProducerDescriptor producerDescriptor);
 
     /**
      * Release any external resources occupied by the given partition.
@@ -61,4 +96,16 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> {
      * @param shuffleDescriptor shuffle descriptor of the result partition to release externally.
      */
     void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor);
+
+    /**
+     * Compute shuffle memory size for a task with the given {@link TaskInputsOutputsDescriptor}.
+     *
+     * @param taskInputsOutputsDescriptor describes task inputs and outputs information for shuffle
+     *     memory calculation.
+     * @return shuffle memory size for a task with the given {@link TaskInputsOutputsDescriptor}.
+     */
+    default MemorySize computeShuffleMemorySizeForTask(
+            TaskInputsOutputsDescriptor taskInputsOutputsDescriptor) {
+        return MemorySize.ZERO;
+    }
 }

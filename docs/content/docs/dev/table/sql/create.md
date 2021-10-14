@@ -69,8 +69,7 @@ The following examples show how to run a CREATE statement in SQL CLI.
 {{< tabs "0b1b298a-b92f-4f95-8d06-49544b487b75" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tableEnv = TableEnvironment.create(settings);
+TableEnvironment tableEnv = TableEnvironment.create(...);
 
 // SQL query with a registered table
 // register a table named "Orders"
@@ -89,8 +88,7 @@ tableEnv.executeSql(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // SQL query with a registered table
 // register a table named "Orders"
@@ -109,8 +107,7 @@ tableEnv.executeSql(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # SQL query with a registered table
 # register a table named "Orders"

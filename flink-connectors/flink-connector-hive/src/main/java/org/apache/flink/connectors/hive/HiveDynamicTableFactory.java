@@ -20,6 +20,8 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -27,7 +29,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.filesystem.FileSystemOptions;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -35,8 +37,8 @@ import org.apache.hadoop.mapred.JobConf;
 
 import java.util.Set;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
 
 /** A dynamic table factory implementation for Hive catalog. */
 public class HiveDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
@@ -64,80 +66,72 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
-        boolean isHiveTable = HiveCatalog.isHiveTable(context.getCatalogTable().getOptions());
+        final boolean isHiveTable = HiveCatalog.isHiveTable(context.getCatalogTable().getOptions());
 
         // we don't support temporary hive tables yet
-        if (isHiveTable && !context.isTemporary()) {
-            Integer configuredParallelism =
-                    Configuration.fromMap(context.getCatalogTable().getOptions())
-                            .get(FileSystemOptions.SINK_PARALLELISM);
-            return new HiveTableSink(
-                    context.getConfiguration(),
-                    new JobConf(hiveConf),
-                    context.getObjectIdentifier(),
-                    context.getCatalogTable(),
-                    configuredParallelism);
-        } else {
-            return FactoryUtil.createTableSink(
-                    null, // we already in the factory of catalog
+        if (!isHiveTable || context.isTemporary()) {
+            return FactoryUtil.createDynamicTableSink(
+                    null,
                     context.getObjectIdentifier(),
                     context.getCatalogTable(),
                     context.getConfiguration(),
                     context.getClassLoader(),
                     context.isTemporary());
         }
+
+        final Integer configuredParallelism =
+                Configuration.fromMap(context.getCatalogTable().getOptions())
+                        .get(FileSystemConnectorOptions.SINK_PARALLELISM);
+        final JobConf jobConf = JobConfUtils.createJobConfWithCredentials(hiveConf);
+        return new HiveTableSink(
+                context.getConfiguration(),
+                jobConf,
+                context.getObjectIdentifier(),
+                context.getCatalogTable(),
+                configuredParallelism);
     }
 
     @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
-        boolean isHiveTable = HiveCatalog.isHiveTable(context.getCatalogTable().getOptions());
+        final ReadableConfig configuration =
+                Configuration.fromMap(context.getCatalogTable().getOptions());
+
+        final boolean isHiveTable = HiveCatalog.isHiveTable(context.getCatalogTable().getOptions());
 
         // we don't support temporary hive tables yet
-        if (isHiveTable && !context.isTemporary()) {
-            CatalogTable catalogTable = Preconditions.checkNotNull(context.getCatalogTable());
-
-            boolean isStreamingSource =
-                    Boolean.parseBoolean(
-                            catalogTable
-                                    .getOptions()
-                                    .getOrDefault(
-                                            STREAMING_SOURCE_ENABLE.key(),
-                                            STREAMING_SOURCE_ENABLE.defaultValue().toString()));
-
-            boolean includeAllPartition =
-                    STREAMING_SOURCE_PARTITION_INCLUDE
-                            .defaultValue()
-                            .equals(
-                                    catalogTable
-                                            .getOptions()
-                                            .getOrDefault(
-                                                    STREAMING_SOURCE_PARTITION_INCLUDE.key(),
-                                                    STREAMING_SOURCE_PARTITION_INCLUDE
-                                                            .defaultValue()));
-            // hive table source that has not lookup ability
-            if (isStreamingSource && includeAllPartition) {
-                return new HiveTableSource(
-                        new JobConf(hiveConf),
-                        context.getConfiguration(),
-                        context.getObjectIdentifier().toObjectPath(),
-                        catalogTable);
-            } else {
-                // hive table source that has scan and lookup ability
-                return new HiveLookupTableSource(
-                        new JobConf(hiveConf),
-                        context.getConfiguration(),
-                        context.getObjectIdentifier().toObjectPath(),
-                        catalogTable);
-            }
-
-        } else {
-            return FactoryUtil.createTableSource(
-                    null, // we already in the factory of catalog
+        if (!isHiveTable || context.isTemporary()) {
+            return FactoryUtil.createDynamicTableSource(
+                    null,
                     context.getObjectIdentifier(),
                     context.getCatalogTable(),
                     context.getConfiguration(),
                     context.getClassLoader(),
                     context.isTemporary());
+        }
+
+        final CatalogTable catalogTable = Preconditions.checkNotNull(context.getCatalogTable());
+
+        final boolean isStreamingSource = configuration.get(STREAMING_SOURCE_ENABLE);
+        final boolean includeAllPartition =
+                STREAMING_SOURCE_PARTITION_INCLUDE
+                        .defaultValue()
+                        .equals(configuration.get(STREAMING_SOURCE_PARTITION_INCLUDE));
+        final JobConf jobConf = JobConfUtils.createJobConfWithCredentials(hiveConf);
+
+        // hive table source that has not lookup ability
+        if (isStreamingSource && includeAllPartition) {
+            return new HiveTableSource(
+                    jobConf,
+                    context.getConfiguration(),
+                    context.getObjectIdentifier().toObjectPath(),
+                    catalogTable);
+        } else {
+            // hive table source that has scan and lookup ability
+            return new HiveLookupTableSource(
+                    jobConf,
+                    context.getConfiguration(),
+                    context.getObjectIdentifier().toObjectPath(),
+                    catalogTable);
         }
     }
 }

@@ -19,6 +19,7 @@
 import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
+
 import { SubTaskAccumulatorsInterface, UserAccumulatorsInterface } from 'interfaces';
 import { JobService } from 'services';
 
@@ -34,16 +35,32 @@ export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy
   listOfSubTaskAccumulator: SubTaskAccumulatorsInterface[] = [];
   isLoading = true;
 
-  trackAccumulatorBy(_: number, node: SubTaskAccumulatorsInterface) {
+  trackAccumulatorBy(_: number, node: SubTaskAccumulatorsInterface): string {
     return node.name;
   }
-  trackSubtaskBy(_: number, node: SubTaskAccumulatorsInterface) {
+  trackSubtaskBy(_: number, node: SubTaskAccumulatorsInterface): number {
     return node.subtask;
   }
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  transformToSubTaskAccumulator(list: SubTaskAccumulatorsInterface[]): SubTaskAccumulatorsInterface[] {
+    const transformed: SubTaskAccumulatorsInterface[] = [];
+    list.forEach(accumulator => {
+      // @ts-ignore
+      accumulator['user-accumulators'].forEach(userAccumulator => {
+        transformed.push({
+          ...accumulator,
+          name: userAccumulator.name,
+          type: userAccumulator.type,
+          value: userAccumulator.value
+        });
+      });
+    });
+    return transformed;
+  }
+
+  ngOnInit(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
@@ -53,7 +70,7 @@ export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy
         data => {
           this.isLoading = false;
           this.listOfAccumulator = data.main;
-          this.listOfSubTaskAccumulator = data.subtasks || [];
+          this.listOfSubTaskAccumulator = this.transformToSubTaskAccumulator(data.subtasks) || [];
           this.cdr.markForCheck();
         },
         () => {
@@ -63,7 +80,7 @@ export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy
       );
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

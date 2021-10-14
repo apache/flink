@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -43,6 +44,7 @@ import java.util.Set;
  * Table format factory for providing configured instances of Avro to RowData {@link
  * SerializationSchema} and {@link DeserializationSchema}.
  */
+@Internal
 public class AvroFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
 
     public static final String IDENTIFIER = "avro";

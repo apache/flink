@@ -33,8 +33,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Litmus;
 
 /**
- * Sub-class of {@link Snapshot} not targeted at any particular engine or calling convention. The
- * class was copied over because of * CALCITE-4554. *
+ * Sub-class of {@link org.apache.calcite.rel.core.Snapshot} not targeted at any particular engine
+ * or calling convention. The class was copied over because of * CALCITE-4554. *
  *
  * <p>Line 80 ~ 91: Calcite only supports timestamp type as period type, but Flink supports both
  * Timestamp and TimestampLtz. Should be removed once calcite support TimestampLtz as period type.

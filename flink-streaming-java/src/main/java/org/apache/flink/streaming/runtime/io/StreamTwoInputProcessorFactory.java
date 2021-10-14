@@ -27,11 +27,10 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput;
@@ -42,10 +41,12 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,19 +55,18 @@ import java.util.function.Function;
 import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** A factory for {@link StreamTwoInputProcessor}. */
+/** A factory to create {@link StreamMultipleInputProcessor} for two input case. */
 public class StreamTwoInputProcessorFactory {
-    public static <IN1, IN2> StreamTwoInputProcessor<IN1, IN2> create(
-            AbstractInvokable ownerTask,
+    public static <IN1, IN2> StreamMultipleInputProcessor create(
+            TaskInvokable ownerTask,
             CheckpointedInputGate[] checkpointedInputGates,
             IOManager ioManager,
             MemoryManager memoryManager,
             TaskIOMetricGroup taskIOMetricGroup,
-            StreamStatusMaintainer streamStatusMaintainer,
             TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
             WatermarkGauge input1WatermarkGauge,
             WatermarkGauge input2WatermarkGauge,
-            BoundedMultiInput endOfInputAware,
+            OperatorChain<?, ?> operatorChain,
             StreamConfig streamConfig,
             Configuration taskManagerConfig,
             Configuration jobConfig,
@@ -77,9 +77,8 @@ public class StreamTwoInputProcessorFactory {
             Function<Integer, StreamPartitioner<?>> gatePartitioners,
             TaskInfo taskInfo) {
 
-        checkNotNull(endOfInputAware);
+        checkNotNull(operatorChain);
 
-        StreamStatusTracker statusTracker = new StreamStatusTracker();
         taskIOMetricGroup.reuseRecordsInputCounter(numRecordsIn);
         TypeSerializer<IN1> typeSerializer1 = streamConfig.getTypeSerializerIn(0, userClassloader);
         StreamTaskInput<IN1> input1 =
@@ -156,7 +155,8 @@ public class StreamTwoInputProcessorFactory {
                                     ManagedMemoryUseCase.OPERATOR,
                                     taskManagerConfig,
                                     userClassloader),
-                            jobConfig);
+                            jobConfig,
+                            executionConfig);
             inputSelectable = selectableSortingInputs.getInputSelectable();
             StreamTaskInput<?>[] sortedInputs = selectableSortingInputs.getSortedInputs();
             StreamTaskInput<?>[] passThroughInputs = selectableSortingInputs.getPassThroughInputs();
@@ -172,32 +172,36 @@ public class StreamTwoInputProcessorFactory {
             }
         }
 
+        @Nullable
+        FinishedOnRestoreWatermarkBypass watermarkBypass =
+                operatorChain.isTaskDeployedAsFinished()
+                        ? new FinishedOnRestoreWatermarkBypass(operatorChain.getStreamOutputs())
+                        : null;
         StreamTaskNetworkOutput<IN1> output1 =
                 new StreamTaskNetworkOutput<>(
                         streamOperator,
                         record -> processRecord1(record, streamOperator),
-                        streamStatusMaintainer,
                         input1WatermarkGauge,
-                        statusTracker,
                         0,
-                        numRecordsIn);
+                        numRecordsIn,
+                        watermarkBypass);
         StreamOneInputProcessor<IN1> processor1 =
-                new StreamOneInputProcessor<>(input1, output1, endOfInputAware);
+                new StreamOneInputProcessor<>(input1, output1, operatorChain);
 
         StreamTaskNetworkOutput<IN2> output2 =
                 new StreamTaskNetworkOutput<>(
                         streamOperator,
                         record -> processRecord2(record, streamOperator),
-                        streamStatusMaintainer,
                         input2WatermarkGauge,
-                        statusTracker,
                         1,
-                        numRecordsIn);
+                        numRecordsIn,
+                        watermarkBypass);
         StreamOneInputProcessor<IN2> processor2 =
-                new StreamOneInputProcessor<>(input2, output2, endOfInputAware);
+                new StreamOneInputProcessor<>(input2, output2, operatorChain);
 
-        return new StreamTwoInputProcessor<>(
-                new TwoInputSelectionHandler(inputSelectable), processor1, processor2);
+        return new StreamMultipleInputProcessor(
+                new MultipleInputSelectionHandler(inputSelectable, 2),
+                new StreamOneInputProcessor[] {processor1, processor2});
     }
 
     @SuppressWarnings("unchecked")
@@ -221,37 +225,11 @@ public class StreamTwoInputProcessorFactory {
         streamOperator.processElement2(record);
     }
 
-    private static class StreamStatusTracker {
-        /**
-         * Stream status for the two inputs. We need to keep track for determining when to forward
-         * stream status changes downstream.
-         */
-        private StreamStatus firstStatus = StreamStatus.ACTIVE;
-
-        private StreamStatus secondStatus = StreamStatus.ACTIVE;
-
-        public StreamStatus getFirstStatus() {
-            return firstStatus;
-        }
-
-        public void setFirstStatus(StreamStatus firstStatus) {
-            this.firstStatus = firstStatus;
-        }
-
-        public StreamStatus getSecondStatus() {
-            return secondStatus;
-        }
-
-        public void setSecondStatus(StreamStatus secondStatus) {
-            this.secondStatus = secondStatus;
-        }
-    }
-
     /**
      * The network data output implementation used for processing stream elements from {@link
      * StreamTaskNetworkInput} in two input selective processor.
      */
-    private static class StreamTaskNetworkOutput<T> extends AbstractDataOutput<T> {
+    private static class StreamTaskNetworkOutput<T> implements PushingAsyncDataInput.DataOutput<T> {
 
         private final TwoInputStreamOperator<?, ?, ?> operator;
 
@@ -265,24 +243,21 @@ public class StreamTwoInputProcessorFactory {
 
         private final Counter numRecordsIn;
 
-        private final StreamStatusTracker statusTracker;
+        private final @Nullable FinishedOnRestoreWatermarkBypass watermarkBypass;
 
         private StreamTaskNetworkOutput(
                 TwoInputStreamOperator<?, ?, ?> operator,
                 ThrowingConsumer<StreamRecord<T>, Exception> recordConsumer,
-                StreamStatusMaintainer streamStatusMaintainer,
                 WatermarkGauge inputWatermarkGauge,
-                StreamStatusTracker statusTracker,
                 int inputIndex,
-                Counter numRecordsIn) {
-            super(streamStatusMaintainer);
-
+                Counter numRecordsIn,
+                @Nullable FinishedOnRestoreWatermarkBypass watermarkBypass) {
             this.operator = checkNotNull(operator);
             this.recordConsumer = checkNotNull(recordConsumer);
             this.inputWatermarkGauge = checkNotNull(inputWatermarkGauge);
-            this.statusTracker = statusTracker;
             this.inputIndex = inputIndex;
             this.numRecordsIn = numRecordsIn;
+            this.watermarkBypass = watermarkBypass;
         }
 
         @Override
@@ -295,32 +270,26 @@ public class StreamTwoInputProcessorFactory {
         public void emitWatermark(Watermark watermark) throws Exception {
             inputWatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
             if (inputIndex == 0) {
-                operator.processWatermark1(watermark);
+                if (watermarkBypass == null) {
+                    operator.processWatermark1(watermark);
+                } else {
+                    watermarkBypass.processWatermark1(watermark);
+                }
             } else {
-                operator.processWatermark2(watermark);
+                if (watermarkBypass == null) {
+                    operator.processWatermark2(watermark);
+                } else {
+                    watermarkBypass.processWatermark2(watermark);
+                }
             }
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) {
-            final StreamStatus anotherStreamStatus;
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
             if (inputIndex == 0) {
-                statusTracker.setFirstStatus(streamStatus);
-                anotherStreamStatus = statusTracker.getSecondStatus();
+                operator.processWatermarkStatus1(watermarkStatus);
             } else {
-                statusTracker.setSecondStatus(streamStatus);
-                anotherStreamStatus = statusTracker.getFirstStatus();
-            }
-
-            // check if we need to toggle the task's stream status
-            if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {
-                if (streamStatus.isActive()) {
-                    // we're no longer idle if at least one input has become active
-                    streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
-                } else if (anotherStreamStatus.isIdle()) {
-                    // we're idle once both inputs are idle
-                    streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
-                }
+                operator.processWatermarkStatus2(watermarkStatus);
             }
         }
 
@@ -330,6 +299,41 @@ public class StreamTwoInputProcessorFactory {
                 operator.processLatencyMarker1(latencyMarker);
             } else {
                 operator.processLatencyMarker2(latencyMarker);
+            }
+        }
+    }
+
+    private static class FinishedOnRestoreWatermarkBypass {
+        private final RecordWriterOutput<?>[] streamOutputs;
+
+        private boolean receivedFirstMaxWatermark;
+        private boolean receivedSecondMaxWatermark;
+
+        public FinishedOnRestoreWatermarkBypass(RecordWriterOutput<?>[] streamOutputs) {
+            this.streamOutputs = streamOutputs;
+        }
+
+        public void processWatermark1(Watermark watermark) {
+            receivedFirstMaxWatermark = true;
+            checkAndForward(watermark);
+        }
+
+        public void processWatermark2(Watermark watermark) {
+            receivedSecondMaxWatermark = true;
+            checkAndForward(watermark);
+        }
+
+        private void checkAndForward(Watermark watermark) {
+            if (watermark.getTimestamp() != Watermark.MAX_WATERMARK.getTimestamp()) {
+                throw new IllegalStateException(
+                        String.format(
+                                "We should not receive any watermarks [%s] other than the MAX_WATERMARK if finished on restore",
+                                watermark));
+            }
+            if (receivedFirstMaxWatermark && receivedSecondMaxWatermark) {
+                for (RecordWriterOutput<?> streamOutput : streamOutputs) {
+                    streamOutput.emitWatermark(watermark);
+                }
             }
         }
     }

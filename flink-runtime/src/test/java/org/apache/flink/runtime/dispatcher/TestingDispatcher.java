@@ -65,7 +65,7 @@ class TestingDispatcher extends Dispatcher {
     }
 
     void completeJobExecution(ExecutionGraphInfo executionGraphInfo) {
-        runAsync(() -> jobReachedGloballyTerminalState(executionGraphInfo));
+        runAsync(() -> jobReachedTerminalState(executionGraphInfo));
     }
 
     CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {

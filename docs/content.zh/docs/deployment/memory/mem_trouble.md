@@ -67,12 +67,15 @@ under the License.
 
 ## 容器（Container）内存超用
 
-如果 Flink 容器尝试分配超过其申请大小的内存（Yarn、Mesos 或 Kubernetes），这通常说明 Flink 没有预留出足够的本地内存。
+如果 Flink 容器尝试分配超过其申请大小的内存（Yarn 或 Kubernetes），这通常说明 Flink 没有预留出足够的本地内存。
 可以通过外部监控系统或者容器被部署环境杀掉时的错误信息判断是否存在容器内存超用。
 
 对于 *JobManager* 进程，你还可以尝试启用 *JVM 直接内存限制*（[`jobmanager.memory.enable-jvm-direct-memory-limit`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-enable-jvm-direct-memory-limit)），以排除 *JVM 直接内存泄漏*的可能性。
 
-如果使用了 [RocksDBStateBackend]({{< ref "docs/ops/state/state_backends" >}}#rocksdbstatebackend) 且没有开启内存控制，也可以尝试增大 TaskManager 的[托管内存]({{< ref "docs/deployment/memory/mem_setup" >}}#managed-memory)。
+If [RocksDBStateBackend]({{< ref "docs/ops/state/state_backends" >}}#the-rocksdbstatebackend) is used：
+* and memory controlling is disabled: You can try to increase the TaskManager's [managed memory]({{< ref "docs/deployment/memory/mem_setup" >}}#managed-memory).
+* and memory controlling is enabled and non-heap memory increases during savepoint or full checkpoints: This may happen due to the `glibc` memory allocator (see [glibc bug](https://sourceware.org/bugzilla/show_bug.cgi?id=15321)).
+  You can try to add the [environment variable]({{< ref "docs/deployment/config" >}}#forwarding-environment-variables) `MALLOC_ARENA_MAX=1` for TaskManagers.
 
 此外，还可以尝试增大 [JVM 开销]({{< ref "docs/deployment/memory/mem_setup" >}}#capped-fractionated-components)。
 

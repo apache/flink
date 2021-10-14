@@ -51,9 +51,6 @@ import java.util.stream.Collectors;
 public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
     private final TableSource<T1> tableSource;
     private final TableSink<T2> tableSink;
-    // Flag that tells if the tableSource/tableSink is BatchTableSource/BatchTableSink.
-    // NOTES: this should be false in BLINK planner, because BLINK planner always uses
-    // StreamTableSource.
     private final boolean isBatch;
 
     public static <T1> ConnectorCatalogTable<T1, ?> source(

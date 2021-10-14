@@ -17,15 +17,15 @@
  */
 package org.apache.flink.table.expressions
 
-import _root_.java.math.{BigDecimal => JBigDecimal}
-import _root_.java.util.{List => JList}
-
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
 import org.apache.flink.table.delegation.PlannerExpressionParser
 import ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+
+import _root_.java.math.{BigDecimal => JBigDecimal}
+import _root_.java.util.{List => JList}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.language.implicitConversions
@@ -35,7 +35,7 @@ import _root_.scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
   * The implementation of a [[PlannerExpressionParser]] which parsers expressions inside a String.
   *
   * <p><strong>WARNING</strong>: please keep this class in sync with PlannerExpressionParserImpl
-  * variant in flink-table-planner-blink module.
+  * variant in flink-table-planner module.
   */
 class PlannerExpressionParserImpl extends PlannerExpressionParser {
 
@@ -52,8 +52,7 @@ class PlannerExpressionParserImpl extends PlannerExpressionParser {
  * Parser for expressions inside a String. This parses exactly the same expressions that
  * would be accepted by the Scala Expression DSL.
  *
- * See [[org.apache.flink.table.api.bridge.scala.ImplicitExpressionConversions]] and
- * [[org.apache.flink.table.api.bridge.scala.ImplicitExpressionOperations]] for the constructs
+ * See ImplicitExpressionConversions and ImplicitExpressionOperations for the constructs
  * available in the Scala Expression DSL. This parser must be kept in sync with the Scala DSL
  * lazy valined in the above files.
  */
@@ -235,7 +234,7 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   }
 
   lazy val nullLiteral: PackratParser[Expression] = (NULL | NULL_OF) ~ "(" ~> dataType <~ ")" ^^ {
-    dt => valueLiteral(null, fromLegacyInfoToDataType(dt).nullable())
+    dt => valueLiteral(null, fromLegacyInfoToDataType(dt))
   }
 
   lazy val literalExpr: PackratParser[Expression] =

@@ -90,7 +90,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRow
  *
  * @deprecated Use {@link DataTypeFactory#createDataType(TypeInformation)} instead. Note that this
  *     method will not create legacy types anymore. It fully uses the new type system available only
- *     in the Blink planner.
+ *     in the planner.
  */
 @Internal
 @Deprecated

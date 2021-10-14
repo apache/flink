@@ -17,9 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { TaskManagerDetailInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+
+import { TaskManagerDetailInterface } from 'interfaces';
 import { TaskManagerService } from 'services';
 
 @Component({

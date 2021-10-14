@@ -147,7 +147,7 @@ public interface FileRecordFormat<T> extends Serializable, ResultTypeQueryable<T
      *
      * <p>The number should be large enough so that the thread-to-thread handover overhead is
      * amortized across the records, but small enough so that the these records together do not
-     * consume too memory to be feasible.
+     * consume too much memory.
      */
     ConfigOption<Integer> RECORDS_PER_FETCH =
             ConfigOptions.key("source.file.records.fetch-size")

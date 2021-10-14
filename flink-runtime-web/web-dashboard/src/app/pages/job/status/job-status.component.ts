@@ -17,10 +17,11 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { JobDetailCorrectInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { distinctUntilKeyChanged, takeUntil } from 'rxjs/operators';
-import {JobService, StatusService} from 'services';
+
+import { JobDetailCorrectInterface } from 'interfaces';
+import { JobService, StatusService } from 'services';
 
 @Component({
   selector: 'flink-job-status',
@@ -57,9 +58,9 @@ export class JobStatusComponent implements OnInit, OnDestroy {
   ];
   checkpointIndexOfNavigation = this.checkpointIndexOfNav();
 
-  webCancelEnabled = this.statusService.configuration.features["web-cancel"];
+  webCancelEnabled = this.statusService.configuration.features['web-cancel'];
 
-  cancelJob() {
+  cancelJob(): void {
     this.jobService.cancelJob(this.jobDetail.jid).subscribe(() => {
       this.statusTips = 'Cancelling...';
       this.cdr.markForCheck();
@@ -68,14 +69,17 @@ export class JobStatusComponent implements OnInit, OnDestroy {
 
   constructor(private jobService: JobService, public statusService: StatusService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     const jobDetail$ = this.jobService.jobDetail$.pipe(takeUntil(this.destroy$));
     jobDetail$.subscribe(data => {
       this.jobDetail = data;
       this.cdr.markForCheck();
       var index = this.checkpointIndexOfNav();
       if (data.plan.type == 'STREAMING' && index == -1) {
-        this.listOfNavigation.splice(this.checkpointIndexOfNavigation, 0, {path: 'checkpoints', title: 'Checkpoints'});
+        this.listOfNavigation.splice(this.checkpointIndexOfNavigation, 0, {
+          path: 'checkpoints',
+          title: 'Checkpoints'
+        });
       } else if (data.plan.type == 'BATCH' && index > -1) {
         this.listOfNavigation.splice(index, 1);
       }
@@ -85,12 +89,12 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  checkpointIndexOfNav() {
+  checkpointIndexOfNav(): number {
     return this.listOfNavigation.findIndex(item => item.path === 'checkpoints');
   }
 }

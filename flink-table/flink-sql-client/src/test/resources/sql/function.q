@@ -15,6 +15,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ADD JAR '$VAR_UDF_JAR_PATH';
+[INFO] The specified jar is added into session classloader.
+!info
+
+SHOW JARS;
+$VAR_UDF_JAR_PATH
+!ok
+
 # this also tests user classloader because the LowerUDF is in user jar
 create function func1 as 'LowerUDF' LANGUAGE JAVA;
 [INFO] Execute statement succeed.
@@ -29,7 +37,7 @@ show user functions;
 1 row in set
 !ok
 
-SET sql-client.execution.result-mode=tableau;
+SET 'sql-client.execution.result-mode' = 'tableau';
 [INFO] Session property has been set.
 !info
 
@@ -224,4 +232,12 @@ show user functions;
 |      lowerudf |
 +---------------+
 1 row in set
+!ok
+
+REMOVE JAR '$VAR_UDF_JAR_PATH';
+[INFO] The specified jar is removed from session classloader.
+!info
+
+SHOW JARS;
+Empty set
 !ok

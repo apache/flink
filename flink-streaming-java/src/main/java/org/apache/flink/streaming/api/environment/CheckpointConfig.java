@@ -65,6 +65,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
     public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
 
+    /** Default id of checkpoint for which in-flight data should be ignored on recovery. */
+    public static final int DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA = -1;
+
     // ------------------------------------------------------------------------
 
     /** Checkpointing mode (exactly-once vs. at-least-once). */
@@ -91,8 +94,13 @@ public class CheckpointConfig implements java.io.Serializable {
     /** Flag to enable unaligned checkpoints. */
     private boolean unalignedCheckpointsEnabled;
 
-    private Duration alignmentTimeout =
-            ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue();
+    /** Id of checkpoint for which in-flight data should be ignored on recovery. */
+    private long checkpointIdOfIgnoredInFlightData =
+            DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA;
+
+    /** The delay from the start of checkpoint after which AC switches to UC. */
+    private Duration alignedCheckpointTimeout =
+            ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT.defaultValue();
 
     /** Flag to enable approximate local recovery. */
     private boolean approximateLocalRecovery;
@@ -109,9 +117,6 @@ public class CheckpointConfig implements java.io.Serializable {
      * @deprecated Use {@link #tolerableCheckpointFailureNumber}.
      */
     @Deprecated private boolean failOnCheckpointingErrors = true;
-
-    /** Determines if a job will fallback to checkpoint when there is a more recent savepoint. * */
-    private boolean preferCheckpointForRecovery = false;
 
     /**
      * Determines the threshold that we tolerance declined checkpoint failure number. The default
@@ -139,15 +144,16 @@ public class CheckpointConfig implements java.io.Serializable {
         this.checkpointTimeout = checkpointConfig.checkpointTimeout;
         this.maxConcurrentCheckpoints = checkpointConfig.maxConcurrentCheckpoints;
         this.minPauseBetweenCheckpoints = checkpointConfig.minPauseBetweenCheckpoints;
-        this.preferCheckpointForRecovery = checkpointConfig.preferCheckpointForRecovery;
         this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
         this.unalignedCheckpointsEnabled = checkpointConfig.isUnalignedCheckpointsEnabled();
-        this.alignmentTimeout = checkpointConfig.alignmentTimeout;
+        this.alignedCheckpointTimeout = checkpointConfig.alignedCheckpointTimeout;
         this.approximateLocalRecovery = checkpointConfig.isApproximateLocalRecoveryEnabled();
         this.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
         this.forceCheckpointing = checkpointConfig.forceCheckpointing;
         this.forceUnalignedCheckpoints = checkpointConfig.forceUnalignedCheckpoints;
         this.storage = checkpointConfig.getCheckpointStorage();
+        this.checkpointIdOfIgnoredInFlightData =
+                checkpointConfig.getCheckpointIdOfIgnoredInFlightData();
     }
 
     public CheckpointConfig() {}
@@ -393,8 +399,8 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Get the tolerable checkpoint failure number which used by the checkpoint failure manager to
-     * determine when we need to fail the job.
+     * Get the defined number of consecutive checkpoint failures that will be tolerated, before the
+     * whole job is failed over.
      *
      * <p>If the {@link #tolerableCheckpointFailureNumber} has not been configured, this method
      * would return 0 which means the checkpoint failure manager would not tolerate any declined
@@ -408,8 +414,9 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Set the tolerable checkpoint failure number, the default value is 0 that means we do not
-     * tolerance any checkpoint failure.
+     * This defines how many consecutive checkpoint failures will be tolerated, before the whole job
+     * is failed over. The default value is `0`, which means no checkpoint failures will be
+     * tolerated, and the job will fail on first reported checkpoint failure.
      */
     public void setTolerableCheckpointFailureNumber(int tolerableCheckpointFailureNumber) {
         if (tolerableCheckpointFailureNumber < 0) {
@@ -451,37 +458,6 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public boolean isExternalizedCheckpointsEnabled() {
         return externalizedCheckpointCleanup != null;
-    }
-
-    /**
-     * Returns whether a job recovery should fallback to checkpoint when there is a more recent
-     * savepoint.
-     *
-     * @return <code>true</code> if a job recovery should fallback to checkpoint.
-     * @deprecated Don't activate prefer checkpoints for recovery because it can lead to data loss
-     *     and duplicate output. This option will soon be removed. See <a
-     *     href="https://issues.apache.org/jira/browse/FLINK-20427">FLINK-20427</a> for more
-     *     information.
-     */
-    @PublicEvolving
-    @Deprecated
-    public boolean isPreferCheckpointForRecovery() {
-        return preferCheckpointForRecovery;
-    }
-
-    /**
-     * Sets whether a job recovery should fallback to checkpoint when there is a more recent
-     * savepoint.
-     *
-     * @deprecated Don't activate prefer checkpoints for recovery because it can lead to data loss
-     *     and duplicate output. This option will soon be removed. See <a
-     *     href="https://issues.apache.org/jira/browse/FLINK-20427">FLINK-20427</a> for more
-     *     information.
-     */
-    @PublicEvolving
-    @Deprecated
-    public void setPreferCheckpointForRecovery(boolean preferCheckpointForRecovery) {
-        this.preferCheckpointForRecovery = preferCheckpointForRecovery;
     }
 
     /**
@@ -531,26 +507,57 @@ public class CheckpointConfig implements java.io.Serializable {
     /**
      * Only relevant if {@link #unalignedCheckpointsEnabled} is enabled.
      *
-     * <p>If {@link #alignmentTimeout} has value equal to <code>0</code>, checkpoints will always
-     * start unaligned.
+     * <p>If {@link #alignedCheckpointTimeout} has value equal to <code>0</code>, checkpoints will
+     * always start unaligned.
      *
-     * <p>If {@link #alignmentTimeout} has value greater then <code>0</code>, checkpoints will start
-     * aligned. If during checkpointing, checkpoint start delay exceeds this {@link
-     * #alignmentTimeout}, alignment will timeout and checkpoint will start working as unaligned
-     * checkpoint.
+     * <p>If {@link #alignedCheckpointTimeout} has value greater then <code>0</code>, checkpoints
+     * will start aligned. If during checkpointing, checkpoint start delay exceeds this {@link
+     * #alignedCheckpointTimeout}, alignment will timeout and checkpoint will start working as
+     * unaligned checkpoint.
+     *
+     * @deprecated Use {@link #setAlignedCheckpointTimeout(Duration)} instead.
      */
+    @Deprecated
     @PublicEvolving
     public void setAlignmentTimeout(Duration alignmentTimeout) {
-        this.alignmentTimeout = alignmentTimeout;
+        this.alignedCheckpointTimeout = alignmentTimeout;
     }
 
     /**
      * @return value of alignment timeout, as configured via {@link #setAlignmentTimeout(Duration)}
      *     or {@link ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT}.
+     * @deprecated User {@link #getAlignedCheckpointTimeout()} instead.
      */
+    @Deprecated
     @PublicEvolving
     public Duration getAlignmentTimeout() {
-        return alignmentTimeout;
+        return alignedCheckpointTimeout;
+    }
+
+    /**
+     * @return value of alignment timeout, as configured via {@link
+     *     #setAlignedCheckpointTimeout(Duration)} or {@link
+     *     ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT}.
+     */
+    @PublicEvolving
+    public Duration getAlignedCheckpointTimeout() {
+        return alignedCheckpointTimeout;
+    }
+
+    /**
+     * Only relevant if {@link #unalignedCheckpointsEnabled} is enabled.
+     *
+     * <p>If {@link #alignedCheckpointTimeout} has value equal to <code>0</code>, checkpoints will
+     * always start unaligned.
+     *
+     * <p>If {@link #alignedCheckpointTimeout} has value greater then <code>0</code>, checkpoints
+     * will start aligned. If during checkpointing, checkpoint start delay exceeds this {@link
+     * #alignedCheckpointTimeout}, alignment will timeout and checkpoint will start working as
+     * unaligned checkpoint.
+     */
+    @PublicEvolving
+    public void setAlignedCheckpointTimeout(Duration alignedCheckpointTimeout) {
+        this.alignedCheckpointTimeout = alignedCheckpointTimeout;
     }
 
     /**
@@ -668,6 +675,28 @@ public class CheckpointConfig implements java.io.Serializable {
         return this.storage;
     }
 
+    /**
+     * Setup the checkpoint id for which the in-flight data will be ignored for all operators in
+     * case of the recovery from this checkpoint.
+     *
+     * @param checkpointIdOfIgnoredInFlightData Checkpoint id for which in-flight data should be
+     *     ignored.
+     * @see #setCheckpointIdOfIgnoredInFlightData
+     */
+    @PublicEvolving
+    public void setCheckpointIdOfIgnoredInFlightData(long checkpointIdOfIgnoredInFlightData) {
+        this.checkpointIdOfIgnoredInFlightData = checkpointIdOfIgnoredInFlightData;
+    }
+
+    /**
+     * @return Checkpoint id for which in-flight data should be ignored.
+     * @see #setCheckpointIdOfIgnoredInFlightData
+     */
+    @PublicEvolving
+    public long getCheckpointIdOfIgnoredInFlightData() {
+        return checkpointIdOfIgnoredInFlightData;
+    }
+
     /** Cleanup behaviour for externalized checkpoints when the job is cancelled. */
     @PublicEvolving
     public enum ExternalizedCheckpointCleanup {
@@ -738,9 +767,6 @@ public class CheckpointConfig implements java.io.Serializable {
                 .getOptional(ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS)
                 .ifPresent(m -> this.setMinPauseBetweenCheckpoints(m.toMillis()));
         configuration
-                .getOptional(ExecutionCheckpointingOptions.PREFER_CHECKPOINT_FOR_RECOVERY)
-                .ifPresent(this::setPreferCheckpointForRecovery);
-        configuration
                 .getOptional(ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER)
                 .ifPresent(this::setTolerableCheckpointFailureNumber);
         configuration
@@ -750,8 +776,11 @@ public class CheckpointConfig implements java.io.Serializable {
                 .getOptional(ExecutionCheckpointingOptions.ENABLE_UNALIGNED)
                 .ifPresent(this::enableUnalignedCheckpoints);
         configuration
-                .getOptional(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT)
-                .ifPresent(this::setAlignmentTimeout);
+                .getOptional(ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA)
+                .ifPresent(this::setCheckpointIdOfIgnoredInFlightData);
+        configuration
+                .getOptional(ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT)
+                .ifPresent(this::setAlignedCheckpointTimeout);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.FORCE_UNALIGNED)
                 .ifPresent(this::setForceUnalignedCheckpoints);

@@ -23,7 +23,9 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -62,6 +64,37 @@ public class SimpleVersionedSerialization {
     }
 
     /**
+     * Serializes the version and data into a stream.
+     *
+     * <p>Data serialized via this method can be deserialized via {@link
+     * #readVersionAndDeserializeList(SimpleVersionedSerializer, DataInputView)}.
+     *
+     * <p>The first eight bytes will be occupied by the version, as returned by {@link
+     * SimpleVersionedSerializer#getVersion()} and the length of the list. The remaining bytes will
+     * be the serialized data, as produced by {@link SimpleVersionedSerializer#serialize(Object)},
+     * plus its length.
+     *
+     * @param serializer The serializer to serialize the datum with.
+     * @param data list of datum to serialize.
+     * @param out The stream to serialize to.
+     */
+    public static <T> void writeVersionAndSerializeList(
+            SimpleVersionedSerializer<T> serializer, List<T> data, DataOutputView out)
+            throws IOException {
+        checkNotNull(serializer);
+        checkNotNull(data);
+        checkNotNull(out);
+
+        out.writeInt(serializer.getVersion());
+        out.writeInt(data.size());
+        for (final T datum : data) {
+            final byte[] serializedDatum = serializer.serialize(datum);
+            out.writeInt(serializedDatum.length);
+            out.write(serializer.serialize(datum));
+        }
+    }
+
+    /**
      * Deserializes the version and datum from a stream.
      *
      * <p>This method deserializes data serialized via {@link
@@ -86,6 +119,35 @@ public class SimpleVersionedSerialization {
         in.readFully(data);
 
         return serializer.deserialize(version, data);
+    }
+
+    /**
+     * Deserializes the version and data from a stream.
+     *
+     * <p>This method deserializes data serialized via {@link
+     * #writeVersionAndSerializeList(SimpleVersionedSerializer, List, DataOutputView)} .
+     *
+     * <p>The first four bytes will be interpreted as the version. The next four bytes will be
+     * interpreted as the length of the list, then length-many data will be read and deserialized
+     * via the {@link SimpleVersionedSerializer#deserialize(int, byte[])} method.
+     *
+     * @param serializer The serializer to serialize the datum with.
+     * @param in The stream to deserialize from.
+     */
+    public static <T> List<T> readVersionAndDeserializeList(
+            SimpleVersionedSerializer<T> serializer, DataInputView in) throws IOException {
+        checkNotNull(serializer);
+        checkNotNull(in);
+        final int serializerVersion = in.readInt();
+        final int dataSize = in.readInt();
+        final List<T> data = new ArrayList<>();
+        for (int ignored = 0; ignored < dataSize; ignored++) {
+            final int datumSize = in.readInt();
+            final byte[] datum = new byte[datumSize];
+            in.readFully(datum);
+            data.add(serializer.deserialize(serializerVersion, datum));
+        }
+        return data;
     }
 
     /**

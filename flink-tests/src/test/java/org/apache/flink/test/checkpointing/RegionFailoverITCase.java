@@ -35,11 +35,10 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -440,20 +439,6 @@ public class RegionFailoverITCase extends TestLogger {
         private static final long serialVersionUID = 1L;
     }
 
-    private static class TestingHaServices extends EmbeddedHaServices {
-        private final CheckpointRecoveryFactory checkpointRecoveryFactory;
-
-        TestingHaServices(CheckpointRecoveryFactory checkpointRecoveryFactory, Executor executor) {
-            super(executor);
-            this.checkpointRecoveryFactory = checkpointRecoveryFactory;
-        }
-
-        @Override
-        public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-            return checkpointRecoveryFactory;
-        }
-    }
-
     /**
      * An extension of {@link StandaloneCompletedCheckpointStore} which would record information of
      * last completed checkpoint id and the number of completed checkpoints.
@@ -486,11 +471,10 @@ public class RegionFailoverITCase extends TestLogger {
         @Override
         public HighAvailabilityServices createHAServices(
                 Configuration configuration, Executor executor) {
-            return new TestingHaServices(
-                    PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs(
-                            new TestingCompletedCheckpointStore(),
-                            new StandaloneCheckpointIDCounter()),
-                    executor);
+            final CheckpointRecoveryFactory checkpointRecoveryFactory =
+                    PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
+                            maxCheckpoints -> new TestingCompletedCheckpointStore());
+            return new EmbeddedHaServicesWithLeadershipControl(executor, checkpointRecoveryFactory);
         }
     }
 }

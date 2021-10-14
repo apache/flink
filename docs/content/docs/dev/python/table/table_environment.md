@@ -38,10 +38,10 @@ The recommended way to create a `TableEnvironment` is to create from an `Environ
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a streaming TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 
 # or a batch TableEnvironment
-# env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+# env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 ```
 
@@ -49,9 +49,9 @@ Alternatively, users can create a `StreamTableEnvironment` from an existing `Str
 
 ```python
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamTableEnvironment, BatchTableEnvironment, TableConfig
+from pyflink.table import StreamTableEnvironment
 
-# create a blink streaming TableEnvironment from a StreamExecutionEnvironment
+# create a streaming TableEnvironment from a StreamExecutionEnvironment
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 ```
@@ -260,18 +260,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_update" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>connect(connector_descriptor)</strong>
-      </td>
-      <td>
-        Creates a temporary table from a descriptor. 
-        Currently the recommended way is using <strong>execute_sql</strong> to register temporary tables.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.connect" name="link">}}
       </td>
     </tr>
   </tbody>
@@ -578,7 +566,7 @@ Please refer to the [Dependency Management]({{< ref "docs/dev/python/dependency_
       <td>
         Returns the table config to define the runtime behavior of the Table API.
         You can find all the available configuration options in <a href="{{< ref "docs/deployment/config" >}}">Configuration</a> and
-        <a href="{{< ref "docs/dev/python/python_config" >}}">Python Configuation</a>. <br> <br>
+        <a href="{{< ref "docs/dev/python/python_config" >}}">Python Configuration</a>. <br> <br>
         The following code is an example showing how to set the configuration options through this API:
 ```python
 # set the parallelism to 8

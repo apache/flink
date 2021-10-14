@@ -482,6 +482,17 @@ public final class ExceptionUtils {
     }
 
     /**
+     * The same as {@link #findThrowable(Throwable, Class)}, but rethrows original exception if the
+     * expected exception was not found.
+     */
+    public static <T extends Throwable> void assertThrowable(
+            Throwable throwable, Class<T> searchType) throws T {
+        if (!findThrowable(throwable, searchType).isPresent()) {
+            throw (T) throwable;
+        }
+    }
+
+    /**
      * Checks whether a throwable chain contains a specific type of exception and returns it. This
      * method handles {@link SerializedThrowable}s in the chain and deserializes them with the given
      * ClassLoader.
@@ -542,6 +553,17 @@ public final class ExceptionUtils {
     }
 
     /**
+     * The same as {@link #findThrowable(Throwable, Predicate)}, but rethrows original exception if
+     * the expected exception was not found.
+     */
+    public static <T extends Throwable> void assertThrowable(
+            T throwable, Predicate<Throwable> predicate) throws T {
+        if (!findThrowable(throwable, predicate).isPresent()) {
+            throw (T) throwable;
+        }
+    }
+
+    /**
      * Checks whether a throwable chain contains a specific error message and returns the
      * corresponding throwable.
      *
@@ -565,6 +587,17 @@ public final class ExceptionUtils {
         }
 
         return Optional.empty();
+    }
+
+    /**
+     * The same as {@link #findThrowableWithMessage(Throwable, String)}, but rethrows original
+     * exception if the expected exception was not found.
+     */
+    public static <T extends Throwable> void assertThrowableWithMessage(
+            Throwable throwable, String searchMessage) throws T {
+        if (!findThrowableWithMessage(throwable, searchMessage).isPresent()) {
+            throw (T) throwable;
+        }
     }
 
     /**

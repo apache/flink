@@ -25,7 +25,9 @@ import org.apache.flink.test.plugin.jar.plugina.TestServiceA;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Iterator;
 
 /** Test for {@link PluginLoader}. */
@@ -39,11 +41,11 @@ public class PluginLoaderTest extends PluginTestBase {
         String[] parentPatterns = {TestSpi.class.getName(), OtherTestSpi.class.getName()};
         PluginDescriptor pluginDescriptorA =
                 new PluginDescriptor("A", new URL[] {classpathA}, parentPatterns);
-        ClassLoader pluginClassLoaderA =
+        URLClassLoader pluginClassLoaderA =
                 PluginLoader.createPluginClassLoader(
                         pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
         Assert.assertNotEquals(PARENT_CLASS_LOADER, pluginClassLoaderA);
-        final PluginLoader pluginLoaderA = new PluginLoader(pluginClassLoaderA);
+        final PluginLoader pluginLoaderA = new PluginLoader("test-plugin", pluginClassLoaderA);
 
         Iterator<TestSpi> testSpiIteratorA = pluginLoaderA.load(TestSpi.class);
 
@@ -79,5 +81,24 @@ public class PluginLoaderTest extends PluginTestBase {
                 testSpiA.getClass().getCanonicalName(),
                 secondTestSpiA.getClass().getCanonicalName());
         Assert.assertNotEquals(testSpiA.getClass(), secondTestSpiA.getClass());
+    }
+
+    @Test
+    public void testClose() throws MalformedURLException {
+        final URL classpathA = createPluginJarURLFromString(PLUGIN_A);
+
+        String[] parentPatterns = {TestSpi.class.getName()};
+        PluginDescriptor pluginDescriptorA =
+                new PluginDescriptor("A", new URL[] {classpathA}, parentPatterns);
+        URLClassLoader pluginClassLoaderA =
+                PluginLoader.createPluginClassLoader(
+                        pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
+
+        final PluginLoader pluginLoaderA = new PluginLoader("test-plugin", pluginClassLoaderA);
+        pluginLoaderA.close();
+
+        Assert.assertThrows(
+                ClassNotFoundException.class,
+                () -> pluginClassLoaderA.loadClass(junit.framework.Test.class.getName()));
     }
 }

@@ -51,6 +51,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
@@ -469,6 +470,9 @@ public class RocksDBStateBackendConfigTest {
                         .setMaxBackgroundThreads(4)
                         .setMaxOpenFiles(-1)
                         .setLogLevel(InfoLogLevel.DEBUG_LEVEL)
+                        .setLogDir("/tmp/rocksdb-logs/")
+                        .setLogFileNum(10)
+                        .setMaxLogFileSize("2MB")
                         .setCompactionStyle(CompactionStyle.LEVEL)
                         .setUseDynamicLevelSize(true)
                         .setTargetFileSizeBase("4MB")
@@ -478,14 +482,21 @@ public class RocksDBStateBackendConfigTest {
                         .setMinWriteBufferNumberToMerge(3)
                         .setBlockSize("64KB")
                         .setMetadataBlockSize("16KB")
-                        .setBlockCacheSize("512mb");
+                        .setBlockCacheSize("512mb")
+                        .setUseBloomFilter(true)
+                        .setBloomFilterBitsPerKey(12.0)
+                        .setBloomFilterBlockBasedMode(false);
 
         try (RocksDBResourceContainer optionsContainer =
                 new RocksDBResourceContainer(PredefinedOptions.DEFAULT, customizedOptions)) {
 
             DBOptions dbOptions = optionsContainer.getDbOptions();
             assertEquals(-1, dbOptions.maxOpenFiles());
+
             assertEquals(InfoLogLevel.DEBUG_LEVEL, dbOptions.infoLogLevel());
+            assertEquals("/tmp/rocksdb-logs/", dbOptions.dbLogDir());
+            assertEquals(10, dbOptions.keepLogFileNum());
+            assertEquals(2 * SizeUnit.MB, dbOptions.maxLogFileSize());
 
             ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
             assertEquals(CompactionStyle.LEVEL, columnOptions.compactionStyle());
@@ -500,6 +511,7 @@ public class RocksDBStateBackendConfigTest {
             assertEquals(64 * SizeUnit.KB, tableConfig.blockSize());
             assertEquals(16 * SizeUnit.KB, tableConfig.metadataBlockSize());
             assertEquals(512 * SizeUnit.MB, tableConfig.blockCacheSize());
+            assertTrue(tableConfig.filterPolicy() instanceof BloomFilter);
         }
     }
 
@@ -514,6 +526,11 @@ public class RocksDBStateBackendConfigTest {
         {
             verifyIllegalArgument(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, "-1");
             verifyIllegalArgument(RocksDBConfigurableOptions.LOG_LEVEL, "DEBUG");
+            verifyIllegalArgument(RocksDBConfigurableOptions.LOG_DIR, "tmp/rocksdb-logs/");
+            verifyIllegalArgument(RocksDBConfigurableOptions.LOG_DIR, "");
+            verifyIllegalArgument(RocksDBConfigurableOptions.LOG_FILE_NUM, "0");
+            verifyIllegalArgument(RocksDBConfigurableOptions.LOG_FILE_NUM, "-1");
+            verifyIllegalArgument(RocksDBConfigurableOptions.LOG_MAX_FILE_SIZE, "-1KB");
             verifyIllegalArgument(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, "-1");
             verifyIllegalArgument(
                     RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, "-1");
@@ -528,11 +545,16 @@ public class RocksDBStateBackendConfigTest {
             verifyIllegalArgument(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, "1");
 
             verifyIllegalArgument(RocksDBConfigurableOptions.COMPACTION_STYLE, "LEV");
+            verifyIllegalArgument(RocksDBConfigurableOptions.USE_BLOOM_FILTER, "NO");
+            verifyIllegalArgument(RocksDBConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE, "YES");
         }
 
         // verify legal configuration
         {
             configuration.setString(RocksDBConfigurableOptions.LOG_LEVEL.key(), "DEBUG_LEVEL");
+            configuration.setString(RocksDBConfigurableOptions.LOG_DIR.key(), "/tmp/rocksdb-logs/");
+            configuration.setString(RocksDBConfigurableOptions.LOG_FILE_NUM.key(), "10");
+            configuration.setString(RocksDBConfigurableOptions.LOG_MAX_FILE_SIZE.key(), "2MB");
             configuration.setString(RocksDBConfigurableOptions.COMPACTION_STYLE.key(), "level");
             configuration.setString(
                     RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE.key(), "TRUE");
@@ -546,6 +568,7 @@ public class RocksDBStateBackendConfigTest {
             configuration.setString(RocksDBConfigurableOptions.BLOCK_SIZE.key(), "4 kb");
             configuration.setString(RocksDBConfigurableOptions.METADATA_BLOCK_SIZE.key(), "8 kb");
             configuration.setString(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE.key(), "512 mb");
+            configuration.setString(RocksDBConfigurableOptions.USE_BLOOM_FILTER.key(), "TRUE");
 
             DefaultConfigurableOptionsFactory optionsFactory =
                     new DefaultConfigurableOptionsFactory();
@@ -557,6 +580,9 @@ public class RocksDBStateBackendConfigTest {
                 DBOptions dbOptions = optionsContainer.getDbOptions();
                 assertEquals(-1, dbOptions.maxOpenFiles());
                 assertEquals(InfoLogLevel.DEBUG_LEVEL, dbOptions.infoLogLevel());
+                assertEquals("/tmp/rocksdb-logs/", dbOptions.dbLogDir());
+                assertEquals(10, dbOptions.keepLogFileNum());
+                assertEquals(2 * SizeUnit.MB, dbOptions.maxLogFileSize());
 
                 ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
                 assertEquals(CompactionStyle.LEVEL, columnOptions.compactionStyle());
@@ -572,6 +598,7 @@ public class RocksDBStateBackendConfigTest {
                 assertEquals(4 * SizeUnit.KB, tableConfig.blockSize());
                 assertEquals(8 * SizeUnit.KB, tableConfig.metadataBlockSize());
                 assertEquals(512 * SizeUnit.MB, tableConfig.blockCacheSize());
+                assertTrue(tableConfig.filterPolicy() instanceof BloomFilter);
             }
         }
     }

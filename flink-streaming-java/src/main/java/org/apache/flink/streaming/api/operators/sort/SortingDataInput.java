@@ -18,28 +18,29 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.sort.PushSorter;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -50,16 +51,16 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * A {@link StreamTaskInput} which sorts in the incoming records from a chained input. It postpones
- * emitting the records until it receives {@link InputStatus#END_OF_INPUT} from the chained input.
- * After it is done it emits a single record at a time from the sorter.
+ * emitting the records until it receives {@link DataInputStatus#END_OF_INPUT} from the chained
+ * input. After it is done it emits a single record at a time from the sorter.
  *
  * <p>The sorter uses binary comparison of keys, which are extracted and serialized when received
  * from the chained input. Moreover the timestamps of incoming records are used for secondary
  * ordering. For the comparison it uses either {@link FixedLengthByteKeyComparator} if the length of
  * the serialized key is constant, or {@link VariableLengthByteKeyComparator} otherwise.
  *
- * <p>Watermarks, stream statuses, nor latency markers are propagated downstream as they do not make
- * sense with buffered records. The input emits the largest watermark seen after all records.
+ * <p>Watermarks, watermark statuses, nor latency markers are propagated downstream as they do not
+ * make sense with buffered records. The input emits the largest watermark seen after all records.
  *
  * @param <T> The type of the value in incoming {@link StreamRecord StreamRecords}.
  * @param <K> The type of the key.
@@ -86,7 +87,8 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
             boolean objectReuse,
             double managedMemoryFraction,
             Configuration jobConfiguration,
-            AbstractInvokable containingTask) {
+            TaskInvokable containingTask,
+            ExecutionConfig executionConfig) {
         try {
             this.forwardingDataOutput = new ForwardingDataOutput();
             this.keySelector = keySelector;
@@ -108,7 +110,8 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
                                     memoryManager,
                                     containingTask,
                                     keyAndValueSerializer,
-                                    comparator)
+                                    comparator,
+                                    executionConfig)
                             .memoryFraction(managedMemoryFraction)
                             .enableSpilling(
                                     ioManager,
@@ -175,20 +178,20 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) {}
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {}
     }
 
     @Override
-    public InputStatus emitNext(DataOutput<T> output) throws Exception {
+    public DataInputStatus emitNext(DataOutput<T> output) throws Exception {
         if (sortedInput != null) {
             return emitNextSortedRecord(output);
         }
 
-        InputStatus inputStatus = wrappedInput.emitNext(forwardingDataOutput);
-        if (inputStatus == InputStatus.END_OF_INPUT) {
+        DataInputStatus inputStatus = wrappedInput.emitNext(forwardingDataOutput);
+        if (inputStatus == DataInputStatus.END_OF_DATA) {
             endSorting();
             return emitNextSortedRecord(output);
         }
@@ -197,21 +200,21 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
     }
 
     @Nonnull
-    private InputStatus emitNextSortedRecord(DataOutput<T> output) throws Exception {
+    private DataInputStatus emitNextSortedRecord(DataOutput<T> output) throws Exception {
         if (emittedLast) {
-            return InputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_INPUT;
         }
 
         Tuple2<byte[], StreamRecord<T>> next = sortedInput.next();
         if (next != null) {
             output.emitRecord(next.f1);
-            return InputStatus.MORE_AVAILABLE;
+            return DataInputStatus.MORE_AVAILABLE;
         } else {
             emittedLast = true;
             if (watermarkSeen > Long.MIN_VALUE) {
                 output.emitWatermark(new Watermark(watermarkSeen));
             }
-            return InputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_DATA;
         }
     }
 

@@ -72,8 +72,11 @@ public class MockBaseSource implements Source<Integer, MockSourceSplit, List<Moc
         Configuration config = new Configuration();
         config.setInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 1);
         config.setLong(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
-        return new MockSourceReader(
-                elementsQueue, () -> new MockSplitReader(2, true), config, readerContext);
+        MockSplitReader.Builder builder =
+                MockSplitReader.newBuilder()
+                        .setNumRecordsPerSplitPerFetch(2)
+                        .setBlockingFetch(true);
+        return new MockSourceReader(elementsQueue, builder::build, config, readerContext);
     }
 
     @Override
@@ -114,7 +117,8 @@ public class MockBaseSource implements Source<Integer, MockSourceSplit, List<Moc
 
             @Override
             public byte[] serialize(List<MockSourceSplit> obj) throws IOException {
-                return InstantiationUtil.serializeObject(obj.toArray());
+                return InstantiationUtil.serializeObject(
+                        obj.toArray(new MockSourceSplit[obj.size()]));
             }
 
             @Override

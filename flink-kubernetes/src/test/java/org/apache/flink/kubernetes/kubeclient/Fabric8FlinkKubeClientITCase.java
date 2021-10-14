@@ -20,9 +20,9 @@ package org.apache.flink.kubernetes.kubeclient;
 
 import org.apache.flink.kubernetes.KubernetesResource;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import org.junit.After;
@@ -40,9 +40,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /**
  * IT Tests for {@link org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient} with real K8s

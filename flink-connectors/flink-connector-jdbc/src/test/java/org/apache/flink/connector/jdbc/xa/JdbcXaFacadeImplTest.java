@@ -23,6 +23,8 @@ import org.apache.flink.connector.jdbc.JdbcTestFixture;
 
 import org.junit.Test;
 
+import javax.sql.XAConnection;
+import javax.sql.XADataSource;
 import javax.transaction.xa.Xid;
 
 import java.sql.Connection;
@@ -30,6 +32,9 @@ import java.sql.Statement;
 import java.util.Collection;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /** {@link XaFacadeImpl} tests. */
 public class JdbcXaFacadeImplTest extends JdbcTestBase {
@@ -72,6 +77,25 @@ public class JdbcXaFacadeImplTest extends JdbcTestBase {
             recovered.forEach(f::rollback);
             assertEquals(1, recovered.size());
         }
+    }
+
+    @Test
+    public void testClose() throws Exception {
+        // some drivers (derby, H2) close both connection on either
+        // connection.close/xaConnection.close() call, so use mocks here to:
+        // a) prevent closing XA connection from connection.close()
+        // b) verify that both connections were closed
+        XADataSource xaDataSource = mock(XADataSource.class);
+        XAConnection xaConnection = mock(XAConnection.class);
+        Connection connection = mock(Connection.class);
+        when(xaDataSource.getXAConnection()).thenReturn(xaConnection);
+        when(xaConnection.getConnection()).thenReturn(connection);
+
+        try (XaFacade f = XaFacadeImpl.fromXaDataSource(xaDataSource)) {
+            f.open();
+        }
+        verify(connection).close();
+        verify(xaConnection).close();
     }
 
     @Override

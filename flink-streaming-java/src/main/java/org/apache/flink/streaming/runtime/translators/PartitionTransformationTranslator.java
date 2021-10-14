@@ -76,7 +76,7 @@ public class PartitionTransformationTranslator<OUT>
                     inputId,
                     virtualId,
                     transformation.getPartitioner(),
-                    transformation.getShuffleMode());
+                    transformation.getExchangeMode());
             resultIds.add(virtualId);
         }
         return resultIds;

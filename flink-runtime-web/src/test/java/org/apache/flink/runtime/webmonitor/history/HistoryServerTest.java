@@ -424,7 +424,7 @@ public class HistoryServerTest extends TestLogger {
         env.execute();
     }
 
-    static Tuple2<Integer, String> getFromHTTP(String url) throws Exception {
+    public static Tuple2<Integer, String> getFromHTTP(String url) throws Exception {
         URL u = new URL(url);
         HttpURLConnection connection = (HttpURLConnection) u.openConnection();
         connection.setConnectTimeout(100000);

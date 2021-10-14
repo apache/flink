@@ -37,6 +37,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -54,6 +55,8 @@ import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -224,7 +227,18 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
 
         assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
         assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
-        assertEquals(10, iteratorConsumedPartitions.next().getShuffleDescriptors().length);
+
+        ShuffleDescriptor[] shuffleDescriptors =
+                iteratorConsumedPartitions.next().getShuffleDescriptors();
+        assertEquals(10, shuffleDescriptors.length);
+
+        Iterator<ConsumedPartitionGroup> iteratorConsumedPartitionGroup =
+                vertex.getAllConsumedPartitionGroups().iterator();
+        int idx = 0;
+        for (IntermediateResultPartitionID partitionId : iteratorConsumedPartitionGroup.next()) {
+            assertEquals(
+                    partitionId, shuffleDescriptors[idx++].getResultPartitionID().getPartitionId());
+        }
     }
 
     @Test
@@ -658,7 +672,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
                                 false,
                                 false,
-                                false,
+                                0,
                                 0),
                         null));
 

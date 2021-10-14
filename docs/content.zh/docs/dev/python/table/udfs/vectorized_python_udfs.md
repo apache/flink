@@ -53,7 +53,7 @@ under the License.
 def add(i, j):
   return i + j
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 # use the vectorized Python scalar function in Python Table API
@@ -77,8 +77,6 @@ table_env.sql_query("SELECT add(bigint, bigint) FROM MyTable")
 <span class="label label-info">注意</span> 向量化聚合函数不支持部分聚合，而且一个组或者窗口内的所有数据，
 在执行的过程中，会被同时加载到内存，所以需要确保所配置的内存大小足够容纳这些数据。
 
-<span class="label label-info">注意</span> 向量化聚合函数只支持运行在 Blink Planner 上。
-
 以下示例显示了如何定一个自己的向量化聚合函数，该函数计算一列的平均值，并在 `GroupBy Aggregation`, `GroupBy Window Aggregation`
 and `Over Window Aggregation` 使用它:
 
@@ -87,7 +85,7 @@ and `Over Window Aggregation` 使用它:
 def mean_udaf(v):
     return v.mean()
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 my_table = ...  # type: Table, table schema: [a: String, b: BigInt, c: BigInt]

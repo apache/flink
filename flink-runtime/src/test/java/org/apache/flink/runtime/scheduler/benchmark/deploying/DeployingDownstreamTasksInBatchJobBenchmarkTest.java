@@ -36,5 +36,6 @@ public class DeployingDownstreamTasksInBatchJobBenchmarkTest extends TestLogger 
                 new DeployingDownstreamTasksInBatchJobBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.deployDownstreamTasks();
+        benchmark.teardown();
     }
 }

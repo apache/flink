@@ -34,8 +34,9 @@ import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUti
  */
 public class RegionToRestartInStreamingJobBenchmark extends FailoverBenchmarkBase {
 
+    @Override
     public void setup(JobConfiguration jobConfiguration) throws Exception {
-        createRestartPipelinedRegionFailoverStrategy(jobConfiguration);
+        super.setup(jobConfiguration);
 
         TestingLogicalSlotBuilder slotBuilder = new TestingLogicalSlotBuilder();
 

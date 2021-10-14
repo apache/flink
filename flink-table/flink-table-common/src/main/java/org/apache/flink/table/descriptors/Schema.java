@@ -39,8 +39,11 @@ import java.util.Map;
  * Describes a schema of a table.
  *
  * <p>Note: Field names are matched by the exact name by default (case sensitive).
+ *
+ * @deprecated This class was used for legacy connectors using {@link Descriptor}.
  */
 @PublicEvolving
+@Deprecated
 public class Schema implements Descriptor {
 
     public static final String SCHEMA = "schema";

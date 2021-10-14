@@ -39,7 +39,7 @@ public class ParquetSchemaConverter {
         return new MessageType(name, types);
     }
 
-    private static Type convertToParquetType(String name, LogicalType type) {
+    public static Type convertToParquetType(String name, LogicalType type) {
         return convertToParquetType(name, type, Type.Repetition.OPTIONAL);
     }
 

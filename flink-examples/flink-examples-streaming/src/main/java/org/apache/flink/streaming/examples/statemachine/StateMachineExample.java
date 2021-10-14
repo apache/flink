@@ -36,7 +36,7 @@ import org.apache.flink.streaming.examples.statemachine.dfa.State;
 import org.apache.flink.streaming.examples.statemachine.event.Alert;
 import org.apache.flink.streaming.examples.statemachine.event.Event;
 import org.apache.flink.streaming.examples.statemachine.generator.EventsGeneratorSource;
-import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializer;
+import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializationSchema;
 import org.apache.flink.util.Collector;
 
 /**
@@ -102,7 +102,7 @@ public class StateMachineExample {
                             .setTopics(kafkaTopic)
                             .setDeserializer(
                                     KafkaRecordDeserializationSchema.valueOnly(
-                                            new EventDeSerializer()))
+                                            new EventDeSerializationSchema()))
                             .setStartingOffsets(OffsetsInitializer.latest())
                             .build();
             events =

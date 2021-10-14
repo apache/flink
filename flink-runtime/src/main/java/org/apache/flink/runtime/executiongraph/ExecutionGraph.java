@@ -142,7 +142,7 @@ public interface ExecutionGraph extends AccessExecutionGraph {
 
     void setInternalTaskFailuresListener(InternalFailuresListener internalTaskFailuresListener);
 
-    void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException;
+    void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException;
 
     void transitionToRunning();
 

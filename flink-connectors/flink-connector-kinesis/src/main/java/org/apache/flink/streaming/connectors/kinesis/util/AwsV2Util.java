@@ -53,10 +53,12 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_EFO_HTTP_CLIENT_MAX_CONCURRENCY;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_EFO_HTTP_CLIENT_READ_TIMEOUT;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.EAGER;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.NONE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_READ_TIMEOUT_MILLIS;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_REGISTRATION_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
@@ -100,11 +102,19 @@ public class AwsV2Util {
         int maxConcurrency =
                 Optional.ofNullable(consumerConfig.getProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY))
                         .map(Integer::parseInt)
-                        .orElse(DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY);
+                        .orElse(DEFAULT_EFO_HTTP_CLIENT_MAX_CONCURRENCY);
+
+        Duration readTimeout =
+                Optional.ofNullable(consumerConfig.getProperty(EFO_HTTP_CLIENT_READ_TIMEOUT_MILLIS))
+                        .map(Integer::parseInt)
+                        .map(Duration::ofMillis)
+                        .orElse(DEFAULT_EFO_HTTP_CLIENT_READ_TIMEOUT);
 
         httpClientBuilder
                 .maxConcurrency(maxConcurrency)
                 .connectionTimeout(Duration.ofMillis(config.getConnectionTimeout()))
+                .readTimeout(readTimeout)
+                .tcpKeepAlive(config.useTcpKeepAlive())
                 .writeTimeout(Duration.ofMillis(config.getSocketTimeout()))
                 .connectionMaxIdleTime(Duration.ofMillis(config.getConnectionMaxIdleMillis()))
                 .useIdleConnectionReaper(config.useReaper())

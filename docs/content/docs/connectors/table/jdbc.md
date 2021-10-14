@@ -354,7 +354,7 @@ USE CATALOG mypg;
 {{< tab "Java" >}}
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "mypg";
@@ -373,7 +373,7 @@ tableEnv.useCatalog("mypg");
 {{< tab "Scala" >}}
 ```scala
 
-val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+val settings = EnvironmentSettings.inStreamingMode()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "mypg"
@@ -393,7 +393,7 @@ tableEnv.useCatalog("mypg")
 ```python
 from pyflink.table.catalog import JdbcCatalog
 
-environment_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+environment_settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(environment_settings)
 
 name = "mypg"
@@ -413,7 +413,6 @@ t_env.use_catalog("mypg")
 ```yaml
 
 execution:
-    planner: blink
     ...
     current-catalog: mypg  # set the JdbcCatalog as the current catalog of the session
     current-database: mydb
@@ -429,9 +428,9 @@ catalogs:
 {{< /tab >}}
 {{< /tabs >}}
 
-#### PostgresSQL Metaspace Mapping
+#### PostgreSQL Metaspace Mapping
 
-PostgresSQL has an additional namespace as `schema` besides database. A Postgres instance can have multiple databases, each database can have multiple schemas with a default one named "public", each schema can have multiple tables.
+PostgreSQL has an additional namespace as `schema` besides database. A Postgres instance can have multiple databases, each database can have multiple schemas with a default one named "public", each schema can have multiple tables.
 In Flink, when querying tables registered by Postgres catalog, users can use either `schema_name.table_name` or just `table_name`. The `schema_name` is optional and defaults to "public".
 
 Therefor the metaspace mapping between Flink Catalog and Postgres is as following:
@@ -461,7 +460,7 @@ SELECT * FROM `custom_schema.test_table2`;
 
 Data Type Mapping
 ----------------
-Flink supports connect to several databases which uses dialect like MySQL, PostgresSQL, Derby. The Derby dialect usually used for testing purpose. The field data type mappings from relational databases data types to Flink SQL data types are listed in the following table, the mapping table can help define JDBC table in Flink easily.
+Flink supports connect to several databases which uses dialect like MySQL, PostgreSQL, Derby. The Derby dialect usually used for testing purpose. The field data type mappings from relational databases data types to Flink SQL data types are listed in the following table, the mapping table can help define JDBC table in Flink easily.
 
 <table class="table table-bordered">
     <thead>

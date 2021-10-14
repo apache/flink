@@ -21,7 +21,7 @@ package org.apache.flink.formats.json.canal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.common.TimestampFormat;
-import org.apache.flink.formats.json.JsonOptions;
+import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -75,7 +75,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                 new CanalJsonSerializationSchema(
                         PHYSICAL_TYPE,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.FAIL,
+                        JsonFormatOptions.MapNullKeyMode.FAIL,
                         "null",
                         false);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
@@ -110,7 +110,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                 new CanalJsonSerializationSchema(
                         PHYSICAL_TYPE,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "nullKey",
                         true);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);

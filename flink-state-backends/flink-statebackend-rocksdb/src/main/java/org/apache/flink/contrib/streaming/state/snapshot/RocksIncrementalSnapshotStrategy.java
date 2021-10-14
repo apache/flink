@@ -121,8 +121,8 @@ public class RocksIncrementalSnapshotStrategy<K>
             @Nonnull File instanceBasePath,
             @Nonnull UUID backendUID,
             @Nonnull SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
-            long lastCompletedCheckpointId,
-            int numberOfTransferingThreads) {
+            @Nonnull RocksDBStateUploader rocksDBStateUploader,
+            long lastCompletedCheckpointId) {
 
         super(
                 DESCRIPTION,
@@ -137,8 +137,8 @@ public class RocksIncrementalSnapshotStrategy<K>
         this.instanceBasePath = instanceBasePath;
         this.backendUID = backendUID;
         this.materializedSstFiles = materializedSstFiles;
+        this.stateUploader = rocksDBStateUploader;
         this.lastCompletedCheckpointId = lastCompletedCheckpointId;
-        this.stateUploader = new RocksDBStateUploader(numberOfTransferingThreads);
         this.localDirectoryName = backendUID.toString().replaceAll("[\\-]", "");
     }
 
@@ -188,7 +188,11 @@ public class RocksIncrementalSnapshotStrategy<K>
     @Override
     public void notifyCheckpointComplete(long completedCheckpointId) {
         synchronized (materializedSstFiles) {
-            if (completedCheckpointId > lastCompletedCheckpointId) {
+            // FLINK-23949: materializedSstFiles.keySet().contains(completedCheckpointId) make sure
+            // the notified checkpointId is not a savepoint, otherwise next checkpoint will
+            // degenerate into a full checkpoint
+            if (completedCheckpointId > lastCompletedCheckpointId
+                    && materializedSstFiles.keySet().contains(completedCheckpointId)) {
                 materializedSstFiles
                         .keySet()
                         .removeIf(checkpointId -> checkpointId < completedCheckpointId);
@@ -202,6 +206,11 @@ public class RocksIncrementalSnapshotStrategy<K>
         synchronized (materializedSstFiles) {
             materializedSstFiles.keySet().remove(abortedCheckpointId);
         }
+    }
+
+    @Override
+    public void close() {
+        stateUploader.close();
     }
 
     @Nonnull

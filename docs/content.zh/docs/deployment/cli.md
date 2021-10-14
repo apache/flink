@@ -30,7 +30,7 @@ under the License.
 Flink provides a Command-Line Interface (CLI) `bin/flink` to run programs that 
 are packaged as JAR files and to control their execution. The CLI is part of any 
 Flink setup, available in local single node setups and in distributed setups. 
-It connects to the running JobManager specified in `conf/flink-config.yaml`.
+It connects to the running JobManager specified in `conf/flink-conf.yaml`.
 
 
 
@@ -79,6 +79,14 @@ $ export JOB_ID="cca7bc1061d61cf15238e92312c2fc20"
 There is another action called `run-application` available to run the job in 
 [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode). This documentation does not address
 this action individually as it works similarly to the `run` action in terms of the CLI frontend.
+
+The `run` and `run-application` commands support passing additional configuration parameters via the
+`-D` argument. For example setting the [maximum parallelism]({{< ref "docs/deployment/config#pipeline-max-parallelism" >}}#application-mode) 
+for a job can be done by setting `-Dpipeline.max-parallelism=120`. This argument is very useful for
+configuring per-job or application mode clusters, because you can pass any configuration parameter 
+to the cluster, without changing the configuration file.
+
+When submitting a job to an existing session cluster, only [execution configuration parameters]({{< ref "docs/deployment/config#execution" >}}) are supported.
 
 ### Job Monitoring
 
@@ -154,7 +162,7 @@ completion of that savepoint, they will finish by calling their `cancel()` metho
 
 ```bash
 $ ./bin/flink stop \
-      --savepointPath /tmp-flink-savepoints \
+      --savepointPath /tmp/flink-savepoints \
       $JOB_ID
 ```
 ```
@@ -282,7 +290,7 @@ Here's an overview of actions supported by Flink's CLI tool:
                 This action can be used to create or disposing savepoints for a given job. It might be
                 necessary to specify a savepoint directory besides the JobID, if the 
                 <a href="{{< ref "docs/deployment/config" >}}#state-savepoints-dir">state.savepoints.dir</a> 
-                parameter was not specified in <code class="highlighter-rouge">conf/flink-config.yaml</code>.
+                parameter was not specified in <code class="highlighter-rouge">conf/flink-conf.yaml</code>.
             </td>
         </tr>
         <tr>
@@ -335,14 +343,12 @@ parameter combinations:
 * Kubernetes
   * `./bin/flink run --target kubernetes-session`: Submission to an already running Flink on Kubernetes cluster
   * `./bin/flink run-application --target kubernetes-application`: Submission spinning up a Flink on Kubernetes cluster in Application Mode
-* Mesos
-  * `./bin/flink run --target remote`: Submission to an already running Flink on Mesos cluster
 * Standalone:
   * `./bin/flink run --target local`: Local submission using a MiniCluster in Session Mode
   * `./bin/flink run --target remote`: Submission to an already running Flink cluster
 
 The `--target` will overwrite the [execution.target]({{< ref "docs/deployment/config" >}}#execution-target) 
-specified in the `config/flink-config.yaml`.
+specified in the `conf/flink-conf.yaml`.
 
 For more details on the commands and the available options, please refer to the Resource Provider-specific 
 pages of the documentation.
@@ -364,14 +370,14 @@ The following commands show different PyFlink job submission use-cases:
 
 - Run a PyFlink job:
 ```bash
-$ ./bin/flink run --python examples/python/table/batch/word_count.py
+$ ./bin/flink run --python examples/python/table/word_count.py
 ```
 
 - Run a PyFlink job with additional source and resource files. Files specified in `--pyFiles` will be
 added to the `PYTHONPATH` and, therefore, available in the Python code.
 ```bash
 $ ./bin/flink run \
-      --python examples/python/table/batch/word_count.py \
+      --python examples/python/table/word_count.py \
       --pyFiles file:///user.txt,hdfs:///$namenode_address/username.txt
 ```
 
@@ -379,29 +385,29 @@ $ ./bin/flink run \
 to the cluster.
 ```bash
 $ ./bin/flink run \
-      --python examples/python/table/batch/word_count.py \
+      --python examples/python/table/word_count.py \
       --jarfile <jarFile>
 ```
 
 - Run a PyFlink job with pyFiles and the main entry module specified in `--pyModule`:
 ```bash
 $ ./bin/flink run \
-      --pyModule batch.word_count \
-      --pyFiles examples/python/table/batch
+      --pyModule table.word_count \
+      --pyFiles examples/python/table
 ```
 
 - Submit a PyFlink job on a specific JobManager running on host `<jobmanagerHost>` (adapt the command accordingly):
 ```bash
 $ ./bin/flink run \
       --jobmanager <jobmanagerHost>:8081 \
-      --python examples/python/table/batch/word_count.py
+      --python examples/python/table/word_count.py
 ```
 
 - Run a PyFlink job using a [YARN cluster in Per-Job Mode]({{< ref "docs/deployment/resource-providers/yarn" >}}#per-job-cluster-mode):
 ```bash
 $ ./bin/flink run \
       --target yarn-per-job
-      --python examples/python/table/batch/word_count.py
+      --python examples/python/table/word_count.py
 ```
 
 - Run a PyFlink application on a native Kubernetes cluster having the cluster ID `<ClusterId>`, it requires a docker image with PyFlink installed, please refer to [Enabling PyFlink in docker]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#enabling-python):
@@ -415,7 +421,7 @@ $ ./bin/flink run-application \
       -Dtaskmanager.numberOfTaskSlots=4 \
       -Dkubernetes.container.image=<PyFlinkImageName> \
       --pyModule word_count \
-      --pyFiles /opt/flink/examples/python/table/batch/word_count.py
+      --pyFiles /opt/flink/examples/python/table/word_count.py
 ```
 
 To learn more available options, please refer to [Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})
@@ -461,7 +467,7 @@ related options. Here's an overview of all the Python related options for the ac
             <td><code class="highlighter-rouge">-pyarch,--pyArchives</code></td>
             <td>
                 Add python archive files for job. The archive files will be extracted to the working directory
-                of python UDF worker. Currently only zip-format is supported. For each archive file, a target directory
+                of python UDF worker. For each archive file, a target directory
                 be specified. If the target directory name is specified, the archive file will be extracted to a
                 directory with the specified name. Otherwise, the archive file will be extracted to a
                 directory with the same name of the archive file. The files uploaded via this option are accessible
@@ -471,6 +477,15 @@ related options. Here's an overview of all the Python related options for the ac
                 (e.g., --pyArchives file:///tmp/py37.zip,file:///tmp/data.zip#data --pyExecutable
                 py37.zip/py37/bin/python). The data files could be accessed in Python UDF, e.g.:
                 f = open('data/data.txt', 'r').
+            </td>
+        </tr>
+        <tr>
+            <td><code class="highlighter-rouge">-pyclientexec,--pyClientExecutable</code></td>
+            <td>
+                The path of the Python interpreter used to launch the Python process when submitting
+                the Python jobs via \"flink run\" or compiling the Java/Scala jobs containing
+                Python UDFs.
+                (e.g., --pyArchives file:///tmp/py37.zip --pyClientExecutable py37.zip/py37/python)
             </td>
         </tr>
         <tr>

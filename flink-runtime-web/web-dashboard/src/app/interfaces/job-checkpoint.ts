@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import { SafeAny } from './safe-any';
+
 export interface CheckPointInterface {
   counts: {
     restored: number;
@@ -75,6 +77,11 @@ export interface CheckPointMinMaxAvgStatisticsInterface {
   min: number;
   max: number;
   avg: number;
+  p50: number;
+  p90: number;
+  p95: number;
+  p99: number;
+  p999: number;
 }
 
 export interface CheckPointCompletedStatisticsInterface {
@@ -106,7 +113,7 @@ export interface CheckPointTaskStatisticsInterface {
 }
 
 export interface CheckPointConfigInterface {
-  mode: any;
+  mode: SafeAny;
   interval: number;
   timeout: number;
   min_pause: number;
@@ -119,7 +126,7 @@ export interface CheckPointConfigInterface {
   checkpoint_storage: string;
   unaligned_checkpoints: boolean;
   tolerable_failed_checkpoints: number;
-  alignment_timeout: number;
+  aligned_checkpoint_timeout: number;
 }
 
 export interface CheckPointDetailInterface {
@@ -138,7 +145,7 @@ export interface CheckPointDetailInterface {
   num_acknowledged_subtasks: number;
   checkpoint_type: string;
   tasks: Array<{
-    [ taskId: string ]: {
+    [taskId: string]: {
       id: number;
       status: string;
       latest_ack_timestamp: number;

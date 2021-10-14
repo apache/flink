@@ -18,9 +18,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Iterable
 
-from apache_beam.coders import PickleCoder, Coder
-
 from pyflink.common import Row, RowKind
+from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerKeyStateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
@@ -73,20 +72,20 @@ class AggsHandleFunctionBase(ABC):
         pass
 
     @abstractmethod
-    def accumulate(self, input_data: List):
+    def accumulate(self, input_data: Row):
         """
         Accumulates the input values to the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a Row.
         """
         pass
 
     @abstractmethod
-    def retract(self, input_data: List):
+    def retract(self, input_data: Row):
         """
         Retracts the input values from the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a Row.
         """
 
     @abstractmethod
@@ -210,13 +209,13 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                     data_views[data_view_spec.field_index] = \
                         state_data_view_store.get_state_list_view(
                             data_view_spec.state_id,
-                            PickleCoder())
+                            data_view_spec.element_coder)
                 elif isinstance(data_view_spec, MapViewSpec):
                     data_views[data_view_spec.field_index] = \
                         state_data_view_store.get_state_map_view(
                             data_view_spec.state_id,
-                            PickleCoder(),
-                            PickleCoder())
+                            data_view_spec.key_coder,
+                            data_view_spec.value_coder)
             self._udf_data_views.append(data_views)
         for key in self._distinct_view_descriptors.keys():
             self._distinct_data_views[key] = state_data_view_store.get_state_map_view(
@@ -224,7 +223,7 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                 PickleCoder(),
                 PickleCoder())
 
-    def accumulate(self, input_data: List):
+    def accumulate(self, input_data: Row):
         for i in range(len(self._udfs)):
             if i in self._distinct_data_views:
                 if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
@@ -255,7 +254,7 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                         "The args are not in the distinct data view, this should not happen.")
             self._udfs[i].accumulate(self._accumulators[i], *args)
 
-    def retract(self, input_data: List):
+    def retract(self, input_data: Row):
         for i in range(len(self._udfs)):
             if i in self._distinct_data_views:
                 if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
@@ -411,7 +410,7 @@ class GroupAggFunctionBase(object):
                  aggs_handle: AggsHandleFunctionBase,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,
                  index_of_count_star: int):
@@ -457,7 +456,7 @@ class GroupAggFunction(GroupAggFunctionBase):
                  aggs_handle: AggsHandleFunction,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,
                  index_of_count_star: int):
@@ -496,10 +495,10 @@ class GroupAggFunction(GroupAggFunctionBase):
                 # update aggregate result and set to the newRow
                 if input_row._is_accumulate_msg():
                     # accumulate input
-                    self.aggs_handle.accumulate(input_row._values)
+                    self.aggs_handle.accumulate(input_row)
                 else:
                     # retract input
-                    self.aggs_handle.retract(input_row._values)
+                    self.aggs_handle.retract(input_row)
 
             # get current aggregate result
             new_agg_value = self.aggs_handle.get_value()  # type: List
@@ -552,7 +551,7 @@ class GroupTableAggFunction(GroupAggFunctionBase):
                  aggs_handle: TableAggsHandleFunction,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,
                  index_of_count_star: int):
@@ -591,10 +590,10 @@ class GroupTableAggFunction(GroupAggFunctionBase):
                 # update aggregate result and set to the newRow
                 if input_row._is_accumulate_msg():
                     # accumulate input
-                    self.aggs_handle.accumulate(input_row._values)
+                    self.aggs_handle.accumulate(input_row)
                 else:
                     # retract input
-                    self.aggs_handle.retract(input_row._values)
+                    self.aggs_handle.retract(input_row)
 
             # get accumulator
             accumulators = self.aggs_handle.get_accumulators()

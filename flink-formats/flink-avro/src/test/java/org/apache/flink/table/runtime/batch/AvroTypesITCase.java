@@ -27,20 +27,17 @@ import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.avro.util.Utf8;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -59,8 +56,7 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for interoperability with Avro types. */
-@RunWith(Parameterized.class)
-public class AvroTypesITCase extends TableProgramsClusterTestBase {
+public class AvroTypesITCase extends AbstractTestBase {
 
     private static final User USER_1 =
             User.newBuilder()
@@ -160,16 +156,10 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
                             new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
                     .build();
 
-    public AvroTypesITCase(TestExecutionMode executionMode, TableConfigMode tableConfigMode) {
-        super(executionMode, tableConfigMode);
-    }
-
     @Test
     public void testAvroToRow() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        StreamTableEnvironment tEnv =
-                StreamTableEnvironment.create(
-                        env, EnvironmentSettings.newInstance().useBlinkPlanner().build());
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         DataStream<User> ds = testData(env);
         Table t = tEnv.fromDataStream(ds, selectFields(ds));
@@ -178,33 +168,29 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
         List<Row> results =
                 CollectionUtil.iteratorToList(
                         DataStreamUtils.collect(tEnv.toAppendStream(result, Row.class)));
+        // TODO we should get an Avro record here instead of a nested row.
+        //  This should be fixed with FLIP-136
         String expected =
-                "black,null,Whatever,[true],[hello],true,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],"
-                        + "2014-03-01,java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],0.0,GREEN,"
-                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],42,{},null,null,null,00:00:00.123456,"
-                        + "12:12:12,1970-01-01T00:00:00.123456Z,2014-03-01T12:12:12.321Z,null\n"
-                        + "blue,null,Charlie,[],[],false,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],2014-03-01,"
-                        + "java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],1.337,RED,null,1337,{},"
-                        +
-                        // TODO we should get an Avro record here instead of a nested row. This
-                        // should be fixed
-                        // with FLIP-136
-                        "Berlin,42,Berlin,Bakerstreet,12049,null,null,00:00:00.123456,12:12:12,1970-01-01T00:00:00.123456Z,"
-                        + "2014-03-01T12:12:12.321Z,null\n"
-                        + "yellow,null,Terminator,[false],[world],false,"
-                        + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],2014-03-01,"
-                        + "java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],0.0,GREEN,"
-                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],1,{},null,null,null,00:00:00.123456,"
-                        + "12:12:12,1970-01-01T00:00:00.123456Z,2014-03-01T12:12:12.321Z,null";
+                "+I[black, null, Whatever, [true], [hello], true, java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], "
+                        + "2014-03-01, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 0.0, GREEN, "
+                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 42, {}, null, null, null, 00:00:00.123456, "
+                        + "12:12:12, 1970-01-01T00:00:00.123456Z, 2014-03-01T12:12:12.321Z, null]\n"
+                        + "+I[blue, null, Charlie, [], [], false, java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, "
+                        + "java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 1.337, RED, null, 1337, {}, "
+                        + "+I[Berlin, 42, Berlin, Bakerstreet, 12049], null, null, 00:00:00.123456, 12:12:12, 1970-01-01T00:00:00.123456Z, "
+                        + "2014-03-01T12:12:12.321Z, null]\n"
+                        + "+I[yellow, null, Terminator, [false], [world], false, "
+                        + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, "
+                        + "java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 0.0, GREEN, "
+                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 1, {}, null, null, null, 00:00:00.123456, "
+                        + "12:12:12, 1970-01-01T00:00:00.123456Z, 2014-03-01T12:12:12.321Z, null]";
         TestBaseUtils.compareResultAsText(results, expected);
     }
 
     @Test
-    public void testAvroStringAccess() throws Exception {
+    public void testAvroStringAccess() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        StreamTableEnvironment tEnv =
-                StreamTableEnvironment.create(
-                        env, EnvironmentSettings.newInstance().useBlinkPlanner().build());
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         DataStream<User> ds = testData(env);
         Table t = tEnv.fromDataStream(ds, selectFields(ds));
@@ -221,9 +207,7 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
     @Test
     public void testAvroObjectAccess() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        StreamTableEnvironment tEnv =
-                StreamTableEnvironment.create(
-                        env, EnvironmentSettings.newInstance().useBlinkPlanner().build());
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         DataStream<User> ds = testData(env);
         Table t = tEnv.fromDataStream(ds, selectFields(ds));
@@ -242,9 +226,7 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
     @Test
     public void testAvroToAvro() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        StreamTableEnvironment tEnv =
-                StreamTableEnvironment.create(
-                        env, EnvironmentSettings.newInstance().useBlinkPlanner().build());
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         DataStream<User> ds = testData(env);
         Table t = tEnv.fromDataStream(ds, selectFields(ds));

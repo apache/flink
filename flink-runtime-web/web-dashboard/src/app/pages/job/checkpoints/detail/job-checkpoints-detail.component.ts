@@ -17,6 +17,9 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnInit } from '@angular/core';
+import { forkJoin } from 'rxjs';
+import { first } from 'rxjs/operators';
+
 import {
   CheckPointCompletedStatisticsInterface,
   CheckPointDetailInterface,
@@ -24,8 +27,6 @@ import {
   VerticesItemInterface,
   CheckPointConfigInterface
 } from 'interfaces';
-import { forkJoin } from 'rxjs';
-import { first } from 'rxjs/operators';
 import { JobService } from 'services';
 
 @Component({
@@ -45,7 +46,7 @@ export class JobCheckpointsDetailComponent implements OnInit {
     this.refresh();
   }
 
-  get checkPoint() {
+  get checkPoint(): CheckPointCompletedStatisticsInterface {
     return this.innerCheckPoint;
   }
 
@@ -54,11 +55,11 @@ export class JobCheckpointsDetailComponent implements OnInit {
   listOfVertex: VerticesItemInterface[] = [];
   isLoading = true;
 
-  trackVertexBy(_: number, node: VerticesItemInterface) {
+  trackVertexBy(_: number, node: VerticesItemInterface): string {
     return node.id;
   }
 
-  refresh() {
+  refresh(): void {
     this.isLoading = true;
     if (this.jobDetail && this.jobDetail.jid) {
       forkJoin([
@@ -94,7 +95,7 @@ export class JobCheckpointsDetailComponent implements OnInit {
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobService.jobDetail$.pipe(first()).subscribe(data => {
       this.jobDetail = data;
       this.listOfVertex = data!.vertices;

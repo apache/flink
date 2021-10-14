@@ -262,7 +262,6 @@ public class PythonStreamGroupAggregateOperatorTest
                     outputType,
                     STREAM_GROUP_AGGREGATE_URN,
                     getUserDefinedFunctionsProto(),
-                    FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
                     new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     getKeyedStateBackend(),

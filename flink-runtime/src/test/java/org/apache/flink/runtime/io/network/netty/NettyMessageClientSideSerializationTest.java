@@ -41,6 +41,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Random;
 
+import static org.apache.flink.runtime.io.network.netty.NettyMessage.BacklogAnnouncement;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder;
@@ -85,7 +86,7 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
                 createRemoteInputChannel(inputGate, new TestingPartitionRequestClient());
         inputChannel.requestSubpartition(0);
         inputGate.setInputChannels(inputChannel);
-        inputGate.setupChannels();
+        inputGate.setup();
 
         CreditBasedPartitionRequestClientHandler handler =
                 new CreditBasedPartitionRequestClientHandler();
@@ -147,6 +148,14 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
         testBufferResponse(false, true);
     }
 
+    @Test
+    public void testBacklogAnnouncement() {
+        BacklogAnnouncement expected = new BacklogAnnouncement(1024, inputChannelId);
+        BacklogAnnouncement actual = encodeAndDecode(expected, channel);
+        assertEquals(expected.backlog, actual.backlog);
+        assertEquals(expected.receiverId, actual.receiverId);
+    }
+
     private void testErrorResponse(ErrorResponse expect) {
         ErrorResponse actual = encodeAndDecode(expect, channel);
         verifyErrorResponse(expect, actual);
@@ -173,7 +182,11 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
         }
 
         BufferResponse expected =
-                new BufferResponse(testBuffer, random.nextInt(), inputChannelId, random.nextInt());
+                new BufferResponse(
+                        testBuffer,
+                        random.nextInt(Integer.MAX_VALUE),
+                        inputChannelId,
+                        random.nextInt(Integer.MAX_VALUE));
         BufferResponse actual = encodeAndDecode(expected, channel);
 
         assertTrue(buffer.isRecycled());

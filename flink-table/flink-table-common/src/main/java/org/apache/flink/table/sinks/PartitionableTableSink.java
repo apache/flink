@@ -63,8 +63,8 @@ import java.util.Map;
  * from each record.
  *
  * @deprecated This interface will not be supported in the new sink design around {@link
- *     DynamicTableSink} which only works with the Blink planner. Use {@link SupportsPartitioning}
- *     instead. See FLIP-95 for more information.
+ *     DynamicTableSink}. Use {@link SupportsPartitioning} instead. See FLIP-95 for more
+ *     information.
  */
 @Deprecated
 @Experimental

@@ -19,9 +19,7 @@
 package org.apache.flink.table.examples.java.basics;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 
 import java.io.File;
@@ -79,16 +77,16 @@ public class StreamWindowSQLExample {
                         + "  COUNT(DISTINCT product) unique_products\n"
                         + "FROM orders\n"
                         + "GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)";
-        Table result = tEnv.sqlQuery(query);
-        tEnv.toAppendStream(result, Row.class).print();
 
-        // after the table program is converted to DataStream program,
-        // we must use `env.execute()` to submit the job.
-        env.execute("Streaming Window SQL Job");
-
+        tEnv.executeSql(query).print();
         // should output:
-        // 2019-12-12 00:00:00.000,3,10,3
-        // 2019-12-12 00:00:05.000,3,6,2
+        // +----+--------------------------------+--------------+--------------+-----------------+
+        // | op |                   window_start |    order_num | total_amount | unique_products |
+        // +----+--------------------------------+--------------+--------------+-----------------+
+        // | +I |        2019-12-12 00:00:00.000 |            3 |           10 |               3 |
+        // | +I |        2019-12-12 00:00:05.000 |            3 |            6 |               2 |
+        // +----+--------------------------------+--------------+--------------+-----------------+
+
     }
 
     /** Creates a temporary file with the contents and returns the absolute path. */

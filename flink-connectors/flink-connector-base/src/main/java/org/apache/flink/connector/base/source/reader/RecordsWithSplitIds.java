@@ -18,11 +18,14 @@
 
 package org.apache.flink.connector.base.source.reader;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import javax.annotation.Nullable;
 
 import java.util.Set;
 
 /** An interface for the elements passed from the fetchers to the source reader. */
+@PublicEvolving
 public interface RecordsWithSplitIds<E> {
 
     /**

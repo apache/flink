@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.DataTypes;
@@ -24,6 +25,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -48,6 +50,8 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.junit.Assert.assertTrue;
 
 /** Contains basic tests for the {@link CliResultView}. */
@@ -90,14 +94,16 @@ public class CliResultViewTest {
                 new CountDownLatch(expectedCancellationCount);
 
         final MockExecutor executor = new MockExecutor(typedResult, cancellationCounterLatch);
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLE);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
         String sessionId = executor.openSession("test-session");
         final ResultDescriptor descriptor =
                 new ResultDescriptor(
                         "result-id",
                         ResolvedSchema.of(Column.physical("Null Field", DataTypes.STRING())),
                         false,
-                        false,
-                        true);
+                        testConfig);
 
         try (CliClient cli =
                 new TestingCliClient(
@@ -225,6 +231,21 @@ public class CliResultViewTest {
         @Override
         public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
             cancellationCounter.countDown();
+        }
+
+        @Override
+        public void addJar(String sessionId, String jarUrl) {
+            throw new UnsupportedOperationException("Not implemented.");
+        }
+
+        @Override
+        public void removeJar(String sessionId, String jarUrl) {
+            throw new UnsupportedOperationException("Not implemented.");
+        }
+
+        @Override
+        public List<String> listJars(String sessionId) {
+            throw new UnsupportedOperationException("Not implemented.");
         }
     }
 

@@ -47,14 +47,11 @@ import org.apache.flink.runtime.checkpoint.ExecutionAttemptMappingProvider;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionGroupReleaseStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -67,6 +64,7 @@ import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
@@ -79,9 +77,13 @@ import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.FutureUtils.ConjunctFuture;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -176,9 +178,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     /** The total number of vertices currently in the execution graph. */
     private int numVerticesTotal;
 
-    private final PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory;
+    private final PartitionGroupReleaseStrategy.Factory partitionGroupReleaseStrategyFactory;
 
-    private PartitionReleaseStrategy partitionReleaseStrategy;
+    private PartitionGroupReleaseStrategy partitionGroupReleaseStrategy;
 
     private DefaultExecutionTopology executionTopology;
 
@@ -276,7 +278,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             int maxPriorAttemptsHistoryLength,
             ClassLoader userClassLoader,
             BlobWriter blobWriter,
-            PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory,
+            PartitionGroupReleaseStrategy.Factory partitionGroupReleaseStrategyFactory,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
             TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
@@ -315,7 +317,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         this.rpcTimeout = checkNotNull(rpcTimeout);
 
-        this.partitionReleaseStrategyFactory = checkNotNull(partitionReleaseStrategyFactory);
+        this.partitionGroupReleaseStrategyFactory =
+                checkNotNull(partitionGroupReleaseStrategyFactory);
 
         this.kvStateLocationRegistry =
                 new KvStateLocationRegistry(jobInformation.getJobId(), getAllVertices());
@@ -444,7 +447,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
                         SharedStateRegistry.DEFAULT_FACTORY,
                         failureManager,
-                        createCheckpointPlanCalculator(),
+                        createCheckpointPlanCalculator(
+                                chkConfig.isEnableCheckpointsAfterTasksFinish()),
                         new ExecutionAttemptMappingProvider(getAllExecutionVertices()));
 
         // register the master hooks on the checkpoint coordinator
@@ -468,11 +472,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
     }
 
-    private CheckpointPlanCalculator createCheckpointPlanCalculator() {
+    private CheckpointPlanCalculator createCheckpointPlanCalculator(
+            boolean enableCheckpointsAfterTasksFinish) {
         return new DefaultCheckpointPlanCalculator(
                 getJobID(),
                 new ExecutionGraphCheckpointPlanCalculatorContext(this),
-                getVerticesTopologically());
+                getVerticesTopologically(),
+                enableCheckpointsAfterTasksFinish);
     }
 
     @Override
@@ -751,22 +757,20 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException {
+    public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
 
         assertRunningInJobMasterMainThread();
 
         LOG.debug(
                 "Attaching {} topologically sorted vertices to existing job graph with {} "
                         + "vertices and {} intermediate results.",
-                topologiallySorted.size(),
+                topologicallySorted.size(),
                 tasks.size(),
                 intermediateResults.size());
 
-        final ArrayList<ExecutionJobVertex> newExecJobVertices =
-                new ArrayList<>(topologiallySorted.size());
         final long createTimestamp = System.currentTimeMillis();
 
-        for (JobVertex jobVertex : topologiallySorted) {
+        for (JobVertex jobVertex : topologicallySorted) {
 
             if (jobVertex.isInputVertex() && !jobVertex.isStoppable()) {
                 this.isStoppable = false;
@@ -809,7 +813,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
             this.verticesInCreationOrder.add(ejv);
             this.numVerticesTotal += ejv.getParallelism();
-            newExecJobVertices.add(ejv);
         }
 
         registerExecutionVerticesAndResultPartitions(this.verticesInCreationOrder);
@@ -817,8 +820,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         // the topology assigning should happen before notifying new vertices to failoverStrategy
         executionTopology = DefaultExecutionTopology.fromExecutionGraph(this);
 
-        partitionReleaseStrategy =
-                partitionReleaseStrategyFactory.createInstance(getSchedulingTopology());
+        partitionGroupReleaseStrategy =
+                partitionGroupReleaseStrategyFactory.createInstance(getSchedulingTopology());
     }
 
     @Override
@@ -1202,7 +1205,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         if (attempt != null) {
             try {
                 final boolean stateUpdated = updateStateInternal(state, attempt);
-                maybeReleasePartitions(attempt);
+                maybeReleasePartitionGroupsFor(attempt);
                 return stateUpdated;
             } catch (Throwable t) {
                 ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
@@ -1262,26 +1265,39 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
     }
 
-    private void maybeReleasePartitions(final Execution attempt) {
+    private void maybeReleasePartitionGroupsFor(final Execution attempt) {
         final ExecutionVertexID finishedExecutionVertex = attempt.getVertex().getID();
 
         if (attempt.getState() == ExecutionState.FINISHED) {
-            final List<IntermediateResultPartitionID> releasablePartitions =
-                    partitionReleaseStrategy.vertexFinished(finishedExecutionVertex);
-            releasePartitions(releasablePartitions);
+            final List<ConsumedPartitionGroup> releasablePartitionGroups =
+                    partitionGroupReleaseStrategy.vertexFinished(finishedExecutionVertex);
+            releasePartitionGroups(releasablePartitionGroups);
         } else {
-            partitionReleaseStrategy.vertexUnfinished(finishedExecutionVertex);
+            partitionGroupReleaseStrategy.vertexUnfinished(finishedExecutionVertex);
         }
     }
 
-    private void releasePartitions(final List<IntermediateResultPartitionID> releasablePartitions) {
-        if (releasablePartitions.size() > 0) {
-            final List<ResultPartitionID> partitionIds =
-                    releasablePartitions.stream()
+    private void releasePartitionGroups(
+            final List<ConsumedPartitionGroup> releasablePartitionGroups) {
+
+        if (releasablePartitionGroups.size() > 0) {
+
+            // Remove the cache of ShuffleDescriptors when ConsumedPartitionGroups are released
+            for (ConsumedPartitionGroup releasablePartitionGroup : releasablePartitionGroups) {
+                IntermediateResult totalResult =
+                        checkNotNull(
+                                intermediateResults.get(
+                                        releasablePartitionGroup.getIntermediateDataSetID()));
+                totalResult.clearCachedInformationForPartitionGroup(releasablePartitionGroup);
+            }
+
+            final List<ResultPartitionID> releasablePartitionIds =
+                    releasablePartitionGroups.stream()
+                            .flatMap(IterableUtils::toStream)
                             .map(this::createResultPartitionId)
                             .collect(Collectors.toList());
 
-            partitionTracker.stopTrackingAndReleasePartitions(partitionIds);
+            partitionTracker.stopTrackingAndReleasePartitions(releasablePartitionIds);
         }
     }
 
@@ -1458,6 +1474,17 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
+    public void deleteBlobs(List<PermanentBlobKey> blobKeys) {
+        CompletableFuture.runAsync(
+                () -> {
+                    for (PermanentBlobKey blobKey : blobKeys) {
+                        blobWriter.deletePermanent(getJobID(), blobKey);
+                    }
+                },
+                ioExecutor);
+    }
+
+    @Override
     public ShuffleMaster<?> getShuffleMaster() {
         return shuffleMaster;
     }
@@ -1473,8 +1500,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public PartitionReleaseStrategy getPartitionReleaseStrategy() {
-        return partitionReleaseStrategy;
+    public PartitionGroupReleaseStrategy getPartitionGroupReleaseStrategy() {
+        return partitionGroupReleaseStrategy;
     }
 
     @Override

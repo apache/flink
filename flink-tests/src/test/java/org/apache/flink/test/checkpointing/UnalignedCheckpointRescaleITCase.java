@@ -31,6 +31,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -41,13 +42,17 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.util.Collector;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 
@@ -62,6 +67,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
     private final Topology topology;
     private final int oldParallelism;
     private final int newParallelism;
+    private final int buffersPerChannel;
 
     enum Topology implements DagCreator {
         PIPELINE {
@@ -119,6 +125,46 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                 }
 
                 addFailingSink(combinedSource, minCheckpoints, slotSharing);
+            }
+        },
+
+        KEYED_DIFFERENT_PARALLELISM {
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts) {
+
+                final int parallelism = env.getParallelism();
+                checkState(parallelism >= 4);
+                final DataStream<Long> source1 =
+                        createSourcePipeline(
+                                env,
+                                minCheckpoints,
+                                slotSharing,
+                                expectedRestarts,
+                                parallelism / 2,
+                                0,
+                                val -> withoutHeader(val) % 2 == 0);
+                final DataStream<Long> source2 =
+                        createSourcePipeline(
+                                env,
+                                minCheckpoints,
+                                slotSharing,
+                                expectedRestarts,
+                                parallelism / 3,
+                                1,
+                                val -> withoutHeader(val) % 2 == 1);
+
+                KeySelector<Long, Long> keySelector = i -> withoutHeader(i) % NUM_GROUPS;
+                SingleOutputStreamOperator<Long> connected =
+                        source1.connect(source2)
+                                .keyBy(keySelector, keySelector)
+                                .process(new TestKeyedCoProcessFunction())
+                                .setParallelism(parallelism);
+
+                addFailingSink(connected, minCheckpoints, slotSharing);
             }
         },
 
@@ -189,7 +235,80 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                                 BasicTypeInfo.LONG_TYPE_INFO);
                 final BroadcastStream<Long> broadcast = broadcastSide.broadcast(descriptor);
                 final SingleOutputStreamOperator<Long> joined =
-                        source.connect(broadcast).process(new TestBroadcastProcessFunction());
+                        source.connect(broadcast)
+                                .process(new TestBroadcastProcessFunction())
+                                .setParallelism(2 * parallelism);
+
+                addFailingSink(joined, minCheckpoints, slotSharing);
+            }
+        },
+
+        KEYED_BROADCAST {
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts) {
+
+                final int parallelism = env.getParallelism();
+                final DataStream<Long> broadcastSide1 =
+                        env.fromSource(
+                                        new LongSource(
+                                                minCheckpoints,
+                                                1,
+                                                expectedRestarts,
+                                                env.getCheckpointInterval()),
+                                        noWatermarks(),
+                                        "source-1")
+                                .setParallelism(1);
+                final DataStream<Long> broadcastSide2 =
+                        env.fromSource(
+                                        new LongSource(
+                                                minCheckpoints,
+                                                1,
+                                                expectedRestarts,
+                                                env.getCheckpointInterval()),
+                                        noWatermarks(),
+                                        "source-2")
+                                .setParallelism(1);
+                final DataStream<Long> broadcastSide3 =
+                        env.fromSource(
+                                        new LongSource(
+                                                minCheckpoints,
+                                                1,
+                                                expectedRestarts,
+                                                env.getCheckpointInterval()),
+                                        noWatermarks(),
+                                        "source-3")
+                                .setParallelism(1);
+                final DataStream<Long> source =
+                        createSourcePipeline(
+                                        env,
+                                        minCheckpoints,
+                                        slotSharing,
+                                        expectedRestarts,
+                                        parallelism,
+                                        0,
+                                        val -> true)
+                                .map(i -> checkHeader(i))
+                                .name("map")
+                                .uid("map")
+                                .slotSharingGroup(slotSharing ? "default" : "failing-map");
+
+                final MapStateDescriptor<Long, Long> descriptor =
+                        new MapStateDescriptor<>(
+                                "broadcast",
+                                BasicTypeInfo.LONG_TYPE_INFO,
+                                BasicTypeInfo.LONG_TYPE_INFO);
+                DataStream<Long> broadcastSide =
+                        broadcastSide1.union(broadcastSide2).union(broadcastSide3);
+                final BroadcastStream<Long> broadcast = broadcastSide.broadcast(descriptor);
+                final SingleOutputStreamOperator<Long> joined =
+                        source.keyBy(i -> withoutHeader(i) % NUM_GROUPS)
+                                .connect(broadcast)
+                                .process(new TestKeyedBroadcastProcessFunction())
+                                .setParallelism(parallelism + 2);
 
                 addFailingSink(joined, minCheckpoints, slotSharing);
             }
@@ -304,50 +423,104 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
             @Override
             public void processBroadcastElement(Long value, Context ctx, Collector<Long> out) {}
         }
+
+        private static class TestKeyedCoProcessFunction
+                extends KeyedCoProcessFunction<Long, Long, Long, Long> {
+            private static final long serialVersionUID = 1L;
+
+            TestKeyedCoProcessFunction() {}
+
+            @Override
+            public void processElement1(Long value, Context ctx, Collector<Long> out)
+                    throws Exception {
+                out.collect(checkHeader(value));
+            }
+
+            @Override
+            public void processElement2(Long value, Context ctx, Collector<Long> out)
+                    throws Exception {
+                out.collect(checkHeader(value));
+            }
+        }
+
+        private static class TestKeyedBroadcastProcessFunction
+                extends KeyedBroadcastProcessFunction<Long, Long, Long, Long> {
+            private static final long serialVersionUID = 7852973507735751404L;
+
+            TestKeyedBroadcastProcessFunction() {}
+
+            @Override
+            public void processElement(Long value, ReadOnlyContext ctx, Collector<Long> out) {
+                out.collect(checkHeader(value));
+            }
+
+            @Override
+            public void processBroadcastElement(Long value, Context ctx, Collector<Long> out) {}
+        }
     }
 
-    @Parameterized.Parameters(name = "{0} {1} from {2} to {3}")
+    @Parameterized.Parameters(name = "{0} {1} from {2} to {3}, buffersPerChannel = {4}")
     public static Object[][] getScaleFactors() {
-        return new Object[][] {
-            new Object[] {"downscale", Topology.BROADCAST, 5, 2},
-            new Object[] {"upscale", Topology.PIPELINE, 1, 2},
-            new Object[] {"upscale", Topology.PIPELINE, 2, 3},
-            new Object[] {"upscale", Topology.PIPELINE, 3, 7},
-            new Object[] {"upscale", Topology.PIPELINE, 4, 8},
-            new Object[] {"upscale", Topology.PIPELINE, 20, 21},
-            new Object[] {"downscale", Topology.PIPELINE, 2, 1},
-            new Object[] {"downscale", Topology.PIPELINE, 3, 2},
-            new Object[] {"downscale", Topology.PIPELINE, 7, 3},
-            new Object[] {"downscale", Topology.PIPELINE, 8, 4},
-            new Object[] {"downscale", Topology.PIPELINE, 21, 20},
-            new Object[] {"no scale", Topology.PIPELINE, 1, 1},
-            new Object[] {"no scale", Topology.PIPELINE, 3, 3},
-            new Object[] {"no scale", Topology.PIPELINE, 7, 7},
-            new Object[] {"no scale", Topology.PIPELINE, 20, 20},
-            new Object[] {"upscale", Topology.UNION, 1, 2},
-            new Object[] {"upscale", Topology.UNION, 2, 3},
-            new Object[] {"upscale", Topology.UNION, 3, 7},
-            new Object[] {"downscale", Topology.UNION, 2, 1},
-            new Object[] {"downscale", Topology.UNION, 3, 2},
-            new Object[] {"downscale", Topology.UNION, 7, 3},
-            new Object[] {"no scale", Topology.UNION, 1, 1},
-            new Object[] {"no scale", Topology.UNION, 7, 7},
-            new Object[] {"upscale", Topology.MULTI_INPUT, 1, 2},
-            new Object[] {"upscale", Topology.MULTI_INPUT, 2, 3},
-            new Object[] {"upscale", Topology.MULTI_INPUT, 3, 7},
-            new Object[] {"downscale", Topology.MULTI_INPUT, 2, 1},
-            new Object[] {"downscale", Topology.MULTI_INPUT, 3, 2},
-            new Object[] {"downscale", Topology.MULTI_INPUT, 7, 3},
-            new Object[] {"no scale", Topology.MULTI_INPUT, 1, 1},
-            new Object[] {"no scale", Topology.MULTI_INPUT, 7, 7},
-        };
+        Object[][] parameters =
+                new Object[][] {
+                    new Object[] {"downscale", Topology.KEYED_DIFFERENT_PARALLELISM, 12, 7},
+                    new Object[] {"upscale", Topology.KEYED_DIFFERENT_PARALLELISM, 7, 12},
+                    new Object[] {"downscale", Topology.KEYED_BROADCAST, 7, 2},
+                    new Object[] {"upscale", Topology.KEYED_BROADCAST, 2, 7},
+                    new Object[] {"downscale", Topology.BROADCAST, 5, 2},
+                    new Object[] {"upscale", Topology.BROADCAST, 2, 5},
+                    new Object[] {"upscale", Topology.PIPELINE, 1, 2},
+                    new Object[] {"upscale", Topology.PIPELINE, 2, 3},
+                    new Object[] {"upscale", Topology.PIPELINE, 3, 7},
+                    new Object[] {"upscale", Topology.PIPELINE, 4, 8},
+                    new Object[] {"upscale", Topology.PIPELINE, 20, 21},
+                    new Object[] {"downscale", Topology.PIPELINE, 2, 1},
+                    new Object[] {"downscale", Topology.PIPELINE, 3, 2},
+                    new Object[] {"downscale", Topology.PIPELINE, 7, 3},
+                    new Object[] {"downscale", Topology.PIPELINE, 8, 4},
+                    new Object[] {"downscale", Topology.PIPELINE, 21, 20},
+                    new Object[] {"no scale", Topology.PIPELINE, 1, 1},
+                    new Object[] {"no scale", Topology.PIPELINE, 3, 3},
+                    new Object[] {"no scale", Topology.PIPELINE, 7, 7},
+                    new Object[] {"no scale", Topology.PIPELINE, 20, 20},
+                    new Object[] {"upscale", Topology.UNION, 1, 2},
+                    new Object[] {"upscale", Topology.UNION, 2, 3},
+                    new Object[] {"upscale", Topology.UNION, 3, 7},
+                    new Object[] {"downscale", Topology.UNION, 2, 1},
+                    new Object[] {"downscale", Topology.UNION, 3, 2},
+                    new Object[] {"downscale", Topology.UNION, 7, 3},
+                    new Object[] {"no scale", Topology.UNION, 1, 1},
+                    new Object[] {"no scale", Topology.UNION, 7, 7},
+                    new Object[] {"upscale", Topology.MULTI_INPUT, 1, 2},
+                    new Object[] {"upscale", Topology.MULTI_INPUT, 2, 3},
+                    new Object[] {"upscale", Topology.MULTI_INPUT, 3, 7},
+                    new Object[] {"downscale", Topology.MULTI_INPUT, 2, 1},
+                    new Object[] {"downscale", Topology.MULTI_INPUT, 3, 2},
+                    new Object[] {"downscale", Topology.MULTI_INPUT, 7, 3},
+                    new Object[] {"no scale", Topology.MULTI_INPUT, 1, 1},
+                    new Object[] {"no scale", Topology.MULTI_INPUT, 7, 7},
+                };
+        return Arrays.stream(parameters)
+                .map(
+                        params ->
+                                new Object[][] {
+                                    ArrayUtils.add(params, 0),
+                                    ArrayUtils.add(params, BUFFER_PER_CHANNEL)
+                                })
+                .flatMap(Arrays::stream)
+                .toArray(Object[][]::new);
     }
 
     public UnalignedCheckpointRescaleITCase(
-            String desc, Topology topology, int oldParallelism, int newParallelism) {
+            String desc,
+            Topology topology,
+            int oldParallelism,
+            int newParallelism,
+            int buffersPerChannel) {
         this.topology = topology;
         this.oldParallelism = oldParallelism;
         this.newParallelism = newParallelism;
+        this.buffersPerChannel = buffersPerChannel;
     }
 
     @Test
@@ -355,7 +528,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         final UnalignedSettings prescaleSettings =
                 new UnalignedSettings(topology)
                         .setParallelism(oldParallelism)
-                        .setExpectedFailures(1);
+                        .setExpectedFailures(1)
+                        .setBuffersPerChannel(buffersPerChannel);
         prescaleSettings.setGenerateCheckpoint(true);
         final File checkpointDir = super.execute(prescaleSettings);
 
@@ -363,7 +537,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         final UnalignedSettings postscaleSettings =
                 new UnalignedSettings(topology)
                         .setParallelism(newParallelism)
-                        .setExpectedFailures(1);
+                        .setExpectedFailures(1)
+                        .setBuffersPerChannel(buffersPerChannel);
         postscaleSettings.setRestoreCheckpoint(checkpointDir);
         super.execute(postscaleSettings);
     }

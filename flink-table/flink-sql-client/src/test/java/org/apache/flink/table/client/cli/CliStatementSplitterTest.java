@@ -55,18 +55,32 @@ public class CliStatementSplitterTest {
     public void testSplitContent() {
         List<String> lines =
                 Arrays.asList(
-                        "CREATE TABLE MyTable (\n"
+                        "-- Define Table; \n"
+                                + "CREATE TABLE MyTable (\n"
                                 + "  id INT,\n"
                                 + "  name STRING,\n"
                                 + ") WITH (\n"
                                 + "  'connector' = 'values',\n"
-                                + "  'test-property' = 'test.value'\n);",
+                                + "  'test-property' = 'test.value'\n);"
+                                + "-- Define Table;",
                         "SET a = b;",
                         "\n" + "SELECT func(id) from MyTable\n;");
         List<String> actual = CliStatementSplitter.splitContent(String.join("\n", lines));
 
+        List<String> expected =
+                Arrays.asList(
+                        "\nCREATE TABLE MyTable (\n"
+                                + "  id INT,\n"
+                                + "  name STRING,\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'test-property' = 'test.value'\n);"
+                                + "-- Define Table;",
+                        "SET a = b;",
+                        "\n" + "SELECT func(id) from MyTable\n;");
+
         for (int i = 0; i < lines.size(); i++) {
-            assertEquals(lines.get(i), actual.get(i));
+            assertEquals(expected.get(i), actual.get(i));
         }
     }
 }

@@ -44,6 +44,9 @@ public class CheckpointStorageLoader {
 
     private static final String FILE_SYSTEM_STORAGE_NAME = "filesystem";
 
+    private static final String LEGACY_PRECEDENCE_LOG_MESSAGE =
+            "Legacy state backends can also be used as checkpoint storage and take precedence for backward-compatibility reasons.";
+
     /**
      * Loads the checkpoint storage from the configuration, from the parameter
      * 'state.checkpoint-storage', as defined in {@link CheckpointingOptions#CHECKPOINT_STORAGE}.
@@ -187,27 +190,46 @@ public class CheckpointStorageLoader {
                 logger.info(
                         "Using legacy state backend {} as Job checkpoint storage",
                         rootStateBackend);
+                if (fromApplication != null) {
+                    logger.warn(
+                            "Checkpoint storage passed via StreamExecutionEnvironment is ignored because legacy state backend '{}' is used. {}",
+                            rootStateBackend.getClass().getName(),
+                            LEGACY_PRECEDENCE_LOG_MESSAGE);
+                }
+                if (config.get(CheckpointingOptions.CHECKPOINT_STORAGE) != null) {
+                    logger.warn(
+                            "Config option '{}' is ignored because legacy state backend '{}' is used. {}",
+                            CheckpointingOptions.CHECKPOINT_STORAGE.key(),
+                            rootStateBackend.getClass().getName(),
+                            LEGACY_PRECEDENCE_LOG_MESSAGE);
+                }
             }
-
             return (CheckpointStorage) rootStateBackend;
-        } else if (fromApplication instanceof ConfigurableCheckpointStorage) {
-            if (logger != null) {
-                logger.info(
-                        "Using job/cluster config to configure application-defined checkpoint storage: {}",
-                        fromApplication);
-            }
+        }
 
-            return ((ConfigurableCheckpointStorage) fromApplication).configure(config, classLoader);
-        } else if (fromApplication != null) {
+        if (fromApplication != null) {
+            if (fromApplication instanceof ConfigurableCheckpointStorage) {
+                if (logger != null) {
+                    logger.info(
+                            "Using job/cluster config to configure application-defined checkpoint storage: {}",
+                            fromApplication);
+                    if (config.get(CheckpointingOptions.CHECKPOINT_STORAGE) != null) {
+                        logger.warn(
+                                "Config option '{}' is ignored because the checkpoint storage passed via StreamExecutionEnvironment takes precedence.",
+                                CheckpointingOptions.CHECKPOINT_STORAGE.key());
+                    }
+                }
+                return ((ConfigurableCheckpointStorage) fromApplication)
+                        .configure(config, classLoader);
+            }
             if (logger != null) {
                 logger.info("Using application defined checkpoint storage: {}", fromApplication);
             }
-
             return fromApplication;
-        } else {
-            return fromConfig(config, classLoader, logger)
-                    .orElseGet(() -> createDefaultCheckpointStorage(config, classLoader, logger));
         }
+
+        return fromConfig(config, classLoader, logger)
+                .orElseGet(() -> createDefaultCheckpointStorage(config, classLoader, logger));
     }
 
     /**

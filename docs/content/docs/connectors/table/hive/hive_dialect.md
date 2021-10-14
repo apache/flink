@@ -46,7 +46,6 @@ the `configuration` section of the yaml file for your SQL Client.
 ```yaml
 
 execution:
-  planner: blink
   type: batch
   result-mode: table
 
@@ -59,10 +58,10 @@ You can also set the dialect after the SQL Client has launched.
 
 ```bash
 
-Flink SQL> set table.sql-dialect=hive; -- to use hive dialect
+Flink SQL> SET 'table.sql-dialect' = 'hive'; -- to use hive dialect
 [INFO] Session property has been set.
 
-Flink SQL> set table.sql-dialect=default; -- to use default dialect
+Flink SQL> SET 'table.sql-dialect' = 'default'; -- to use default dialect
 [INFO] Session property has been set.
 
 ```
@@ -75,7 +74,7 @@ You can set dialect for your TableEnvironment with Table API.
 {{< tab "Java" >}}
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner()...build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 // to use hive dialect
 tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
@@ -88,7 +87,7 @@ tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
 ```python
 from pyflink.table import *
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
 
 # to use hive dialect
@@ -364,7 +363,7 @@ HiveQL supported by the Hive dialect.
 In order to have better syntax and semantic compatibility, it's highly recommended to use [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule)
 and place it first in the module list, so that Hive built-in functions can be picked up during function resolution.
 
-Hive dialect no longer supports [Flink SQL queries]({{< ref "docs/dev/table/sql/queries" >}}). Please switch to `default`
+Hive dialect no longer supports [Flink SQL queries]({{< ref "docs/dev/table/sql/queries/overview" >}}). Please switch to `default`
 dialect if you'd like to write in Flink syntax.
 
 Following is an example of using hive dialect to run some queries.

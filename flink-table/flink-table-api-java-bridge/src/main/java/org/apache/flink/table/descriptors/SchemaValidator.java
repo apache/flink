@@ -62,8 +62,13 @@ import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_PROCTIME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 
-/** Validator for {@link Schema}. */
+/**
+ * Validator for {@link Schema}.
+ *
+ * @deprecated See {@link Schema} for details.
+ */
 @PublicEvolving
+@Deprecated
 public class SchemaValidator implements DescriptorValidator {
 
     private final boolean isStreamEnvironment;

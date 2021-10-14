@@ -17,8 +17,10 @@
  */
 
 import { ChangeDetectorRef, Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
-import { JobManagerService } from 'services';
+
 import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+
+import { JobManagerService } from 'services';
 
 @Component({
   selector: 'flink-job-manager-stdout',
@@ -27,10 +29,10 @@ import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerStdoutComponent implements OnInit {
-  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
   stdout = '';
 
-  reload() {
+  reload(): void {
     this.jobManagerService.loadStdout().subscribe(data => {
       this.monacoEditorComponent.layout();
       this.stdout = data;
@@ -40,7 +42,7 @@ export class JobManagerStdoutComponent implements OnInit {
 
   constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.reload();
   }
 }

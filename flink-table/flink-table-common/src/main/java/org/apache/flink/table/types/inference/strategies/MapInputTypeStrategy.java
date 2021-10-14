@@ -44,7 +44,7 @@ import java.util.stream.IntStream;
  * values must have a common super type respectively.
  */
 @Internal
-public final class MapInputTypeStrategy implements InputTypeStrategy {
+class MapInputTypeStrategy implements InputTypeStrategy {
 
     private static final ArgumentCount AT_LEAST_TWO_EVEN =
             new ArgumentCount() {

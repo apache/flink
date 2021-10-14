@@ -19,7 +19,7 @@
 package org.apache.flink.formats.json.debezium;
 
 import org.apache.flink.formats.common.TimestampFormat;
-import org.apache.flink.formats.json.JsonOptions;
+import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.debezium.DebeziumJsonDecodingFormat.ReadableMetadata;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
@@ -256,7 +256,7 @@ public class DebeziumJsonSerDeSchemaTest {
                 new DebeziumJsonSerializationSchema(
                         (RowType) PHYSICAL_DATA_TYPE.getLogicalType(),
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 

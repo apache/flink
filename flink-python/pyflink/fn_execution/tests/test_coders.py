@@ -23,22 +23,13 @@ import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
-    TimeCoder, TimestampCoder, BasicArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
-    LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder, TimeWindowCoder, \
-    CountWindowCoder
+    TimeCoder, TimestampCoder, GenericArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder,\
+    RowCoder, LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder,\
+    TimeWindowCoder, CountWindowCoder, InstantCoder
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
-try:
-    from pyflink.fn_execution import coder_impl_fast  # noqa # pylint: disable=unused-import
 
-    have_cython = True
-except ImportError:
-    have_cython = False
-
-
-@unittest.skipIf(have_cython,
-                 "Found cython implementation, we don't need to test non-compiled implementation")
 class CodersTest(PyFlinkTestCase):
 
     def check_coder(self, coder, *values):
@@ -119,9 +110,15 @@ class CodersTest(PyFlinkTestCase):
         self.check_coder(coder,
                          timezone.localize(datetime.datetime(2019, 9, 10, 18, 30, 20, 123456)))
 
+    def test_instant_coder(self):
+        from pyflink.common.time import Instant
+
+        coder = InstantCoder()
+        self.check_coder(coder, Instant(100, 2000), None, Instant(-9223372036854775808, 0))
+
     def test_array_coder(self):
         element_coder = BigIntCoder()
-        coder = BasicArrayCoder(element_coder)
+        coder = GenericArrayCoder(element_coder)
         self.check_coder(coder, [1, 2, 3, None])
 
     def test_primitive_array_coder(self):
@@ -153,7 +150,7 @@ class CodersTest(PyFlinkTestCase):
         result = []
         for item in generator_result:
             result.append(item)
-        self.assertEqual([v], result)
+        self.assertEqual(v, result)
 
     def test_row_coder(self):
         from pyflink.common import Row, RowKind

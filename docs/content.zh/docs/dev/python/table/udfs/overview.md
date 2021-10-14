@@ -61,3 +61,18 @@ class Predict(ScalarFunction):
 
 predict = udf(Predict(), result_type=DataTypes.DOUBLE(), func_type="pandas")
 ```
+
+## 测试自定义函数
+
+假如你定义了如下 Python 自定义函数：
+
+```python
+add = udf(lambda i, j: i + j, result_type=DataTypes.BIGINT())
+```
+
+如果要对它进行单元测试，首先需要通过 `._func` 从 UDF 对象中抽取原来的 Python 函数，然后才能测试：
+
+```python
+f = add._func
+assert f(1, 2) == 3
+```

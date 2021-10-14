@@ -98,6 +98,8 @@ public abstract class InputGate
 
     public abstract boolean isFinished();
 
+    public abstract boolean hasReceivedEndOfData();
+
     /**
      * Blocking call waiting for next {@link BufferOrEvent}.
      *
@@ -132,6 +134,9 @@ public abstract class InputGate
     }
 
     public abstract void resumeConsumption(InputChannelInfo channelInfo) throws IOException;
+
+    public abstract void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo)
+            throws IOException;
 
     /** Returns the channel of this gate. */
     public abstract InputChannel getChannel(int channelIndex);

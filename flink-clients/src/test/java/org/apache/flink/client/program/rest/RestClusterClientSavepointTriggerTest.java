@@ -26,9 +26,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -49,12 +47,12 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMes
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -94,8 +92,6 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
     private static final GatewayRetriever<DispatcherGateway> mockGatewayRetriever =
             () -> CompletableFuture.completedFuture(mockRestfulGateway);
 
-    private static RestServerEndpointConfiguration restServerEndpointConfiguration;
-
     private static ExecutorService executor;
 
     private static final Configuration REST_CONFIG;
@@ -112,8 +108,6 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 
     @BeforeClass
     public static void setUp() throws ConfigurationException {
-        restServerEndpointConfiguration =
-                RestServerEndpointConfiguration.fromConfiguration(REST_CONFIG);
         executor =
                 Executors.newSingleThreadExecutor(
                         new ExecutorThreadFactory(
@@ -273,7 +267,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
             final FunctionWithException<TriggerId, SavepointInfo, RestHandlerException>
                     savepointHandlerLogic)
             throws Exception {
-        return TestRestServerEndpoint.builder(restServerEndpointConfiguration)
+        return TestRestServerEndpoint.builder(REST_CONFIG)
                 .withHandler(new TestSavepointTriggerHandler(triggerHandlerLogic))
                 .withHandler(new TestSavepointHandler(savepointHandlerLogic))
                 .buildAndStart();
@@ -299,11 +293,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 
         @Override
         protected CompletableFuture<TriggerResponse> handleRequest(
-                @Nonnull
-                        HandlerRequest<
-                                        SavepointTriggerRequestBody,
-                                        SavepointTriggerMessageParameters>
-                                request,
+                @Nonnull HandlerRequest<SavepointTriggerRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
 
@@ -330,7 +320,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 
         @Override
         protected CompletableFuture<AsynchronousOperationResult<SavepointInfo>> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters> request,
+                @Nonnull HandlerRequest<EmptyRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
 
@@ -355,7 +345,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
         clientConfig.setInteger(RestOptions.PORT, port);
         return new RestClusterClient<>(
                 clientConfig,
-                new RestClient(RestClientConfiguration.fromConfiguration(REST_CONFIG), executor),
+                new RestClient(REST_CONFIG, executor),
                 StandaloneClusterId.getInstance(),
                 (attempt) -> 0);
     }

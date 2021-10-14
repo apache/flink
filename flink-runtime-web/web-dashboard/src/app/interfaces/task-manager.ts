@@ -33,7 +33,7 @@ export interface TaskManagerDetailInterface {
 }
 
 export interface TaskManagerLogInterface {
-  logs: { name: string; size: number }[];
+  logs: Array<{ name: string; size: number }>;
 }
 
 export interface TaskmanagersItemInterface {

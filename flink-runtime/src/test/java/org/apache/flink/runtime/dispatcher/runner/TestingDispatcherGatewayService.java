@@ -20,9 +20,9 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;

@@ -16,10 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
-class StreamTableJoinTests(PyFlinkBlinkStreamTableTestCase):
+class StreamTableJoinTests(PyFlinkStreamTableTestCase):
 
     def test_join_without_where(self):
         t_env = self.t_env

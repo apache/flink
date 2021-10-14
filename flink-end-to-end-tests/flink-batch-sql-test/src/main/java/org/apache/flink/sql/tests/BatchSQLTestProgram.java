@@ -56,9 +56,7 @@ public class BatchSQLTestProgram {
         String outputPath = params.getRequired("outputPath");
         String sqlStatement = params.getRequired("sqlStatement");
 
-        TableEnvironment tEnv =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build());
+        TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
 
         ((TableEnvironmentInternal) tEnv)
                 .registerTableSourceInternal("table1", new GeneratorTableSource(10, 100, 60, 0));

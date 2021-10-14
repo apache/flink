@@ -18,20 +18,33 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.apache.flink.runtime.execution.CancelTaskException;
 
-import java.util.concurrent.TimeUnit;
+import org.junit.Test;
+
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Tests for the destruction of a {@link LocalBufferPool}. */
 public class LocalBufferPoolDestroyTest {
-    @Rule public Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
+    @Test
+    public void testRequestAfterDestroy() throws IOException {
+        NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 4096);
+        LocalBufferPool localBufferPool = new LocalBufferPool(networkBufferPool, 1);
+        localBufferPool.lazyDestroy();
+
+        try {
+            localBufferPool.requestBuffer();
+            fail("Call should have failed with an IllegalStateException");
+        } catch (CancelTaskException e) {
+            // we expect exactly that
+        }
+    }
 
     /**
      * Tests that a blocking request fails properly if the buffer pool is destroyed.
@@ -41,7 +54,7 @@ public class LocalBufferPoolDestroyTest {
      * and we check whether the request Thread threw the expected Exception.
      */
     @Test
-    public void testDestroyWhileBlockingRequest() throws InterruptedException {
+    public void testDestroyWhileBlockingRequest() throws Exception {
         AtomicReference<Exception> asyncException = new AtomicReference<>();
 
         NetworkBufferPool networkBufferPool = null;
@@ -85,7 +98,7 @@ public class LocalBufferPoolDestroyTest {
 
             // Verify expected Exception
             assertNotNull("Did not throw expected Exception", asyncException.get());
-            assertTrue(asyncException.get() instanceof IllegalStateException);
+            assertTrue(asyncException.get() instanceof CancelTaskException);
         } finally {
             if (localBufferPool != null) {
                 localBufferPool.lazyDestroy();

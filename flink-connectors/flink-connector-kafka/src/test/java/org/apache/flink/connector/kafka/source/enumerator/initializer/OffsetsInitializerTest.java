@@ -18,9 +18,9 @@
 
 package org.apache.flink.connector.kafka.source.enumerator.initializer;
 
-import org.apache.flink.connector.kafka.source.KafkaSourceTestEnv;
 import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumerator;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
+import org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv;
 
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
@@ -47,8 +47,8 @@ public class OffsetsInitializerTest {
     @BeforeClass
     public static void setup() throws Throwable {
         KafkaSourceTestEnv.setup();
-        KafkaSourceTestEnv.setupTopic(TOPIC, true, true);
-        KafkaSourceTestEnv.setupTopic(TOPIC2, false, false);
+        KafkaSourceTestEnv.setupTopic(TOPIC, true, true, KafkaSourceTestEnv::getRecordsForTopic);
+        KafkaSourceTestEnv.setupTopic(TOPIC2, false, false, KafkaSourceTestEnv::getRecordsForTopic);
         retriever =
                 new KafkaSourceEnumerator.PartitionOffsetsRetrieverImpl(
                         KafkaSourceTestEnv.getConsumer(),

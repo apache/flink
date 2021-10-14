@@ -16,7 +16,7 @@
 jobs:
   - job: ${{parameters.stage_name}}_binary
     pool:
-      vmImage: 'ubuntu-16.04'
+      vmImage: 'ubuntu-20.04'
     container: flink-build-container
     workspace:
       clean: all
@@ -63,9 +63,9 @@ jobs:
       #    artifact: nightly-release
   - job: ${{parameters.stage_name}}_maven
     pool:
-      vmImage: 'ubuntu-16.04'
+      vmImage: 'ubuntu-20.04'
     container: flink-build-container
-    timeoutInMinutes: 100 # 40 minutes per scala version + 20 buffer
+    timeoutInMinutes: 240
     workspace:
       clean: all
     steps:
@@ -109,7 +109,7 @@ jobs:
             </settings>
             EOF
 
-            export CUSTOM_OPTIONS="-Dgpg.skip -Drat.skip -Dcheckstyle.skip --settings $(pwd)/deploy-settings.xml"
+            export CUSTOM_OPTIONS="${MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR} -Dgpg.skip -Drat.skip -Dcheckstyle.skip --settings $(pwd)/deploy-settings.xml"
             export MVN_RUN_VERBOSE=true
             ./releasing/deploy_staging_jars.sh
         env:

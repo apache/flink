@@ -47,11 +47,11 @@ import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILE
 import static org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator.getFlinkConfConfigMapName;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
 
 /** General tests for the {@link FlinkConfMountDecorator}. */
 public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {

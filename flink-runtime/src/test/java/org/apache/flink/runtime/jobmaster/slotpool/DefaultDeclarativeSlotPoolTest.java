@@ -28,11 +28,13 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.QuadConsumer;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
@@ -44,6 +46,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -57,10 +60,10 @@ import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.sameInstance;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link DefaultDeclarativeSlotPool}. */
@@ -195,7 +198,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
     }
 
     @Test
-    public void testOfferingTooManySlots() {
+    public void testOfferingTooManySlotsWillRejectSuperfluousSlots() {
         final NewSlotsService notifyNewSlots = new NewSlotsService();
         final DefaultDeclarativeSlotPool slotPool =
                 createDefaultDeclarativeSlotPoolWithNewSlotsListener(notifyNewSlots);
@@ -273,6 +276,85 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
         assertThat(
                 freedSlots,
                 containsInAnyOrder(slotOffers.stream().map(SlotOffer::getAllocationId).toArray()));
+    }
+
+    @Test
+    public void testReleaseSlotsOnlyReturnsFulfilledRequirementsOfReservedSlots() {
+        withSlotPoolContainingOneTaskManagerWithTwoSlotsWithUniqueResourceProfiles(
+                (slotPool, freeSlot, slotToReserve, taskManagerLocation) -> {
+                    slotPool.reserveFreeSlot(
+                                    slotToReserve.getAllocationId(),
+                                    slotToReserve.getResourceProfile())
+                            .tryAssignPayload(new TestingPhysicalSlotPayload());
+
+                    final ResourceCounter fulfilledRequirements =
+                            slotPool.releaseSlots(
+                                    taskManagerLocation.getResourceID(),
+                                    new FlinkException("Test failure"));
+
+                    assertThat(
+                            fulfilledRequirements.getResourceCount(freeSlot.getResourceProfile()),
+                            is(0));
+                    assertThat(
+                            fulfilledRequirements.getResourceCount(
+                                    slotToReserve.getResourceProfile()),
+                            is(1));
+                });
+    }
+
+    @Test
+    public void testReleaseSlotOnlyReturnsFulfilledRequirementsOfReservedSlots() {
+        withSlotPoolContainingOneTaskManagerWithTwoSlotsWithUniqueResourceProfiles(
+                (slotPool, freeSlot, slotToReserve, ignored) -> {
+                    slotPool.reserveFreeSlot(
+                                    slotToReserve.getAllocationId(),
+                                    slotToReserve.getResourceProfile())
+                            .tryAssignPayload(new TestingPhysicalSlotPayload());
+
+                    final ResourceCounter fulfilledRequirementsOfFreeSlot =
+                            slotPool.releaseSlot(
+                                    freeSlot.getAllocationId(), new FlinkException("Test failure"));
+                    final ResourceCounter fulfilledRequirementsOfReservedSlot =
+                            slotPool.releaseSlot(
+                                    slotToReserve.getAllocationId(),
+                                    new FlinkException("Test failure"));
+
+                    assertThat(fulfilledRequirementsOfFreeSlot.getResources(), is(empty()));
+                    assertThat(
+                            fulfilledRequirementsOfReservedSlot.getResourceCount(
+                                    slotToReserve.getResourceProfile()),
+                            is(1));
+                });
+    }
+
+    private static void withSlotPoolContainingOneTaskManagerWithTwoSlotsWithUniqueResourceProfiles(
+            QuadConsumer<DefaultDeclarativeSlotPool, SlotOffer, SlotOffer, TaskManagerLocation>
+                    test) {
+        final DefaultDeclarativeSlotPool slotPool =
+                DefaultDeclarativeSlotPoolBuilder.builder().build();
+
+        final ResourceCounter resourceRequirements =
+                ResourceCounter.withResource(RESOURCE_PROFILE_1, 1).add(RESOURCE_PROFILE_2, 1);
+
+        final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+        final FreeSlotConsumer freeSlotConsumer = new FreeSlotConsumer();
+        final TestingTaskExecutorGateway testingTaskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setFreeSlotFunction(freeSlotConsumer)
+                        .createTestingTaskExecutorGateway();
+
+        final Iterator<SlotOffer> slotOffers =
+                increaseRequirementsAndOfferSlotsToSlotPool(
+                                slotPool,
+                                resourceRequirements,
+                                taskManagerLocation,
+                                testingTaskExecutorGateway)
+                        .iterator();
+
+        final SlotOffer slot1 = slotOffers.next();
+        final SlotOffer slot2 = slotOffers.next();
+
+        test.accept(slotPool, slot1, slot2, taskManagerLocation);
     }
 
     @Test

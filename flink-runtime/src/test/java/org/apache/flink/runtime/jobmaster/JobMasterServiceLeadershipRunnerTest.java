@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkMatchers;
@@ -69,6 +70,7 @@ import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.core.testutils.FlinkMatchers.willNotComplete;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -658,13 +660,39 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
                         "Result future should be completed exceptionally."));
     }
 
-    private void assertJobNotFinished(CompletableFuture<JobManagerRunnerResult> resultFuture) {
-        try {
-            resultFuture.get();
-            fail("Expect exception");
-        } catch (Throwable t) {
-            assertThat(t, containsCause(JobNotFinishedException.class));
+    @Test
+    public void testJobAlreadyDone() throws Exception {
+        JobID jobID = new JobID();
+        try (JobManagerRunner jobManagerRunner =
+                newJobMasterServiceLeadershipRunnerBuilder()
+                        .setJobMasterServiceProcessFactory(
+                                TestingJobMasterServiceProcessFactory.newBuilder()
+                                        .setJobId(jobID)
+                                        .build())
+                        .build()) {
+            runningJobsRegistry.setJobFinished(jobID);
+            jobManagerRunner.start();
+            leaderElectionService.isLeader(UUID.randomUUID());
+
+            final CompletableFuture<JobManagerRunnerResult> resultFuture =
+                    jobManagerRunner.getResultFuture();
+
+            JobManagerRunnerResult result = resultFuture.get();
+            assertEquals(
+                    JobStatus.FAILED,
+                    result.getExecutionGraphInfo().getArchivedExecutionGraph().getState());
         }
+    }
+
+    private void assertJobNotFinished(CompletableFuture<JobManagerRunnerResult> resultFuture)
+            throws ExecutionException, InterruptedException {
+        final JobManagerRunnerResult jobManagerRunnerResult = resultFuture.get();
+        assertEquals(
+                jobManagerRunnerResult
+                        .getExecutionGraphInfo()
+                        .getArchivedExecutionGraph()
+                        .getState(),
+                JobStatus.SUSPENDED);
     }
 
     public JobMasterServiceLeadershipRunnerBuilder newJobMasterServiceLeadershipRunnerBuilder() {

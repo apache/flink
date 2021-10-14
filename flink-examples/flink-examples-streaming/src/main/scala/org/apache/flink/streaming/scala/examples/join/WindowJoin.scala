@@ -28,10 +28,10 @@ import org.apache.flink.streaming.api.windowing.time.Time
  * Example illustrating a windowed stream join between two data streams.
  *
  * The example works on two input streams with pairs (name, grade) and (name, salary)
- * respectively. It joins the steams based on "name" within a configurable window.
+ * respectively. It joins the streams based on "name" within a configurable window.
  *
  * The example uses a built-in sample data generator that generates
- * the steams of pairs at a configurable rate.
+ * the streams of pairs at a configurable rate.
  */
 object WindowJoin {
 
@@ -40,9 +40,9 @@ object WindowJoin {
   // *************************************************************************
 
   case class Grade(name: String, grade: Int)
-  
+
   case class Salary(name: String, salary: Int)
-  
+
   case class Person(name: String, grade: Int, salary: Int)
 
   // *************************************************************************

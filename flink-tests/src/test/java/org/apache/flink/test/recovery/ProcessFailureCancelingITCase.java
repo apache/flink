@@ -42,10 +42,12 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
@@ -98,7 +100,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
         Configuration config = new Configuration();
         config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
         config.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
@@ -114,7 +116,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
         config.setInteger(RestOptions.PORT, 0);
 
         final RpcService rpcService =
-                AkkaRpcServiceUtils.remoteServiceBuilder(config, "localhost", 0).createAndStart();
+                RpcSystem.load().remoteServiceBuilder(config, "localhost", "0").createAndStart();
         final int jobManagerPort = rpcService.getPort();
         config.setInteger(JobManagerOptions.PORT, jobManagerPort);
 
@@ -128,7 +130,9 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                 HighAvailabilityServicesUtils.createHighAvailabilityServices(
                         config,
                         ioExecutor,
-                        HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+                        AddressResolution.NO_ADDRESS_RESOLUTION,
+                        RpcSystem.load(),
+                        NoOpFatalErrorHandler.INSTANCE);
 
         final AtomicReference<Throwable> programException = new AtomicReference<>();
 
@@ -140,7 +144,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                             rpcService,
                             haServices,
                             blobServerResource.getBlobServer(),
-                            new HeartbeatServices(100L, 1000L),
+                            new HeartbeatServices(100L, 10000L, 2),
                             NoOpMetricRegistry.INSTANCE,
                             new MemoryExecutionGraphInfoStore(),
                             VoidMetricQueryServiceRetriever.INSTANCE,

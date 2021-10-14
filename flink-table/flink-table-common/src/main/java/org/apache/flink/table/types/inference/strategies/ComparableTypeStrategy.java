@@ -33,7 +33,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
+import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -46,7 +46,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
 
 /**
  * An {@link InputTypeStrategy} that checks if all input arguments can be compared with each other
- * with the minimal provided comparision.
+ * with the minimal provided comparison.
  *
  * <p>It requires at least one argument. In case of one argument, the argument must be comparable
  * with itself (e.g. for aggregations).
@@ -56,17 +56,17 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
  */
 @Internal
 public final class ComparableTypeStrategy implements InputTypeStrategy {
-    private final StructuredComparision requiredComparision;
+    private final StructuredComparison requiredComparison;
     private final ConstantArgumentCount argumentCount;
 
     public ComparableTypeStrategy(
-            ConstantArgumentCount argumentCount, StructuredComparision requiredComparision) {
+            ConstantArgumentCount argumentCount, StructuredComparison requiredComparison) {
         Preconditions.checkArgument(
                 argumentCount.getMinCount().map(c -> c >= 1).orElse(false),
                 "Comparable type strategy requires at least one argument. Actual minimal argument count: %s",
                 argumentCount.getMinCount().map(Objects::toString).orElse("<None>"));
-        Preconditions.checkArgument(requiredComparision != StructuredComparision.NONE);
-        this.requiredComparision = requiredComparision;
+        Preconditions.checkArgument(requiredComparison != StructuredComparison.NONE);
+        this.requiredComparison = requiredComparison;
         this.argumentCount = argumentCount;
     }
 
@@ -110,7 +110,7 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
     }
 
     private String comparisonToString() {
-        return requiredComparision == StructuredComparision.EQUALS
+        return requiredComparison == StructuredComparison.EQUALS
                 ? "'EQUALS'"
                 : "both 'EQUALS' and 'ORDER'";
     }
@@ -195,7 +195,7 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
     }
 
     private boolean areStructuredTypesComparable(LogicalType firstType, LogicalType secondType) {
-        return firstType.equals(secondType) && hasRequiredComparision((StructuredType) firstType);
+        return firstType.equals(secondType) && hasRequiredComparison((StructuredType) firstType);
     }
 
     private boolean areConstructedTypesComparable(LogicalType firstType, LogicalType secondType) {
@@ -220,15 +220,15 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
         return Collections.singletonList(Signature.of(Signature.Argument.of("<COMPARABLE>...")));
     }
 
-    private Boolean hasRequiredComparision(StructuredType structuredType) {
-        switch (requiredComparision) {
+    private Boolean hasRequiredComparison(StructuredType structuredType) {
+        switch (requiredComparison) {
             case EQUALS:
-                return structuredType.getComparision().isEquality();
+                return structuredType.getComparison().isEquality();
             case FULL:
-                return structuredType.getComparision().isComparison();
+                return structuredType.getComparison().isComparison();
             case NONE:
             default:
-                // this is not important, required comparision will never be NONE
+                // this is not important, required comparison will never be NONE
                 return true;
         }
     }

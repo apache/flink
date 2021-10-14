@@ -21,6 +21,7 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 
@@ -32,8 +33,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * This class holds configuration constants used by Flink's table module.
- *
- * <p>This is only used for the Blink planner.
  *
  * <p>NOTE: All option keys in this class must start with "table.exec".
  */
@@ -121,6 +120,25 @@ public class ExecutionConfigOptions {
                                     + "Flink will check values and throw runtime exception when null values writing "
                                     + "into NOT NULL columns. Users can change the behavior to 'drop' to "
                                     + "silently drop such records without throwing exception.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_SINK_UPSERT_MATERIALIZE =
+            key("table.exec.sink.upsert-materialize")
+                    .enumType(UpsertMaterialize.class)
+                    .defaultValue(UpsertMaterialize.AUTO)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Because of the disorder of ChangeLog data caused by Shuffle in distributed system, "
+                                                    + "the data received by Sink may not be the order of global upsert. "
+                                                    + "So add upsert materialize operator before upsert sink. It receives the "
+                                                    + "upstream changelog records and generate an upsert view for the downstream.")
+                                    .linebreak()
+                                    .text(
+                                            "By default, the materialize operator will be added when a distributed disorder "
+                                                    + "occurs on unique keys. You can also choose no materialization(NONE) "
+                                                    + "or force materialization(FORCE).")
+                                    .build());
 
     // ------------------------------------------------------------------------
     //  Sort Options
@@ -216,7 +234,8 @@ public class ExecutionConfigOptions {
     public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY =
             key("table.exec.resource.hash-join.memory")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("128 mb"))
+                    // in sync with other weights from Table API and DataStream API
+                    .defaultValue(MemorySize.ofMebiBytes(128))
                     .withDescription(
                             "Sets the managed memory for hash join operator. It defines the lower"
                                     + " limit. Note: memory size is only a weight hint, it will affect the weight of"
@@ -229,7 +248,8 @@ public class ExecutionConfigOptions {
     public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_SORT_MEMORY =
             key("table.exec.resource.sort.memory")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("128 mb"))
+                    // in sync with other weights from Table API and DataStream API
+                    .defaultValue(MemorySize.ofMebiBytes(128))
                     .withDescription(
                             "Sets the managed buffer memory size for sort operator. Note: memory"
                                     + " size is only a weight hint, it will affect the weight of memory that can be"
@@ -319,11 +339,13 @@ public class ExecutionConfigOptions {
                                     + "\"SortMergeJoin\", \"HashAgg\", \"SortAgg\".\n"
                                     + "By default no operator is disabled.");
 
+    /** @deprecated Use {@link ExecutionOptions#BATCH_SHUFFLE_MODE} instead. */
+    @Deprecated
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<String> TABLE_EXEC_SHUFFLE_MODE =
             key("table.exec.shuffle-mode")
                     .stringType()
-                    .defaultValue("ALL_EDGES_BLOCKING")
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text("Sets exec shuffle mode.")
@@ -364,5 +386,18 @@ public class ExecutionConfigOptions {
         ERROR,
         /** Drop records when writing null values into NOT NULL column. */
         DROP
+    }
+
+    /** Upsert materialize strategy before sink. */
+    public enum UpsertMaterialize {
+
+        /** In no case will materialize operator be added. */
+        NONE,
+
+        /** Add materialize operator when a distributed disorder occurs on unique keys. */
+        AUTO,
+
+        /** Add materialize operator in any case. */
+        FORCE
     }
 }

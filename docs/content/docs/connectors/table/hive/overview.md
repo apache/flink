@@ -39,10 +39,6 @@ The second is to offer Flink as an alternative engine for reading and writing Hi
 The `HiveCatalog` is designed to be “out of the box” compatible with existing Hive installations.
 You do not need to modify your existing Hive Metastore or change the data placement or partitioning of your tables.
 
-* Note that we highly recommend users using the [blink planner]({{< ref "docs/dev/table/overview" >}}#dependency-structure) with Hive integration.
-
-
-
 ## Supported Hive Versions
 
 Flink supports the following Hive versions.
@@ -309,9 +305,6 @@ You're supposed to add dependencies as stated above at runtime.
 Connect to an existing Hive installation using the [catalog interface]({{< ref "docs/dev/table/catalogs" >}}) 
 and [HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog" >}}) through the table environment or YAML configuration.
 
-Please note while HiveCatalog doesn't require a particular planner, reading/writing Hive tables only works with blink planner.
-Therefore it's highly recommended that you use blink planner when connecting to your Hive warehouse.
-
 Following is an example of how to connect to Hive:
 
 {{< tabs "5d3cc7e1-a304-4f9e-b36e-ff1f32394ec7" >}}
@@ -319,7 +312,7 @@ Following is an example of how to connect to Hive:
 
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "myhive";
@@ -337,7 +330,7 @@ tableEnv.useCatalog("myhive");
 
 ```scala
 
-val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
+val settings = EnvironmentSettings.inStreamingMode()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "myhive"
@@ -356,7 +349,7 @@ tableEnv.useCatalog("myhive")
 from pyflink.table import *
 from pyflink.table.catalog import HiveCatalog
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
 
 catalog_name = "myhive"
@@ -374,7 +367,6 @@ tableEnv.use_catalog("myhive")
 ```yaml
 
 execution:
-    planner: blink
     ...
     current-catalog: myhive  # set the HiveCatalog as the current catalog of the session
     current-database: mydatabase

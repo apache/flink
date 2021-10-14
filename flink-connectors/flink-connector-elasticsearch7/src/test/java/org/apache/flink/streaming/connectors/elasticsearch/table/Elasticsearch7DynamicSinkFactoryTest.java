@@ -24,6 +24,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,7 +36,7 @@ import java.util.Collections;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.TestContext.context;
 
 /** Tests for validation in {@link Elasticsearch7DynamicSinkFactory}. */
-public class Elasticsearch7DynamicSinkFactoryTest {
+public class Elasticsearch7DynamicSinkFactoryTest extends TestLogger {
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
@@ -86,10 +87,13 @@ public class Elasticsearch7DynamicSinkFactoryTest {
                 "'sink.bulk-flush.max-size' must be in MB granularity. Got: 1024 bytes");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
-                        .withOption(ElasticsearchOptions.BULK_FLASH_MAX_SIZE_OPTION.key(), "1kb")
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
+                        .withOption(
+                                ElasticsearchConnectorOptions.BULK_FLASH_MAX_SIZE_OPTION.key(),
+                                "1kb")
                         .build());
     }
 
@@ -101,11 +105,13 @@ public class Elasticsearch7DynamicSinkFactoryTest {
         thrown.expectMessage("'sink.bulk-flush.backoff.max-retries' must be at least 1. Got: 0");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
                         .withOption(
-                                ElasticsearchOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION.key(),
+                                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION
+                                        .key(),
                                 "0")
                         .build());
     }
@@ -118,10 +124,13 @@ public class Elasticsearch7DynamicSinkFactoryTest {
         thrown.expectMessage("'sink.bulk-flush.max-actions' must be at least 1. Got: -2");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
-                        .withOption(ElasticsearchOptions.BULK_FLUSH_MAX_ACTIONS_OPTION.key(), "-2")
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
+                        .withOption(
+                                ElasticsearchConnectorOptions.BULK_FLUSH_MAX_ACTIONS_OPTION.key(),
+                                "-2")
                         .build());
     }
 
@@ -133,11 +142,13 @@ public class Elasticsearch7DynamicSinkFactoryTest {
         thrown.expectMessage("Invalid value for option 'sink.bulk-flush.backoff.delay'.");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
                         .withOption(
-                                ElasticsearchOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(), "-1s")
+                                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(),
+                                "-1s")
                         .build());
     }
 
@@ -193,11 +204,13 @@ public class Elasticsearch7DynamicSinkFactoryTest {
                                         UniqueConstraint.primaryKey(
                                                 "name",
                                                 Arrays.asList("a", "b", "c", "d", "e", "f", "g"))))
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
                         .withOption(
-                                ElasticsearchOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(), "1s")
+                                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(),
+                                "1s")
                         .build());
     }
 
@@ -210,11 +223,12 @@ public class Elasticsearch7DynamicSinkFactoryTest {
                 "'username' and 'password' must be set at the same time. Got: username 'username' and password ''");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
-                        .withOption(ElasticsearchOptions.USERNAME_OPTION.key(), "username")
-                        .withOption(ElasticsearchOptions.PASSWORD_OPTION.key(), "")
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
+                        .withOption(ElasticsearchConnectorOptions.USERNAME_OPTION.key(), "username")
+                        .withOption(ElasticsearchConnectorOptions.PASSWORD_OPTION.key(), "")
                         .build());
     }
 }

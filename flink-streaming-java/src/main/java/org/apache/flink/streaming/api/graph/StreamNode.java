@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.streaming.api.operators.CoordinatedOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -77,7 +77,7 @@ public class StreamNode {
     private List<StreamEdge> inEdges = new ArrayList<StreamEdge>();
     private List<StreamEdge> outEdges = new ArrayList<StreamEdge>();
 
-    private final Class<? extends AbstractInvokable> jobVertexClass;
+    private final Class<? extends TaskInvokable> jobVertexClass;
 
     private InputFormat<?, ?> inputFormat;
     private OutputFormat<?> outputFormat;
@@ -94,7 +94,7 @@ public class StreamNode {
             @Nullable String coLocationGroup,
             StreamOperator<?> operator,
             String operatorName,
-            Class<? extends AbstractInvokable> jobVertexClass) {
+            Class<? extends TaskInvokable> jobVertexClass) {
         this(
                 id,
                 slotSharingGroup,
@@ -110,7 +110,7 @@ public class StreamNode {
             @Nullable String coLocationGroup,
             StreamOperatorFactory<?> operatorFactory,
             String operatorName,
-            Class<? extends AbstractInvokable> jobVertexClass) {
+            Class<? extends TaskInvokable> jobVertexClass) {
         this.id = id;
         this.operatorName = operatorName;
         this.operatorFactory = operatorFactory;
@@ -263,7 +263,7 @@ public class StreamNode {
         this.typeSerializerOut = typeSerializerOut;
     }
 
-    public Class<? extends AbstractInvokable> getJobVertexClass() {
+    public Class<? extends TaskInvokable> getJobVertexClass() {
         return jobVertexClass;
     }
 

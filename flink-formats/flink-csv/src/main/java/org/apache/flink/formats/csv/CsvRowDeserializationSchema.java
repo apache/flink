@@ -321,7 +321,7 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
         } else if (info.equals(Types.LOCAL_TIME)) {
             return (node) -> Time.valueOf(node.asText()).toLocalTime();
         } else if (info.equals(Types.LOCAL_DATE_TIME)) {
-            return (node) -> LocalDateTime.parse(node.asText(), SQL_TIMESTAMP_FORMAT);
+            return (node) -> LocalDateTime.parse(node.asText().trim(), SQL_TIMESTAMP_FORMAT);
         } else if (info.equals(Types.INSTANT)) {
             return (node) ->
                     LocalDateTime.parse(node.asText(), SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT)

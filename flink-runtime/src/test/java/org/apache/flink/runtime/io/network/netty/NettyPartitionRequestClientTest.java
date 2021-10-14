@@ -196,6 +196,44 @@ public class NettyPartitionRequestClientTest {
         }
     }
 
+    @Test
+    public void testAcknowledgeAllRecordsProcessed() throws Exception {
+        CreditBasedPartitionRequestClientHandler handler =
+                new CreditBasedPartitionRequestClientHandler();
+        EmbeddedChannel channel = new EmbeddedChannel(handler);
+        PartitionRequestClient client = createPartitionRequestClient(channel, handler);
+
+        NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+        SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+        RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
+
+        try {
+            BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
+            inputGate.setBufferPool(bufferPool);
+            inputGate.setupChannels();
+            inputChannel.requestSubpartition(0);
+
+            inputChannel.acknowledgeAllRecordsProcessed();
+            channel.runPendingTasks();
+            Object readFromOutbound = channel.readOutbound();
+            assertThat(readFromOutbound, instanceOf(PartitionRequest.class));
+
+            readFromOutbound = channel.readOutbound();
+            assertThat(readFromOutbound, instanceOf(NettyMessage.AckAllUserRecordsProcessed.class));
+            assertEquals(
+                    inputChannel.getInputChannelId(),
+                    ((NettyMessage.AckAllUserRecordsProcessed) readFromOutbound).receiverId);
+
+            assertNull(channel.readOutbound());
+        } finally {
+            // Release all the buffer resources
+            inputGate.close();
+
+            networkBufferPool.destroyAllBufferPools();
+            networkBufferPool.destroy();
+        }
+    }
+
     private NettyPartitionRequestClient createPartitionRequestClient(
             Channel tcpChannel, NetworkClientHandler clientHandler) throws Exception {
         int port = NetUtils.getAvailablePort();

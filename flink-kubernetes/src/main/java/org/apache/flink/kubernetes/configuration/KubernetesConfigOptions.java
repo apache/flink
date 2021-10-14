@@ -34,6 +34,7 @@ import java.util.Map;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** This class holds configuration constants used by Flink's kubernetes runners. */
 @PublicEvolving
@@ -54,10 +55,29 @@ public class KubernetesConfigOptions {
     public static final ConfigOption<ServiceExposedType> REST_SERVICE_EXPOSED_TYPE =
             key("kubernetes.rest-service.exposed.type")
                     .enumType(ServiceExposedType.class)
-                    .defaultValue(ServiceExposedType.LoadBalancer)
+                    .defaultValue(ServiceExposedType.ClusterIP)
                     .withDescription(
-                            "The exposed type of the rest service (ClusterIP or NodePort or LoadBalancer). "
+                            "The exposed type of the rest service. "
                                     + "The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.");
+
+    public static final ConfigOption<NodePortAddressType>
+            REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE =
+                    key("kubernetes.rest-service.exposed.node-port-address-type")
+                            .enumType(NodePortAddressType.class)
+                            .defaultValue(NodePortAddressType.InternalIP)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "The user-specified %s that is used for filtering node IPs when constructing a %s connection string. This option is only considered when '%s' is set to '%s'.",
+                                                    link(
+                                                            "https://kubernetes.io/docs/concepts/architecture/nodes/#addresses",
+                                                            "address type"),
+                                                    link(
+                                                            "https://kubernetes.io/docs/concepts/services-networking/service/#nodeport",
+                                                            "node port"),
+                                                    text(REST_SERVICE_EXPOSED_TYPE.key()),
+                                                    text(ServiceExposedType.NodePort.name()))
+                                            .build());
 
     public static final ConfigOption<String> JOB_MANAGER_SERVICE_ACCOUNT =
             key("kubernetes.jobmanager.service-account")
@@ -112,7 +132,7 @@ public class KubernetesConfigOptions {
                                                     + "apiVersion:v1,blockOwnerDeletion:true,controller:true,kind:FlinkApplication,name:flink-app-name,uid:flink-app-uid;"
                                                     + "apiVersion:v1,kind:Deployment,name:deploy-name,uid:deploy-uid",
                                             link(
-                                                    "https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/native_kubernetes.html#manual-resource-cleanup",
+                                                    "https://nightlies.apache.org/flink/flink-docs-master/deployment/resource-providers/native_kubernetes.html#manual-resource-cleanup",
                                                     "Owner References"))
                                     .build());
     public static final ConfigOption<Double> JOB_MANAGER_CPU =
@@ -134,7 +154,7 @@ public class KubernetesConfigOptions {
                     .enumType(ImagePullPolicy.class)
                     .defaultValue(ImagePullPolicy.IfNotPresent)
                     .withDescription(
-                            "The Kubernetes container image pull policy (IfNotPresent or Always or Never). "
+                            "The Kubernetes container image pull policy. "
                                     + "The default policy is IfNotPresent to avoid putting pressure to image repository.");
 
     public static final ConfigOption<List<String>> CONTAINER_IMAGE_PULL_SECRETS =
@@ -422,6 +442,16 @@ public class KubernetesConfigOptions {
                                     + "(e.g. start/stop TaskManager pods, update leader related ConfigMaps, etc.). "
                                     + "Increasing the pool size allows to run more IO operations concurrently.");
 
+    public static final ConfigOption<Integer> KUBERNETES_JOBMANAGER_REPLICAS =
+            key("kubernetes.jobmanager.replicas")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            "Specify how many JobManager pods will be started simultaneously. "
+                                    + "Configure the value to greater than 1 to start standby JobManagers. "
+                                    + "It will help to achieve faster recovery. "
+                                    + "Notice that high availability should be enabled when starting standby JobManagers.");
+
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
         // Scala.
@@ -443,6 +473,12 @@ public class KubernetesConfigOptions {
         ClusterIP,
         NodePort,
         LoadBalancer
+    }
+
+    /** The flink rest service exposed type. */
+    public enum NodePortAddressType {
+        InternalIP,
+        ExternalIP,
     }
 
     /** The container image pull policy. */

@@ -244,5 +244,5 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
      * @param jobID The identifier of the job to cleanup.
      * @throws Exception Thrown, if an exception occurred while cleaning data stored by them.
      */
-    void cleanupJobData(JobID jobID) throws Exception;
+    default void cleanupJobData(JobID jobID) throws Exception {}
 }

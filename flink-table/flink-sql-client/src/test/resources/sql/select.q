@@ -17,11 +17,11 @@
 
 # set default streaming mode and tableau result mode
 
-SET execution.runtime-mode = streaming;
+SET 'execution.runtime-mode' = 'streaming';
 [INFO] Session property has been set.
 !info
 
-SET sql-client.execution.result-mode = tableau;
+SET 'sql-client.execution.result-mode' = 'tableau';
 [INFO] Session property has been set.
 !info
 
@@ -71,7 +71,7 @@ Received a total of 4 rows
 # test TIMESTAMP and TIMESTAMP_LTZ type display with tableau result mode
 # ==========================================================================
 
-SET table.local-time-zone = Asia/Shanghai;
+SET 'table.local-time-zone' = 'Asia/Shanghai';
 [INFO] Session property has been set.
 !info
 
@@ -93,7 +93,7 @@ FROM (VALUES
 Received a total of 2 rows
 !ok
 
-SET table.local-time-zone = UTC;
+SET 'table.local-time-zone' = 'UTC';
 [INFO] Session property has been set.
 !info
 
@@ -115,12 +115,80 @@ FROM (VALUES
 Received a total of 2 rows
 !ok
 
+# ==========================================================================
+# Testing behavior of sql-client.display.max-column-width
+# Only variable width columns are impacted at the moment => STRING, but not TIMESTAMP nor BOOLEAN
+# ==========================================================================
+
+CREATE TEMPORARY VIEW
+  testUserData(name, dob, isHappy)
+AS (VALUES
+  ('30b5c1bb-0ac0-43d3-b812-fcb649fd2b07', TIMESTAMP '2001-01-13 20:11:11.123', true),
+  ('91170c98-2cc5-4935-9ea6-12b72d32fb3c', TIMESTAMP '1994-02-14 21:12:11.123', true),
+  ('8b012d93-6ece-48ad-a2ea-aa75ef7b1d60', TIMESTAMP '1979-03-15 22:13:11.123', false),
+  ('09969d9e-d584-11eb-b8bc-0242ac130003', TIMESTAMP '1985-04-16 23:14:11.123', true)
+);
+[INFO] Execute statement succeed.
+!info
+
+SELECT * from testUserData;
++----+--------------------------------+-------------------------+---------+
+| op |                           name |                     dob | isHappy |
++----+--------------------------------+-------------------------+---------+
+| +I | 30b5c1bb-0ac0-43d3-b812-fcb... | 2001-01-13 20:11:11.123 |    true |
+| +I | 91170c98-2cc5-4935-9ea6-12b... | 1994-02-14 21:12:11.123 |    true |
+| +I | 8b012d93-6ece-48ad-a2ea-aa7... | 1979-03-15 22:13:11.123 |   false |
+| +I | 09969d9e-d584-11eb-b8bc-024... | 1985-04-16 23:14:11.123 |    true |
++----+--------------------------------+-------------------------+---------+
+Received a total of 4 rows
+!ok
+
+SET 'sql-client.display.max-column-width' = '10';
+[INFO] Session property has been set.
+!info
+
+SELECT * from testUserData;
++----+------------+-------------------------+---------+
+| op |       name |                     dob | isHappy |
++----+------------+-------------------------+---------+
+| +I | 30b5c1b... | 2001-01-13 20:11:11.123 |    true |
+| +I | 91170c9... | 1994-02-14 21:12:11.123 |    true |
+| +I | 8b012d9... | 1979-03-15 22:13:11.123 |   false |
+| +I | 09969d9... | 1985-04-16 23:14:11.123 |    true |
++----+------------+-------------------------+---------+
+Received a total of 4 rows
+!ok
+
+SET 'sql-client.display.max-column-width' = '40';
+[INFO] Session property has been set.
+!info
+
+SELECT * from testUserData;
++----+------------------------------------------+-------------------------+---------+
+| op |                                     name |                     dob | isHappy |
++----+------------------------------------------+-------------------------+---------+
+| +I |     30b5c1bb-0ac0-43d3-b812-fcb649fd2b07 | 2001-01-13 20:11:11.123 |    true |
+| +I |     91170c98-2cc5-4935-9ea6-12b72d32fb3c | 1994-02-14 21:12:11.123 |    true |
+| +I |     8b012d93-6ece-48ad-a2ea-aa75ef7b1d60 | 1979-03-15 22:13:11.123 |   false |
+| +I |     09969d9e-d584-11eb-b8bc-0242ac130003 | 1985-04-16 23:14:11.123 |    true |
++----+------------------------------------------+-------------------------+---------+
+Received a total of 4 rows
+!ok
+
+-- post-test cleanup + setting back default max width value
+DROP TEMPORARY VIEW testUserData;
+[INFO] Execute statement succeed.
+!info
+
+SET 'sql-client.display.max-column-width' = '30';
+[INFO] Session property has been set.
+!info
 
 # ==========================================================================
 # test batch query
 # ==========================================================================
 
-SET execution.runtime-mode = batch;
+SET 'execution.runtime-mode' = 'batch';
 [INFO] Session property has been set.
 !info
 

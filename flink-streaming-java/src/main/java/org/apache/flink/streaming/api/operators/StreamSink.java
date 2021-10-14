@@ -66,6 +66,8 @@ public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFuncti
     public void processWatermark(Watermark mark) throws Exception {
         super.processWatermark(mark);
         this.currentWatermark = mark.getTimestamp();
+        userFunction.writeWatermark(
+                new org.apache.flink.api.common.eventtime.Watermark(mark.getTimestamp()));
     }
 
     private class SimpleContext<IN> implements SinkFunction.Context {

@@ -44,7 +44,7 @@ public class JobCheckpointingSettingsTest {
                                 CheckpointRetentionPolicy.RETAIN_ON_FAILURE,
                                 false,
                                 false,
-                                false,
+                                0,
                                 0),
                         new SerializedValue<>(new MemoryStateBackend()));
 

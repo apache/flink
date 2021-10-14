@@ -24,14 +24,16 @@ import org.apache.flink.api.common.JobID;
 public interface CheckpointRecoveryFactory {
 
     /**
-     * Creates a {@link CompletedCheckpointStore} instance for a job.
+     * Creates a RECOVERED {@link CompletedCheckpointStore} instance for a job. In this context,
+     * RECOVERED means, that if we already have completed checkpoints from previous runs, we should
+     * use them as the initial state.
      *
      * @param jobId Job ID to recover checkpoints for
      * @param maxNumberOfCheckpointsToRetain Maximum number of checkpoints to retain
      * @param userClassLoader User code class loader of the job
      * @return {@link CompletedCheckpointStore} instance for the job
      */
-    CompletedCheckpointStore createCheckpointStore(
+    CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
             throws Exception;
 

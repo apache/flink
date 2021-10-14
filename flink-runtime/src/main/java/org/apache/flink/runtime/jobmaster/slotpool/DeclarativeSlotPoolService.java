@@ -306,4 +306,12 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
         STARTED,
         CLOSED,
     }
+
+    protected String getSlotServiceStatus() {
+        return String.format(
+                "Registered TMs: %d, registered slots: %d free slots: %d",
+                registeredTaskManagers.size(),
+                declarativeSlotPool.getAllSlotsInformation().size(),
+                declarativeSlotPool.getFreeSlotsInformation().size());
+    }
 }

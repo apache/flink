@@ -51,7 +51,7 @@ public class JobExecutionITCase extends TestLogger {
         final JobGraph jobGraph = createJobGraph(parallelism);
 
         final TestingMiniClusterConfiguration miniClusterConfiguration =
-                new TestingMiniClusterConfiguration.Builder()
+                TestingMiniClusterConfiguration.newBuilder()
                         .setNumSlotsPerTaskManager(numSlotsPerTaskExecutor)
                         .setNumTaskManagers(numTaskExecutors)
                         .setLocalCommunication(true)

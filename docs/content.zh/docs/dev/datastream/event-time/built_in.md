@@ -56,7 +56,7 @@ WatermarkStrategy.forMonotonousTimestamps()
 
 ## 数据之间存在最大固定延迟的时间戳分配器
 
-另一个周期性 watermark 生成的典型例子是，watermark 滞后于数据流中最大（事件时间）时间戳一个固定的时间量。该示例可以覆盖的场景是你预先知道数据流中的数据可能遇到的最大延迟，例如，在测试场景下创建了一个自定义数据源，并且这个数据源的产生的数据的时间戳在一个固定范围之内。Flink 针对上述场景提供了 `boundedOutfordernessWatermarks` 生成器，该生成器将 `maxOutOfOrderness` 作为参数，该参数代表在计算给定窗口的结果时，允许元素被忽略计算之前延迟到达的最长时间。其中延迟时长就等于 `t_w - t` ，其中 `t` 代表元素的（事件时间）时间戳，`t_w` 代表前一个 watermark 对应的（事件时间）时间戳。如果 `lateness > 0`，则认为该元素迟到了，并且在计算相应窗口的结果时默认会被忽略。有关使用延迟元素的详细内容，请参阅有关[允许延迟]({{< ref "docs/dev/datastream/operators/windows" >}}#allowed-lateness)的文档。
+另一个周期性 watermark 生成的典型例子是，watermark 滞后于数据流中最大（事件时间）时间戳一个固定的时间量。该示例可以覆盖的场景是你预先知道数据流中的数据可能遇到的最大延迟，例如，在测试场景下创建了一个自定义数据源，并且这个数据源的产生的数据的时间戳在一个固定范围之内。Flink 针对上述场景提供了 `boundedOutfordernessWatermarks` 生成器，该生成器将 `maxOutOfOrderness` 作为参数，该参数代表在计算给定窗口的结果时，允许元素被忽略计算之前延迟到达的最长时间。其中延迟时长就等于 `t - t_w` ，其中 `t` 代表元素的（事件时间）时间戳，`t_w` 代表前一个 watermark 对应的（事件时间）时间戳。如果 `lateness > 0`，则认为该元素迟到了，并且在计算相应窗口的结果时默认会被忽略。有关使用延迟元素的详细内容，请参阅有关[允许延迟]({{< ref "docs/dev/datastream/operators/windows" >}}#allowed-lateness)的文档。
 
 {{< tabs "9ef0eae9-f6ea-49f6-ab4c-7347a8b49197" >}}
 {{< tab "Java" >}}

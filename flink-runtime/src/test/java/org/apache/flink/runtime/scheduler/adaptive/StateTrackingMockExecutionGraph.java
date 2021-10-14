@@ -310,7 +310,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
-    public void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException {
+    public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
         throw new UnsupportedOperationException();
     }
 

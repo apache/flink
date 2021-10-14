@@ -41,6 +41,9 @@ public class EdgeManager {
     private final Map<ExecutionVertexID, List<ConsumedPartitionGroup>> vertexConsumedPartitions =
             new HashMap<>();
 
+    private final Map<IntermediateResultPartitionID, List<ConsumedPartitionGroup>>
+            consumedPartitionsById = new HashMap<>();
+
     public void connectPartitionWithConsumerVertexGroup(
             IntermediateResultPartitionID resultPartitionId,
             ConsumerVertexGroup consumerVertexGroup) {
@@ -88,5 +91,24 @@ public class EdgeManager {
             ExecutionVertexID executionVertexId) {
         return Collections.unmodifiableList(
                 getConsumedPartitionGroupsForVertexInternal(executionVertexId));
+    }
+
+    public void registerConsumedPartitionGroup(ConsumedPartitionGroup group) {
+        for (IntermediateResultPartitionID partitionId : group) {
+            consumedPartitionsById
+                    .computeIfAbsent(partitionId, ignore -> new ArrayList<>())
+                    .add(group);
+        }
+    }
+
+    private List<ConsumedPartitionGroup> getConsumedPartitionGroupsByIdInternal(
+            IntermediateResultPartitionID resultPartitionId) {
+        return consumedPartitionsById.computeIfAbsent(resultPartitionId, id -> new ArrayList<>());
+    }
+
+    public List<ConsumedPartitionGroup> getConsumedPartitionGroupsById(
+            IntermediateResultPartitionID resultPartitionId) {
+        return Collections.unmodifiableList(
+                getConsumedPartitionGroupsByIdInternal(resultPartitionId));
     }
 }

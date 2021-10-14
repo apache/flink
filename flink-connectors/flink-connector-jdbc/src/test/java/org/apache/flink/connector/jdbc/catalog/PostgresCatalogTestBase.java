@@ -189,7 +189,7 @@ public class PostgresCatalogTestBase {
     }
 
     // TODO: add back timestamptz and time types.
-    //  Flink currently doens't support converting time's precision, with the following error
+    //  Flink currently doesn't support converting time's precision, with the following error
     //  TableException: Unsupported conversion from data type 'TIME(6)' (conversion class:
     // java.sql.Time)
     //  to type information. Only data types that originated from type information fully support a
@@ -260,7 +260,7 @@ public class PostgresCatalogTestBase {
                         + "500");
     }
 
-    // TODO: add back timestamptz once blink planner supports timestamp with timezone
+    // TODO: add back timestamptz once planner supports timestamp with timezone
     public static TestTable getArrayTable() {
         return new TestTable(
                 TableSchema.builder()

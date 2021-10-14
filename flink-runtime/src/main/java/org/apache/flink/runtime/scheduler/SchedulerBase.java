@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.KvStateID;
@@ -40,7 +39,6 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -88,6 +86,7 @@ import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 
@@ -195,8 +194,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         mainThreadExecutor,
                         jobStatusListener);
 
-        registerShutDownCheckpointServicesOnExecutionGraphTermination(executionGraph);
-
         this.schedulingTopology = executionGraph.getSchedulingTopology();
 
         stateLocationRetriever =
@@ -216,12 +213,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(
                         jobMasterConfiguration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
-    }
-
-    private void registerShutDownCheckpointServicesOnExecutionGraphTermination(
-            ExecutionGraph executionGraph) {
-        FutureUtils.assertNoException(
-                executionGraph.getTerminationFuture().thenAccept(this::shutDownCheckpointServices));
     }
 
     private void shutDownCheckpointServices(JobStatus jobStatus) {
@@ -498,6 +489,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     protected void failJob(Throwable cause, long timestamp) {
         incrementVersionsOfAllVertices();
+        cancelAllPendingSlotRequestsInternal();
         executionGraph.failJob(cause, timestamp);
         getJobTerminationFuture().thenRun(() -> archiveGlobalFailure(cause));
     }
@@ -557,6 +549,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         .collect(Collectors.toSet()));
     }
 
+    protected abstract void cancelAllPendingSlotRequestsInternal();
+
     protected void transitionExecutionGraphState(
             final JobStatus current, final JobStatus newState) {
         executionGraph.transitionState(current, newState);
@@ -603,11 +597,17 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         final FlinkException cause = new FlinkException("Scheduler is being stopped.");
 
+        final CompletableFuture<Void> checkpointServicesShutdownFuture =
+                executionGraph
+                        .getTerminationFuture()
+                        .thenAcceptAsync(this::shutDownCheckpointServices, getMainThreadExecutor());
+        FutureUtils.assertNoException(checkpointServicesShutdownFuture);
+
         incrementVersionsOfAllVertices();
+        cancelAllPendingSlotRequestsInternal();
         executionGraph.suspend(cause);
         operatorCoordinatorHandler.disposeAllOperatorCoordinators();
-
-        return CompletableFuture.completedFuture(null);
+        return checkpointServicesShutdownFuture;
     }
 
     @Override
@@ -615,6 +615,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         mainThreadExecutor.assertRunningInMainThread();
 
         incrementVersionsOfAllVertices();
+        cancelAllPendingSlotRequestsInternal();
         executionGraph.cancel();
     }
 
@@ -823,22 +824,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
-        if (checkpointCoordinator == null) {
-            throw new IllegalStateException(
-                    String.format("Job %s is not a streaming job.", jobGraph.getJobID()));
-        } else if (targetDirectory == null
-                && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
-            log.info(
-                    "Trying to cancel job {} with savepoint, but no savepoint directory configured.",
-                    jobGraph.getJobID());
-
-            throw new IllegalStateException(
-                    "No savepoint directory configured. You can either specify a directory "
-                            + "while cancelling via -s :targetDirectory or configure a cluster-wide "
-                            + "default via key '"
-                            + CheckpointingOptions.SAVEPOINT_DIRECTORY.key()
-                            + "'.");
-        }
+        StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
+                checkpointCoordinator, targetDirectory, getJobId(), log);
 
         log.info(
                 "Triggering {}savepoint for job {}.",
@@ -865,6 +852,31 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                                         path,
                                         jobGraph.getJobID());
                                 cancel();
+                            }
+                            return path;
+                        },
+                        mainThreadExecutor);
+    }
+
+    @Override
+    public CompletableFuture<String> triggerCheckpoint() {
+        mainThreadExecutor.assertRunningInMainThread();
+
+        final CheckpointCoordinator checkpointCoordinator =
+                executionGraph.getCheckpointCoordinator();
+        final JobID jobID = jobGraph.getJobID();
+        if (checkpointCoordinator == null) {
+            throw new IllegalStateException(String.format("Job %s is not a streaming job.", jobID));
+        }
+        log.info("Triggering a manual checkpoint for job {}.", jobID);
+
+        return checkpointCoordinator
+                .triggerCheckpoint(false)
+                .thenApply(CompletedCheckpoint::getExternalPointer)
+                .handleAsync(
+                        (path, throwable) -> {
+                            if (throwable != null) {
+                                throw new CompletionException(throwable);
                             }
                             return path;
                         },
@@ -931,7 +943,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
 
-        StopWithSavepointTerminationManager.checkStopWithSavepointPreconditions(
+        StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
                 checkpointCoordinator, targetDirectory, executionGraph.getJobID(), log);
 
         log.info("Triggering stop-with-savepoint for job {}.", jobGraph.getJobID());

@@ -70,14 +70,19 @@ Table result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
 // create and register a TableSink
-final Schema schema = new Schema()
-    .field("product", DataTypes.STRING())
-    .field("amount", DataTypes.INT());
+final Schema schema = Schema.newBuilder()
+    .column("product", DataTypes.STRING())
+    .column("amount", DataTypes.INT())
+    .build();
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(...)
-    .withSchema(schema)
-    .createTemporaryTable("RubberOrders");
+final TableDescriptor sinkDescriptor = TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .format(FormatDescriptor.forFormat("csv")
+        .option("field-delimiter", ",")
+        .build())
+    .build();
+
+tableEnv.createTemporaryTable("RubberOrders", sinkDescriptor);
 
 // run an INSERT SQL on the Table and emit the result to the TableSink
 tableEnv.executeSql(
@@ -105,14 +110,19 @@ val result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 
 // create and register a TableSink
-val schema = new Schema()
-    .field("product", DataTypes.STRING())
-    .field("amount", DataTypes.INT())
+val schema = Schema.newBuilder()
+  .column("product", DataTypes.STRING())
+  .column("amount", DataTypes.INT())
+  .build()
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(...)
-    .withSchema(schema)
-    .createTemporaryTable("RubberOrders")
+val sinkDescriptor = TableDescriptor.forConnector("filesystem")
+  .schema(schema)
+  .format(FormatDescriptor.forFormat("csv")
+    .option("field-delimiter", ",")
+    .build())
+  .build()
+
+tableEnv.createTemporaryTable("RubberOrders", sinkDescriptor)
 
 // run an INSERT SQL on the Table and emit the result to the TableSink
 tableEnv.executeSql(
@@ -131,14 +141,19 @@ result = table_env \
     .sql_query("SELECT SUM(amount) FROM %s WHERE product LIKE '%%Rubber%%'" % table)
 
 # create and register a TableSink
-t_env.connect(FileSystem().path("/path/to/file")))
-    .with_format(Csv()
-                 .field_delimiter(',')
-                 .deriveSchema())
-    .with_schema(Schema()
-                 .field("product", DataTypes.STRING())
-                 .field("amount", DataTypes.BIGINT()))
-    .create_temporary_table("RubberOrders")
+schema = Schema.new_builder()
+    .column("product", DataTypes.STRING())
+    .column("amount", DataTypes.INT())
+    .build()
+
+sink_descriptor = TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .format(FormatDescriptor.for_format("csv")
+        .option("field-delimiter", ",")
+        .build())
+    .build()
+
+t_env.create_temporary_table("RubberOrders", sink_descriptor)
 
 # run an INSERT SQL on the Table and emit the result to the TableSink
 table_env \
@@ -391,9 +406,21 @@ Flink SQL uses a lexical policy for identifier (table, attribute, function names
 
 - The case of identifiers is preserved whether or not they are quoted.
 - After which, identifiers are matched case-sensitively.
-- Unlike Java, back-ticks allow identifiers to contain non-alphanumeric characters (e.g. <code>"SELECT a AS `my field` FROM t"</code>).
+- Unlike Java, back-ticks allow identifiers to contain non-alphanumeric characters (e.g. ``SELECT a AS `my field` FROM t``).
 
-String literals must be enclosed in single quotes (e.g., `SELECT 'Hello World'`). Duplicate a single quote for escaping (e.g., `SELECT 'It''s me.'`). Unicode characters are supported in string literals. If explicit unicode code points are required, use the following syntax:
+String literals must be enclosed in single quotes (e.g., `SELECT 'Hello World'`). Duplicate a single quote for escaping (e.g., `SELECT 'It''s me'`).
+
+```text
+Flink SQL> SELECT 'Hello World', 'It''s me';
++-------------+---------+
+|      EXPR$0 |  EXPR$1 |
++-------------+---------+
+| Hello World | It's me |
++-------------+---------+
+1 row in set
+```
+
+Unicode characters are supported in string literals. If explicit unicode code points are required, use the following syntax:
 
 - Use the backslash (`\`) as escaping character (default): `SELECT U&'\263A'`
 - Use a custom escaping character: `SELECT U&'#263A' UESCAPE '#'`

@@ -67,7 +67,7 @@ public class TaskManagerProcessFailureBatchRecoveryITCase
         ExecutionEnvironment env =
                 ExecutionEnvironment.createRemoteEnvironment("localhost", 1337, configuration);
         env.setParallelism(PARALLELISM);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 0L));
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1500L));
         env.getConfig().setExecutionMode(executionMode);
 
         final long numElements = 100000L;

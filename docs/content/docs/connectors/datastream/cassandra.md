@@ -1,6 +1,6 @@
 ---
 title: Cassandra
-weight: 3
+weight: 4
 type: docs
 aliases:
   - /dev/connectors/cassandra.html
@@ -59,7 +59,7 @@ The following configuration methods can be used:
     * The query is internally treated as CQL statement.
     * __DO__ set the upsert query for processing __Tuple__ data type.
     * __DO NOT__ set the query for processing __POJO__ data types.
-2. _setClusterBuilder()_
+2. _setClusterBuilder(ClusterBuilder clusterBuilder)_
     * Sets the cluster builder that is used to configure the connection to cassandra with more sophisticated settings such as consistency level, retry policy and etc.
 3. _setHost(String host[, int port])_
     * Simple version of setClusterBuilder() with host/port information to connect to Cassandra instances
@@ -75,7 +75,11 @@ The following configuration methods can be used:
 7. _setFailureHandler([CassandraFailureHandler failureHandler])_
     * An __optional__ setting
     * Sets the custom failure handler.
-8. _build()_
+8. _setDefaultKeyspace(String keyspace)_
+    * Sets the default keyspace to be used.
+9. _enableIgnoreNullFields()_
+    * Enables ignoring null values, treats null values as unset and avoids writing null fields and creating tombstones.
+10. _build()_
     * Finalizes the configuration and constructs the CassandraSink instance.
 
 ### Write-ahead Log
@@ -105,7 +109,7 @@ More details on [checkpoints docs]({{< ref "docs/dev/datastream/fault-tolerance/
 
 ## Examples
 
-The Cassandra sinks currently support both Tuple and POJO data types, and Flink automatically detects which type of input is used. For general use case of those streaming data type, please refer to [Supported Data Types]({{< ref "docs/dev/serialization/types_serialization" >}}#supported-data-types). We show two implementations based on [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java), for Pojo and Tuple data types respectively.
+The Cassandra sink currently supports both Tuple and POJO data types, and Flink automatically detects which type of input is used. For general use of those streaming data types, please refer to [Supported Data Types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#supported-data-types). We show two implementations based on [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java), for POJO and Tuple data types respectively.
 
 In all these examples, we assumed the associated Keyspace `example` and Table `wordcount` have been created.
 

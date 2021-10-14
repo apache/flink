@@ -67,29 +67,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SSLUtils {
 
     /**
-     * Checks whether SSL for internal communication (rpc, data transport, blob server) is enabled.
-     */
-    public static boolean isInternalSSLEnabled(Configuration sslConfig) {
-        @SuppressWarnings("deprecation")
-        final boolean fallbackFlag = sslConfig.getBoolean(SecurityOptions.SSL_ENABLED);
-        return sslConfig.getBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, fallbackFlag);
-    }
-
-    /** Checks whether SSL for the external REST endpoint is enabled. */
-    public static boolean isRestSSLEnabled(Configuration sslConfig) {
-        @SuppressWarnings("deprecation")
-        final boolean fallbackFlag = sslConfig.getBoolean(SecurityOptions.SSL_ENABLED);
-        return sslConfig.getBoolean(SecurityOptions.SSL_REST_ENABLED, fallbackFlag);
-    }
-
-    /** Checks whether mutual SSL authentication for the external REST endpoint is enabled. */
-    public static boolean isRestSSLAuthenticationEnabled(Configuration sslConfig) {
-        checkNotNull(sslConfig, "sslConfig");
-        return isRestSSLEnabled(sslConfig)
-                && sslConfig.getBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED);
-    }
-
-    /**
      * Creates a factory for SSL Server Sockets from the given configuration. SSL Server Sockets are
      * always part of internal communication.
      */
@@ -159,7 +136,9 @@ public class SSLUtils {
     public static SSLHandlerFactory createRestServerSSLEngineFactory(final Configuration config)
             throws Exception {
         ClientAuth clientAuth =
-                isRestSSLAuthenticationEnabled(config) ? ClientAuth.REQUIRE : ClientAuth.NONE;
+                SecurityOptions.isRestSSLAuthenticationEnabled(config)
+                        ? ClientAuth.REQUIRE
+                        : ClientAuth.NONE;
         SslContext sslContext = createRestNettySSLContext(config, false, clientAuth);
         if (sslContext == null) {
             throw new IllegalConfigurationException("SSL is not enabled for REST endpoints.");
@@ -176,7 +155,9 @@ public class SSLUtils {
     public static SSLHandlerFactory createRestClientSSLEngineFactory(final Configuration config)
             throws Exception {
         ClientAuth clientAuth =
-                isRestSSLAuthenticationEnabled(config) ? ClientAuth.REQUIRE : ClientAuth.NONE;
+                SecurityOptions.isRestSSLAuthenticationEnabled(config)
+                        ? ClientAuth.REQUIRE
+                        : ClientAuth.NONE;
         SslContext sslContext = createRestNettySSLContext(config, true, clientAuth);
         if (sslContext == null) {
             throw new IllegalConfigurationException("SSL is not enabled for REST endpoints.");
@@ -331,7 +312,7 @@ public class SSLUtils {
             Configuration config, boolean clientMode, SslProvider provider) throws Exception {
         checkNotNull(config, "config");
 
-        if (!isInternalSSLEnabled(config)) {
+        if (!SecurityOptions.isInternalSSLEnabled(config)) {
             return null;
         }
 
@@ -368,7 +349,9 @@ public class SSLUtils {
     public static SSLContext createRestSSLContext(Configuration config, boolean clientMode)
             throws Exception {
         ClientAuth clientAuth =
-                isRestSSLAuthenticationEnabled(config) ? ClientAuth.REQUIRE : ClientAuth.NONE;
+                SecurityOptions.isRestSSLAuthenticationEnabled(config)
+                        ? ClientAuth.REQUIRE
+                        : ClientAuth.NONE;
         JdkSslContext nettySSLContext =
                 (JdkSslContext) createRestNettySSLContext(config, clientMode, clientAuth, JDK);
         if (nettySSLContext != null) {
@@ -394,7 +377,7 @@ public class SSLUtils {
             throws Exception {
         checkNotNull(config, "config");
 
-        if (!isRestSSLEnabled(config)) {
+        if (!SecurityOptions.isRestSSLEnabled(config)) {
             return null;
         }
 

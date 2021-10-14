@@ -20,6 +20,8 @@ package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * Interface for components which can be sent heartbeats and from which one can request a heartbeat
  * response. Both the heartbeat response as well as the heartbeat request can carry a payload. This
@@ -37,8 +39,10 @@ public interface HeartbeatTarget<I> {
      * @param heartbeatOrigin Resource ID identifying the machine for which a heartbeat shall be
      *     reported.
      * @param heartbeatPayload Payload of the heartbeat. Null indicates an empty payload.
+     * @return Future that is completed exceptionally if the heartbeat response could not be sent to
+     *     the target
      */
-    void receiveHeartbeat(ResourceID heartbeatOrigin, I heartbeatPayload);
+    CompletableFuture<Void> receiveHeartbeat(ResourceID heartbeatOrigin, I heartbeatPayload);
 
     /**
      * Requests a heartbeat from the target. Each heartbeat request can carry a payload which
@@ -46,6 +50,8 @@ public interface HeartbeatTarget<I> {
      *
      * @param requestOrigin Resource ID identifying the machine issuing the heartbeat request.
      * @param heartbeatPayload Payload of the heartbeat request. Null indicates an empty payload.
+     * @return Future that is completed exceptionally if the heartbeat request could not be sent to
+     *     the target
      */
-    void requestHeartbeat(ResourceID requestOrigin, I heartbeatPayload);
+    CompletableFuture<Void> requestHeartbeat(ResourceID requestOrigin, I heartbeatPayload);
 }

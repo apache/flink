@@ -175,6 +175,17 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
         super(factory, maxParallelism, parallelism, subtaskIndex, operatorID);
     }
 
+    public OneInputStreamOperatorTestHarness(
+            OneInputStreamOperator<IN, OUT> operator,
+            TypeSerializer<IN> typeSerializerIn,
+            String taskName,
+            OperatorID operatorID)
+            throws Exception {
+        super(operator, taskName, operatorID);
+
+        config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
+    }
+
     @Override
     public void setup(TypeSerializer<OUT> outputSerializer) {
         super.setup(outputSerializer);

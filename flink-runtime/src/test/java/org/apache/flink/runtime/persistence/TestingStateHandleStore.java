@@ -141,7 +141,7 @@ public class TestingStateHandleStore<T extends Serializable>
         releaseAllHandlesRunnable.run();
     }
 
-    public static <T extends Serializable> Builder<T> builder() {
+    public static <T extends Serializable> Builder<T> newBuilder() {
         return new Builder<>();
     }
 

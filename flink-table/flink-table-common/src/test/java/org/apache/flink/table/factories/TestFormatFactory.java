@@ -57,10 +57,16 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
     public static final String IDENTIFIER = "test-format";
 
     public static final ConfigOption<String> DELIMITER =
-            ConfigOptions.key("delimiter").stringType().noDefaultValue();
+            ConfigOptions.key("delimiter")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDeprecatedKeys("deprecated-delimiter");
 
     public static final ConfigOption<Boolean> FAIL_ON_MISSING =
-            ConfigOptions.key("fail-on-missing").booleanType().defaultValue(false);
+            ConfigOptions.key("fail-on-missing")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withFallbackKeys("fallback-fail-on-missing");
 
     public static final ConfigOption<List<String>> CHANGELOG_MODE =
             ConfigOptions.key("changelog-mode").stringType().asList().noDefaultValue();

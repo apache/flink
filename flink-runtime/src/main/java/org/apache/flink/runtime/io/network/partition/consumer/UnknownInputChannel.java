@@ -91,6 +91,12 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
     }
 
     @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        throw new UnsupportedOperationException(
+                "UnknownInputChannel should not need acknowledge all records processed.");
+    }
+
+    @Override
     public void requestSubpartition(int subpartitionIndex) throws IOException {
         // Nothing to do here
     }
@@ -122,6 +128,16 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
     @Override
     public void releaseAllResources() throws IOException {
         // Nothing to do here
+    }
+
+    @Override
+    void announceBufferSize(int newBufferSize) {
+        // Not supported.
+    }
+
+    @Override
+    int getBuffersInUseCount() {
+        return 0;
     }
 
     @Override

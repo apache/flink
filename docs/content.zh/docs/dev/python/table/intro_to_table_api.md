@@ -40,7 +40,7 @@ Python Table API 程序的基本结构
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # 1. 创建 TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings) 
 
 # 2. 创建 source 表
@@ -91,12 +91,12 @@ table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# create a blink streaming TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+# create a streaming TableEnvironment
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
-# or create a blink batch TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+# or create a batch TableEnvironment
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 ```
 
@@ -111,10 +111,6 @@ table_env = TableEnvironment.create(env_settings)
 * 配置作业，更多细节可查阅 [Python 配置]({{< ref "docs/dev/python/python_config" >}})
 * 管理 Python 依赖，更多细节可查阅 [依赖管理]({{< ref "docs/dev/python/dependency_management" >}})
 * 提交作业执行
-
-目前有2个可用的执行器 : flink 执行器 和 blink 执行器。
-
-你应该在当前程序中显式地设置使用哪个执行器，建议尽可能使用 blink 执行器。
 
 {{< top >}}
 
@@ -132,8 +128,8 @@ table_env = TableEnvironment.create(env_settings)
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# 创建 blink 批 TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+# 创建 批 TableEnvironment
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
@@ -196,8 +192,8 @@ print('Now the type of the "id" column is %s.' % type)
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# 创建 blink 流 TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+# 创建 流 TableEnvironment
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table_env.execute_sql("""
@@ -277,7 +273,7 @@ new_table.to_pandas()
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # 通过 batch table environment 来执行查询
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30), ('Jack', 'FRANCE', 20)],
@@ -312,7 +308,7 @@ from pyflink.table.udf import udf
 import pandas as pd
 
 # 通过 batch table environment 来执行查询
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30), ('Jack', 'FRANCE', 20)],
@@ -348,7 +344,7 @@ Flink 的 SQL 基于 [Apache Calcite](https://calcite.apache.org)，它实现了
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # 通过 stream table environment 来执行查询
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
 
@@ -492,6 +488,32 @@ table.to_pandas()
 
 ### 将结果数据收集到客户端
 
+你可以使用 `TableResult.collect` 将 Table 的结果收集到客户端，结果的类型为迭代器类型。
+
+以下代码展示了如何使用 `TableResult.collect()` 方法：
+
+```python
+# 准备 source 表
+source = table_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+
+# 得到 TableResult
+res = table_env.execute_sql("select a + 1, b, c from %s" % source)
+
+# 遍历结果
+with res.collect() as results:
+   for result in results:
+       print(result)
+```
+
+结果为：
+
+```text
+<Row(2, 'Hi', 'Hello')>
+<Row(3, 'Hello', 'Hello')>
+```
+
+### 将结果数据转换为Pandas DataFrame，并收集到客户端
+
 你可以调用 "to_pandas" 方法来 [将一个 `Table` 对象转化成 pandas DataFrame]({{< ref "docs/dev/python/table/conversion_of_pandas" >}}#convert-pyflink-table-to-pandas-dataframe):
 
 ```python
@@ -608,7 +630,7 @@ Table API 提供了一种机制来查看 `Table` 的逻辑查询计划和优化�
 # 使用流模式 TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table1 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
@@ -661,7 +683,7 @@ Stage 136 : Data Source
 # 使用流模式 TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(environment_settings=env_settings)
 
 table1 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])

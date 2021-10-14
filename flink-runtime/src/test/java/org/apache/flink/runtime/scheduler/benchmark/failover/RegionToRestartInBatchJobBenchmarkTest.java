@@ -35,5 +35,6 @@ public class RegionToRestartInBatchJobBenchmarkTest extends TestLogger {
         RegionToRestartInBatchJobBenchmark benchmark = new RegionToRestartInBatchJobBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.calculateRegionToRestart();
+        benchmark.teardown();
     }
 }

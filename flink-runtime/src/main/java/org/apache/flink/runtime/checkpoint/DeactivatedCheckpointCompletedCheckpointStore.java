@@ -31,11 +31,6 @@ public enum DeactivatedCheckpointCompletedCheckpointStore implements CompletedCh
     INSTANCE;
 
     @Override
-    public void recover() throws Exception {
-        throw unsupportedOperationException();
-    }
-
-    @Override
     public void addCheckpoint(
             CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,

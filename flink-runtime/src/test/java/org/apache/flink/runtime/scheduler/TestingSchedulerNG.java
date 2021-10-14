@@ -24,7 +24,6 @@ import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
@@ -41,6 +40,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
@@ -57,6 +57,7 @@ public class TestingSchedulerNG implements SchedulerNG {
     private final Runnable startSchedulingRunnable;
     private final Supplier<CompletableFuture<Void>> closeAsyncSupplier;
     private final BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction;
+    private final Supplier<CompletableFuture<String>> triggerCheckpointFunction;
     private final Consumer<Throwable> handleGlobalFailureConsumer;
 
     private TestingSchedulerNG(
@@ -64,11 +65,13 @@ public class TestingSchedulerNG implements SchedulerNG {
             Runnable startSchedulingRunnable,
             Supplier<CompletableFuture<Void>> closeAsyncSupplier,
             BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction,
+            Supplier<CompletableFuture<String>> triggerCheckpointFunction,
             Consumer<Throwable> handleGlobalFailureConsumer) {
         this.jobTerminationFuture = jobTerminationFuture;
         this.startSchedulingRunnable = startSchedulingRunnable;
         this.closeAsyncSupplier = closeAsyncSupplier;
         this.triggerSavepointFunction = triggerSavepointFunction;
+        this.triggerCheckpointFunction = triggerCheckpointFunction;
         this.handleGlobalFailureConsumer = handleGlobalFailureConsumer;
     }
 
@@ -180,6 +183,11 @@ public class TestingSchedulerNG implements SchedulerNG {
     }
 
     @Override
+    public CompletableFuture<String> triggerCheckpoint() {
+        return triggerCheckpointFunction.get();
+    }
+
+    @Override
     public void acknowledgeCheckpoint(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,
@@ -232,6 +240,8 @@ public class TestingSchedulerNG implements SchedulerNG {
                 FutureUtils::completedVoidFuture;
         private BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction =
                 (ignoredA, ignoredB) -> new CompletableFuture<>();
+        private Supplier<CompletableFuture<String>> triggerCheckpointFunction =
+                CompletableFuture::new;
         private Consumer<Throwable> handleGlobalFailureConsumer = (ignored) -> {};
 
         public Builder setJobTerminationFuture(CompletableFuture<JobStatus> jobTerminationFuture) {
@@ -255,6 +265,12 @@ public class TestingSchedulerNG implements SchedulerNG {
             return this;
         }
 
+        public Builder setTriggerCheckpointFunction(
+                Supplier<CompletableFuture<String>> triggerCheckpointFunction) {
+            this.triggerCheckpointFunction = triggerCheckpointFunction;
+            return this;
+        }
+
         public Builder setHandleGlobalFailureConsumer(
                 Consumer<Throwable> handleGlobalFailureConsumer) {
             this.handleGlobalFailureConsumer = handleGlobalFailureConsumer;
@@ -267,6 +283,7 @@ public class TestingSchedulerNG implements SchedulerNG {
                     startSchedulingRunnable,
                     closeAsyncSupplier,
                     triggerSavepointFunction,
+                    triggerCheckpointFunction,
                     handleGlobalFailureConsumer);
         }
     }

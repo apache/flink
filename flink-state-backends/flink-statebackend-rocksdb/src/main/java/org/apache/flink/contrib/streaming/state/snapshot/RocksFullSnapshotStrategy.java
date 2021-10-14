@@ -141,6 +141,11 @@ public class RocksFullSnapshotStrategy<K>
         // nothing to do.
     }
 
+    @Override
+    public void close() {
+        // nothing to do.
+    }
+
     private SupplierWithException<CheckpointStreamWithResultProvider, Exception>
             createCheckpointStreamSupplier(
                     long checkpointId,

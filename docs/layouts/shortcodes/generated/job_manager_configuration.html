@@ -48,7 +48,19 @@
             <td><h5>jobmanager.execution.failover-strategy</h5></td>
             <td style="word-wrap: break-word;">"region"</td>
             <td>String</td>
-            <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
+            <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery/#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.future-pool.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The size of the future thread pool to execute future callbacks for all spawned JobMasters. If no value is specified, then Flink defaults to the number of available CPU cores.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.io-pool.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The size of the IO thread pool to run blocking operations for all spawned JobMasters. This includes recovery and completion of checkpoints. Increase this value if you experience slow checkpoint operations when running many jobs. If no value is specified, then Flink defaults to the number of available CPU cores.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.memory.enable-jvm-direct-memory-limit</h5></td>
@@ -149,8 +161,8 @@
         <tr>
             <td><h5>scheduler-mode</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td><p>Enum</p>Possible values: [REACTIVE]</td>
-            <td>Determines the mode of the scheduler. Note that <code class="highlighter-rouge">scheduler-mode</code>=<code class="highlighter-rouge">REACTIVE</code> is only supported by standalone application deployments, not by active resource managers (YARN, Kubernetes) or session clusters.</td>
+            <td><p>Enum</p></td>
+            <td>Determines the mode of the scheduler. Note that <code class="highlighter-rouge">scheduler-mode</code>=<code class="highlighter-rouge">REACTIVE</code> is only supported by standalone application deployments, not by active resource managers (YARN, Kubernetes) or session clusters.<br /><br />Possible values:<ul><li>"REACTIVE"</li></ul></td>
         </tr>
         <tr>
             <td><h5>slot.idle.timeout</h5></td>

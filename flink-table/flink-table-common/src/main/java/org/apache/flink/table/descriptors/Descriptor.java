@@ -31,8 +31,12 @@ import java.util.Map;
  *
  * <p>A descriptor is similar to a builder in a builder pattern, thus, mutable for building
  * properties.
+ *
+ * @deprecated {@link Descriptor} was primarily used for the legacy connector stack and have been
+ *     deprecated. Use {@code TableDescriptor} for creating sources and sinks from the Table API.
  */
 @PublicEvolving
+@Deprecated
 public interface Descriptor {
 
     /** Converts this descriptor into a set of properties. */

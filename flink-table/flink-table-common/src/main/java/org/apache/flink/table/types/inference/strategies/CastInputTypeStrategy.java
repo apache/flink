@@ -43,7 +43,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
  * second one. The second one must be a type literal.
  */
 @Internal
-public final class CastInputTypeStrategy implements InputTypeStrategy {
+class CastInputTypeStrategy implements InputTypeStrategy {
 
     @Override
     public ArgumentCount getArgumentCount() {

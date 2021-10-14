@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -28,6 +27,7 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
@@ -75,7 +75,7 @@ public abstract class AbstractRestHandler<
     protected CompletableFuture<Void> respondToRequest(
             ChannelHandlerContext ctx,
             HttpRequest httpRequest,
-            HandlerRequest<R, M> handlerRequest,
+            HandlerRequest<R> handlerRequest,
             T gateway) {
         CompletableFuture<P> response;
 
@@ -113,5 +113,5 @@ public abstract class AbstractRestHandler<
      * @throws RestHandlerException if the handling failed
      */
     protected abstract CompletableFuture<P> handleRequest(
-            @Nonnull HandlerRequest<R, M> request, @Nonnull T gateway) throws RestHandlerException;
+            @Nonnull HandlerRequest<R> request, @Nonnull T gateway) throws RestHandlerException;
 }

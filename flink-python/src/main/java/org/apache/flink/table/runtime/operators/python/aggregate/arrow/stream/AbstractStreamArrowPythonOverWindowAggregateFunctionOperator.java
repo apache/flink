@@ -90,11 +90,7 @@ public abstract class AbstractStreamArrowPythonOverWindowAggregateFunctionOperat
 
     @Override
     public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(inputType.getFieldCount(), outputType.getFieldCount()));
+        super.open();
         InternalTimerService<VoidNamespace> internalTimerService =
                 getInternalTimerService(
                         "python-over-window-timers", VoidNamespaceSerializer.INSTANCE, this);
@@ -113,11 +109,18 @@ public abstract class AbstractStreamArrowPythonOverWindowAggregateFunctionOperat
                 new ValueStateDescriptor<>("cleanupTsState", Types.LONG);
         cleanupTsState = getRuntimeContext().getState(cleanupTsStateDescriptor);
         inputState = getRuntimeContext().getMapState(inputStateDesc);
-        super.open();
     }
 
     @Override
     public void processElementInternal(RowData value) throws Exception {}
+
+    @Override
+    public RowType createUserDefinedFunctionOutputType() {
+        return new RowType(
+                outputType
+                        .getFields()
+                        .subList(inputType.getFieldCount(), outputType.getFieldCount()));
+    }
 
     void invokeCurrentBatch() throws Exception {
         if (currentBatchCount > 0) {

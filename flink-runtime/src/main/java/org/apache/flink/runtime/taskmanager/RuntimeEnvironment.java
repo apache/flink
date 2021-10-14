@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -43,9 +44,13 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.UserCodeClassLoader;
 
+import javax.annotation.Nullable;
+
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -92,6 +97,12 @@ public class RuntimeEnvironment implements Environment {
 
     private final Task containingTask;
 
+    @Nullable private MailboxExecutor mainMailboxExecutor;
+
+    @Nullable private ExecutorService asyncOperationsThreadPool;
+
+    private final ThroughputCalculator throughputCalculator;
+
     // ------------------------------------------------------------------------
 
     public RuntimeEnvironment(
@@ -120,7 +131,8 @@ public class RuntimeEnvironment implements Environment {
             TaskManagerRuntimeInfo taskManagerInfo,
             TaskMetricGroup metrics,
             Task containingTask,
-            ExternalResourceInfoProvider externalResourceInfoProvider) {
+            ExternalResourceInfoProvider externalResourceInfoProvider,
+            ThroughputCalculator throughputCalculator) {
 
         this.jobId = checkNotNull(jobId);
         this.jobVertexId = checkNotNull(jobVertexId);
@@ -148,6 +160,7 @@ public class RuntimeEnvironment implements Environment {
         this.containingTask = containingTask;
         this.metrics = metrics;
         this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
+        this.throughputCalculator = throughputCalculator;
     }
 
     // ------------------------------------------------------------------------
@@ -306,5 +319,33 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public void failExternally(Throwable cause) {
         this.containingTask.failExternally(cause);
+    }
+
+    @Override
+    public void setMainMailboxExecutor(MailboxExecutor mainMailboxExecutor) {
+        this.mainMailboxExecutor = mainMailboxExecutor;
+    }
+
+    @Override
+    public MailboxExecutor getMainMailboxExecutor() {
+        return checkNotNull(
+                mainMailboxExecutor, "mainMailboxExecutor has not been initialized yet!");
+    }
+
+    @Override
+    public void setAsyncOperationsThreadPool(ExecutorService executorService) {
+        this.asyncOperationsThreadPool = executorService;
+    }
+
+    @Override
+    public ExecutorService getAsyncOperationsThreadPool() {
+        return checkNotNull(
+                asyncOperationsThreadPool,
+                "asyncOperationsThreadPool has not been initialized yet!");
+    }
+
+    @Override
+    public ThroughputCalculator getThroughputCalculator() {
+        return throughputCalculator;
     }
 }

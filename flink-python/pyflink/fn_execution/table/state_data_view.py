@@ -18,12 +18,10 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, Union
 
-from apache_beam.coders import PickleCoder
-
 from pyflink.datastream.state import ListState, MapState
-from pyflink.fn_execution.coders import from_proto
+from pyflink.fn_execution.coders import from_proto, PickleCoder
 from pyflink.fn_execution.internal_state import InternalListState, InternalMapState
-from pyflink.fn_execution.operation_utils import is_built_in_function, load_aggregate_function
+from pyflink.fn_execution.utils.operation_utils import is_built_in_function, load_aggregate_function
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.table import FunctionContext
 from pyflink.table.data_view import ListView, MapView, DataView

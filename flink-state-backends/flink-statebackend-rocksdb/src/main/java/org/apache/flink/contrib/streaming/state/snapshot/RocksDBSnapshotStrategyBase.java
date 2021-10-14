@@ -43,7 +43,7 @@ import java.util.LinkedHashMap;
  * @param <K> type of the backend keys.
  */
 public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources>
-        implements CheckpointListener, SnapshotStrategy<KeyedStateHandle, R> {
+        implements CheckpointListener, SnapshotStrategy<KeyedStateHandle, R>, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(RocksDBSnapshotStrategyBase.class);
 
@@ -92,4 +92,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
     public String getDescription() {
         return description;
     }
+
+    @Override
+    public abstract void close();
 }

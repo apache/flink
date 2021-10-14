@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.types.logical.RowType;
 
-/** The Python AggregateFunction operator for the blink planner. */
+/** The Python AggregateFunction operator. */
 @Internal
 public class PythonStreamGroupAggregateOperator extends AbstractPythonStreamGroupAggregateOperator {
 
@@ -61,8 +61,7 @@ public class PythonStreamGroupAggregateOperator extends AbstractPythonStreamGrou
                 indexOfCountStar,
                 generateUpdateBefore,
                 minRetentionTime,
-                maxRetentionTime,
-                FlinkFnApi.CoderParam.OutputMode.SINGLE);
+                maxRetentionTime);
         this.countStarInserted = countStarInserted;
     }
 

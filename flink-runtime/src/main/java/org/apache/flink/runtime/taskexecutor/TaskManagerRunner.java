@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -28,11 +29,12 @@ import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
+import org.apache.flink.core.security.FlinkSecurityManager;
+import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
@@ -41,23 +43,24 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
-import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
-import org.apache.flink.runtime.security.FlinkSecurityManager;
+import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.runtime.rpc.RpcSystemUtils;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -69,6 +72,8 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TaskManagerExceptionUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,6 +128,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
     private final CompletableFuture<Result> terminationFuture;
 
+    private final RpcSystem rpcSystem;
+
     private boolean shutdown;
 
     public TaskManagerRunner(
@@ -132,7 +139,9 @@ public class TaskManagerRunner implements FatalErrorHandler {
             throws Exception {
         this.configuration = checkNotNull(configuration);
 
-        timeout = AkkaUtils.getTimeoutAsTime(configuration);
+        rpcSystem = RpcSystem.load(configuration);
+
+        timeout = Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
 
         this.executor =
                 java.util.concurrent.Executors.newScheduledThreadPool(
@@ -143,11 +152,13 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 HighAvailabilityServicesUtils.createHighAvailabilityServices(
                         configuration,
                         executor,
-                        HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+                        AddressResolution.NO_ADDRESS_RESOLUTION,
+                        rpcSystem,
+                        this);
 
         JMXService.startInstance(configuration.getString(JMXServerOptions.JMX_SERVER_PORT));
 
-        rpcService = createRpcService(configuration, highAvailabilityServices);
+        rpcService = createRpcService(configuration, highAvailabilityServices, rpcSystem);
 
         this.resourceId =
                 getTaskManagerResourceID(
@@ -157,11 +168,14 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
         metricRegistry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.fromConfiguration(configuration),
+                        MetricRegistryConfiguration.fromConfiguration(
+                                configuration,
+                                rpcSystem.getMaximumMessageSizeInBytes(configuration)),
                         ReporterSetup.fromConfiguration(configuration, pluginManager));
 
         final RpcService metricQueryServiceRpcService =
-                MetricUtils.startRemoteMetricsRpcService(configuration, rpcService.getAddress());
+                MetricUtils.startRemoteMetricsRpcService(
+                        configuration, rpcService.getAddress(), rpcSystem);
         metricRegistry.startQueryService(metricQueryServiceRpcService, resourceId);
 
         blobCacheService =
@@ -241,7 +255,10 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         FutureUtils.composeAfterwards(
                                 taskManagerTerminationFuture, this::shutDownServices);
 
-                serviceTerminationFuture.whenComplete(
+                final CompletableFuture<Void> rpcSystemClassLoaderCloseFuture =
+                        FutureUtils.runAfterwards(serviceTerminationFuture, rpcSystem::close);
+
+                rpcSystemClassLoaderCloseFuture.whenComplete(
                         (Void ignored, Throwable throwable) -> {
                             if (throwable != null) {
                                 terminationFuture.completeExceptionally(throwable);
@@ -402,9 +419,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 PluginUtils.createPluginManagerFromRootFolder(configuration);
         FileSystem.initialize(configuration, pluginManager);
 
+        StateChangelogStorageLoader.initialize(pluginManager);
+
         int exitCode;
         Throwable throwable = null;
 
+        ClusterEntrypointUtils.configureUncaughtExceptionHandler(configuration);
         try {
             SecurityUtils.install(new SecurityConfiguration(configuration));
 
@@ -544,22 +564,27 @@ public class TaskManagerRunner implements FatalErrorHandler {
      */
     @VisibleForTesting
     static RpcService createRpcService(
-            final Configuration configuration, final HighAvailabilityServices haServices)
+            final Configuration configuration,
+            final HighAvailabilityServices haServices,
+            final RpcSystem rpcSystem)
             throws Exception {
 
         checkNotNull(configuration);
         checkNotNull(haServices);
 
-        return AkkaRpcServiceUtils.createRemoteRpcService(
+        return RpcUtils.createRemoteRpcService(
+                rpcSystem,
                 configuration,
-                determineTaskManagerBindAddress(configuration, haServices),
+                determineTaskManagerBindAddress(configuration, haServices, rpcSystem),
                 configuration.getString(TaskManagerOptions.RPC_PORT),
                 configuration.getString(TaskManagerOptions.BIND_HOST),
                 configuration.getOptional(TaskManagerOptions.RPC_BIND_PORT));
     }
 
     private static String determineTaskManagerBindAddress(
-            final Configuration configuration, final HighAvailabilityServices haServices)
+            final Configuration configuration,
+            final HighAvailabilityServices haServices,
+            RpcSystemUtils rpcSystemUtils)
             throws Exception {
 
         final String configuredTaskManagerHostname =
@@ -572,19 +597,23 @@ public class TaskManagerRunner implements FatalErrorHandler {
             return configuredTaskManagerHostname;
         } else {
             return determineTaskManagerBindAddressByConnectingToResourceManager(
-                    configuration, haServices);
+                    configuration, haServices, rpcSystemUtils);
         }
     }
 
     private static String determineTaskManagerBindAddressByConnectingToResourceManager(
-            final Configuration configuration, final HighAvailabilityServices haServices)
+            final Configuration configuration,
+            final HighAvailabilityServices haServices,
+            RpcSystemUtils rpcSystemUtils)
             throws LeaderRetrievalException {
 
-        final Duration lookupTimeout = AkkaUtils.getLookupTimeout(configuration);
+        final Duration lookupTimeout = configuration.get(AkkaOptions.LOOKUP_TIMEOUT_DURATION);
 
         final InetAddress taskManagerAddress =
                 LeaderRetrievalUtils.findConnectingAddress(
-                        haServices.getResourceManagerLeaderRetriever(), lookupTimeout);
+                        haServices.getResourceManagerLeaderRetriever(),
+                        lookupTimeout,
+                        rpcSystemUtils);
 
         LOG.info(
                 "TaskManager will use hostname/address '{}' ({}) for communication.",

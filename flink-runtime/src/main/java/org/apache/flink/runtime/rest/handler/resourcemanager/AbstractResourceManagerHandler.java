@@ -70,7 +70,7 @@ public abstract class AbstractResourceManagerHandler<
 
     @Override
     protected CompletableFuture<P> handleRequest(
-            @Nonnull HandlerRequest<R, M> request, @Nonnull T gateway) throws RestHandlerException {
+            @Nonnull HandlerRequest<R> request, @Nonnull T gateway) throws RestHandlerException {
         ResourceManagerGateway resourceManagerGateway =
                 getResourceManagerGateway(resourceManagerGatewayRetriever);
 
@@ -78,7 +78,7 @@ public abstract class AbstractResourceManagerHandler<
     }
 
     protected abstract CompletableFuture<P> handleRequest(
-            @Nonnull HandlerRequest<R, M> request, @Nonnull ResourceManagerGateway gateway)
+            @Nonnull HandlerRequest<R> request, @Nonnull ResourceManagerGateway gateway)
             throws RestHandlerException;
 
     public static ResourceManagerGateway getResourceManagerGateway(

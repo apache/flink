@@ -36,9 +36,9 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
@@ -103,12 +103,6 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
     public void suspendWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
             throws Exception {
         stopWithSavepointNormalExecutionHelper(false);
-    }
-
-    @Test
-    public void terminateWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
-            throws Exception {
-        stopWithSavepointNormalExecutionHelper(true);
     }
 
     private void stopWithSavepointNormalExecutionHelper(final boolean terminate) throws Exception {
@@ -232,8 +226,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
             String exceptionMessage = checkpointExceptionOptional.get().getMessage();
             assertTrue(
                     "Stop with savepoint failed because of another cause " + exceptionMessage,
-                    exceptionMessage.contains(
-                            CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE.message()));
+                    exceptionMessage.contains(CheckpointFailureReason.IO_EXCEPTION.message()));
         }
 
         final JobStatus jobStatus =
@@ -258,7 +251,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
     }
 
     private void setUpJobGraph(
-            final Class<? extends AbstractInvokable> invokable,
+            final Class<? extends TaskInvokable> invokable,
             final RestartStrategies.RestartStrategyConfiguration restartStrategy)
             throws Exception {
 
@@ -296,7 +289,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
                                 true,
                                 false,
-                                false,
+                                0,
                                 0),
                         null);
 
@@ -321,7 +314,8 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
                                 .getMiniCluster()
                                 .getExecutionGraph(jobID)
                                 .get(60, TimeUnit.SECONDS),
-                deadline);
+                deadline,
+                false);
     }
 
     /**
@@ -346,7 +340,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         }
 
         @Override
-        public Future<Boolean> triggerCheckpointAsync(
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
                 CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             final long checkpointId = checkpointMetaData.getCheckpointId();
             final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
@@ -370,7 +364,8 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         }
 
         @Override
-        public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+        public Future<Void> notifyCheckpointAbortAsync(
+                long checkpointId, long latestCompletedCheckpointId) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -395,7 +390,8 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
             if (suspension == null) {
                 suspension = controller.suspendDefaultAction();
             } else {
-                controller.allActionsCompleted();
+                controller.suspendDefaultAction();
+                mailboxProcessor.suspend();
             }
         }
 
@@ -426,7 +422,8 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
             if (suspension == null) {
                 suspension = controller.suspendDefaultAction();
             } else {
-                controller.allActionsCompleted();
+                controller.suspendDefaultAction();
+                mailboxProcessor.suspend();
             }
         }
 
@@ -439,7 +436,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         }
 
         @Override
-        public Future<Boolean> triggerCheckpointAsync(
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
                 final CheckpointMetaData checkpointMetaData,
                 final CheckpointOptions checkpointOptions) {
             final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();

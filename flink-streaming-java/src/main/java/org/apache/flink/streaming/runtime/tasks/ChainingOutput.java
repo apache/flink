@@ -20,15 +20,15 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 
 import org.slf4j.Logger;
@@ -42,30 +42,18 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
     protected final Input<T> input;
     protected final Counter numRecordsIn;
     protected final WatermarkGauge watermarkGauge = new WatermarkGauge();
-    protected final StreamStatusProvider streamStatusProvider;
     @Nullable protected final OutputTag<T> outputTag;
-    @Nullable protected final AutoCloseable closeable;
+    protected WatermarkStatus announcedStatus = WatermarkStatus.ACTIVE;
 
-    public ChainingOutput(
-            OneInputStreamOperator<T, ?> operator,
-            StreamStatusProvider streamStatusProvider,
-            @Nullable OutputTag<T> outputTag) {
-        this(
-                operator,
-                (OperatorMetricGroup) operator.getMetricGroup(),
-                streamStatusProvider,
-                outputTag,
-                operator::close);
+    public ChainingOutput(OneInputStreamOperator<T, ?> operator, @Nullable OutputTag<T> outputTag) {
+        this(operator, operator.getMetricGroup(), outputTag);
     }
 
     public ChainingOutput(
             Input<T> input,
             OperatorMetricGroup operatorMetricGroup,
-            StreamStatusProvider streamStatusProvider,
-            @Nullable OutputTag<T> outputTag,
-            @Nullable AutoCloseable closeable) {
+            @Nullable OutputTag<T> outputTag) {
         this.input = input;
-        this.closeable = closeable;
 
         {
             Counter tmpNumRecordsIn;
@@ -79,7 +67,6 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
             numRecordsIn = tmpNumRecordsIn;
         }
 
-        this.streamStatusProvider = streamStatusProvider;
         this.outputTag = outputTag;
     }
 
@@ -117,11 +104,12 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
 
     @Override
     public void emitWatermark(Watermark mark) {
+        if (announcedStatus.isIdle()) {
+            return;
+        }
         try {
             watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-            if (streamStatusProvider.getStreamStatus().isActive()) {
-                input.processWatermark(mark);
-            }
+            input.processWatermark(mark);
         } catch (Exception e) {
             throw new ExceptionInChainedOperatorException(e);
         }
@@ -138,17 +126,23 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
 
     @Override
     public void close() {
-        try {
-            if (closeable != null) {
-                closeable.close();
-            }
-        } catch (Exception e) {
-            throw new ExceptionInChainedOperatorException(e);
-        }
+        // nothing is owned by ChainingOutput and should be closed, see FLINK-20888
     }
 
     @Override
     public Gauge<Long> getWatermarkGauge() {
         return watermarkGauge;
+    }
+
+    @Override
+    public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
+        if (!announcedStatus.equals(watermarkStatus)) {
+            announcedStatus = watermarkStatus;
+            try {
+                input.processWatermarkStatus(watermarkStatus);
+            } catch (Exception e) {
+                throw new ExceptionInChainedOperatorException(e);
+            }
+        }
     }
 }

@@ -24,6 +24,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.Operator;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -156,7 +157,10 @@ public class BootstrapTransformationTest extends AbstractTestBase {
 
         StreamConfig config =
                 transformation.getConfig(
-                        OperatorIDGenerator.fromUid("uid"), new MemoryStateBackend(), null);
+                        OperatorIDGenerator.fromUid("uid"),
+                        new MemoryStateBackend(),
+                        new Configuration(),
+                        null);
         KeySelector selector =
                 config.getStatePartitioner(0, Thread.currentThread().getContextClassLoader());
 

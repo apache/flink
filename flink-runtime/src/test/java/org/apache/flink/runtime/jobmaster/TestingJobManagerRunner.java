@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -31,6 +32,10 @@ import java.util.concurrent.CompletableFuture;
 
 /** Testing implementation of the {@link JobManagerRunner}. */
 public class TestingJobManagerRunner implements JobManagerRunner {
+
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
     private final JobID jobId;
 
@@ -57,9 +62,15 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         this.resultFuture = resultFuture;
         this.terminationFuture = new CompletableFuture<>();
 
+        final ExecutionGraphInfo suspendedExecutionGraphInfo =
+                new ExecutionGraphInfo(
+                        ArchivedExecutionGraph.createFromInitializingJob(
+                                jobId, "TestJob", JobStatus.SUSPENDED, null, null, 0L),
+                        null);
         terminationFuture.whenComplete(
                 (ignored, ignoredThrowable) ->
-                        resultFuture.completeExceptionally(new JobNotFinishedException(jobId)));
+                        resultFuture.complete(
+                                JobManagerRunnerResult.forSuccess(suspendedExecutionGraphInfo)));
     }
 
     @Override
@@ -149,11 +160,16 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
     /** {@code Builder} for instantiating {@link TestingJobManagerRunner} instances. */
     public static class Builder {
+
         private JobID jobId = null;
         private boolean blockingTermination = false;
         private CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
                 new CompletableFuture<>();
         private CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
+
+        private Builder() {
+            // No-op.
+        }
 
         public Builder setJobId(JobID jobId) {
             this.jobId = jobId;

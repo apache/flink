@@ -70,7 +70,7 @@ public class StateBackendLoadingTest {
     public void testInstantiateHashMapStateBackendBackendByDefault() throws Exception {
         StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, new Configuration(), cl, null);
+                        null, TernaryBoolean.UNDEFINED, new Configuration(), cl, null);
 
         assertTrue(backend instanceof HashMapStateBackend);
     }
@@ -83,7 +83,8 @@ public class StateBackendLoadingTest {
         config.setString(backendKey, "jobmanager");
 
         StateBackend backend =
-                StateBackendLoader.fromApplicationOrConfigOrDefault(appBackend, config, cl, null);
+                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                        appBackend, TernaryBoolean.UNDEFINED, config, cl, null);
         assertEquals(appBackend, backend);
     }
 
@@ -173,7 +174,8 @@ public class StateBackendLoadingTest {
         config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
         StateBackend loadedBackend =
-                StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);
+                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                        backend, TernaryBoolean.UNDEFINED, config, cl, null);
         assertTrue(loadedBackend instanceof MemoryStateBackend);
 
         final MemoryStateBackend memBackend = (MemoryStateBackend) loadedBackend;
@@ -206,7 +208,8 @@ public class StateBackendLoadingTest {
         config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
         StateBackend loadedBackend =
-                StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);
+                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                        backend, TernaryBoolean.UNDEFINED, config, cl, null);
         assertTrue(loadedBackend instanceof MemoryStateBackend);
 
         final MemoryStateBackend memBackend = (MemoryStateBackend) loadedBackend;
@@ -301,7 +304,8 @@ public class StateBackendLoadingTest {
                 CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 3000000); // this should not be picked up
 
         final StateBackend loadedBackend =
-                StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);
+                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                        backend, TernaryBoolean.UNDEFINED, config, cl, null);
         assertTrue(loadedBackend instanceof FsStateBackend);
 
         final FsStateBackend fs = (FsStateBackend) loadedBackend;
@@ -326,7 +330,8 @@ public class StateBackendLoadingTest {
         // try a value that is neither recognized as a name, nor corresponds to a class
         config.setString(backendKey, "does.not.exist");
         try {
-            StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, null);
+            StateBackendLoader.fromApplicationOrConfigOrDefault(
+                    null, TernaryBoolean.UNDEFINED, config, cl, null);
             fail("should fail with an exception");
         } catch (DynamicCodeLoadingException ignored) {
             // expected
@@ -335,7 +340,8 @@ public class StateBackendLoadingTest {
         // try a class that is not a factory
         config.setString(backendKey, java.io.File.class.getName());
         try {
-            StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, null);
+            StateBackendLoader.fromApplicationOrConfigOrDefault(
+                    null, TernaryBoolean.UNDEFINED, config, cl, null);
             fail("should fail with an exception");
         } catch (DynamicCodeLoadingException ignored) {
             // expected
@@ -344,7 +350,8 @@ public class StateBackendLoadingTest {
         // a factory that fails
         config.setString(backendKey, FailingFactory.class.getName());
         try {
-            StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, null);
+            StateBackendLoader.fromApplicationOrConfigOrDefault(
+                    null, TernaryBoolean.UNDEFINED, config, cl, null);
             fail("should fail with an exception");
         } catch (IOException ignored) {
             // expected
@@ -403,11 +410,14 @@ public class StateBackendLoadingTest {
         final MemoryStateBackend appBackend = new MemoryStateBackend();
 
         final StateBackend loaded1 =
-                StateBackendLoader.fromApplicationOrConfigOrDefault(appBackend, config1, cl, null);
+                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                        appBackend, TernaryBoolean.UNDEFINED, config1, cl, null);
         final StateBackend loaded2 =
-                StateBackendLoader.fromApplicationOrConfigOrDefault(null, config1, cl, null);
+                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                        null, TernaryBoolean.UNDEFINED, config1, cl, null);
         final StateBackend loaded3 =
-                StateBackendLoader.fromApplicationOrConfigOrDefault(null, config2, cl, null);
+                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                        null, TernaryBoolean.UNDEFINED, config2, cl, null);
 
         assertTrue(loaded1 instanceof MemoryStateBackend);
         assertTrue(loaded2 instanceof HashMapStateBackend);

@@ -20,8 +20,8 @@ package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.table.JdbcLookupFunction;
 import org.apache.flink.connector.jdbc.table.JdbcLookupTestBase;
 import org.apache.flink.types.Row;
@@ -84,8 +84,8 @@ public class JdbcLookupFunctionTest extends JdbcLookupTestBase {
     }
 
     private JdbcLookupFunction buildLookupFunction() {
-        JdbcOptions jdbcOptions =
-                JdbcOptions.builder()
+        JdbcConnectorOptions jdbcOptions =
+                JdbcConnectorOptions.builder()
                         .setDriverName(DB_DRIVER)
                         .setDBUrl(DB_URL)
                         .setTableName(LOOKUP_TABLE)

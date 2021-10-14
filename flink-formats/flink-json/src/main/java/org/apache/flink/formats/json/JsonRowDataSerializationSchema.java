@@ -59,7 +59,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
     private final TimestampFormat timestampFormat;
 
     /** The handling mode when serializing null keys for map data. */
-    private final JsonOptions.MapNullKeyMode mapNullKeyMode;
+    private final JsonFormatOptions.MapNullKeyMode mapNullKeyMode;
 
     /** The string literal when handling mode for map null key LITERAL. */
     private final String mapNullKeyLiteral;
@@ -70,7 +70,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
     public JsonRowDataSerializationSchema(
             RowType rowType,
             TimestampFormat timestampFormat,
-            JsonOptions.MapNullKeyMode mapNullKeyMode,
+            JsonFormatOptions.MapNullKeyMode mapNullKeyMode,
             String mapNullKeyLiteral,
             boolean encodeDecimalAsPlainNumber) {
         this.rowType = rowType;
@@ -96,7 +96,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
             runtimeConverter.convert(mapper, node, row);
             return mapper.writeValueAsBytes(node);
         } catch (Throwable t) {
-            throw new RuntimeException("Could not serialize row '" + row + "'. ", t);
+            throw new RuntimeException(String.format("Could not serialize row '%s'.", row), t);
         }
     }
 

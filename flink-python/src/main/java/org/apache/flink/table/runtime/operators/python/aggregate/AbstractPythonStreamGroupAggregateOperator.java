@@ -85,8 +85,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
             int indexOfCountStar,
             boolean generateUpdateBefore,
             long minRetentionTime,
-            long maxRetentionTime,
-            FlinkFnApi.CoderParam.OutputMode outputMode) {
+            long maxRetentionTime) {
         super(
                 config,
                 inputType,
@@ -95,9 +94,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
                 dataViewSpecs,
                 grouping,
                 indexOfCountStar,
-                generateUpdateBefore,
-                "flink:coder:schema:aggregate_function:v1",
-                outputMode);
+                generateUpdateBefore);
         this.minRetentionTime = minRetentionTime;
         this.maxRetentionTime = maxRetentionTime;
         this.stateCleaningEnabled = minRetentionTime > 1;
@@ -158,7 +155,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
     }
 
     @Override
-    public RowType getUserDefinedFunctionInputType() {
+    public RowType createUserDefinedFunctionInputType() {
         List<RowType.RowField> fields = new ArrayList<>();
         fields.add(new RowType.RowField("record_type", new TinyIntType()));
         fields.add(new RowType.RowField("row", inputType));
@@ -168,7 +165,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
     }
 
     @Override
-    public RowType getUserDefinedFunctionOutputType() {
+    public RowType createUserDefinedFunctionOutputType() {
         return outputType;
     }
 

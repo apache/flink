@@ -19,6 +19,7 @@
 import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
+
 import { JobService, MetricsService } from 'services';
 
 @Component({
@@ -32,13 +33,13 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
   listOfWaterMark: Array<{ subTaskIndex: number; watermark: number }> = [];
   isLoading = true;
 
-  trackWatermarkBy(_: number, node: { subTaskIndex: string; watermark: number }) {
+  trackWatermarkBy(_: number, node: { subTaskIndex: string; watermark: number }): string {
     return node.subTaskIndex;
   }
 
   constructor(private jobService: JobService, private metricsService: MetricsService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
@@ -64,7 +65,7 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
       );
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

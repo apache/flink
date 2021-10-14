@@ -1,0 +1,45 @@
+== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>($0, 10)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(a, b, c)]]])
+
+== Optimized Physical Plan ==
+Calc(select=[a, b, c], where=[>(a, 10)], changelogMode=[I]): rowcount = 5.0E7, cumulative cost = {1.5E8 rows, 1.0E8 cpu, 2.4E9 io, 0.0 network, 0.0 memory}
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I]): rowcount = 1.0E8, cumulative cost = {1.0E8 rows, 1.0E8 cpu, 2.4E9 io, 0.0 network, 0.0 memory}
+
+== Optimized Execution Plan ==
+Calc(select=[a, b, c], where=[(a > 10)])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(a, b, c)]]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Custom Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Custom Source",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
+    "pact" : "Operator",
+    "contents" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc(select=[a, b, c], where=[(a > 10)])",
+    "pact" : "Operator",
+    "contents" : "Calc(select=[a, b, c], where=[(a > 10)])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}

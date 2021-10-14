@@ -55,7 +55,7 @@ public final class FactoryMocks {
 
     public static DynamicTableSource createTableSource(
             ResolvedSchema schema, Map<String, String> options) {
-        return FactoryUtil.createTableSource(
+        return FactoryUtil.createDynamicTableSource(
                 null,
                 IDENTIFIER,
                 new ResolvedCatalogTable(
@@ -77,7 +77,7 @@ public final class FactoryMocks {
 
     public static DynamicTableSink createTableSink(
             ResolvedSchema schema, List<String> partitionKeys, Map<String, String> options) {
-        return FactoryUtil.createTableSink(
+        return FactoryUtil.createDynamicTableSink(
                 null,
                 IDENTIFIER,
                 new ResolvedCatalogTable(

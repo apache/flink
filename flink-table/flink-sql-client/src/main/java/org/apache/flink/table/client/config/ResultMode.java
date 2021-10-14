@@ -18,17 +18,29 @@
 
 package org.apache.flink.table.client.config;
 
-import org.apache.flink.types.RowKind;
+import org.apache.flink.configuration.DescribedEnum;
+import org.apache.flink.configuration.description.InlineElement;
+
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The mode when display the result of the query in the sql client. */
-public enum ResultMode {
+public enum ResultMode implements DescribedEnum {
+    TABLE(
+            text(
+                    "Materializes results in memory and visualizes them in a regular, paginated table representation.")),
 
-    /** Collects results and returns them as table snapshots. */
-    TABLE,
+    CHANGELOG(text("Visualizes the result stream that is produced by a continuous query.")),
 
-    /** A result that is represented as a changelog consisting of records with {@link RowKind}. */
-    CHANGELOG,
+    TABLEAU(text("Display results in the screen directly in a tableau format."));
 
-    /** Print result in tableau mode. */
-    TABLEAU
+    private final InlineElement description;
+
+    ResultMode(InlineElement description) {
+        this.description = description;
+    }
+
+    @Override
+    public InlineElement getDescription() {
+        return description;
+    }
 }

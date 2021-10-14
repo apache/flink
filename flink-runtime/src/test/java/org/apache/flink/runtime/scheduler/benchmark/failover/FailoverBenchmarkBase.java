@@ -22,6 +22,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
+import org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkBase;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 
 import java.util.List;
@@ -30,7 +31,7 @@ import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUti
 import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUtils.createDefaultJobVertices;
 
 /** The base class of benchmarks related to failover. */
-public class FailoverBenchmarkBase {
+public class FailoverBenchmarkBase extends SchedulerBenchmarkBase {
 
     JobVertex source;
     List<JobVertex> jobVertices;
@@ -39,11 +40,14 @@ public class FailoverBenchmarkBase {
     SchedulingTopology schedulingTopology;
     RestartPipelinedRegionFailoverStrategy strategy;
 
-    public void createRestartPipelinedRegionFailoverStrategy(JobConfiguration jobConfiguration)
-            throws Exception {
+    public void setup(JobConfiguration jobConfiguration) throws Exception {
+        super.setup();
+
         jobVertices = createDefaultJobVertices(jobConfiguration);
         source = jobVertices.get(0);
-        executionGraph = createAndInitExecutionGraph(jobVertices, jobConfiguration);
+        executionGraph =
+                createAndInitExecutionGraph(
+                        jobVertices, jobConfiguration, scheduledExecutorService);
         schedulingTopology = executionGraph.getSchedulingTopology();
         strategy = new RestartPipelinedRegionFailoverStrategy(schedulingTopology);
     }

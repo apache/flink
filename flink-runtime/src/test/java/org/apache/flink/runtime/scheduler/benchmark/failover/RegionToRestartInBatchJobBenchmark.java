@@ -36,8 +36,9 @@ import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUti
  */
 public class RegionToRestartInBatchJobBenchmark extends FailoverBenchmarkBase {
 
+    @Override
     public void setup(JobConfiguration jobConfiguration) throws Exception {
-        createRestartPipelinedRegionFailoverStrategy(jobConfiguration);
+        super.setup(jobConfiguration);
 
         final JobVertex source = jobVertices.get(0);
         final JobVertex sink = jobVertices.get(1);
