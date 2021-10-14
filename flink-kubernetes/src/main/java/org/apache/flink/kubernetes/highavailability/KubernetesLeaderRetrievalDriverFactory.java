@@ -24,7 +24,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalEventHandler;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 /** {@link LeaderRetrievalDriverFactory} implementation for Kubernetes. */
 public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDriverFactory {
@@ -32,18 +32,18 @@ public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDr
     private final FlinkKubeClient kubeClient;
 
     private final KubernetesConfigMapSharedWatcher configMapSharedWatcher;
-    private final ExecutorService watchExecutorService;
+    private final Executor watchExecutor;
 
     private final String configMapName;
 
     public KubernetesLeaderRetrievalDriverFactory(
             FlinkKubeClient kubeClient,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
-            ExecutorService watchExecutorService,
+            Executor watchExecutor,
             String configMapName) {
         this.kubeClient = kubeClient;
         this.configMapSharedWatcher = configMapSharedWatcher;
-        this.watchExecutorService = watchExecutorService;
+        this.watchExecutor = watchExecutor;
         this.configMapName = configMapName;
     }
 
@@ -53,7 +53,7 @@ public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDr
         return new KubernetesLeaderRetrievalDriver(
                 kubeClient,
                 configMapSharedWatcher,
-                watchExecutorService,
+                watchExecutor,
                 configMapName,
                 leaderEventHandler,
                 fatalErrorHandler);

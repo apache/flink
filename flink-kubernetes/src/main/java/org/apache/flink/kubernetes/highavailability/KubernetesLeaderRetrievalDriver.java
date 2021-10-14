@@ -31,7 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.kubernetes.utils.KubernetesUtils.checkConfigMaps;
 import static org.apache.flink.kubernetes.utils.KubernetesUtils.getLeaderInformationFromConfigMap;
@@ -63,7 +63,7 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
     public KubernetesLeaderRetrievalDriver(
             FlinkKubeClient kubeClient,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
-            ExecutorService watchExecutorService,
+            Executor watchExecutor,
             String configMapName,
             LeaderRetrievalEventHandler leaderRetrievalEventHandler,
             FatalErrorHandler fatalErrorHandler) {
@@ -75,10 +75,7 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
         kubernetesWatch =
                 checkNotNull(configMapSharedWatcher, "ConfigMap Shared Informer")
-                        .watch(
-                                configMapName,
-                                new ConfigMapCallbackHandlerImpl(),
-                                watchExecutorService);
+                        .watch(configMapName, new ConfigMapCallbackHandlerImpl(), watchExecutor);
 
         running = true;
     }

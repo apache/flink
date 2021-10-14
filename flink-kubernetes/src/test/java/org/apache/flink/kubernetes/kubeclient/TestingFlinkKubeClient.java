@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -475,7 +475,7 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
         public Watch watch(
                 String name,
                 WatchCallbackHandler<KubernetesConfigMap> callbackHandler,
-                @Nullable ExecutorService executorService) {
+                @Nullable Executor executor) {
             return watchFunction.apply(name, callbackHandler);
         }
     }
