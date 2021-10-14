@@ -92,18 +92,10 @@ public class EqualiserCodeGeneratorTest {
                         .mapToObj(i -> new VarCharType())
                         .toArray(LogicalType[]::new);
 
-        RecordEqualiser equaliser;
-        try {
-            equaliser =
-                    new EqualiserCodeGenerator(fieldTypes)
-                            .generateRecordEqualiser("ManyFields")
-                            .newInstance(Thread.currentThread().getContextClassLoader());
-        } catch (Exception e) {
-            Assert.fail("Expected compilation to succeed");
-
-            // Unreachable
-            throw e;
-        }
+        final RecordEqualiser equaliser =
+                new EqualiserCodeGenerator(fieldTypes)
+                        .generateRecordEqualiser("ManyFields")
+                        .newInstance(Thread.currentThread().getContextClassLoader());
 
         final StringData[] fields =
                 IntStream.range(0, 999)
