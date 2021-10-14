@@ -76,9 +76,11 @@ public class DirectoryBasedPluginFinder implements PluginFinder {
         }
         try (Stream<Path> stream = Files.list(pluginsRootDir)) {
             stream.filter((Path path) -> Files.isDirectory(path))
-                .map(FunctionUtils.uncheckedFunction(this::createPluginDescriptorForSubDirectory))
-                .collect(Collectors.toList());
-	}
+                    .map(
+                            FunctionUtils.uncheckedFunction(
+                                    this::createPluginDescriptorForSubDirectory))
+                    .collect(Collectors.toList());
+        }
     }
 
     private PluginDescriptor createPluginDescriptorForSubDirectory(Path subDirectory)
@@ -93,18 +95,19 @@ public class DirectoryBasedPluginFinder implements PluginFinder {
     private URL[] createJarURLsFromDirectory(Path subDirectory) throws IOException {
         try (Stream<Path> stream = Files.list(subDirectory)) {
             URL[] urls =
-                  stream.filter((Path p) -> Files.isRegularFile(p) && jarFileMatcher.matches(p))
-                        .map(FunctionUtils.uncheckedFunction((Path p) -> p.toUri().toURL()))
-                        .toArray(URL[]::new);
+                    stream.filter((Path p) -> Files.isRegularFile(p) && jarFileMatcher.matches(p))
+                            .map(FunctionUtils.uncheckedFunction((Path p) -> p.toUri().toURL()))
+                            .toArray(URL[]::new);
 
             if (urls.length < 1) {
-               throw new IOException(
-                   "Cannot find any jar files for plugin in directory ["
-                   + subDirectory
-                   + "]."
-                   + " Please provide the jar files for the plugin or delete the directory.");
+                throw new IOException(
+                        "Cannot find any jar files for plugin in directory ["
+                                + subDirectory
+                                + "]."
+                                + " Please provide the jar files for the plugin or delete the directory.");
             }
 
             return urls;
+        }
     }
 }
