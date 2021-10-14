@@ -20,100 +20,59 @@ package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.connector.source.ReaderOutput;
-import org.apache.flink.api.connector.source.mocks.MockSourceReader;
-import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
-import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.core.io.SimpleVersionedSerialization;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
-import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
-import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.runtime.state.StateInitializationContextImpl;
-import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.SourceOperator;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.runtime.tasks.OperatorChain;
-import org.apache.flink.streaming.runtime.tasks.RegularOperatorChain;
-import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
-import org.apache.flink.streaming.util.CollectorDataOutput;
-import org.apache.flink.streaming.util.MockOutput;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.util.SourceOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Tests for the emission of latency markers by {@link SourceOperator} operators. */
 public class SourceOperatorLatencyMetricsTest extends TestLogger {
 
-    private static final long maxProcessingTime = 100L;
-    private static final long latencyMarkInterval = 10L;
+    private static final long MAX_PROCESSING_TIME = 100L;
+    private static final long LATENCY_MARK_INTERVAL = 10L;
 
     /** Verifies that by default no latency metrics are emitted. */
     @Test
     public void testLatencyMarkEmissionDisabled() throws Exception {
-        testLatencyMarkEmission(
-                0,
-                operator ->
-                        setupSourceOperator(
-                                operator,
-                                new ExecutionConfig(),
-                                MockEnvironment.builder().build()));
+        testLatencyMarkEmission(false, new Configuration(), new ExecutionConfig());
     }
 
     /** Verifies that latency metrics can be enabled via the {@link ExecutionConfig}. */
     @Test
     public void testLatencyMarkEmissionEnabledViaExecutionConfig() throws Exception {
-        testLatencyMarkEmission(
-                (int) (maxProcessingTime / latencyMarkInterval) + 1,
-                operator -> {
-                    ExecutionConfig executionConfig = new ExecutionConfig();
-                    executionConfig.setLatencyTrackingInterval(latencyMarkInterval);
-                    setupSourceOperator(
-                            operator, executionConfig, MockEnvironment.builder().build());
-                });
+
+        Configuration taskConfiguration = new Configuration();
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.setLatencyTrackingInterval(LATENCY_MARK_INTERVAL);
+
+        testLatencyMarkEmission(true, taskConfiguration, executionConfig);
     }
 
     /** Verifies that latency metrics can be enabled via the configuration. */
     @Test
     public void testLatencyMarkEmissionEnabledViaFlinkConfig() throws Exception {
-        testLatencyMarkEmission(
-                (int) (maxProcessingTime / latencyMarkInterval) + 1,
-                operator -> {
-                    Configuration tmConfig = new Configuration();
-                    tmConfig.setLong(MetricOptions.LATENCY_INTERVAL, latencyMarkInterval);
-                    Environment env =
-                            MockEnvironment.builder()
-                                    .setTaskManagerRuntimeInfo(
-                                            new TestingTaskManagerRuntimeInfo(tmConfig))
-                                    .build();
-                    setupSourceOperator(operator, new ExecutionConfig(), env);
-                });
+        Configuration taskConfiguration = new Configuration();
+        taskConfiguration.setLong(MetricOptions.LATENCY_INTERVAL, LATENCY_MARK_INTERVAL);
+        ExecutionConfig executionConfig = new ExecutionConfig();
+
+        testLatencyMarkEmission(true, taskConfiguration, executionConfig);
     }
 
     /**
@@ -122,20 +81,12 @@ public class SourceOperatorLatencyMetricsTest extends TestLogger {
      */
     @Test
     public void testLatencyMarkEmissionEnabledOverrideViaExecutionConfig() throws Exception {
-        testLatencyMarkEmission(
-                (int) (maxProcessingTime / latencyMarkInterval) + 1,
-                operator -> {
-                    ExecutionConfig executionConfig = new ExecutionConfig();
-                    executionConfig.setLatencyTrackingInterval(latencyMarkInterval);
-                    Configuration tmConfig = new Configuration();
-                    tmConfig.setLong(MetricOptions.LATENCY_INTERVAL, 0L);
-                    Environment env =
-                            MockEnvironment.builder()
-                                    .setTaskManagerRuntimeInfo(
-                                            new TestingTaskManagerRuntimeInfo(tmConfig))
-                                    .build();
-                    setupSourceOperator(operator, executionConfig, env);
-                });
+        Configuration taskConfiguration = new Configuration();
+        taskConfiguration.setLong(MetricOptions.LATENCY_INTERVAL, 0);
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.setLatencyTrackingInterval(LATENCY_MARK_INTERVAL);
+
+        testLatencyMarkEmission(true, taskConfiguration, executionConfig);
     }
 
     /**
@@ -144,189 +95,58 @@ public class SourceOperatorLatencyMetricsTest extends TestLogger {
      */
     @Test
     public void testLatencyMarkEmissionDisabledOverrideViaExecutionConfig() throws Exception {
-        testLatencyMarkEmission(
-                0,
-                operator -> {
-                    Configuration tmConfig = new Configuration();
-                    tmConfig.setLong(MetricOptions.LATENCY_INTERVAL, latencyMarkInterval);
-                    Environment env =
-                            MockEnvironment.builder()
-                                    .setTaskManagerRuntimeInfo(
-                                            new TestingTaskManagerRuntimeInfo(tmConfig))
-                                    .build();
-                    ExecutionConfig executionConfig = new ExecutionConfig();
-                    executionConfig.setLatencyTrackingInterval(0);
-                    setupSourceOperator(operator, executionConfig, env);
-                });
+        Configuration taskConfiguration = new Configuration();
+        taskConfiguration.setLong(MetricOptions.LATENCY_INTERVAL, LATENCY_MARK_INTERVAL);
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.setLatencyTrackingInterval(0);
+
+        testLatencyMarkEmission(false, taskConfiguration, executionConfig);
     }
 
     private interface OperatorSetupOperation {
-        void setupSourceOperator(SourceOperator<Integer, ?> operator);
+        void setupSourceOperator(SourceOperator<Integer, ?> operator) throws Exception;
     }
 
     private void testLatencyMarkEmission(
-            int numberLatencyMarkers, OperatorSetupOperation operatorSetup) throws Exception {
-        final List<StreamElement> output = new ArrayList<>();
+            boolean shouldExpectLatencyMarkers,
+            Configuration taskManagerConfig,
+            ExecutionConfig executionConfig)
+            throws Exception {
 
-        final TestProcessingTimeService testProcessingTimeService = new TestProcessingTimeService();
-        testProcessingTimeService.setCurrentTime(0L);
-        final List<Long> processingTimes = Arrays.asList(1L, 10L, 11L, 21L, maxProcessingTime);
-
-        // regular source operator
-        final SourceOperator<Integer, MockSourceSplit> sourceOperator =
-                new SourceOperator<>(
-                        (context) ->
-                                new ProcessingTimeServiceSourceReader(
-                                        testProcessingTimeService, processingTimes),
-                        new MockOperatorEventGateway(),
-                        new MockSourceSplitSerializer(),
-                        WatermarkStrategy.noWatermarks(),
-                        testProcessingTimeService,
-                        new Configuration(),
-                        "localhost",
-                        true /* emit progressive watermarks */);
-        operatorSetup.setupSourceOperator(sourceOperator);
-
-        // run and wait to be stopped
-        OperatorChain<?, ?> operatorChain =
-                new RegularOperatorChain<>(
-                        sourceOperator.getContainingTask(),
-                        StreamTask.createRecordWriterDelegate(
-                                sourceOperator.getOperatorConfig(),
-                                new MockEnvironmentBuilder().build()));
-        try {
-            sourceOperator.initializeState(getStateContext());
-            sourceOperator.open();
-            sourceOperator.emitNext(new CollectorDataOutput<>(output));
-            sourceOperator.finish();
-        } finally {
-            operatorChain.close();
-        }
-
-        assertEquals(numberLatencyMarkers, output.size());
-
-        long timestamp = 0L;
-        int expectedLatencyIndex = 0;
-
-        int index = 0;
-        // verify that its only latency markers
-        for (; index < numberLatencyMarkers; index++) {
-            StreamElement streamElement = output.get(index);
-            assertTrue(streamElement.isLatencyMarker());
-            assertEquals(
-                    sourceOperator.getOperatorID(),
-                    streamElement.asLatencyMarker().getOperatorId());
-            assertEquals(0, streamElement.asLatencyMarker().getSubtaskIndex());
-
-            // determines the next latency mark that should've been emitted
-            // latency marks are emitted once per latencyMarkInterval,
-            // as a result of which we never emit both 10 and 11
-            while (timestamp > processingTimes.get(expectedLatencyIndex)) {
-                expectedLatencyIndex++;
+        try (SourceOperatorTestHarness testHarness =
+                new SourceOperatorTestHarness(
+                        new SourceOperatorFactory(
+                                new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 1),
+                                WatermarkStrategy.noWatermarks()),
+                        new MockEnvironmentBuilder()
+                                .setTaskManagerRuntimeInfo(
+                                        new TestingTaskManagerRuntimeInfo(taskManagerConfig))
+                                .setExecutionConfig(executionConfig)
+                                .build())) {
+            testHarness.open();
+            testHarness.setup();
+            for (long processingTime = 0; processingTime <= MAX_PROCESSING_TIME; processingTime++) {
+                testHarness.getProcessingTimeService().setCurrentTime(processingTime);
+                testHarness.emitNext();
             }
-            assertEquals(
-                    processingTimes.get(expectedLatencyIndex).longValue(),
-                    streamElement.asLatencyMarker().getMarkedTime());
 
-            timestamp += latencyMarkInterval;
-        }
-    }
-
-    // ---------------- helper methods -------------------------
-
-    private static <T> void setupSourceOperator(
-            SourceOperator<T, ?> sourceOperator,
-            ExecutionConfig executionConfig,
-            Environment environment) {
-        StreamConfig streamConfig = new StreamConfig(new Configuration());
-        streamConfig.setOperatorID(new OperatorID());
-        try {
-            sourceOperator.setup(
-                    new SourceOperatorStreamTask<Integer>(
-                            getTestingEnvironment(executionConfig, environment)),
-                    streamConfig,
-                    new MockOutput<>(new ArrayList<>()));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-    }
-
-    private StateInitializationContext getStateContext() throws Exception {
-        // Create a mock split.
-        byte[] serializedSplitWithVersion =
-                SimpleVersionedSerialization.writeVersionAndSerialize(
-                        new MockSourceSplitSerializer(), new MockSourceSplit(1234, 10));
-
-        // Crate the state context.
-        OperatorStateStore operatorStateStore = createOperatorStateStore();
-        StateInitializationContext stateContext =
-                new StateInitializationContextImpl(null, operatorStateStore, null, null, null);
-
-        // Update the context.
-        stateContext
-                .getOperatorStateStore()
-                .getListState(
-                        new ListStateDescriptor<>(
-                                "SourceReaderState", BytePrimitiveArraySerializer.INSTANCE))
-                .update(Collections.singletonList(serializedSplitWithVersion));
-
-        return stateContext;
-    }
-
-    private OperatorStateStore createOperatorStateStore() throws Exception {
-        MockEnvironment env = new MockEnvironmentBuilder().build();
-        final AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
-        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
-        return abstractStateBackend.createOperatorStateBackend(
-                env, "test-operator", Collections.emptyList(), cancelStreamRegistry);
-    }
-
-    private static Environment getTestingEnvironment(
-            ExecutionConfig executionConfig, Environment environment) {
-        StreamMockEnvironment mockEnvironment =
-                new StreamMockEnvironment(
-                        new Configuration(),
-                        new Configuration(),
-                        executionConfig,
-                        1L,
-                        new MockInputSplitProvider(),
-                        1,
-                        new TestTaskStateManager());
-        mockEnvironment.setTaskManagerInfo(environment.getTaskManagerInfo());
-        return mockEnvironment;
-    }
-
-    // ------------------------------------------------------------------------
-
-    private static final class ProcessingTimeServiceSourceReader extends MockSourceReader {
-
-        private final TestProcessingTimeService processingTimeService;
-        private final List<Long> processingTimes;
-
-        private boolean closed = false;
-
-        private ProcessingTimeServiceSourceReader(
-                TestProcessingTimeService processingTimeService, List<Long> processingTimes) {
-            this.processingTimeService = processingTimeService;
-            this.processingTimes = processingTimes;
-        }
-
-        @Override
-        public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
-            for (Long processingTime : processingTimes) {
-                if (closed) {
-                    break;
+            List<LatencyMarker> expectedOutput = new ArrayList<>();
+            if (!shouldExpectLatencyMarkers) {
+                assertTrue(testHarness.getOutput().isEmpty());
+            } else {
+                expectedOutput.add(
+                        new LatencyMarker(1, testHarness.getOperator().getOperatorID(), 0));
+                for (long markedTime = LATENCY_MARK_INTERVAL;
+                        markedTime <= MAX_PROCESSING_TIME;
+                        markedTime += LATENCY_MARK_INTERVAL) {
+                    expectedOutput.add(
+                            new LatencyMarker(
+                                    markedTime, testHarness.getOperator().getOperatorID(), 0));
                 }
-                processingTimeService.setCurrentTime(processingTime);
+                assertThat(
+                        (Collection<Object>) testHarness.getOutput(),
+                        contains(expectedOutput.toArray()));
             }
-            return super.pollNext(sourceOutput);
-        }
-
-        @Override
-        public void close() throws Exception {
-            closed = true;
-            super.close();
         }
     }
 }
