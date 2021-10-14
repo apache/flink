@@ -180,6 +180,8 @@ import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_TARGET;
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES;
+import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_SEGMENT_SIZE;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.runtime.io.network.api.writer.RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME;
@@ -190,9 +192,11 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1658,6 +1662,7 @@ public class StreamTaskTest extends TestLogger {
                 new Configuration()
                         .set(BUFFER_DEBLOAT_PERIOD, Duration.ofHours(10))
                         .set(BUFFER_DEBLOAT_TARGET, Duration.ofSeconds(1))
+                        .set(BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES, 1)
                         .set(BUFFER_DEBLOAT_ENABLED, true);
 
         Map<String, Metric> metrics = new ConcurrentHashMap<>();
@@ -1682,21 +1687,32 @@ public class StreamTaskTest extends TestLogger {
             harness.processAll();
             harness.streamTask.debloat();
 
-            int expectedBufferSize = expectedThroughput / inputChannels;
+            long lastBufferSize = -1;
             for (InputGate inputGate : harness.streamTask.getEnvironment().getAllInputGates()) {
                 for (int i = 0; i < inputGate.getNumberOfInputChannels(); i++) {
+                    long currentBufferSize =
+                            ((TestInputChannel) inputGate.getChannel(i)).getCurrentBufferSize();
                     assertThat(
-                            ((TestInputChannel) inputGate.getChannel(i)).getCurrentBufferSize(),
-                            is(expectedBufferSize));
+                            currentBufferSize,
+                            lessThan(MEMORY_SEGMENT_SIZE.defaultValue().getBytes()));
+
+                    assertThat(currentBufferSize, greaterThan(0L));
+
+                    if (lastBufferSize > 0) {
+                        assertThat(lastBufferSize, is(currentBufferSize));
+                    }
+                    lastBufferSize = currentBufferSize;
                 }
             }
             assertThat(
                     ((Gauge<Integer>) metrics.get(MetricNames.DEBLOATED_BUFFER_SIZE)).getValue(),
-                    is(expectedBufferSize));
+                    is((int) lastBufferSize));
+            // The estimated time should be greater than the configured time because the buffer size
+            // is changed according to EMA, not instantly.
             assertThat(
                     ((Gauge<Long>) metrics.get(MetricNames.ESTIMATED_TIME_TO_CONSUME_BUFFERS))
                             .getValue(),
-                    is(999L));
+                    greaterThan(1000L));
         }
     }
 
