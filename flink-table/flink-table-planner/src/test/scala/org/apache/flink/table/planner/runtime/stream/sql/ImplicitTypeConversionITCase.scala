@@ -103,29 +103,30 @@ class ImplicitTypeConversionITCase extends StreamingTestBase {
   def testNumericConversionInFilter(): Unit ={
     val sqlQuery =
       s"""
-         | SELECT field_tinyint, field_smallint, field_int, field_bigint, field_decimal, field_float, field_double
+         | SELECT field_tinyint, field_smallint, field_int, field_bigint,
+         | field_decimal, field_float, field_double
          | FROM TestTable WHERE
-         | field_tinyint = field_smallint
-         | AND field_tinyint = field_int
-         | AND field_tinyint = field_bigint
-         | AND field_tinyint = field_decimal
-         | AND field_tinyint = field_float
-         | AND field_tinyint = field_double
-         | AND field_smallint = field_int
-         | AND field_smallint = field_bigint
-         | AND field_smallint = field_decimal
-         | AND field_smallint = field_float
-         | AND field_smallint = field_double
-         | AND field_int = field_bigint
-         | AND field_int = field_decimal
-         | AND field_int = field_float
-         | AND field_int = field_double
-         | AND field_bigint = field_decimal
-         | AND field_bigint = field_float
-         | AND field_bigint = field_double
-         | AND field_decimal = field_float
-         | AND field_decimal = field_double
-         | AND field_float = field_double
+         | field_tinyint = field_smallint AND
+         | field_tinyint = field_int AND
+         | field_tinyint = field_bigint AND
+         | field_tinyint = field_decimal AND
+         | field_tinyint = field_float AND
+         | field_tinyint = field_double AND
+         | field_smallint = field_int AND
+         | field_smallint = field_bigint AND
+         | field_smallint = field_decimal AND
+         | field_smallint = field_float AND
+         | field_smallint = field_double AND
+         | field_int = field_bigint AND
+         | field_int = field_decimal AND
+         | field_int = field_float AND
+         | field_int = field_double AND
+         | field_bigint = field_decimal AND
+         | field_bigint = field_float AND
+         | field_bigint = field_double AND
+         | field_decimal = field_float AND
+         | field_decimal = field_double AND
+         | field_float = field_double
          |""".stripMargin
 
     val outputType = InternalTypeInfo.ofFields(
