@@ -33,6 +33,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.BYTES;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_SAMPLES;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_TARGET;
 import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_SEGMENT_SIZE;
 import static org.apache.flink.configuration.TaskManagerOptions.MIN_MEMORY_SEGMENT_SIZE;
@@ -279,6 +280,7 @@ public class BufferDebloaterTest extends TestLogger {
                     new BufferDebloater(
                             new Configuration()
                                     .set(BUFFER_DEBLOAT_ENABLED, true)
+                                    .set(BUFFER_DEBLOAT_SAMPLES, 1)
                                     .set(BUFFER_DEBLOAT_TARGET, Duration.ofMillis(debloatTarget))
                                     .set(
                                             MEMORY_SEGMENT_SIZE,
