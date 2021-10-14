@@ -26,6 +26,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
@@ -104,10 +105,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class StreamingJobGraphGenerator {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamingJobGraphGenerator.class);
-
-    private static final long DEFAULT_NETWORK_BUFFER_TIMEOUT = 100L;
-
-    public static final long UNDEFINED_NETWORK_BUFFER_TIMEOUT = -1L;
 
     // ------------------------------------------------------------------------
 
@@ -803,7 +800,7 @@ public class StreamingJobGraphGenerator {
                         "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
         }
 
-        checkAndResetBufferTimeout(resultPartitionType, edge);
+        checkBufferTimeout(resultPartitionType, edge);
 
         JobEdge jobEdge;
         if (partitioner.isPointwise()) {
@@ -829,19 +826,16 @@ public class StreamingJobGraphGenerator {
         }
     }
 
-    private void checkAndResetBufferTimeout(ResultPartitionType type, StreamEdge edge) {
+    private void checkBufferTimeout(ResultPartitionType type, StreamEdge edge) {
         long bufferTimeout = edge.getBufferTimeout();
-        if (type.isBlocking() && bufferTimeout != UNDEFINED_NETWORK_BUFFER_TIMEOUT) {
+        if (type.isBlocking()
+                && bufferTimeout != ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT) {
             throw new UnsupportedOperationException(
                     "Blocking partition does not support buffer timeout "
                             + bufferTimeout
                             + " for src operator in edge "
-                            + edge.toString()
-                            + ". \nPlease either reset buffer timeout as -1 or use the non-blocking partition.");
-        }
-
-        if (type.isPipelined() && bufferTimeout == UNDEFINED_NETWORK_BUFFER_TIMEOUT) {
-            edge.setBufferTimeout(DEFAULT_NETWORK_BUFFER_TIMEOUT);
+                            + edge
+                            + ". \nPlease either disable buffer timeout (via -1) or use the non-blocking partition.");
         }
     }
 
