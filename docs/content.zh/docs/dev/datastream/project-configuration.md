@@ -447,7 +447,7 @@ run the '`gradle clean shadowJar`' command.
 You will __find a JAR file__ that contains your application, plus connectors and libraries
 that you may have added as dependencies to the application: `build/libs/<project-name>-<version>-all.jar`.
 
-__Note:__ If you use a different class than *StreamingJob* as the application's main class / entry point,
+__Note:__ If you use a different class than *DataStreamJob* as the application's main class / entry point,
 we recommend you change the `mainClassName` setting in the `build.gradle` file accordingly. That way, Flink
 can run the application from the JAR file without additionally specifying the main class.
 
