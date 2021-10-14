@@ -160,7 +160,7 @@ public class StreamGraphGenerator {
 
     private SavepointRestoreSettings savepointRestoreSettings;
 
-    private long defaultBufferTimeout = StreamingJobGraphGenerator.UNDEFINED_NETWORK_BUFFER_TIMEOUT;
+    private long defaultBufferTimeout = ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis();
 
     private RuntimeExecutionMode runtimeExecutionMode = RuntimeExecutionMode.STREAMING;
 

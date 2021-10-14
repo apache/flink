@@ -114,12 +114,12 @@ import java.util.stream.Collectors;
 import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.areOperatorsChainable;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -637,6 +637,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
     @Test
     public void testShuffleModeBatch() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setBufferTimeout(-1);
         // fromElements -> Map -> Print
         DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
 
@@ -807,6 +808,24 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         partitionStream.map(value -> value).print();
 
         StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+    }
+
+    @Test
+    public void testDisablingBufferTimeoutWithPipelinedExchanges() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
+        env.setBufferTimeout(-1);
+
+        env.fromElements(1, 2, 3).map(value -> value).print();
+
+        final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            final StreamConfig streamConfig = new StreamConfig(vertex.getConfiguration());
+            for (StreamEdge streamEdge :
+                    streamConfig.getOutEdgesInOrder(this.getClass().getClassLoader())) {
+                assertThat(streamEdge.getBufferTimeout(), equalTo(-1L));
+            }
+        }
     }
 
     /** Test iteration job, check slot sharing group and co-location group. */
@@ -1385,6 +1404,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
      */
     private StreamGraph createStreamGraphForSlotSharingTest() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setBufferTimeout(-1);
 
         final DataStream<Integer> source1 = env.fromElements(1, 2, 3).name("source1");
         source1.rebalance().map(v -> v).name("map1");

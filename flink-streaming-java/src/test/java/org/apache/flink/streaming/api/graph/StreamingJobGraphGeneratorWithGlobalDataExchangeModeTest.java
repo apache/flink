@@ -52,8 +52,8 @@ public class StreamingJobGraphGeneratorWithGlobalDataExchangeModeTest extends Te
 
     @Test
     public void testAllEdgesBlockingMode() {
-        final StreamGraph streamGraph = createStreamGraph();
-        streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
+        final StreamGraph streamGraph =
+                createStreamGraph(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
         final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
@@ -74,8 +74,8 @@ public class StreamingJobGraphGeneratorWithGlobalDataExchangeModeTest extends Te
 
     @Test
     public void testAllEdgesPipelinedMode() {
-        final StreamGraph streamGraph = createStreamGraph();
-        streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_PIPELINED);
+        final StreamGraph streamGraph =
+                createStreamGraph(GlobalDataExchangeMode.ALL_EDGES_PIPELINED);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
         final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
@@ -96,8 +96,8 @@ public class StreamingJobGraphGeneratorWithGlobalDataExchangeModeTest extends Te
 
     @Test
     public void testForwardEdgesPipelinedMode() {
-        final StreamGraph streamGraph = createStreamGraph();
-        streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED);
+        final StreamGraph streamGraph =
+                createStreamGraph(GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
         final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
@@ -118,8 +118,8 @@ public class StreamingJobGraphGeneratorWithGlobalDataExchangeModeTest extends Te
 
     @Test
     public void testPointwiseEdgesPipelinedMode() {
-        final StreamGraph streamGraph = createStreamGraph();
-        streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED);
+        final StreamGraph streamGraph =
+                createStreamGraph(GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
         final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
@@ -163,12 +163,20 @@ public class StreamingJobGraphGeneratorWithGlobalDataExchangeModeTest extends Te
                 sourceVertex.getProducedDataSets().get(0).getResultType());
     }
 
+    private static StreamGraph createStreamGraph() {
+        return createStreamGraph(null);
+    }
+
     /**
      * Topology: source(parallelism=1) --(forward)--> map1(parallelism=1) --(rescale)-->
      * map2(parallelism=2) --(rebalance)--> sink(parallelism=2).
      */
-    private static StreamGraph createStreamGraph() {
+    private static StreamGraph createStreamGraph(GlobalDataExchangeMode globalDataExchangeMode) {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        if (globalDataExchangeMode != null
+                && globalDataExchangeMode != GlobalDataExchangeMode.ALL_EDGES_PIPELINED) {
+            env.setBufferTimeout(-1);
+        }
 
         final DataStream<Integer> source = env.fromElements(1, 2, 3).setParallelism(1);
 
@@ -192,6 +200,10 @@ public class StreamingJobGraphGeneratorWithGlobalDataExchangeModeTest extends Te
 
         map2.rebalance().print().setParallelism(2);
 
-        return env.getStreamGraph();
+        final StreamGraph streamGraph = env.getStreamGraph();
+        if (globalDataExchangeMode != null) {
+            streamGraph.setGlobalDataExchangeMode(globalDataExchangeMode);
+        }
+        return streamGraph;
     }
 }

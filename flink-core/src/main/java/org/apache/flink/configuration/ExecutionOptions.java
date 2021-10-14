@@ -22,13 +22,19 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.description.Description;
-import org.apache.flink.configuration.description.TextElement;
 
 import java.time.Duration;
+
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** {@link ConfigOption}s specific for a single execution of a user program. */
 @PublicEvolving
 public class ExecutionOptions {
+    /** A special marker value for disabling buffer timeout. */
+    public static final long DISABLED_NETWORK_BUFFER_TIMEOUT = -1L;
+
+    /** A special marker value for flushing network buffers after each record. */
+    public static final long FLUSH_AFTER_EVERY_RECORD = 0L;
 
     public static final ConfigOption<RuntimeExecutionMode> RUNTIME_MODE =
             ConfigOptions.key("execution.runtime-mode")
@@ -60,12 +66,14 @@ public class ExecutionOptions {
                                                     + "the output buffers flush frequently to provide low latency and to aid smooth developer "
                                                     + "experience. Setting the parameter can result in three logical modes:")
                                     .list(
-                                            TextElement.text(
+                                            text(
                                                     "A positive value triggers flushing periodically by that interval"),
-                                            TextElement.text(
-                                                    "0 triggers flushing after every record thus minimizing latency"),
-                                            TextElement.text(
-                                                    "-1 ms triggers flushing only when the output buffer is full thus maximizing "
+                                            text(
+                                                    FLUSH_AFTER_EVERY_RECORD
+                                                            + " triggers flushing after every record thus minimizing latency"),
+                                            text(
+                                                    DISABLED_NETWORK_BUFFER_TIMEOUT
+                                                            + " ms triggers flushing only when the output buffer is full thus maximizing "
                                                             + "throughput"))
                                     .build());
 
