@@ -25,7 +25,7 @@ import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
@@ -44,10 +44,9 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCou
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
+import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.util.{Sarg, TimestampString}
-import org.apache.flink.table.functions.{BuiltInFunctionDefinitions, FunctionDefinition}
 
 import scala.collection.JavaConversions._
 
@@ -810,21 +809,24 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case bsf: BridgingSqlFunction =>
         bsf.getDefinition match {
-          case functionDefinition : FunctionDefinition
-            if functionDefinition eq BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
+          case BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
             generateWatermark(ctx, contextTerm, resultType)
-          case functionDefinition : FunctionDefinition
-            if functionDefinition eq BuiltInFunctionDefinitions.GREATEST =>
+
+          case BuiltInFunctionDefinitions.GREATEST =>
             operands.foreach { operand =>
               requireComparable(operand)
             }
             generateGreatestLeast(resultType, operands)
-          case functionDefinition : FunctionDefinition
-            if functionDefinition eq BuiltInFunctionDefinitions.LEAST =>
+
+          case BuiltInFunctionDefinitions.LEAST =>
             operands.foreach { operand =>
               requireComparable(operand)
             }
-            generateGreatestLeast(resultType, operands, false)
+            generateGreatestLeast(resultType, operands, greatest = false)
+
+          case BuiltInFunctionDefinitions.JSON_STRING =>
+            new JsonStringCallGen(call).generate(ctx, operands, resultType)
+
           case _ =>
             new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
         }

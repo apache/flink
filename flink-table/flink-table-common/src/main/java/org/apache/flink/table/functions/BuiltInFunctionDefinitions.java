@@ -21,6 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
 import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
@@ -73,6 +74,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.matchFamily;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAllArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
 
@@ -1569,6 +1571,15 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeDeferred()
                     .build();
 
+    public static final BuiltInFunctionDefinition JSON_STRING =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_STRING")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(JSON_ARGUMENT))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .runtimeProvided()
+                    .build();
+
     public static final BuiltInFunctionDefinition JSON_OBJECT =
             BuiltInFunctionDefinition.newBuilder()
                     .name("JSON_OBJECT")
@@ -1582,7 +1593,10 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("JSON_ARRAY")
                     .kind(SCALAR)
-                    .inputTypeStrategy(SpecificInputTypeStrategies.JSON_ARRAY)
+                    .inputTypeStrategy(
+                            InputTypeStrategies.varyingSequence(
+                                    symbol(JsonOnNull.class),
+                                    SpecificInputTypeStrategies.JSON_ARGUMENT))
                     .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
                     .runtimeDeferred()
                     .build();

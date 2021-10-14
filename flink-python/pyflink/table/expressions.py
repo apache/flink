@@ -29,8 +29,8 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'current_timestamp', 'current_watermark', 'local_time', 'local_timestamp',
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
-           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_object',
-           'json_array', 'call', 'call_sql', 'source_watermark']
+           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
+           'json_object', 'json_array', 'call', 'call_sql', 'source_watermark']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -608,6 +608,26 @@ def without_columns(head, *tails) -> Expression:
     gateway = get_gateway()
     tails = to_jarray(gateway.jvm.Object, [_get_java_expression(t) for t in tails])
     return _binary_op("withoutColumns", head, tails)
+
+
+def json_string(value) -> Expression:
+    """
+    Serializes a value into JSON.
+
+    This function returns a JSON string containing the serialized value. If the value is `NULL`,
+    the function returns `NULL`.
+
+    Examples:
+    ::
+
+        >>> json_string(null_of(DataTypes.INT())) # None
+
+        >>> json_string(1)               # '1'
+        >>> json_string(True)            # 'true'
+        >>> json_string("Hello, World!") # '"Hello, World!"'
+        >>> json_string([1, 2])          # '[1,2]'
+    """
+    return _unary_op("jsonString", value)
 
 
 def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
