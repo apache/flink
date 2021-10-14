@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.MockTtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -72,6 +73,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.tasks.OperatorEventDispatcherImpl;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -400,7 +402,9 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                                         mockTask,
                                         config,
                                         new MockOutput(outputSerializer),
-                                        null)
+                                        new OperatorEventDispatcherImpl(
+                                                this.getClass().getClassLoader(),
+                                                new NoOpTaskOperatorEventGateway()))
                                 .f0;
             } else {
                 if (operator instanceof AbstractStreamOperator) {
@@ -776,7 +780,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         this.timeServiceManagerProvider = timeServiceManagerProvider;
     }
 
-    private class MockOutput implements Output<StreamRecord<OUT>> {
+    class MockOutput implements Output<StreamRecord<OUT>> {
 
         private TypeSerializer<OUT> outputSerializer;
 
