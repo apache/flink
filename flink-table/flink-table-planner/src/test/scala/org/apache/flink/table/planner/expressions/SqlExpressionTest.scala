@@ -223,7 +223,7 @@ class SqlExpressionTest extends ExpressionTestBase {
       List(typeVarChar,typeDouble))
   }
 
-  def testInvalidImplicitConversionTypes(sql: String, types: List[String]): Unit ={
+  private def testInvalidImplicitConversionTypes(sql: String, types: List[String]): Unit ={
     val expectedExceptionMessage =
       "implicit type conversion between " +
       s"${types(0)}" +

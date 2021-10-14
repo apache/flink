@@ -100,321 +100,49 @@ class ImplicitTypeConversionITCase extends StreamingTestBase {
   }
 
   @Test
-  def testTinyIntAndSmallIntConversionInFilter(): Unit ={
+  def testNumericConversionInFilter(): Unit ={
     val sqlQuery =
-      "SELECT field_tinyint, field_smallint FROM TestTable WHERE field_tinyint = field_smallint"
+      s"""
+         | SELECT field_tinyint, field_smallint, field_int, field_bigint, field_decimal, field_float, field_double
+         | FROM TestTable WHERE
+         | field_tinyint = field_smallint
+         | AND field_tinyint = field_int
+         | AND field_tinyint = field_bigint
+         | AND field_tinyint = field_decimal
+         | AND field_tinyint = field_float
+         | AND field_tinyint = field_double
+         | AND field_smallint = field_int
+         | AND field_smallint = field_bigint
+         | AND field_smallint = field_decimal
+         | AND field_smallint = field_float
+         | AND field_smallint = field_double
+         | AND field_int = field_bigint
+         | AND field_int = field_decimal
+         | AND field_int = field_float
+         | AND field_int = field_double
+         | AND field_bigint = field_decimal
+         | AND field_bigint = field_float
+         | AND field_bigint = field_double
+         | AND field_decimal = field_float
+         | AND field_decimal = field_double
+         | AND field_float = field_double
+         |""".stripMargin
 
     val outputType = InternalTypeInfo.ofFields(
       new TinyIntType(),
-      new SmallIntType())
-
-    val expected = List("+I(1,1)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-
-  @Test
-  def testTinyIntAndIntConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_tinyint, field_int FROM TestTable WHERE field_tinyint = field_int"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new TinyIntType(),
-      new IntType())
-
-    val expected = List("+I(1,1)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testTinyIntAndBigIntConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_tinyint, field_bigint FROM TestTable WHERE field_tinyint = field_bigint"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new TinyIntType(),
-      new BigIntType())
-
-    val expected = List("+I(1,1)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testTinyIntAndDecimalConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_tinyint, field_decimal FROM TestTable WHERE field_tinyint = field_decimal"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new TinyIntType(),
-      new DecimalType())
-
-    val expected = List("+I(1,1)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testTinyIntAndFloatConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_tinyint, field_float FROM TestTable WHERE field_tinyint = field_float"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new TinyIntType(),
-      new FloatType())
-
-    val expected = List("+I(1,1.0)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testTinyIntAndDoubleConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_tinyint, field_double FROM TestTable WHERE field_tinyint = field_double"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new TinyIntType(),
-      new DoubleType())
-
-    val expected = List("+I(1,1.0)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testSmallIntAndIntConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_smallint, field_int FROM TestTable WHERE field_smallint = field_int"
-
-    val outputType = InternalTypeInfo.ofFields(
       new SmallIntType(),
-      new IntType())
-
-    val expected = List("+I(1,1)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testSmallIntAndBigIntConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_smallint, field_bigint FROM TestTable WHERE field_smallint = field_bigint"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new SmallIntType(),
-      new BigIntType())
-
-    val expected = List("+I(1,1)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testSmallIntAndDecimalConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_smallint, field_decimal FROM TestTable WHERE field_smallint = field_decimal"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new SmallIntType(),
-      new DecimalType())
-
-    val expected = List("+I(1,1)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testSmallIntAndFloatConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_smallint, field_float FROM TestTable WHERE field_smallint = field_float"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new SmallIntType(),
-      new FloatType())
-
-    val expected = List("+I(1,1.0)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testSmallIntAndDoubleConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_smallint, field_double FROM TestTable WHERE field_smallint = field_double"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new SmallIntType(),
-      new DoubleType())
-
-    val expected = List("+I(1,1.0)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testIntAndBigIntConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_int, field_bigint FROM TestTable WHERE field_int = field_bigint"
-
-    val outputType = InternalTypeInfo.ofFields(
       new IntType(),
-      new BigIntType())
-
-    val expected = List("+I(1,1)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testIntAndDecimalConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_int, field_decimal FROM TestTable WHERE field_int = field_decimal"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new IntType(),
-      new DecimalType())
-
-    val expected = List("+I(1,1)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testIntAndFloatConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_int, field_float FROM TestTable WHERE field_int = field_float"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new IntType(),
-      new FloatType())
-
-    val expected = List("+I(1,1.0)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testIntAndDoubleConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_int, field_double FROM TestTable WHERE field_int = field_double"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new IntType(),
-      new DoubleType())
-
-    val expected = List("+I(1,1.0)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testBigIntAndDecimalConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_bigint, field_decimal FROM TestTable WHERE field_bigint = field_decimal"
-
-    val outputType = InternalTypeInfo.ofFields(
       new BigIntType(),
-      new DecimalType())
-
-    val expected = List("+I(1,1)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testBigIntAndFloatConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_bigint, field_float FROM TestTable WHERE field_bigint = field_float"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new BigIntType(),
-      new FloatType())
-
-    val expected = List("+I(1,1.0)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testBigIntAndDoubleConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_bigint, field_double FROM TestTable WHERE field_bigint = field_double"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new BigIntType(),
-      new DoubleType())
-
-    val expected = List("+I(1,1.0)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testDecimalAndFloatConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_decimal, field_float FROM TestTable WHERE field_decimal = field_float"
-
-    val outputType = InternalTypeInfo.ofFields(
       new DecimalType(),
-      new FloatType())
-
-    val expected = List("+I(1,1.0)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testDecimalAndDoubleConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_decimal, field_double FROM TestTable WHERE field_decimal = field_double"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new DecimalType(),
-      new DoubleType())
-
-    val expected = List("+I(1,1.0)")
-
-    val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
-    assertEquals(expected.sorted, actualResult.sorted)
-  }
-
-  @Test
-  def testFloatAndDoubleConversionInFilter(): Unit ={
-    val sqlQuery =
-      "SELECT field_float, field_double FROM TestTable WHERE field_float = field_double"
-
-    val outputType = InternalTypeInfo.ofFields(
       new FloatType(),
-      new DoubleType())
+      new DoubleType()
+    )
 
-    val expected = List("+I(1.0,1.0)")
+    val expected = List("+I(1,1,1,1,1,1.0,1.0)")
 
     val actualResult = testSingleTableSqlQueryWithOutputType(sqlQuery, outputType)
     assertEquals(expected.sorted, actualResult.sorted)
   }
-
 
   @Test
   def testDateAndVarCharConversionInFilter(): Unit = {
@@ -628,7 +356,7 @@ class ImplicitTypeConversionITCase extends StreamingTestBase {
       sqlQuery, outputType, List("DECIMAL", "VARCHAR"))
   }
 
-  def registerTableA(): Unit = {
+  private def registerTableA(): Unit = {
     val rowDataA: GenericRowData = new GenericRowData(6)
     rowDataA.setField(0, 1)
     rowDataA.setField(1, 1)
@@ -656,7 +384,7 @@ class ImplicitTypeConversionITCase extends StreamingTestBase {
     tEnv.registerTable("A", tableA)
   }
 
-  def registerTableB(): Unit = {
+  private def registerTableB(): Unit = {
     val rowDataB: GenericRowData = new GenericRowData(6)
     rowDataB.setField(0, 1)
     rowDataB.setField(1, 1.toLong)
@@ -681,7 +409,7 @@ class ImplicitTypeConversionITCase extends StreamingTestBase {
     tEnv.registerTable("B", tableB)
   }
 
-  def testTwoTableJoinSqlQuery(
+  private def testTwoTableJoinSqlQuery(
       sqlQuery: String, outputType: InternalTypeInfo[RowData]): Unit = {
     registerTableA()
     registerTableB()
@@ -696,6 +424,24 @@ class ImplicitTypeConversionITCase extends StreamingTestBase {
     assertEquals(expected.sorted, actualResult.sorted)
   }
 
+  private def testTwoTableInvalidImplicitConversionTypes(
+      sqlQuery: String,
+      outputType: InternalTypeInfo[RowData],
+      types: List[String]): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      getJoinOnExceptionMessage(types))
+    testTwoTableJoinSqlQuery(sqlQuery, outputType)
+  }
+
+  private def getJoinOnExceptionMessage(types: List[String]): String = {
+    s"implicit type conversion between " +
+      s"${types(0)}" +
+      s" and " +
+      s"${types(1)}" +
+      s" is not supported on join's condition now"
+  }
+
   @Test
   def testIntAndBigIntConversionInJoinOn(): Unit = {
     val sqlQuery =
@@ -706,24 +452,6 @@ class ImplicitTypeConversionITCase extends StreamingTestBase {
       new IntType())
 
     testTwoTableJoinSqlQuery(sqlQuery, outputType)
-  }
-
-  private def testTwoTableInvalidImplicitConversionTypes(
-      sqlQuery: String,
-      outputType: InternalTypeInfo[RowData],
-      types: List[String]): Unit = {
-      expectedException.expect(classOf[TableException])
-      expectedException.expectMessage(
-        getJoinOnExceptionMessage(types))
-    testTwoTableJoinSqlQuery(sqlQuery, outputType)
-  }
-
-  private def getJoinOnExceptionMessage(types: List[String]): String = {
-    s"implicit type conversion between " +
-      s"${types(0)}" +
-      s" and " +
-      s"${types(1)}" +
-      s" is not supported on join's condition now"
   }
 
   @Test
