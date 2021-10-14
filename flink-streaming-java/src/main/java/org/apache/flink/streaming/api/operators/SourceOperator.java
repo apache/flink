@@ -34,7 +34,6 @@ import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.runtime.io.AvailabilityProvider;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
@@ -51,7 +50,6 @@ import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
-import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -65,10 +63,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base source operator only used for integrating the source reader which is proposed by FLIP-27. It
@@ -156,7 +152,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private InternalSourceReaderMetricGroup sourceMetricGroup;
 
-    private LatencyMarkerEmitter<OUT> latencyMarerEmitter;
+    private @Nullable LatencyMarkerEmitter<OUT> latencyMarerEmitter;
 
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
@@ -291,19 +287,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             watermarkStrategy, sourceMetricGroup);
         }
 
-        latencyMarerEmitter =
-                new LatencyMarkerEmitter<>(
-                        getProcessingTimeService(),
-                        getExecutionConfig().isLatencyTrackingConfigured()
-                                ? getExecutionConfig().getLatencyTrackingInterval()
-                                : getContainingTask()
-                                        .getEnvironment()
-                                        .getTaskManagerInfo()
-                                        .getConfiguration()
-                                        .getLong(MetricOptions.LATENCY_INTERVAL),
-                        getOperatorID(),
-                        getRuntimeContext().getIndexOfThisSubtask());
-
         // restore the state if necessary.
         final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());
         if (!splits.isEmpty()) {
@@ -318,7 +301,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         sourceReader.start();
 
         eventTimeLogic.startPeriodicWatermarkEmits();
-        latencyMarerEmitter.startLatencyMarkerEmit();
     }
 
     @Override
@@ -327,7 +309,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             eventTimeLogic.stopPeriodicWatermarkEmits();
         }
         if (latencyMarerEmitter != null) {
-            latencyMarerEmitter.stopLatencyMarkerEmit();
+            latencyMarerEmitter.close();
         }
         super.finish();
 
@@ -374,7 +356,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         switch (operatingMode) {
             case OUTPUT_NOT_INITIALIZED:
                 currentMainOutput = eventTimeLogic.createMainOutput(output);
-                latencyMarerEmitter.emitMainOutput(output);
+                initializeLatencyMarkerEmitter(output);
                 lastInvokedOutput = output;
                 this.operatingMode = OperatingMode.READING;
                 return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
@@ -388,6 +370,26 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             case READING:
             default:
                 throw new IllegalStateException("Unknown operating mode: " + operatingMode);
+        }
+    }
+
+    private void initializeLatencyMarkerEmitter(DataOutput<OUT> output) {
+        long latencyTrackingInterval =
+                getExecutionConfig().isLatencyTrackingConfigured()
+                        ? getExecutionConfig().getLatencyTrackingInterval()
+                        : getContainingTask()
+                                .getEnvironment()
+                                .getTaskManagerInfo()
+                                .getConfiguration()
+                                .getLong(MetricOptions.LATENCY_INTERVAL);
+        if (latencyTrackingInterval > 0) {
+            latencyMarerEmitter =
+                    new LatencyMarkerEmitter<>(
+                            getProcessingTimeService(),
+                            output::emitLatencyMarker,
+                            latencyTrackingInterval,
+                            getOperatorID(),
+                            getRuntimeContext().getIndexOfThisSubtask());
         }
     }
 
@@ -503,81 +505,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
         public void forceStop() {
             this.forcedStopFuture.complete(null);
-        }
-    }
-
-    private static class LatencyMarkerEmitter<OUT> {
-
-        private final ProcessingTimeService timeService;
-
-        private final long latencyTrackingInterval;
-
-        private final OperatorID operatorId;
-
-        private final int subtaskIndex;
-
-        @Nullable private DataOutput<OUT> currentMainOutput;
-
-        @Nullable private ScheduledFuture<?> latencyMarkerTimer;
-
-        public LatencyMarkerEmitter(
-                final ProcessingTimeService timeService,
-                long latencyTrackingInterval,
-                final OperatorID operatorId,
-                final int subtaskIndex) {
-            this.timeService = timeService;
-            this.latencyTrackingInterval = latencyTrackingInterval;
-            this.operatorId = operatorId;
-            this.subtaskIndex = subtaskIndex;
-        }
-
-        // ------------------------------------------------------------------------
-
-        public void emitMainOutput(PushingAsyncDataInput.DataOutput<OUT> output) {
-            // At the moment, we assume only one output is ever created!
-            // This assumption is strict, currently, because many of the classes in this
-            // implementation
-            // do not support re-assigning the underlying output
-            checkState(currentMainOutput == null, "Main output has already been set.");
-            currentMainOutput = output;
-        }
-
-        public void startLatencyMarkerEmit() {
-            checkState(
-                    latencyMarkerTimer == null, "Latency marker emitter has already been started");
-            if (latencyTrackingInterval == 0) {
-                // a value of zero means not activated
-                return;
-            }
-            latencyMarkerTimer =
-                    timeService.scheduleWithFixedDelay(
-                            this::triggerLatencyMarkerEmit, 0L, latencyTrackingInterval);
-        }
-
-        public void stopLatencyMarkerEmit() {
-            if (latencyMarkerTimer != null) {
-                latencyMarkerTimer.cancel(false);
-                latencyMarkerTimer = null;
-            }
-        }
-
-        void triggerLatencyMarkerEmit(@SuppressWarnings("unused") long wallClockTimestamp) {
-            if (currentMainOutput != null) {
-                try {
-                    // ProcessingTimeService callbacks are executed under the
-                    // checkpointing lock
-                    currentMainOutput.emitLatencyMarker(
-                            new LatencyMarker(
-                                    timeService.getCurrentProcessingTime(),
-                                    operatorId,
-                                    subtaskIndex));
-                } catch (Throwable t) {
-                    // we catch the Throwable here so that we don't trigger the
-                    // processing
-                    // timer services async exception handler
-                    LOG.warn("Error while emitting latency marker.", t);
-                }
-            }
         }
     }
 }
