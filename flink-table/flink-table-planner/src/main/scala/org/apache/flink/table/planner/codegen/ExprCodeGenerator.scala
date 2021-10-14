@@ -782,6 +782,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case JSON_VALUE => new JsonValueCallGen().generate(ctx, operands, resultType)
 
+      case JSON_STRING => new JsonStringCallGen(call).generate(ctx, operands, resultType)
+
       case JSON_OBJECT => new JsonObjectCallGen(call).generate(ctx, operands, resultType)
 
       case JSON_ARRAY => new JsonArrayCallGen(call).generate(ctx, operands, resultType)

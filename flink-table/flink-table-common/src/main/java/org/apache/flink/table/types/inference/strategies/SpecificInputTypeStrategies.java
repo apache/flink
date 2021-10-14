@@ -21,6 +21,7 @@ package org.apache.flink.table.types.inference.strategies;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
@@ -36,7 +37,6 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.logical
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.repeatingSequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.symbol;
-import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 
 /**
  * Entry point for specific input type strategies not covered in {@link InputTypeStrategies}.
@@ -57,6 +57,16 @@ public final class SpecificInputTypeStrategies {
     public static final InputTypeStrategy CURRENT_WATERMARK =
             new CurrentWatermarkInputTypeStrategy();
 
+    /** Argument type representing all types supported in a JSON context. */
+    public static final ArgumentTypeStrategy JSON_ARGUMENT =
+            or(
+                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                    logical(LogicalTypeFamily.BINARY_STRING),
+                    logical(LogicalTypeFamily.TIMESTAMP),
+                    logical(LogicalTypeFamily.CONSTRUCTED),
+                    logical(LogicalTypeRoot.BOOLEAN),
+                    logical(LogicalTypeFamily.NUMERIC));
+
     /**
      * Input strategy for {@link BuiltInFunctionDefinitions#JSON_OBJECT}.
      *
@@ -69,25 +79,7 @@ public final class SpecificInputTypeStrategies {
                     .finishWithVarying(
                             repeatingSequence(
                                     and(logical(LogicalTypeFamily.CHARACTER_STRING), LITERAL),
-                                    or(
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            logical(LogicalTypeFamily.BINARY_STRING),
-                                            logical(LogicalTypeFamily.TIMESTAMP),
-                                            logical(LogicalTypeFamily.CONSTRUCTED),
-                                            logical(LogicalTypeRoot.BOOLEAN),
-                                            logical(LogicalTypeFamily.NUMERIC))));
-
-    /** Input strategy for {@link BuiltInFunctionDefinitions#JSON_ARRAY}. */
-    public static final InputTypeStrategy JSON_ARRAY =
-            varyingSequence(
-                    symbol(JsonOnNull.class),
-                    or(
-                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                            logical(LogicalTypeFamily.BINARY_STRING),
-                            logical(LogicalTypeFamily.TIMESTAMP),
-                            logical(LogicalTypeFamily.CONSTRUCTED),
-                            logical(LogicalTypeRoot.BOOLEAN),
-                            logical(LogicalTypeFamily.NUMERIC)));
+                                    JSON_ARGUMENT));
 
     // --------------------------------------------------------------------------------------------
     // Strategies composed of other strategies

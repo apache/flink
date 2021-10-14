@@ -1145,6 +1145,16 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction JSON_EXISTS = SqlStdOperatorTable.JSON_EXISTS;
     public static final SqlFunction JSON_VALUE = SqlStdOperatorTable.JSON_VALUE;
     public static final SqlFunction JSON_QUERY = SqlStdOperatorTable.JSON_QUERY;
+    public static final SqlFunction JSON_STRING =
+            new SqlFunction(
+                    "JSON_STRING",
+                    SqlKind.OTHER_FUNCTION,
+                    ReturnTypes.cascade(
+                            ReturnTypes.explicit(SqlTypeName.VARCHAR),
+                            FlinkReturnTypes.TO_NULLABLE_SHALLOW),
+                    null,
+                    OperandTypes.family(SqlTypeFamily.ANY),
+                    SqlFunctionCategory.STRING);
     public static final SqlFunction JSON_OBJECT = new SqlJsonObjectFunction();
     public static final SqlFunction JSON_ARRAY = SqlStdOperatorTable.JSON_ARRAY;
     public static final SqlPostfixOperator IS_JSON_VALUE = SqlStdOperatorTable.IS_JSON_VALUE;

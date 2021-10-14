@@ -30,6 +30,7 @@ import org.apache.calcite.sql.type.OrdinalReturnTypeInference;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.type.SqlTypeTransform;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
 
 import java.math.BigDecimal;
@@ -125,4 +126,18 @@ public class FlinkReturnTypes {
                                             new MapType(
                                                     new VarCharType(VarCharType.MAX_LENGTH),
                                                     new VarCharType(VarCharType.MAX_LENGTH))));
+
+    /** Like {@link SqlTypeTransforms#TO_NULLABLE}, but does not recurse into structured types. */
+    public static final SqlTypeTransform TO_NULLABLE_SHALLOW =
+            (opBinding, typeToTransform) -> {
+                for (final RelDataType type : opBinding.collectOperandTypes()) {
+                    if (type.isNullable()) {
+                        return opBinding
+                                .getTypeFactory()
+                                .createTypeWithNullability(typeToTransform, true);
+                    }
+                }
+
+                return opBinding.getTypeFactory().createTypeWithNullability(typeToTransform, false);
+            };
 }
