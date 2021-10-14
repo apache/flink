@@ -938,6 +938,32 @@ public class SingleInputGateTest extends InputGateTestBase {
         assertEquals(Collections.emptyList(), inputGate.getUnfinishedChannels());
     }
 
+    @Test
+    public void testBufferInUseCount() throws Exception {
+        // Setup
+        final SingleInputGate inputGate = createInputGate();
+
+        final TestInputChannel[] inputChannels =
+                new TestInputChannel[] {
+                    new TestInputChannel(inputGate, 0), new TestInputChannel(inputGate, 1)
+                };
+
+        inputGate.setInputChannels(inputChannels);
+
+        // It should be no buffers when all channels are empty.
+        assertThat(inputGate.getBuffersInUseCount(), is(0));
+
+        // Add buffers into channels.
+        inputChannels[0].readBuffer();
+        assertThat(inputGate.getBuffersInUseCount(), is(1));
+
+        inputChannels[0].readBuffer();
+        assertThat(inputGate.getBuffersInUseCount(), is(2));
+
+        inputChannels[1].readBuffer();
+        assertThat(inputGate.getBuffersInUseCount(), is(3));
+    }
+
     // ---------------------------------------------------------------------------------------------
 
     private static Map<InputGateID, SingleInputGate> createInputGateWithLocalChannels(
