@@ -78,7 +78,7 @@ under the License.
 				<executions>
 					<execution>
 						<id>copy-rpc-akka-jars</id>
-						<phase>package</phase>
+						<phase>prepare-package</phase>
 						<goals>
 							<goal>copy</goal>
 						</goals>
