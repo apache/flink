@@ -34,7 +34,7 @@ public class ThroughputCalculatorTest extends TestCase {
     @Test
     public void testCorrectThroughputCalculation() {
         ManualClock clock = new ManualClock();
-        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock, 10);
+        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
         throughputCalculator.incomingDataSize(6666);
         clock.advanceTime(Duration.ofMillis(1));
@@ -49,7 +49,7 @@ public class ThroughputCalculatorTest extends TestCase {
     @Test
     public void testResetValueAfterCalculation() {
         ManualClock clock = new ManualClock();
-        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock, 10);
+        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
         throughputCalculator.incomingDataSize(666);
         clock.advanceTime(Duration.ofMillis(100));
@@ -59,13 +59,13 @@ public class ThroughputCalculatorTest extends TestCase {
         assertThat(throughputCalculator.calculateThroughput(), is(6660L));
 
         clock.advanceTime(Duration.ofMillis(1));
-        assertThat(throughputCalculator.calculateThroughput(), is(5449L));
+        assertThat(throughputCalculator.calculateThroughput(), is(0L));
     }
 
     @Test
     public void testIgnoringIdleTime() {
         ManualClock clock = new ManualClock();
-        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock, 10);
+        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
         throughputCalculator.incomingDataSize(7);
         clock.advanceTime(Duration.ofMillis(1));
@@ -82,7 +82,7 @@ public class ThroughputCalculatorTest extends TestCase {
     @Test
     public void testCalculationDuringIdleTime() {
         ManualClock clock = new ManualClock();
-        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock, 10);
+        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
         throughputCalculator.incomingDataSize(10);
         clock.advanceTime(Duration.ofMillis(1));
@@ -96,7 +96,7 @@ public class ThroughputCalculatorTest extends TestCase {
     @Test
     public void testMultiplyIdleEnd() {
         ManualClock clock = new ManualClock();
-        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock, 10);
+        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
         throughputCalculator.incomingDataSize(10);
         // It won't be ignored.
@@ -118,7 +118,7 @@ public class ThroughputCalculatorTest extends TestCase {
     @Test
     public void testNotRestartTimerOnCalculationDuringIdleTime() {
         ManualClock clock = new ManualClock();
-        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock, 10);
+        ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
         throughputCalculator.pauseMeasurement(clock.absoluteTimeMillis());
 

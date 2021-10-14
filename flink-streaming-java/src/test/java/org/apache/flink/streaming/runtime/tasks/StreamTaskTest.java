@@ -1569,7 +1569,7 @@ public class StreamTaskTest extends TestLogger {
                         .setupOutputForSingletonOperatorChain(
                                 new TestBoundedOneInputStreamOperator())
                         .setThroughputCalculator(
-                                new ThroughputCalculator(SystemClock.getInstance(), 10) {
+                                new ThroughputCalculator(SystemClock.getInstance()) {
                                     @Override
                                     public long calculateThroughput() {
                                         finishFuture.complete(null);
@@ -1677,7 +1677,7 @@ public class StreamTaskTest extends TestLogger {
                         .setupOutputForSingletonOperatorChain(
                                 new TestBoundedOneInputStreamOperator())
                         .setThroughputCalculator(
-                                new ThroughputCalculator(SystemClock.getInstance(), 10) {
+                                new ThroughputCalculator(SystemClock.getInstance()) {
                                     @Override
                                     public long calculateThroughput() {
                                         return expectedThroughput;

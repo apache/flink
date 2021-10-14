@@ -101,7 +101,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     private boolean setupCalled = false;
 
     private ThroughputCalculator throughputCalculator =
-            new ThroughputCalculator(SystemClock.getInstance(), 10);
+            new ThroughputCalculator(SystemClock.getInstance());
 
     private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 
