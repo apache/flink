@@ -32,7 +32,18 @@ under the License.
 	<artifactId>flink-docs</artifactId>
 	<name>Flink : Docs</name>
 
+	<properties>
+		<generated.docs.dir>./docs/layouts/shortcodes/generated</generated.docs.dir>
+		<generated.static.dir>./docs/static/generated</generated.static.dir>
+	</properties>
+
 	<dependencies>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-swagger</artifactId>
+			<version>15.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-annotations</artifactId>
@@ -239,6 +250,10 @@ under the License.
 										<java classname="org.apache.flink.docs.rest.RestAPIDocGenerator" fork="true" failonerror="true">
 											<classpath refid="maven.compile.classpath"/>
 											<arg value="${rootDir}/${generated.docs.dir}/"/>
+										</java>
+										<java classname="org.apache.flink.docs.rest.OpenApiSpecGenerator" fork="true" failonerror="true">
+											<classpath refid="maven.compile.classpath"/>
+											<arg value="${rootDir}/${generated.static.dir}/"/>
 										</java>
 									</target>
 								</configuration>
