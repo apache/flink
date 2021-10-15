@@ -75,7 +75,7 @@ public class DirectoryBasedPluginFinder implements PluginFinder {
                     "Plugins root directory [" + pluginsRootDir + "] does not exist!");
         }
         try (Stream<Path> stream = Files.list(pluginsRootDir)) {
-            stream.filter((Path path) -> Files.isDirectory(path))
+            return stream.filter((Path path) -> Files.isDirectory(path))
                     .map(
                             FunctionUtils.uncheckedFunction(
                                     this::createPluginDescriptorForSubDirectory))
