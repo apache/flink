@@ -26,6 +26,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.expressions.TimePointUnit;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -45,6 +46,8 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRe
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECTAGG_ABSENT_ON_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_STRING;
 
 /**
@@ -627,6 +630,41 @@ public final class Expressions {
                 Stream.concat(Stream.of(onNull), Arrays.stream(keyValues)).toArray(Object[]::new);
 
         return apiCall(JSON_OBJECT, arguments);
+    }
+
+    /**
+     * Builds a JSON object string by aggregating over key-value expressions.
+     *
+     * <p>The key expression must return a non-nullable character string. Value expressions can be
+     * arbitrary, including other JSON functions. If a value is {@code NULL}, the {@link JsonOnNull
+     * onNull} behavior defines what to do.
+     *
+     * <p>Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+     *
+     * <p>This function is currently not supported in {@code OVER} windows.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // "{\"Apple\":2,\"Banana\":17,\"Orange\":0}"
+     * orders.select(jsonObjectAgg(JsonOnNull.NULL, $("product"), $("cnt")))
+     * }</pre>
+     *
+     * @see #jsonObject(JsonOnNull, Object...)
+     */
+    public static ApiExpression jsonObjectAgg(JsonOnNull onNull, Object keyExpr, Object valueExpr) {
+        final BuiltInFunctionDefinition functionDefinition;
+        switch (onNull) {
+            case ABSENT:
+                functionDefinition = JSON_OBJECTAGG_ABSENT_ON_NULL;
+                break;
+            case NULL:
+            default:
+                functionDefinition = JSON_OBJECTAGG_NULL_ON_NULL;
+                break;
+        }
+
+        return apiCall(functionDefinition, keyExpr, valueExpr);
     }
 
     /**

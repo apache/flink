@@ -130,7 +130,9 @@ object FlinkBatchRuleSets {
         // optimize limit 0
         FlinkLimit0RemoveRule.INSTANCE,
         // unnest rule
-        LogicalUnnestRule.INSTANCE
+        LogicalUnnestRule.INSTANCE,
+        // Wrap arguments for JSON aggregate functions
+        WrapJsonAggFunctionArgumentsRule.INSTANCE
       )).asJava)
 
   /**

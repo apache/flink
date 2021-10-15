@@ -123,6 +123,10 @@ class AggFunctionFactory(
       case a: SqlAggFunction if a.getKind == SqlKind.COLLECT =>
         createCollectAggFunction(argTypes)
 
+      case fn: SqlAggFunction if fn.getKind == SqlKind.JSON_OBJECTAGG =>
+        new JsonObjectAggFunction(argTypes,
+          fn.asInstanceOf[SqlJsonObjectAggAggFunction].getNullClause)
+
       case udagg: AggSqlFunction =>
         // Can not touch the literals, Calcite make them in previous RelNode.
         // In here, all inputs are input refs.

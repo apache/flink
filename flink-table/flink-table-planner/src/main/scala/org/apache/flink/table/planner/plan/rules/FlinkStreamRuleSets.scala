@@ -139,7 +139,9 @@ object FlinkStreamRuleSets {
         // unnest rule
         LogicalUnnestRule.INSTANCE,
         // rewrite constant table function scan to correlate
-        JoinTableFunctionScanToCorrelateRule.INSTANCE
+        JoinTableFunctionScanToCorrelateRule.INSTANCE,
+        // Wrap arguments for JSON aggregate functions
+        WrapJsonAggFunctionArgumentsRule.INSTANCE
       )
     ).asJava)
 
