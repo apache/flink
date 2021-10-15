@@ -62,6 +62,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -102,6 +103,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     private final ShuffleMaster<?> shuffleMaster;
 
     private final Time rpcTimeout;
+
+    private final Map<AllocationID, Long> reservedAllocationRefCounters;
+
+    private final Map<ExecutionVertexID, AllocationID> reservedAllocationByExecutionVertex;
 
     DefaultScheduler(
             final Logger log,
@@ -148,6 +153,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         this.executionVertexOperations = checkNotNull(executionVertexOperations);
         this.shuffleMaster = checkNotNull(shuffleMaster);
         this.rpcTimeout = checkNotNull(rpcTimeout);
+
+        this.reservedAllocationRefCounters = new HashMap<>();
+        this.reservedAllocationByExecutionVertex = new HashMap<>();
 
         final FailoverStrategy failoverStrategy =
                 failoverStrategyFactory.create(
@@ -203,6 +211,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     protected void updateTaskExecutionStateInternal(
             final ExecutionVertexID executionVertexId,
             final TaskExecutionStateTransition taskExecutionState) {
+
+        if (taskExecutionState.getExecutionState() == ExecutionState.FINISHED) {
+            stopReserveAllocation(executionVertexId);
+        }
 
         schedulingStrategy.onExecutionStateChange(
                 executionVertexId, taskExecutionState.getExecutionState());
@@ -517,8 +529,31 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
             final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
             executionVertex.tryAssignResource(logicalSlot);
+
+            startReserveAllocation(executionVertexId, logicalSlot.getAllocationId());
+
             return logicalSlot;
         };
+    }
+
+    private void startReserveAllocation(
+            ExecutionVertexID executionVertexId, AllocationID newAllocation) {
+
+        // stop the previous allocation reservation if there is one
+        stopReserveAllocation(executionVertexId);
+
+        reservedAllocationByExecutionVertex.put(executionVertexId, newAllocation);
+        reservedAllocationRefCounters.compute(
+                newAllocation, (ignored, oldCount) -> oldCount == null ? 1 : oldCount + 1);
+    }
+
+    private void stopReserveAllocation(ExecutionVertexID executionVertexId) {
+        final AllocationID priorAllocation =
+                reservedAllocationByExecutionVertex.remove(executionVertexId);
+        if (priorAllocation != null) {
+            reservedAllocationRefCounters.compute(
+                    priorAllocation, (ignored, oldCount) -> oldCount > 1 ? oldCount - 1 : null);
+        }
     }
 
     private Function<LogicalSlot, CompletableFuture<Void>> registerProducedPartitions(
@@ -668,6 +703,11 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         @Override
         public Optional<TaskManagerLocation> getStateLocation(ExecutionVertexID executionVertexId) {
             return stateLocationRetriever.getStateLocation(executionVertexId);
+        }
+
+        @Override
+        public Set<AllocationID> getAllocationsToReserve() {
+            return reservedAllocationRefCounters.keySet();
         }
     }
 
