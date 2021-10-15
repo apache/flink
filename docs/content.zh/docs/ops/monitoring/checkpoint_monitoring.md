@@ -69,6 +69,7 @@ Checkpoint 历史记录保存有关最近触发的 checkpoint 的统计信息，
 
 - **ID**：已触发 checkpoint 的 ID。每个 checkpoint 的 ID 都会递增，从 1 开始。
 - **Status**：Checkpoint 的当前状态，可以是*正在进行（In Progress）*、*已完成（Completed）* 或*失败（Failed）*）。如果触发的检查点是一个保存点，你将看到一个  符号。
+- **Acknowledged**: 已确认的subtask的数量/全部subtask的数量。
 - **Trigger Time**：在 JobManager 上发起 checkpoint 的时间。
 - **Latest Acknowledgement**：JobManager 接收到任何 subtask 的最新确认的时间（如果尚未收到确认，则不适用）。
 - **End to End Duration**：从触发时间戳到最后一次确认的持续时间（如果还没有收到确认，则不适用）。完整 checkpoint 的端到端持续时间由确认 checkpoint 的最后一个 subtask 确定。这个时间通常大于单个 subtask 实际 checkpoint state 所需的时间。
