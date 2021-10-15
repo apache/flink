@@ -30,7 +30,7 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
-           'json_object', 'json_array', 'call', 'call_sql', 'source_watermark']
+           'json_object', 'json_object_agg', 'json_array', 'call', 'call_sql', 'source_watermark']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -661,6 +661,29 @@ def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
     .. seealso:: :func:`~pyflink.table.expressions.json_array`
     """
     return _varargs_op("jsonObject", *(on_null._to_j_json_on_null(), *args))
+
+
+def json_object_agg(on_null: JsonOnNull,
+                    key_expr: Union[str, Expression[str]],
+                    value_expr) -> Expression:
+    """
+    Builds a JSON object string by aggregating key-value expressions into a single JSON object.
+
+    The key expression must return a non-nullable character string. Value expressions can be
+    arbitrary, including other JSON functions. If a value is `NULL`, the `on_null` behavior defines
+    what to do.
+
+    Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+
+    This function is currently not supported in `OVER` windows.
+
+    Examples:
+    ::
+
+        >>> # '{"Apple":2,"Banana":17,"Orange":0}'
+        >>> orders.select(json_object_agg(JsonOnNull.NULL, col("product"), col("cnt")))
+    """
+    return _ternary_op("jsonObjectAgg", on_null._to_j_json_on_null(), key_expr, value_expr)
 
 
 def json_array(on_null: JsonOnNull = JsonOnNull.ABSENT, *args) -> Expression:
