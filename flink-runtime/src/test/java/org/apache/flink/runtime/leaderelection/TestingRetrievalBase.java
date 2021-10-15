@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Base class which provides some convenience functions for testing purposes of {@link
@@ -50,19 +51,26 @@ public class TestingRetrievalBase {
 
         final String errorMsg =
                 "Listener was not notified about a new leader within " + timeout + "ms";
+        final AtomicReference<LeaderInformation> newLeader = new AtomicReference<>();
         CommonTestUtils.waitUntilCondition(
                 () -> {
-                    leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
-                    return leader != null
-                            && !leader.isEmpty()
-                            && !leader.getLeaderAddress().equals(oldAddress);
+                    final LeaderInformation head =
+                            leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
+                    final boolean isNewLeader =
+                            head != null
+                                    && !head.isEmpty()
+                                    && !head.getLeaderAddress().equals(oldAddress);
+                    if (isNewLeader) {
+                        newLeader.set(head);
+                    }
+                    return isNewLeader;
                 },
                 Deadline.fromNow(Duration.ofMillis(timeout)),
                 errorMsg);
+        leader = newLeader.get();
+        oldAddress = newLeader.get().getLeaderAddress();
 
-        oldAddress = leader.getLeaderAddress();
-
-        return leader.getLeaderAddress();
+        return newLeader.get().getLeaderAddress();
     }
 
     public void waitForEmptyLeaderInformation(long timeout) throws Exception {
