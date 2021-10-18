@@ -37,11 +37,25 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<!-- transitive Flink dependencies are provided at runtime -->
+					<groupId>org.apache.flink</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<!-- transitive Flink dependencies are provided at runtime -->
+					<groupId>org.apache.flink</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -57,6 +71,17 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 	</dependencies>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<!-- Provided by flink-dist -->
+				<groupId>com.twitter</groupId>
+				<artifactId>chill-java</artifactId>
+				<scope>provided</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<build>
 		<plugins>
@@ -77,8 +102,7 @@ under the License.
 										 Transitive dependencies are bundled by _either_ flink-dist(-scala),
 										 and we need to make sure no dependency required for the Scala-free
 										 operation of Flink is bundled in flink-dist-scala. -->
-									<include>org.apache.flink:flink-scala_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-streaming-scala_${scala.binary.version}</include>
+									<include>org.apache.flink:*</include>
 									<include>org.scala-lang*:*</include>
 									<include>com.twitter:chill_${scala.binary.version}</include>
 								</includes>
