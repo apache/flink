@@ -131,7 +131,8 @@ public class CheckpointConfigHandler
                     checkpointStorageName,
                     checkpointCoordinatorConfiguration.isUnalignedCheckpointsEnabled(),
                     checkpointCoordinatorConfiguration.getTolerableCheckpointFailureNumber(),
-                    checkpointCoordinatorConfiguration.getAlignedCheckpointTimeout());
+                    checkpointCoordinatorConfiguration.getAlignedCheckpointTimeout(),
+                    checkpointCoordinatorConfiguration.isEnableCheckpointsAfterTasksFinish());
         }
     }
 }

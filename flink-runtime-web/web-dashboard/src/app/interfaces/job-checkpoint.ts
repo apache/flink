@@ -125,6 +125,7 @@ export interface CheckPointConfigInterface {
   unaligned_checkpoints: boolean;
   tolerable_failed_checkpoints: number;
   aligned_checkpoint_timeout: number;
+  checkpoints_after_tasks_finish: boolean;
 }
 
 export interface CheckPointDetailInterface {
