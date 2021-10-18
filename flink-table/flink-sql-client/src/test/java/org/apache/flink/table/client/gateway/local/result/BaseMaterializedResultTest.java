@@ -46,11 +46,9 @@ class BaseMaterializedResultTest {
     static void assertRowEquals(
             List<Row> expected,
             List<RowData> actual,
-            DataStructureConverter<Object, Object> converter) {
+            DataStructureConverter<RowData, Row> converter) {
         assertEquals(
                 expected,
-                actual.stream()
-                        .map(r -> (Row) converter.toExternalOrNull(r))
-                        .collect(Collectors.toList()));
+                actual.stream().map(converter::toExternalOrNull).collect(Collectors.toList()));
     }
 }

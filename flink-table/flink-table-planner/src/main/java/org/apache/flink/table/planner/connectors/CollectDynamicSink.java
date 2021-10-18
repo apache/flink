@@ -52,6 +52,7 @@ final class CollectDynamicSink implements DynamicTableSink {
     private final DataType consumedDataType;
     private final MemorySize maxBatchSize;
     private final Duration socketTimeout;
+    private final ClassLoader classLoader;
 
     // mutable attributes
     private CollectResultIterator<RowData> iterator;
@@ -61,11 +62,13 @@ final class CollectDynamicSink implements DynamicTableSink {
             ObjectIdentifier tableIdentifier,
             DataType consumedDataType,
             MemorySize maxBatchSize,
-            Duration socketTimeout) {
+            Duration socketTimeout,
+            ClassLoader classLoader) {
         this.tableIdentifier = tableIdentifier;
         this.consumedDataType = consumedDataType;
         this.maxBatchSize = maxBatchSize;
         this.socketTimeout = socketTimeout;
+        this.classLoader = classLoader;
     }
 
     public ResultProvider getSelectResultProvider() {
@@ -106,8 +109,7 @@ final class CollectDynamicSink implements DynamicTableSink {
                                     accumulatorName,
                                     checkpointConfig);
                     this.converter = context.createDataStructureConverter(consumedDataType);
-                    this.converter.open(
-                            RuntimeConverter.Context.create(config.getClass().getClassLoader()));
+                    this.converter.open(RuntimeConverter.Context.create(classLoader));
 
                     final CollectStreamSink<RowData> sink =
                             new CollectStreamSink<>(inputStream, factory);
@@ -118,7 +120,7 @@ final class CollectDynamicSink implements DynamicTableSink {
     @Override
     public DynamicTableSink copy() {
         return new CollectDynamicSink(
-                tableIdentifier, consumedDataType, maxBatchSize, socketTimeout);
+                tableIdentifier, consumedDataType, maxBatchSize, socketTimeout, classLoader);
     }
 
     @Override
@@ -131,16 +133,6 @@ final class CollectDynamicSink implements DynamicTableSink {
         private CloseableRowIteratorWrapper<RowData> rowDataIterator;
         private CloseableRowIteratorWrapper<Row> rowIterator;
 
-        private void initialize() {
-            if (this.rowIterator == null) {
-                this.rowDataIterator =
-                        new CloseableRowIteratorWrapper<>(iterator, Function.identity());
-                this.rowIterator =
-                        new CloseableRowIteratorWrapper<>(
-                                iterator, r -> (Row) converter.toExternal(r));
-            }
-        }
-
         @Override
         public ResultProvider setJobClient(JobClient jobClient) {
             iterator.setJobClient(jobClient);
@@ -149,21 +141,27 @@ final class CollectDynamicSink implements DynamicTableSink {
 
         @Override
         public CloseableIterator<RowData> toInternalIterator() {
-            initialize();
+            if (this.rowDataIterator == null) {
+                this.rowDataIterator =
+                        new CloseableRowIteratorWrapper<>(iterator, Function.identity());
+            }
             return this.rowDataIterator;
         }
 
         @Override
         public CloseableIterator<Row> toExternalIterator() {
-            initialize();
+            if (this.rowIterator == null) {
+                this.rowIterator =
+                        new CloseableRowIteratorWrapper<>(
+                                iterator, r -> (Row) converter.toExternal(r));
+            }
             return this.rowIterator;
         }
 
         @Override
         public boolean isFirstRowReady() {
-            initialize();
-            return this.rowDataIterator.firstRowProcessed
-                    || this.rowIterator.firstRowProcessed
+            return (this.rowDataIterator != null && this.rowDataIterator.firstRowProcessed)
+                    || (this.rowIterator != null && this.rowIterator.firstRowProcessed)
                     || iterator.hasNext();
         }
     }
