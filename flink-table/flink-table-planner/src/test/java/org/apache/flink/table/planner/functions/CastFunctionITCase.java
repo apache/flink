@@ -751,10 +751,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
-                        // https://issues.apache.org/jira/browse/FLINK-24424 - Throws NPE
-                        // .fromCase(CHAR(3), "foo", null)
-                        // .fromCase(VARCHAR(5), "Flink", null)
-                        // .fromCase(STRING(), "123", null)
+                        .fromCase(CHAR(3), "foo", null)
+                        .fromCase(VARCHAR(5), "Flink", null)
+                        .fromCase(STRING(), "123", null)
                         .fromCase(
                                 STRING(),
                                 "2021-09-27",
