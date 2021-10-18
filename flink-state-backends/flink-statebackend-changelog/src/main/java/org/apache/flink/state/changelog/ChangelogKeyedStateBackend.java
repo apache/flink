@@ -69,6 +69,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -343,7 +344,7 @@ public class ChangelogKeyedStateBackend<K>
         lastUploadedFrom = changelogSnapshotState.lastMaterializedTo();
         lastUploadedTo = getLastAppendedTo();
 
-        LOG.debug(
+        LOG.info(
                 "snapshot of {} for checkpoint {}, change range: {}..{}",
                 subtaskName,
                 checkpointId,
@@ -538,6 +539,10 @@ public class ChangelogKeyedStateBackend<K>
                         keyedStateBackend /* pass the nested backend as key context so that it get key updates on recovery*/);
         changelogStates.put(stateDesc.getName(), (ChangelogState) is);
         return is;
+    }
+
+    public void registerCloseable(@Nullable Closeable closeable) {
+        closer.register(closeable);
     }
 
     private ChangelogSnapshotState completeRestore(

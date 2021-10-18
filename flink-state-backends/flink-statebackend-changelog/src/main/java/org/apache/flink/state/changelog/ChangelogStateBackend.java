@@ -248,7 +248,11 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                         executionConfig.getPeriodicMaterializeIntervalMillis(),
                         executionConfig.getMaterializationMaxAllowedFailures());
 
-        cancelStreamRegistry.registerCloseable(periodicMaterializationManager);
+        // keyedStateBackend is responsible to close periodicMaterializationManager
+        // This indicates periodicMaterializationManager binds to the keyedStateBackend
+        // However PeriodicMaterializationManager can not be part of keyedStateBackend
+        // because of
+        keyedStateBackend.registerCloseable(periodicMaterializationManager);
 
         periodicMaterializationManager.start();
 
