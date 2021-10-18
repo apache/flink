@@ -108,6 +108,10 @@ Known Limitations:
 
 {{< sql_functions "auxiliary" >}}
 
+### Meta Functions
+
+{{< sql_functions "meta" >}}
+
 Aggregate Functions
 -------------------
 
