@@ -707,11 +707,9 @@ json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
     table: STRING.isJson([JsonType type])
     description: |
-      Determine whether a given string is valid JSON.
+      判定给定字符串是否为有效的 JSON。
 
-      Specifying the optional type argument puts a constraint on which type of JSON object is
-      allowed. If the string is valid JSON, but not that type, `false` is returned. The default is
-      `VALUE`.
+      指定一个可选类型参数将会限制允许哪种类型的 JSON 对象。如果字符串是有效的 JSON，但不是指定的类型，则返回 'false'。默认值为 'VALUE'。
 
       ```
       -- TRUE
@@ -742,9 +740,9 @@ json:
   - sql: JSON_EXISTS(jsonValue, path [ { TRUE | FALSE | UNKNOWN | ERROR } ON ERROR ])
     table: STRING.jsonExists(STRING path [, JsonExistsOnError onError])
     description: |
-      Determines whether a JSON string satisfies a given path search criterion.
+      判定一个 JSON 字符串是否满足给定的路径搜索条件。
 
-      If the error behavior is omitted, `FALSE ON ERROR` is assumed as the default.
+      如果忽略错误行为, 将 'FALSE ON ERROR' 作为默认设定。
 
       ```
       -- TRUE
@@ -765,23 +763,18 @@ json:
   - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
     table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
     description: |
-      Extracts a scalar from a JSON string.
+      从 JSON 字符串中提取标量。
 
-      This method searches a JSON string for a given path expression and returns the value if the
-      value at that path is scalar. Non-scalar values cannot be returned. By default, the value is
-      returned as `STRING`. Using `returningType` a different type can be chosen, with the following
-      types being supported:
+      此方法搜索给定路径表达式的 JSON 字符串，如果该路径上的值是标量，则返回该值。不能返回非标量值。默认情况下,返回值为 'STRING'。
+      使用 'returnsType' 可以选择不同的类型，如下所示:
 
       * `VARCHAR` / `STRING`
       * `BOOLEAN`
       * `INTEGER`
       * `DOUBLE`
 
-      For empty path expressions or errors a behavior can be defined to either return `null`, raise
-      an error or return a defined default value instead. When omitted, the default is
-      `NULL ON EMPTY` or `NULL ON ERROR`, respectively. The default value may be a literal or an
-      expression. If the default value itself raises an error, it falls through to the error
-      behavior for `ON EMPTY`, and raises an error for `ON ERROR`.
+      对于空路径表达式或错误，行为可以定义为返回 'null'、引发错误或返回定义的默认值。当省略时，默认为 'NULL ON EMPTY' 或
+      'NULL ON ERROR'。默认值可以是文字或表达式。如果默认值本身引发错误，通过错误就会造成 'ON EMPTY' 的行为，并引发 'ON ERROR' 的错误。
 
       ```
       -- "true"
@@ -799,22 +792,20 @@ json:
           DEFAULT FALSE ON ERROR)
 
       -- 0.998D
-      JSON_VALUE('{"a.b": [0.998,0.996]}','$.["a.b"][0]' 
+      JSON_VALUE('{"a.b": [0.998,0.996]}','$.["a.b"][0]'
           RETURNING DOUBLE)
       ```
   - sql: JSON_QUERY(jsonValue, path [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
     table: STRING.jsonQuery(path [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ])
     description: |
-      Extracts JSON values from a JSON string.
+      从 JSON 字符串中提取 JSON 值。
 
-      The result is always returned as a `STRING`. The `RETURNING` clause is currently not supported.
+      结果总是以 'STRING' 的形式返回。'RETURNING' 的子句目前不受支持。
 
-      The `wrappingBehavior` determines whether the extracted value should be wrapped into an array,
-      and whether to do so unconditionally or only if the value itself isn't an array already.
+      'wrappingBehavior' 决定是否将提取的值包装到一个数组中，以及是否无条件地这样做，还是只有当值本身不是数组时才这样做。
 
-      `onEmpty` and `onError` determine the behavior in case the path expression is empty, or in
-      case an error was raised, respectively. By default, in both cases `null` is returned. Other
-      choices are to use an empty array, an empty object, or to raise an error.
+      'onEmpty' 和 'onError' 分别决定路径表达式为空或引发错误时的行为。默认情况下，这两种情况都会返回 'null'。其他选择是
+      使用空数组、空对象或引发错误。
 
       ```
       -- '{ "b": 1 }'
@@ -850,16 +841,13 @@ json:
   - sql: JSON_OBJECT([[KEY] key VALUE value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonObject(JsonOnNull, keyValues...)
     description: |
-      Builds a JSON object string from a list of key-value pairs.
+      将一个键值对的列表构建成 JSON 对象字符串。
 
-      Note that keys must be non-`NULL` string literals, while values may be arbitrary expressions.
+      注意，键必须是非 'NULL' 字符串自变量，而值可以是任意表达式。
 
-      This function returns a JSON string. The `ON NULL` behavior defines how to treat `NULL`
-      values. If omitted, `NULL ON NULL` is assumed by default.
+      这个函数返回一个 JSON 字符串。'ON NULL' 行为定义了如何处理 'NULL' 值。如果省略，则默认为 'NULL ON NULL'。
 
-      Values which are created from another JSON construction function call (`JSON_OBJECT`,
-      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
-      structures.
+      值是由另一个 JSON 构造函数调用 ('JSON_OBJECT'，'JSON_ARRAY') 直接插入所创建，而不是作为一个字符串。他允许构建嵌套的JSON结构。
 
       ```
       -- '{}'
@@ -887,15 +875,11 @@ json:
   - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonArray(JsonOnNull, values...)
     description: |
-      Builds a JSON array string from a list of values.
+      将一个数值列表构建成一个 JSON 数组字符串。
 
-      This function returns a JSON string. The values can be arbitrary expressions. The `ON NULL`
-      behavior defines how to treat `NULL` values. If omitted, `ABSENT ON NULL` is assumed by
-      default.
+      这个函数返回一个 JSON 字符串，值可以是任意表达式。'ON NULL' 行为定义了如何处理 'NULL' 值。如果省略，则假定 'ABSENT ON NULL' 为默认值。
 
-      Elements which are created from another JSON construction function call (`JSON_OBJECT`,
-      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
-      structures.
+      元素是由另一个 JSON 构造函数调用 ('JSON_OBJECT'，'JSON_ARRAY') 直接插入所创建，而不是作为一个字符串。他允许构建嵌套的 JSON 结构。
 
       ```
       -- '[]'
