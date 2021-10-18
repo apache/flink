@@ -501,6 +501,12 @@
             <td>Tolerable Failed Checkpoints</td>
             <td>{{ checkPointConfig['tolerable_failed_checkpoints'] }}</td>
           </tr>
+          <tr>
+            <td>Checkpoints With Finished Tasks</td>
+            <td>
+              {{ checkPointConfig['checkpoints_after_tasks_finish'] ? 'Enabled' : 'Disabled' }}
+            </td>
+          </tr>
         </ng-container>
       </tbody>
     </nz-table>
