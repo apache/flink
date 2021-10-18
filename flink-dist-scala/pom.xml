@@ -79,7 +79,8 @@ under the License.
 										 operation of Flink is bundled in flink-dist-scala. -->
 									<include>org.apache.flink:flink-scala_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-streaming-scala_${scala.binary.version}</include>
-									<include>org.scala-lang:*</include>
+									<include>org.scala-lang*:*</include>
+									<include>com.twitter:chill_${scala.binary.version}</include>
 								</includes>
 							</artifactSet>
 						</configuration>
