@@ -66,7 +66,7 @@ public final class CliUtils {
         final AttributedStringBuilder line1 = new AttributedStringBuilder();
         final AttributedStringBuilder line2 = new AttributedStringBuilder();
 
-        // we assume that every options has not more than 11 characters (+ key and space)
+        // we assume that every option has not more than 11 characters (+ key and space)
         final int columns = (int) Math.ceil(((double) options.size()) / 2);
         final int space = (width - CliStrings.DEFAULT_MARGIN.length() - columns * 13) / columns;
         final Iterator<Tuple2<String, String>> iter = options.iterator();
@@ -121,7 +121,7 @@ public final class CliUtils {
         }
     }
 
-    /** Get time zone from the the given session config. */
+    /** Get time zone from the given session config. */
     public static ZoneId getSessionTimeZone(ReadableConfig sessionConfig) {
         final String zone = sessionConfig.get(TableConfigOptions.LOCAL_TIME_ZONE);
         return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)

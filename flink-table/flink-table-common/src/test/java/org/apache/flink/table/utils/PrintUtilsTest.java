@@ -139,6 +139,49 @@ public class PrintUtilsTest {
     }
 
     @Test
+    public void testNestedMapAndArraysToString() {
+        Row row = new Row(2);
+        Map<int[], String[]> intArray2StringArrayMap = new HashMap<>();
+        intArray2StringArrayMap.put(new int[] {1, 2}, new String[] {"hello", "world"});
+        row.setField(0, intArray2StringArrayMap);
+        Row row1 = new Row(2);
+        Map<Integer, String> map1 = new HashMap<>();
+        map1.put(123, "string");
+        Map<Integer, String>[] arrayOfMaps = new Map[] {map1};
+        row1.setField(0, arrayOfMaps);
+        Map<TimestampData[], boolean[]> map = new HashMap<>();
+        map.put(
+                new TimestampData[] {
+                    TimestampData.fromEpochMillis(1000), TimestampData.fromEpochMillis(2000)
+                },
+                new boolean[] {false, true});
+        row1.setField(1, map);
+        row.setField(1, row1);
+        ResolvedSchema resolvedSchema =
+                ResolvedSchema.of(
+                        Arrays.asList(
+                                Column.physical(
+                                        "f0",
+                                        DataTypes.MAP(
+                                                DataTypes.ARRAY(DataTypes.INT()),
+                                                DataTypes.ARRAY(DataTypes.STRING()))),
+                                Column.physical(
+                                        "f1",
+                                        DataTypes.ROW(
+                                                DataTypes.ARRAY(
+                                                        DataTypes.MAP(
+                                                                DataTypes.INT(),
+                                                                DataTypes.STRING())),
+                                                DataTypes.MAP(
+                                                        DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(3)),
+                                                        DataTypes.ARRAY(DataTypes.BOOLEAN()))))));
+        assertEquals(
+                "[{[1, 2]=[hello, world]},"
+                        + " +I[[{123=string}], {[1970-01-01 00:00:01.000, 1970-01-01 00:00:02.000]=[false, true]}]]",
+                Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
+    }
+
+    @Test
     public void testNestedMapToString() {
         Row row = new Row(2);
         row.setField(0, new int[] {1, 2});

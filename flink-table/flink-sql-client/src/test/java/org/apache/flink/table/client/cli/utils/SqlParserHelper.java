@@ -28,7 +28,7 @@ import org.apache.flink.table.delegation.Parser;
 
 /** An utility class that provides pre-prepared tables and sql parser. */
 public class SqlParserHelper {
-    // return the sql parser instance hold by this table evn.
+    // return the sql parser instance hold by this table env.
     private TableEnvironment tableEnv;
 
     public SqlParserHelper() {

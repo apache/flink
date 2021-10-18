@@ -231,9 +231,9 @@ public class CliTableauResultViewTest {
 
         // submit result display in another thread
         ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> furture = executorService.submit(view::displayResults);
+        Future<?> future = executorService.submit(view::displayResults);
 
-        // wait until we trying to get batch result
+        // wait until we are trying to get batch result
         CommonTestUtils.waitUntilCondition(
                 () -> mockExecutor.getNumRetrieveResultChancesCalls() > 1,
                 Deadline.now().plus(Duration.ofSeconds(5)),
@@ -241,7 +241,7 @@ public class CliTableauResultViewTest {
 
         // send signal to cancel
         terminal.raise(Terminal.Signal.INT);
-        furture.get(5, TimeUnit.SECONDS);
+        future.get(5, TimeUnit.SECONDS);
 
         Assert.assertEquals(
                 "Query terminated, received a total of 0 row" + System.lineSeparator(),
@@ -425,7 +425,7 @@ public class CliTableauResultViewTest {
 
         // submit result display in another thread
         ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> furture = executorService.submit(view::displayResults);
+        Future<?> future = executorService.submit(view::displayResults);
 
         // wait until we processed first result
         CommonTestUtils.waitUntilCondition(
@@ -435,7 +435,7 @@ public class CliTableauResultViewTest {
 
         // send signal to cancel
         terminal.raise(Terminal.Signal.INT);
-        furture.get(5, TimeUnit.SECONDS);
+        future.get(5, TimeUnit.SECONDS);
         view.close();
 
         Assert.assertEquals(

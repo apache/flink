@@ -38,7 +38,6 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.StringUtils;
 
 import com.ibm.icu.lang.UCharacter;
 import com.ibm.icu.lang.UProperty;
@@ -46,6 +45,7 @@ import com.ibm.icu.lang.UProperty;
 import javax.annotation.Nullable;
 
 import java.io.PrintWriter;
+import java.lang.reflect.Array;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -54,10 +54,12 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
@@ -235,11 +237,111 @@ public class PrintUtils {
                 fields.add(nullColumn);
             } else {
                 fields.add(
-                        StringUtils.arrayAwareToString(
+                        arrayAndMapAwareToString(
                                 formattedTimestamp(field, fieldType, sessionTimeZone)));
             }
         }
         return fields.toArray(new String[0]);
+    }
+
+    public static String arrayAndMapAwareToString(Object o) {
+        if (o == null) {
+            return "null";
+        } else if (o instanceof Collection || o instanceof Map || o.getClass().isArray()) {
+            StringBuilder stringBuilder = new StringBuilder();
+            deepToString(o, stringBuilder);
+            return stringBuilder.toString();
+        } else {
+            return Objects.toString(o);
+        }
+    }
+
+    private static void deepToString(Object o, StringBuilder sb) {
+        if (o == null) {
+            sb.append("null");
+        } else if (o.getClass().isArray()) {
+            Class clazz = o.getClass();
+            if (clazz == byte[].class) {
+                sb.append(Arrays.toString((byte[]) o));
+            } else if (clazz == short[].class) {
+                sb.append(Arrays.toString((short[]) o));
+            } else if (clazz == int[].class) {
+                sb.append(Arrays.toString((int[]) o));
+            } else if (clazz == long[].class) {
+                sb.append(Arrays.toString((long[]) o));
+            } else if (clazz == char[].class) {
+                sb.append(Arrays.toString((char[]) o));
+            } else if (clazz == float[].class) {
+                sb.append(Arrays.toString((float[]) o));
+            } else if (clazz == double[].class) {
+                sb.append(Arrays.toString((double[]) o));
+            } else if (clazz == boolean[].class) {
+                sb.append(Arrays.toString((boolean[]) o));
+            } else {
+                int length = Array.getLength(o);
+                sb.append("[");
+                for (int i = 0; i < length; i++) {
+                    deepToString(Array.get(o, i), sb);
+                    if (i < length - 1) {
+                        sb.append(", ");
+                    }
+                }
+                sb.append("]");
+            }
+        } else if (o instanceof Collection) {
+            sb.append("[");
+            Iterator iterator = ((Collection) o).iterator();
+            while (iterator.hasNext()) {
+                Object element = iterator.next();
+                if (element == null) {
+                    sb.append("null");
+                } else if (element.getClass().isArray()
+                        || element instanceof Collection
+                        || element instanceof Map) {
+                    deepToString(element, sb);
+                } else {
+                    sb.append(element);
+                }
+                if (iterator.hasNext()) {
+                    sb.append(", ");
+                }
+            }
+            sb.append("]");
+        } else if (o instanceof Map) {
+            sb.append("{");
+            Iterator entrySetIterator = ((Map) o).entrySet().iterator();
+            while (entrySetIterator.hasNext()) {
+                Object entry = entrySetIterator.next();
+                Object key = ((Map.Entry) entry).getKey();
+                if (key == null) {
+                    sb.append("null");
+                } else if (key.getClass().isArray()
+                        || key instanceof Collection
+                        || key instanceof Map) {
+                    deepToString(key, sb);
+                } else {
+                    sb.append(key);
+                }
+                sb.append("=");
+
+                Object value = ((Map.Entry) entry).getValue();
+                if (value == null) {
+                    sb.append("null");
+                } else if (value.getClass().isArray()
+                        || value instanceof Collection
+                        || value instanceof Map) {
+                    deepToString(value, sb);
+                } else {
+                    sb.append(value);
+                }
+                if (entrySetIterator.hasNext()) {
+                    sb.append(", ");
+                }
+            }
+            sb.append("}");
+        } else {
+            sb.append(o);
+        }
     }
 
     /**
@@ -581,16 +683,16 @@ public class PrintUtils {
      *
      * <p>According to LocalDateTime's comment, the string output will be one of the following
      * ISO-8601 formats:
-     * <li>{@code uuuu-MM-dd'T'HH:mm:ss}
-     * <li>{@code uuuu-MM-dd'T'HH:mm:ss.SSS}
-     * <li>{@code uuuu-MM-dd'T'HH:mm:ss.SSSSSS}
-     * <li>{@code uuuu-MM-dd'T'HH:mm:ss.SSSSSSSSS}
+     * <li>{@code yyyy-MM-dd'T'HH:mm:ss}
+     * <li>{@code yyyy-MM-dd'T'HH:mm:ss.SSS}
+     * <li>{@code yyyy-MM-dd'T'HH:mm:ss.SSSSSS}
+     * <li>{@code yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS}
      *
      *     <p>And for java.sql.Timestamp, the number of digits after point will be precision except
-     *     when precision is 0. In that case, the format would be 'uuuu-MM-dd HH:mm:ss.0'
+     *     when precision is 0. In that case, the format would be 'yyyy-MM-dd HH:mm:ss.0'
      */
     private static int timestampTypeColumnWidth(int precision) {
-        int base = 19; // length of uuuu-MM-dd HH:mm:ss
+        int base = 19; // length of yyyy-MM-dd HH:mm:ss
         if (precision == 0) {
             return base;
         } else if (precision <= 3) {
