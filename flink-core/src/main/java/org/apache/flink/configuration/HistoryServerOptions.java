@@ -112,5 +112,22 @@ public class HistoryServerOptions {
                                             code("IllegalConfigurationException"))
                                     .build());
 
+    public static final ConfigOption<Long> HISTORY_SERVER_RETAINED_TIME =
+            key("historyserver.archive.retained-time")
+                    .longType()
+                    .defaultValue(-1L)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            String.format(
+                                                    "The maximum time of jobs to retain in each archive directory defined by `%s`. ",
+                                                    HISTORY_SERVER_ARCHIVE_DIRS.key()))
+                                    .text(
+                                            "If set to `-1`(default), there is no limit to the time of archives. ")
+                                    .text(
+                                            "If set to `0` or less than `-1` HistoryServer will throw an %s. ",
+                                            code("IllegalConfigurationException"))
+                                    .build());
+
     private HistoryServerOptions() {}
 }

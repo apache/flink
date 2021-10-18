@@ -239,13 +239,20 @@ public class HistoryServer {
                     "Cannot set %s to 0 or less than -1",
                     HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key());
         }
+        long maxRetainedTime = config.getLong(HistoryServerOptions.HISTORY_SERVER_RETAINED_TIME);
+        if (maxRetainedTime == 0 || maxRetainedTime < -1) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to 0 or less than -1",
+                    HistoryServerOptions.HISTORY_SERVER_RETAINED_TIME.key());
+        }
         archiveFetcher =
                 new HistoryServerArchiveFetcher(
                         refreshDirs,
                         webDir,
                         jobArchiveEventListener,
                         cleanupExpiredArchives,
-                        maxHistorySize);
+                        maxHistorySize,
+                        maxRetainedTime);
 
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(

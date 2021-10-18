@@ -112,7 +112,9 @@ class HistoryServerArchiveFetcher {
     private final Consumer<ArchiveEvent> jobArchiveEventListener;
     private final boolean processExpiredArchiveDeletion;
     private final boolean processBeyondLimitArchiveDeletion;
+    private final boolean processBeyondTimeLimitArchiveDeletion;
     private final int maxHistorySize;
+    private final long maxRetainedTime;
 
     /** Cache of all available jobs identified by their id. */
     private final Map<Path, Set<String>> cachedArchivesPerRefreshDirectory;
@@ -126,13 +128,16 @@ class HistoryServerArchiveFetcher {
             File webDir,
             Consumer<ArchiveEvent> jobArchiveEventListener,
             boolean cleanupExpiredArchives,
-            int maxHistorySize)
+            int maxHistorySize,
+            long maxRetainedTime)
             throws IOException {
         this.refreshDirs = checkNotNull(refreshDirs);
         this.jobArchiveEventListener = jobArchiveEventListener;
         this.processExpiredArchiveDeletion = cleanupExpiredArchives;
         this.maxHistorySize = maxHistorySize;
+        this.maxRetainedTime = maxRetainedTime;
         this.processBeyondLimitArchiveDeletion = this.maxHistorySize > 0;
+        this.processBeyondTimeLimitArchiveDeletion = this.maxRetainedTime > 0;
         this.cachedArchivesPerRefreshDirectory = new HashMap<>();
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
             cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
@@ -158,7 +163,7 @@ class HistoryServerArchiveFetcher {
             Map<Path, Set<String>> jobsToRemove = new HashMap<>();
             cachedArchivesPerRefreshDirectory.forEach(
                     (path, archives) -> jobsToRemove.put(path, new HashSet<>(archives)));
-            Map<Path, Set<Path>> archivesBeyondSizeLimit = new HashMap<>();
+            Map<Path, Set<Path>> archivesBeyondLimit = new HashMap<>();
             for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
                 Path refreshDir = refreshLocation.getPath();
                 LOG.debug("Checking archive directory {}.", refreshDir);
@@ -176,6 +181,8 @@ class HistoryServerArchiveFetcher {
                 }
 
                 int historySize = 0;
+                long timeOfNow = System.currentTimeMillis();
+                boolean exceedTimeFlag = false;
                 for (FileStatus jobArchive : jobArchives) {
                     Path jobArchivePath = jobArchive.getPath();
                     String jobID = jobArchivePath.getName();
@@ -187,9 +194,19 @@ class HistoryServerArchiveFetcher {
 
                     historySize++;
                     if (historySize > maxHistorySize && processBeyondLimitArchiveDeletion) {
-                        archivesBeyondSizeLimit
+                        archivesBeyondLimit
                                 .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
                                 .add(jobArchivePath);
+                        continue;
+                    }
+                    if ((exceedTimeFlag
+                                    || timeOfNow - jobArchive.getModificationTime()
+                                            > maxRetainedTime)
+                            && processBeyondTimeLimitArchiveDeletion) {
+                        archivesBeyondLimit
+                                .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
+                                .add(jobArchivePath);
+                        exceedTimeFlag = true;
                         continue;
                     }
 
@@ -219,8 +236,10 @@ class HistoryServerArchiveFetcher {
                     && processExpiredArchiveDeletion) {
                 events.addAll(cleanupExpiredJobs(jobsToRemove));
             }
-            if (!archivesBeyondSizeLimit.isEmpty() && processBeyondLimitArchiveDeletion) {
-                events.addAll(cleanupJobsBeyondSizeLimit(archivesBeyondSizeLimit));
+            if (!archivesBeyondLimit.isEmpty()
+                    && (processBeyondLimitArchiveDeletion
+                            || processBeyondTimeLimitArchiveDeletion)) {
+                events.addAll(cleanupJobsBeyondLimit(archivesBeyondLimit));
             }
             if (!events.isEmpty()) {
                 updateJobOverview(webOverviewDir, webDir);
@@ -302,8 +321,7 @@ class HistoryServerArchiveFetcher {
         }
     }
 
-    private List<ArchiveEvent> cleanupJobsBeyondSizeLimit(
-            Map<Path, Set<Path>> jobArchivesToRemove) {
+    private List<ArchiveEvent> cleanupJobsBeyondLimit(Map<Path, Set<Path>> jobArchivesToRemove) {
         Map<Path, Set<String>> allJobIdsToRemoveFromOverview = new HashMap<>();
 
         for (Map.Entry<Path, Set<Path>> pathSetEntry : jobArchivesToRemove.entrySet()) {

@@ -242,6 +242,58 @@ public class HistoryServerTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testRemoveOldestModifiedArchivesBeyondHistoryTimeLimit() throws Exception {
+        final long maxRetainedTime = 24 * 60 * 60 * 1000;
+        final int numArchivesBeforeHsStarted = 4;
+        final long oneMinuteSinceEpoch = 1000L * 60L;
+        int numArchivesToKeepInHistory = 0;
+        List<String> expectedJobIdsToKeep = new LinkedList<>();
+
+        final long curTime = System.currentTimeMillis();
+        for (int j = 0; j < numArchivesBeforeHsStarted; j++) {
+            long fileModifiedDate = curTime - j * maxRetainedTime + oneMinuteSinceEpoch;
+            String jobId = createLegacyArchive(jmDirectory.toPath(), fileModifiedDate);
+            if (curTime - fileModifiedDate < maxRetainedTime) {
+                expectedJobIdsToKeep.add(jobId);
+                numArchivesToKeepInHistory++;
+            }
+        }
+
+        CountDownLatch numArchivesCreatedInitially = new CountDownLatch(numArchivesToKeepInHistory);
+        CountDownLatch numArchivesDeletedInitially =
+                new CountDownLatch(numArchivesBeforeHsStarted - numArchivesToKeepInHistory);
+
+        Configuration historyServerConfig =
+                createTestConfiguration(
+                        HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS.defaultValue());
+        historyServerConfig.set(HistoryServerOptions.HISTORY_SERVER_RETAINED_TIME, maxRetainedTime);
+        HistoryServer hs =
+                new HistoryServer(
+                        historyServerConfig,
+                        (event) -> {
+                            switch (event.getType()) {
+                                case CREATED:
+                                    numArchivesCreatedInitially.countDown();
+                                    break;
+                                case DELETED:
+                                    numArchivesDeletedInitially.countDown();
+                                    break;
+                            }
+                        });
+
+        try {
+            hs.start();
+            String baseUrl = "http://localhost:" + hs.getWebPort();
+            assertTrue(numArchivesCreatedInitially.await(10L, TimeUnit.SECONDS));
+            assertTrue(numArchivesDeletedInitially.await(10L, TimeUnit.SECONDS));
+            Assert.assertEquals(
+                    new HashSet<>(expectedJobIdsToKeep), getIdsFromJobOverview(baseUrl));
+        } finally {
+            hs.stop();
+        }
+    }
+
     private Set<String> getIdsFromJobOverview(String baseUrl) throws Exception {
         return getJobsOverview(baseUrl).getJobs().stream()
                 .map(JobDetails::getJobId)
