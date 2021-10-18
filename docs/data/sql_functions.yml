@@ -873,7 +873,7 @@ meta:
   - sql: ROW_KIND()
     table: rowKind()
     description: |
-      Returns the rowKind of data, result is like "+I","-U","+U","-D".You have to be very careful to use this function,
+      Returns the "RowKind" of data, result is like "+I","-U","+U","-D".You have to be very careful to use this function,
       you must be clear about "RowKind" mechanism before using this function.
 
 aggregate: 
