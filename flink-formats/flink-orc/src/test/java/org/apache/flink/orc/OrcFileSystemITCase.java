@@ -44,8 +44,6 @@ import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.orc.CompressionKind;
-import org.apache.orc.OrcConf;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
 import org.junit.Assert;
@@ -93,7 +91,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         List<String> ret = new ArrayList<>();
         ret.add("'format'='orc'");
         if (configure) {
-            ret.add(String.format("'orc.compress'='%s'", OrcConf.COMPRESS.getDefaultValue()));
+            ret.add("'orc.compress'='snappy'");
         }
         return ret.toArray(new String[0]);
     }
@@ -112,11 +110,9 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         try {
             Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(new Configuration()));
             if (configure) {
-                Assert.assertEquals(
-                        CompressionKind.ZLIB.name(), reader.getCompressionKind().toString());
+                Assert.assertEquals("SNAPPY", reader.getCompressionKind().toString());
             } else {
-                Assert.assertEquals(
-                        CompressionKind.SNAPPY.name(), reader.getCompressionKind().toString());
+                Assert.assertEquals("ZLIB", reader.getCompressionKind().toString());
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

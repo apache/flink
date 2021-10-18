@@ -26,6 +26,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.hadoop.ParquetOutputFormat;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.api.WriteSupport;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
@@ -125,7 +126,7 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<RowData, Parque
                     .withCompressionCodec(
                             CompressionCodecName.fromConf(
                                     conf.get(
-                                            "parquet.compression",
+                                            ParquetOutputFormat.COMPRESSION,
                                             CompressionCodecName.SNAPPY.name())))
                     .withRowGroupSize(getBlockSize(conf))
                     .withPageSize(getPageSize(conf))

@@ -26,8 +26,6 @@ import org.apache.flink.orc.vector.Vectorizer;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.orc.CompressionKind;
-import org.apache.orc.OrcConf;
 import org.apache.orc.OrcFile;
 import org.apache.orc.impl.WriterImpl;
 
@@ -115,10 +113,6 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
             for (Map.Entry<String, String> entry : confMap.entrySet()) {
                 conf.set(entry.getKey(), entry.getValue());
             }
-            writerProperties.setProperty(
-                    OrcConf.COMPRESS.getAttribute(),
-                    writerProperties.getProperty(
-                            OrcConf.COMPRESS.getAttribute(), CompressionKind.SNAPPY.name()));
 
             writerOptions = OrcFile.writerOptions(writerProperties, conf);
             writerOptions.setSchema(this.vectorizer.getSchema());
