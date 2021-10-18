@@ -881,7 +881,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction ROW_KIND =
             new SqlFunction("ROW_KIND",
                     SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.explicit(SqlTypeName.VARCHAR, 2),
+                    ReturnTypes.explicit(SqlTypeName.CHAR, 2),
                     null,
                     OperandTypes.NILADIC,
                     SqlFunctionCategory.STRING

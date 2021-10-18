@@ -878,4 +878,9 @@ trait ImplicitExpressionConversions {
   def jsonArray(onNull: JsonOnNull, values: Expression*): Expression = {
     Expressions.jsonArray(onNull, values: _*)
   }
+
+  /** Returns the {@link org.apache.flink.types.RowKind}'s shortString of the RowData */
+  def rowKind(): Expression = {
+    Expressions.rowKind()
+  }
 }

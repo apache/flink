@@ -210,6 +210,9 @@ public class DirectConvertRule implements CallExpressionConvertRule {
         DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.STREAM_RECORD_TIMESTAMP,
                 FlinkSqlOperatorTable.STREAMRECORD_TIMESTAMP);
+
+        //row_kind
+        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ROW_KIND, FlinkSqlOperatorTable.ROW_KIND);
     }
 
     @Override

@@ -869,6 +869,13 @@ auxilary:
   - table: ANY.as(NAME1, NAME2, ...)
     description: Specifies a name for ANY (a field). Additional names can be specified if the expression expands to multiple fields.
 
+meta:
+  - sql: ROW_KIND()
+    table: rowKind()
+    description: |
+      Returns the rowKind of data, result is like "+I","-U","+U","-D".You have to be very careful to use this function,
+      you must be clear about "RowKind" mechanism before using this function.
+
 aggregate: 
   - sql: COUNT([ ALL ] expression | DISTINCT expression1 [, expression2]*)
     description: By default or with ALL, returns the number of input rows for which expression is not NULL. Use DISTINCT for one unique instance of each value.

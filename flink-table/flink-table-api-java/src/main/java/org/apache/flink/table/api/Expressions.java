@@ -666,6 +666,11 @@ public final class Expressions {
         return apiCall(JSON_ARRAY, arguments);
     }
 
+    /** Returns the {@link org.apache.flink.types.RowKind}'s shortString of the RowData*/
+    public static ApiExpression rowKind() {
+        return apiCall(BuiltInFunctionDefinitions.ROW_KIND);
+    }
+
     /**
      * A call to a function that will be looked up in a catalog. There are two kinds of functions:
      *

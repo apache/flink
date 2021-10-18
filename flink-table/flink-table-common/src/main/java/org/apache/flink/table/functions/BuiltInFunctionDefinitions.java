@@ -1644,6 +1644,14 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();
 
+    public static final BuiltInFunctionDefinition ROW_KIND =
+            new BuiltInFunctionDefinition.Builder()
+                    .name("row_kind")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(NO_ARGS)
+                    .outputTypeStrategy(explicit(DataTypes.CHAR(2).notNull()))
+                    .build();
+
     public static final Set<FunctionDefinition> WINDOW_PROPERTIES =
             new HashSet<>(Arrays.asList(WINDOW_START, WINDOW_END, PROCTIME, ROWTIME));
 

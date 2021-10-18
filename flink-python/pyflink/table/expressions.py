@@ -30,7 +30,7 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_object',
-           'json_array', 'call', 'call_sql', 'source_watermark']
+           'json_array', 'row_kind', 'call', 'call_sql', 'source_watermark']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -672,6 +672,11 @@ def json_array(on_null: JsonOnNull = JsonOnNull.ABSENT, *args) -> Expression:
     """
     return _varargs_op("jsonArray", *(on_null._to_j_json_on_null(), *args))
 
+def row_kind() -> Expression[str]:
+    """
+       Returns RowKind of the data, result like '+I','-U','+U','-D'.
+    """
+    return _leaf_op("rowKind")
 
 def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
     """

@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.codegen.GenerateUtils.{generateCallIfArgsN
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUtils, GeneratedExpression}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.ROW_KIND
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
 import org.apache.flink.table.types.logical._
@@ -222,7 +223,7 @@ object StringCallGen {
           isCharacterString(operands(2).resultType) =>
         methodGen(BuiltInMethods.CONVERT_TZ)
 
-      case org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.ROW_KIND =>
+      case ROW_KIND =>
         GenerateUtils.generateRowKind(ctx)
 
       case _ => null

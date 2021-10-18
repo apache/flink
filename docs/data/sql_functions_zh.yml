@@ -981,6 +981,14 @@ auxilary:
   - table: ANY.as(NAME1, NAME2, ...)
     description: 指定 ANY（字段）的名称。如果表达式扩展为多个字段，则可以指定其他名称。
 
+meta:
+  - sql: ROW_KIND()
+    table: rowKind()
+    description: |
+      返回数据的RowKind，结果样式为"+I","-U","+U","-D".使用这个函数需要非常小心，使用这个函数之前
+      必须清楚的知道flink关于RowKind的相关机制。
+
+
 aggregate:
   - sql: COUNT([ ALL ] expression | DISTINCT expression1 [, expression2]*)
     description: 默认情况下或使用关键字 `ALL`，返回不为 `NULL` 的表达式的输入行数。使用 `DISTINCT` 则对所有值去重后计算。
