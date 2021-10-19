@@ -78,6 +78,11 @@ public class TaskExecutorLocalStateStoresManager {
             @Nonnull Executor discardExecutor)
             throws IOException {
 
+        LOG.debug(
+                "Start {} with local state root directories {}.",
+                getClass().getSimpleName(),
+                localStateRootDirectories);
+
         this.taskStateStoresByAllocationID = new HashMap<>();
         this.localRecoveryEnabled = localRecoveryEnabled;
         this.localStateRootDirectories = localStateRootDirectories;
@@ -193,7 +198,6 @@ public class TaskExecutorLocalStateStoresManager {
     }
 
     public void releaseLocalStateForAllocationId(@Nonnull AllocationID allocationID) {
-
         if (LOG.isDebugEnabled()) {
             LOG.debug("Releasing local state under allocation id {}.", allocationID);
         }

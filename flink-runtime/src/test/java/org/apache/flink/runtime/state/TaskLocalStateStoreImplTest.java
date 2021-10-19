@@ -33,53 +33,67 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import javax.annotation.Nonnull;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Test for the {@link TaskLocalStateStoreImpl}. */
 public class TaskLocalStateStoreImplTest extends TestLogger {
 
-    private SortedMap<Long, TaskStateSnapshot> internalSnapshotMap;
-    private Object internalLock;
     private TemporaryFolder temporaryFolder;
     private File[] allocationBaseDirs;
     private TaskLocalStateStoreImpl taskLocalStateStore;
+    private JobID jobID;
+    private AllocationID allocationID;
+    private JobVertexID jobVertexID;
+    private int subtaskIdx;
 
     @Before
     public void before() throws Exception {
-        JobID jobID = new JobID();
-        AllocationID allocationID = new AllocationID();
-        JobVertexID jobVertexID = new JobVertexID();
-        int subtaskIdx = 0;
+        jobID = new JobID();
+        allocationID = new AllocationID();
+        jobVertexID = new JobVertexID();
+        subtaskIdx = 0;
         this.temporaryFolder = new TemporaryFolder();
         this.temporaryFolder.create();
         this.allocationBaseDirs =
                 new File[] {temporaryFolder.newFolder(), temporaryFolder.newFolder()};
-        this.internalSnapshotMap = new TreeMap<>();
-        this.internalLock = new Object();
 
+        this.taskLocalStateStore =
+                createTaskLocalStateStoreImpl(
+                        allocationBaseDirs, jobID, allocationID, jobVertexID, subtaskIdx);
+    }
+
+    @Nonnull
+    private TaskLocalStateStoreImpl createTaskLocalStateStoreImpl(
+            File[] allocationBaseDirs,
+            JobID jobID,
+            AllocationID allocationID,
+            JobVertexID jobVertexID,
+            int subtaskIdx) {
         LocalRecoveryDirectoryProviderImpl directoryProvider =
                 new LocalRecoveryDirectoryProviderImpl(
                         allocationBaseDirs, jobID, jobVertexID, subtaskIdx);
 
         LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
-
-        this.taskLocalStateStore =
-                new TaskLocalStateStoreImpl(
-                        jobID,
-                        allocationID,
-                        jobVertexID,
-                        subtaskIdx,
-                        localRecoveryConfig,
-                        Executors.directExecutor(),
-                        internalSnapshotMap,
-                        internalLock);
+        return new TaskLocalStateStoreImpl(
+                jobID,
+                allocationID,
+                jobVertexID,
+                subtaskIdx,
+                localRecoveryConfig,
+                Executors.directExecutor());
     }
 
     @After
@@ -178,6 +192,56 @@ public class TaskLocalStateStoreImplTest extends TestLogger {
         taskLocalStateStore.dispose();
 
         checkPrunedAndDiscarded(taskStateSnapshots, 0, chkCount);
+    }
+
+    @Test
+    public void retrieveNullIfNoPersistedLocalState() {
+        assertThat(taskLocalStateStore.retrieveLocalState(0)).isNull();
+    }
+
+    @Test
+    public void retrievePersistedLocalStateFromDisc() {
+        final TaskStateSnapshot taskStateSnapshot = createTaskStateSnapshot();
+        final long checkpointId = 0L;
+        taskLocalStateStore.storeLocalState(checkpointId, taskStateSnapshot);
+
+        final TaskLocalStateStoreImpl newTaskLocalStateStore =
+                createTaskLocalStateStoreImpl(
+                        allocationBaseDirs, jobID, allocationID, jobVertexID, 0);
+
+        final TaskStateSnapshot retrievedTaskStateSnapshot =
+                newTaskLocalStateStore.retrieveLocalState(checkpointId);
+
+        assertThat(retrievedTaskStateSnapshot).isEqualTo(taskStateSnapshot);
+    }
+
+    @Nonnull
+    private TaskStateSnapshot createTaskStateSnapshot() {
+        final Map<OperatorID, OperatorSubtaskState> operatorSubtaskStates = new HashMap<>();
+        operatorSubtaskStates.put(new OperatorID(), OperatorSubtaskState.builder().build());
+        operatorSubtaskStates.put(new OperatorID(), OperatorSubtaskState.builder().build());
+        final TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot(operatorSubtaskStates);
+        return taskStateSnapshot;
+    }
+
+    @Test
+    public void deletesLocalStateIfRetrievalFails() throws IOException {
+        final TaskStateSnapshot taskStateSnapshot = createTaskStateSnapshot();
+        final long checkpointId = 0L;
+        taskLocalStateStore.storeLocalState(checkpointId, taskStateSnapshot);
+
+        final File taskStateSnapshotFile =
+                taskLocalStateStore.getTaskStateSnapshotFile(checkpointId);
+
+        Files.write(
+                taskStateSnapshotFile.toPath(), new byte[] {1, 2, 3, 4}, StandardOpenOption.WRITE);
+
+        final TaskLocalStateStoreImpl newTaskLocalStateStore =
+                createTaskLocalStateStoreImpl(
+                        allocationBaseDirs, jobID, allocationID, jobVertexID, subtaskIdx);
+
+        assertThat(newTaskLocalStateStore.retrieveLocalState(checkpointId)).isNull();
+        assertThat(taskStateSnapshotFile.getParentFile()).doesNotExist();
     }
 
     private void checkStoredAsExpected(List<TestingTaskStateSnapshot> history, int start, int end) {
