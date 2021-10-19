@@ -329,28 +329,40 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
             assertEquals(INITIAL_OFFSET, getCommittedOffsetMetric(tp1, metricListener));
 
             // Trigger offset commit
-            reader.snapshotState(15213L);
-            reader.notifyCheckpointComplete(15213L);
+            final long checkpointId = 15213L;
+            reader.snapshotState(checkpointId);
             waitUtil(
-                    () -> reader.getOffsetsToCommit().isEmpty(),
+                    () -> {
+                        try {
+                            reader.notifyCheckpointComplete(checkpointId);
+                        } catch (Exception e) {
+                            throw new RuntimeException(
+                                    "Failed to notify checkpoint complete to reader", e);
+                        }
+                        return reader.getOffsetsToCommit().isEmpty();
+                    },
                     Duration.ofSeconds(60),
+                    Duration.ofSeconds(1),
                     String.format(
                             "Offsets are not committed successfully. Dangling offsets: %s",
                             reader.getOffsetsToCommit()));
 
-            // Metric "commit-total" of KafkaConsumer should be 1
-            assertEquals(1, getKafkaConsumerMetric("commit-total", metricListener));
+            // Metric "commit-total" of KafkaConsumer should be greater than 0
+            // It's hard to know the exactly number of commit because of the retry
+            MatcherAssert.assertThat(
+                    getKafkaConsumerMetric("commit-total", metricListener),
+                    Matchers.greaterThan(0L));
 
             // Committed offset should be NUM_RECORD_PER_SPLIT
             assertEquals(NUM_RECORDS_PER_SPLIT, getCommittedOffsetMetric(tp0, metricListener));
             assertEquals(NUM_RECORDS_PER_SPLIT, getCommittedOffsetMetric(tp1, metricListener));
 
-            // Number of successful commits should be 1
+            // Number of successful commits should be greater than 0
             final Optional<Counter> commitsSucceeded =
                     metricListener.getCounter(
                             KAFKA_SOURCE_READER_METRIC_GROUP, COMMITS_SUCCEEDED_METRIC_COUNTER);
             assertTrue(commitsSucceeded.isPresent());
-            assertEquals(1L, commitsSucceeded.get().getCount());
+            MatcherAssert.assertThat(commitsSucceeded.get().getCount(), Matchers.greaterThan(0L));
         }
     }
 
