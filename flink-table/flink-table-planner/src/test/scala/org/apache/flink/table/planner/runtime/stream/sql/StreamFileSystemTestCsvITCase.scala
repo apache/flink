@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.types.Row
+
 import scala.collection.Seq
 
 /**

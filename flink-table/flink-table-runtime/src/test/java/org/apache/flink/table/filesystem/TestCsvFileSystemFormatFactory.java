@@ -43,7 +43,9 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITER;
@@ -118,11 +120,24 @@ public class TestCsvFileSystemFormatFactory
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        List<String> schemaFields =
+                DataType.getFieldNames(context.getPhysicalRowDataType()).stream()
+                        .filter(
+                                field ->
+                                        !context.getCatalogTable()
+                                                .getPartitionKeys()
+                                                .contains(field))
+                        .collect(Collectors.toList());
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
             public DeserializationSchema<RowData> createRuntimeDecoder(
                     DynamicTableSource.Context context, DataType physicalDataType) {
-                return new TestCsvDeserializationSchema(physicalDataType);
+                // TestCsvDeserializationSchema has no knowledge of the field names, and the
+                // implicit assumption done by tests is that the csv rows are composed by only the
+                // physical fields (excluding partition fields) in the same order as defined in the
+                // table declaration. This is why TestCsvDeserializationSchema needs
+                // schemaFields.
+                return new TestCsvDeserializationSchema(physicalDataType, schemaFields);
             }
 
             @Override

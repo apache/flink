@@ -28,6 +28,7 @@ import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -42,7 +43,9 @@ import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -54,6 +57,7 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -72,16 +76,20 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 SupportsProjectionPushDown,
                 SupportsLimitPushDown,
                 SupportsPartitionPushDown,
-                SupportsFilterPushDown {
+                SupportsFilterPushDown,
+                SupportsReadingMetadata {
 
     @Nullable private final DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat;
     @Nullable private final DecodingFormat<DeserializationSchema<RowData>> deserializationFormat;
     @Nullable private final FileSystemFormatFactory formatFactory;
 
-    private int[][] projectedFields;
+    // These mutable fields
     private List<Map<String, String>> remainingPartitions;
     private List<ResolvedExpression> filters;
     private Long limit;
+    private int[][] projectFields;
+    private List<String> metadataKeys;
+    private DataType producedDataType;
 
     public FileSystemTableSource(
             DynamicTableFactory.Context context,
@@ -101,54 +109,123 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         this.bulkReaderFormat = bulkReaderFormat;
         this.deserializationFormat = deserializationFormat;
         this.formatFactory = formatFactory;
+
+        this.producedDataType = context.getPhysicalRowDataType();
     }
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext scanContext) {
+        // When this table has no partition, just return a empty source.
         if (!partitionKeys.isEmpty() && getOrFetchPartitions().isEmpty()) {
-            // When this table has no partition, just return a empty source.
             return InputFormatProvider.of(new CollectionInputFormat<>(new ArrayList<>(), null));
-        } else if (bulkReaderFormat != null) {
-            if (bulkReaderFormat instanceof BulkDecodingFormat
-                    && filters != null
-                    && filters.size() > 0) {
-                ((BulkDecodingFormat<RowData>) bulkReaderFormat).applyFilters(filters);
+        }
+
+        // Physical type is computed from the full data type, filtering out partition and
+        // metadata columns. This type is going to be used by formats to parse the input.
+        List<DataTypes.Field> producedDataTypeFields = DataType.getFields(producedDataType);
+        if (metadataKeys != null && !metadataKeys.isEmpty()) {
+            // If metadata keys are present, then by SupportsReadingMetadata contract all the
+            // metadata columns will be at the end of the producedDataType, so we can just remove
+            // from the list the last metadataKeys.size() fields.
+            producedDataTypeFields =
+                    producedDataTypeFields.subList(
+                            0, producedDataTypeFields.size() - metadataKeys.size());
+        }
+        DataType physicalDataType =
+                producedDataTypeFields.stream()
+                        .filter(f -> partitionKeys == null || !partitionKeys.contains(f.getName()))
+                        .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
+
+        // Resolve metadata and make sure to filter out metadata not in the producedDataType
+        List<String> metadataKeys =
+                (this.metadataKeys == null) ? Collections.emptyList() : this.metadataKeys;
+        metadataKeys =
+                DataType.getFieldNames(producedDataType).stream()
+                        .filter(metadataKeys::contains)
+                        .collect(Collectors.toList());
+        List<ReadableFileInfo> metadataToExtract =
+                metadataKeys.stream().map(ReadableFileInfo::resolve).collect(Collectors.toList());
+
+        // Filter out partition columns not in producedDataType
+        List<String> partitionKeysToExtract =
+                DataType.getFieldNames(producedDataType).stream()
+                        .filter(this.partitionKeys::contains)
+                        .collect(Collectors.toList());
+
+        // TODO FLINK-19845 old format factory, to be removed soon. The old factory doesn't support
+        //  metadata.
+        if (formatFactory != null) {
+            if (!metadataToExtract.isEmpty()) {
+                throw new IllegalStateException(
+                        "Metadata are not supported for format factories using FileSystemFormatFactory");
             }
-            BulkFormat<RowData, FileSourceSplit> bulkFormat =
-                    bulkReaderFormat.createRuntimeDecoder(scanContext, getProjectedDataType());
-            return createSourceProvider(bulkFormat);
-        } else if (formatFactory != null) {
+
             // The ContinuousFileMonitoringFunction can not accept multiple paths. Default
             // StreamEnv.createInput will create continuous function.
             // Avoid using ContinuousFileMonitoringFunction.
             return SourceFunctionProvider.of(
                     new InputFormatSourceFunction<>(
                             getInputFormat(),
-                            InternalTypeInfo.of(getProjectedDataType().getLogicalType())),
+                            InternalTypeInfo.of(producedDataType.getLogicalType())),
                     true);
+        }
+
+        if (bulkReaderFormat != null) {
+            if (bulkReaderFormat instanceof BulkDecodingFormat
+                    && filters != null
+                    && filters.size() > 0) {
+                ((BulkDecodingFormat<RowData>) bulkReaderFormat).applyFilters(filters);
+            }
+            BulkFormat<RowData, FileSourceSplit> bulkFormat =
+                    wrapBulkFormat(
+                            bulkReaderFormat.createRuntimeDecoder(scanContext, physicalDataType),
+                            producedDataType,
+                            metadataToExtract,
+                            partitionKeysToExtract);
+            return createSourceProvider(bulkFormat);
         } else if (deserializationFormat != null) {
-            // NOTE, we need pass full format types to deserializationFormat
             DeserializationSchema<RowData> decoder =
-                    deserializationFormat.createRuntimeDecoder(
-                            scanContext, getPhysicalDataTypeWithoutPartitionColumns());
-            return createSourceProvider(
-                    new DeserializationSchemaAdapter(
-                            decoder,
-                            getPhysicalDataType(),
-                            readFields(),
-                            partitionKeys,
-                            defaultPartName));
-            // return sourceProvider(wrapDeserializationFormat(deserializationFormat), scanContext);
+                    deserializationFormat.createRuntimeDecoder(scanContext, physicalDataType);
+            BulkFormat<RowData, FileSourceSplit> bulkFormat =
+                    wrapBulkFormat(
+                            new DeserializationSchemaAdapter(decoder),
+                            producedDataType,
+                            metadataToExtract,
+                            partitionKeysToExtract);
+            return createSourceProvider(bulkFormat);
         } else {
             throw new TableException("Can not find format factory.");
         }
     }
 
+    /**
+     * Wraps bulk format in a {@link FileInfoExtractorBulkFormat} and {@link LimitableBulkFormat},
+     * if needed.
+     */
+    private BulkFormat<RowData, FileSourceSplit> wrapBulkFormat(
+            BulkFormat<RowData, FileSourceSplit> bulkFormat,
+            DataType producedDataType,
+            List<ReadableFileInfo> metadata,
+            List<String> partitionKeys) {
+        if (!metadata.isEmpty() || !partitionKeys.isEmpty()) {
+            bulkFormat =
+                    new FileInfoExtractorBulkFormat(
+                            bulkFormat,
+                            producedDataType,
+                            metadata.stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    ReadableFileInfo::getKey,
+                                                    ReadableFileInfo::getAccessor)),
+                            partitionKeys,
+                            defaultPartName);
+        }
+        bulkFormat = LimitableBulkFormat.create(bulkFormat, limit);
+        return bulkFormat;
+    }
+
     private SourceProvider createSourceProvider(BulkFormat<RowData, FileSourceSplit> bulkFormat) {
-        FileSource.FileSourceBuilder<RowData> builder =
-                FileSource.forBulkFileFormat(
-                        LimitableBulkFormat.create(bulkFormat, limit), paths());
-        return SourceProvider.of(builder.build());
+        return SourceProvider.of(FileSource.forBulkFileFormat(bulkFormat, paths()).build());
     }
 
     private Path[] paths() {
@@ -195,7 +272,12 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
                     @Override
                     public int[] getProjectFields() {
-                        return readFields();
+                        return projectFields == null
+                                ? IntStream.range(0, DataType.getFieldCount(getPhysicalDataType()))
+                                        .toArray()
+                                : Arrays.stream(projectFields)
+                                        .mapToInt(array -> array[0])
+                                        .toArray();
                     }
 
                     @Override
@@ -271,19 +353,17 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     }
 
     @Override
-    public void applyProjection(int[][] projectedFields, DataType producedDataType) {
-        this.projectedFields = projectedFields;
-    }
-
-    @Override
     public FileSystemTableSource copy() {
         FileSystemTableSource source =
                 new FileSystemTableSource(
                         context, bulkReaderFormat, deserializationFormat, formatFactory);
-        source.projectedFields = projectedFields;
+        source.partitionKeys = partitionKeys;
         source.remainingPartitions = remainingPartitions;
         source.filters = filters;
         source.limit = limit;
+        source.projectFields = projectFields;
+        source.metadataKeys = metadataKeys;
+        source.producedDataType = producedDataType;
         return source;
     }
 
@@ -314,20 +394,84 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         return map;
     }
 
-    private int[] readFields() {
-        return projectedFields == null
-                ? IntStream.range(0, DataType.getFieldCount(getPhysicalDataType())).toArray()
-                : Arrays.stream(projectedFields).mapToInt(array -> array[0]).toArray();
+    // --------------------------------------------------------------------------------------------
+    // Methods to apply projections and metadata,
+    // will influence the final output and physical type used by formats
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    public void applyProjection(int[][] projectedFields, DataType producedDataType) {
+        this.projectFields = projectedFields;
+        this.producedDataType = producedDataType;
     }
 
-    private DataType getProjectedDataType() {
-        final DataType physicalDataType = super.getPhysicalDataType();
+    @Override
+    public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+        this.metadataKeys = metadataKeys;
+        this.producedDataType = producedDataType;
+    }
 
-        // If we haven't projected fields, we just return the original physical data type,
-        // otherwise we need to compute the physical data type depending on the projected fields.
-        if (projectedFields == null) {
-            return physicalDataType;
+    // --------------------------------------------------------------------------------------------
+    // Metadata handling
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    public Map<String, DataType> listReadableMetadata() {
+        return Arrays.stream(ReadableFileInfo.values())
+                .collect(Collectors.toMap(ReadableFileInfo::getKey, ReadableFileInfo::getDataType));
+    }
+
+    interface FileInfoAccessor extends Serializable {
+        /**
+         * Access the information from the {@link org.apache.flink.core.fs.FileInputSplit}. The
+         * return value type must be an internal type.
+         */
+        Object getValue(FileSourceSplit split);
+    }
+
+    enum ReadableFileInfo implements Serializable {
+        FILEPATH(
+                "filepath",
+                DataTypes.STRING().notNull(),
+                new FileInfoAccessor() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public Object getValue(FileSourceSplit split) {
+                        return StringData.fromString(split.path().getPath());
+                    }
+                });
+
+        final String key;
+        final DataType dataType;
+        final FileInfoAccessor converter;
+
+        ReadableFileInfo(String key, DataType dataType, FileInfoAccessor converter) {
+            this.key = key;
+            this.dataType = dataType;
+            this.converter = converter;
         }
-        return DataType.projectFields(physicalDataType, projectedFields);
+
+        public String getKey() {
+            return key;
+        }
+
+        public DataType getDataType() {
+            return dataType;
+        }
+
+        public FileInfoAccessor getAccessor() {
+            return converter;
+        }
+
+        public static ReadableFileInfo resolve(String key) {
+            return Arrays.stream(ReadableFileInfo.values())
+                    .filter(readableFileInfo -> readableFileInfo.getKey().equals(key))
+                    .findFirst()
+                    .orElseThrow(
+                            () ->
+                                    new IllegalArgumentException(
+                                            "Cannot resolve the provided ReadableMetadata key"));
+        }
     }
 }

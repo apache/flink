@@ -46,6 +46,11 @@ public class AvroFilesystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @Override
+    public boolean supportsReadingMetadata() {
+        return false;
+    }
+
+    @Override
     public String[] formatProperties() {
         List<String> ret = new ArrayList<>();
         ret.add("'format'='avro'");

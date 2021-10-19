@@ -19,16 +19,16 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{AbstractExactlyOnceSink, StreamingTestBase, TestSinkUtil, TestingAppendSink}
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
-import org.junit.{Before, Test}
+import org.junit.{Assert, Before, Test}
 
-import scala.collection.Seq
+import scala.collection.{Seq, mutable}
 
 /**
   * Streaming [[FileSystemITCaseBase]].
@@ -54,6 +54,28 @@ abstract class StreamFileSystemITCaseBase extends StreamingTestBase with FileSys
     assertEquals(
       expectedResult.map(TestSinkUtil.rowToString(_)).sorted,
       sink.getAppendResults.sorted)
+  }
+
+  override def checkPredicate(sqlQuery: String, checkFunc: Row => Unit): Unit = {
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
+    val sinkResults = new mutable.MutableList[Row]
+
+    val sink = new AbstractExactlyOnceSink[Row] {
+      override def invoke(value: Row, context: SinkFunction.Context): Unit =
+        sinkResults += value
+    }
+    result.addSink(sink)
+    env.execute()
+
+    try {
+      sinkResults.foreach(checkFunc)
+    } catch {
+      case e: AssertionError => throw new AssertionError(
+        s"""
+           |Results do not match for query:
+           |  $sqlQuery
+       """.stripMargin, e)
+    }
   }
 
   // Streaming mode not support overwrite
