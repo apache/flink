@@ -45,6 +45,7 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -270,9 +271,11 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
             throws ExecutionException, InterruptedException {
         jobMasterGateway
                 .registerTaskManager(
-                        taskExecutorGateway.getAddress(),
-                        taskManagerLocation,
                         jobId,
+                        TaskManagerRegistrationInformation.create(
+                                taskExecutorGateway.getAddress(),
+                                taskManagerLocation,
+                                TestingUtils.zeroUUID()),
                         testingTimeout)
                 .get();
 
