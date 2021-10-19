@@ -111,9 +111,10 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment
 // checkpointing is required for exactly-once or at-least-once guarantees
 env.enableCheckpointing(...)
 
+**NOTE: ** the default RabbitMQ port is set to 15672, so we would set the port configuration in flink to 5672 as shown below:
 val connectionConfig = new RMQConnectionConfig.Builder()
     .setHost("localhost")
-    .setPort(5000)
+    .setPort(5672)
     ...
     .build
     
