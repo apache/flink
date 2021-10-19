@@ -1577,7 +1577,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(JSON_ARGUMENT))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
-                    .runtimeDeferred()
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition JSON_OBJECT =
