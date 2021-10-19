@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
+import org.apache.flink.runtime.jobmaster.TaskManagerRegistrationInformation;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -53,7 +54,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
@@ -111,10 +111,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     @Nonnull private final TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer;
 
     @Nonnull
-    private final TriFunction<
-                    String,
-                    UnresolvedTaskManagerLocation,
+    private final BiFunction<
                     JobID,
+                    TaskManagerRegistrationInformation,
                     CompletableFuture<RegistrationResponse>>
             registerTaskManagerFunction;
 
@@ -218,10 +217,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                             offerSlotsFunction,
             @Nonnull TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer,
             @Nonnull
-                    TriFunction<
-                                    String,
-                                    UnresolvedTaskManagerLocation,
+                    BiFunction<
                                     JobID,
+                                    TaskManagerRegistrationInformation,
                                     CompletableFuture<RegistrationResponse>>
                             registerTaskManagerFunction,
             @Nonnull
@@ -372,12 +370,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     @Override
     public CompletableFuture<RegistrationResponse> registerTaskManager(
-            String taskManagerRpcAddress,
-            UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
             JobID jobId,
+            TaskManagerRegistrationInformation taskManagerRegistrationInformation,
             Time timeout) {
-        return registerTaskManagerFunction.apply(
-                taskManagerRpcAddress, unresolvedTaskManagerLocation, jobId);
+        return registerTaskManagerFunction.apply(jobId, taskManagerRegistrationInformation);
     }
 
     @Override

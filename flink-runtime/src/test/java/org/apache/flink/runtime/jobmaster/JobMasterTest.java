@@ -108,6 +108,7 @@ import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -144,6 +145,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -284,9 +286,11 @@ public class JobMasterTest extends TestLogger {
             // request at interval time
             CompletableFuture<RegistrationResponse> registrationResponse =
                     jobMasterGateway.registerTaskManager(
-                            taskExecutorGateway.getAddress(),
-                            unresolvedTaskManagerLocation,
                             jobGraph.getJobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    taskExecutorGateway.getAddress(),
+                                    unresolvedTaskManagerLocation,
+                                    TestingUtils.zeroUUID()),
                             testingTimeout);
 
             // wait for the completion of the registration
@@ -340,9 +344,11 @@ public class JobMasterTest extends TestLogger {
             // request at interval time
             CompletableFuture<RegistrationResponse> registrationResponse =
                     jobMasterGateway.registerTaskManager(
-                            taskExecutorGateway.getAddress(),
-                            unresolvedTaskManagerLocation,
                             jobGraph.getJobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    taskExecutorGateway.getAddress(),
+                                    unresolvedTaskManagerLocation,
+                                    TestingUtils.zeroUUID()),
                             testingTimeout);
 
             // wait for the completion of the registration
@@ -436,9 +442,11 @@ public class JobMasterTest extends TestLogger {
             // request at interval time
             CompletableFuture<RegistrationResponse> registrationResponse =
                     jobMasterGateway.registerTaskManager(
-                            taskExecutorGateway.getAddress(),
-                            unresolvedTaskManagerLocation,
                             jobGraph.getJobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    taskExecutorGateway.getAddress(),
+                                    unresolvedTaskManagerLocation,
+                                    TestingUtils.zeroUUID()),
                             testingTimeout);
 
             // wait for the completion of the registration
@@ -1774,12 +1782,107 @@ public class JobMasterTest extends TestLogger {
 
             final CompletableFuture<RegistrationResponse> registrationResponse =
                     jobMaster.registerTaskManager(
-                            "foobar",
-                            new LocalUnresolvedTaskManagerLocation(),
                             new JobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    "foobar",
+                                    new LocalUnresolvedTaskManagerLocation(),
+                                    TestingUtils.zeroUUID()),
                             testingTimeout);
 
             assertThat(registrationResponse.get(), instanceOf(JMTMRegistrationRejection.class));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
+    }
+
+    @Test
+    public void testJobMasterAcknowledgesDuplicateTaskExecutorRegistrations() throws Exception {
+        final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService).createJobMaster();
+
+        final TestingTaskExecutorGateway testingTaskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+        rpcService.registerGateway(
+                testingTaskExecutorGateway.getAddress(), testingTaskExecutorGateway);
+
+        try {
+            jobMaster.start();
+
+            final TaskManagerRegistrationInformation taskManagerRegistrationInformation =
+                    TaskManagerRegistrationInformation.create(
+                            testingTaskExecutorGateway.getAddress(),
+                            new LocalUnresolvedTaskManagerLocation(),
+                            UUID.randomUUID());
+
+            final CompletableFuture<RegistrationResponse> firstRegistrationResponse =
+                    jobMaster.registerTaskManager(
+                            jobGraph.getJobID(),
+                            taskManagerRegistrationInformation,
+                            testingTimeout);
+            final CompletableFuture<RegistrationResponse> secondRegistrationResponse =
+                    jobMaster.registerTaskManager(
+                            jobGraph.getJobID(),
+                            taskManagerRegistrationInformation,
+                            testingTimeout);
+
+            assertThat(firstRegistrationResponse.get(), instanceOf(JMTMRegistrationSuccess.class));
+            assertThat(secondRegistrationResponse.get(), instanceOf(JMTMRegistrationSuccess.class));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
+    }
+
+    @Test
+    public void testJobMasterDisconnectsOldTaskExecutorIfNewSessionIsSeen() throws Exception {
+        final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService).createJobMaster();
+
+        final CompletableFuture<Void> firstTaskExecutorDisconnectedFuture =
+                new CompletableFuture<>();
+        final TestingTaskExecutorGateway firstTaskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setAddress("firstTaskExecutor")
+                        .setDisconnectJobManagerConsumer(
+                                (jobID, throwable) ->
+                                        firstTaskExecutorDisconnectedFuture.complete(null))
+                        .createTestingTaskExecutorGateway();
+        final TestingTaskExecutorGateway secondTaskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setAddress("secondTaskExecutor")
+                        .createTestingTaskExecutorGateway();
+
+        rpcService.registerGateway(firstTaskExecutorGateway.getAddress(), firstTaskExecutorGateway);
+        rpcService.registerGateway(
+                secondTaskExecutorGateway.getAddress(), secondTaskExecutorGateway);
+
+        try {
+            jobMaster.start();
+
+            final LocalUnresolvedTaskManagerLocation taskManagerLocation =
+                    new LocalUnresolvedTaskManagerLocation();
+            final UUID firstTaskManagerSessionId = UUID.randomUUID();
+
+            final CompletableFuture<RegistrationResponse> firstRegistrationResponse =
+                    jobMaster.registerTaskManager(
+                            jobGraph.getJobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    firstTaskExecutorGateway.getAddress(),
+                                    taskManagerLocation,
+                                    firstTaskManagerSessionId),
+                            testingTimeout);
+            assertThat(firstRegistrationResponse.get(), instanceOf(JMTMRegistrationSuccess.class));
+
+            final UUID secondTaskManagerSessionId = UUID.randomUUID();
+            final CompletableFuture<RegistrationResponse> secondRegistrationResponse =
+                    jobMaster.registerTaskManager(
+                            jobGraph.getJobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    secondTaskExecutorGateway.getAddress(),
+                                    taskManagerLocation,
+                                    secondTaskManagerSessionId),
+                            testingTimeout);
+
+            assertThat(secondRegistrationResponse.get(), instanceOf(JMTMRegistrationSuccess.class));
+            // the first TaskExecutor should be disconnected
+            firstTaskExecutorDisconnectedFuture.get();
         } finally {
             RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
         }
@@ -1906,9 +2009,11 @@ public class JobMasterTest extends TestLogger {
 
         jobMasterGateway
                 .registerTaskManager(
-                        taskExecutorGateway.getAddress(),
-                        unresolvedTaskManagerLocation,
                         jobId,
+                        TaskManagerRegistrationInformation.create(
+                                taskExecutorGateway.getAddress(),
+                                unresolvedTaskManagerLocation,
+                                TestingUtils.zeroUUID()),
                         testingTimeout)
                 .get();
 
