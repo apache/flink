@@ -53,18 +53,19 @@ mvn clean install -DskipTests
 This instructs [Maven](http://maven.apache.org) (`mvn`) to first remove all existing builds (`clean`) and then create a new Flink binary (`install`).
 
 To speed up the build you can:
-- skip unit tests, integration tests and use the build-in "fast" and "skip-webui-build" maven profile to skip QA, JavaDocs, and frontend plugins.
-- active maven parallel build, e.g. "mvn -T 1C" means 1 thread per cpu core. The maven parallel build may have deadlock(issue with the shade plugin). Please be aware of that and make sure you can live with it.
+- skip tests by using ' -DskipTests'
+- skip QA plugins and javadoc generation by using the `fast` Maven profile
+- skip the WebUI compilation by using the `skip-webui-build` Maven profile
+- use Maven's parallel build feature, e.g., 'mvn package -T 1C' will attempt to build 1 module for each CPU core in parallel.
+  {{< hint warning >}}
+  Parallel builds may deadlock due to a bug in the maven-shade-plugin. It is recommended to only use it as a 2 steps process, where you first run `mvn validate/test-compile/test` in parallel, and then run `mvn package/verify/install` with a single thread.
+  {{< /hint >}}
 
 The build script will be:
 ```bash
 mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 ```
-The fast build profile will observably reduce the build time. You can also control each skip manually without using profiles, e.g. skip part of or more than the skip setup defined by the profiles, but it is recommended to stick to the fast and skip-webui-build profile, because:
-- the maven build script has better readability.
-- the profiles will be the abstraction that works across all current and future Flink versions.
-- developer will automatically reap the benefits without extra effort if more stuff has been added to the profile.
-
+The `fast` and `skip-webui-build` profiles have a significant impact on the build time, particularly on slower storage devices, due to them reading/writing many small files.
 
 ## Build PyFlink
 
