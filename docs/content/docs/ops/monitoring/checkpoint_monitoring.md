@@ -60,7 +60,7 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
 
 - **ID**: The ID of the triggered checkpoint. The IDs are incremented for each checkpoint, starting at 1.
 - **Status**: The current status of the checkpoint, which is either *In Progress*, *Completed*, or *Failed*. If the triggered checkpoint is a savepoint, you will see a floppy-disk symbol.
-- **Acknowledged**: The ratio between the number of subtask that acknowledged the checkpoint and total subtasks number.
+- **Acknowledged**: The number of acknowledged subtask with total subtask.
 - **Trigger Time**: The time when the checkpoint was triggered at the JobManager.
 - **Latest Acknowledgement**: The time when the latest acknowledgement for any subtask was received at the JobManager (or n/a if no acknowledgement received yet).
 - **End to End Duration**: The duration from the trigger timestamp until the latest acknowledgement (or n/a if no acknowledgement received yet). This end to end duration for a complete checkpoint is determined by the last subtask that acknowledges the checkpoint. This time is usually larger than single subtasks need to actually checkpoint the state.
