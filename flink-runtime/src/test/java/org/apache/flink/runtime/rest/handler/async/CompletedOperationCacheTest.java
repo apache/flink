@@ -140,18 +140,18 @@ public class CompletedOperationCacheTest extends TestLogger {
 
         manualTicker.advanceTime(365, TimeUnit.DAYS);
 
-        assertTrue(completedOperationCache.get(TEST_OPERATION_KEY).isPresent())
+        assertTrue(completedOperationCache.get(TEST_OPERATION_KEY).isPresent());
     }
 
     @Test
     public void testCacheTimeoutCanBeConfigured() throws Exception {
-        final Duration baseTImeout = RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue();
+        final Duration baseTimeout = RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue();
 
         completedOperationCache =
-                new CompletedOperationCache<>(baseTImeout.multipliedBy(10), manualTicker);
+                new CompletedOperationCache<>(baseTimeout.multipliedBy(10), manualTicker);
         completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
 
-        manualTicker.advanceTime(baseTImeout.multipliedBy(2).getSeconds(), TimeUnit.SECONDS);
+        manualTicker.advanceTime(baseTimeout.multipliedBy(2).getSeconds(), TimeUnit.SECONDS);
 
         assertTrue(completedOperationCache.get(TEST_OPERATION_KEY).isPresent());
     }

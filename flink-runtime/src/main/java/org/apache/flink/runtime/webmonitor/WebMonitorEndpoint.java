@@ -489,8 +489,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         final String defaultSavepointDir =
                 clusterConfiguration.getString(CheckpointingOptions.SAVEPOINT_DIRECTORY);
 
-        final SavepointHandlers savepointHandlers =
-                new SavepointHandlers(defaultSavepointDir, asyncOperationStoreDuration);
+        final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir);
 
         final SavepointHandlers.StopWithSavepointHandler stopWithSavepointHandler =
                 savepointHandlers

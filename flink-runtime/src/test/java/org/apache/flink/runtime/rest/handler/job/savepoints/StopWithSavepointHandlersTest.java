@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.handler.job.savepoints;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -88,9 +87,7 @@ public class StopWithSavepointHandlersTest extends TestLogger {
     public void setUp() throws Exception {
         leaderRetriever = () -> CompletableFuture.completedFuture(null);
 
-        final SavepointHandlers savepointHandlers =
-                new SavepointHandlers(
-                        null, RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue());
+        final SavepointHandlers savepointHandlers = new SavepointHandlers(null);
         savepointTriggerHandler =
                 savepointHandlers
                 .new StopWithSavepointHandler(leaderRetriever, TIMEOUT, Collections.emptyMap());
@@ -144,10 +141,7 @@ public class StopWithSavepointHandlersTest extends TestLogger {
                                 })
                         .build();
         final String defaultSavepointDir = "/other/dir";
-        final SavepointHandlers savepointHandlers =
-                new SavepointHandlers(
-                        defaultSavepointDir,
-                        RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue());
+        final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir);
         final SavepointHandlers.StopWithSavepointHandler savepointTriggerHandler =
                 savepointHandlers
                 .new StopWithSavepointHandler(leaderRetriever, TIMEOUT, Collections.emptyMap());

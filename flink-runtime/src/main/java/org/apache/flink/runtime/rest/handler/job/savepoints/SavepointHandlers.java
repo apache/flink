@@ -53,7 +53,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -112,9 +111,7 @@ public class SavepointHandlers {
 
     @Nullable private final String defaultSavepointDir;
 
-    public SavepointHandlers(
-            @Nullable final String defaultSavepointDir, final Duration cacheDuration) {
-        super(cacheDuration);
+    public SavepointHandlers(@Nullable final String defaultSavepointDir) {
         this.defaultSavepointDir = defaultSavepointDir;
     }
 
