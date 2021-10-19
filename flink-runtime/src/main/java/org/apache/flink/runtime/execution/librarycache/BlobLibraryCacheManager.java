@@ -41,7 +41,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -131,7 +133,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         URLClassLoader createClassLoader(URL[] libraryURLs);
     }
 
-    private static final class DefaultClassLoaderFactory implements ClassLoaderFactory {
+    public static final class DefaultClassLoaderFactory implements ClassLoaderFactory {
 
         /** The resolve order to use when creating a {@link ClassLoader}. */
         private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
@@ -148,7 +150,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         /** Test if classloader is used outside of job. */
         private final boolean checkClassLoaderLeak;
 
-        private DefaultClassLoaderFactory(
+        protected DefaultClassLoaderFactory(
                 FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
                 String[] alwaysParentFirstPatterns,
                 Consumer<Throwable> classLoadingExceptionHandler,
@@ -164,10 +166,14 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
             return FlinkUserCodeClassLoaders.create(
                     classLoaderResolveOrder,
                     libraryURLs,
-                    FlinkUserCodeClassLoaders.class.getClassLoader(),
+                    getParentClassLoader(),
                     alwaysParentFirstPatterns,
                     classLoadingExceptionHandler,
                     checkClassLoaderLeak);
+        }
+
+        protected ClassLoader getParentClassLoader() {
+            return FlinkUserCodeClassLoaders.class.getClassLoader();
         }
     }
 
@@ -176,6 +182,19 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
             String[] alwaysParentFirstPatterns,
             @Nullable FatalErrorHandler fatalErrorHandlerJvmMetaspaceOomError,
             boolean checkClassLoaderLeak) {
+
+        ServiceLoader<ClassLoaderFactoryBuilder> classLoaderService
+                = ServiceLoader.load(ClassLoaderFactoryBuilder.class);
+        Iterator<ClassLoaderFactoryBuilder> factoryIt = classLoaderService.iterator();
+        ClassLoaderFactoryBuilder factory = null;
+        while (factoryIt.hasNext()) {
+            factory = factoryIt.next();
+            return factory.build(classLoaderResolveOrder,
+                    alwaysParentFirstPatterns,
+                    fatalErrorHandlerJvmMetaspaceOomError,
+                    checkClassLoaderLeak);
+        }
+
         return new DefaultClassLoaderFactory(
                 classLoaderResolveOrder,
                 alwaysParentFirstPatterns,
