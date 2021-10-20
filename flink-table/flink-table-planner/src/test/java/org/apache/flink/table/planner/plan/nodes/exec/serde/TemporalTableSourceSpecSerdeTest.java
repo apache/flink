@@ -30,7 +30,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.planner.factories.tablesource.MockedLookupTableSource;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
@@ -119,7 +119,7 @@ public class TemporalTableSourceSpecSerdeTest {
                 new ResolvedCatalogTable(catalogTable1, resolvedSchema1);
 
         RelDataType relDataType1 = FACTORY.createSqlType(SqlTypeName.BIGINT);
-        LookupTableSource lookupTableSource = new TestValuesTableFactory.MockedLookupTableSource();
+        LookupTableSource lookupTableSource = new MockedLookupTableSource();
         TableSourceTable tableSourceTable1 =
                 new TableSourceTable(
                         null,

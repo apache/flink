@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.expressions.utils.Func0
-import org.apache.flink.table.planner.factories.TestValuesTableFactory.MockedLookupTableSource
+import org.apache.flink.table.planner.factories.tablesource.MockedLookupTableSource
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.Test
 
@@ -630,8 +630,8 @@ class TableScanTest extends TableTestBase {
     thrown.expectMessage(
       "Invalid source for table 'default_catalog.default_database.src'. A ScanTableSource " +
       "doesn't support a changelog stream that contains UPDATE_BEFORE but no UPDATE_AFTER. " +
-      "Please adapt the implementation of class 'org.apache.flink.table.planner.factories." +
-      "TestValuesTableFactory$TestValuesScanLookupTableSource'.")
+      "Please adapt the implementation of class 'org.apache.flink.table.planner.factories" +
+      ".tablesource.TestValuesScanLookupTableSource'.")
     util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
