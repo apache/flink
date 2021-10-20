@@ -612,7 +612,7 @@ public class ChangelogKeyedStateBackend<K>
         }
     }
 
-    /** Tot thread safe. */
+    /** Not thread safe. */
     @VisibleForTesting
     boolean hasMoreChangelogStateToMaterialize() {
         SequenceNumber upTo = getLastAppendedTo();

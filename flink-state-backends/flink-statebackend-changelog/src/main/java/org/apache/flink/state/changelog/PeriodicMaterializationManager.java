@@ -183,7 +183,7 @@ public class PeriodicMaterializationManager implements Closeable {
                                 // if failed
                                 int retryTime = numberOfConsecutiveFailures.incrementAndGet();
 
-                                if (retryTime < allowedNumberOfFailures) {
+                                if (retryTime <= allowedNumberOfFailures) {
 
                                     LOG.info(
                                             "Task {} asynchronous part of materialization is not completed for the {} time.",
