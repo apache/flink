@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.elasticsearch.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
@@ -72,17 +71,6 @@ final class IndexGeneratorFactory {
                     fieldNames.toArray(new String[0]),
                     dataTypes.toArray(new DataType[0]),
                     indexHelper);
-        } else {
-            return new StaticIndexGenerator(index);
-        }
-    }
-
-    @Deprecated
-    public static IndexGenerator createIndexGenerator(String index, TableSchema schema) {
-        final IndexHelper indexHelper = new IndexHelper();
-        if (indexHelper.checkIsDynamicIndex(index)) {
-            return createRuntimeIndexGenerator(
-                    index, schema.getFieldNames(), schema.getFieldDataTypes(), indexHelper);
         } else {
             return new StaticIndexGenerator(index);
         }

@@ -37,7 +37,7 @@ under the License.
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<elasticsearch.version>5.3.3</elasticsearch.version>
+		<elasticsearch.version>7.5.1</elasticsearch.version>
 	</properties>
 
 	<dependencies>
@@ -84,6 +84,20 @@ under the License.
 		</dependency>
 
 		<!-- Tests -->
+
+		<!-- For PrebuiltTransportClient use in test -->
+		<dependency>
+			<groupId>org.elasticsearch.client</groupId>
+			<artifactId>transport</artifactId>
+			<version>${elasticsearch.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>elasticsearch</artifactId>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,8 +17,6 @@
  */
 
 package org.apache.flink.streaming.connectors.elasticsearch;
-
-import org.apache.flink.annotation.Internal;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
@@ -33,20 +31,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Implementation of a {@link RequestIndexer}, using a {@link BulkProcessor}. {@link ActionRequest
  * ActionRequests} will be buffered before sending a bulk request to the Elasticsearch cluster.
- *
- * @deprecated This class is not binary compatible with newer Elasticsearch 6+ versions (i.e. the
- *     {@link #add(UpdateRequest...)} ). However, this module is currently compiled against a very
- *     old Elasticsearch version.
  */
-@Deprecated
-@Internal
-class PreElasticsearch6BulkProcessorIndexer implements RequestIndexer {
-
+class TestRequestIndexer implements RequestIndexer {
     private final BulkProcessor bulkProcessor;
     private final boolean flushOnCheckpoint;
     private final AtomicLong numPendingRequestsRef;
 
-    PreElasticsearch6BulkProcessorIndexer(
+    TestRequestIndexer(
             BulkProcessor bulkProcessor,
             boolean flushOnCheckpoint,
             AtomicLong numPendingRequestsRef) {
