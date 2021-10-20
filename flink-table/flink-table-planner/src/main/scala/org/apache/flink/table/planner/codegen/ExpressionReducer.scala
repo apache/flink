@@ -263,7 +263,7 @@ class ExpressionReducer(
         // Exclude some JSON functions which behave differently
         // when called as an argument of another call of one of these functions.
         if (nonReducibleJsonFunctions.contains(call.getOperator)) {
-          None
+          return List.empty
         }
         // to ensure the division is non-zero when the operator is DIVIDE
         if (call.getOperator.getKind.equals(SqlKind.DIVIDE)) {
