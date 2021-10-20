@@ -17,6 +17,8 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -104,6 +106,76 @@ public class RocksDBRocksStateKeysAndNamespacesIteratorTest {
                                     iterator,
                                     testStateName,
                                     keySerializer,
+                                    StringSerializer.INSTANCE,
+                                    keyedStateBackend.getKeyGroupPrefixBytes(),
+                                    ambiguousKeyPossible)) {
+
+                iterator.seekToFirst();
+
+                // valid record
+                List<Tuple2<Integer, String>> fetchedKeys = new ArrayList<>(1000);
+                while (iteratorWrapper.hasNext()) {
+                    Tuple2 entry = iteratorWrapper.next();
+                    entry.f0 = Integer.parseInt(entry.f0.toString());
+
+                    fetchedKeys.add((Tuple2<Integer, String>) entry);
+                }
+
+                fetchedKeys.sort(Comparator.comparingInt(a -> a.f0));
+                Assert.assertEquals(1000, fetchedKeys.size());
+
+                for (int i = 0; i < 1000; ++i) {
+                    Assert.assertEquals(i, fetchedKeys.get(i).f0.intValue());
+                    Assert.assertEquals(namespace, fetchedKeys.get(i).f1);
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testIteratorUpdateMapStateMultipleTimes() throws Exception {
+
+        String testStateName = "testMapState";
+        String namespace = "ns";
+
+        try (RocksDBKeyedStateBackendTestFactory factory =
+                new RocksDBKeyedStateBackendTestFactory()) {
+            RocksDBKeyedStateBackend<Integer> keyedStateBackend =
+                    factory.create(tmp, IntSerializer.INSTANCE, 128);
+
+            MapState<String, Integer> testMapState =
+                    keyedStateBackend.getPartitionedState(
+                            namespace,
+                            StringSerializer.INSTANCE,
+                            new MapStateDescriptor<>(testStateName, String.class, Integer.class));
+
+            // insert record
+            for (int i = 0; i < 1000; ++i) {
+                keyedStateBackend.setCurrentKey(i);
+                testMapState.put("key_a_" + i, i);
+                testMapState.put("key_b_" + i, i);
+            }
+
+            DataOutputSerializer outputStream = new DataOutputSerializer(8);
+            boolean ambiguousKeyPossible =
+                    CompositeKeySerializationUtils.isAmbiguousKeyPossible(
+                            IntSerializer.INSTANCE, StringSerializer.INSTANCE);
+            CompositeKeySerializationUtils.writeNameSpace(
+                    namespace, StringSerializer.INSTANCE, outputStream, ambiguousKeyPossible);
+
+            // already created with the state, should be closed with the backend
+            ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
+
+            try (RocksIteratorWrapper iterator =
+                            RocksDBOperationUtils.getRocksIterator(
+                                    keyedStateBackend.db,
+                                    handle,
+                                    keyedStateBackend.getReadOptions());
+                    RocksStateKeysAndNamespaceIterator<Integer, String> iteratorWrapper =
+                            new RocksStateKeysAndNamespaceIterator<>(
+                                    iterator,
+                                    testStateName,
+                                    IntSerializer.INSTANCE,
                                     StringSerializer.INSTANCE,
                                     keyedStateBackend.getKeyGroupPrefixBytes(),
                                     ambiguousKeyPossible)) {
