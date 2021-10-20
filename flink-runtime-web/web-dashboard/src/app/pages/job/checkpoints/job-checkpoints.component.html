@@ -397,18 +397,6 @@
                 </td>
               </tr>
               <tr>
-                <td><strong>99% percentile</strong></td>
-                <td>
-                  {{ checkPointStats['summary']['end_to_end_duration']['p99'] | humanizeDuration }}
-                </td>
-                <td>{{ checkPointStats['summary']['state_size']['p99'] | humanizeBytes }}</td>
-                <td>
-                  {{ checkPointStats['summary']['processed_data']['p99'] | humanizeBytes }} ({{
-                    checkPointStats['summary']['persisted_data']['p99'] | humanizeBytes
-                  }})
-                </td>
-              </tr>
-              <tr>
                 <td><strong>99.9% percentile</strong></td>
                 <td>
                   {{ checkPointStats['summary']['end_to_end_duration']['p999'] | humanizeDuration }}
