@@ -37,7 +37,7 @@ For example, you can now arbitrarily modify the data types of states, adjust the
 
 To get started with the state processor api, include the following library in your application.
 
-{{< artifact flink-state-processor-api withScalaVersion >}}
+{{< artifact flink-state-processor-api >}}
 
 ## Mapping Application State to DataSets 
 

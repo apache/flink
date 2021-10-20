@@ -128,7 +128,7 @@ env.setStateBackend(new HashMapStateBackend())
 ```xml
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-statebackend-rocksdb{{< scala_version >}}</artifactId>
+    <artifactId>flink-statebackend-rocksdb</artifactId>
     <version>{{< version >}}</version>
     <scope>provided</scope>
 </dependency>
