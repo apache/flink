@@ -100,13 +100,10 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
      * Creates a {@link RequestIndexer} that is able to work with {@link BulkProcessor} binary
      * compatible.
      */
-    default RequestIndexer createBulkProcessorIndexer(
+    RequestIndexer createBulkProcessorIndexer(
             BulkProcessor bulkProcessor,
             boolean flushOnCheckpoint,
-            AtomicLong numPendingRequestsRef) {
-        return new PreElasticsearch6BulkProcessorIndexer(
-                bulkProcessor, flushOnCheckpoint, numPendingRequestsRef);
-    }
+            AtomicLong numPendingRequestsRef);
 
     /** Perform any necessary state cleanup. */
     default void cleanup() {

@@ -62,7 +62,6 @@ under the License.
 		<module>flink-stream-stateful-job-upgrade-test</module>
 		<module>flink-queryable-state-test</module>
 		<module>flink-local-recovery-and-allocation-test</module>
-		<module>flink-elasticsearch5-test</module>
 		<module>flink-elasticsearch6-test</module>
 		<module>flink-quickstart-test</module>
 		<module>flink-confluent-schema-registry</module>
