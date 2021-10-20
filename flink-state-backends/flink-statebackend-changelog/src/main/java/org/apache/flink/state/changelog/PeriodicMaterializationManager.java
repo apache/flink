@@ -70,9 +70,6 @@ public class PeriodicMaterializationManager implements Closeable {
 
     private final ChangelogKeyedStateBackend<?> keyedStateBackend;
 
-    /** Whether PeriodicMaterializationManager is shut down. */
-    private volatile boolean shutdown = false;
-
     /** Whether PeriodicMaterializationManager is started. */
     private boolean started = false;
 
@@ -105,17 +102,14 @@ public class PeriodicMaterializationManager implements Closeable {
 
             started = true;
 
-            LOG.info(
-                    "Task {} starts periodic materialization, scheduling the next one in {} seconds",
-                    subtaskName,
-                    periodicMaterializeDelay / 1000);
+            LOG.info("Task {} starts periodic materialization", subtaskName);
 
             scheduleNextMaterialization();
         }
     }
 
-    public void close() {
-        shutdown = true;
+    // task thread and task canceler can access this method
+    public synchronized void close() {
 
         LOG.info("Shutting down PeriodicMaterializationManager.");
 
@@ -258,9 +252,14 @@ public class PeriodicMaterializationManager implements Closeable {
         }
     }
 
-    // Only be called in the task thread to simplify the threading model
-    private void scheduleNextMaterialization() {
-        if (!shutdown) {
+    // task thread and asyncOperationsThreadPool can access this method
+    private synchronized void scheduleNextMaterialization() {
+        LOG.info(
+                "Task {} schedules the next materialization in {} seconds",
+                subtaskName,
+                periodicMaterializeDelay / 1000);
+
+        if (!periodicExecutor.isShutdown()) {
             periodicExecutor.schedule(
                     this::triggerMaterialization, periodicMaterializeDelay, TimeUnit.MILLISECONDS);
         }
