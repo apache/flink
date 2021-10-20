@@ -740,7 +740,7 @@ json:
   - sql: JSON_EXISTS(jsonValue, path [ { TRUE | FALSE | UNKNOWN | ERROR } ON ERROR ])
     table: STRING.jsonExists(STRING path [, JsonExistsOnError onError])
     description: |
-      判定一个 JSON 字符串是否满足给定的路径搜索条件。
+      判定 JSON 字符串是否满足给定的路径搜索条件。
 
       如果忽略错误行为, 将 'FALSE ON ERROR' 作为默认设定。
 
