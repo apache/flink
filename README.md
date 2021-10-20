@@ -83,6 +83,8 @@ Flink is now installed in `build-target`.
 *NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.1.1 creates the libraries properly.
 To build unit tests with Java 8, use Java 8u51 or above to prevent failures in unit tests that use the PowerMock runner.*
 
+More details about building Apache Flink are described in this article [Building Flink from Source](https://nightlies.apache.org/flink/flink-docs-master/docs/flinkdev/building/).
+
 ## Developing Flink
 
 The Flink committers use IntelliJ IDEA to develop the Flink codebase.
