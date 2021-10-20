@@ -127,12 +127,17 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
     }
 
     // --------------------------------------------------------------------------------------------
-
+    /**
+     * Customize classLoader factory.
+     */
     @FunctionalInterface
     public interface ClassLoaderFactory {
         URLClassLoader createClassLoader(URL[] libraryURLs);
     }
 
+    /**
+     * Default ClassLoader factory.
+     */
     public static final class DefaultClassLoaderFactory implements ClassLoaderFactory {
 
         /** The resolve order to use when creating a {@link ClassLoader}. */
@@ -183,13 +188,14 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
             @Nullable FatalErrorHandler fatalErrorHandlerJvmMetaspaceOomError,
             boolean checkClassLoaderLeak) {
 
-        ServiceLoader<ClassLoaderFactoryBuilder> classLoaderService
-                = ServiceLoader.load(ClassLoaderFactoryBuilder.class);
+        ServiceLoader<ClassLoaderFactoryBuilder> classLoaderService =
+                ServiceLoader.load(ClassLoaderFactoryBuilder.class);
         Iterator<ClassLoaderFactoryBuilder> factoryIt = classLoaderService.iterator();
         ClassLoaderFactoryBuilder factory = null;
         while (factoryIt.hasNext()) {
             factory = factoryIt.next();
-            return factory.build(classLoaderResolveOrder,
+            return factory.build(
+                    classLoaderResolveOrder,
                     alwaysParentFirstPatterns,
                     fatalErrorHandlerJvmMetaspaceOomError,
                     checkClassLoaderLeak);

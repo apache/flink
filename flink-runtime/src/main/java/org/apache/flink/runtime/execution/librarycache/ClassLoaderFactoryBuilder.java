@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager.ClassLoaderFactory;
@@ -22,7 +23,10 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import javax.annotation.Nullable;
 
-
+/**
+ * Provides facilities to customize {@link ClassLoaderFactory} by user ,it is instantinate by ServiceLoader.
+ * @see java.util.ServiceLoader
+ */
 public interface ClassLoaderFactoryBuilder {
 
     public ClassLoaderFactory build(
