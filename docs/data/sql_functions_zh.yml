@@ -742,7 +742,7 @@ json:
     description: |
       判定 JSON 字符串是否满足给定的路径搜索条件。
 
-      如果忽略错误行为, 将 'FALSE ON ERROR' 作为默认设定。
+      如果忽略错误行为, 那么将 `FALSE ON ERROR` 设为默认值。
 
       ```
       -- TRUE
