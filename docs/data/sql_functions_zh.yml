@@ -875,7 +875,7 @@ json:
   - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonArray(JsonOnNull, values...)
     description: |
-      将一个数值列表构建成一个 JSON 数组字符串。
+      将数值列表构建为 JSON 数组字符串。
 
       这个函数返回一个 JSON 字符串，值可以是任意表达式。'ON NULL' 行为定义了如何处理 'NULL' 值。如果省略，则假定 'ABSENT ON NULL' 为默认值。
 
