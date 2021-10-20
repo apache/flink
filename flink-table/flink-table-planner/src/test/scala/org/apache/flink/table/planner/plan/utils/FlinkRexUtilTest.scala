@@ -481,18 +481,6 @@ class FlinkRexUtilTest {
     val predicate23Cast = makeToBooleanCast(predicate23CastFromData)
     val newPredicate23 = simplify(rexBuilder, predicate23Cast)
     assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate23.toString)
-
-    //CAST(1.1 AS BOOLEAN)
-    val predicate24CastFromData = rexBuilder.makeExactLiteral(BigDecimal.valueOf(1.1))
-    val predicate24Cast = makeToBooleanCast(predicate24CastFromData)
-    val newPredicate24 = simplify(rexBuilder, predicate24Cast)
-    assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate24.toString)
-
-    //CAST(0.000 AS BOOLEAN)
-    val predicate25CastFromData = rexBuilder.makeExactLiteral(BigDecimal.valueOf(0.000))
-    val predicate25Cast = makeToBooleanCast(predicate25CastFromData)
-    val newPredicate25 = simplify(rexBuilder, predicate25Cast)
-    assertEquals(rexBuilder.makeLiteral(false).toString, newPredicate25.toString)
   }
 
   def intLiteral(x: Int): RexLiteral = rexBuilder.makeExactLiteral(BigDecimal.valueOf(x))

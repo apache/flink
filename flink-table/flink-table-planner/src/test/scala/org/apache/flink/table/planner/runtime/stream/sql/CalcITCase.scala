@@ -54,11 +54,9 @@ class CalcITCase extends StreamingTestBase {
   @Test
   def testCastNumericToBooleanInProjection(): Unit ={
     val sqlQuery =
-      "SELECT CAST(1 AS BOOLEAN), CAST(0 AS BOOLEAN), CAST(1.1 AS BOOLEAN), CAST(0.00 AS BOOLEAN)"
+      "SELECT CAST(1 AS BOOLEAN), CAST(0 AS BOOLEAN)"
 
     val outputType = InternalTypeInfo.ofFields(
-      new BooleanType(),
-      new BooleanType(),
       new BooleanType(),
       new BooleanType()
     )
@@ -69,7 +67,7 @@ class CalcITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List(
-      "+I(true,false,true,false)"
+      "+I(true,false)"
     )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
@@ -81,10 +79,6 @@ class CalcITCase extends StreamingTestBase {
          | SELECT * FROM MyTableRow WHERE b = CAST(1 AS BOOLEAN)
          | UNION ALL
          | SELECT * FROM MyTableRow WHERE b = CAST(0 AS BOOLEAN)
-         | UNION ALL
-         | SELECT * FROM MyTableRow WHERE b = CAST(1.1 AS BOOLEAN)
-         | UNION ALL
-         | SELECT * FROM MyTableRow WHERE b = CAST(0.0 AS BOOLEAN)
          |""".stripMargin
 
     val rowData1: GenericRowData = new GenericRowData(2)
@@ -117,8 +111,6 @@ class CalcITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List(
-      "+I(1,true)",
-      "+I(2,false)",
       "+I(1,true)",
       "+I(2,false)"
     )

@@ -74,7 +74,7 @@ LogicalProject(d=[$3])
   </TestCase>
   <TestCase name="testSimplifyJoinConditionWithCastToTrue">
     <Resource name="sql">
-      <![CDATA[SELECT d FROM MyTable1 JOIN MyTable2 ON CAST(1.1 AS BOOLEAN)]]>
+      <![CDATA[SELECT d FROM MyTable1 JOIN MyTable2 ON CAST(1 AS BOOLEAN)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -95,7 +95,7 @@ LogicalProject(d=[$3])
   </TestCase>
   <TestCase name="testSimplifyJoinConditionWithCastToFalse">
     <Resource name="sql">
-      <![CDATA[SELECT d FROM MyTable1 JOIN MyTable2 ON CAST(0.0 AS BOOLEAN)]]>
+      <![CDATA[SELECT d FROM MyTable1 JOIN MyTable2 ON CAST(0 AS BOOLEAN)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[

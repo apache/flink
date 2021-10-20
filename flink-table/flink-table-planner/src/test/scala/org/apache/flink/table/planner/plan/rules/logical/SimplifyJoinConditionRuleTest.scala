@@ -68,13 +68,13 @@ class SimplifyJoinConditionRuleTest extends TableTestBase {
 
   @Test
   def testSimplifyJoinConditionWithCastToTrue(): Unit = {
-    val sqlQuery = "SELECT d FROM MyTable1 JOIN MyTable2 ON CAST(1.1 AS BOOLEAN)"
+    val sqlQuery = "SELECT d FROM MyTable1 JOIN MyTable2 ON CAST(1 AS BOOLEAN)"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testSimplifyJoinConditionWithCastToFalse(): Unit = {
-    val sqlQuery = "SELECT d FROM MyTable1 JOIN MyTable2 ON CAST(0.0 AS BOOLEAN)"
+    val sqlQuery = "SELECT d FROM MyTable1 JOIN MyTable2 ON CAST(0 AS BOOLEAN)"
     util.verifyRelPlan(sqlQuery)
   }
 }
