@@ -27,463 +27,390 @@ under the License.
 
 # Apache Kafka 连接器
 
-Flink 提供了 [Apache Kafka](https://kafka.apache.org) 连接器，用于从 Kafka topic 中读取或者向其中写入数据，可提供精确一次的处理语义。
-
-<a name="dependency"></a>
+Flink 提供了 [Apache Kafka](https://kafka.apache.org) 连接器使用精确一次（Exactly-once）的语义在 Kafka topic 中读取和写入数据。
 
 ## 依赖
 
-Apache Flink 集成了通用的 Kafka 连接器，它会尽力与 Kafka client 的最新版本保持同步。该连接器使用的 Kafka client 版本可能会在 Flink 版本之间发生变化。
+Apache Flink 集成了通用的 Kafka 连接器，它会尽力与 Kafka client 的最新版本保持同步。
+该连接器使用的 Kafka client 版本可能会在 Flink 版本之间发生变化。
 当前 Kafka client 向后兼容 0.10.0 或更高版本的 Kafka broker。
-有关 Kafka 兼容性的更多细节，请参考  [Kafka 官方文档](https://kafka.apache.org/protocol.html#protocol_compatibility)。
+有关 Kafka 兼容性的更多细节，请参考 [Kafka 官方文档](https://kafka.apache.org/protocol.html#protocol_compatibility)。
 
 {{< artifact flink-connector-kafka withScalaVersion >}}
+
+如果使用 Kafka source，```flink-connector-base``` 也需要包含在依赖中：
+
+{{< artifact flink-connector-base >}}
 
 Flink 目前的流连接器还不是二进制发行版的一部分。
 [在此处]({{< ref "docs/dev/datastream/project-configuration" >}})可以了解到如何链接它们，从而在集群中运行。
 
-<a name="kafka-consumer"></a>
+## Kafka Source
+{{< hint info >}}
+该文档描述的是基于[新数据源 API]({{< ref "docs/dev/datastream/sources.md" >}}) 的 Kafka Source。
+{{< /hint >}}
 
-## Kafka Consumer
-
-Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer`。它提供对一个或多个 Kafka topics 的访问。
-
-构造函数接受以下参数：
-
-1. Topic 名称或者名称列表
-2. 用于反序列化 Kafka 数据的 DeserializationSchema 或者 KafkaDeserializationSchema
-3. Kafka 消费者的属性。需要以下属性：
-  - "bootstrap.servers"（以逗号分隔的 Kafka broker 列表）
-  - "group.id" 消费组 ID
-
-{{< tabs "fdf41307-604d-426f-9863-666250ce0cdc" >}}
-{{< tab "Java" >}}
+### 使用方法
+Kafka Source 提供了构建类来创建 ```KafkaSource``` 的实例。以下代码片段展示了如何构建 ```KafkaSource```
+来消费 “input-topic” 最早位点的数据， 使用消费组 “my-group”，并且将 Kafka 消息体反序列化为字符串：
 ```java
-Properties properties = new Properties();
-properties.setProperty("bootstrap.servers", "localhost:9092");
-properties.setProperty("group.id", "test");
-DataStream<String> stream = env
-    .addSource(new FlinkKafkaConsumer<>("topic", new SimpleStringSchema(), properties));
+KafkaSource<String> source = KafkaSource.<String>builder()
+    .setBootstrapServers(brokers)
+    .setTopics("input-topic")
+    .setGroupId("my-group")
+    .setStartingOffsets(OffsetsInitializer.earliest())
+    .setValueOnlyDeserializer(new SimpleStringSchema())
+    .build();
+
+env.fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka Source");
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val properties = new Properties()
-properties.setProperty("bootstrap.servers", "localhost:9092")
-properties.setProperty("group.id", "test")
-val stream = env
-    .addSource(new FlinkKafkaConsumer[String]("topic", new SimpleStringSchema(), properties))
-```
-{{< /tab >}}
-{{< /tabs >}}
+以下属性在构建 KafkaSource 时是必须指定的：
+- Bootstrap server，通过 ```setBootstrapServers(String)``` 方法配置
+- 消费者组 ID，通过 ```setGroupId(String)``` 配置
+- 要订阅的 Topic / Partition，请参阅 <a href="#topic-partition-subscription">Topic / Partition 订阅</a>一节
+- 用于解析 Kafka 消息的反序列化器（Deserializer），请参阅<a href="#deserializer">消息解析</a>一节
 
-<a name="the-deserializationschema"></a>
+### Topic / Partition 订阅
+Kafka Source 提供了 3 种 Topic / Partition 的订阅方式：
+- Topic 列表，订阅 Topic 列表中所有 Partition 的消息：
+  ```java
+  KafkaSource.builder().setTopics("topic-a", "topic-b")
+  ```
+- 正则表达式匹配，订阅与正则表达式所匹配的 Topic 下的所有 Partition：
+  ```java
+  KafkaSource.builder().setTopicPattern("topic.*")
+  ```
+- Partition 列表，订阅指定的 Partition：
+  ```java
+  final HashSet<TopicPartition> partitionSet = new HashSet<>(Arrays.asList(
+          new TopicPartition("topic-a", 0),    // Partition 0 of topic "topic-a"
+          new TopicPartition("topic-b", 5)));  // Partition 5 of topic "topic-b"
+  KafkaSource.builder().setPartitions(partitionSet)
+  ```
+### 消息解析
+代码中需要提供一个反序列化器（Deserializer）来对 Kafka 的消息进行解析。
+反序列化器通过 ```setDeserializer(KafkaRecordDeserializationSchema)``` 来指定，其中 ```KafkaRecordDeserializationSchema``` 
+定义了如何解析 Kafka 的 ```ConsumerRecord```。
 
-### `DeserializationSchema`
+如果只需要 Kafka 消息中的消息体（value）部分的数据，可以使用 KafkaSource 构建类中的
+```setValueOnlyDeserializer(DeserializationSchema)``` 方法，其中 ```DeserializationSchema``` 定义了如何解析 Kafka 
+消息体中的二进制数据。
 
-Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 Java 或者 Scala 对象。`KafkaDeserializationSchema` 允许用户指定这样的 schema，每条 Kafka 中的消息会调用 `T deserialize(ConsumerRecord<byte[], byte[]> record)` 反序列化。
-
-为了方便使用，Flink 提供了以下几种 schemas：
-
-1. `TypeInformationSerializationSchema`（和 `TypeInformationKeyValueSerializationSchema`) 基于 Flink 的 `TypeInformation` 创建 `schema`。
-    如果该数据的读和写都发生在 Flink 中，那么这将是非常有用的。此 schema 是其他通用序列化方法的高性能 Flink 替代方案。
-
-2. `JsonDeserializationSchema`（和 `JSONKeyValueDeserializationSchema`）将序列化的 JSON 转化为 ObjectNode 对象，可以使用 `objectNode.get("field").as(Int/String/...)()` 来访问某个字段。
-    KeyValue objectNode 包含一个含所有字段的 key 和 values 字段，以及一个可选的"metadata"字段，可以访问到消息的 offset、partition、topic 等信息。
-    
-3. `GlueSchemaRegistryJsonDeserializationSchema` 可以在[AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html)
-    查找编写器的 schema（用于编写记录的 schema）。使用这些反序列化 schema 记录将读取从 AWS Glue Schema Registry 检索到的 schema 转换为代表通用记录的`com.amazonaws.services.schemaregistry.serializers.json.JsonDataWithSchema`
-    或者由[mbknor-jackson-jsonSchema](https://github.com/mbknor/mbknor-jackson-jsonSchema)生成的 Java POJO. 
-    
-    <br>要使用此反序列化 schema 必须添加以下依赖：
-    
-{{< tabs "8c6721c7-4a48-496e-b0fe-6522cf6a5e13" >}}
-{{< tab "GlueSchemaRegistryJsonDeserializationSchema" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-jsonschema-confluent-registry</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-4. `AvroDeserializationSchema` 使用静态提供的 schema 读取 Avro 格式的序列化数据。
-    它能够从 Avro 生成的类（`AvroDeserializationSchema.forSpecific(...)`）中推断出 schema，或者可以与 `GenericRecords`
-    一起使用手动提供的 schema（用 `AvroDeserializationSchema.forGeneric(...)`）。此反序列化 schema 要求序列化记录不能包含嵌入式架构！
-
-    - 此模式还有一个版本，可以在 [Confluent Schema Registry](https://docs.confluent.io/current/schema-registry/docs/index.html) 中查找编写器的 schema（用于编写记录的 schema）。
-    - 使用这些反序列化 schema 记录将读取从 schema 注册表检索到的 schema 转换为静态提供的 schema（或者通过 `ConfluentRegistryAvroDeserializationSchema.forGeneric(...)` 或 `ConfluentRegistryAvroDeserializationSchema.forSpecific(...)`）。
-    
-    - 您还可以使用AWS实现的[AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html)来查找编写器的 schema 。相似地，反序列化的记录会读取从 AWS Glue Schema Registry 检索到的 schema 并转换为静态提供的 schema
-     （或者通过 `GlueSchemaRegistryAvroDeserializationSchema.forGeneric(...)` 或 `GlueSchemaRegistryAvroDeserializationSchema.forSpecific(...)`）。有关 AWS Glue Schema Registry 与 Apache Flink 适配的更多信息，请参见
-      [Use Case: Amazon Kinesis Data Analytics for Apache Flink](https://docs.aws.amazon.com/glue/latest/dg/schema-registry-integrations.html#schema-registry-integrations-kinesis-data-analytics-apache-flink).
-
-    <br>要使用此反序列化 schema 必须添加以下依赖：
-
-{{< tabs "28c9b976-d85a-4d98-ad0b-7ca427c85b57" >}}
-{{< tab "AvroDeserializationSchema" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-avro</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
-{{< /tab >}}
-{{< tab "ConfluentRegistryAvroDeserializationSchema" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-avro-confluent-registry</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
-{{< /tab >}}
-{{< tab "GlueSchemaRegistryAvroDeserializationSchema" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-avro-glue-schema-registry</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-当遇到因一些原因而无法反序列化的损坏消息时，反序列化 schema 会返回 `null`，以允许 Flink Kafka 消费者悄悄地跳过损坏的消息。请注意，由于 consumer 的容错能力（请参阅下面的部分以获取更多详细信息），在损坏的消息上失败作业将使 consumer 尝试再次反序列化消息。因此，如果反序列化仍然失败，则 consumer 将在该损坏的消息上进入不间断重启和失败的循环。
-
-<a name="kafka-consumers-start-position-configuration"></a>
-
-### 配置 Kafka Consumer 开始消费的位置 
-
-Flink Kafka Consumer 允许通过配置来确定 Kafka 分区的起始位置。
-
-{{< tabs "dd71055b-6b2d-4e61-8c4b-5e93aeaf939a" >}}
-{{< tab "Java" >}}
+也可使用 [Kafka 提供的解析器](https://kafka.apache.org/24/javadoc/org/apache/kafka/common/serialization/Deserializer.html) 
+来解析 Kafka 消息体。例如使用 ```StringDeserializer``` 来将 Kafka 消息体解析成字符串：
 ```java
-final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+import org.apache.kafka.common.serialization.StringDeserializer;
 
-FlinkKafkaConsumer<String> myConsumer = new FlinkKafkaConsumer<>(...);
-myConsumer.setStartFromEarliest();     // 尽可能从最早的记录开始
-myConsumer.setStartFromLatest();       // 从最新的记录开始
-myConsumer.setStartFromTimestamp(...); // 从指定的时间开始（毫秒）
-myConsumer.setStartFromGroupOffsets(); // 默认的方法
-
-DataStream<String> stream = env.addSource(myConsumer);
-...
+KafkaSource.<String>builder()
+        .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringSerializer.class));
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
-val myConsumer = new FlinkKafkaConsumer[String](...)
-myConsumer.setStartFromEarliest()      // 尽可能从最早的记录开始
-myConsumer.setStartFromLatest()        // 从最新的记录开始
-myConsumer.setStartFromTimestamp(...)  // 从指定的时间开始（毫秒）
-myConsumer.setStartFromGroupOffsets()  // 默认的方法
+### 起始消费位点
+Kafka source 能够通过位点初始化器（```OffsetsInitializer```）来指定从不同的偏移量开始消费 。内置的位点初始化器包括：
 
-val stream = env.addSource(myConsumer)
-...
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-Flink Kafka Consumer 的所有版本都具有上述明确的起始位置配置方法。
-
- * `setStartFromGroupOffsets`（默认方法）：从 Kafka brokers 中的 consumer 组（consumer 属性中的 `group.id` 设置）提交的偏移量中开始读取分区。
-    如果找不到分区的偏移量，那么将会使用配置中的 `auto.offset.reset` 设置。
- * `setStartFromEarliest()` 或者 `setStartFromLatest()`：从最早或者最新的记录开始消费，在这些模式下，Kafka 中的 committed offset 将被忽略，不会用作起始位置。
- * `setStartFromTimestamp(long)`：从指定的时间戳开始。对于每个分区，其时间戳大于或等于指定时间戳的记录将用作起始位置。如果一个分区的最新记录早于指定的时间戳，则只从最新记录读取该分区数据。在这种模式下，Kafka 中的已提交 offset 将被忽略，不会用作起始位置。
-
-你也可以为每个分区指定 consumer 应该开始消费的具体 offset：
-
-{{< tabs "3fc8a5ad-77df-4ebb-bc02-d954d1eb29a7" >}}
-{{< tab "Java" >}}
 ```java
-Map<KafkaTopicPartition, Long> specificStartOffsets = new HashMap<>();
-specificStartOffsets.put(new KafkaTopicPartition("myTopic", 0), 23L);
-specificStartOffsets.put(new KafkaTopicPartition("myTopic", 1), 31L);
-specificStartOffsets.put(new KafkaTopicPartition("myTopic", 2), 43L);
-
-myConsumer.setStartFromSpecificOffsets(specificStartOffsets);
+KafkaSource.builder()
+    // 从消费组提交的位点开始消费，不指定位点重置策略
+    .setStartingOffsets(OffsetsInitializer.committedOffsets())
+    // 从消费组提交的位点开始消费，如果提交位点不存在，使用最早位点
+    .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
+    // 从时间戳大于等于指定时间的数据开始消费
+    .setStartingOffsets(OffsetsInitializer.timestamp(1592323200L))
+    // 从最早位点开始消费
+    .setStartingOffsets(OffsetsInitializer.earliest())
+    // 从最末尾位点开始消费
+    .setStartingOffsets(OffsetsInitializer.latest())
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val specificStartOffsets = new java.util.HashMap[KafkaTopicPartition, java.lang.Long]()
-specificStartOffsets.put(new KafkaTopicPartition("myTopic", 0), 23L)
-specificStartOffsets.put(new KafkaTopicPartition("myTopic", 1), 31L)
-specificStartOffsets.put(new KafkaTopicPartition("myTopic", 2), 43L)
+如果内置的初始化器不能满足需求，也可以实现自定义的位点初始化器（```OffsetsInitializer```）。
 
-myConsumer.setStartFromSpecificOffsets(specificStartOffsets)
-```
-{{< /tab >}}
-{{< /tabs >}}
+如果未指定位点初始化器，将默认使用 ```OffsetsInitializer.earliest()```。
 
-上面的例子中使用的配置是指定从 `myTopic` 主题的 0 、1 和 2 分区的指定偏移量开始消费。offset 值是 consumer 应该为每个分区读取的下一条消息。请注意：如果 consumer 需要读取在提供的 offset 映射中没有指定 offset 的分区，那么它将回退到该特定分区的默认组偏移行为（即 `setStartFromGroupOffsets()`）。
+### 有界 / 无界模式
+Kafka Source 支持流式和批式两种运行模式。默认情况下，KafkaSource 设置为以流模式运行，因此作业永远不会停止，直到 Flink 作业失败或被取消。
+可以使用 ```setBounded(OffsetsInitializer)``` 指定停止偏移量使 Kafka Source 以批处理模式运行。当所有分区都达到其停止偏移量时，Kafka Source 
+会退出运行。
 
+流模式下运行通过使用 ```setUnbounded(OffsetsInitializer)``` 也可以指定停止消费位点，当所有分区达到其指定的停止偏移量时，Kafka Source 会退出运行。
 
-请注意：当 Job 从故障中自动恢复或使用 savepoint 手动恢复时，这些起始位置配置方法不会影响消费的起始位置。在恢复时，每个 Kafka 分区的起始位置由存储在 savepoint 或 checkpoint 中的 offset 确定（有关 checkpointing 的信息，请参阅下一节，以便为 consumer 启用容错功能）。
+### 其他属性
+除了上述属性之外，您还可以使用 setProperties(Properties) 和 setProperty(String, String) 为 Kafka Source 和 Kafka Consumer 
+设置任意属性。KafkaSource 有以下配置项：
+- ```client.id.prefix```，指定用于 Kafka Consumer 的客户端 ID 前缀
+- ```partition.discovery.interval.ms```，定义 Kafka Source 检查新分区的时间间隔。
+  请参阅下面的<a href="#dynamic-partition-discovery">动态分区检查</a>一节
+- ```register.consumer.metrics``` 指定是否在 Flink 中注册 Kafka Consumer 的指标
+- ```commit.offsets.on.checkpoint``` 指定是否在进行 checkpoint 时将消费位点提交至 Kafka broker
 
-<a name="kafka-consumers-and-fault-tolerance"></a>
+Kafka consumer 的配置可以参考 [Apache Kafka 文档](http://kafka.apache.org/documentation/#consumerconfigs)。
 
-### Kafka Consumer 和容错
+请注意，即使指定了以下配置项，构建器也会将其覆盖：
+- ```key.deserializer``` 始终设置为 ByteArrayDeserializer
+- ```value.deserializer``` 始终设置为 ByteArrayDeserializer
+- ```auto.offset.reset.strategy``` 被 OffsetsInitializer#getAutoOffsetResetStrategy() 覆盖
+- ```partition.discovery.interval.ms``` 会在批模式下被覆盖为 -1
 
-伴随着启用 Flink 的 checkpointing 后，Flink Kafka Consumer 将使用 topic 中的记录，并以一致的方式定期检查其所有 Kafka offset 和其他算子的状态。如果 Job 失败，Flink 会将流式程序恢复到最新 checkpoint 的状态，并从存储在 checkpoint 中的 offset 开始重新消费 Kafka 中的消息。
-
-因此，设置 checkpoint 的间隔定义了程序在发生故障时最多需要返回多少。
-
-为了使 Kafka Consumer 支持容错，需要在 [执行环境]({{< ref "docs/deployment/config" >}}#execution-checkpointing-interval) 中启用拓扑的 checkpointing。
-
-如果未启用 checkpoint，那么 Kafka consumer 将定期向 Zookeeper 提交 offset。
-
-<a name="kafka-consumers-topic-and-partition-discovery"></a>
-
-### Kafka Consumer Topic 和分区发现
-
-<a name="partition-discovery"></a>
-
-#### 分区发现
-
-Flink Kafka Consumer 支持发现动态创建的 Kafka 分区，并使用精准一次的语义保证去消耗它们。在初始检索分区元数据之后（即，当 Job 开始运行时）发现的所有分区将从最早可能的 offset 中消费。
-
-默认情况下，是禁用了分区发现的。若要启用它，请在提供的属性配置中为 `flink.partition-discovery.interval-millis` 设置大于 0 的值，表示发现分区的间隔是以毫秒为单位的。
-
-<a name="topic-discovery"></a>
-
-#### Topic 发现
-
-在更高的级别上，Flink Kafka Consumer 还能够使用正则表达式基于 Topic 名称的模式匹配来发现 Topic。请看下面的例子：
-
-{{< tabs "46a10932-ea0f-4cba-aa4e-e12930963406" >}}
-{{< tab "Java" >}}
+下面的代码片段展示了如何配置 Kafka consumer 以使用“PLAIN”作为 SASL 机制并提供 JAAS 配置：
 ```java
-final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-Properties properties = new Properties();
-properties.setProperty("bootstrap.servers", "localhost:9092");
-properties.setProperty("group.id", "test");
-
-FlinkKafkaConsumer<String> myConsumer = new FlinkKafkaConsumer<>(
-    java.util.regex.Pattern.compile("test-topic-[0-9]"),
-    new SimpleStringSchema(),
-    properties);
-
-DataStream<String> stream = env.addSource(myConsumer);
-...
+KafkaSource.builder()
+    .setProperty("sasl.mechanism", "PLAIN")
+    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";")
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
-val properties = new Properties()
-properties.setProperty("bootstrap.servers", "localhost:9092")
-properties.setProperty("group.id", "test")
+### 动态分区检查
+为了在不重启 Flink 作业的情况下处理 Topic 扩容或新建 Topic 等场景，可以将 Kafka Source 配置为在提供的 Topic / Partition 
+订阅模式下定期检查新分区。要启用动态分区检查，请将 ```partition.discovery.interval.ms``` 设置为非负值：
 
-val myConsumer = new FlinkKafkaConsumer[String](
-  java.util.regex.Pattern.compile("test-topic-[0-9]"),
-  new SimpleStringSchema,
-  properties)
-
-val stream = env.addSource(myConsumer)
-...
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-在上面的例子中，当 Job 开始运行时，Consumer 将订阅名称与指定正则表达式匹配的所有主题（以 `test-topic` 开头并以单个数字结尾）。
-
-要允许 consumer 在作业开始运行后发现动态创建的主题，那么请为 `flink.partition-discovery.interval-millis` 设置非负值。这允许 consumer 发现名称与指定模式匹配的新主题的分区。
-
-<a name="kafka-consumers-offset-committing-behaviour-configuration"></a>
-
-### Kafka Consumer 提交 Offset 的行为配置
-
-Flink Kafka Consumer 允许有配置如何将 offset 提交回 Kafka broker 的行为。请注意：Flink Kafka Consumer 不依赖于提交的 offset 来实现容错保证。提交的 offset 只是一种方法，用于公开 consumer 的进度以便进行监控。
-
-配置 offset 提交行为的方法是否相同，取决于是否为 job 启用了 checkpointing。
-
- - *禁用 Checkpointing：* 如果禁用了 checkpointing，则 Flink Kafka Consumer 依赖于内部使用的 Kafka client 自动定期 offset 提交功能。
- 因此，要禁用或启用 offset 的提交，只需将 `enable.auto.commit` 或者 `auto.commit.interval.ms` 的Key 值设置为提供的 `Properties` 配置中的适当值。
-
- - *启用 Checkpointing：* 如果启用了 checkpointing，那么当 checkpointing 完成时，Flink Kafka Consumer 将提交的 offset 存储在 checkpoint 状态中。
- 这确保 Kafka broker 中提交的 offset 与 checkpoint 状态中的 offset 一致。
- 用户可以通过调用 consumer 上的 `setCommitOffsetsOnCheckpoints(boolean)` 方法来禁用或启用 offset 的提交(默认情况下，这个值是 true )。
- 注意，在这个场景中，`Properties` 中的自动定期 offset 提交设置会被完全忽略。
-
-<a name="kafka-consumers-and-timestamp-extractionwatermark-emission"></a>
-
-### Kafka Consumer 和 时间戳抽取以及 watermark 发送
-
-在许多场景中，记录的时间戳是(显式或隐式)嵌入到记录本身中。此外，用户可能希望定期或以不规则的方式 Watermark，例如基于 Kafka 流中包含当前事件时间的 watermark 的特殊记录。对于这些情况，Flink Kafka Consumer 允许指定 `AssignerWithPeriodicWatermarks` 或 `AssignerWithPunctuatedWatermarks`。
-
-你可以按照[此处]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}})的说明指定自定义时间戳抽取器或者 Watermark 发送器，或者使用 [内置的]({{< ref "docs/dev/datastream/event-time/built_in" >}})。你也可以通过以下方式将其传递给你的 consumer：
-
-{{< tabs "c706ebfc-5d9b-49b2-8899-f3ac259a55cc" >}}
-{{< tab "Java" >}}
 ```java
-Properties properties = new Properties();
-properties.setProperty("bootstrap.servers", "localhost:9092");
-properties.setProperty("group.id", "test");
-
-FlinkKafkaConsumer<String> myConsumer =
-    new FlinkKafkaConsumer<>("topic", new SimpleStringSchema(), properties);
-myConsumer.assignTimestampsAndWatermarks(
-    WatermarkStrategy
-        .forBoundedOutOfOrderness(Duration.ofSeconds(20)));
-
-DataStream<String> stream = env.addSource(myConsumer);
+KafkaSource.builder()
+    .setProperty("partition.discovery.interval.ms", "10000") // 每 10 秒检查一次新分区
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val properties = new Properties()
-properties.setProperty("bootstrap.servers", "localhost:9092")
-properties.setProperty("group.id", "test")
+{{< hint warning >}}
+分区检查功能默认**不开启**。需要显式地设置分区检查间隔才能启用此功能。
+{{< /hint >}}
 
-val myConsumer =
-    new FlinkKafkaConsumer("topic", new SimpleStringSchema(), properties);
-myConsumer.assignTimestampsAndWatermarks(
-    WatermarkStrategy
-        .forBoundedOutOfOrderness(Duration.ofSeconds(20)))
-
-val stream = env.addSource(myConsumer)
+### 事件时间和水印
+默认情况下，Kafka Source 使用 Kafka 消息中的时间戳作为事件时间。您可以定义自己的水印策略（Watermark Strategy）
+以从消息中提取事件时间，并向下游发送水印：
+```java
+env.fromSource(kafkaSource, new CustomWatermarkStrategy(), "Kafka Source With Custom Watermark Strategy")
 ```
-{{< /tab >}}
-{{< /tabs >}}
+[这篇文档]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}})描述了如何自定义水印策略（```WatermarkStrategy```）。
 
-**请注意**：如果 watermark assigner 依赖于从 Kafka 读取的消息来上涨其 watermark （通常就是这种情况），那么所有主题和分区都需要有连续的消息流。否则，整个应用程序的 watermark 将无法上涨，所有基于时间的算子（例如时间窗口或带有计时器的函数）也无法运行。单个的 Kafka 分区也会导致这种反应。考虑设置适当的 [idleness timeouts]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#dealing-with-idle-sources) 来缓解这个问题。
+### 消费位点提交
+Kafka source 在 checkpoint **完成**时提交当前的消费位点 ，以保证 Flink 的 checkpoint 状态和 Kafka broker 上的提交位点一致。如果未开启 
+checkpoint，Kafka source 依赖于 Kafka consumer 内部的位点定时自动提交逻辑，自动提交功能由 ```enable.auto.commit``` 和 
+```auto.commit.interval.ms``` 两个 Kafka consumer 配置项进行配置。
 
-<a name="kafka-producer"></a>
+注意：Kafka source **不依赖**于 broker 上提交的位点来恢复失败的作业。提交位点只是为了上报 Kafka consumer 和消费组的消费进度，以在 broker 端进行监控。
+
+### 监控
+
+Kafka source 会在不同的[范围 (Scope)]({{< ref "docs/ops/metrics" >}}/#scope)中汇报下列指标。
+
+#### 指标范围
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">范围</th>
+      <th class="text-left" style="width: 18%">指标</th>
+      <th class="text-left" style="width: 18%">用户变量</th>
+      <th class="text-left" style="width: 39%">描述</th>
+      <th class="text-left" style="width: 10%">类型</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <th rowspan="8">算子</th>
+        <td>currentEmitEventTimeLag</td>
+        <td>n/a</td>
+        <td>数据的事件时间与数据离开 Source 时的间隔¹：<code>currentEmitEventTimeLag = EmitTime - EventTime</code></td>
+        <td>Gauge</td>
+    </tr>
+    <tr>
+        <td>watermarkLag</td>
+        <td>n/a</td>
+        <td>水印时间滞后于当前时间的时长：<code>watermarkLag = CurrentTime - Watermark</code></td>
+        <td>Gauge</td>
+    </tr>
+    <tr>
+        <td>sourceIdleTime</td>
+        <td>n/a</td>
+        <td>Source 闲置时长：<code>sourceIdleTime = CurrentTime - LastRecordProcessTime</code></td>
+        <td>Gauge</td>
+    </tr>
+    <tr>
+        <td>pendingRecords</td>
+        <td>n/a</td>
+        <td>尚未被 Source 拉取的数据数量，即 Kafka partition 当前消费位点之后的数据数量。</td>
+        <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>KafkaSourceReader.commitsSucceeded</td>
+      <td>n/a</td>
+      <td>位点成功提交至 Kafka 的总次数，在开启了位点提交功能时适用。</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+       <td>KafkaSourceReader.commitsFailed</td>
+       <td>n/a</td>
+       <td>位点未能成功提交至 Kafka 的总次数，在开启了位点提交功能时适用。注意位点提交仅是为了向 Kafka 上报消费进度，因此提交失败并不影响
+       Flink checkpoint 中存储的位点信息的完整性。</td>
+       <td>Counter</td>
+    </tr>
+    <tr>
+       <td>KafkaSourceReader.committedOffsets</td>
+       <td>topic, partition</td>
+       <td>每个 partition 最近一次成功提交至 Kafka 的位点。各个 partition 的指标可以通过指定 topic 名称和 partition ID 获取。</td>
+       <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>KafkaSourceReader.currentOffsets</td>
+      <td>topic, partition</td>
+      <td>每个 partition 当前读取的位点。各个 partition 的指标可以通过指定 topic 名称和 partition ID 获取。</td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
+¹ 该指标反映了最后一条数据的瞬时值。之所以提供瞬时值是因为统计延迟直方图会消耗更多资源，瞬时值通常足以很好地反映延迟。
+
+#### Kafka Consumer 指标
+Kafka consumer 的所有指标都注册在指标组 ```KafkaSourceReader.KafkaConsumer``` 下。例如 Kafka consumer 的指标 
+```records-consumed-total``` 将在该 Flink 指标中汇报：
+```<some_parent_groups>.operator.KafkaSourceReader.KafkaConsumer.records-consumed-total```。
+
+您可以使用配置项 ```register.consumer.metrics``` 配置是否注册 Kafka consumer 的指标 。默认此选项设置为 true。
+
+关于 Kafka consumer 的指标，您可以参考 [Apache Kafka 文档](http://kafka.apache.org/documentation/#consumer_monitoring)
+了解更多详细信息。
+
+### 实现细节
+{{< hint info >}}
+如果你对 Kafka source 在新的 Source API 中的设计感兴趣，可阅读该部分作为参考。关于新 Source API 的细节，[Source
+ API 文档]({{< ref "docs/dev/datastream/sources.md" >}})和 
+[FLIP-27](https://cwiki.apache.org/confluence/display/FLINK/FLIP-27%3A+Refactor+Source+Interface) 提供了更详细的描述。
+{{< /hint >}}
+
+在新 Source API 的抽象中，Kafka source  由以下几个部分组成：
+#### 数据源分片（Source Split）
+Kafka source 的数据源分片（source split）表示 Kafka topic 中的一个 partition。Kafka 的数据源分片包括：
+- 该分片表示的 topic 和 partition
+- 该 partition 的起始位点
+- 该 partition 的停止位点，当 source 运行在批模式时适用
+
+Kafka source 分片的状态同时存储该 partition 的当前消费位点，该分片状态将会在 Kafka 源读取器（source reader）进行快照（snapshot）
+时将当前消费位点保存为起始消费位点以将分片状态转换成不可变更的分片。
+
+可查看 ```KafkaPartitionSplit``` 和 ```KafkaPartitionSplitState``` 类来了解细节。
+
+#### 分片枚举器（Split Enumerator）
+Kafka source 的分片枚举器负责检查在当前的 topic / partition 订阅模式下的新分片（partition），并将分片轮流均匀地分配给源读取器（source reader）。
+注意 Kafka source 的分片枚举器会将分片主动推送给源读取器，因此它无需处理来自源读取器的分片请求。
+
+#### 源读取器（Source Reader）
+Kafka source 的源读取器扩展了 ```SourceReaderBase```，并使用单线程复用（single thread multiplex）的线程模型，使用一个由分片读取器
+（split reader）驱动的 ```KafkaConsumer``` 来处理多个分片（partition）。消息会在从 Kafka 拉取下来后在分片读取器中立刻被解析。分片的状态
+即当前的消息消费进度会在 ```KafkaRecordEmitter``` 中更新，同时会在数据发送至下游时指定事件时间。
+
+## Kafka SourceFunction
+{{< hint warning >}}
+`FlinkKafkaConsumer` 已被弃用并将在 Flink 1.15 中移除，请改用 ```KafkaSource```。
+{{< /hint >}}
+
+如需参考，请参阅 Flink 1.13 [文档](https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-sourcefunction)。
+
+## Kafka Sink
+
+`KafkaSink` 可将数据流写入一个或多个 Kafka topic。
+
+### 使用方法
+
+Kafka sink 提供了构建类来创建 ```KafkaSink``` 的实例。以下代码片段展示了如何将字符串数据按照至少一次（at lease once）的语义保证写入 Kafka
+topic：
+
+```java
+DataStream<String> stream = ...
+        
+KafkaSink<String> sink = KafkaSink.<String>builder()
+        .setBootstrapServers(brokers)
+        .setRecordSerializer(KafkaRecordSerializationSchema.builder()
+            .setTopic("topic-name")
+            .setValueSerializationSchema(new SimpleStringSchema())
+            .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+            .build()
+        )
+        .build();
+        
+stream.sinkTo(sink);
+```
+
+以下属性在构建 KafkaSink 时是必须指定的：
+
+- Bootstrap servers, ```setBootstrapServers(String)```
+- 消息序列化器（Serializer）, ``setRecordSerializer(KafkaRecordSerializationSchema)``
+- 如果使用```DeliveryGuarantee.EXACTLY_ONCE``` 的语义保证，则需要使用 ```setTransactionalIdPrefix(String)```
+
+### 序列化器
+
+构建时需要提供 ```KafkaRecordSerializationSchema``` 来将输入数据转换为 Kafka 的 ```ProducerRecord```。Flink 提供了 schema 构建器
+以提供一些通用的组件，例如消息键（key）/消息体（value）序列化、topic 选择、消息分区，同样也可以通过实现对应的接口来进行更丰富的控制。
+
+```java
+KafkaRecordSerializationSchema.builder()
+    .setTopicSelector((element) -> {<your-topic-selection-logic>})
+    .setValueSerializationSchema(new SimpleStringSchema())
+    .setKeySerializationSchema(new SimpleStringSchema())
+    .setPartitioner(new FlinkFixedPartitioner())
+    .build();
+```
+
+其中消息体（value）序列化方法和 topic 的选择方法是必须指定的，此外也可以通过 ```setKafkaKeySerializer(Serializer)``` 或
+```setKafkaValueSerializer(Serializer)``` 来使用 Kafka 提供而非 Flink 提供的序列化器。
+
+### 容错
+
+```KafkaSink``` 总共支持三种不同的语义保证（```DeliveryGuarantee```）。对于 ```DeliveryGuarantee.AT_LEAST_ONCE``` 和
+```DeliveryGuarantee.EXACTLY_ONCE```，Flink checkpoint 必须启用。默认情况下 ```KafkaSink``` 使用 ```DeliveryGuarantee.NONE```。
+以下是对不同语义保证的解释：
+
+- ```DeliveryGuarantee.NONE``` 不提供任何保证：消息有可能会因 Kafka broker 的原因发生丢失或因 Flink 的故障发生重复。
+- ```DeliveryGuarantee.AT_LEAST_ONCE```: sink 在 checkpoint 时会等待 Kafka 缓冲区中的数据全部被 Kafka producer 确认。消息不会因
+  Kafka broker 端发生的事件而丢失，但可能会在 Flink 重启时重复，因为 Flink 会重新处理旧数据。
+- ```DeliveryGuarantee.EXACTLY_ONCE```: 该模式下，Kafka sink 会将所有数据通过在 checkpoint 时提交的事务写入。因此，如果 consumer 
+  只读取已提交的数据（参见 Kafka consumer 配置 ```isolation.level```），在 Flink 发生重启时不会发生数据重复。然而这会使数据在 checkpoint
+  完成时才会可见，因此请按需调整 checkpoint 的间隔。请确认事务 ID 的前缀（transactionIdPrefix）对不同的应用是唯一的，以保证不同作业的事务
+  不会互相影响！此外，强烈建议将 Kafka 的事务超时时间调整至远大于 checkpoint 最大间隔 + 最大重启时间，否则 Kafka 对未提交事务的过期处理会导致数据丢失。
+
+### 监控
+
+Kafka sink 会在不同的[范围（Scope）]({{< ref "docs/ops/metrics" >}}/#scope)中汇报下列指标。
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">范围</th>
+      <th class="text-left" style="width: 18%">指标</th>
+      <th class="text-left" style="width: 18%">用户变量</th>
+      <th class="text-left" style="width: 39%">描述</th>
+      <th class="text-left" style="width: 10%">类型</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <th rowspan="1">算子</th>
+        <td>currentSendTime</td>
+        <td>n/a</td>
+        <td>发送最近一条数据的耗时。该指标反映最后一条数据的瞬时值。</td>
+        <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
 
 ## Kafka Producer
 
-Flink Kafka Producer 被称为 `FlinkKafkaProducer`。它允许将消息流写入一个或多个 Kafka topic。
+{{< hint warning >}}
+`FlinkKafkaProducer` 已被弃用并将在 Flink 1.15 中移除，请改用 ```KafkaSink```。
+{{< /hint >}}
 
-构造器接收下列参数：
-
-1. 事件被写入的默认输出 topic
-2. 序列化数据写入 Kafka 的 SerializationSchema / KafkaSerializationSchema
-3. Kafka client 的 Properties。下列 property 是必须的：
-	* “bootstrap.servers” （逗号分隔 Kafka broker 列表）
-4. 容错语义
-
-{{< tabs "f6c1b77e-6b17-4fd3-837a-c9257e6c7c00" >}}
-{{< tab "Java" >}}
-```java
-DataStream<String> stream = ...;
-
-Properties properties = new Properties();
-properties.setProperty("bootstrap.servers", "localhost:9092");
-
-FlinkKafkaProducer<String> myProducer = new FlinkKafkaProducer<String>(
-        "my-topic",                  // 目标 topic
-        new SimpleStringSchema(),    // 序列化 schema
-        properties,                  // producer 配置
-        FlinkKafkaProducer.Semantic.EXACTLY_ONCE); // 容错
-
-stream.addSink(myProducer);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val stream: DataStream[String] = ...
-
-val properties = new Properties
-properties.setProperty("bootstrap.servers", "localhost:9092")
-
-val myProducer = new FlinkKafkaProducer[String](
-        "my-topic",               // 目标 topic
-        new SimpleStringSchema(), // 序列化 schema
-        properties,               // producer 配置
-        FlinkKafkaProducer.Semantic.EXACTLY_ONCE) // 容错
-
-stream.addSink(myProducer)
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-除此之外，我们还可以使用下列配置方法：
-
-- {{< javadoc name="setWriteTimestampToKafka(boolean writeTimestampToKafka)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setWriteTimestampToKafka-boolean-" >}}，给每条记录设置时间戳
-- {{< javadoc name="setLogFailuresOnly(boolean logFailuresOnly)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setLogFailuresOnly-boolean-" >}}，设置是否在 Producer 发生异常时仅仅记录日志
-- {{< javadoc name="setTransactionalIdPrefix(String transactionalIdPrefix)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setTransactionalIdPrefix-java.lang.String-" >}}，设置自定义的 `transactional.id` 前缀
-- {{< javadoc name="ignoreFailuresAfterTransactionTimeout()" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#ignoreFailuresAfterTransactionTimeout--" >}}，在恢复时忽略事务超时异常
-
-<a name="the-serializationschema"></a>
-
-## `SerializationSchema`
-
-Flink Kafka Producer 需要知道如何将 Java/Scala 对象转化为二进制数据。
-
-`KafkaSerializationSchema` 允许用户指定这样的 schema。它会为每个记录调用 `ProducerRecord<byte[], byte[]> serialize(T element, @Nullable Long timestamp)` 方法，产生一个写入到 Kafka 的 `ProducerRecord`。
-
-用户可以对如何将数据写到 Kafka 进行细粒度的控制。你可以通过 producer record：
-
-* 设置 header 值
-* 为每个 record 定义 key
-* 指定数据的自定义分区
-
-<a name="kafka-producers-and-fault-tolerance"></a>
-
-### Kafka Producer 和容错
-
-启用 Flink 的 checkpointing 后，`FlinkKafkaProducer` 可以提供精确一次的语义保证。
-
-除了启用 Flink 的 checkpointing，你也可以通过将适当的 `semantic` 参数传递给 `FlinkKafkaProducer` 来选择三种不同的操作模式：
-
-* `Semantic.NONE`：Flink 不会有任何语义的保证，产生的记录可能会丢失或重复。
-* `Semantic.AT_LEAST_ONCE`（默认设置）：可以保证不会丢失任何记录（但是记录可能会重复）
-* `Semantic.EXACTLY_ONCE`：使用 Kafka 事务提供精确一次语义。无论何时，在使用事务写入 Kafka 时，都要记得为所有消费 Kafka 消息的应用程序设置所需的 `isolation.level`（`read_committed` 或 `read_uncommitted` - 后者是默认值）。
-
-<a name="caveats"></a>
-
-##### 注意事项
-
-`Semantic.EXACTLY_ONCE` 模式依赖于事务提交的能力。事务提交发生于触发 checkpoint 之前，以及从 checkpoint 恢复之后。如果从 Flink 应用程序崩溃到完全重启的时间超过了 Kafka 的事务超时时间，那么将会有数据丢失（Kafka 会自动丢弃超出超时时间的事务）。考虑到这一点，请根据预期的宕机时间来合理地配置事务超时时间。
-
-默认情况下，Kafka broker 将 `transaction.max.timeout.ms` 设置为 15 分钟。此属性不允许为大于其值的 producer 设置事务超时时间。
-默认情况下，`FlinkKafkaProducer` 将 producer config 中的 `transaction.timeout.ms` 属性设置为 1 小时，因此在使用 `Semantic.EXACTLY_ONCE` 模式之前应该增加 `transaction.max.timeout.ms` 的值。
-
-在 `KafkaConsumer` 的 `read_committed` 模式中，任何未结束（既未中止也未完成）的事务将阻塞来自给定 Kafka topic 的未结束事务之后的所有读取数据。
-换句话说，在遵循如下一系列事件之后：
-
-1. 用户启动了 `transaction1` 并使用它写了一些记录
-2. 用户启动了 `transaction2` 并使用它编写了一些其他记录
-3. 用户提交了 `transaction2`
-
-即使 `transaction2` 中的记录已提交，在提交或中止 `transaction1` 之前，消费者也不会看到这些记录。这有 2 层含义：
-
- * 首先，在 Flink 应用程序的正常工作期间，用户可以预料 Kafka 主题中生成的记录的可见性会延迟，相当于已完成 checkpoint 之间的平均时间。
- * 其次，在 Flink 应用程序失败的情况下，此应用程序正在写入的供消费者读取的主题将被阻塞，直到应用程序重新启动或配置的事务超时时间过去后，才恢复正常。此标注仅适用于有多个 agent 或者应用程序写入同一 Kafka 主题的情况。
-
-**注意**：`Semantic.EXACTLY_ONCE` 模式为每个 `FlinkKafkaProducer` 实例使用固定大小的 KafkaProducer 池。每个 checkpoint 使用其中一个 producer。如果并发 checkpoint 的数量超过池的大小，`FlinkKafkaProducer` 将抛出异常，并导致整个应用程序失败。请合理地配置最大池大小和最大并发 checkpoint 数量。
-
-**注意**：`Semantic.EXACTLY_ONCE` 会尽一切可能不留下任何逗留的事务，否则会阻塞其他消费者从这个 Kafka topic 中读取数据。但是，如果 Flink 应用程序在第一次 checkpoint 之前就失败了，那么在重新启动此类应用程序后，系统中不会有先前池大小（pool size）相关的信息。因此，在第一次 checkpoint 完成前对 Flink 应用程序进行缩容，且并发数缩容倍数大于安全系数 `FlinkKafkaProducer.SAFE_SCALE_DOWN_FACTOR` 的值的话，是不安全的。同样，在这种情况使用 `setTransactionalIdPrefix()` 改变 `transactional.id` 也是不安全的，因为系统也不知道先前使用的 `transactional.id` 前缀。
-
-<a name="kafka-connector-metrics"></a>
+如需参考，请参阅 Flink 1.13 [文档](https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-producer)。
 
 ## Kafka 连接器指标
 
-Flink 的 Kafka 连接器通过 Flink 的 [metric 系统]({{< ref "docs/ops/metrics" >}}) 提供一些指标来分析 Kafka Connector 的状况。Producer 通过 Flink 的 metrics 系统为所有支持的版本导出 Kafka 的内部指标。consumer 从 Kafka 0.10 版本开始导出所有指标。Kafka 在其[文档](http://kafka.apache.org/documentation/#selector_monitoring)中列出了所有导出的指标。
+Flink 的 Kafka 连接器通过 Flink 的[指标系统]({{< ref "docs/ops/metrics" >}})提供一些指标来帮助分析 connector 的行为。
+各个版本的 Kafka producer 和 consumer 会通过 Flink 的指标系统汇报 Kafka 内部的指标。
+[该 Kafka 文档](http://kafka.apache.org/documentation/#selector_monitoring)列出了所有汇报的指标。
 
-除了这些指标之外，所有 consumer 都暴露了每个主题分区的 `current-offsets` 和 `committed-offsets`。`current-offsets` 是指分区中的当前偏移量。指的是我们成功检索和发出的最后一个元素的偏移量。`committed-offsets` 是最后提交的偏移量。这为用户提供了 at-least-once 语义，用于提交给 Zookeeper 或 broker 的偏移量。对于 Flink 的偏移检查点，系统提供精准一次语义。
-
-提交给 ZK 或 broker 的偏移量也可以用来跟踪 Kafka consumer 的读取进度。每个分区中提交的偏移量和最近偏移量之间的差异称为 *consumer lag*。如果 Flink 拓扑消耗来自 topic 的数据的速度比添加新数据的速度慢，那么延迟将会增加，consumer 将会滞后。对于大型生产部署，我们建议监视该指标，以避免增加延迟。
-
-<a name="enabling-kerberos-authentication"></a>
+同样也可通过将 Kafka source 在[该章节]({{< relref "#kafka-connector-metrics" >}})描述的 `register.consumer.metrics`，或 Kafka
+sink 的 `register.producer.metrics` 配置设置为 false 来关闭 Kafka 指标的注册。
 
 ## 启用 Kerberos 身份验证
 
 Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置的 Kafka 安装进行身份验证。只需在 `flink-conf.yaml` 中配置 Flink。像这样为 Kafka 启用 Kerberos 身份验证：
 
-1. 通过设置以下内容配置 Kerberos 票据 
- - `security.kerberos.login.use-ticket-cache`：默认情况下，这个值是 `true`，Flink 将尝试在 `kinit` 管理的票据缓存中使用 Kerberos 票据。注意！在 YARN 上部署的 Flink  jobs 中使用 Kafka 连接器时，使用票据缓存的 Kerberos 授权将不起作用。
- - `security.kerberos.login.keytab` 和 `security.kerberos.login.principal`：要使用 Kerberos keytabs，需为这两个属性设置值。
+1. 通过设置以下内容配置 Kerberos 票据
+- `security.kerberos.login.use-ticket-cache`：默认情况下，这个值是 `true`，Flink 将尝试在 `kinit` 管理的票据缓存中使用 Kerberos 票据。注意！在 YARN 上部署的 Flink  jobs 中使用 Kafka 连接器时，使用票据缓存的 Kerberos 授权将不起作用。
+- `security.kerberos.login.keytab` 和 `security.kerberos.login.principal`：要使用 Kerberos keytabs，需为这两个属性设置值。
 
 2. 将 `KafkaClient` 追加到 `security.kerberos.login.contexts`：这告诉 Flink 将配置的 Kerberos 票据提供给 Kafka 登录上下文以用于 Kafka 身份验证。
 

@@ -59,6 +59,7 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.jsonArray;
 import static org.apache.flink.table.api.Expressions.jsonObject;
+import static org.apache.flink.table.api.Expressions.jsonString;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.nullOf;
 import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.EMPTY_ARRAY;
@@ -79,6 +80,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         testCases.add(jsonValueSpec());
         testCases.addAll(isJsonSpec());
         testCases.addAll(jsonQuerySpec());
+        testCases.addAll(jsonStringSpec());
         testCases.addAll(jsonObjectSpec());
         testCases.addAll(jsonArraySpec());
 
@@ -436,6 +438,128 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiRuntimeError(
                                 $("f0").jsonQuery("strict $.err10", WITHOUT_ARRAY, NULL, ERROR),
                                 "No results for path"));
+    }
+
+    private static List<TestSpec> jsonStringSpec() {
+        final Map<String, String> mapData = new HashMap<>();
+        mapData.put("M1", "V1");
+        mapData.put("M2", "V2");
+
+        final Map<String, Integer> multisetData = new HashMap<>();
+        multisetData.put("M1", 1);
+        multisetData.put("M2", 2);
+
+        return Arrays.asList(
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
+                        .onFieldsWithData(0)
+                        .testResult(
+                                jsonString(nullOf(STRING())),
+                                "JSON_STRING(CAST(NULL AS STRING))",
+                                null,
+                                STRING().nullable()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
+                        .onFieldsWithData(
+                                "V",
+                                true,
+                                1,
+                                1.23d,
+                                1.23,
+                                LocalDateTime.parse("1990-06-02T13:37:42.001"),
+                                Instant.parse("1990-06-02T13:37:42.001Z"),
+                                Arrays.asList("A1", "A2", "A3"),
+                                Row.of("R1", Instant.parse("1990-06-02T13:37:42.001Z")),
+                                mapData,
+                                multisetData,
+                                "Test".getBytes(StandardCharsets.UTF_8),
+                                "Test".getBytes(StandardCharsets.UTF_8),
+                                Row.of(Collections.singletonList(Row.of(1, 2))))
+                        .andDataTypes(
+                                STRING().notNull(),
+                                BOOLEAN().notNull(),
+                                INT().notNull(),
+                                DOUBLE().notNull(),
+                                DECIMAL(3, 2).notNull(),
+                                TIMESTAMP(3).notNull(),
+                                TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull(),
+                                ARRAY(STRING()).notNull(),
+                                ROW(STRING(), TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)).notNull(),
+                                MAP(STRING(), STRING()).notNull(),
+                                MAP(STRING(), INT()).notNull(),
+                                BINARY(4).notNull(),
+                                VARBINARY(4).notNull(),
+                                ROW(ARRAY(ROW(INT(), INT()))).notNull())
+                        .withFunction(CreateMultiset.class)
+                        .testResult(
+                                resultSpec(
+                                        jsonString($("f0")),
+                                        "JSON_STRING(f0)",
+                                        "\"V\"",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f1")),
+                                        "JSON_STRING(f1)",
+                                        "true",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f2")),
+                                        "JSON_STRING(f2)",
+                                        "1",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f3")),
+                                        "JSON_STRING(f3)",
+                                        "1.23",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f4")),
+                                        "JSON_STRING(f4)",
+                                        "1.23",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f5")),
+                                        "JSON_STRING(f5)",
+                                        "\"1990-06-02T13:37:42.001\"",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f6")),
+                                        "JSON_STRING(f6)",
+                                        "\"1990-06-02T13:37:42.001Z\"",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f7")),
+                                        "JSON_STRING(f7)",
+                                        "[\"A1\",\"A2\",\"A3\"]",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f8")),
+                                        "JSON_STRING(f8)",
+                                        "{\"f0\":\"R1\",\"f1\":\"1990-06-02T13:37:42.001Z\"}",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f9")),
+                                        "JSON_STRING(f9)",
+                                        "{\"M1\":\"V1\",\"M2\":\"V2\"}",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f10")),
+                                        "JSON_STRING(f10)",
+                                        "{\"M1\":1,\"M2\":2}",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f11")),
+                                        "JSON_STRING(f11)",
+                                        "\"VGVzdA==\"",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f12")),
+                                        "JSON_STRING(f12)",
+                                        "\"VGVzdA==\"",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f13")),
+                                        "JSON_STRING(f13)",
+                                        "{\"f0\":[{\"f0\":1,\"f1\":2}]}",
+                                        STRING().notNull())));
     }
 
     private static List<TestSpec> jsonObjectSpec() {

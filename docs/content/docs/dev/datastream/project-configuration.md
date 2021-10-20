@@ -283,7 +283,7 @@ run the '`mvn clean package`' command.
 You will __find a JAR file__ that contains your application, plus connectors and libraries
 that you may have added as dependencies to the application: `target/<artifact-id>-<version>.jar`.
 
-__Note:__ If you use a different class than *StreamingJob* as the application's main class / entry point,
+__Note:__ If you use a different class than *DataStreamJob* as the application's main class / entry point,
 we recommend you change the `mainClass` setting in the `pom.xml` file accordingly. That way, Flink
 can run the application from the JAR file without additionally specifying the main class.
 

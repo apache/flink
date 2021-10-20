@@ -1050,6 +1050,13 @@ object ScalarOperatorGens {
           s""" "" + $converterTerm.toExternal(${terms.head})"""
       }
 
+    case (RAW, BINARY | VARBINARY) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+        val serializer = operand.resultType.asInstanceOf[RawType[_]].getTypeSerializer
+        val serTerm = ctx.addReusableObject(serializer, "serializer")
+        operandTerm => s"$operandTerm.toBytes($serTerm)"
+      }
+
     // * (not Date/Time/Timestamp) -> String
     // TODO: GenericType with Date/Time/Timestamp -> String would call toString implicitly
     case (_, VARCHAR | CHAR) =>
@@ -1140,11 +1147,20 @@ object ScalarOperatorGens {
       }
 
     case (VARCHAR | CHAR, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(
-        ctx, targetType, operand, resultNullable = true) { operandTerm =>
+      generateCallWithStmtIfArgsNotNull(
+        ctx, targetType, Seq(operand), resultNullable = true) { operands =>
         val zone = ctx.addReusableSessionTimeZone()
         val method = qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP_TIME_ZONE)
-        s"$TIMESTAMP_DATA.fromEpochMillis($method($operandTerm.toString(), $zone))"
+        val toTimestampResultName = newName("toTimestampResult")
+        // this method call might return null
+        val stmt = s"Long $toTimestampResultName = $method(${operands.head}.toString(), $zone);"
+        val result =
+          s"""
+             |($toTimestampResultName == null ?
+             |  null :
+             |  $TIMESTAMP_DATA.fromEpochMillis($toTimestampResultName))
+             |""".stripMargin
+        (stmt, result)
       }
 
     // String -> binary

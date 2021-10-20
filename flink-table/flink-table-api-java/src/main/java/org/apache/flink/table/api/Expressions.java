@@ -45,6 +45,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRe
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_STRING;
 
 /**
  * Entry point of the Table API Expression DSL such as: {@code $("myField").plus(10).abs()}
@@ -626,6 +627,28 @@ public final class Expressions {
                 Stream.concat(Stream.of(onNull), Arrays.stream(keyValues)).toArray(Object[]::new);
 
         return apiCall(JSON_OBJECT, arguments);
+    }
+
+    /**
+     * Serializes a value into JSON.
+     *
+     * <p>This function returns a JSON string containing the serialized value. If the value is
+     * {@code null}, the function returns {@code null}.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // null
+     * jsonString(nullOf(DataTypes.INT()))
+     *
+     * jsonString(1)                   // "1"
+     * jsonString(true)                // "true"
+     * jsonString("Hello, World!")     // "\"Hello, World!\""
+     * jsonString(Arrays.asList(1, 2)) // "[1,2]"
+     * }</pre>
+     */
+    public static ApiExpression jsonString(Object value) {
+        return apiCallAtLeastOneArgument(JSON_STRING, value);
     }
 
     /**

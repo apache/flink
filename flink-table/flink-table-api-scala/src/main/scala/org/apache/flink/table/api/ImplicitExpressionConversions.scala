@@ -808,6 +808,27 @@ trait ImplicitExpressionConversions {
   def not(expression: Expression): Expression = Expressions.not(expression)
 
   /**
+   * Serializes a value into JSON.
+   *
+   * This function returns a JSON string containing the serialized value. If the value is `null`,
+   * the function returns `null`.
+   *
+   * Examples:
+   * {{{
+   * // null
+   * jsonString(nullOf(DataTypes.INT()))
+   *
+   * jsonString(1)                   // "1"
+   * jsonString(true)                // "true"
+   * jsonString("Hello, World!")     // "\"Hello, World!\""
+   * jsonString(Arrays.asList(1, 2)) // "[1,2]"
+   * }}}
+   */
+  def jsonString(value: Expression): Expression = {
+    Expressions.jsonString(value)
+  }
+
+  /**
    * Builds a JSON object string from a list of key-value pairs.
    *
    * `keyValues` is an even-numbered list of alternating key/value pairs. Note that keys must be

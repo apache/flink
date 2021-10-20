@@ -26,9 +26,19 @@ import org.apache.flink.types.Row;
 
 import org.junit.runners.Parameterized;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BINARY;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.BYTES;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.row;
@@ -46,19 +56,13 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                         .andDataTypes(DataTypes.of("ROW<otherNameInt INT, otherNameString STRING>"))
                         .withFunction(RowToFirstField.class)
                         .testResult(
-                                call("RowToFirstField", $("f0")),
-                                "RowToFirstField(f0)",
-                                12,
-                                DataTypes.INT()),
+                                call("RowToFirstField", $("f0")), "RowToFirstField(f0)", 12, INT()),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "implicit with type widening")
                         .onFieldsWithData(Row.of((byte) 12, "Hello"))
                         .andDataTypes(DataTypes.of("ROW<i TINYINT, s STRING>"))
                         .withFunction(RowToFirstField.class)
                         .testResult(
-                                call("RowToFirstField", $("f0")),
-                                "RowToFirstField(f0)",
-                                12,
-                                DataTypes.INT()),
+                                call("RowToFirstField", $("f0")), "RowToFirstField(f0)", 12, INT()),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "implicit with nested type widening")
@@ -77,21 +81,14 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                         .andDataTypes(DataTypes.of("ROW<r ROW<i1 INT, i2 INT, i3 INT>, s STRING>"))
                         .testResult(
                                 $("f0").cast(
-                                                DataTypes.ROW(
-                                                        DataTypes.FIELD(
+                                                ROW(
+                                                        FIELD(
                                                                 "r",
-                                                                DataTypes.ROW(
-                                                                        DataTypes.FIELD(
-                                                                                "s",
-                                                                                DataTypes.STRING()),
-                                                                        DataTypes.FIELD(
-                                                                                "b",
-                                                                                DataTypes
-                                                                                        .BOOLEAN()),
-                                                                        DataTypes.FIELD(
-                                                                                "i",
-                                                                                DataTypes.INT()))),
-                                                        DataTypes.FIELD("s", DataTypes.STRING()))),
+                                                                ROW(
+                                                                        FIELD("s", STRING()),
+                                                                        FIELD("b", BOOLEAN()),
+                                                                        FIELD("i", INT()))),
+                                                        FIELD("s", STRING()))),
                                 "CAST(f0 AS ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>)",
                                 Row.of(Row.of("12", true, null), "Hello"),
                                 // the inner NOT NULL is ignored in SQL because the outer ROW is
@@ -105,22 +102,16 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                         .andDataTypes(DataTypes.of("ROW<r ROW<i1 INT, i2 INT, i3 INT>, s STRING>"))
                         .testTableApiResult(
                                 $("f0").cast(
-                                                DataTypes.ROW(
-                                                        DataTypes.FIELD(
+                                                ROW(
+                                                        FIELD(
                                                                 "r",
-                                                                DataTypes.ROW(
-                                                                        DataTypes.FIELD(
+                                                                ROW(
+                                                                        FIELD(
                                                                                 "s",
-                                                                                DataTypes.STRING()
-                                                                                        .notNull()),
-                                                                        DataTypes.FIELD(
-                                                                                "b",
-                                                                                DataTypes
-                                                                                        .BOOLEAN()),
-                                                                        DataTypes.FIELD(
-                                                                                "i",
-                                                                                DataTypes.INT()))),
-                                                        DataTypes.FIELD("s", DataTypes.STRING()))),
+                                                                                STRING().notNull()),
+                                                                        FIELD("b", BOOLEAN()),
+                                                                        FIELD("i", INT()))),
+                                                        FIELD("s", STRING()))),
                                 Row.of(Row.of("12", true, null), "Hello"),
                                 DataTypes.of(
                                         "ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>")),
@@ -136,7 +127,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                         call("StructuredTypeConstructor", row($("f0"), $("f1")))),
                                 "RowToFirstField(StructuredTypeConstructor((f0, f1)))",
                                 12,
-                                DataTypes.INT()),
+                                INT()),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "explicit between structured type and row")
@@ -144,25 +135,60 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                         .withFunction(StructuredTypeConstructor.class)
                         .testTableApiResult(
                                 call("StructuredTypeConstructor", row($("f0"), $("f1")))
-                                        .cast(
-                                                DataTypes.ROW(
-                                                        DataTypes.BIGINT(), DataTypes.STRING())),
+                                        .cast(ROW(BIGINT(), STRING())),
                                 Row.of(12L, "Ingo"),
-                                DataTypes.ROW(DataTypes.BIGINT(), DataTypes.STRING())),
+                                ROW(BIGINT(), STRING())),
+
+                // https://issues.apache.org/jira/browse/FLINK-24419  Not trimmed to 3
+                TestSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "cast from RAW(Integer) to BINARY(3)")
+                        .onFieldsWithData(123456)
+                        .andDataTypes(INT())
+                        .withFunction(IntegerToRaw.class)
+                        .testTableApiResult(
+                                call("IntegerToRaw", $("f0")).cast(BINARY(3)),
+                                new byte[] {0, 1, -30, 64},
+                                BINARY(3)),
+                TestSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST, "cast from RAW(Integer) to BYTES")
+                        .onFieldsWithData(123456)
+                        .andDataTypes(INT())
+                        .withFunction(IntegerToRaw.class)
+                        .testTableApiResult(
+                                call("IntegerToRaw", $("f0")).cast(BYTES()),
+                                new byte[] {0, 1, -30, 64},
+                                BYTES()),
+                TestSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "cast from RAW(UserPojo) to VARBINARY")
+                        .onFieldsWithData(123456, "Flink")
+                        .andDataTypes(INT(), STRING())
+                        .withFunction(StructuredTypeConstructor.class)
+                        .withFunction(PojoToRaw.class)
+                        .testTableApiResult(
+                                call(
+                                                "PojoToRaw",
+                                                call(
+                                                        "StructuredTypeConstructor",
+                                                        row($("f0"), $("f1"))))
+                                        .cast(VARBINARY(50)),
+                                new byte[] {0, 1, -30, 64, 0, 70, 0, 108, 0, 105, 0, 110, 0, 107},
+                                VARBINARY(50)),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "test the x'....' binary syntax")
                         .onFieldsWithData("foo")
                         .testSqlResult(
                                 "CAST(CAST(x'68656C6C6F20636F6465' AS BINARY) AS VARCHAR)",
                                 "hello code",
-                                DataTypes.STRING().notNull()),
+                                STRING().notNull()),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "test the x'....' binary syntax")
                         .onFieldsWithData("foo")
                         .testSqlResult(
                                 "CAST(CAST(x'68656C6C6F2063617374' AS BINARY) AS VARCHAR)",
                                 "hello cast",
-                                DataTypes.STRING().notNull()));
+                                STRING().notNull()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -202,6 +228,29 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
         public UserPojo(Integer i, String s) {
             this.i = i;
             this.s = s;
+        }
+    }
+
+    /** Test Raw with built-in Java class. */
+    public static class IntegerToRaw extends ScalarFunction {
+
+        public @DataTypeHint(value = "RAW", bridgedTo = byte[].class) byte[] eval(Integer i) {
+            ByteBuffer b = ByteBuffer.allocate(4);
+            b.putInt(i);
+            return b.array();
+        }
+    }
+
+    /** Test Raw with custom class. */
+    public static class PojoToRaw extends ScalarFunction {
+
+        public @DataTypeHint(value = "RAW", bridgedTo = byte[].class) byte[] eval(UserPojo up) {
+            ByteBuffer b = ByteBuffer.allocate((up.s.length() * 2) + 4);
+            b.putInt(up.i);
+            for (char c : up.s.toCharArray()) {
+                b.putChar(c);
+            }
+            return b.array();
         }
     }
 }

@@ -20,12 +20,11 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
@@ -35,7 +34,6 @@ import javax.annotation.Nullable;
 
 import java.io.PrintWriter;
 import java.time.ZoneId;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -48,18 +46,12 @@ import java.util.concurrent.TimeoutException;
 
 /** Implementation for {@link TableResult}. */
 @Internal
-public class TableResultImpl implements TableResult {
-    public static final TableResult TABLE_RESULT_OK =
-            TableResultImpl.builder()
-                    .resultKind(ResultKind.SUCCESS)
-                    .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
-                    .data(Collections.singletonList(Row.of("OK")))
-                    .build();
+public class TableResultImpl implements TableResultInternal {
 
     private final JobClient jobClient;
     private final ResolvedSchema resolvedSchema;
     private final ResultKind resultKind;
-    private final CloseableRowIteratorWrapper data;
+    private final ResultProvider resultProvider;
     private final PrintStyle printStyle;
     private final ZoneId sessionTimeZone;
 
@@ -67,15 +59,15 @@ public class TableResultImpl implements TableResult {
             @Nullable JobClient jobClient,
             ResolvedSchema resolvedSchema,
             ResultKind resultKind,
-            CloseableIterator<Row> data,
+            ResultProvider resultProvider,
             PrintStyle printStyle,
             ZoneId sessionTimeZone) {
         this.jobClient = jobClient;
         this.resolvedSchema =
                 Preconditions.checkNotNull(resolvedSchema, "resolvedSchema should not be null");
         this.resultKind = Preconditions.checkNotNull(resultKind, "resultKind should not be null");
-        Preconditions.checkNotNull(data, "data should not be null");
-        this.data = new CloseableRowIteratorWrapper(data);
+        Preconditions.checkNotNull(resultProvider, "result provider should not be null");
+        this.resultProvider = resultProvider;
         this.printStyle = Preconditions.checkNotNull(printStyle, "printStyle should not be null");
         this.sessionTimeZone =
                 Preconditions.checkNotNull(sessionTimeZone, "sessionTimeZone should not be null");
@@ -113,7 +105,7 @@ public class TableResultImpl implements TableResult {
             CompletableFuture<Void> future =
                     CompletableFuture.runAsync(
                             () -> {
-                                while (!data.isFirstRowReady()) {
+                                while (!resultProvider.isFirstRowReady()) {
                                     try {
                                         Thread.sleep(100);
                                     } catch (InterruptedException e) {
@@ -145,12 +137,17 @@ public class TableResultImpl implements TableResult {
 
     @Override
     public CloseableIterator<Row> collect() {
-        return data;
+        return resultProvider.toExternalIterator();
+    }
+
+    @Override
+    public CloseableIterator<RowData> collectInternal() {
+        return resultProvider.toInternalIterator();
     }
 
     @Override
     public void print() {
-        Iterator<Row> it = collect();
+        Iterator<RowData> it = resultProvider.toInternalIterator();
         if (printStyle instanceof TableauStyle) {
             int maxColumnWidth = ((TableauStyle) printStyle).getMaxColumnWidth();
             String nullColumn = ((TableauStyle) printStyle).getNullColumn();
@@ -188,7 +185,7 @@ public class TableResultImpl implements TableResult {
         private JobClient jobClient = null;
         private ResolvedSchema resolvedSchema = null;
         private ResultKind resultKind = null;
-        private CloseableIterator<Row> data = null;
+        private ResultProvider resultProvider = null;
         private PrintStyle printStyle =
                 PrintStyle.tableau(Integer.MAX_VALUE, PrintUtils.NULL_COLUMN, false, false);
         private ZoneId sessionTimeZone = ZoneId.of("UTC");
@@ -227,14 +224,9 @@ public class TableResultImpl implements TableResult {
             return this;
         }
 
-        /**
-         * Specifies an row iterator as the execution result.
-         *
-         * @param rowIterator a row iterator as the execution result.
-         */
-        public Builder data(CloseableIterator<Row> rowIterator) {
-            Preconditions.checkNotNull(rowIterator, "rowIterator should not be null");
-            this.data = rowIterator;
+        public Builder resultProvider(ResultProvider resultProvider) {
+            Preconditions.checkNotNull(resultProvider, "resultProvider should not be null");
+            this.resultProvider = resultProvider;
             return this;
         }
 
@@ -245,7 +237,7 @@ public class TableResultImpl implements TableResult {
          */
         public Builder data(List<Row> rowList) {
             Preconditions.checkNotNull(rowList, "listRows should not be null");
-            this.data = CloseableIterator.adapterForIterator(rowList.iterator());
+            this.resultProvider = new StaticResultProvider(rowList);
             return this;
         }
 
@@ -264,9 +256,14 @@ public class TableResultImpl implements TableResult {
         }
 
         /** Returns a {@link TableResult} instance. */
-        public TableResult build() {
+        public TableResultInternal build() {
             return new TableResultImpl(
-                    jobClient, resolvedSchema, resultKind, data, printStyle, sessionTimeZone);
+                    jobClient,
+                    resolvedSchema,
+                    resultKind,
+                    resultProvider,
+                    printStyle,
+                    sessionTimeZone);
         }
     }
 
@@ -343,44 +340,4 @@ public class TableResultImpl implements TableResult {
      * only print the result content as raw form. column delimiter is ",", row delimiter is "\n".
      */
     private static final class RawContentStyle implements PrintStyle {}
-
-    /**
-     * A {@link CloseableIterator} wrapper class that can return whether the first row is ready.
-     *
-     * <p>The first row is ready when {@link #hasNext} method returns true or {@link #next()} method
-     * returns a row. The execution order of {@link TableResult#collect} method and {@link
-     * TableResult#await()} may be arbitrary, this class will record whether the first row is ready
-     * (or accessed).
-     */
-    private static final class CloseableRowIteratorWrapper implements CloseableIterator<Row> {
-        private final CloseableIterator<Row> iterator;
-        private boolean isFirstRowReady = false;
-
-        private CloseableRowIteratorWrapper(CloseableIterator<Row> iterator) {
-            this.iterator = iterator;
-        }
-
-        @Override
-        public void close() throws Exception {
-            iterator.close();
-        }
-
-        @Override
-        public boolean hasNext() {
-            boolean hasNext = iterator.hasNext();
-            isFirstRowReady = isFirstRowReady || hasNext;
-            return hasNext;
-        }
-
-        @Override
-        public Row next() {
-            Row next = iterator.next();
-            isFirstRowReady = true;
-            return next;
-        }
-
-        public boolean isFirstRowReady() {
-            return isFirstRowReady || hasNext();
-        }
-    }
 }
