@@ -841,7 +841,7 @@ json:
   - sql: JSON_OBJECT([[KEY] key VALUE value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonObject(JsonOnNull, keyValues...)
     description: |
-      将一个键值对的列表构建成 JSON 对象字符串。
+      将键值对列表构建为 JSON 对象字符串。
 
       注意，键必须是非 'NULL' 字符串自变量，而值可以是任意表达式。
 
