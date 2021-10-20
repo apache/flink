@@ -879,7 +879,7 @@ json:
 
       这个函数返回一个 JSON 字符串，值可以是任意表达式。'ON NULL' 行为定义了如何处理 'NULL' 值。如果省略，则假定 'ABSENT ON NULL' 为默认值。
 
-      元素是由另一个 JSON 构造函数调用 ('JSON_OBJECT'，'JSON_ARRAY') 直接插入所创建，而不是作为一个字符串。他允许构建嵌套的 JSON 结构。
+      元素是由另一个 JSON 构造函数调用 ('JSON_OBJECT'，'JSON_ARRAY') 直接插入所创建，而不是作为一个字符串。它允许构建嵌套的 JSON 结构。
 
       ```
       -- '[]'
