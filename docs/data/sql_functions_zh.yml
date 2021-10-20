@@ -800,7 +800,7 @@ json:
     description: |
       从 JSON 字符串中提取 JSON 值。
 
-      结果总是以 'STRING' 的形式返回。'RETURNING' 的子句目前不受支持。
+      结果总是以 `STRING` 的形式返回。目前尚不支持 `RETURNING` 子句。
 
       'wrappingBehavior' 决定是否将提取的值包装到一个数组中，以及是否无条件地这样做，还是只有当值本身不是数组时才这样做。
 
