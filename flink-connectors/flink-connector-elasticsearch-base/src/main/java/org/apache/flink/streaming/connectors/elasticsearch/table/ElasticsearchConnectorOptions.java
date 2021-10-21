@@ -22,17 +22,20 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.description.Description;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
+import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.connector.elasticsearch.sink.FlushBackoffType;
 
 import java.time.Duration;
 import java.util.List;
 
-import static org.apache.flink.configuration.description.TextElement.text;
-
-/** Options for the Elasticsearch connector. */
+/**
+ * Base options for the Elasticsearch connector. Needs to be public so that the {@link
+ * org.apache.flink.table.api.TableDescriptor} can access it.
+ */
 @PublicEvolving
 public class ElasticsearchConnectorOptions {
+
+    ElasticsearchConnectorOptions() {}
 
     public static final ConfigOption<List<String>> HOSTS_OPTION =
             ConfigOptions.key("hosts")
@@ -46,12 +49,6 @@ public class ElasticsearchConnectorOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Elasticsearch index for every record.");
-
-    public static final ConfigOption<String> DOCUMENT_TYPE_OPTION =
-            ConfigOptions.key("document-type")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Elasticsearch document type.");
 
     public static final ConfigOption<String> PASSWORD_OPTION =
             ConfigOptions.key("password")
@@ -72,38 +69,13 @@ public class ElasticsearchConnectorOptions {
                     .withDescription(
                             "Delimiter for composite keys e.g., \"$\" would result in IDs \"KEY1$KEY2$KEY3\".");
 
-    public static final ConfigOption<String> FAILURE_HANDLER_OPTION =
-            ConfigOptions.key("failure-handler")
-                    .stringType()
-                    .defaultValue("fail")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Failure handling strategy in case a request to Elasticsearch fails")
-                                    .list(
-                                            text(
-                                                    "\"fail\" (throws an exception if a request fails and thus causes a job failure)"),
-                                            text(
-                                                    "\"ignore\" (ignores failures and drops the request)"),
-                                            text(
-                                                    "\"retry-rejected\" (re-adds requests that have failed due to queue capacity saturation)"),
-                                            text(
-                                                    "\"class name\" for failure handling with a ActionRequestFailureHandler subclass"))
-                                    .build());
-
-    public static final ConfigOption<Boolean> FLUSH_ON_CHECKPOINT_OPTION =
-            ConfigOptions.key("sink.flush-on-checkpoint")
-                    .booleanType()
-                    .defaultValue(true)
-                    .withDescription("Disables flushing on checkpoint");
-
     public static final ConfigOption<Integer> BULK_FLUSH_MAX_ACTIONS_OPTION =
             ConfigOptions.key("sink.bulk-flush.max-actions")
                     .intType()
                     .defaultValue(1000)
                     .withDescription("Maximum number of actions to buffer for each bulk request.");
 
-    public static final ConfigOption<MemorySize> BULK_FLASH_MAX_SIZE_OPTION =
+    public static final ConfigOption<MemorySize> BULK_FLUSH_MAX_SIZE_OPTION =
             ConfigOptions.key("sink.bulk-flush.max-size")
                     .memoryType()
                     .defaultValue(MemorySize.parse("2mb"))
@@ -115,10 +87,10 @@ public class ElasticsearchConnectorOptions {
                     .defaultValue(Duration.ofSeconds(1))
                     .withDescription("Bulk flush interval");
 
-    public static final ConfigOption<BackOffType> BULK_FLUSH_BACKOFF_TYPE_OPTION =
+    public static final ConfigOption<FlushBackoffType> BULK_FLUSH_BACKOFF_TYPE_OPTION =
             ConfigOptions.key("sink.bulk-flush.backoff.strategy")
-                    .enumType(BackOffType.class)
-                    .defaultValue(BackOffType.DISABLED)
+                    .enumType(FlushBackoffType.class)
+                    .noDefaultValue()
                     .withDescription("Backoff strategy");
 
     public static final ConfigOption<Integer> BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION =
@@ -133,13 +105,7 @@ public class ElasticsearchConnectorOptions {
                     .noDefaultValue()
                     .withDescription("Delay between each backoff attempt.");
 
-    public static final ConfigOption<Duration> CONNECTION_MAX_RETRY_TIMEOUT_OPTION =
-            ConfigOptions.key("connection.max-retry-timeout")
-                    .durationType()
-                    .noDefaultValue()
-                    .withDescription("Maximum timeout between retries.");
-
-    public static final ConfigOption<String> CONNECTION_PATH_PREFIX =
+    public static final ConfigOption<String> CONNECTION_PATH_PREFIX_OPTION =
             ConfigOptions.key("connection.path-prefix")
                     .stringType()
                     .noDefaultValue()
@@ -153,19 +119,9 @@ public class ElasticsearchConnectorOptions {
                             "The format must produce a valid JSON document. "
                                     + "Please refer to the documentation on formats for more details.");
 
-    // --------------------------------------------------------------------------------------------
-    // Enums
-    // --------------------------------------------------------------------------------------------
-
-    /**
-     * Backoff strategy. Extends {@link ElasticsearchSinkBase.FlushBackoffType} with {@code
-     * DISABLED} option.
-     */
-    public enum BackOffType {
-        DISABLED,
-        CONSTANT,
-        EXPONENTIAL
-    }
-
-    private ElasticsearchConnectorOptions() {}
+    public static final ConfigOption<DeliveryGuarantee> DELIVERY_GUARANTEE_OPTION =
+            ConfigOptions.key("sink.delivery-guarantee")
+                    .enumType(DeliveryGuarantee.class)
+                    .defaultValue(DeliveryGuarantee.NONE)
+                    .withDescription("Optional delivery guarantee when committing.");
 }
