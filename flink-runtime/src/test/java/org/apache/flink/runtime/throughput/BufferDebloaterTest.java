@@ -16,21 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.bufferdebloat;
+package org.apache.flink.runtime.throughput;
 
-import org.apache.flink.streaming.runtime.io.MockInputGate;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.OptionalInt;
 
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** Test for {@link BufferDebloater}. */
 public class BufferDebloaterTest extends TestLogger {
@@ -41,9 +39,9 @@ public class BufferDebloaterTest extends TestLogger {
         testBufferDebloater()
                 .withDebloatTarget(1000)
                 .withBufferSize(50, 2400)
-                .withNumberOfBuffersInUse(asList(0, 1, 0))
-                .withThroughput(3333)
-                .expectBufferSize(1111);
+                .withNumberOfBuffersInUse(0)
+                .withThroughput(1200)
+                .expectBufferSize(1200);
     }
 
     @Test
@@ -51,7 +49,7 @@ public class BufferDebloaterTest extends TestLogger {
         testBufferDebloater()
                 .withDebloatTarget(1200)
                 .withBufferSize(50, 1100)
-                .withNumberOfBuffersInUse(asList(3, 5, 8))
+                .withNumberOfBuffersInUse(16)
                 .withThroughput(3333)
                 .expectBufferSize(249);
     }
@@ -61,7 +59,7 @@ public class BufferDebloaterTest extends TestLogger {
         testBufferDebloater()
                 .withDebloatTarget(1200)
                 .withBufferSize(250, 1100)
-                .withNumberOfBuffersInUse(asList(3, 5, 8))
+                .withNumberOfBuffersInUse(16)
                 .withThroughput(3333)
                 .expectBufferSize(250);
     }
@@ -72,7 +70,7 @@ public class BufferDebloaterTest extends TestLogger {
         testBufferDebloater()
                 .withDebloatTarget(1200)
                 .withBufferSize(50, 1100)
-                .withNumberOfBuffersInUse(asList(3, 5, 8))
+                .withNumberOfBuffersInUse(16)
                 .withThroughput(0)
                 .expectBufferSize(50);
     }
@@ -83,7 +81,7 @@ public class BufferDebloaterTest extends TestLogger {
         testBufferDebloater()
                 .withDebloatTarget(7)
                 .withBufferSize(50, 1100)
-                .withNumberOfBuffersInUse(asList(3, 5, 8))
+                .withNumberOfBuffersInUse(16)
                 .withThroughput(3333)
                 .expectBufferSize(50);
     }
@@ -91,100 +89,78 @@ public class BufferDebloaterTest extends TestLogger {
     @Test
     public void testCalculatedBufferSizeGreaterThanMax() {
         // New calculated buffer size should be more than max value it means that we should take max
-        // value which means that no updates should happen(-1 means that we take the initial value)
-        // because the old value equal to new value.
+        // value which means that no updates should happen because the old value equal to new value.
         testBufferDebloater()
                 .withDebloatTarget(1200)
                 .withBufferSize(50, 248)
-                .withNumberOfBuffersInUse(asList(3, 5, 8))
+                .withNumberOfBuffersInUse(16)
                 .withThroughput(3333)
-                .expectBufferSize(-1);
+                .expectNoChangeInBufferSize();
     }
 
     @Test
     public void testCalculatedBufferSlightlyDifferentFromCurrentOne() {
         // New calculated buffer size should be a little less than current value(or max value which
-        // is the same) it means that no updates should happen(-1 means that we take the initial
-        // value) because the new value is not so different from the old one.
+        // is the same) it means that no updates should happen because the new value is not so
+        // different from the old one.
         testBufferDebloater()
                 .withDebloatTarget(1200)
                 .withBufferSize(50, 250)
-                .withNumberOfBuffersInUse(asList(3, 5, 8))
+                .withNumberOfBuffersInUse(16)
                 .withThroughput(3333)
-                .expectBufferSize(-1);
+                .expectNoChangeInBufferSize();
     }
 
     @Test
     public void testAnnouncedMaxBufferSizeDespiteLastDiffLessThanThreshold() {
+        final int numberOfBuffersInUse = 1;
         BufferDebloater bufferDebloater =
                 testBufferDebloater()
                         .withDebloatTarget(1000)
                         .withBufferSize(50, 1100)
-                        .withNumberOfBuffersInUse(singletonList(1))
+                        .withNumberOfBuffersInUse(numberOfBuffersInUse)
                         .withThroughput(500)
                         .expectBufferSize(500);
 
         // Calculate the buffer size a little lower than the max buffer size.
-        bufferDebloater.recalculateBufferSize(1000);
+        bufferDebloater.recalculateBufferSize(1000, numberOfBuffersInUse);
         assertThat(bufferDebloater.getLastBufferSize(), is(1000));
 
         // Recalculate the buffer size to max value.
-        bufferDebloater.recalculateBufferSize(2000);
+        bufferDebloater.recalculateBufferSize(2000, numberOfBuffersInUse);
 
         // The max value should be announced despite it differ from the previous one by less than
         // threshold value.
         assertThat(bufferDebloater.getLastBufferSize(), is(1100));
 
         // Make sure that there is no repeated announcement of max buffer size.
-        bufferDebloater.recalculateBufferSize(2000);
+        bufferDebloater.recalculateBufferSize(2000, numberOfBuffersInUse);
     }
 
     @Test
     public void testAnnouncedMinBufferSizeEvenDespiteLastDiffLessThanThreshold() {
+        final int numberOfBuffersInUse = 1;
         BufferDebloater bufferDebloater =
                 testBufferDebloater()
                         .withDebloatTarget(1000)
                         .withBufferSize(50, 1100)
-                        .withNumberOfBuffersInUse(singletonList(1))
+                        .withNumberOfBuffersInUse(numberOfBuffersInUse)
                         .withThroughput(60)
                         .expectBufferSize(60);
 
         // Calculate the buffer size a little greater than the min buffer size.
-        bufferDebloater.recalculateBufferSize(60);
+        bufferDebloater.recalculateBufferSize(60, numberOfBuffersInUse);
         assertThat(bufferDebloater.getLastBufferSize(), is(60));
 
         // Recalculate the buffer size to min value.
-        bufferDebloater.recalculateBufferSize(40);
+        bufferDebloater.recalculateBufferSize(40, numberOfBuffersInUse);
 
         // The min value should be announced despite it differ from the previous one by less than
         // threshold value.
         assertThat(bufferDebloater.getLastBufferSize(), is(50));
 
         // Make sure that there is no repeated announcement of min buffer size.
-        bufferDebloater.recalculateBufferSize(40);
-    }
-
-    private static class TestBufferSizeInputGate extends MockInputGate {
-        private int lastBufferSize = -1;
-        private final int bufferInUseCount;
-
-        public TestBufferSizeInputGate(int bufferInUseCount) {
-            // Number of channels don't make sense here because
-            super(1, Collections.emptyList());
-            this.bufferInUseCount = bufferInUseCount;
-        }
-
-        @Override
-        public int getBuffersInUseCount() {
-            return bufferInUseCount;
-        }
-
-        @Override
-        public void announceBufferSize(int bufferSize) {
-            // Announce the same value doesn't make sense.
-            assertThat(bufferSize, is(not(lastBufferSize)));
-            lastBufferSize = bufferSize;
-        }
+        bufferDebloater.recalculateBufferSize(40, numberOfBuffersInUse);
     }
 
     public static BufferDebloaterTestBuilder testBufferDebloater() {
@@ -192,14 +168,13 @@ public class BufferDebloaterTest extends TestLogger {
     }
 
     private static class BufferDebloaterTestBuilder {
-        private List<Integer> numberOfBuffersInUse;
+        private int numberOfBuffersInUse;
         private long throughput;
-        private long minBufferSize;
-        private long maxBufferSize;
+        private int minBufferSize;
+        private int maxBufferSize;
         private int debloatTarget;
 
-        public BufferDebloaterTestBuilder withNumberOfBuffersInUse(
-                List<Integer> numberOfBuffersInUse) {
+        public BufferDebloaterTestBuilder withNumberOfBuffersInUse(Integer numberOfBuffersInUse) {
             this.numberOfBuffersInUse = numberOfBuffersInUse;
             return this;
         }
@@ -209,7 +184,7 @@ public class BufferDebloaterTest extends TestLogger {
             return this;
         }
 
-        public BufferDebloaterTestBuilder withBufferSize(long minBufferSize, long maxBufferSize) {
+        public BufferDebloaterTestBuilder withBufferSize(int minBufferSize, int maxBufferSize) {
             this.minBufferSize = minBufferSize;
             this.maxBufferSize = maxBufferSize;
             return this;
@@ -220,31 +195,35 @@ public class BufferDebloaterTest extends TestLogger {
             return this;
         }
 
-        public BufferDebloater expectBufferSize(int expectedBufferSize) {
-            int numberOfGates = numberOfBuffersInUse.size();
-            TestBufferSizeInputGate[] inputGates = new TestBufferSizeInputGate[numberOfGates];
-            for (int i = 0; i < numberOfGates; i++) {
-                inputGates[i] = new TestBufferSizeInputGate(numberOfBuffersInUse.get(i));
-            }
-
-            BufferDebloater bufferDebloater =
-                    new BufferDebloater(
-                            debloatTarget,
-                            (int) maxBufferSize,
-                            (int) minBufferSize,
-                            50,
-                            1,
-                            inputGates);
+        public void expectNoChangeInBufferSize() {
+            BufferDebloater bufferDebloater = getBufferDebloater();
 
             // when: Buffer size is calculated.
-            bufferDebloater.recalculateBufferSize(throughput);
+            final OptionalInt newBufferSize =
+                    bufferDebloater.recalculateBufferSize(throughput, numberOfBuffersInUse);
 
-            // then: Buffer size is in all gates should be as expected.
-            for (int i = 0; i < numberOfGates; i++) {
-                assertThat(inputGates[i].lastBufferSize, is(expectedBufferSize));
-            }
+            assertFalse(newBufferSize.isPresent());
+        }
 
+        public BufferDebloater expectBufferSize(int expectedBufferSize) {
+            BufferDebloater bufferDebloater = getBufferDebloater();
+
+            // when: Buffer size is calculated.
+            final OptionalInt newBufferSize =
+                    bufferDebloater.recalculateBufferSize(throughput, numberOfBuffersInUse);
+
+            assertTrue(newBufferSize.isPresent());
+            assertThat(newBufferSize.getAsInt(), is(expectedBufferSize));
             return bufferDebloater;
+        }
+
+        private BufferDebloater getBufferDebloater() {
+            return new BufferDebloater(
+                    debloatTarget,
+                    maxBufferSize,
+                    minBufferSize,
+                    BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES.defaultValue(),
+                    1);
         }
     }
 }

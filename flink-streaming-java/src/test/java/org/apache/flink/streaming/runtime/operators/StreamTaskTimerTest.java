@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -186,10 +187,9 @@ public class StreamTaskTimerTest extends TestLogger {
 
         testHarness.setupOutputForSingletonOperatorChain();
         // Making it impossible to execute the throughput calculation even once during the test.
-        testHarness
-                .getTaskManagerRuntimeInfo()
-                .getConfiguration()
-                .set(TaskManagerOptions.BUFFER_DEBLOAT_PERIOD, Duration.ofMinutes(10));
+        final Configuration taskConfig = testHarness.getTaskManagerRuntimeInfo().getConfiguration();
+        taskConfig.set(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED, true);
+        taskConfig.set(TaskManagerOptions.BUFFER_DEBLOAT_PERIOD, Duration.ofMinutes(10));
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
         streamConfig.setChainIndex(0);

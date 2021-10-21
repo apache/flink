@@ -77,7 +77,6 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
-import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
@@ -88,7 +87,6 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TaskManagerExceptionUtils;
 import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.WrappingRuntimeException;
-import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -268,7 +266,6 @@ public class Task
 
     /** atomic flag that makes sure the invokable is canceled exactly once upon error. */
     private final AtomicBoolean invokableHasBeenCanceled;
-
     /**
      * The invokable of this task, if initialized. All accesses must copy the reference and check
      * for null, as this field is cleared as part of the disposal logic.
@@ -292,9 +289,6 @@ public class Task
      * load user code.
      */
     private UserCodeClassLoader userCodeClassLoader;
-
-    /** The only one throughput meter per subtask. */
-    private ThroughputCalculator throughputCalculator;
 
     /**
      * <b>IMPORTANT:</b> This constructor may not start any work that would need to be undone in the
@@ -419,14 +413,11 @@ public class Task
                         .toArray(new IndexedInputGate[0]);
 
         this.inputGates = new IndexedInputGate[gates.length];
-        this.throughputCalculator = new ThroughputCalculator(SystemClock.getInstance());
         int counter = 0;
         for (IndexedInputGate gate : gates) {
             inputGates[counter++] =
                     new InputGateWithMetrics(
-                            gate,
-                            metrics.getIOMetricGroup().getNumBytesInCounter(),
-                            throughputCalculator);
+                            gate, metrics.getIOMetricGroup().getNumBytesInCounter());
         }
 
         if (shuffleEnvironment instanceof NettyShuffleEnvironment) {
@@ -719,8 +710,7 @@ public class Task
                             taskManagerConfig,
                             metrics,
                             this,
-                            externalResourceInfoProvider,
-                            throughputCalculator);
+                            externalResourceInfoProvider);
 
             // Make sure the user code classloader is accessible thread-locally.
             // We are setting the correct context class loader before instantiating the invokable

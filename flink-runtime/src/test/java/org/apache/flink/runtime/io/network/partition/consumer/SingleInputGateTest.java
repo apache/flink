@@ -44,7 +44,6 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
-import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -56,6 +55,8 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
@@ -543,6 +544,8 @@ public class SingleInputGateTest extends InputGateTestBase {
                         .setPartitionRequestMaxBackoff(maxBackoff)
                         .build();
 
+        final TaskMetricGroup taskMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
         SingleInputGate gate =
                 new SingleInputGateFactory(
                                 localLocation,
@@ -552,11 +555,11 @@ public class SingleInputGateTest extends InputGateTestBase {
                                 new TaskEventDispatcher(),
                                 netEnv.getNetworkBufferPool())
                         .create(
-                                "TestTask",
+                                netEnv.createShuffleIOOwnerContext(
+                                        "TestTask", taskMetricGroup.executionId(), taskMetricGroup),
                                 0,
                                 gateDesc,
-                                SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-                                InputChannelTestUtils.newUnregisteredInputChannelMetrics());
+                                SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER);
         gate.setChannelStateWriter(ChannelStateWriter.NO_OP);
 
         gate.finishReadRecoveredState();
