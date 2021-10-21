@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.elasticsearch.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -30,10 +29,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.Period;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
 
 /** An extractor for a Elasticsearch key from a {@link RowData}. */
 @Internal
@@ -79,35 +75,6 @@ class KeyExtractor implements SerializableFunction<RowData, String> {
         public int getIndex() {
             return index;
         }
-    }
-
-    @Deprecated
-    public static Function<RowData, String> createKeyExtractor(
-            TableSchema schema, String keyDelimiter) {
-        return schema.getPrimaryKey()
-                .map(
-                        key -> {
-                            Map<String, ColumnWithIndex> namesToColumns = new HashMap<>();
-                            List<TableColumn> tableColumns = schema.getTableColumns();
-                            for (int i = 0; i < schema.getFieldCount(); i++) {
-                                TableColumn column = tableColumns.get(i);
-                                namesToColumns.put(
-                                        column.getName(), new ColumnWithIndex(column, i));
-                            }
-
-                            FieldFormatter[] fieldFormatters =
-                                    key.getColumns().stream()
-                                            .map(namesToColumns::get)
-                                            .map(
-                                                    column ->
-                                                            toFormatter(
-                                                                    column.index, column.getType()))
-                                            .toArray(FieldFormatter[]::new);
-
-                            return (Function<RowData, String>)
-                                    new KeyExtractor(fieldFormatters, keyDelimiter);
-                        })
-                .orElseGet(() -> (Function<RowData, String> & Serializable) (row) -> null);
     }
 
     public static SerializableFunction<RowData, String> createKeyExtractor(

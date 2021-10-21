@@ -19,66 +19,64 @@
 package org.apache.flink.streaming.connectors.elasticsearch.table;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
-
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Tests for {@link KeyExtractor}. */
 public class KeyExtractorTest {
     @Test
     public void testSimpleKey() {
-        TableSchema schema =
-                TableSchema.builder()
-                        .field("a", DataTypes.BIGINT().notNull())
-                        .field("b", DataTypes.STRING())
-                        .primaryKey("a")
-                        .build();
+        List<LogicalTypeWithIndex> logicalTypesWithIndex =
+                Stream.of(
+                                new LogicalTypeWithIndex(
+                                        0, DataTypes.BIGINT().notNull().getLogicalType()))
+                        .collect(Collectors.toList());
 
-        Function<RowData, String> keyExtractor = KeyExtractor.createKeyExtractor(schema, "_");
+        Function<RowData, String> keyExtractor =
+                KeyExtractor.createKeyExtractor(logicalTypesWithIndex, "_");
 
         String key = keyExtractor.apply(GenericRowData.of(12L, StringData.fromString("ABCD")));
-        assertThat(key, equalTo("12"));
+        Assertions.assertEquals(key, "12");
     }
 
     @Test
     public void testNoPrimaryKey() {
-        TableSchema schema =
-                TableSchema.builder()
-                        .field("a", DataTypes.BIGINT().notNull())
-                        .field("b", DataTypes.STRING())
-                        .build();
+        List<LogicalTypeWithIndex> logicalTypesWithIndex = Collections.emptyList();
 
-        Function<RowData, String> keyExtractor = KeyExtractor.createKeyExtractor(schema, "_");
+        Function<RowData, String> keyExtractor =
+                KeyExtractor.createKeyExtractor(logicalTypesWithIndex, "_");
 
         String key = keyExtractor.apply(GenericRowData.of(12L, StringData.fromString("ABCD")));
-        assertThat(key, nullValue());
+        Assertions.assertEquals(key, null);
     }
 
     @Test
     public void testTwoFieldsKey() {
-        TableSchema schema =
-                TableSchema.builder()
-                        .field("a", DataTypes.BIGINT().notNull())
-                        .field("b", DataTypes.STRING())
-                        .field("c", DataTypes.TIMESTAMP().notNull())
-                        .primaryKey("a", "c")
-                        .build();
+        List<LogicalTypeWithIndex> logicalTypesWithIndex =
+                Stream.of(
+                                new LogicalTypeWithIndex(
+                                        0, DataTypes.BIGINT().notNull().getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        2, DataTypes.TIMESTAMP().notNull().getLogicalType()))
+                        .collect(Collectors.toList());
 
-        Function<RowData, String> keyExtractor = KeyExtractor.createKeyExtractor(schema, "_");
+        Function<RowData, String> keyExtractor =
+                KeyExtractor.createKeyExtractor(logicalTypesWithIndex, "_");
 
         String key =
                 keyExtractor.apply(
@@ -87,29 +85,44 @@ public class KeyExtractorTest {
                                 StringData.fromString("ABCD"),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.parse("2012-12-12T12:12:12"))));
-        assertThat(key, equalTo("12_2012-12-12T12:12:12"));
+        Assertions.assertEquals(key, "12_2012-12-12T12:12:12");
     }
 
     @Test
     public void testAllTypesKey() {
-        TableSchema schema =
-                TableSchema.builder()
-                        .field("a", DataTypes.TINYINT().notNull())
-                        .field("b", DataTypes.SMALLINT().notNull())
-                        .field("c", DataTypes.INT().notNull())
-                        .field("d", DataTypes.BIGINT().notNull())
-                        .field("e", DataTypes.BOOLEAN().notNull())
-                        .field("f", DataTypes.FLOAT().notNull())
-                        .field("g", DataTypes.DOUBLE().notNull())
-                        .field("h", DataTypes.STRING().notNull())
-                        .field("i", DataTypes.TIMESTAMP().notNull())
-                        .field("j", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE().notNull())
-                        .field("k", DataTypes.TIME().notNull())
-                        .field("l", DataTypes.DATE().notNull())
-                        .primaryKey("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l")
-                        .build();
+        List<LogicalTypeWithIndex> logicalTypesWithIndex =
+                Stream.of(
+                                new LogicalTypeWithIndex(
+                                        0, DataTypes.TINYINT().notNull().getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        1, DataTypes.SMALLINT().notNull().getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        2, DataTypes.INT().notNull().getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        3, DataTypes.BIGINT().notNull().getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        4, DataTypes.BOOLEAN().notNull().getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        5, DataTypes.FLOAT().notNull().getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        6, DataTypes.DOUBLE().notNull().getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        7, DataTypes.STRING().notNull().getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        8, DataTypes.TIMESTAMP().notNull().getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        9,
+                                        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
+                                                .notNull()
+                                                .getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        10, DataTypes.TIME().notNull().getLogicalType()),
+                                new LogicalTypeWithIndex(
+                                        11, DataTypes.DATE().notNull().getLogicalType()))
+                        .collect(Collectors.toList());
 
-        Function<RowData, String> keyExtractor = KeyExtractor.createKeyExtractor(schema, "_");
+        Function<RowData, String> keyExtractor =
+                KeyExtractor.createKeyExtractor(logicalTypesWithIndex, "_");
 
         String key =
                 keyExtractor.apply(
@@ -127,9 +140,8 @@ public class KeyExtractorTest {
                                 TimestampData.fromInstant(Instant.parse("2013-01-13T13:13:13Z")),
                                 (int) (LocalTime.parse("14:14:14").toNanoOfDay() / 1_000_000),
                                 (int) LocalDate.parse("2015-05-15").toEpochDay()));
-        assertThat(
+        Assertions.assertEquals(
                 key,
-                equalTo(
-                        "1_2_3_4_true_1.0_2.0_ABCD_2012-12-12T12:12:12_2013-01-13T13:13:13_14:14:14_2015-05-15"));
+                "1_2_3_4_true_1.0_2.0_ABCD_2012-12-12T12:12:12_2013-01-13T13:13:13_14:14:14_2015-05-15");
     }
 }
