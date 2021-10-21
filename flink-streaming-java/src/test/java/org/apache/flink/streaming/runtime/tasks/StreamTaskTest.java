@@ -29,8 +29,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -50,14 +48,13 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
-import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -161,7 +158,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -190,6 +186,7 @@ import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_P
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
@@ -1353,7 +1350,6 @@ public class StreamTaskTest extends TestLogger {
     public void testProcessWithUnAvailableInput() throws Exception {
         final long sleepTimeOutsideMail = 42;
         final long sleepTimeInsideMail = 44;
-        final int incomingDataSize = 10_000;
 
         @Nullable WaitingThread waitingThread = null;
         try (final MockEnvironment environment = setupEnvironment(true, true)) {
@@ -1365,7 +1361,6 @@ public class StreamTaskTest extends TestLogger {
                             .build();
             TaskIOMetricGroup ioMetricGroup =
                     task.getEnvironment().getMetricGroup().getIOMetricGroup();
-            ThroughputCalculator throughputCalculator = environment.getThroughputCalculator();
 
             final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
             final RunnableWithException completeFutureTask =
@@ -1389,17 +1384,9 @@ public class StreamTaskTest extends TestLogger {
                     "Start WaitingThread after Task starts processing input.");
 
             SystemClock clock = SystemClock.getInstance();
-
             long startTs = clock.absoluteTimeMillis();
-            throughputCalculator.incomingDataSize(incomingDataSize);
             task.invoke();
-            long resultThroughput = throughputCalculator.calculateThroughput();
             long totalDuration = clock.absoluteTimeMillis() - startTs;
-
-            assertThat(
-                    resultThroughput,
-                    greaterThanOrEqualTo(
-                            incomingDataSize * 1000 / (totalDuration - sleepTimeOutsideMail)));
 
             assertThat(
                     ioMetricGroup.getIdleTimeMsPerSecond().getCount(),
@@ -1552,40 +1539,6 @@ public class StreamTaskTest extends TestLogger {
         }
     }
 
-    /**
-     * This test checks the fact that throughput calculation is started automatically(just to be
-     * sure that the scheduler is configured).
-     */
-    @Test
-    public void testThroughputSchedulerStartsOnInvoke() throws Exception {
-        CompletableFuture<?> finishFuture = new CompletableFuture<>();
-        try (StreamTaskMailboxTestHarness<String> harness =
-                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
-                        .modifyStreamConfig(
-                                config ->
-                                        config.getConfiguration()
-                                                .set(BUFFER_DEBLOAT_PERIOD, Duration.ofMillis(1)))
-                        .addInput(STRING_TYPE_INFO)
-                        .setupOutputForSingletonOperatorChain(
-                                new TestBoundedOneInputStreamOperator())
-                        .setThroughputCalculator(
-                                new ThroughputCalculator(SystemClock.getInstance()) {
-                                    @Override
-                                    public long calculateThroughput() {
-                                        finishFuture.complete(null);
-                                        return super.calculateThroughput();
-                                    }
-                                })
-                        .build()) {
-            finishFuture.thenApply(
-                    (value) -> {
-                        harness.endInput();
-                        return value;
-                    });
-            harness.streamTask.invoke();
-        }
-    }
-
     @Test
     public void testSkipRepeatCheckpointComplete() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness =
@@ -1665,24 +1618,24 @@ public class StreamTaskTest extends TestLogger {
                         .set(BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES, 1)
                         .set(BUFFER_DEBLOAT_ENABLED, true);
 
-        Map<String, Metric> metrics = new ConcurrentHashMap<>();
-        final TaskMetricGroup taskMetricGroup =
-                StreamTaskTestHarness.createTaskMetricGroup(metrics);
-
         try (StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
                         .setTaskManagerRuntimeInfo(new TestingTaskManagerRuntimeInfo(config))
-                        .setTaskMetricGroup(taskMetricGroup)
                         .addInput(STRING_TYPE_INFO, inputChannels)
+                        .addInput(STRING_TYPE_INFO, inputChannels)
+                        .modifyGateBuilder(
+                                gateBuilder ->
+                                        gateBuilder.setThroughputCalculator(
+                                                bufferDebloatConfiguration ->
+                                                        new ThroughputCalculator(
+                                                                SystemClock.getInstance()) {
+                                                            @Override
+                                                            public long calculateThroughput() {
+                                                                return expectedThroughput;
+                                                            }
+                                                        }))
                         .setupOutputForSingletonOperatorChain(
                                 new TestBoundedOneInputStreamOperator())
-                        .setThroughputCalculator(
-                                new ThroughputCalculator(SystemClock.getInstance()) {
-                                    @Override
-                                    public long calculateThroughput() {
-                                        return expectedThroughput;
-                                    }
-                                })
                         .build()) {
             harness.processAll();
             harness.streamTask.debloat();
@@ -1704,16 +1657,74 @@ public class StreamTaskTest extends TestLogger {
                     lastBufferSize = currentBufferSize;
                 }
             }
-            assertThat(
-                    ((Gauge<Integer>) metrics.get(MetricNames.DEBLOATED_BUFFER_SIZE)).getValue(),
-                    is((int) lastBufferSize));
-            // The estimated time should be greater than the configured time because the buffer size
-            // is changed according to EMA, not instantly.
-            assertThat(
-                    ((Gauge<Long>) metrics.get(MetricNames.ESTIMATED_TIME_TO_CONSUME_BUFFERS))
-                            .getValue(),
-                    greaterThan(1000L));
         }
+    }
+
+    @Test
+    public void testBufferDebloatingMultiGates() throws Exception {
+
+        // debloat period doesn't matter, we will schedule debloating manually
+        Configuration config =
+                new Configuration()
+                        .set(BUFFER_DEBLOAT_PERIOD, Duration.ofHours(10))
+                        .set(BUFFER_DEBLOAT_TARGET, Duration.ofSeconds(1))
+                        .set(BUFFER_DEBLOAT_ENABLED, true)
+                        .set(
+                                BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES,
+                                0); // disable the threshold to achieve exact buffer sizes
+
+        final long throughputGate1 = 1024L;
+        final long throughputGate2 = 60 * 1024L;
+        final int inputChannelsGate1 = 1;
+        final int inputChannelsGate2 = 4;
+
+        final ThroughputCalculator throughputCalculator =
+                new ThroughputCalculator(SystemClock.getInstance() /* parameters are ignored */) {
+                    private int callCount = 0;
+
+                    @Override
+                    public long calculateThroughput() {
+                        if (callCount++ % 2 == 0) {
+                            return throughputGate1;
+                        } else {
+                            return throughputGate2;
+                        }
+                    }
+                };
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
+                        .setTaskManagerRuntimeInfo(new TestingTaskManagerRuntimeInfo(config))
+                        .addInput(STRING_TYPE_INFO, inputChannelsGate1)
+                        .addInput(STRING_TYPE_INFO, inputChannelsGate2)
+                        .modifyGateBuilder(
+                                gateBuilder ->
+                                        gateBuilder.setThroughputCalculator(
+                                                bufferDebloatConfiguration -> throughputCalculator))
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator())
+                        .build()) {
+            final IndexedInputGate[] inputGates =
+                    harness.streamTask.getEnvironment().getAllInputGates();
+            harness.processAll();
+            // call debloating until the EMA reaches the target buffer size
+            while (getCurrentBufferSize(inputGates[0]) == 0
+                    || getCurrentBufferSize(inputGates[0]) > throughputGate1) {
+                harness.streamTask.debloat();
+            }
+
+            assertThat(getCurrentBufferSize(inputGates[0]), equalTo((int) throughputGate1));
+            assertThat(
+                    getCurrentBufferSize(inputGates[1]),
+                    equalTo((int) throughputGate2 / inputChannelsGate2));
+        }
+    }
+
+    private int getCurrentBufferSize(InputGate inputGate) {
+        return getTestChannel(inputGate, 0).getCurrentBufferSize();
+    }
+
+    private TestInputChannel getTestChannel(InputGate inputGate, int idx) {
+        return (TestInputChannel) inputGate.getChannel(idx);
     }
 
     private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {

@@ -43,6 +43,8 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
+import org.apache.flink.runtime.throughput.BufferDebloater;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -53,6 +55,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -203,6 +206,9 @@ public class SingleInputGate extends IndexedInputGate {
      */
     private final MemorySegment unpooledSegment;
 
+    private final ThroughputCalculator throughputCalculator;
+    private final BufferDebloater bufferDebloater;
+
     public SingleInputGate(
             String owningTaskName,
             int gateIndex,
@@ -214,7 +220,9 @@ public class SingleInputGate extends IndexedInputGate {
             SupplierWithException<BufferPool, IOException> bufferPoolFactory,
             @Nullable BufferDecompressor bufferDecompressor,
             MemorySegmentProvider memorySegmentProvider,
-            int segmentSize) {
+            int segmentSize,
+            ThroughputCalculator throughputCalculator,
+            @Nullable BufferDebloater bufferDebloater) {
 
         this.owningTaskName = checkNotNull(owningTaskName);
         Preconditions.checkArgument(0 <= gateIndex, "The gate index must be positive.");
@@ -246,6 +254,8 @@ public class SingleInputGate extends IndexedInputGate {
         this.closeFuture = new CompletableFuture<>();
 
         this.unpooledSegment = MemorySegmentFactory.allocateUnpooledSegment(segmentSize);
+        this.bufferDebloater = bufferDebloater;
+        this.throughputCalculator = checkNotNull(throughputCalculator);
     }
 
     protected PrioritizedDeque<InputChannel> getInputChannelsWithData() {
@@ -374,8 +384,8 @@ public class SingleInputGate extends IndexedInputGate {
         return unfinishedChannels;
     }
 
-    @Override
-    public int getBuffersInUseCount() {
+    @VisibleForTesting
+    int getBuffersInUseCount() {
         int total = 0;
         for (InputChannel channel : channels) {
             total += channel.getBuffersInUseCount();
@@ -383,11 +393,24 @@ public class SingleInputGate extends IndexedInputGate {
         return total;
     }
 
-    @Override
+    @VisibleForTesting
     public void announceBufferSize(int newBufferSize) {
         for (InputChannel channel : channels) {
             channel.announceBufferSize(newBufferSize);
         }
+    }
+
+    @Override
+    public void triggerDebloating() {
+        checkState(bufferDebloater != null, "Buffer debloater should not be null");
+        final long currentThroughput = throughputCalculator.calculateThroughput();
+        bufferDebloater
+                .recalculateBufferSize(currentThroughput, getBuffersInUseCount())
+                .ifPresent(this::announceBufferSize);
+    }
+
+    public Duration getLastEstimatedTimeToConsume() {
+        return bufferDebloater.getLastEstimatedTimeToConsumeBuffers();
     }
 
     /**
@@ -679,16 +702,24 @@ public class SingleInputGate extends IndexedInputGate {
         Optional<InputWithData<InputChannel, BufferAndAvailability>> next =
                 waitAndGetNextData(blocking);
         if (!next.isPresent()) {
+            throughputCalculator.pauseMeasurement(System.currentTimeMillis());
+            getAvailableFuture()
+                    .whenComplete(
+                            (future, ex) -> {
+                                throughputCalculator.resumeMeasurement(System.currentTimeMillis());
+                            });
             return Optional.empty();
         }
 
         InputWithData<InputChannel, BufferAndAvailability> inputWithData = next.get();
-        return Optional.of(
+        final BufferOrEvent bufferOrEvent =
                 transformToBufferOrEvent(
                         inputWithData.data.buffer(),
                         inputWithData.moreAvailable,
                         inputWithData.input,
-                        inputWithData.morePriorityEvents));
+                        inputWithData.morePriorityEvents);
+        throughputCalculator.incomingDataSize(bufferOrEvent.getSize());
+        return Optional.of(bufferOrEvent);
     }
 
     private Optional<InputWithData<InputChannel, BufferAndAvailability>> waitAndGetNextData(

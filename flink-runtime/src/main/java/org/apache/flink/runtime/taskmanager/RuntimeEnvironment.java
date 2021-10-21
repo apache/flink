@@ -45,7 +45,6 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
-import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import javax.annotation.Nullable;
@@ -99,8 +98,6 @@ public class RuntimeEnvironment implements Environment {
 
     private final Task containingTask;
 
-    private final ThroughputCalculator throughputCalculator;
-
     @Nullable private MailboxExecutor mainMailboxExecutor;
 
     @Nullable private ExecutorService asyncOperationsThreadPool;
@@ -135,8 +132,7 @@ public class RuntimeEnvironment implements Environment {
             TaskManagerRuntimeInfo taskManagerInfo,
             TaskMetricGroup metrics,
             Task containingTask,
-            ExternalResourceInfoProvider externalResourceInfoProvider,
-            ThroughputCalculator throughputCalculator) {
+            ExternalResourceInfoProvider externalResourceInfoProvider) {
 
         this.jobId = checkNotNull(jobId);
         this.jobVertexId = checkNotNull(jobVertexId);
@@ -164,7 +160,6 @@ public class RuntimeEnvironment implements Environment {
         this.containingTask = containingTask;
         this.metrics = metrics;
         this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
-        this.throughputCalculator = throughputCalculator;
     }
 
     // ------------------------------------------------------------------------
@@ -323,11 +318,6 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public void failExternally(Throwable cause) {
         this.containingTask.failExternally(cause);
-    }
-
-    @Override
-    public ThroughputCalculator getThroughputCalculator() {
-        return throughputCalculator;
     }
 
     @Override

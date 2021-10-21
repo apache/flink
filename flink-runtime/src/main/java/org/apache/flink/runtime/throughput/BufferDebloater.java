@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.bufferdebloat;
-
-import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+package org.apache.flink.runtime.throughput;
 
 import java.time.Duration;
+import java.util.OptionalInt;
 
 /**
  * Class for automatic calculation of the buffer size based on the current throughput and
@@ -30,24 +29,20 @@ public class BufferDebloater {
     private static final long MILLIS_IN_SECOND = 1000;
 
     private final long targetTotalBufferSize;
-    private final IndexedInputGate[] inputGates;
-    private final long maxBufferSize;
-    private final long minBufferSize;
+    private final int maxBufferSize;
+    private final int minBufferSize;
     private final int bufferDebloatThresholdPercentages;
     private final BufferSizeEMA bufferSizeEMA;
 
-    private int lastBufferSize;
-
     private Duration lastEstimatedTimeToConsumeBuffers = Duration.ZERO;
+    private int lastBufferSize;
 
     public BufferDebloater(
             long targetTotalBufferSize,
             int maxBufferSize,
             int minBufferSize,
             int bufferDebloatThresholdPercentages,
-            long numberOfSamples,
-            IndexedInputGate[] inputGates) {
-        this.inputGates = inputGates;
+            long numberOfSamples) {
         this.targetTotalBufferSize = targetTotalBufferSize;
         this.maxBufferSize = maxBufferSize;
         this.minBufferSize = minBufferSize;
@@ -57,20 +52,21 @@ public class BufferDebloater {
         bufferSizeEMA = new BufferSizeEMA(maxBufferSize, minBufferSize, numberOfSamples);
     }
 
-    public void recalculateBufferSize(long currentThroughput) {
+    public OptionalInt recalculateBufferSize(long currentThroughput, int buffersInUse) {
+        int actualBuffersInUse = Math.max(1, buffersInUse);
         long desiredTotalBufferSizeInBytes =
                 (currentThroughput * targetTotalBufferSize) / MILLIS_IN_SECOND;
 
-        int totalNumber = 0;
-        for (IndexedInputGate inputGate : inputGates) {
-            totalNumber += Math.max(1, inputGate.getBuffersInUseCount());
-        }
-
-        int newSize = bufferSizeEMA.calculateBufferSize(desiredTotalBufferSizeInBytes, totalNumber);
+        int newSize =
+                bufferSizeEMA.calculateBufferSize(
+                        desiredTotalBufferSizeInBytes, actualBuffersInUse);
 
         lastEstimatedTimeToConsumeBuffers =
                 Duration.ofMillis(
-                        newSize * totalNumber * MILLIS_IN_SECOND / Math.max(1, currentThroughput));
+                        newSize
+                                * actualBuffersInUse
+                                * MILLIS_IN_SECOND
+                                / Math.max(1, currentThroughput));
 
         boolean skipUpdate =
                 newSize == lastBufferSize
@@ -80,14 +76,11 @@ public class BufferDebloater {
 
         // Skip update if the new value pretty close to the old one.
         if (skipUpdate) {
-            return;
+            return OptionalInt.empty();
         }
 
-        for (IndexedInputGate inputGate : inputGates) {
-            inputGate.announceBufferSize(newSize);
-        }
-        // Update last buffer size only if the announcement was successful.
         lastBufferSize = newSize;
+        return OptionalInt.of(newSize);
     }
 
     public int getLastBufferSize() {

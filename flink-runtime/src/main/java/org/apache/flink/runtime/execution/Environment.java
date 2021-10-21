@@ -46,7 +46,6 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
-import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Map;
@@ -236,13 +235,6 @@ public interface Environment {
     IndexedInputGate[] getAllInputGates();
 
     TaskEventDispatcher getTaskEventDispatcher();
-
-    /**
-     * Returns the throughput meter for calculation the throughput for certain period.
-     *
-     * @return the throughput calculation service.
-     */
-    ThroughputCalculator getThroughputCalculator();
 
     // --------------------------------------------------------------------------------------------
     //  Fields set in the StreamTask to provide access to mailbox and other runtime resources

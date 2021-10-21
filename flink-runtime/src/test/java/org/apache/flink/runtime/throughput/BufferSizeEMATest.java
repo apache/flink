@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.bufferdebloat;
+package org.apache.flink.runtime.throughput;
 
 import org.apache.flink.util.TestLogger;
 
