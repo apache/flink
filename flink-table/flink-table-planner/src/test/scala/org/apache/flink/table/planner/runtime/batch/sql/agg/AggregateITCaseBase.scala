@@ -80,9 +80,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
   @Test
   def testBigData(): Unit = {
     // for hash agg mode it will fallback
-    val largeData5 = for (i <- 0 until 100000) yield row(i, 1L, 10, "Hallo", 1L)
+    val largeData5 = for (i <- 0 until 600000) yield row(i, 1L, 10, "Hallo", 1L)
     registerCollection("LargeTable5", largeData5, type5, "d, e, f, g, h")
-    val expected = for (i <- 0 until 100000) yield row(i, "Hallo", 1L, 10, 1L)
+    val expected = for (i <- 0 until 600000) yield row(i, "Hallo", 1L, 10, 1L)
     checkResult(
       "SELECT d, g, sum(e), avg(f), min(h) FROM LargeTable5 GROUP BY d, g",
       expected
@@ -90,10 +90,10 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 
     // composite type group key fallback case
     val largeTypedData5 =
-      for (i <- 0 until 100000) yield row(new JTuple2(i, i), 1L, 10, "Hallo", 1L)
+      for (i <- 0 until 600000) yield row(new JTuple2(i, i), 1L, 10, "Hallo", 1L)
     registerCollection("LargeTypedTable5", largeTypedData5, genericType5, "d, e, f, g, h")
     val expectedTypedData5 =
-      for (i <- 0 until 100000) yield
+      for (i <- 0 until 600000) yield
         row(row(i, i), "Hallo", 1L, 10, 1L)
     checkResult(
       "SELECT d, g, sum(e), avg(f), min(h) FROM LargeTypedTable5 GROUP BY d, g",
