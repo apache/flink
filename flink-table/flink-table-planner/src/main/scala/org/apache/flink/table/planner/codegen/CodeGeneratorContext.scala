@@ -166,10 +166,6 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   def commonExpressionElimination(fieldExprs: Seq[GeneratedExpression]):
     Seq[GeneratedExpression] = {
 
-    if(localRefs == null) {
-      return fieldExprs
-    }
-
     var result:Seq[GeneratedExpression] = List()
     var offset = 0
     localRefs.foreach(localRef => {
