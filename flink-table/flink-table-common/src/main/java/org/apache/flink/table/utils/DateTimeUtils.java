@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.utils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
@@ -62,6 +63,7 @@ import static java.time.temporal.ChronoField.YEAR;
  * Utility functions for datetime types: date, time, timestamp. Currently, it is a bit messy putting
  * date time functions in various classes because the runtime module does not depend on calcite..
  */
+@Internal
 public class DateTimeUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(DateTimeUtils.class);
