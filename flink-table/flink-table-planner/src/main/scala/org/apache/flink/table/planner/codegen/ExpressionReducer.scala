@@ -260,11 +260,6 @@ class ExpressionReducer(
            (SqlTypeName.MULTISET, _) => None
 
       case (_, call: RexCall) => {
-        // Exclude some JSON functions which behave differently
-        // when called as an argument of another call of one of these functions.
-        if (nonReducibleJsonFunctions.contains(call.getOperator)) {
-          return List.empty
-        }
         // to ensure the division is non-zero when the operator is DIVIDE
         if (call.getOperator.getKind.equals(SqlKind.DIVIDE)) {
           val ops = call.getOperands
@@ -281,7 +276,13 @@ class ExpressionReducer(
             throw new ArithmeticException("Division by zero")
           }
         }
-        Some(call)
+        // Exclude some JSON functions which behave differently
+        // when called as an argument of another call of one of these functions.
+        if (nonReducibleJsonFunctions.contains(call.getOperator)) {
+          None
+        }else{
+          Some(call)
+        }
       }
       case (_, e) => Some(e)
     }.toList
