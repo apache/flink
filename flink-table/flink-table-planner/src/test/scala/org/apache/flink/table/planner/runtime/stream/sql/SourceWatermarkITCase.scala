@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.{ConfigOption, CoreOptions}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
@@ -41,8 +42,148 @@ class SourceWatermarkITCase extends StreamingTestBase {
   @Rule
   def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
+  val valuesSourceData = Seq(
+    row(1, 1L, LocalDateTime.parse("2020-11-21T19:00:05.23")),
+    row(2, 2L, LocalDateTime.parse("2020-11-21T19:00:10.23")),
+    row(3, 3L, LocalDateTime.parse("2020-11-21T19:00:15.23")),
+    row(4, 4L, LocalDateTime.parse("2020-11-21T19:00:20.23"))
+  )
+
   @Test
-  def testSimpleWatermarkPushDown(): Unit = {
+  def testWatermarkPushDownInValuesSource(): Unit = {
+
+    val dataId = TestValuesTableFactory.registerData(valuesSourceData)
+
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE ValuesSourceTable (
+         |  a INT,
+         |  b BIGINT,
+         |  c TIMESTAMP(3),
+         |  d as c - INTERVAL '5' second,
+         |  WATERMARK FOR d as d + INTERVAL '5' second) WITH(
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'runtime-source' = 'Source'
+         |)
+         |""".stripMargin)
+
+    // avoid to generate too many watermarks with timestamp Long.MinValue
+    tEnv.getConfig.getConfiguration
+      .set(CoreOptions.DEFAULT_PARALLELISM.asInstanceOf[ConfigOption[Any]], 1)
+
+    tEnv.executeSql(
+      s"""
+         | CREATE Table CollectingWatermarkSinkTable (
+         |   a INT,
+         |   b BIGINT,
+         |   c TIMESTAMP(3)
+         | ) with (
+         | 'connector' = 'values',
+         | 'sink-insert-only' = 'false',
+         | 'runtime-sink' = 'SinkWithCollectingWatermark'
+         | )
+         |""".stripMargin)
+
+    tEnv.executeSql(
+      """
+        | INSERT INTO CollectingWatermarkSinkTable
+        | SELECT a, b, c FROM ValuesSourceTable
+        |""".stripMargin).await()
+
+    // the first watermark timestamp is always Long.MinValue
+    val expectedWatermarkOutput = Seq(
+      TimestampData.fromEpochMillis(Long.MinValue).toString,
+      "2020-11-21T19:00:05.230",
+      "2020-11-21T19:00:10.230",
+      "2020-11-21T19:00:15.230"
+    )
+    val expectedData = List(
+      "1,1,2020-11-21T19:00:05.230",
+      "2,2,2020-11-21T19:00:10.230",
+      "3,3,2020-11-21T19:00:15.230",
+      "4,4,2020-11-21T19:00:20.230"
+    )
+
+    val sinkName = "CollectingWatermarkSinkTable"
+
+    val result = TestValuesTableFactory.getResults(sinkName).asScala.toList
+
+    val actualWatermark = TestValuesTableFactory.getWatermarkOutput(sinkName)
+      .asScala
+      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
+      .toList
+
+    assertEquals(expectedWatermarkOutput, actualWatermark)
+    assertEquals(expectedData.sorted, result.sorted)
+  }
+
+  @Test
+  def testWatermarkAndFilterAndProjectionPushDownInValuesSource(): Unit = {
+
+    val dataId = TestValuesTableFactory.registerData(valuesSourceData)
+
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE ValuesSourceTableWithFilterAndProjection (
+         |  a INT,
+         |  b BIGINT,
+         |  c TIMESTAMP(3),
+         |  d as c - INTERVAL '5' second,
+         |  WATERMARK FOR d as d + INTERVAL '5' second) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'runtime-source' = 'Source',
+         |  'filterable-fields' = 'a'
+         |)
+         |""".stripMargin)
+
+    tEnv.getConfig.getConfiguration
+      .set(CoreOptions.DEFAULT_PARALLELISM.asInstanceOf[ConfigOption[Any]], 1)
+
+
+    tEnv.executeSql(
+      s"""
+         | CREATE Table CollectingWatermarkSinkTableWithFilterAndProjection (
+         |   a INT
+         | ) with (
+         | 'connector' = 'values',
+         | 'sink-insert-only' = 'false',
+         | 'runtime-sink' = 'SinkWithCollectingWatermark'
+         | )
+         |""".stripMargin)
+
+    tEnv.executeSql(
+      """
+        | INSERT INTO CollectingWatermarkSinkTableWithFilterAndProjection
+        | SELECT a FROM ValuesSourceTableWithFilterAndProjection WHERE a > 2
+        |""".stripMargin).await()
+
+    // the first watermark timestamp is always Long.MinValue
+    val expectedWatermarkOutput = Seq(
+      TimestampData.fromEpochMillis(Long.MinValue).toString,
+      "2020-11-21T19:00:15.230"
+    )
+    val expectedData = List(
+      "3",
+      "4"
+    )
+
+    val sinkName = "CollectingWatermarkSinkTableWithFilterAndProjection"
+
+    val result = TestValuesTableFactory.getResults(sinkName).asScala.toList
+
+    val actualWatermark = TestValuesTableFactory.getWatermarkOutput(sinkName)
+      .asScala
+      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
+      .toList
+
+    assertEquals(expectedWatermarkOutput, actualWatermark)
+    assertEquals(expectedData.sorted, result.sorted)
+  }
+
+  @Test
+  def testSimpleWatermarkPushDownInSourceFunction(): Unit = {
     val data = Seq(
       row(1, 2L, LocalDateTime.parse("2020-11-21T19:00:05.23")),
       row(2, 3L, LocalDateTime.parse("2020-11-21T21:00:05.23"))
@@ -62,7 +203,6 @@ class SourceWatermarkITCase extends StreamingTestBase {
          |   'connector' = 'values',
          |   'bounded' = 'false',
          |   'enable-watermark-push-down' = 'true',
-         |   'disable-lookup' = 'true',
          |   'data-id' = '$dataId'
          | )
          |""".stripMargin
@@ -93,7 +233,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
   }
 
   @Test
-  def testSimpleWatermarkOnTimestampLtzPushDown(): Unit = {
+  def testSimpleWatermarkOnTimestampLtzPushDownInSourceFunction(): Unit = {
     val zoneId = ZoneId.of("Asia/Shanghai")
     tEnv.getConfig.setLocalTimeZone(zoneId)
     val data = Seq(
@@ -115,7 +255,6 @@ class SourceWatermarkITCase extends StreamingTestBase {
          |   'connector' = 'values',
          |   'bounded' = 'false',
          |   'enable-watermark-push-down' = 'true',
-         |   'disable-lookup' = 'true',
          |   'data-id' = '$dataId'
          | )
          |""".stripMargin
@@ -147,7 +286,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
   }
 
   @Test
-  def testWatermarkWithNestedRow(): Unit = {
+  def testWatermarkWithNestedRowInSourceFunction(): Unit = {
     val data = Seq(
       row(0, 0L, row("h1", row("h2", null))),
       row(1, 2L, row("i1", row("i2", LocalDateTime.parse("2020-11-21T19:00:05.23")))),
@@ -169,7 +308,6 @@ class SourceWatermarkITCase extends StreamingTestBase {
          |   'connector' = 'values',
          |   'bounded' = 'false',
          |   'enable-watermark-push-down' = 'true',
-         |   'disable-lookup' = 'true',
          |   'data-id' = '$dataId'
          | )
          |""".stripMargin
@@ -204,7 +342,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
   }
 
   @Test
-  def testWatermarkWithMultiInputUdf(): Unit = {
+  def testWatermarkWithMultiInputUdfInSourceFunction(): Unit = {
     JavaFunc5.closeCalled = false
     JavaFunc5.openCalled = false
     tEnv.createTemporarySystemFunction("func", new JavaFunc5)
@@ -227,7 +365,6 @@ class SourceWatermarkITCase extends StreamingTestBase {
          |   'connector' = 'values',
          |   'bounded' = 'false',
          |   'enable-watermark-push-down' = 'true',
-         |   'disable-lookup' = 'true',
          |   'data-id' = '$dataId'
          | )
          |""".stripMargin
@@ -257,7 +394,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
   }
 
   @Test
-  def testWatermarkWithMetadata(): Unit = {
+  def testWatermarkWithMetadataInSourceFunction(): Unit = {
     val data = Seq(
       row(1, 2L, Timestamp.valueOf("2020-11-21 19:00:05.23").toInstant.toEpochMilli),
       row(1, 3L, Timestamp.valueOf("2020-11-21 21:00:05.23").toInstant.toEpochMilli)
@@ -277,7 +414,6 @@ class SourceWatermarkITCase extends StreamingTestBase {
         |   'connector' = 'values',
         |   'enable-watermark-push-down' = 'true',
         |   'bounded' = 'false',
-        |   'disable-lookup' = 'true',
         |   'readable-metadata' = 'originTime:BIGINT',
         |   'data-id' = '$dataId'
         | )

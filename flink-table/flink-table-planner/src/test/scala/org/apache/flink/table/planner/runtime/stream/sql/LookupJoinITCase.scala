@@ -103,7 +103,8 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
            |  `name` STRING
            |) WITH (
            |  'connector' = 'values',
-           |  'data-id' = '$dataId'
+           |  'data-id' = '$dataId',
+           |  'enable-lookup' = 'true'
            |)
            |""".stripMargin)
     }
@@ -121,7 +122,8 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
            |  `nominal_age` as age + 1
            |) WITH (
            |  'connector' = 'values',
-           |  'data-id' = '$dataId'
+           |  'data-id' = '$dataId',
+           |  'enable-lookup' = 'true'
            |)
            |""".stripMargin)
     }
@@ -543,7 +545,8 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
          |) WITH (
          |  'connector' = 'values',
          |  'data-id' = '$id2',
-         |  'bounded' = 'true'
+         |  'bounded' = 'true',
+         |  'enable-lookup' = 'true'
          |)
          |""".stripMargin
     tEnv.executeSql(ddl2)

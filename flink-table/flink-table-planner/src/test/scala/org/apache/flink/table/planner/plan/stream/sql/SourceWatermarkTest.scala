@@ -134,6 +134,49 @@ class SourceWatermarkTest extends TableTestBase {
          |   'disable-lookup' = 'true'
          | )
          """.stripMargin)
+
+    util.tableEnv.executeSql(
+      """
+        | CREATE TABLE ValueSourceTable(
+        |   a INT,
+        |   b BIGINT,
+        |   c TIMESTAMP(3),
+        |   d AS c + INTERVAL '5' SECOND,
+        |   WATERMARK FOR d AS d - INTERVAL '5' SECOND
+        | ) WITH (
+        |   'connector' = 'values',
+        |   'bounded' = 'false',
+        |   'disable-lookup' = 'true',
+        |   'runtime-source' = 'Source'
+        | )
+        |""".stripMargin)
+
+    util.tableEnv.executeSql(
+      """
+        | CREATE TABLE ValuesSourceTableWithFilter(
+        |   a INT,
+        |   b BIGINT,
+        |   c TIMESTAMP(3),
+        |   d AS c + INTERVAL '5' SECOND,
+        |   WATERMARK FOR d AS d - INTERVAL '5' SECOND
+        | ) WITH (
+        |   'connector' = 'values',
+        |   'bounded' = 'false',
+        |   'disable-lookup' = 'true',
+        |   'filterable-fields' = 'a',
+        |   'runtime-source' = 'Source'
+        | )
+        |""".stripMargin)
+  }
+
+  @Test
+  def testValuesSourceWatermarkPushDown(): Unit ={
+    util.verifyExecPlan("SELECT a, b, c FROM ValuesSourceTableWithFilter")
+  }
+
+  @Test
+  def testValuesSourceWatermarkAndFilterAndProjectionPushDown(): Unit ={
+    util.verifyExecPlan("SELECT a FROM ValuesSourceTableWithFilter WHERE a < 5")
   }
 
   @Test

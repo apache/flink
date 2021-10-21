@@ -93,7 +93,8 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
            |) WITH (
            |  'connector' = 'values',
            |  'data-id' = '$dataId',
-           |  'async' = 'true'
+           |  'async' = 'true',
+           |  'enable-lookup' = 'true'
            |)
            |""".stripMargin)
     }

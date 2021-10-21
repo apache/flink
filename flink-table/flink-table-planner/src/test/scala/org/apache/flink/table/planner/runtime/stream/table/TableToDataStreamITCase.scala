@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.factories.tablesink.TestSinkContextTableSink
+import org.apache.flink.table.planner.factories.dynamictablesink.TestSinkContextTableSink
 import org.apache.flink.table.planner.runtime.utils.{AbstractExactlyOnceSink, StreamingTestBase, TestSinkUtil, TestingRetractSink}
 import org.apache.flink.types.Row
 

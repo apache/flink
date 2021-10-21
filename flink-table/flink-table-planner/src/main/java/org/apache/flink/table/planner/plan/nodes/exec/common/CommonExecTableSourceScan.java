@@ -29,18 +29,28 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.Column.ComputedColumn;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.connectors.TransformationScanProvider;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
+import org.apache.flink.table.planner.plan.utils.WatermarkStrategyUtil;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -48,6 +58,11 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
+
+import java.time.Duration;
 import java.util.Collections;
 
 /**
@@ -98,9 +113,29 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             return createInputFormatTransformation(env, inputFormat, outputTypeInfo, operatorName);
         } else if (provider instanceof SourceProvider) {
             Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
-            // TODO: Push down watermark strategy to source scan
-            return env.fromSource(
-                            source, WatermarkStrategy.noWatermarks(), operatorName, outputTypeInfo)
+            ResolvedSchema schema = tableSourceSpec.getCatalogTable().getResolvedSchema();
+            RowType sourceRowType = (RowType) schema.toSourceRowDataType().getLogicalType();
+
+            SourceAbilityContext sourceAbilityContext =
+                    new SourceAbilityContext(planner.getFlinkContext(), sourceRowType);
+
+            WatermarkStrategy<RowData> watermarkStrategy = null;
+
+            if (!schema.getWatermarkSpecs().isEmpty()) {
+                final long idleTimeoutMillis = getIdleTimeoutMillis(planner);
+
+                RexNode watermarkExpr = getComputedWatermarkExpr(planner, schema);
+
+                watermarkStrategy =
+                        WatermarkStrategyUtil.generateWatermarkStrategy(
+                                sourceAbilityContext, watermarkExpr, idleTimeoutMillis);
+            }
+
+            if (watermarkStrategy == null) {
+                watermarkStrategy = WatermarkStrategy.noWatermarks();
+            }
+
+            return env.fromSource(source, watermarkStrategy, operatorName, outputTypeInfo)
                     .getTransformation();
         } else if (provider instanceof DataStreamScanProvider) {
             Transformation<RowData> transformation =
@@ -159,4 +194,52 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             InputFormat<RowData, ?> inputFormat,
             InternalTypeInfo<RowData> outputTypeInfo,
             String operatorName);
+
+    private long getIdleTimeoutMillis(PlannerBase planner) {
+        final Duration idleTimeout =
+                planner.getTableConfig()
+                        .getConfiguration()
+                        .get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT);
+        if (!idleTimeout.isZero() && !idleTimeout.isNegative()) {
+            return idleTimeout.toMillis();
+        } else {
+            return -1;
+        }
+    }
+
+    private RexNode getComputedWatermarkExpr(PlannerBase planner, ResolvedSchema schema) {
+        final FlinkRelBuilder relBuilder = planner.getRelBuilder();
+        final ExpressionConverter converter = new ExpressionConverter(relBuilder);
+
+        // on the validation period, only one watermark spec is guaranteed to exists
+        final WatermarkSpec watermarkSpec = schema.getWatermarkSpecs().get(0);
+
+        RexNode watermarkExpr = watermarkSpec.getWatermarkExpression().accept(converter);
+
+        // the column in watermarkExpr may be a computed column
+        String rowtimeColumnName = watermarkSpec.getRowtimeAttribute();
+        int rowtimeColumnIndex = schema.getColumnNames().indexOf(rowtimeColumnName);
+
+        // we can't find the physical column called by the computed column
+        if (!schema.getColumn(rowtimeColumnIndex).isPresent()) {
+            throw new TableException(
+                    "The physical column called by the computed column is missing!");
+        }
+
+        Column rowtimeColumn = schema.getColumn(rowtimeColumnIndex).get();
+        if (rowtimeColumn instanceof ComputedColumn) {
+            final RexNode computedNode =
+                    ((ComputedColumn) rowtimeColumn).getExpression().accept(converter);
+            // replace the computed column to the expression contains a physical column
+            return watermarkExpr.accept(
+                    new RexShuttle() {
+                        @Override
+                        public RexNode visitInputRef(RexInputRef inputRef) {
+                            return computedNode;
+                        }
+                    });
+        } else {
+            return watermarkExpr;
+        }
+    }
 }

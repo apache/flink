@@ -37,6 +37,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource.ScanRuntimeProvider;
+import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
@@ -136,7 +137,7 @@ public final class DynamicSourceUtils {
         }
 
         // 4. push watermark assigner
-        if (!isBatchMode && !schema.getWatermarkSpecs().isEmpty()) {
+        if (isNeedToPushWatermarkAssigner(isBatchMode, schema, tableSource)) {
             pushWatermarkAssigner(relBuilder, schema);
         }
 
@@ -547,6 +548,21 @@ public final class DynamicSourceUtils {
                             "A nested field '%s' cannot be declared as rowtime attribute for table '%s' right now.",
                             rowtimeAttribute, sourceIdentifier.asSummaryString()));
         }
+    }
+
+    private static boolean isNeedToPushWatermarkAssigner(
+            boolean isBatchMode, ResolvedSchema schema, DynamicTableSource tableSource) {
+        if (isBatchMode || schema.getWatermarkSpecs().isEmpty()) {
+            return false;
+        }
+        if (tableSource instanceof ScanTableSource) {
+            ScanRuntimeProvider provider =
+                    ((ScanTableSource) tableSource)
+                            .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+            // we always add watermark strategy into the new source
+            return !(provider instanceof SourceProvider);
+        }
+        return true;
     }
 
     private DynamicSourceUtils() {

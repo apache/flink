@@ -16,25 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testWatermarkWithUdf">
-    <Resource name="sql">
-      <![CDATA[SELECT a - b FROM UdfTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[-($0, $1)])
-+- LogicalWatermarkAssigner(rowtime=[c], watermark=[func(func($3, $0), $0)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[func($2, $0)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[(a - b) AS EXPR$0])
-+- TableSourceScan(table=[[default_catalog, default_database, UdfTable, watermark=[func(func(func(c, a), a), a)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testProjectTransposeWatermarkAssigner">
     <Resource name="sql">
       <![CDATA[SELECT a, b, ts FROM t1]]>
@@ -68,6 +49,59 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="optimized exec plan">
       <![CDATA[
 TableSourceScan(table=[[default_catalog, default_database, VirtualTable, watermark=[-(+(c, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkWithUdf">
+    <Resource name="sql">
+      <![CDATA[SELECT a - b FROM UdfTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[-($0, $1)])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[func(func($3, $0), $0)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[func($2, $0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[(a - b) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, UdfTable, watermark=[func(func(func(c, a), a), a)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testValuesSourceWatermarkAndFilterAndProjectionPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM ValuesSourceTableWithFilter WHERE a < 5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[<($0, 5)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, ValuesSourceTableWithFilter]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, ValuesSourceTableWithFilter, filter=[<(a, 5)], project=[a], metadata=[]]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testValuesSourceWatermarkPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, c FROM ValueSourceTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, ValueSourceTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, ValueSourceTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

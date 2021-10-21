@@ -103,7 +103,8 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
            |  'connector' = 'values',
            |  'data-id' = '$dataId',
            |  'async' = '$isAsyncMode',
-           |  'bounded' = 'true'
+           |  'bounded' = 'true',
+           |  'enable-lookup' = 'true'
            |)
            |""".stripMargin)
     }
@@ -123,7 +124,8 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
            |  'connector' = 'values',
            |  'data-id' = '$dataId',
            |  'async' = '$isAsyncMode',
-           |  'bounded' = 'true'
+           |  'bounded' = 'true',
+           |  'enable-lookup' = 'true'
            |)
            |""".stripMargin)
     }

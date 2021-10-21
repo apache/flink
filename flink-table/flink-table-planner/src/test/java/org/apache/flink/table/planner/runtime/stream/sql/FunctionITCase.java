@@ -1030,6 +1030,7 @@ public class FunctionITCase extends StreamingTestBase {
                                 + ")"
                                 + "WITH ("
                                 + "  'connector' = 'values',"
+                                + "  'enable-lookup' = 'true',"
                                 + "  'lookup-function-class' = '"
                                 + LookupTableFunction.class.getName()
                                 + "'"
