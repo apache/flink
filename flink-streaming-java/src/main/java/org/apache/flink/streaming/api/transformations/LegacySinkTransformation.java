@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -40,7 +39,7 @@ import java.util.List;
  * @param <T> The type of the elements in the input {@code LegacySinkTransformation}
  */
 @Internal
-public class LegacySinkTransformation<T> extends PhysicalTransformation<Object> {
+public class LegacySinkTransformation<T> extends PhysicalTransformation<T> {
 
     private final Transformation<T> input;
 
@@ -70,7 +69,7 @@ public class LegacySinkTransformation<T> extends PhysicalTransformation<Object> 
             String name,
             StreamOperatorFactory<Object> operatorFactory,
             int parallelism) {
-        super(name, TypeExtractor.getForClass(Object.class), parallelism);
+        super(name, input.getOutputType(), parallelism);
         this.input = input;
         this.operatorFactory = operatorFactory;
     }

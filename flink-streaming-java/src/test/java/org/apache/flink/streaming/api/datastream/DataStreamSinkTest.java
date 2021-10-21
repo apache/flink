@@ -17,18 +17,24 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertTrue;
+
 /** Unit test for {@link DataStreamSink}. */
 public class DataStreamSinkTest {
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void throwExceptionWhenGettingTransformationWithNewSinkAPI() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(1, 2).sinkTo(TestSink.newBuilder().build()).getTransformation();
+        final Transformation<Integer> transformation =
+                env.fromElements(1, 2).sinkTo(TestSink.newBuilder().build()).getTransformation();
+        assertTrue(transformation instanceof SinkTransformation);
     }
 
     @Test(expected = UnsupportedOperationException.class)

@@ -1244,7 +1244,7 @@ public class DataStream<T> {
 
         DataStreamSink<T> sink = new DataStreamSink<>(this, sinkOperator);
 
-        getExecutionEnvironment().addOperator(sink.getTransformation());
+        getExecutionEnvironment().addOperator(sink.getLegacyTransformation());
         return sink;
     }
 

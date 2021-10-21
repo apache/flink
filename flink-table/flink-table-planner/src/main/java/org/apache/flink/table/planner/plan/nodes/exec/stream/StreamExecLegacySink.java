@@ -40,8 +40,7 @@ import java.util.stream.Collectors;
  *
  * @param <T> The return type of the {@link TableSink}.
  */
-public class StreamExecLegacySink<T> extends CommonExecLegacySink<T>
-        implements StreamExecNode<Object> {
+public class StreamExecLegacySink<T> extends CommonExecLegacySink<T> implements StreamExecNode<T> {
 
     public StreamExecLegacySink(
             TableSink<T> tableSink,
