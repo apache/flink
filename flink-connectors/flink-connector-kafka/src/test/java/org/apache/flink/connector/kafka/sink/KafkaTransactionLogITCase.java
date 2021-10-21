@@ -32,10 +32,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.utility.DockerImageName;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -47,6 +44,8 @@ import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.Transact
 import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionState.Ongoing;
 import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionState.PrepareAbort;
 import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionState.PrepareCommit;
+import static org.apache.flink.connector.kafka.sink.KafkaUtil.createKafkaContainer;
+import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
@@ -54,21 +53,12 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 public class KafkaTransactionLogITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSinkITCase.class);
-    private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
     private static final String TOPIC_NAME = "kafkaTransactionLogTest";
     private static final String TRANSACTIONAL_ID_PREFIX = "kafka-log";
 
     @ClassRule
     public static final KafkaContainer KAFKA_CONTAINER =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:6.2.0"))
-                    .withEmbeddedZookeeper()
-                    .withEnv("KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR", "1")
-                    .withEnv("KAFKA_TRANSACTION_STATE_LOG_MIN_ISR", "1")
-                    .withEnv("KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE", "false")
-                    .withEnv(
-                            "KAFKA_TRANSACTION_MAX_TIMEOUT_MS",
-                            String.valueOf(Duration.ofHours(2).toMillis()))
-                    .withLogConsumer(LOG_CONSUMER);
+            createKafkaContainer(KAFKA, LOG).withEmbeddedZookeeper();
 
     private final List<Producer<byte[], Integer>> openProducers = new ArrayList<>();
 
