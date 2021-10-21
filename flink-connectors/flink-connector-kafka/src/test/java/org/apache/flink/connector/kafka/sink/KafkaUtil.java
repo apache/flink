@@ -26,6 +26,9 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -42,6 +45,46 @@ public class KafkaUtil {
     private static final Duration CONSUMER_POLL_DURATION = Duration.ofSeconds(1);
 
     private KafkaUtil() {}
+
+    /**
+     * This method helps to set commonly used Kafka configurations and aligns the internal Kafka log
+     * levels with the ones used by the capturing logger.
+     *
+     * @param dockerImageVersion describing the Kafka image
+     * @param logger to derive the log level from
+     * @return configured Kafka container
+     */
+    public static KafkaContainer createKafkaContainer(String dockerImageVersion, Logger logger) {
+        String logLevel;
+        if (logger.isErrorEnabled()) {
+            logLevel = "ERROR";
+        } else if (logger.isTraceEnabled()) {
+            logLevel = "TRACE";
+        } else if (logger.isDebugEnabled()) {
+            logLevel = "DEBUG";
+        } else if (logger.isWarnEnabled()) {
+            logLevel = "WARN";
+        } else if (logger.isInfoEnabled()) {
+            logLevel = "INFO";
+        } else {
+            logLevel = "OFF";
+        }
+
+        return new KafkaContainer(DockerImageName.parse(dockerImageVersion))
+                .withEnv("KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR", "1")
+                .withEnv("KAFKA_TRANSACTION_STATE_LOG_MIN_ISR", "1")
+                .withEnv("KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE", "false")
+                .withEnv("KAFKA_LOG4J_ROOT_LOGLEVEL", logLevel)
+                .withEnv("KAFKA_LOG4J_LOGGERS", "state.change.logger=" + logLevel)
+                .withEnv("KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR", "1")
+                .withEnv("KAFKA_TRANSACTION_STATE_LOG_MIN_ISR", "1")
+                .withEnv("KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE", "false")
+                .withEnv(
+                        "KAFKA_TRANSACTION_MAX_TIMEOUT_MS",
+                        String.valueOf(Duration.ofHours(2).toMillis()))
+                .withEnv("KAFKA_LOG4J_TOOLS_ROOT_LOGLEVEL", logLevel)
+                .withLogConsumer(new Slf4jLogConsumer(logger));
+    }
 
     /**
      * Drain all records available from the given topic from the beginning until the current highest
