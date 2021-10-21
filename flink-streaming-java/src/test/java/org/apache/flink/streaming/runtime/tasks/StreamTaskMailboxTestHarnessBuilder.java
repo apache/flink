@@ -28,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -70,6 +71,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -104,6 +106,8 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
             new ThroughputCalculator(SystemClock.getInstance());
 
     private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
+    private Function<SingleInputGateBuilder, SingleInputGateBuilder> modifyGateBuilder =
+            Function.identity();
 
     public StreamTaskMailboxTestHarnessBuilder(
             FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
@@ -145,6 +149,12 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 
     public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setCollectNetworkEvents() {
         this.collectNetworkEvents = true;
+        return this;
+    }
+
+    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> modifyGateBuilder(
+            Function<SingleInputGateBuilder, SingleInputGateBuilder> singleInputGateBuilder) {
+        this.modifyGateBuilder = singleInputGateBuilder;
         return this;
     }
 
@@ -233,8 +243,8 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
                         collectNetworkEvents);
 
         streamMockEnvironment.setCheckpointResponder(taskStateManager.getCheckpointResponder());
-        initializeInputs(streamMockEnvironment);
         streamMockEnvironment.setTaskManagerInfo(taskManagerRuntimeInfo);
+        initializeInputs(streamMockEnvironment);
 
         checkState(inputGates != null, "InputGates hasn't been initialised");
 
@@ -307,7 +317,8 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
                         inputChannelsPerGate.get(gateIndex),
                         gateIndex,
                         inputSerializer,
-                        bufferSize);
+                        bufferSize,
+                        modifyGateBuilder.apply(new SingleInputGateBuilder()));
 
         StreamNode sourceVertexDummy =
                 new StreamNode(
