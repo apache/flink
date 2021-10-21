@@ -42,7 +42,7 @@ public class StreamingCommitterStateTest {
         r.put(3L, Arrays.asList(30, 31, 32, 33));
 
         final StreamingCommitterState<Integer> streamingCommitterState =
-                new StreamingCommitterState<>(r);
+                StreamingCommitterState.of(r);
 
         assertThat(streamingCommitterState.getCommittables(), equalTo(expectedList));
     }

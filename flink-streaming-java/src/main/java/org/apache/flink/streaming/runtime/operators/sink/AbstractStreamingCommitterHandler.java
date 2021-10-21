@@ -26,7 +26,6 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,8 +114,7 @@ abstract class AbstractStreamingCommitterHandler<InputT, CommT>
         committablesPerCheckpoint.put(context.getCheckpointId(), prepareCommit(pollCommittables()));
 
         streamingCommitterState.update(
-                Collections.singletonList(
-                        new StreamingCommitterState<>(committablesPerCheckpoint)));
+                Collections.singletonList(StreamingCommitterState.of(committablesPerCheckpoint)));
     }
 
     protected List<CommT> commitUpTo(long checkpointId) throws IOException, InterruptedException {

@@ -40,11 +40,13 @@ final class StreamingCommitterState<CommT> {
         this.committables = checkNotNull(committables);
     }
 
-    StreamingCommitterState(NavigableMap<Long, List<CommT>> committablesPerCheckpoint) {
-        committables = new ArrayList<>();
+    static <CommT> StreamingCommitterState<CommT> of(
+            NavigableMap<Long, List<CommT>> committablesPerCheckpoint) {
+        List<CommT> allCommittables = new ArrayList<>();
         for (List<CommT> committables : committablesPerCheckpoint.values()) {
-            this.committables.addAll(committables);
+            allCommittables.addAll(committables);
         }
+        return new StreamingCommitterState<>(allCommittables);
     }
 
     public List<CommT> getCommittables() {
