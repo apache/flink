@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 
 import org.slf4j.Logger;
@@ -32,11 +33,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * {@link CommitterHandler} for executing {@link GlobalCommitter} in the batch execution mode.
  *
- * @param <CommT> The committable type of the {@link GlobalCommitter}
+ * <p>This handler never emits output downstream.
+ *
+ * @param <CommT> The committable type of the {@link Committer}, which is the input and output type.
  * @param <GlobalCommT> The committable type of the {@link GlobalCommitter}
  */
 final class GlobalBatchCommitterHandler<CommT, GlobalCommT>
-        extends AbstractCommitterHandler<CommT, GlobalCommT, GlobalCommT> {
+        extends AbstractCommitterHandler<CommT, GlobalCommT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(GlobalBatchCommitterHandler.class);
 
@@ -51,7 +54,7 @@ final class GlobalBatchCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    public List<GlobalCommT> endOfInput() throws IOException, InterruptedException {
+    public List<CommT> endOfInput() throws IOException, InterruptedException {
         List<CommT> allCommittables = pollCommittables();
         if (!allCommittables.isEmpty()) {
             final GlobalCommT globalCommittable = globalCommitter.combine(allCommittables);

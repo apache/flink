@@ -47,10 +47,13 @@ public final class CommitterOperatorFactory<CommT, GlobalCommT>
 
     private final Sink<?, CommT, ?, GlobalCommT> sink;
     private final boolean batch;
+    private final boolean global;
 
-    public CommitterOperatorFactory(Sink<?, CommT, ?, GlobalCommT> sink, boolean batch) {
+    public CommitterOperatorFactory(
+            Sink<?, CommT, ?, GlobalCommT> sink, boolean batch, boolean global) {
         this.sink = sink;
         this.batch = batch;
+        this.global = global;
     }
 
     @Override
@@ -61,21 +64,21 @@ public final class CommitterOperatorFactory<CommT, GlobalCommT>
         SimpleVersionedSerializer<CommT> committableSerializer =
                 sink.getCommittableSerializer().orElseThrow(this::noSerializerFound);
         try {
-            CommitterHandler<CommT, GlobalCommT> committerHandler = getGlobalCommitterHandler();
-            if (batch) {
+            CommitterHandler<CommT> committerHandler;
+            if (global) {
+                committerHandler = getGlobalCommitterHandler();
+            } else {
                 Optional<Committer<CommT>> committer = sink.createCommitter();
-                if (committer.isPresent()) {
-                    committerHandler =
-                            new BatchCommitterHandler<>(committer.get(), committerHandler);
-                }
+                checkState(committer.isPresent(), "committer operator without commmitter");
+                committerHandler = new BatchCommitterHandler<>(committer.get());
             }
 
-            checkState(
-                    !(committerHandler instanceof NoopCommitterHandler),
-                    "committer operator without commmitter");
-            final CommitterOperator<CommT, GlobalCommT> committerOperator =
+            final CommitterOperator<CommT> committerOperator =
                     new CommitterOperator<>(
-                            processingTimeService, committableSerializer, committerHandler);
+                            processingTimeService,
+                            committableSerializer,
+                            committerHandler,
+                            !global);
             committerOperator.setup(
                     parameters.getContainingTask(),
                     parameters.getStreamConfig(),
@@ -92,12 +95,9 @@ public final class CommitterOperatorFactory<CommT, GlobalCommT>
                         + " does not implement getCommittableSerializer which is needed for any (global) committer.");
     }
 
-    private CommitterHandler<CommT, GlobalCommT> getGlobalCommitterHandler() throws IOException {
+    private CommitterHandler<CommT> getGlobalCommitterHandler() throws IOException {
         Optional<GlobalCommitter<CommT, GlobalCommT>> globalCommitter =
                 sink.createGlobalCommitter();
-        if (!globalCommitter.isPresent()) {
-            return NoopCommitterHandler.getInstance();
-        }
         if (batch) {
             return new GlobalBatchCommitterHandler<>(globalCommitter.get());
         }

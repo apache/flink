@@ -21,7 +21,6 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -30,10 +29,9 @@ import java.util.List;
  * A wrapper around a {@link org.apache.flink.api.connector.sink.Committer} or {@link
  * org.apache.flink.api.connector.sink.GlobalCommitter} that manages states.
  *
- * @param <InputT>
- * @param <OutputT>
+ * @param <CommT> The type of the committable
  */
-interface CommitterHandler<InputT, OutputT> extends AutoCloseable, Serializable {
+interface CommitterHandler<CommT> extends AutoCloseable {
 
     /** Initializes the state of the committer and this handler. */
     default void initializeState(StateInitializationContext context) throws Exception {}
@@ -45,22 +43,22 @@ interface CommitterHandler<InputT, OutputT> extends AutoCloseable, Serializable 
      * Processes the committables by either directly transforming them or by adding them to the
      * internal state of this handler.
      *
-     * @return a list of output committables that is send downstream.
+     * @return a list of output committables that is sent downstream.
      */
-    List<OutputT> processCommittables(List<InputT> committables);
+    List<CommT> processCommittables(List<CommT> committables);
 
     /**
      * Called when no more committables are going to be added through {@link
      * #processCommittables(List)}.
      *
-     * @return a list of output committables that is send downstream.
+     * @return a list of output committables that is sent downstream.
      */
-    default List<OutputT> endOfInput() throws IOException, InterruptedException {
+    default List<CommT> endOfInput() throws IOException, InterruptedException {
         return Collections.emptyList();
     }
 
     /** Called when a checkpoint is completed and returns a list of output to be sent downstream. */
-    default Collection<OutputT> notifyCheckpointCompleted(long checkpointId)
+    default Collection<CommT> notifyCheckpointCompleted(long checkpointId)
             throws IOException, InterruptedException {
         return Collections.emptyList();
     }

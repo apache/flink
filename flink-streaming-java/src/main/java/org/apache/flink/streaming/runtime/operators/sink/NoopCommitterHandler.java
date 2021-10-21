@@ -22,12 +22,12 @@ import java.util.Collections;
 import java.util.List;
 
 /** Swallows all committables and emits nothing. */
-enum NoopCommitterHandler implements CommitterHandler<Object, Object> {
+enum NoopCommitterHandler implements CommitterHandler<Object> {
     INSTANCE;
 
     @SuppressWarnings("unchecked")
-    static <InputT, OutputT> CommitterHandler<InputT, OutputT> getInstance() {
-        return (CommitterHandler<InputT, OutputT>) NoopCommitterHandler.INSTANCE;
+    public static <CommT> CommitterHandler<CommT> getInstance() {
+        return (CommitterHandler<CommT>) NoopCommitterHandler.INSTANCE;
     }
 
     @Override

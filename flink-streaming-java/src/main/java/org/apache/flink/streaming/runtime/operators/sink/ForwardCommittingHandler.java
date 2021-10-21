@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.connector.sink.Committer;
+
 import java.io.IOException;
 import java.util.List;
 
@@ -24,8 +26,10 @@ import java.util.List;
  * This committer handler simply forwards all committables downstream. It's used in {@link
  * SinkOperator} without committers but with downstream operators (in streaming, only global
  * committer on sink; in batch, committer or global committer present).
+ *
+ * @param <CommT> The input and output type of the {@link Committer}.
  */
-class ForwardCommittingHandler<CommT> extends AbstractCommitterHandler<CommT, CommT, CommT> {
+class ForwardCommittingHandler<CommT> extends AbstractCommitterHandler<CommT, Void> {
     ForwardCommittingHandler() {}
 
     @Override
@@ -34,7 +38,7 @@ class ForwardCommittingHandler<CommT> extends AbstractCommitterHandler<CommT, Co
     }
 
     @Override
-    protected void retry(List<CommT> recoveredCommittables)
+    protected void retry(List<Void> recoveredCommittables)
             throws IOException, InterruptedException {
         throw new UnsupportedOperationException(
                 "This handler should never receive recovered commits");

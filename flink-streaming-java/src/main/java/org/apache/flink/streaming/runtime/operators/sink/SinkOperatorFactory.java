@@ -72,7 +72,7 @@ public final class SinkOperatorFactory<InputT, CommT, WriterStateT>
 
         Optional<SimpleVersionedSerializer<CommT>> committableSerializerOpt =
                 sink.getCommittableSerializer();
-        CommitterHandler<CommT, CommT> committerHandler =
+        CommitterHandler<CommT> committerHandler =
                 shouldEmit ? new ForwardCommittingHandler<>() : NoopCommitterHandler.getInstance();
         if (!batch) {
             try {

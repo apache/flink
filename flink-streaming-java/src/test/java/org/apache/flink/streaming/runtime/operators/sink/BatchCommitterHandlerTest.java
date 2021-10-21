@@ -99,6 +99,7 @@ public class BatchCommitterHandlerTest extends TestLogger {
                                 .setCommittableSerializer(
                                         TestSink.StringCommittableSerializer.INSTANCE)
                                 .build(),
-                        true));
+                        true,
+                        false));
     }
 }

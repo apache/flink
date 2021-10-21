@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink.GlobalCommitter;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -26,14 +29,20 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-abstract class AbstractCommitterHandler<InputT, OutputT, RecoverT>
-        implements CommitterHandler<InputT, OutputT> {
+/**
+ * Abstract base class for operators that work with a {@link Committer} or a {@link
+ * GlobalCommitter}.
+ *
+ * @param <CommT> The input and output type of the {@link Committer}.
+ * @param <StateT> The type of the internal state.
+ */
+abstract class AbstractCommitterHandler<CommT, StateT> implements CommitterHandler<CommT> {
 
     /** Record all the committables until commit. */
-    private final Deque<InputT> committables = new ArrayDeque<>();
+    private final Deque<CommT> committables = new ArrayDeque<>();
 
     /** The committables that need to be committed again after recovering from a failover. */
-    private final List<RecoverT> recoveredCommittables = new ArrayList<>();
+    private final List<StateT> recoveredCommittables = new ArrayList<>();
 
     /**
      * Notifies a list of committables that might need to be committed again after recovering from a
@@ -41,15 +50,15 @@ abstract class AbstractCommitterHandler<InputT, OutputT, RecoverT>
      *
      * @param recovered A list of committables
      */
-    protected void recoveredCommittables(List<RecoverT> recovered) throws IOException {
+    protected void recoveredCommittables(List<StateT> recovered) throws IOException {
         recoveredCommittables.addAll(checkNotNull(recovered));
     }
 
-    protected List<RecoverT> prependRecoveredCommittables(List<RecoverT> committables) {
+    protected List<StateT> prependRecoveredCommittables(List<StateT> committables) {
         if (recoveredCommittables.isEmpty()) {
             return committables;
         }
-        List<RecoverT> all = new ArrayList<>(recoveredCommittables.size() + committables.size());
+        List<StateT> all = new ArrayList<>(recoveredCommittables.size() + committables.size());
         all.addAll(recoveredCommittables);
         all.addAll(committables);
         recoveredCommittables.clear();
@@ -66,17 +75,17 @@ abstract class AbstractCommitterHandler<InputT, OutputT, RecoverT>
         retry(prependRecoveredCommittables(Collections.emptyList()));
     }
 
-    protected abstract void retry(List<RecoverT> recoveredCommittables)
+    protected abstract void retry(List<StateT> recoveredCommittables)
             throws IOException, InterruptedException;
 
     @Override
-    public List<OutputT> processCommittables(List<InputT> committables) {
+    public List<CommT> processCommittables(List<CommT> committables) {
         this.committables.addAll(committables);
         return Collections.emptyList();
     }
 
-    protected List<InputT> pollCommittables() {
-        List<InputT> committables = new ArrayList<>(this.committables);
+    protected List<CommT> pollCommittables() {
+        List<CommT> committables = new ArrayList<>(this.committables);
         this.committables.clear();
         return committables;
     }

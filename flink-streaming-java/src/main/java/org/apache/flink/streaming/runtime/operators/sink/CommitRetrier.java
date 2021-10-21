@@ -32,19 +32,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 class CommitRetrier {
     private final ProcessingTimeService processingTimeService;
-    private final CommitterHandler<?, ?> committerHandler;
+    private final CommitterHandler<?> committerHandler;
     private final Clock clock;
     @VisibleForTesting static final int RETRY_DELAY = 1000;
 
     public CommitRetrier(
-            ProcessingTimeService processingTimeService, CommitterHandler<?, ?> committerHandler) {
+            ProcessingTimeService processingTimeService, CommitterHandler<?> committerHandler) {
         this(processingTimeService, committerHandler, SystemClock.getInstance());
     }
 
     @VisibleForTesting
     public CommitRetrier(
             ProcessingTimeService processingTimeService,
-            CommitterHandler<?, ?> committerHandler,
+            CommitterHandler<?> committerHandler,
             Clock clock) {
         this.processingTimeService = checkNotNull(processingTimeService);
         this.committerHandler = checkNotNull(committerHandler);

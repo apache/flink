@@ -89,7 +89,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
 
     private final SinkWriterStateHandler<WriterStateT> sinkWriterStateHandler;
 
-    private final CommitterHandler<CommT, CommT> committerHandler;
+    private final CommitterHandler<CommT> committerHandler;
 
     private CommitRetrier commitRetrier;
 
@@ -117,7 +117,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
                             IOException>
                     writerFactory,
             SinkWriterStateHandler<WriterStateT> sinkWriterStateHandler,
-            CommitterHandler<CommT, CommT> committerHandler,
+            CommitterHandler<CommT> committerHandler,
             @Nullable SimpleVersionedSerializer<CommT> committableSerializer) {
         this.processingTimeService = checkNotNull(processingTimeService);
         this.mailboxExecutor = checkNotNull(mailboxExecutor);

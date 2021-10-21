@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
@@ -32,7 +33,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * {@link CommitterHandler} for executing {@link GlobalCommitter} in the streaming execution mode.
  *
- * @param <CommT> The committable type of the {@link GlobalCommitter}.
+ * <p>This handler never emits output downstream.
+ *
+ * @param <CommT> The committable type of the {@link Committer}, which is the input and output type.
  * @param <GlobalCommT> The global committable type of the {@link GlobalCommitter}.
  */
 @Internal
@@ -77,7 +80,7 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    public List<GlobalCommT> endOfInput() {
+    public List<CommT> endOfInput() {
         endOfInput = true;
         return Collections.emptyList();
     }
@@ -89,7 +92,7 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    public Collection<GlobalCommT> notifyCheckpointCompleted(long checkpointId)
+    public Collection<CommT> notifyCheckpointCompleted(long checkpointId)
             throws IOException, InterruptedException {
         super.notifyCheckpointCompleted(checkpointId);
         commitUpTo(checkpointId);
