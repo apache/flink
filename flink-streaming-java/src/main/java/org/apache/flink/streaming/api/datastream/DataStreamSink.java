@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
@@ -64,7 +65,12 @@ public class DataStreamSink<T> {
 
     /** Returns the transformation that contains the actual sink operator of this sink. */
     @Internal
-    public LegacySinkTransformation<T> getTransformation() {
+    public Transformation<T> getTransformation() {
+        return transformation;
+    }
+
+    @Internal
+    public LegacySinkTransformation<T> getLegacyTransformation() {
         if (transformation instanceof LegacySinkTransformation) {
             return (LegacySinkTransformation<T>) transformation;
         } else {
