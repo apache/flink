@@ -52,12 +52,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -66,7 +63,9 @@ import java.util.PriorityQueue;
 import java.util.Properties;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.connector.kafka.sink.KafkaUtil.createKafkaContainer;
 import static org.apache.flink.connector.kafka.sink.KafkaUtil.drainAllRecordsFromTopic;
+import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -80,7 +79,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class KafkaWriterITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaWriterITCase.class);
-    private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
     private static final Network NETWORK = Network.newNetwork();
     private static final String KAFKA_METRIC_WITH_GROUP_NAME = "KafkaProducer.incoming-byte-total";
@@ -91,16 +89,9 @@ public class KafkaWriterITCase extends TestLogger {
     private TriggerTimeService timeService;
 
     private static final KafkaContainer KAFKA_CONTAINER =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:5.5.2"))
+            createKafkaContainer(KAFKA, LOG)
                     .withEmbeddedZookeeper()
-                    .withEnv("KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR", "1")
-                    .withEnv("KAFKA_TRANSACTION_STATE_LOG_MIN_ISR", "1")
-                    .withEnv("KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE", "false")
-                    .withEnv(
-                            "KAFKA_TRANSACTION_MAX_TIMEOUT_MS",
-                            String.valueOf(Duration.ofHours(2).toMillis()))
                     .withNetwork(NETWORK)
-                    .withLogConsumer(LOG_CONSUMER)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
 
     @BeforeAll
