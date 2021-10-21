@@ -18,12 +18,14 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.apache.http.HttpHost;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -31,12 +33,14 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/** Tests for {@link ElasticsearchSinkBuilder}. */
-class ElasticsearchSinkBuilderTest extends TestLogger {
+/** Tests for {@link ElasticsearchSinkBuilderBase}. */
+@ExtendWith(TestLoggerExtension.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+abstract class ElasticsearchSinkBuilderBaseTest {
 
     @ParameterizedTest
     @MethodSource("validBuilders")
-    void testBuildElasticsearchSink(ElasticsearchSinkBuilder<?> builder) {
+    void testBuildElasticsearchSink(ElasticsearchSinkBuilderBase<?> builder) {
         builder.build();
     }
 
@@ -44,42 +48,34 @@ class ElasticsearchSinkBuilderTest extends TestLogger {
     void testThrowIfExactlyOnceConfigured() {
         assertThrows(
                 IllegalStateException.class,
-                () -> createBuilder().setDeliveryGuarantee(DeliveryGuarantee.EXACTLY_ONCE));
+                () -> createMinimalBuilder().setDeliveryGuarantee(DeliveryGuarantee.EXACTLY_ONCE));
     }
 
     @Test
     void testThrowIfHostsNotSet() {
         assertThrows(
                 NullPointerException.class,
-                () ->
-                        new ElasticsearchSinkBuilder<>()
-                                .setEmitter((element, indexer, context) -> {})
-                                .build());
+                () -> createEmptyBuilder().setEmitter((element, indexer, context) -> {}).build());
     }
 
     @Test
     void testThrowIfEmitterNotSet() {
         assertThrows(
                 NullPointerException.class,
-                () ->
-                        new ElasticsearchSinkBuilder<>()
-                                .setHosts(new HttpHost("localhost:3000"))
-                                .build());
+                () -> createEmptyBuilder().setHosts(new HttpHost("localhost:3000")).build());
     }
 
-    private static List<ElasticsearchSinkBuilder<?>> validBuilders() {
+    private List<ElasticsearchSinkBuilderBase<?>> validBuilders() {
         return Lists.newArrayList(
-                createBuilder(),
-                createBuilder().setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE),
-                createBuilder().setBulkFlushBackoffStrategy(FlushBackoffType.CONSTANT, 1, 1),
-                createBuilder()
+                createMinimalBuilder(),
+                createMinimalBuilder().setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE),
+                createMinimalBuilder().setBulkFlushBackoffStrategy(FlushBackoffType.CONSTANT, 1, 1),
+                createMinimalBuilder()
                         .setConnectionUsername("username")
                         .setConnectionPassword("password"));
     }
 
-    private static ElasticsearchSinkBuilder<?> createBuilder() {
-        return new ElasticsearchSinkBuilder<>()
-                .setEmitter((element, indexer, context) -> {})
-                .setHosts(new HttpHost("localhost:3000"));
-    }
+    abstract ElasticsearchSinkBuilderBase<?> createEmptyBuilder();
+
+    abstract ElasticsearchSinkBuilderBase<?> createMinimalBuilder();
 }

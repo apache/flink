@@ -39,7 +39,6 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -89,7 +88,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
      * @param metricGroup for the sink writer
      * @param mailboxExecutor Flink's mailbox executor
      */
-    public ElasticsearchWriter(
+    ElasticsearchWriter(
             List<HttpHost> hosts,
             ElasticsearchEmitter<? super IN> emitter,
             boolean flushOnCheckpoint,
@@ -108,11 +107,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
         this.bulkProcessor =
                 configureBulkProcessor(
                         BulkProcessor.builder(
-                                (bulkRequest, bulkResponseActionListener) ->
-                                        client.bulkAsync(
-                                                bulkRequest,
-                                                RequestOptions.DEFAULT,
-                                                bulkResponseActionListener),
+                                bulkProcessorConfig.getBulkRequestConsumerFactory().create(client),
                                 new BulkListener()),
                         bulkProcessorConfig);
         this.requestIndexer = new DefaultRequestIndexer();

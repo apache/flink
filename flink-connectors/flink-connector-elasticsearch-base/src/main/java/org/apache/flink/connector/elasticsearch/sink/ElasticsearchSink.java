@@ -51,7 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ul>
  *
  * @param <IN> type of the records converted to Elasticsearch actions
- * @see ElasticsearchSinkBuilder on how to construct a ElasticsearchSink
+ * @see ElasticsearchSinkBuilderBase on how to construct a ElasticsearchSink
  */
 @PublicEvolving
 public class ElasticsearchSink<IN> implements Sink<IN, Void, Void, Void> {
@@ -74,16 +74,6 @@ public class ElasticsearchSink<IN> implements Sink<IN, Void, Void, Void> {
         this.deliveryGuarantee = checkNotNull(deliveryGuarantee);
         this.buildBulkProcessorConfig = checkNotNull(buildBulkProcessorConfig);
         this.networkClientConfig = checkNotNull(networkClientConfig);
-    }
-
-    /**
-     * Create a {@link ElasticsearchSinkBuilder} to construct a new {@link ElasticsearchSink}.
-     *
-     * @param <IN> type of incoming records
-     * @return {@link ElasticsearchSinkBuilder}
-     */
-    public static <IN> ElasticsearchSinkBuilder<IN> builder() {
-        return new ElasticsearchSinkBuilder<>();
     }
 
     @Override
