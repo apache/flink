@@ -26,7 +26,7 @@ import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStruc
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
-import org.apache.flink.table.planner.utils.InternalConfigOptions
+import org.apache.flink.table.planner.utils.{InternalConfigOptions, JavaScalaConversionUtil}
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.runtime.typeutils.{ExternalSerializer, InternalSerializers}
@@ -35,12 +35,14 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.InstantiationUtil
-
 import java.util.TimeZone
 import java.util.function.{Supplier => JSupplier}
 import java.time.ZoneId
+import java.util
 
-import scala.collection.mutable
+import org.apache.calcite.rex.{RexLocalRef, RexNode}
+
+import scala.collection.{JavaConverters, mutable}
 
 /**
   * The context for code generator, maintaining various reusable statements that could be insert
@@ -134,9 +136,79 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   private var operatorBaseClass: Class[_] = classOf[TableStreamOperator[_]]
 
+  private var localRefs: Seq[RexLocalRef] = null
+
+  private val projectionIndexMapping: mutable.Map[Int, RexNode] =
+    mutable.Map[Int, RexNode]()
+
+  private val reuseExpression: mutable.Map[RexNode, GeneratedExpression] =
+    mutable.Map[RexNode, GeneratedExpression]()
+
+
   // ---------------------------------------------------------------------------------
   // Getter
   // ---------------------------------------------------------------------------------
+
+  def addCommonExpression(rexNode: RexNode, expression: GeneratedExpression):
+    GeneratedExpression = {
+    reuseExpression.put(rexNode, expression)
+    expression
+  }
+
+  def cleanupCommonExpression() = {
+    reuseExpression.clear()
+  }
+
+  def getCommonExpression(rexNode: RexNode): GeneratedExpression = {
+    reuseExpression.getOrElse(rexNode, null)
+  }
+
+  def commonExpressionElimination(fieldExprs: Seq[GeneratedExpression]):
+    Seq[GeneratedExpression] = {
+
+    if(localRefs == null) {
+      return fieldExprs
+    }
+
+    var result:Seq[GeneratedExpression] = List()
+    var offset = 0
+    localRefs.foreach(localRef => {
+      var code = ""
+      for(i <- offset until localRef.getIndex + 1) {
+        val expression = fieldExprs(i)
+        code =
+          s"""$code
+             |${expression.code}""".stripMargin
+      }
+      result = result :+  fieldExprs(localRef.getIndex).copy(code = code)
+      offset = localRef.getIndex + 1
+    })
+    result
+  }
+
+  def getLocalRefs = localRefs
+
+  def setLocalRefs(localRefs: java.util.List[RexLocalRef]) : CodeGeneratorContext = {
+    if(localRefs == null) {
+      return this;
+    }
+    this.localRefs = JavaScalaConversionUtil.toScala(localRefs)
+    this
+  }
+
+  def getRexNodeIndex(index: Int) : RexNode = {
+    projectionIndexMapping.getOrElse(index, null)
+  }
+
+  def loadProjection(projection: util.List[RexNode]) : CodeGeneratorContext = {
+    if(projection != null && !projection.isEmpty) {
+      JavaScalaConversionUtil.toScala(projection).zipWithIndex.foreach {
+          case(rexNode, index)=>
+            projectionIndexMapping.put(index, rexNode)
+      }
+    }
+    this
+  }
 
   def getReusableInputUnboxingExprs(inputTerm: String, index: Int): Option[GeneratedExpression] =
     reusableInputUnboxingExprs.get((inputTerm, index))

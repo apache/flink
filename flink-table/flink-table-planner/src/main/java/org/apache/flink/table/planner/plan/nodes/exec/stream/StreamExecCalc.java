@@ -29,6 +29,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -42,12 +43,14 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
 
     public StreamExecCalc(
             List<RexNode> projection,
+            List<RexLocalRef> localRefs,
             @Nullable RexNode condition,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
         this(
                 projection,
+                localRefs,
                 condition,
                 getNewNodeId(),
                 Collections.singletonList(inputProperty),
@@ -58,6 +61,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
     @JsonCreator
     public StreamExecCalc(
             @JsonProperty(FIELD_NAME_PROJECTION) List<RexNode> projection,
+            @JsonProperty(FIELD_NAME_LOCAL_REFS) List<RexLocalRef> localRefs,
             @JsonProperty(FIELD_NAME_CONDITION) @Nullable RexNode condition,
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
@@ -65,6 +69,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
                 projection,
+                localRefs,
                 condition,
                 TableStreamOperator.class,
                 true, // retainHeader

@@ -31,10 +31,12 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
 import org.apache.calcite.util.{ControlFlowException, ImmutableBitSet, Sarg, Util}
-
 import java.lang.{Iterable => JIterable}
 import java.util
 import java.util.function.Predicate
+
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
@@ -399,6 +401,25 @@ object FlinkRexUtil {
       rexBuilder.makeLiteral(range.lowerEndpoint(), sargLiteral.getType, false))
     List(call.getOperands.head) ++ sargOperands
   }
+
+  def replaceRexNodeLocalRef(call: RexNode, ctx: CodeGeneratorContext) : RexNode = {
+    call.accept(new RexShuttle() {
+      override def visitLocalRef(localRef: RexLocalRef): RexNode = {
+        val real = ctx.getRexNodeIndex(localRef.getIndex)
+        if(real == null) {
+          super.visitLocalRef(localRef)
+        } else {
+          real
+        }
+      }
+    })
+  }
+
+
+  def replaceRexCallLocalRef(call: RexCall, ctx: CodeGeneratorContext) : RexCall = {
+    replaceRexNodeLocalRef(call, ctx).asInstanceOf[RexCall]
+  }
+
 
   /**
     * Adjust the expression's field indices according to fieldsOldToNewIndexMapping.

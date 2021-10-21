@@ -28,6 +28,7 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestCommonExpressionEliminationFunction
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
@@ -368,6 +369,29 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ">>4"
     )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCommonExpressionElimination(): Unit = {
+
+    val testData = new mutable.MutableList[String]
+    testData.+=("aa_ff")
+    testData.+=("bb_gg")
+    testData.+=("cc_hh")
+    testData.+=("dd_ii")
+    val t = env.fromCollection(testData).toTable(tEnv).as("f")
+    tEnv.createTemporaryView("t", t)
+    tEnv.createTemporaryFunction(
+      "string_split", new TestCommonExpressionEliminationFunction())
+    val result = tEnv.sqlQuery(
+      s"""SELECT string_split(f, '_', ${testData.size})[1],
+         |string_split(f, '_', ${testData.size})[2]
+         |FROM t""".stripMargin)
+    val sink = new TestingAppendSink
+
+    result.toAppendStream[Row].addSink(sink)
+    env.execute()
+    println(sink.getAppendResults.sorted)
   }
 
   class NonStaticClassScalarFunction extends ScalarFunction {

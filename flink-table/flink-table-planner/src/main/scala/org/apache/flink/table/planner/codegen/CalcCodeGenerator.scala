@@ -122,7 +122,7 @@ object CalcCodeGenerator {
     val exprGenerator = new ExprCodeGenerator(ctx, false)
         .bindInput(inputType, inputTerm = inputTerm)
 
-    val onlyFilter = projection.lengthCompare(inputType.getFieldCount) == 0 &&
+    val onlyFilter = ctx.getLocalRefs.lengthCompare(inputType.getFieldCount) == 0 &&
       projection.zipWithIndex.forall { case (rexNode, index) =>
         rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
       }
@@ -134,7 +134,9 @@ object CalcCodeGenerator {
     }
 
     def produceProjectionCode: String = {
-      val projectionExprs = projection.map(exprGenerator.generateExpression)
+      ctx.cleanupCommonExpression()
+      var projectionExprs = projection.map(exprGenerator.generateExpression)
+      projectionExprs = ctx.commonExpressionElimination(projectionExprs)
       val projectionExpression = exprGenerator.generateResultExpression(
         projectionExprs,
         outRowType,

@@ -30,10 +30,8 @@ import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.table.planner.{JInt, JLong}
 import org.apache.flink.types.Row
-
 import com.google.common.base.Charsets
 import com.google.common.io.Files
-
 import java.io.File
 import java.lang.{Iterable => JIterable}
 import java.sql.{Date, Timestamp}
@@ -41,6 +39,8 @@ import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util
 import java.util.TimeZone
 import java.util.concurrent.atomic.AtomicInteger
+
+import org.junit.Assert
 
 import scala.annotation.varargs
 
@@ -313,6 +313,17 @@ object UserDefinedFunctionTestUtils {
 
     def eval(id: String): String = {
       id
+    }
+  }
+
+  @SerialVersionUID(1L)
+  class TestCommonExpressionEliminationFunction extends ScalarFunction {
+    var count = 0
+    def eval(value: String, split:String, alertCount:Int): Array[String] = {
+      val result = value.split(split)
+      count += 1
+      Assert.assertTrue(count <= alertCount)
+      result
     }
   }
 

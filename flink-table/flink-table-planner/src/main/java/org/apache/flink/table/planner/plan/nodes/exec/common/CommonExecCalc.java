@@ -37,6 +37,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgn
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -52,10 +53,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
     public static final String FIELD_NAME_PROJECTION = "projection";
+    public static final String FIELD_NAME_LOCAL_REFS = "localRefs";
     public static final String FIELD_NAME_CONDITION = "condition";
 
     @JsonProperty(FIELD_NAME_PROJECTION)
     private final List<RexNode> projection;
+
+    @JsonProperty(FIELD_NAME_LOCAL_REFS)
+    private final List<RexLocalRef> localRefs;
 
     @JsonProperty(FIELD_NAME_CONDITION)
     private final @Nullable RexNode condition;
@@ -65,6 +70,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
 
     protected CommonExecCalc(
             List<RexNode> projection,
+            List<RexLocalRef> localRefs,
             @Nullable RexNode condition,
             Class<?> operatorBaseClass,
             boolean retainHeader,
@@ -75,6 +81,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         super(id, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.projection = checkNotNull(projection);
+        this.localRefs = localRefs;
         this.condition = condition;
         this.operatorBaseClass = checkNotNull(operatorBaseClass);
         this.retainHeader = retainHeader;
@@ -88,7 +95,9 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final CodeGeneratorContext ctx =
                 new CodeGeneratorContext(planner.getTableConfig())
-                        .setOperatorBaseClass(operatorBaseClass);
+                        .setOperatorBaseClass(operatorBaseClass)
+                        .setLocalRefs(localRefs)
+                        .loadProjection(projection);
 
         final CodeGenOperatorFactory<RowData> substituteStreamOperator =
                 CalcCodeGenerator.generateCalcOperator(
