@@ -18,9 +18,7 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 
 import java.io.IOException;
@@ -28,22 +26,22 @@ import java.io.IOException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-class TestClient {
+abstract class TestClientBase {
 
+    static final String DOCUMENT_TYPE = "test-document-type";
     private static final String DATA_FIELD_NAME = "data";
-    private final RestHighLevelClient client;
+    final RestHighLevelClient client;
 
-    TestClient(RestHighLevelClient client) {
+    TestClientBase(RestHighLevelClient client) {
         this.client = client;
     }
+
+    abstract GetResponse getResponse(String index, int id) throws IOException;
 
     void assertThatIdsAreNotWritten(String index, int... ids) throws IOException {
         for (final int id : ids) {
             try {
-                final GetResponse response =
-                        client.get(
-                                new GetRequest(index, Integer.toString(id)),
-                                RequestOptions.DEFAULT);
+                final GetResponse response = getResponse(index, id);
                 assertFalse(
                         response.isExists(), String.format("Id %s is unexpectedly present.", id));
             } catch (ElasticsearchStatusException e) {
@@ -57,10 +55,7 @@ class TestClient {
         for (final int id : ids) {
             GetResponse response;
             do {
-                response =
-                        client.get(
-                                new GetRequest(index, Integer.toString(id)),
-                                RequestOptions.DEFAULT);
+                response = getResponse(index, id);
                 Thread.sleep(10);
             } while (response.isSourceEmpty());
             assertEquals(buildMessage(id), response.getSource().get(DATA_FIELD_NAME));

@@ -29,6 +29,8 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.connector.elasticsearch.sink.TestClientBase.DOCUMENT_TYPE;
+
 class TestEmitter implements ElasticsearchEmitter<Tuple2<Integer, String>> {
 
     private final String index;
@@ -62,6 +64,7 @@ class TestEmitter implements ElasticsearchEmitter<Tuple2<Integer, String>> {
         try {
             return new IndexRequest(index)
                     .id(element.f0.toString())
+                    .type(DOCUMENT_TYPE)
                     .source(xContentBuilderProvider.getBuilder().map(document));
         } catch (IOException e) {
             throw new RuntimeException(e);

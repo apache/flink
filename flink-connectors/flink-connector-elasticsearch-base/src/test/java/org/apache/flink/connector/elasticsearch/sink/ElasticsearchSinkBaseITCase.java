@@ -23,12 +23,11 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.DockerImageVersions;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
@@ -42,16 +41,12 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.elasticsearch.ElasticsearchContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 import javax.annotation.Nullable;
 
@@ -65,40 +60,41 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link ElasticsearchSink}. */
-@Testcontainers
-class ElasticsearchSinkITCase extends TestLogger {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSinkITCase.class);
-    private static final String ELASTICSEARCH_PASSWORD = "test-password";
-    private static final String ELASTICSEARCH_USER = "elastic";
-
-    @Container
-    private static final ElasticsearchContainer ES_CONTAINER =
-            new ElasticsearchContainer(
-                            DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_COMMERCIAL_7))
-                    .withPassword(ELASTICSEARCH_PASSWORD)
-                    .withLogConsumer(new Slf4jLogConsumer(LOG));
+@ExtendWith(TestLoggerExtension.class)
+abstract class ElasticsearchSinkBaseITCase {
+    protected static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSinkBaseITCase.class);
+    protected static final String ELASTICSEARCH_PASSWORD = "test-password";
+    protected static final String ELASTICSEARCH_USER = "elastic";
 
     private static boolean failed;
 
     private RestHighLevelClient client;
-    private TestClient context;
+    private TestClientBase context;
 
-    @BeforeEach
-    void setUp() {
-        failed = false;
+    abstract String getElasticsearchHttpHostAddress();
+
+    abstract TestClientBase createTestClient(RestHighLevelClient client);
+
+    abstract ElasticsearchSinkBuilderBase<Tuple2<Integer, String>> getSinkBuilder();
+
+    private RestHighLevelClient createRestHighLevelClient() {
         final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(
                 AuthScope.ANY,
                 new UsernamePasswordCredentials(ELASTICSEARCH_USER, ELASTICSEARCH_PASSWORD));
-        client =
-                new RestHighLevelClient(
-                        RestClient.builder(HttpHost.create(ES_CONTAINER.getHttpHostAddress()))
-                                .setHttpClientConfigCallback(
-                                        httpClientBuilder ->
-                                                httpClientBuilder.setDefaultCredentialsProvider(
-                                                        credentialsProvider)));
-        context = new TestClient(client);
+        return new RestHighLevelClient(
+                RestClient.builder(HttpHost.create(getElasticsearchHttpHostAddress()))
+                        .setHttpClientConfigCallback(
+                                httpClientBuilder ->
+                                        httpClientBuilder.setDefaultCredentialsProvider(
+                                                credentialsProvider)));
+    }
+
+    @BeforeEach
+    void setUp() {
+        failed = false;
+        client = createRestHighLevelClient();
+        context = createTestClient(client);
     }
 
     @AfterEach
@@ -165,8 +161,8 @@ class ElasticsearchSinkITCase extends TestLogger {
             @Nullable MapFunction<Long, Long> additionalMapper)
             throws Exception {
         final ElasticsearchSink<Tuple2<Integer, String>> sink =
-                ElasticsearchSink.builder()
-                        .setHosts(HttpHost.create(ES_CONTAINER.getHttpHostAddress()))
+                getSinkBuilder()
+                        .setHosts(HttpHost.create(getElasticsearchHttpHostAddress()))
                         .setEmitter(emitterProvider.apply(index, context.getDataFieldName()))
                         .setBulkFlushMaxActions(5)
                         .setConnectionUsername(ELASTICSEARCH_USER)
@@ -193,7 +189,7 @@ class ElasticsearchSinkITCase extends TestLogger {
                             public Tuple2<Integer, String> map(Long value) throws Exception {
                                 return Tuple2.of(
                                         value.intValue(),
-                                        TestClient.buildMessage(value.intValue()));
+                                        TestClientBase.buildMessage(value.intValue()));
                             }
                         })
                 .sinkTo(sink);

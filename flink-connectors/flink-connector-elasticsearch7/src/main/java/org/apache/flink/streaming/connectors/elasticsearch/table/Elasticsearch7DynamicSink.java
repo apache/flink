@@ -20,8 +20,8 @@ package org.apache.flink.streaming.connectors.elasticsearch.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.connector.elasticsearch.sink.Elasticsearch7SinkBuilder;
 import org.apache.flink.connector.elasticsearch.sink.ElasticsearchSink;
-import org.apache.flink.connector.elasticsearch.sink.ElasticsearchSinkBuilder;
 import org.apache.flink.connector.elasticsearch.sink.FlushBackoffType;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -90,7 +90,7 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
                         KeyExtractor.createKeyExtractor(
                                 primaryKeyLogicalTypesWithIndex, config.getKeyDelimiter()));
 
-        final ElasticsearchSinkBuilder<RowData> builder = ElasticsearchSink.builder();
+        final Elasticsearch7SinkBuilder<RowData> builder = new Elasticsearch7SinkBuilder<>();
         builder.setEmitter(rowElasticsearchEmitter);
         builder.setHosts(config.getHosts().toArray(new HttpHost[0]));
         builder.setDeliveryGuarantee(config.getDeliveryGuarantee());
