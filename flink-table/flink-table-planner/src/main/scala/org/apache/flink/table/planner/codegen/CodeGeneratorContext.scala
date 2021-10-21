@@ -137,6 +137,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   private var operatorBaseClass: Class[_] = classOf[TableStreamOperator[_]]
 
   private var localRefs: Seq[RexLocalRef] = null
+  private var expandLocalRefs: Seq[RexNode] = null
 
   private val projectionIndexMapping: mutable.Map[Int, RexNode] =
     mutable.Map[Int, RexNode]()
@@ -165,7 +166,9 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 
   def commonExpressionElimination(fieldExprs: Seq[GeneratedExpression]):
     Seq[GeneratedExpression] = {
-
+    if(localRefs == null) {
+      return fieldExprs
+    }
     var result:Seq[GeneratedExpression] = List()
     var offset = 0
     localRefs.foreach(localRef => {
@@ -186,9 +189,19 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 
   def setLocalRefs(localRefs: java.util.List[RexLocalRef]) : CodeGeneratorContext = {
     if(localRefs == null) {
-      return this;
+      return this
     }
     this.localRefs = JavaScalaConversionUtil.toScala(localRefs)
+    this
+  }
+
+  def getExpandLocalRefs = expandLocalRefs;
+
+  def setExpendLocalRefs(expandLocalRefs: java.util.List[RexNode]) : CodeGeneratorContext = {
+    if(expandLocalRefs == null) {
+      return this
+    }
+    this.expandLocalRefs = JavaScalaConversionUtil.toScala(expandLocalRefs)
     this
   }
 

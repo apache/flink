@@ -54,6 +54,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
     public static final String FIELD_NAME_PROJECTION = "projection";
     public static final String FIELD_NAME_LOCAL_REFS = "localRefs";
+    public static final String FIELD_EXPAND_LOCAL_REF = "expandLocalRef";
     public static final String FIELD_NAME_CONDITION = "condition";
 
     @JsonProperty(FIELD_NAME_PROJECTION)
@@ -61,6 +62,9 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
 
     @JsonProperty(FIELD_NAME_LOCAL_REFS)
     private final List<RexLocalRef> localRefs;
+
+    @JsonProperty(FIELD_EXPAND_LOCAL_REF)
+    private final List<RexNode> expandLocalRefs;
 
     @JsonProperty(FIELD_NAME_CONDITION)
     private final @Nullable RexNode condition;
@@ -71,6 +75,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
     protected CommonExecCalc(
             List<RexNode> projection,
             List<RexLocalRef> localRefs,
+            List<RexNode> expandLocalRefs,
             @Nullable RexNode condition,
             Class<?> operatorBaseClass,
             boolean retainHeader,
@@ -82,6 +87,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         checkArgument(inputProperties.size() == 1);
         this.projection = checkNotNull(projection);
         this.localRefs = localRefs;
+        this.expandLocalRefs = expandLocalRefs;
         this.condition = condition;
         this.operatorBaseClass = checkNotNull(operatorBaseClass);
         this.retainHeader = retainHeader;
@@ -97,6 +103,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                 new CodeGeneratorContext(planner.getTableConfig())
                         .setOperatorBaseClass(operatorBaseClass)
                         .setLocalRefs(localRefs)
+                        .setExpendLocalRefs(expandLocalRefs)
                         .loadProjection(projection);
 
         final CodeGenOperatorFactory<RowData> substituteStreamOperator =

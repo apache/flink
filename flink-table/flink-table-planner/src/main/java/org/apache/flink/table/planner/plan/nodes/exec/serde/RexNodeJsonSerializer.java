@@ -36,6 +36,7 @@ import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexPatternFieldRef;
 import org.apache.calcite.runtime.FlatLists;
@@ -89,6 +90,7 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
     // supported SqlKinds
     public static final String SQL_KIND_PATTERN_INPUT_REF = "PATTERN_INPUT_REF";
     public static final String SQL_KIND_INPUT_REF = "INPUT_REF";
+    public static final String SQL_KIND_LOCAL_REF = "LOCAL_REF";
     public static final String SQL_KIND_LITERAL = "LITERAL";
     public static final String SQL_KIND_FIELD_ACCESS = "FIELD_ACCESS";
     public static final String SQL_KIND_CORREL_VARIABLE = "CORREL_VARIABLE";
@@ -120,6 +122,9 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             case PATTERN_INPUT_REF:
                 serialize((RexPatternFieldRef) rexNode, jsonGenerator);
                 break;
+            case LOCAL_REF:
+                serialize((RexLocalRef) rexNode, jsonGenerator);
+                break;
             default:
                 if (rexNode instanceof RexCall) {
                     serialize((RexCall) rexNode, jsonGenerator);
@@ -127,6 +132,14 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
                     throw new TableException("Unknown RexNode: " + rexNode);
                 }
         }
+    }
+
+    private void serialize(RexLocalRef localRef, JsonGenerator gen) throws IOException {
+        gen.writeStartObject();
+        gen.writeStringField(FIELD_NAME_KIND, SQL_KIND_LOCAL_REF);
+        gen.writeNumberField(FIELD_NAME_INPUT_INDEX, localRef.getIndex());
+        gen.writeObjectField(FIELD_NAME_TYPE, localRef.getType());
+        gen.writeEndObject();
     }
 
     private void serialize(RexPatternFieldRef inputRef, JsonGenerator gen) throws IOException {

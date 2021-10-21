@@ -48,6 +48,7 @@ class BatchPhysicalCalc(
   override def translateToExecNode(): ExecNode[_] = {
     val projection = calcProgram.getExprList
     val localRefs = calcProgram.getProjectList
+    val expandLocalRef = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
     val condition = if (calcProgram.getCondition != null) {
       calcProgram.expandLocalRef(calcProgram.getCondition)
     } else {
@@ -57,6 +58,7 @@ class BatchPhysicalCalc(
     new BatchExecCalc(
       projection,
       localRefs,
+      expandLocalRef,
       condition,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
