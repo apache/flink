@@ -18,12 +18,18 @@
 
 package org.apache.flink.formats.parquet.row;
 
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.Preconditions;
@@ -31,12 +37,14 @@ import org.apache.flink.util.Preconditions;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.io.api.RecordConsumer;
 import org.apache.parquet.schema.GroupType;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.Type;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.Timestamp;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.apache.flink.formats.parquet.utils.ParquetSchemaConverter.computeMinBytesForDecimalPrecision;
 import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader.JULIAN_EPOCH_OFFSET_DAYS;
@@ -126,13 +134,27 @@ public class ParquetRowDataWriter {
                     throw new UnsupportedOperationException("Unsupported type: " + type);
             }
         } else {
-            throw new IllegalArgumentException("Unsupported  data type: " + t);
+            GroupType groupType = type.asGroupType();
+            LogicalTypeAnnotation logicalType = type.getLogicalTypeAnnotation();
+
+            if (t instanceof ArrayType
+                    && logicalType instanceof LogicalTypeAnnotation.ListLogicalTypeAnnotation) {
+                return new ArrayWriter(((ArrayType) t).getElementType(), groupType);
+            } else if (t instanceof MapType
+                    && logicalType instanceof LogicalTypeAnnotation.MapLogicalTypeAnnotation) {
+                return new MapWriter(
+                        ((MapType) t).getKeyType(), ((MapType) t).getValueType(), groupType);
+            } else {
+                return new RowWriter(t, groupType);
+            }
         }
     }
 
     private interface FieldWriter {
 
         void write(RowData row, int ordinal);
+
+        void write(Object value);
     }
 
     private class BooleanWriter implements FieldWriter {
@@ -140,6 +162,11 @@ public class ParquetRowDataWriter {
         @Override
         public void write(RowData row, int ordinal) {
             recordConsumer.addBoolean(row.getBoolean(ordinal));
+        }
+
+        @Override
+        public void write(Object value) {
+            recordConsumer.addBoolean((boolean) value);
         }
     }
 
@@ -149,6 +176,11 @@ public class ParquetRowDataWriter {
         public void write(RowData row, int ordinal) {
             recordConsumer.addInteger(row.getByte(ordinal));
         }
+
+        @Override
+        public void write(Object value) {
+            recordConsumer.addInteger((int) value);
+        }
     }
 
     private class ShortWriter implements FieldWriter {
@@ -156,6 +188,11 @@ public class ParquetRowDataWriter {
         @Override
         public void write(RowData row, int ordinal) {
             recordConsumer.addInteger(row.getShort(ordinal));
+        }
+
+        @Override
+        public void write(Object value) {
+            recordConsumer.addInteger((short) value);
         }
     }
 
@@ -165,6 +202,11 @@ public class ParquetRowDataWriter {
         public void write(RowData row, int ordinal) {
             recordConsumer.addLong(row.getLong(ordinal));
         }
+
+        @Override
+        public void write(Object value) {
+            recordConsumer.addLong((long) value);
+        }
     }
 
     private class FloatWriter implements FieldWriter {
@@ -172,6 +214,11 @@ public class ParquetRowDataWriter {
         @Override
         public void write(RowData row, int ordinal) {
             recordConsumer.addFloat(row.getFloat(ordinal));
+        }
+
+        @Override
+        public void write(Object value) {
+            recordConsumer.addFloat((float) value);
         }
     }
 
@@ -181,6 +228,11 @@ public class ParquetRowDataWriter {
         public void write(RowData row, int ordinal) {
             recordConsumer.addDouble(row.getDouble(ordinal));
         }
+
+        @Override
+        public void write(Object value) {
+            recordConsumer.addDouble((double) value);
+        }
     }
 
     private class StringWriter implements FieldWriter {
@@ -188,6 +240,11 @@ public class ParquetRowDataWriter {
         @Override
         public void write(RowData row, int ordinal) {
             recordConsumer.addBinary(Binary.fromReusedByteArray(row.getString(ordinal).toBytes()));
+        }
+
+        @Override
+        public void write(Object value) {
+            recordConsumer.addBinary(Binary.fromReusedByteArray(((StringData) value).toBytes()));
         }
     }
 
@@ -197,6 +254,11 @@ public class ParquetRowDataWriter {
         public void write(RowData row, int ordinal) {
             recordConsumer.addBinary(Binary.fromReusedByteArray(row.getBinary(ordinal)));
         }
+
+        @Override
+        public void write(Object value) {
+            recordConsumer.addBinary(Binary.fromReusedByteArray((byte[]) value));
+        }
     }
 
     private class IntWriter implements FieldWriter {
@@ -204,6 +266,11 @@ public class ParquetRowDataWriter {
         @Override
         public void write(RowData row, int ordinal) {
             recordConsumer.addInteger(row.getInt(ordinal));
+        }
+
+        @Override
+        public void write(Object value) {
+            recordConsumer.addInteger((int) value);
         }
     }
 
@@ -223,6 +290,176 @@ public class ParquetRowDataWriter {
         @Override
         public void write(RowData row, int ordinal) {
             recordConsumer.addBinary(timestampToInt96(row.getTimestamp(ordinal, precision)));
+        }
+
+        @Override
+        public void write(Object value) {
+            recordConsumer.addBinary(timestampToInt96((TimestampData) value));
+        }
+    }
+
+    private class MapWriter implements FieldWriter {
+
+        private String repeatedGroupName;
+        private String keyName, valueName;
+        private FieldWriter keyWriter, valueWriter;
+        private ArrayData.ElementGetter keyElementGetter, valueElementGetter;
+
+        private MapWriter(LogicalType keyType, LogicalType valueType, GroupType groupType) {
+
+            // Get the internal map structure (MAP_KEY_VALUE)
+            GroupType repeatedType = groupType.getType(0).asGroupType();
+            this.repeatedGroupName = repeatedType.getName();
+
+            // Get key element information
+            Type type = repeatedType.getType(0);
+            this.keyName = type.getName();
+            this.keyWriter = createWriter(keyType, type);
+
+            // Get value element information
+            Type valuetype = repeatedType.getType(1);
+            this.valueName = valuetype.getName();
+            this.valueWriter = createWriter(valueType, valuetype);
+
+            this.keyElementGetter = ArrayData.createElementGetter(keyType);
+            this.valueElementGetter = ArrayData.createElementGetter(valueType);
+        }
+
+        @Override
+        public void write(RowData row, int ordinal) {
+            recordConsumer.startGroup();
+
+            MapData mapData = row.getMap(ordinal);
+
+            if (mapData != null && mapData.size() > 0) {
+                recordConsumer.startField(repeatedGroupName, 0);
+
+                ArrayData keyArray = mapData.keyArray();
+                ArrayData valueArray = mapData.valueArray();
+                for (int i = 0; i < keyArray.size(); i++) {
+                    Object key = keyElementGetter.getElementOrNull(keyArray, i);
+                    Object value = valueElementGetter.getElementOrNull(valueArray, i);
+
+                    recordConsumer.startGroup();
+                    if (key != null) {
+                        // write key element
+                        recordConsumer.startField(keyName, 0);
+                        keyWriter.write(key);
+                        recordConsumer.endField(keyName, 0);
+
+                        // write value element
+                        if (value != null) {
+                            recordConsumer.startField(valueName, 1);
+                            valueWriter.write(value);
+                            recordConsumer.endField(valueName, 1);
+                        }
+                    }
+                    recordConsumer.endGroup();
+                }
+
+                recordConsumer.endField(repeatedGroupName, 0);
+            }
+            recordConsumer.endGroup();
+        }
+
+        @Override
+        public void write(Object value) {}
+    }
+
+    private class ArrayWriter implements FieldWriter {
+
+        private String elementName;
+        private FieldWriter elementWriter;
+        private String repeatedGroupName;
+        private ArrayData.ElementGetter elementGetter;
+
+        private ArrayWriter(LogicalType t, GroupType groupType) {
+
+            // Get the internal array structure
+            GroupType repeatedType = groupType.getType(0).asGroupType();
+            this.repeatedGroupName = repeatedType.getName();
+
+            Type elementType = repeatedType.getType(0);
+            this.elementName = elementType.getName();
+
+            this.elementWriter = createWriter(t, elementType);
+            this.elementGetter = ArrayData.createElementGetter(t);
+        }
+
+        @Override
+        public void write(RowData row, int ordinal) {
+            recordConsumer.startGroup();
+            ArrayData arrayData = row.getArray(ordinal);
+            int listLength = arrayData.size();
+
+            if (listLength > 0) {
+                recordConsumer.startField(repeatedGroupName, 0);
+
+                for (int i = 0; i < listLength; i++) {
+                    Object object = elementGetter.getElementOrNull(arrayData, i);
+                    recordConsumer.startGroup();
+                    if (object != null) {
+                        recordConsumer.startField(elementName, 0);
+                        elementWriter.write(object);
+                        recordConsumer.endField(elementName, 0);
+                    }
+                    recordConsumer.endGroup();
+                }
+
+                recordConsumer.endField(repeatedGroupName, 0);
+            }
+            recordConsumer.endGroup();
+        }
+
+        @Override
+        public void write(Object value) {}
+    }
+
+    private class GroupTypeWriter implements FieldWriter {
+        private List<Type> types;
+        private List<LogicalType> logicalTypes;
+        private FieldWriter[] fieldWriters;
+
+        public GroupTypeWriter(LogicalType t, GroupType groupType) {
+            this.types = groupType.getFields();
+            this.logicalTypes = t.getChildren();
+
+            this.fieldWriters = new FieldWriter[types.size()];
+            for (int i = 0; i < fieldWriters.length; i++) {
+                fieldWriters[i] = createWriter(logicalTypes.get(i), types.get(i));
+            }
+        }
+
+        @Override
+        public void write(RowData row, int ordinal) {
+            RowData rowData = row.getRow(ordinal, types.size());
+            for (int i = 0; i < types.size(); i++) {
+                Type type = types.get(i);
+                FieldWriter writer = fieldWriters[i];
+
+                if (!rowData.isNullAt(i)) {
+                    String fieldName = type.getName();
+                    recordConsumer.startField(fieldName, i);
+                    writer.write(rowData, i);
+                    recordConsumer.endField(fieldName, i);
+                }
+            }
+        }
+
+        @Override
+        public void write(Object value) {}
+    }
+
+    private class RowWriter extends GroupTypeWriter implements FieldWriter {
+        public RowWriter(LogicalType t, GroupType groupType) {
+            super(t, groupType);
+        }
+
+        @Override
+        public void write(RowData row, int ordinal) {
+            recordConsumer.startGroup();
+            super.write(row, ordinal);
+            recordConsumer.endGroup();
         }
     }
 
@@ -272,8 +509,18 @@ public class ParquetRowDataWriter {
             }
 
             @Override
+            public void write(Object value) {
+                long unscaledLong = ((DecimalData) value).toUnscaledLong();
+                addRecord(unscaledLong);
+            }
+
+            @Override
             public void write(RowData row, int ordinal) {
                 long unscaledLong = row.getDecimal(ordinal, precision, scale).toUnscaledLong();
+                addRecord(unscaledLong);
+            }
+
+            private void addRecord(long unscaledLong) {
                 int i = 0;
                 int shift = initShift;
                 while (i < numBytes) {
@@ -296,8 +543,18 @@ public class ParquetRowDataWriter {
             }
 
             @Override
+            public void write(Object value) {
+                byte[] bytes = ((DecimalData) value).toUnscaledBytes();
+                addRecord(bytes);
+            }
+
+            @Override
             public void write(RowData row, int ordinal) {
                 byte[] bytes = row.getDecimal(ordinal, precision, scale).toUnscaledBytes();
+                addRecord(bytes);
+            }
+
+            private void addRecord(byte[] bytes) {
                 byte[] writtenBytes;
                 if (bytes.length == numBytes) {
                     // Avoid copy.

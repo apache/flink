@@ -18,18 +18,27 @@
 
 package org.apache.flink.formats.parquet.utils;
 
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.parquet.schema.ConversionPatterns;
+import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 import org.apache.parquet.schema.Types;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Schema converter converts Parquet schema to and from Flink internal types. */
 public class ParquetSchemaConverter {
+
+    static final String LIST_ELEMENT_NAME = "element";
 
     public static MessageType convertToParquetMessageType(String name, RowType rowType) {
         Type[] types = new Type[rowType.getFieldCount()];
@@ -101,9 +110,30 @@ public class ParquetSchemaConverter {
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 return Types.primitive(PrimitiveType.PrimitiveTypeName.INT96, repetition)
                         .named(name);
+            case ARRAY:
+                ArrayType arrayType = (ArrayType) type;
+                return ConversionPatterns.listOfElements(
+                        repetition,
+                        name,
+                        convertToParquetType(LIST_ELEMENT_NAME, arrayType.getElementType()));
+            case MAP:
+                MapType mapType = (MapType) type;
+                return ConversionPatterns.stringKeyMapType(
+                        repetition, name, convertToParquetType("value", mapType.getValueType()));
+            case ROW:
+                RowType rowType = (RowType) type;
+                return new GroupType(repetition, name, convertToParquetTypes(rowType));
             default:
                 throw new UnsupportedOperationException("Unsupported type: " + type);
         }
+    }
+
+    private static List<Type> convertToParquetTypes(RowType rowType) {
+        List<Type> types = new ArrayList<>(rowType.getFieldCount());
+        for (int i = 0; i < rowType.getFieldCount(); i++) {
+            types.add(convertToParquetType(rowType.getFieldNames().get(i), rowType.getTypeAt(i)));
+        }
+        return types;
     }
 
     public static int computeMinBytesForDecimalPrecision(int precision) {

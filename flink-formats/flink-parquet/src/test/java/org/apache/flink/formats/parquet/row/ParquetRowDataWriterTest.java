@@ -27,12 +27,15 @@ import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -42,6 +45,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.hadoop.ParquetOutputFormat;
 import org.junit.Assert;
@@ -56,6 +60,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
@@ -64,7 +69,7 @@ public class ParquetRowDataWriterTest {
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-    private static final RowType ROW_TYPE =
+    private static final RowType ROW_TYPE_COMPLEX =
             RowType.of(
                     new VarCharType(VarCharType.MAX_LENGTH),
                     new VarBinaryType(VarBinaryType.MAX_LENGTH),
@@ -78,7 +83,24 @@ public class ParquetRowDataWriterTest {
                     new TimestampType(9),
                     new DecimalType(5, 0),
                     new DecimalType(15, 0),
-                    new DecimalType(20, 0));
+                    new DecimalType(20, 0),
+                    new ArrayType(true, new IntType()),
+                    new MapType(
+                            true,
+                            new VarCharType(VarCharType.MAX_LENGTH),
+                            new VarCharType(VarCharType.MAX_LENGTH)),
+                    RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
+
+    private static final RowType ROW_TYPE =
+            RowType.of(
+                    true,
+                    ArrayUtils.subarray(
+                            ROW_TYPE_COMPLEX.getChildren().toArray(new LogicalType[] {}), 0, 13));
+
+    @SuppressWarnings("unchecked")
+    private static final DataFormatConverters.DataFormatConverter<RowData, Row> CONVERTER_COMPLEX =
+            DataFormatConverters.getConverterForDataType(
+                    TypeConversions.fromLogicalToDataType(ROW_TYPE_COMPLEX));
 
     @SuppressWarnings("unchecked")
     private static final DataFormatConverters.DataFormatConverter<RowData, Row> CONVERTER =
@@ -104,6 +126,8 @@ public class ParquetRowDataWriterTest {
         Path path = new Path(TEMPORARY_FOLDER.newFolder().getPath(), UUID.randomUUID().toString());
         int number = 1000;
         List<Row> rows = new ArrayList<>(number);
+        Map<String, String> mapData = new HashMap<>();
+        mapData.put("k", "k");
         for (int i = 0; i < number; i++) {
             Integer v = i;
             rows.add(
@@ -120,15 +144,18 @@ public class ParquetRowDataWriterTest {
                             toDateTime(v),
                             BigDecimal.valueOf(v),
                             BigDecimal.valueOf(v),
-                            BigDecimal.valueOf(v)));
+                            BigDecimal.valueOf(v),
+                            new Integer[] {v},
+                            mapData,
+                            Row.of(String.valueOf(v), v)));
         }
 
         ParquetWriterFactory<RowData> factory =
-                ParquetRowDataBuilder.createWriterFactory(ROW_TYPE, conf, utcTimestamp);
+                ParquetRowDataBuilder.createWriterFactory(ROW_TYPE_COMPLEX, conf, utcTimestamp);
         BulkWriter<RowData> writer =
                 factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
         for (int i = 0; i < number; i++) {
-            writer.addElement(CONVERTER.toInternal(rows.get(i)));
+            writer.addElement(CONVERTER_COMPLEX.toInternal(rows.get(i)));
         }
         writer.flush();
         writer.finish();
@@ -152,7 +179,10 @@ public class ParquetRowDataWriterTest {
         int cnt = 0;
         while (!reader.reachedEnd()) {
             Row row = CONVERTER.toExternal(reader.nextRecord());
-            Assert.assertEquals(rows.get(cnt), row);
+            Row originRow =
+                    Row.project(
+                            rows.get(cnt), IntStream.range(0, ROW_TYPE.getFieldCount()).toArray());
+            Assert.assertEquals(originRow, row);
             cnt++;
         }
         Assert.assertEquals(number, cnt);
