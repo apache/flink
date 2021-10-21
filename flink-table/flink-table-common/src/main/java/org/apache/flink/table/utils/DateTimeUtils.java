@@ -20,7 +20,6 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -239,7 +238,7 @@ public class DateTimeUtils {
     }
 
     public static long toTimestamp(DecimalData v) {
-        return DecimalDataUtils.castToLong(v);
+        return v.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -289,16 +288,12 @@ public class DateTimeUtils {
         long epochMills;
         switch (precision) {
             case 0:
-                DecimalData timeInMills =
-                        DecimalDataUtils.multiply(
-                                v,
-                                DecimalData.fromUnscaledLong(MILLIS_PER_SECOND, 3, 0),
-                                v.precision() + 3,
-                                0);
-                epochMills = DecimalDataUtils.castToLong(timeInMills);
+                epochMills =
+                        v.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue()
+                                * MILLIS_PER_SECOND;
                 return timestampDataFromEpochMills(epochMills);
             case 3:
-                epochMills = DecimalDataUtils.castToLong(v);
+                epochMills = toTimestamp(v);
                 return timestampDataFromEpochMills(epochMills);
             default:
                 throw new TableException(
@@ -1429,7 +1424,7 @@ public class DateTimeUtils {
     }
 
     public static String fromUnixtime(DecimalData unixtime, TimeZone tz) {
-        return fromUnixtime(DecimalDataUtils.castToLong(unixtime), tz);
+        return fromUnixtime(toTimestamp(unixtime), tz);
     }
 
     public static String fromUnixtime(long unixtime) {
