@@ -56,7 +56,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -231,7 +230,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                                                                 context,
                                                                 dataStream.getExecutionConfig())
                                                         ::copy
-                                                : Function.identity());
+                                                : rowData -> rowData);
                         final DataStreamSink<RowData> end = dataStream.sinkTo(sink);
                         if (parallelism != null) {
                             end.setParallelism(parallelism);
