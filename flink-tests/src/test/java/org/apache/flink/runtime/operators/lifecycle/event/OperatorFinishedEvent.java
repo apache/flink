@@ -50,9 +50,19 @@ public class OperatorFinishedEvent extends TestEvent {
         return receiveInfo.forUpstream(upstreamID).getOrDefault(upstreamIndex, -1L);
     }
 
+    @Override
+    public String toString() {
+        return String.format("%s; receive=%s; sent=%d", super.toString(), receiveInfo, lastSent);
+    }
+
     /** LastVertexDataInfo. */
     public static class LastVertexDataInfo implements Serializable {
         public final Map<Integer, Long> bySubtask = new HashMap<>();
+
+        @Override
+        public String toString() {
+            return String.valueOf(bySubtask);
+        }
     }
 
     /** LastReceivedVertexDataInfo. */
@@ -66,6 +76,11 @@ public class OperatorFinishedEvent extends TestEvent {
         public Map<Integer, Long> forUpstream(String upstreamID) {
             return byUpstreamOperatorID.getOrDefault(upstreamID, new LastVertexDataInfo())
                     .bySubtask;
+        }
+
+        @Override
+        public String toString() {
+            return String.valueOf(byUpstreamOperatorID);
         }
     }
 }
