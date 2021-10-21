@@ -20,60 +20,18 @@ package org.apache.flink.streaming.connectors.elasticsearch.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.ValidationException;
 
-import org.apache.http.HttpHost;
-
-import java.util.List;
-import java.util.stream.Collectors;
-
-import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchConnectorOptions.HOSTS_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.Elasticsearch6ConnectorOptions.DOCUMENT_TYPE_OPTION;
 
 /** Elasticsearch 6 specific configuration. */
 @Internal
 final class Elasticsearch6Configuration extends ElasticsearchConfiguration {
-    Elasticsearch6Configuration(ReadableConfig config, ClassLoader classLoader) {
-        super(config, classLoader);
+
+    Elasticsearch6Configuration(ReadableConfig config) {
+        super(config);
     }
 
-    public List<HttpHost> getHosts() {
-        return config.get(HOSTS_OPTION).stream()
-                .map(Elasticsearch6Configuration::validateAndParseHostsString)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Parse Hosts String to list.
-     *
-     * <p>Hosts String format was given as following:
-     *
-     * <pre>
-     *     connector.hosts = http://host_name:9092;http://host_name:9093
-     * </pre>
-     */
-    private static HttpHost validateAndParseHostsString(String host) {
-        try {
-            HttpHost httpHost = HttpHost.create(host);
-            if (httpHost.getPort() < 0) {
-                throw new ValidationException(
-                        String.format(
-                                "Could not parse host '%s' in option '%s'. It should follow the format 'http://host_name:port'. Missing port.",
-                                host, HOSTS_OPTION.key()));
-            }
-
-            if (httpHost.getSchemeName() == null) {
-                throw new ValidationException(
-                        String.format(
-                                "Could not parse host '%s' in option '%s'. It should follow the format 'http://host_name:port'. Missing scheme.",
-                                host, HOSTS_OPTION.key()));
-            }
-            return httpHost;
-        } catch (Exception e) {
-            throw new ValidationException(
-                    String.format(
-                            "Could not parse host '%s' in option '%s'. It should follow the format 'http://host_name:port'.",
-                            host, HOSTS_OPTION.key()),
-                    e);
-        }
+    public String getDocumentType() {
+        return config.get(DOCUMENT_TYPE_OPTION);
     }
 }

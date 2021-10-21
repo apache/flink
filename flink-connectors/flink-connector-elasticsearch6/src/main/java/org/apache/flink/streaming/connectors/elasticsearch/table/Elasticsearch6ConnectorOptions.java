@@ -18,16 +18,22 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch.table;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.connector.elasticsearch.sink.Elasticsearch7SinkBuilder;
-import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 
-/** A {@link DynamicTableSinkFactory} for discovering {@link ElasticsearchDynamicSink}. */
-@Internal
-public class Elasticsearch7DynamicSinkFactory extends ElasticsearchDynamicSinkFactoryBase {
-    private static final String FACTORY_IDENTIFIER = "elasticsearch-7";
+/**
+ * Options specific for the Elasticsearch 6 connector. Public so that the {@link
+ * org.apache.flink.table.api.TableDescriptor} can access it.
+ */
+@PublicEvolving
+public final class Elasticsearch6ConnectorOptions extends ElasticsearchConnectorOptions {
 
-    public Elasticsearch7DynamicSinkFactory() {
-        super(FACTORY_IDENTIFIER, Elasticsearch7SinkBuilder::new);
-    }
+    private Elasticsearch6ConnectorOptions() {}
+
+    public static final ConfigOption<String> DOCUMENT_TYPE_OPTION =
+            ConfigOptions.key("document-type")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Elasticsearch document type.");
 }

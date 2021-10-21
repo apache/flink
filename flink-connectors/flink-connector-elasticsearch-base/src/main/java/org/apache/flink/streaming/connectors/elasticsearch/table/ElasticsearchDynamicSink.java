@@ -20,8 +20,8 @@ package org.apache.flink.streaming.connectors.elasticsearch.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.connector.elasticsearch.sink.Elasticsearch7SinkBuilder;
 import org.apache.flink.connector.elasticsearch.sink.ElasticsearchSink;
+import org.apache.flink.connector.elasticsearch.sink.ElasticsearchSinkBuilderBase;
 import org.apache.flink.connector.elasticsearch.sink.FlushBackoffType;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -35,8 +35,11 @@ import org.apache.flink.util.StringUtils;
 import org.apache.http.HttpHost;
 import org.elasticsearch.common.xcontent.XContentType;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,22 +48,44 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * logical description.
  */
 @Internal
-final class Elasticsearch7DynamicSink implements DynamicTableSink {
+class ElasticsearchDynamicSink implements DynamicTableSink {
 
-    private final EncodingFormat<SerializationSchema<RowData>> format;
-    private final DataType physicalRowDataType;
-    private final List<LogicalTypeWithIndex> primaryKeyLogicalTypesWithIndex;
-    private final Elasticsearch7Configuration config;
+    final EncodingFormat<SerializationSchema<RowData>> format;
+    final DataType physicalRowDataType;
+    final List<LogicalTypeWithIndex> primaryKeyLogicalTypesWithIndex;
+    final ElasticsearchConfiguration config;
 
-    Elasticsearch7DynamicSink(
+    final String summaryString;
+    final ElasticsearchSinkBuilderSupplier<RowData> builderSupplier;
+    @Nullable final String documentType;
+
+    ElasticsearchDynamicSink(
             EncodingFormat<SerializationSchema<RowData>> format,
-            Elasticsearch7Configuration config,
+            ElasticsearchConfiguration config,
             List<LogicalTypeWithIndex> primaryKeyLogicalTypesWithIndex,
-            DataType physicalRowDataType) {
+            DataType physicalRowDataType,
+            String summaryString,
+            ElasticsearchSinkBuilderSupplier<RowData> builderSupplier,
+            @Nullable String documentType) {
         this.format = checkNotNull(format);
         this.physicalRowDataType = checkNotNull(physicalRowDataType);
         this.primaryKeyLogicalTypesWithIndex = checkNotNull(primaryKeyLogicalTypesWithIndex);
         this.config = checkNotNull(config);
+        this.summaryString = checkNotNull(summaryString);
+        this.builderSupplier = checkNotNull(builderSupplier);
+        this.documentType = documentType;
+    }
+
+    Function<RowData, String> createKeyExtractor() {
+        return KeyExtractor.createKeyExtractor(
+                primaryKeyLogicalTypesWithIndex, config.getKeyDelimiter());
+    }
+
+    IndexGenerator createIndexGenerator() {
+        return IndexGeneratorFactory.createIndexGenerator(
+                config.getIndex(),
+                DataType.getFieldNames(physicalRowDataType),
+                DataType.getFieldDataTypes(physicalRowDataType));
     }
 
     @Override
@@ -81,21 +106,18 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
 
         final RowElasticsearchEmitter rowElasticsearchEmitter =
                 new RowElasticsearchEmitter(
-                        IndexGeneratorFactory.createIndexGenerator(
-                                config.getIndex(),
-                                DataType.getFieldNames(physicalRowDataType),
-                                DataType.getFieldDataTypes(physicalRowDataType)),
+                        createIndexGenerator(),
                         format,
                         XContentType.JSON,
-                        KeyExtractor.createKeyExtractor(
-                                primaryKeyLogicalTypesWithIndex, config.getKeyDelimiter()));
+                        documentType,
+                        createKeyExtractor());
 
-        final Elasticsearch7SinkBuilder<RowData> builder = new Elasticsearch7SinkBuilder<>();
+        final ElasticsearchSinkBuilderBase<RowData> builder = builderSupplier.get();
         builder.setEmitter(rowElasticsearchEmitter);
         builder.setHosts(config.getHosts().toArray(new HttpHost[0]));
         builder.setDeliveryGuarantee(config.getDeliveryGuarantee());
         builder.setBulkFlushMaxActions(config.getBulkFlushMaxActions());
-        builder.setBulkFlushMaxSizeMb((int) (config.getBulkFlushMaxByteSize() >> 20));
+        builder.setBulkFlushMaxSizeMb(config.getBulkFlushMaxByteSize().getMebiBytes());
         builder.setBulkFlushInterval(config.getBulkFlushInterval());
 
         if (config.getBulkFlushBackoffType().isPresent()) {
@@ -126,13 +148,19 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
 
     @Override
     public DynamicTableSink copy() {
-        return new Elasticsearch7DynamicSink(
-                format, config, primaryKeyLogicalTypesWithIndex, physicalRowDataType);
+        return new ElasticsearchDynamicSink(
+                format,
+                config,
+                primaryKeyLogicalTypesWithIndex,
+                physicalRowDataType,
+                summaryString,
+                builderSupplier,
+                documentType);
     }
 
     @Override
     public String asSummaryString() {
-        return "Elasticsearch7";
+        return summaryString;
     }
 
     @Override
@@ -143,16 +171,26 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        Elasticsearch7DynamicSink that = (Elasticsearch7DynamicSink) o;
+        ElasticsearchDynamicSink that = (ElasticsearchDynamicSink) o;
         return Objects.equals(format, that.format)
                 && Objects.equals(physicalRowDataType, that.physicalRowDataType)
                 && Objects.equals(
                         primaryKeyLogicalTypesWithIndex, that.primaryKeyLogicalTypesWithIndex)
-                && Objects.equals(config, that.config);
+                && Objects.equals(config, that.config)
+                && Objects.equals(summaryString, that.summaryString)
+                && Objects.equals(builderSupplier, that.builderSupplier)
+                && Objects.equals(documentType, that.documentType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(format, physicalRowDataType, primaryKeyLogicalTypesWithIndex, config);
+        return Objects.hash(
+                format,
+                physicalRowDataType,
+                primaryKeyLogicalTypesWithIndex,
+                config,
+                summaryString,
+                builderSupplier,
+                documentType);
     }
 }

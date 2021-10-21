@@ -18,16 +18,8 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch.table;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.connector.elasticsearch.sink.Elasticsearch7SinkBuilder;
-import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.connector.elasticsearch.sink.ElasticsearchSinkBuilderBase;
 
-/** A {@link DynamicTableSinkFactory} for discovering {@link ElasticsearchDynamicSink}. */
-@Internal
-public class Elasticsearch7DynamicSinkFactory extends ElasticsearchDynamicSinkFactoryBase {
-    private static final String FACTORY_IDENTIFIER = "elasticsearch-7";
+import java.util.function.Supplier;
 
-    public Elasticsearch7DynamicSinkFactory() {
-        super(FACTORY_IDENTIFIER, Elasticsearch7SinkBuilder::new);
-    }
-}
+interface ElasticsearchSinkBuilderSupplier<T> extends Supplier<ElasticsearchSinkBuilderBase<T>> {}
