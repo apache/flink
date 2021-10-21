@@ -17,7 +17,6 @@
 
 package org.apache.flink.state.changelog;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -118,21 +117,6 @@ public class PeriodicMaterializationManager implements Closeable {
         }
     }
 
-    @VisibleForTesting
-    public boolean hasMoreChangelogStateToMaterialize() throws Exception {
-        return mailboxExecutor
-                .submit(
-                        () -> {
-                            boolean hasMore =
-                                    keyedStateBackend.hasMoreChangelogStateToMaterialize();
-                            LOG.debug("check hasMoreChangelogStateToMaterialize: {}", hasMore);
-                            return hasMore;
-                        },
-                        "for test")
-                .get();
-    }
-
-    @VisibleForTesting
     public void triggerMaterialization() {
         mailboxExecutor.execute(
                 () -> {

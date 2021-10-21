@@ -19,6 +19,7 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -158,9 +159,7 @@ public class ChangelogStateBackendTestUtils {
             keyedBackend.setCurrentKey(2);
             state.update(new StateBackendTestBase.TestPojo("u2", 2));
 
-            while (periodicMaterializationManager.hasMoreChangelogStateToMaterialize()) {
-                Thread.sleep(10);
-            }
+            awaitMaterialization(keyedBackend, env.getMainMailboxExecutor());
 
             keyedBackend.setCurrentKey(2);
             state.update(new StateBackendTestBase.TestPojo("u2", 22));
@@ -168,9 +167,7 @@ public class ChangelogStateBackendTestUtils {
             keyedBackend.setCurrentKey(3);
             state.update(new StateBackendTestBase.TestPojo("u3", 3));
 
-            while (periodicMaterializationManager.hasMoreChangelogStateToMaterialize()) {
-                Thread.sleep(10);
-            }
+            awaitMaterialization(keyedBackend, env.getMainMailboxExecutor());
 
             KeyedStateHandle snapshot =
                     runSnapshot(
@@ -213,6 +210,16 @@ public class ChangelogStateBackendTestUtils {
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
             periodicMaterializationManager.close();
+        }
+    }
+
+    private static void awaitMaterialization(
+            ChangelogKeyedStateBackend<Integer> keyedStateBackend, MailboxExecutor mailboxExecutor)
+            throws Exception {
+        while (mailboxExecutor
+                .submit(keyedStateBackend::hasNonMaterializedChanges, "for test")
+                .get()) {
+            Thread.sleep(10);
         }
     }
 

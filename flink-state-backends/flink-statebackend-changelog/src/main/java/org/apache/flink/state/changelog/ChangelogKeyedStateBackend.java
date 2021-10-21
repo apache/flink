@@ -614,17 +614,8 @@ public class ChangelogKeyedStateBackend<K>
 
     /** Not thread safe. */
     @VisibleForTesting
-    boolean hasMoreChangelogStateToMaterialize() {
-        SequenceNumber upTo = getLastAppendedTo();
-
-        LOG.info(
-                "To check whether has more change to materialize. "
-                        + "Current changelog writers last append to sequence number {}, "
-                        + "current changelogSnapshotState.lastMaterializedTo {}",
-                upTo,
-                changelogSnapshotState.lastMaterializedTo());
-
-        return upTo.compareTo(changelogSnapshotState.lastMaterializedTo()) > 0;
+    boolean hasNonMaterializedChanges() {
+        return getLastAppendedTo().compareTo(changelogSnapshotState.lastMaterializedTo()) > 0;
     }
 
     // TODO: Remove after fix FLINK-24436
