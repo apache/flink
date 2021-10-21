@@ -31,8 +31,8 @@ import org.apache.flink.table.data.vector.heap.HeapFloatVector;
 import org.apache.flink.table.data.vector.heap.HeapIntVector;
 import org.apache.flink.table.data.vector.heap.HeapLongVector;
 import org.apache.flink.table.data.vector.heap.HeapShortVector;
+import org.apache.flink.table.utils.DateTimeUtils;
 
-import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;

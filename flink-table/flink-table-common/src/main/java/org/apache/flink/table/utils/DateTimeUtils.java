@@ -68,7 +68,7 @@ public class DateTimeUtils {
     private static final Logger LOG = LoggerFactory.getLogger(DateTimeUtils.class);
 
     /** The julian date of the epoch, 1970-01-01. */
-    private static final int EPOCH_JULIAN = 2440588;
+    public static final int EPOCH_JULIAN = 2440588;
 
     /** The number of milliseconds in a second. */
     private static final long MILLIS_PER_SECOND = 1000L;
