@@ -21,8 +21,10 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.IOException;
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -30,24 +32,33 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Retries the committables of a {@link CommitterHandler} until all committables are eventually
  * committed.
  */
-class CommitRetrier {
-    private final ProcessingTimeService processingTimeService;
-    private final CommitterHandler<?> committerHandler;
-    private final Clock clock;
+class CommitRetrier<CommT> {
     @VisibleForTesting static final int RETRY_DELAY = 1000;
+    private final ProcessingTimeService processingTimeService;
+    private final CommitterHandler<CommT> committerHandler;
+    private final ThrowingConsumer<? super Collection<CommT>, IOException> committableConsumer;
+    private final Clock clock;
 
     public CommitRetrier(
-            ProcessingTimeService processingTimeService, CommitterHandler<?> committerHandler) {
-        this(processingTimeService, committerHandler, SystemClock.getInstance());
+            ProcessingTimeService processingTimeService,
+            CommitterHandler<CommT> committerHandler,
+            ThrowingConsumer<? super Collection<CommT>, IOException> committableConsumer) {
+        this(
+                processingTimeService,
+                committerHandler,
+                committableConsumer,
+                SystemClock.getInstance());
     }
 
     @VisibleForTesting
     public CommitRetrier(
             ProcessingTimeService processingTimeService,
-            CommitterHandler<?> committerHandler,
+            CommitterHandler<CommT> committerHandler,
+            ThrowingConsumer<? super Collection<CommT>, IOException> committableConsumer,
             Clock clock) {
         this.processingTimeService = checkNotNull(processingTimeService);
         this.committerHandler = checkNotNull(committerHandler);
+        this.committableConsumer = checkNotNull(committableConsumer);
         this.clock = clock;
     }
 
@@ -77,7 +88,7 @@ class CommitRetrier {
             if (!committerHandler.needsRetry()) {
                 return false;
             }
-            committerHandler.retry();
+            committableConsumer.accept(committerHandler.retry());
         }
         return committerHandler.needsRetry();
     }

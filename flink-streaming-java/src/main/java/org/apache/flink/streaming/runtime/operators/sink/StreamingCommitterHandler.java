@@ -50,8 +50,14 @@ final class StreamingCommitterHandler<CommT>
     }
 
     @Override
-    List<CommT> commit(List<CommT> committables) throws IOException, InterruptedException {
+    List<CommT> commitInternal(List<CommT> committables) throws IOException, InterruptedException {
         return committer.commit(checkNotNull(committables));
+    }
+
+    @Override
+    protected Collection<CommT> retry(List<CommT> recoveredCommittables)
+            throws IOException, InterruptedException {
+        return commitAndReturnSuccess(recoveredCommittables);
     }
 
     @Override

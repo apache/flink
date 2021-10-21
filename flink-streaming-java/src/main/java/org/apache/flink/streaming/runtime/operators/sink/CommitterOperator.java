@@ -58,7 +58,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<byte[]>
 
     private final SimpleVersionedSerializer<CommT> committableSerializer;
     private final CommitterHandler<CommT> committerHandler;
-    private final CommitRetrier commitRetrier;
+    private final CommitRetrier<CommT> commitRetrier;
     private final boolean emitDownstream;
 
     public CommitterOperator(
@@ -70,7 +70,9 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<byte[]>
         this.processingTimeService = checkNotNull(processingTimeService);
         this.committableSerializer = checkNotNull(committableSerializer);
         this.committerHandler = checkNotNull(committerHandler);
-        this.commitRetrier = new CommitRetrier(processingTimeService, committerHandler);
+        this.commitRetrier =
+                new CommitRetrier<>(
+                        processingTimeService, committerHandler, this::emitCommittables);
     }
 
     @Override

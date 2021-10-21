@@ -23,9 +23,12 @@ import org.apache.flink.api.connector.sink.GlobalCommitter;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -65,21 +68,55 @@ abstract class AbstractCommitterHandler<CommT, StateT> implements CommitterHandl
         return all;
     }
 
+    protected final Collection<StateT> commitAndReturnSuccess(List<StateT> committables)
+            throws IOException, InterruptedException {
+        Collection<StateT> failed = commit(committables);
+        if (failed.isEmpty()) {
+            return committables;
+        }
+        // Assume that (Global)Committer#commit does not create a new instance for failed
+        // committables. This assumption is documented in the respective JavaDoc.
+        Set<StateT> successful =
+                Collections.newSetFromMap(new IdentityHashMap<>(committables.size()));
+        successful.addAll(committables);
+        successful.removeAll(failed);
+        return successful;
+    }
+
+    protected final Collection<StateT> commit(List<StateT> committables)
+            throws IOException, InterruptedException {
+        List<StateT> failed = commitInternal(committables);
+        recoveredCommittables(failed);
+        return failed;
+    }
+
+    /**
+     * Commits a list of committables.
+     *
+     * @param committables A list of committables that is ready for committing.
+     * @return A list of committables needed to re-commit.
+     */
+    abstract List<StateT> commitInternal(List<StateT> committables)
+            throws IOException, InterruptedException;
+
     @Override
     public boolean needsRetry() {
         return !recoveredCommittables.isEmpty();
     }
 
     @Override
-    public void retry() throws IOException, InterruptedException {
-        retry(prependRecoveredCommittables(Collections.emptyList()));
+    public Collection<CommT> retry() throws IOException, InterruptedException {
+        return retry(prependRecoveredCommittables(Collections.emptyList()));
     }
 
-    protected abstract void retry(List<StateT> recoveredCommittables)
-            throws IOException, InterruptedException;
+    protected Collection<CommT> retry(List<StateT> recoveredCommittables)
+            throws IOException, InterruptedException {
+        commit(recoveredCommittables);
+        return Collections.emptyList();
+    }
 
     @Override
-    public List<CommT> processCommittables(List<CommT> committables) {
+    public Collection<CommT> processCommittables(Collection<CommT> committables) {
         this.committables.addAll(committables);
         return Collections.emptyList();
     }

@@ -19,7 +19,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.Committer;
 
-import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -33,14 +33,12 @@ class ForwardCommittingHandler<CommT> extends AbstractCommitterHandler<CommT, Vo
     ForwardCommittingHandler() {}
 
     @Override
-    public List<CommT> processCommittables(List<CommT> committables) {
-        return committables;
+    List<Void> commitInternal(List<Void> committables) {
+        throw new UnsupportedOperationException("This handler should never commit");
     }
 
     @Override
-    protected void retry(List<Void> recoveredCommittables)
-            throws IOException, InterruptedException {
-        throw new UnsupportedOperationException(
-                "This handler should never receive recovered commits");
+    public Collection<CommT> processCommittables(Collection<CommT> committables) {
+        return committables;
     }
 }

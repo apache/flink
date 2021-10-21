@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.api.connector.sink.Committer;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -41,20 +42,19 @@ final class BatchCommitterHandler<CommT> extends AbstractCommitterHandler<CommT,
     }
 
     @Override
-    protected void retry(List<CommT> recoveredCommittables)
+    protected Collection<CommT> retry(List<CommT> recoveredCommittables)
             throws IOException, InterruptedException {
-        if (!recoveredCommittables.isEmpty()) {
-            recoveredCommittables(committer.commit(recoveredCommittables));
-        }
+        return commitAndReturnSuccess(recoveredCommittables);
     }
 
     @Override
-    public List<CommT> endOfInput() throws IOException, InterruptedException {
-        List<CommT> allCommittables = pollCommittables();
-        if (!allCommittables.isEmpty()) {
-            recoveredCommittables(committer.commit(allCommittables));
-        }
-        return allCommittables;
+    List<CommT> commitInternal(List<CommT> committables) throws IOException, InterruptedException {
+        return committer.commit(committables);
+    }
+
+    @Override
+    public Collection<CommT> endOfInput() throws IOException, InterruptedException {
+        return commitAndReturnSuccess(pollCommittables());
     }
 
     @Override

@@ -23,7 +23,6 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
 /**
  * A wrapper around a {@link org.apache.flink.api.connector.sink.Committer} or {@link
@@ -45,15 +44,15 @@ interface CommitterHandler<CommT> extends AutoCloseable {
      *
      * @return a list of output committables that is sent downstream.
      */
-    List<CommT> processCommittables(List<CommT> committables);
+    Collection<CommT> processCommittables(Collection<CommT> committables);
 
     /**
      * Called when no more committables are going to be added through {@link
-     * #processCommittables(List)}.
+     * #processCommittables(Collection)}.
      *
      * @return a list of output committables that is sent downstream.
      */
-    default List<CommT> endOfInput() throws IOException, InterruptedException {
+    default Collection<CommT> endOfInput() throws IOException, InterruptedException {
         return Collections.emptyList();
     }
 
@@ -70,7 +69,7 @@ interface CommitterHandler<CommT> extends AutoCloseable {
      * #initializeState(StateInitializationContext)} and have been re-added in any of the committing
      * functions.
      *
-     * @return true if more committables can be retried.
+     * @return successfully retried committables that is sent downstream.
      */
-    void retry() throws IOException, InterruptedException;
+    Collection<CommT> retry() throws IOException, InterruptedException;
 }

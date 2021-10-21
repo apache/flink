@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -43,8 +44,11 @@ import java.util.TreeMap;
  * Abstract base class for operators that work with a {@link Committer} or a {@link
  * org.apache.flink.api.connector.sink.GlobalCommitter} in the streaming execution mode.
  *
+ * <p>This class adds checkpointing to the {@link AbstractCommitterHandler}, such that state is
+ * maintained per checkpoint and cumulatively committed on successful checkpoint.
+ *
  * <p>Sub-classes are responsible for implementing {@link #recoveredCommittables(List)}, {@link
- * #prepareCommit(List)} and {@link #commit(List)}.
+ * #prepareCommit(List)} and {@link #commitInternal(List)}.
  *
  * @param <CommT> The input and output type of the {@link Committer}.
  * @param <StateT> The type of the internal state.
@@ -76,25 +80,10 @@ abstract class AbstractStreamingCommitterHandler<CommT, StateT>
      */
     abstract List<StateT> prepareCommit(List<CommT> input) throws IOException;
 
-    /**
-     * Commits a list of committables.
-     *
-     * @param committables A list of committables that is ready for committing.
-     * @return A list of committables needed to re-commit.
-     */
-    abstract List<StateT> commit(List<StateT> committables)
-            throws IOException, InterruptedException;
-
     AbstractStreamingCommitterHandler(SimpleVersionedSerializer<StateT> committableSerializer) {
         this.streamingCommitterStateSerializer =
                 new StreamingCommitterStateSerializer<>(committableSerializer);
         this.committablesPerCheckpoint = new TreeMap<>();
-    }
-
-    @Override
-    protected void retry(List<StateT> recoveredCommittables)
-            throws IOException, InterruptedException {
-        recoveredCommittables(commit(recoveredCommittables));
     }
 
     @Override
@@ -119,7 +108,12 @@ abstract class AbstractStreamingCommitterHandler<CommT, StateT>
                 Collections.singletonList(StreamingCommitterState.of(committablesPerCheckpoint)));
     }
 
-    protected List<StateT> commitUpTo(long checkpointId) throws IOException, InterruptedException {
+    /**
+     * Commits all pending committables up to the given checkpointId and returns a list of
+     * successful committables.
+     */
+    protected Collection<StateT> commitUpTo(long checkpointId)
+            throws IOException, InterruptedException {
         NavigableMap<Long, List<StateT>> headMap =
                 committablesPerCheckpoint.headMap(checkpointId, true);
         final List<StateT> readyCommittables;
@@ -140,8 +134,7 @@ abstract class AbstractStreamingCommitterHandler<CommT, StateT>
         }
 
         LOG.info("Committing the state for checkpoint {}", checkpointId);
-        recoveredCommittables(commit(readyCommittables));
-        return readyCommittables;
+        return commitAndReturnSuccess(readyCommittables);
     }
 
     @Override

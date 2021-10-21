@@ -91,7 +91,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
 
     private final CommitterHandler<CommT> committerHandler;
 
-    private CommitRetrier commitRetrier;
+    private CommitRetrier<CommT> commitRetrier;
 
     @Nullable private final SimpleVersionedSerializer<CommT> committableSerializer;
 
@@ -126,7 +126,9 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
         this.committerHandler = checkNotNull(committerHandler);
         this.committableSerializer = committableSerializer;
         this.context = new Context<>();
-        this.commitRetrier = new CommitRetrier(processingTimeService, committerHandler);
+        this.commitRetrier =
+                new CommitRetrier<>(
+                        processingTimeService, committerHandler, this::emitCommittables);
     }
 
     @Override

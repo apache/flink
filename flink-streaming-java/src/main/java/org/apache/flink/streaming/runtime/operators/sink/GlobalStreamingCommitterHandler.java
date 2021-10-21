@@ -74,13 +74,13 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    List<GlobalCommT> commit(List<GlobalCommT> committables)
+    List<GlobalCommT> commitInternal(List<GlobalCommT> committables)
             throws IOException, InterruptedException {
         return globalCommitter.commit(checkNotNull(committables));
     }
 
     @Override
-    public List<CommT> endOfInput() {
+    public Collection<CommT> endOfInput() {
         endOfInput = true;
         return Collections.emptyList();
     }
