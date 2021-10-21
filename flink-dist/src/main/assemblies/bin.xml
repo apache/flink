@@ -59,6 +59,8 @@ under the License.
 		<file>
 			<source>target/flink-dist_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
+			<!-- The jar itself is actually scala-free, so we can remove the scala suffix for clarity. -->
+			<destName>flink-dist-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
