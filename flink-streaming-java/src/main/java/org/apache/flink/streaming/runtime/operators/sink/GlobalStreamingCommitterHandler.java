@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
@@ -100,5 +101,17 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
             globalCommitter.endOfInput();
         }
         return Collections.emptyList();
+    }
+
+    /** The serializable factory of the handler. */
+    public static class Factory<CommT, GlobalCommT>
+            implements CommitterHandler.Factory<Sink<?, CommT, ?, GlobalCommT>, CommT> {
+        @Override
+        public CommitterHandler<CommT> create(Sink<?, CommT, ?, GlobalCommT> sink)
+                throws IOException {
+            return new GlobalStreamingCommitterHandler<>(
+                    checkCommitterPresent(sink.createGlobalCommitter(), true),
+                    checkSerializerPresent(sink.getGlobalCommittableSerializer(), true));
+        }
     }
 }

@@ -17,12 +17,16 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.sink.Sink;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 
 /** Swallows all committables and emits nothing. */
-enum NoopCommitterHandler implements CommitterHandler<Object> {
+@Internal
+public enum NoopCommitterHandler implements CommitterHandler<Object> {
     INSTANCE;
 
     @SuppressWarnings("unchecked")
@@ -46,5 +50,14 @@ enum NoopCommitterHandler implements CommitterHandler<Object> {
     @Override
     public Collection<Object> retry() throws IOException, InterruptedException {
         return Collections.emptyList();
+    }
+
+    /** The serializable factory of the handler. */
+    public static class Factory<CommT>
+            implements CommitterHandler.Factory<Sink<?, CommT, ?, ?>, CommT> {
+        @Override
+        public CommitterHandler<CommT> create(Sink<?, CommT, ?, ?> commTSink) throws IOException {
+            return getInstance();
+        }
     }
 }

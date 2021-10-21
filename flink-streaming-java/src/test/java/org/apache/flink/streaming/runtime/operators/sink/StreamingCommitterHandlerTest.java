@@ -202,7 +202,7 @@ public class StreamingCommitterHandlerTest extends TestLogger {
                                 .setCommitter(committer)
                                 .setCommittableSerializer(serializer)
                                 .build(),
-                        false,
+                        new StreamingCommitterHandler.Factory<>(),
                         true));
     }
 }

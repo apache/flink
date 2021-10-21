@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -41,74 +40,56 @@ import java.util.Optional;
  * @param <WriterStateT> The type of the {@link SinkWriter Writer's} state.
  */
 @Internal
-public final class SinkOperatorFactory<InputT, CommT, WriterStateT>
+public final class SinkOperatorFactory<InputT, CommT, WriterStateT, GlobalCommT>
         extends AbstractStreamOperatorFactory<byte[]>
         implements OneInputStreamOperatorFactory<InputT, byte[]>, YieldingOperatorFactory<byte[]> {
 
     private final Sink<InputT, CommT, WriterStateT, ?> sink;
-    private final boolean batch;
-    private final boolean shouldEmit;
+    private final CommitterHandler.Factory<Sink<?, CommT, ?, ?>, CommT> committerHandlerFactory;
+    private final boolean emitCommittables;
 
     public SinkOperatorFactory(
-            Sink<InputT, CommT, WriterStateT, ?> sink, boolean batch, boolean shouldEmit) {
+            Sink<InputT, CommT, WriterStateT, GlobalCommT> sink,
+            CommitterHandler.Factory<Sink<?, CommT, ?, ?>, CommT> committerHandlerFactory,
+            boolean emitCommittables) {
         this.sink = sink;
-        this.batch = batch;
-        this.shouldEmit = shouldEmit;
+        this.committerHandlerFactory = committerHandlerFactory;
+        this.emitCommittables = emitCommittables;
     }
 
     public <T extends StreamOperator<byte[]>> T createStreamOperator(
             StreamOperatorParameters<byte[]> parameters) {
-
-        Optional<SimpleVersionedSerializer<WriterStateT>> writerStateSerializer =
-                sink.getWriterStateSerializer();
-        SinkWriterStateHandler<WriterStateT> writerStateHandler;
-        if (writerStateSerializer.isPresent()) {
-            writerStateHandler =
-                    new StatefulSinkWriterStateHandler<>(
-                            writerStateSerializer.get(), sink.getCompatibleStateNames());
-        } else {
-            writerStateHandler = StatelessSinkWriterStateHandler.getInstance();
-        }
-
-        Optional<SimpleVersionedSerializer<CommT>> committableSerializerOpt =
-                sink.getCommittableSerializer();
-        CommitterHandler<CommT> committerHandler =
-                shouldEmit ? new ForwardCommittingHandler<>() : NoopCommitterHandler.getInstance();
-        if (!batch) {
-            try {
-                Optional<Committer<CommT>> committer = sink.createCommitter();
-                if (committer.isPresent()) {
-                    committerHandler =
-                            new StreamingCommitterHandler<>(
-                                    committer.get(),
-                                    committableSerializerOpt.orElseThrow(this::noSerializerFound));
-                }
-            } catch (Exception e) {
-                throw new IllegalStateException("Cannot create committer of " + sink, e);
+        try {
+            Optional<SimpleVersionedSerializer<WriterStateT>> writerStateSerializer =
+                    sink.getWriterStateSerializer();
+            SinkWriterStateHandler<WriterStateT> writerStateHandler;
+            if (writerStateSerializer.isPresent()) {
+                writerStateHandler =
+                        new StatefulSinkWriterStateHandler<>(
+                                writerStateSerializer.get(), sink.getCompatibleStateNames());
+            } else {
+                writerStateHandler = StatelessSinkWriterStateHandler.getInstance();
             }
+
+            final SinkOperator<InputT, CommT, WriterStateT> sinkOperator =
+                    new SinkOperator<>(
+                            processingTimeService,
+                            getMailboxExecutor(),
+                            sink::createWriter,
+                            writerStateHandler,
+                            committerHandlerFactory.create(sink),
+                            emitCommittables ? sink.getCommittableSerializer().get() : null);
+            sinkOperator.setup(
+                    parameters.getContainingTask(),
+                    parameters.getStreamConfig(),
+                    parameters.getOutput());
+            return (T) sinkOperator;
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot create sink operator for "
+                            + parameters.getStreamConfig().getOperatorName(),
+                    e);
         }
-
-        final SinkOperator<InputT, CommT, WriterStateT> sinkOperator =
-                new SinkOperator<>(
-                        processingTimeService,
-                        getMailboxExecutor(),
-                        sink::createWriter,
-                        writerStateHandler,
-                        committerHandler,
-                        shouldEmit
-                                ? committableSerializerOpt.orElseThrow(this::noSerializerFound)
-                                : null);
-        sinkOperator.setup(
-                parameters.getContainingTask(),
-                parameters.getStreamConfig(),
-                parameters.getOutput());
-        return (T) sinkOperator;
-    }
-
-    private IllegalStateException noSerializerFound() {
-        return new IllegalStateException(
-                sink.getClass()
-                        + " does not implement getCommittableSerializer which is needed for any (global) committer.");
     }
 
     @Override

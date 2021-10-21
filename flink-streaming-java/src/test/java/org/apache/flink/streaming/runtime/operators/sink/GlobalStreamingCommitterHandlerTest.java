@@ -251,7 +251,7 @@ public class GlobalStreamingCommitterHandlerTest extends TestLogger {
                                 .setGlobalCommitter(globalCommitter)
                                 .setGlobalCommittableSerializer(serializer)
                                 .build(),
-                        false,
+                        new GlobalStreamingCommitterHandler.Factory<>(),
                         true));
     }
 }

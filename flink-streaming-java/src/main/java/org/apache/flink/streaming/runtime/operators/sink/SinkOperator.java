@@ -56,19 +56,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * same parallelism or send them downstream to a {@link CommitterOperator} with a different
  * parallelism.
  *
- * <p>The operator may be part of a sink pipeline and is the first operator. There are currently two
- * ways this operator is used:
- *
- * <ul>
- *   <li>In streaming mode, there is this operator with parallelism p containing {@link
- *       org.apache.flink.api.connector.sink.SinkWriter} and {@link
- *       org.apache.flink.api.connector.sink.Committer} and a {@link CommitterOperator} containing
- *       the {@link org.apache.flink.api.connector.sink.GlobalCommitter} with parallelism 1.
- *   <li>In batch mode, there is this operator with parallelism p containing {@link
- *       org.apache.flink.api.connector.sink.SinkWriter} and a {@link CommitterOperator} containing
- *       the {@link org.apache.flink.api.connector.sink.Committer} and {@link
- *       org.apache.flink.api.connector.sink.GlobalCommitter} with parallelism 1.
- * </ul>
+ * <p>The operator may be part of a sink pipeline and is the first operator. It's composed in {@link
+ * org.apache.flink.streaming.runtime.translators.SinkTransformationTranslator}.
  *
  * @param <InputT> the type of the committable
  * @param <CommT> the type of the committable (to send to downstream operators)

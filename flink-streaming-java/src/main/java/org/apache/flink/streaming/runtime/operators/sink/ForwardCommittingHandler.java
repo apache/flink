@@ -17,8 +17,10 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.sink.Sink;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
@@ -29,8 +31,9 @@ import java.util.List;
  *
  * @param <CommT> The input and output type of the {@link Committer}.
  */
-class ForwardCommittingHandler<CommT> extends AbstractCommitterHandler<CommT, Void> {
-    ForwardCommittingHandler() {}
+@Internal
+public class ForwardCommittingHandler<CommT> extends AbstractCommitterHandler<CommT, Void> {
+    public ForwardCommittingHandler() {}
 
     @Override
     List<Void> commitInternal(List<Void> committables) {
@@ -40,5 +43,14 @@ class ForwardCommittingHandler<CommT> extends AbstractCommitterHandler<CommT, Vo
     @Override
     public Collection<CommT> processCommittables(Collection<CommT> committables) {
         return committables;
+    }
+
+    /** The serializable factory of the handler. */
+    public static class Factory<CommT>
+            implements CommitterHandler.Factory<Sink<?, CommT, ?, ?>, CommT> {
+        @Override
+        public CommitterHandler<CommT> create(Sink<?, CommT, ?, ?> commTSink) throws IOException {
+            return new ForwardCommittingHandler<>();
+        }
     }
 }

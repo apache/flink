@@ -37,19 +37,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * An operator that processes committables of a {@link org.apache.flink.api.connector.sink.Sink}.
  *
- * <p>The operator may be part of a sink pipeline but usually is the last operator. There are
- * currently two ways this operator is used:
- *
- * <ul>
- *   <li>In streaming mode, there is a {@link SinkOperator} with parallelism p containing {@link
- *       org.apache.flink.api.connector.sink.SinkWriter} and {@link
- *       org.apache.flink.api.connector.sink.Committer} and this operator containing the {@link
- *       org.apache.flink.api.connector.sink.GlobalCommitter} with parallelism 1.
- *   <li>In batch mode, there is a {@link SinkOperator} with parallelism p containing {@link
- *       org.apache.flink.api.connector.sink.SinkWriter} and this operator containing the {@link
- *       org.apache.flink.api.connector.sink.Committer} and {@link
- *       org.apache.flink.api.connector.sink.GlobalCommitter} with parallelism 1.
- * </ul>
+ * <p>The operator may be part of a sink pipeline and is composed by {@link
+ * org.apache.flink.streaming.runtime.translators.SinkTransformationTranslator}. It always follows
+ * {@link SinkOperator}, which initially outputs the committables.
  *
  * @param <CommT> the type of the committable
  */

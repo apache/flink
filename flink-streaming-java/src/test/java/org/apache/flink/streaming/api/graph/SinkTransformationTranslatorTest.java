@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
-import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.SinkOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
@@ -81,8 +80,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 writerNode,
                 SinkOperatorFactory.class,
                 PARALLELISM,
-                -1,
-                StreamExchangeMode.UNDEFINED);
+                -1);
     }
 
     @Test
@@ -101,8 +99,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 writerNode,
                 SinkOperatorFactory.class,
                 PARALLELISM,
-                -1,
-                StreamExchangeMode.UNDEFINED);
+                -1);
 
         if (runtimeExecutionMode == RuntimeExecutionMode.STREAMING) {
             // in streaming writer and committer are merged into one operator
@@ -121,8 +118,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 committerNode,
                 CommitterOperatorFactory.class,
                 PARALLELISM,
-                -1,
-                StreamExchangeMode.BATCH);
+                -1);
     }
 
     @Test
@@ -146,8 +142,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 writerNode,
                 SinkOperatorFactory.class,
                 PARALLELISM,
-                -1,
-                StreamExchangeMode.UNDEFINED);
+                -1);
 
         StreamNode lastNode;
         if (runtimeExecutionMode == RuntimeExecutionMode.STREAMING) {
@@ -162,8 +157,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                     committerNode,
                     CommitterOperatorFactory.class,
                     PARALLELISM,
-                    -1,
-                    StreamExchangeMode.BATCH);
+                    -1);
             lastNode = committerNode;
         }
 
@@ -174,8 +168,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 globalCommitterNode,
                 CommitterOperatorFactory.class,
                 1,
-                1,
-                StreamExchangeMode.UNDEFINED);
+                1);
     }
 
     @Test
@@ -198,8 +191,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 writerNode,
                 SinkOperatorFactory.class,
                 PARALLELISM,
-                -1,
-                StreamExchangeMode.UNDEFINED);
+                -1);
 
         final StreamNode globalCommitterNode = findGlobalCommitter(streamGraph);
 
@@ -209,8 +201,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 globalCommitterNode,
                 CommitterOperatorFactory.class,
                 1,
-                1,
-                StreamExchangeMode.UNDEFINED);
+                1);
     }
 
     private StreamNode findWriter(StreamGraph streamGraph) {
@@ -269,14 +260,12 @@ public class SinkTransformationTranslatorTest extends TestLogger {
             StreamNode dest,
             Class<? extends StreamOperatorFactory> operatorFactoryClass,
             int expectedParallelism,
-            int expectedMaxParallelism,
-            StreamExchangeMode exchangeMode) {
+            int expectedMaxParallelism) {
 
         // verify src node
         final StreamEdge srcOutEdge = src.getOutEdges().get(0);
         assertThat(srcOutEdge.getTargetId(), equalTo(dest.getId()));
         assertThat(src.getTypeSerializerOut(), instanceOf(srcOutTypeInfo));
-        assertThat(srcOutEdge.getExchangeMode(), equalTo(exchangeMode));
 
         // verify dest node input
         final StreamEdge destInputEdge = dest.getInEdges().get(0);

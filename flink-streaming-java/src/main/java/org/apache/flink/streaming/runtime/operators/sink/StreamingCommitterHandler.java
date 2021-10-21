@@ -18,7 +18,9 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
@@ -32,7 +34,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <CommT> The committable type of the {@link Committer}.
  */
-final class StreamingCommitterHandler<CommT>
+@Internal
+public final class StreamingCommitterHandler<CommT>
         extends AbstractStreamingCommitterHandler<CommT, CommT> {
 
     /** Responsible for committing the committable to the external system. * */
@@ -70,5 +73,16 @@ final class StreamingCommitterHandler<CommT>
     public Collection<CommT> notifyCheckpointCompleted(long checkpointId)
             throws IOException, InterruptedException {
         return commitUpTo(checkpointId);
+    }
+
+    /** The serializable factory of the handler. */
+    public static class Factory<CommT>
+            implements CommitterHandler.Factory<Sink<?, CommT, ?, ?>, CommT> {
+        @Override
+        public CommitterHandler<CommT> create(Sink<?, CommT, ?, ?> sink) throws IOException {
+            return new StreamingCommitterHandler<>(
+                    checkCommitterPresent(sink.createCommitter(), false),
+                    checkSerializerPresent(sink.getCommittableSerializer(), false));
+        }
     }
 }

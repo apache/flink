@@ -416,10 +416,10 @@ public class SinkWriterOperatorTest extends TestLogger {
             throws Exception {
         return new OneInputStreamOperatorTestHarness<>(
                 new SinkOperatorFactory<>(
-                        getBuilder(new SnapshottingBufferingSinkWriter())
+                        getBuilder(new SnapshottingBufferingSinkWriter(), true)
                                 .setCompatibleStateNames(DummySinkOperator.DUMMY_SINK_STATE_NAME)
                                 .build(),
-                        false,
+                        new ForwardCommittingHandler.Factory<>(),
                         true),
                 IntSerializer.INSTANCE);
     }
@@ -475,18 +475,26 @@ public class SinkWriterOperatorTest extends TestLogger {
 
     private OneInputStreamOperatorTestHarness<Integer, byte[]> createTestHarness(
             TestSink.DefaultSinkWriter<Integer> writer, boolean withCommitter) throws Exception {
+        TestSink.Builder<Integer> builder = getBuilder(writer, withCommitter);
         return new OneInputStreamOperatorTestHarness<>(
-                new SinkOperatorFactory<>(getBuilder(writer).build(), false, withCommitter),
+                new SinkOperatorFactory<>(
+                        builder.build(),
+                        withCommitter
+                                ? new ForwardCommittingHandler.Factory<>()
+                                : new NoopCommitterHandler.Factory<>(),
+                        withCommitter),
                 IntSerializer.INSTANCE);
     }
 
-    private TestSink.Builder<Integer> getBuilder(TestSink.DefaultSinkWriter<Integer> writer) {
-        TestSink.Builder<Integer> builder =
-                TestSink.newBuilder()
-                        .setWriter(writer)
-                        .setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE);
+    private TestSink.Builder<Integer> getBuilder(
+            TestSink.DefaultSinkWriter<Integer> writer, boolean withCommitter) {
+        TestSink.Builder<Integer> builder = TestSink.newBuilder().setWriter(writer);
         if (stateful) {
             builder.withWriterState();
+        }
+        if (withCommitter) {
+            builder.setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE);
+            builder.setDefaultCommitter();
         }
         return builder;
     }

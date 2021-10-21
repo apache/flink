@@ -18,7 +18,9 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink.Sink;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -32,7 +34,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <CommT> The committable type of the {@link Committer}.
  */
-final class BatchCommitterHandler<CommT> extends AbstractCommitterHandler<CommT, CommT> {
+@Internal
+public final class BatchCommitterHandler<CommT> extends AbstractCommitterHandler<CommT, CommT> {
 
     /** Responsible for committing the committable to the external system. */
     private final Committer<CommT> committer;
@@ -61,5 +64,15 @@ final class BatchCommitterHandler<CommT> extends AbstractCommitterHandler<CommT,
     public void close() throws Exception {
         committer.close();
         super.close();
+    }
+
+    /** The serializable factory of the handler. */
+    public static class Factory<CommT>
+            implements CommitterHandler.Factory<Sink<?, CommT, ?, ?>, CommT> {
+        @Override
+        public CommitterHandler<CommT> create(Sink<?, CommT, ?, ?> sink) throws IOException {
+            return new BatchCommitterHandler<>(
+                    checkCommitterPresent(sink.createCommitter(), false));
+        }
     }
 }
