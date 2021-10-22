@@ -25,6 +25,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -38,7 +39,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 public class SqlJsonUtils {
 
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
-    private static final ObjectMapper MAPPER = new ObjectMapper(JSON_FACTORY);
+    private static final ObjectMapper MAPPER =
+            new ObjectMapper(JSON_FACTORY)
+                    .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
 
     /** Returns the {@link JsonNodeFactory} for creating nodes. */
     public static JsonNodeFactory getNodeFactory() {
@@ -58,7 +61,11 @@ public class SqlJsonUtils {
     /** Serializes the given {@link JsonNode} to a JSON string. */
     public static String serializeJson(JsonNode node) {
         try {
-            return MAPPER.writeValueAsString(node);
+            // For JSON functions to have deterministic output, we need to sort the keys. However,
+            // Jackson's built-in features don't work on the tree representation, so we need to
+            // convert the tree first.
+            final Object convertedNode = MAPPER.treeToValue(node, Object.class);
+            return MAPPER.writeValueAsString(convertedNode);
         } catch (JsonProcessingException e) {
             throw new TableException("JSON object could not be serialized: " + node.asText(), e);
         }
