@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.operator;
+package org.apache.flink.cep.utils;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -24,6 +24,7 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.operator.CepOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
@@ -53,21 +54,21 @@ public class CepOperatorTestUtilities {
                 cepOperator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
     }
 
-    public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
+    public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOperator(
             boolean isProcessingTime, NFACompiler.NFAFactory<Event> nfaFactory) {
 
-        return getKeyedCepOpearator(isProcessingTime, nfaFactory, null);
+        return getKeyedCepOperator(isProcessingTime, nfaFactory, null);
     }
 
-    public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
+    public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOperator(
             boolean isProcessingTime,
             NFACompiler.NFAFactory<Event> nfaFactory,
             EventComparator<Event> comparator) {
 
-        return getKeyedCepOpearator(isProcessingTime, nfaFactory, comparator, null);
+        return getKeyedCepOperator(isProcessingTime, nfaFactory, comparator, null);
     }
 
-    public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
+    public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOperator(
             boolean isProcessingTime,
             NFACompiler.NFAFactory<Event> nfaFactory,
             EventComparator<Event> comparator,

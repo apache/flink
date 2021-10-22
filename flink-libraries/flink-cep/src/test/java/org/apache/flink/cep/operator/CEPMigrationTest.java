@@ -26,6 +26,7 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.utils.CepOperatorTestUtilities;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -46,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.apache.flink.cep.operator.CepOperatorTestUtilities.getKeyedCepOpearator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -109,7 +109,7 @@ public class CEPMigrationTest {
 
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        getKeyedCepOpearator(false, new NFAFactory()),
+                        CepOperatorTestUtilities.getKeyedCepOperator(false, new NFAFactory()),
                         keySelector,
                         BasicTypeInfo.INT_TYPE_INFO);
 
@@ -158,7 +158,7 @@ public class CEPMigrationTest {
 
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        getKeyedCepOpearator(false, new NFAFactory()),
+                        CepOperatorTestUtilities.getKeyedCepOperator(false, new NFAFactory()),
                         keySelector,
                         BasicTypeInfo.INT_TYPE_INFO);
 
@@ -222,7 +222,7 @@ public class CEPMigrationTest {
 
             harness =
                     new KeyedOneInputStreamOperatorTestHarness<>(
-                            getKeyedCepOpearator(false, new NFAFactory()),
+                            CepOperatorTestUtilities.getKeyedCepOperator(false, new NFAFactory()),
                             keySelector,
                             BasicTypeInfo.INT_TYPE_INFO);
 
@@ -276,7 +276,7 @@ public class CEPMigrationTest {
 
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        getKeyedCepOpearator(false, new NFAFactory()),
+                        CepOperatorTestUtilities.getKeyedCepOperator(false, new NFAFactory()),
                         keySelector,
                         BasicTypeInfo.INT_TYPE_INFO);
 
@@ -323,7 +323,7 @@ public class CEPMigrationTest {
 
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        getKeyedCepOpearator(false, new NFAFactory()),
+                        CepOperatorTestUtilities.getKeyedCepOperator(false, new NFAFactory()),
                         keySelector,
                         BasicTypeInfo.INT_TYPE_INFO);
 
@@ -403,7 +403,7 @@ public class CEPMigrationTest {
 
             harness =
                     new KeyedOneInputStreamOperatorTestHarness<>(
-                            getKeyedCepOpearator(false, new NFAFactory()),
+                            CepOperatorTestUtilities.getKeyedCepOperator(false, new NFAFactory()),
                             keySelector,
                             BasicTypeInfo.INT_TYPE_INFO);
 
@@ -456,7 +456,8 @@ public class CEPMigrationTest {
 
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        getKeyedCepOpearator(false, new SinglePatternNFAFactory()),
+                        CepOperatorTestUtilities.getKeyedCepOperator(
+                                false, new SinglePatternNFAFactory()),
                         keySelector,
                         BasicTypeInfo.INT_TYPE_INFO);
 
@@ -494,7 +495,8 @@ public class CEPMigrationTest {
 
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        getKeyedCepOpearator(false, new SinglePatternNFAFactory()),
+                        CepOperatorTestUtilities.getKeyedCepOperator(
+                                false, new SinglePatternNFAFactory()),
                         keySelector,
                         BasicTypeInfo.INT_TYPE_INFO);
 
@@ -552,7 +554,8 @@ public class CEPMigrationTest {
 
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        getKeyedCepOpearator(false, new NFAComplexConditionsFactory()),
+                        CepOperatorTestUtilities.getKeyedCepOperator(
+                                false, new NFAComplexConditionsFactory()),
                         keySelector,
                         BasicTypeInfo.INT_TYPE_INFO);
 
@@ -591,7 +594,8 @@ public class CEPMigrationTest {
 
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        getKeyedCepOpearator(false, new NFAComplexConditionsFactory()),
+                        CepOperatorTestUtilities.getKeyedCepOperator(
+                                false, new NFAComplexConditionsFactory()),
                         keySelector,
                         BasicTypeInfo.INT_TYPE_INFO);
 
