@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -154,9 +153,8 @@ object WindowPropertiesRules {
       'streamRowtime
     } else if (AggregateUtil.isProctimeAttribute(window.timeAttribute)) {
       'streamProctime
-    } else if (hasRoot(
-          window.timeAttribute.getOutputDataType.getLogicalType,
-          TIMESTAMP_WITHOUT_TIME_ZONE)) {
+    } else if (
+          window.timeAttribute.getOutputDataType.getLogicalType.is(TIMESTAMP_WITHOUT_TIME_ZONE)) {
       'batchRowtime
     } else {
       throw new TableException("Unknown window type encountered. Please report this bug.")

@@ -36,7 +36,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, hasFamily}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.util.Preconditions.checkArgument
@@ -1181,7 +1181,7 @@ object ScalarOperatorGens {
       }
 
     // NUMERIC TYPE -> Boolean
-    case (_, BOOLEAN) if hasFamily(operand.resultType, LogicalTypeFamily.INTEGER_NUMERIC) =>
+    case (_, BOOLEAN) if operand.resultType.is(LogicalTypeFamily.INTEGER_NUMERIC) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm => s"$operandTerm != 0"
       }

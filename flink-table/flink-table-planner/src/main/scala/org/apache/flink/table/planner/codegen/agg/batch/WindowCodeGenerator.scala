@@ -46,7 +46,6 @@ import org.apache.flink.table.runtime.operators.window.grouping.{HeapWindowsGrou
 import org.apache.flink.table.runtime.util.RowIterator
 import org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 
 import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rel.core.AggregateCall
@@ -737,7 +736,7 @@ object WindowCodeGenerator {
 
   def isTimeIntervalLiteral(expr: Expression): Boolean = expr match {
     case literal: ValueLiteralExpression if
-      hasRoot(literal.getOutputDataType.getLogicalType, INTERVAL_DAY_TIME) => true
+      literal.getOutputDataType.getLogicalType.is(INTERVAL_DAY_TIME) => true
     case _ => false
   }
 }

@@ -75,8 +75,6 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.TINYINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARBINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARCHAR;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isSingleFieldInterval;
 
 /**
@@ -312,21 +310,20 @@ public final class LogicalTypeCasts {
         } else if (targetRoot == DISTINCT_TYPE) {
             return supportsCasting(
                     sourceType, ((DistinctType) targetType).getSourceType(), allowExplicit);
-        } else if (hasFamily(sourceType, INTERVAL) && hasFamily(targetType, EXACT_NUMERIC)) {
+        } else if (sourceType.is(INTERVAL) && targetType.is(EXACT_NUMERIC)) {
             // cast between interval and exact numeric is only supported if interval has a single
             // field
             return isSingleFieldInterval(sourceType);
-        } else if (hasFamily(sourceType, EXACT_NUMERIC) && hasFamily(targetType, INTERVAL)) {
+        } else if (sourceType.is(EXACT_NUMERIC) && targetType.is(INTERVAL)) {
             // cast between interval and exact numeric is only supported if interval has a single
             // field
             return isSingleFieldInterval(targetType);
-        } else if (hasFamily(sourceType, CONSTRUCTED) || hasFamily(targetType, CONSTRUCTED)) {
+        } else if (sourceType.is(CONSTRUCTED) || targetType.is(CONSTRUCTED)) {
             return supportsConstructedCasting(sourceType, targetType, allowExplicit);
         } else if (sourceRoot == STRUCTURED_TYPE || targetRoot == STRUCTURED_TYPE) {
             return supportsStructuredCasting(
                     sourceType, targetType, (s, t) -> supportsCasting(s, t, allowExplicit));
-        } else if (sourceRoot == RAW && !hasFamily(targetType, BINARY_STRING)
-                || targetRoot == RAW) {
+        } else if (sourceRoot == RAW && !targetType.is(BINARY_STRING) || targetRoot == RAW) {
             // the two raw types are not equal (from initial invariant), casting is not possible
             return false;
         } else if (sourceRoot == SYMBOL || targetRoot == SYMBOL) {
@@ -500,8 +497,7 @@ public final class LogicalTypeCasts {
                 return false;
             }
             // CHAR and VARCHAR are very compatible within bounds
-            if ((hasRoot(sourceType, LogicalTypeRoot.CHAR)
-                            || hasRoot(sourceType, LogicalTypeRoot.VARCHAR))
+            if (sourceType.isAnyOf(LogicalTypeRoot.CHAR, LogicalTypeRoot.VARCHAR)
                     && getLength(sourceType) <= targetType.getLength()) {
                 return true;
             }
@@ -514,8 +510,7 @@ public final class LogicalTypeCasts {
                 return false;
             }
             // BINARY and VARBINARY are very compatible within bounds
-            if ((hasRoot(sourceType, LogicalTypeRoot.BINARY)
-                            || hasRoot(sourceType, LogicalTypeRoot.VARBINARY))
+            if (sourceType.isAnyOf(LogicalTypeRoot.BINARY, LogicalTypeRoot.VARBINARY)
                     && getLength(sourceType) <= targetType.getLength()) {
                 return true;
             }
@@ -528,7 +523,7 @@ public final class LogicalTypeCasts {
                 return false;
             }
             // ROW and structured types are very compatible if field types match
-            if (hasRoot(sourceType, STRUCTURED_TYPE)) {
+            if (sourceType.is(STRUCTURED_TYPE)) {
                 final List<LogicalType> sourceChildren = sourceType.getChildren();
                 final List<LogicalType> targetChildren = targetType.getChildren();
                 return supportsAvoidingCast(sourceChildren, targetChildren);
@@ -542,7 +537,7 @@ public final class LogicalTypeCasts {
                 return false;
             }
             // ROW and structured types are very compatible if field types match
-            if (hasRoot(sourceType, ROW)) {
+            if (sourceType.is(ROW)) {
                 final List<LogicalType> sourceChildren = sourceType.getChildren();
                 final List<LogicalType> targetChildren = targetType.getChildren();
                 return supportsAvoidingCast(sourceChildren, targetChildren);

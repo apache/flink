@@ -27,8 +27,6 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.util.Optional;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
-
 /**
  * Strategy for inferring an unknown argument type from the function's output {@link DataType} if
  * available.
@@ -40,7 +38,7 @@ public final class OutputArgumentTypeStrategy implements ArgumentTypeStrategy {
     public Optional<DataType> inferArgumentType(
             CallContext callContext, int argumentPos, boolean throwOnFailure) {
         final DataType actualDataType = callContext.getArgumentDataTypes().get(argumentPos);
-        if (hasRoot(actualDataType.getLogicalType(), LogicalTypeRoot.NULL)) {
+        if (actualDataType.getLogicalType().is(LogicalTypeRoot.NULL)) {
             return callContext.getOutputDataType();
         }
         return Optional.of(actualDataType);

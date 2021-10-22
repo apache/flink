@@ -29,13 +29,13 @@ import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TYPE;
 
 /** Utility for handling SQL's {@code UNNEST}. */
 @Internal
@@ -80,8 +80,7 @@ public final class SqlUnnestUtils {
         }
 
         public LogicalType getWrappedOutputType() {
-            if (hasRoot(outputType, LogicalTypeRoot.ROW)
-                    || hasRoot(outputType, LogicalTypeRoot.STRUCTURED_TYPE)) {
+            if (outputType.isAnyOf(ROW, STRUCTURED_TYPE)) {
                 return outputType;
             }
             return RowType.of(outputType);

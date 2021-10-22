@@ -38,7 +38,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 
 /**
@@ -155,7 +154,7 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
      */
     public static List<String> getFieldNames(DataType dataType) {
         final LogicalType type = dataType.getLogicalType();
-        if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+        if (type.is(LogicalTypeRoot.DISTINCT_TYPE)) {
             return getFieldNames(dataType.getChildren().get(0));
         } else if (isCompositeType(type)) {
             return LogicalTypeChecks.getFieldNames(type);
@@ -171,7 +170,7 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
      */
     public static List<DataType> getFieldDataTypes(DataType dataType) {
         final LogicalType type = dataType.getLogicalType();
-        if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+        if (type.is(LogicalTypeRoot.DISTINCT_TYPE)) {
             return getFieldDataTypes(dataType.getChildren().get(0));
         } else if (isCompositeType(type)) {
             return dataType.getChildren();
