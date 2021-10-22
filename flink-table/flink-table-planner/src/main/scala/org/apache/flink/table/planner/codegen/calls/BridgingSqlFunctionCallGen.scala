@@ -26,10 +26,10 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.types.logical.LogicalType
-
 import org.apache.calcite.rex.{RexCall, RexCallBinding}
-
 import java.util.Collections
+
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 /**
  * Generates a call to a user-defined [[ScalarFunction]] or [[TableFunction]].
@@ -52,14 +52,15 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
 
     // we could have implemented a dedicated code generation context but the closer we are to
     // Calcite the more consistent is the type inference during the data type enrichment
+    val newCall = FlinkRexUtil.replaceRexCallLocalRef(call, ctx)
     val callContext = new OperatorBindingCallContext(
       dataTypeFactory,
       definition,
       RexCallBinding.create(
         function.getTypeFactory,
-        call,
+        newCall,
         Collections.emptyList()),
-      call.getType)
+      newCall.getType)
 
     // create the final UDF for runtime
     val udf = UserDefinedFunctionHelper.createSpecializedFunction(
