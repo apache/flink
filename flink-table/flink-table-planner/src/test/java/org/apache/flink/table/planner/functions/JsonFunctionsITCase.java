@@ -628,76 +628,76 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 jsonObject(
                                         JsonOnNull.NULL,
-                                        "K0",
+                                        "A",
                                         $("f0"),
-                                        "K1",
+                                        "B",
                                         $("f1"),
-                                        "K2",
+                                        "C",
                                         $("f2"),
-                                        "K3",
+                                        "D",
                                         $("f3"),
-                                        "K4",
+                                        "E",
                                         $("f4"),
-                                        "K5",
+                                        "F",
                                         $("f5"),
-                                        "K6",
+                                        "G",
                                         $("f6"),
-                                        "K7",
+                                        "H",
                                         $("f7"),
-                                        "K8",
+                                        "I",
                                         $("f8"),
-                                        "K9",
+                                        "J",
                                         $("f9"),
-                                        "K10",
+                                        "K",
                                         call("CreateMultiset", $("f10")),
-                                        "K11",
+                                        "L",
                                         $("f11"),
-                                        "K12",
+                                        "M",
                                         $("f12"),
-                                        "K13",
+                                        "N",
                                         $("f13"),
-                                        "K14",
+                                        "O",
                                         jsonObject(JsonOnNull.NULL, "A", "B"),
-                                        "K15",
+                                        "P",
                                         jsonArray(
                                                 JsonOnNull.NULL,
                                                 "A",
                                                 jsonObject(JsonOnNull.NULL, "K", "V"))),
                                 "JSON_OBJECT("
-                                        + "'K0' VALUE f0, "
-                                        + "'K1' VALUE f1, "
-                                        + "'K2' VALUE f2, "
-                                        + "'K3' VALUE f3, "
-                                        + "'K4' VALUE f4, "
-                                        + "'K5' VALUE f5, "
-                                        + "'K6' VALUE f6, "
-                                        + "'K7' VALUE f7, "
-                                        + "'K8' VALUE f8, "
-                                        + "'K9' VALUE f9, "
-                                        + "'K10' VALUE CreateMultiset(f10), "
-                                        + "'K11' VALUE f11, "
-                                        + "'K12' VALUE f12, "
-                                        + "'K13' VALUE f13, "
-                                        + "'K14' VALUE JSON_OBJECT(KEY 'A' VALUE 'B'), "
-                                        + "'K15' VALUE JSON_ARRAY('A', JSON_OBJECT('K' VALUE 'V'))"
+                                        + "'A' VALUE f0, "
+                                        + "'B' VALUE f1, "
+                                        + "'C' VALUE f2, "
+                                        + "'D' VALUE f3, "
+                                        + "'E' VALUE f4, "
+                                        + "'F' VALUE f5, "
+                                        + "'G' VALUE f6, "
+                                        + "'H' VALUE f7, "
+                                        + "'I' VALUE f8, "
+                                        + "'J' VALUE f9, "
+                                        + "'K' VALUE CreateMultiset(f10), "
+                                        + "'L' VALUE f11, "
+                                        + "'M' VALUE f12, "
+                                        + "'N' VALUE f13, "
+                                        + "'O' VALUE JSON_OBJECT(KEY 'A' VALUE 'B'), "
+                                        + "'P' VALUE JSON_ARRAY('A', JSON_OBJECT('K' VALUE 'V'))"
                                         + ")",
                                 "{"
-                                        + "\"K0\":\"V\","
-                                        + "\"K1\":true,"
-                                        + "\"K2\":1,"
-                                        + "\"K3\":1.23,"
-                                        + "\"K4\":1.23,"
-                                        + "\"K5\":\"1990-06-02T13:37:42.001\","
-                                        + "\"K6\":\"1990-06-02T13:37:42.001Z\","
-                                        + "\"K7\":[\"A1\",\"A2\",\"A3\"],"
-                                        + "\"K8\":{\"f0\":\"R1\",\"f1\":\"1990-06-02T13:37:42.001Z\"},"
-                                        + "\"K9\":{\"M1\":\"V1\",\"M2\":\"V2\"},"
-                                        + "\"K10\":{\"M1\":1,\"M2\":2},"
-                                        + "\"K11\":\"VGVzdA==\","
-                                        + "\"K12\":\"VGVzdA==\","
-                                        + "\"K13\":{\"f0\":[{\"f0\":1,\"f1\":2}]},"
-                                        + "\"K14\":{\"A\":\"B\"},"
-                                        + "\"K15\":[\"A\",{\"K\":\"V\"}]"
+                                        + "\"A\":\"V\","
+                                        + "\"B\":true,"
+                                        + "\"C\":1,"
+                                        + "\"D\":1.23,"
+                                        + "\"E\":1.23,"
+                                        + "\"F\":\"1990-06-02T13:37:42.001\","
+                                        + "\"G\":\"1990-06-02T13:37:42.001Z\","
+                                        + "\"H\":[\"A1\",\"A2\",\"A3\"],"
+                                        + "\"I\":{\"f0\":\"R1\",\"f1\":\"1990-06-02T13:37:42.001Z\"},"
+                                        + "\"J\":{\"M1\":\"V1\",\"M2\":\"V2\"},"
+                                        + "\"K\":{\"M1\":1,\"M2\":2},"
+                                        + "\"L\":\"VGVzdA==\","
+                                        + "\"M\":\"VGVzdA==\","
+                                        + "\"N\":{\"f0\":[{\"f0\":1,\"f1\":2}]},"
+                                        + "\"O\":{\"A\":\"B\"},"
+                                        + "\"P\":[\"A\",{\"K\":\"V\"}]"
                                         + "}",
                                 STRING().notNull(),
                                 VARCHAR(2000).notNull()));
