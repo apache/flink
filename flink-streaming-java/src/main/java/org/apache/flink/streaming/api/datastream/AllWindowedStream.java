@@ -43,7 +43,6 @@ import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFuncti
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyProcessAllWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.windowing.assigners.BaseAlignedWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
@@ -168,12 +167,6 @@ public class AllWindowedStream<T, W extends Window> {
      */
     @PublicEvolving
     public AllWindowedStream<T, W> evictor(Evictor<? super T, ? super W> evictor) {
-        if (windowAssigner instanceof BaseAlignedWindowAssigner) {
-            throw new UnsupportedOperationException(
-                    "Cannot use a "
-                            + windowAssigner.getClass().getSimpleName()
-                            + " with an Evictor.");
-        }
 
         this.evictor = evictor;
         return this;
