@@ -121,7 +121,7 @@ final class ExternalDynamicSource<E>
 
     private String generateOperatorName() {
         return String.format(
-                "DataSteamToTable(stream=%s, type=%s, rowtime=%s, watermark=%s)",
+                "DataStreamToTable(stream=%s, type=%s, rowtime=%s, watermark=%s)",
                 identifier.asSummaryString(),
                 physicalDataType.toString(),
                 produceRowtimeMetadata,
