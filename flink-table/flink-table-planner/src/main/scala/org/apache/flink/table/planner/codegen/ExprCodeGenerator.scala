@@ -364,18 +364,28 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     } else {
       inputRef.getIndex - input1Arity
     }
-
-    ctx.addCommonExpression(
-      inputRef,
+    val expression =
       generateInputAccess(ctx, input._1, input._2, index, nullableInput, ctx.nullCheck)
-    )
+    ctx match {
+      case projectCtx: ProjectCodeGeneratorContext =>
+        projectCtx.addCommonExpression(
+          inputRef,
+          expression
+        )
+      case _ => expression
+    }
   }
 
-  override def visitTableInputRef(rexTableInputRef: RexTableInputRef): GeneratedExpression =
-    ctx.addCommonExpression(
-      rexTableInputRef,
-      visitInputRef(rexTableInputRef)
-    )
+  override def visitTableInputRef(rexTableInputRef: RexTableInputRef): GeneratedExpression = {
+    ctx match {
+      case projectCtx: ProjectCodeGeneratorContext =>
+        projectCtx.addCommonExpression(
+          rexTableInputRef,
+          visitInputRef(rexTableInputRef)
+        )
+      case _ => visitInputRef(rexTableInputRef)
+    }
+  }
 
   override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = {
     val refExpr = rexFieldAccess.getReferenceExpr.accept(this)
@@ -413,15 +423,26 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
          |""".stripMargin
     }
 
-    ctx.addCommonExpression(
-      rexFieldAccess,
-      GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
-    )
+    ctx match {
+      case projectCtx: ProjectCodeGeneratorContext =>
+        projectCtx.addCommonExpression(
+          rexFieldAccess,
+          GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
+        )
+      case _ => GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
+    }
   }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
     if(literal.getValue != null && literal.getValue.getClass == classOf[Sarg[_]]) {
-      return ctx.addCommonExpression(literal,GeneratedExpression(null, null, code = "", null))
+      return ctx match {
+        case projectCtx: ProjectCodeGeneratorContext =>
+          projectCtx.addCommonExpression(
+            literal,
+            GeneratedExpression(null, null, code = "", null)
+          )
+        case _ => GeneratedExpression(null, null, code = "", null)
+      }
     }
     val resultType = FlinkTypeFactory.toLogicalType(literal.getType)
     val value = resultType.getTypeRoot match {
@@ -431,25 +452,35 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case _ =>
         literal.getValue3
     }
-    ctx.addCommonExpression(
-      literal,
-      generateLiteral(ctx, resultType, value)
-    )
+
+    ctx match {
+      case projectCtx: ProjectCodeGeneratorContext =>
+        projectCtx.addCommonExpression(
+          literal,
+          generateLiteral(ctx, resultType, value)
+        )
+      case _ => generateLiteral(ctx, resultType, value)
+    }
   }
 
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = {
-    ctx.addCommonExpression(
-      correlVariable,
-      GeneratedExpression(input1Term, NEVER_NULL, NO_CODE, input1Type)
-    )
+    ctx match {
+      case projectCtx: ProjectCodeGeneratorContext =>
+        projectCtx.addCommonExpression(
+          correlVariable,
+          GeneratedExpression(input1Term, NEVER_NULL, NO_CODE, input1Type)
+        )
+      case _ => GeneratedExpression(input1Term, NEVER_NULL, NO_CODE, input1Type)
+    }
   }
 
   override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression = {
-    val rexNode = ctx.getRexNodeIndex(localRef.getIndex)
+    val projectCtx = ctx.asInstanceOf[ProjectCodeGeneratorContext]
+    val rexNode = projectCtx.getRexNodeIndex(localRef.getIndex)
     if(rexNode == null) {
       throw new CodeGenException("RexLocalRef not found.")
     }
-    val refExpression = ctx.getCommonExpression(rexNode)
+    val refExpression = projectCtx.getCommonExpression(rexNode)
     if(refExpression == null) {
       throw new CodeGenException("RexLocalRef not found.")
     }
@@ -514,17 +545,29 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       if (sarg.isPoints) {
         val operands = FlinkRexUtil.expandSearchOperands(rexBuilder, newCall)
             .map(operand => operand.accept(this))
-        return ctx.addCommonExpression(
-          call,
-          generateCallExpression(ctx, newCall, operands, resultType))
+        return ctx match {
+          case projectCtx: ProjectCodeGeneratorContext =>
+            projectCtx.addCommonExpression(
+              call,
+              generateCallExpression(ctx, newCall, operands, resultType)
+            )
+          case _ => generateCallExpression(ctx, newCall, operands, resultType)
+        }
       } else {
-        return ctx.addCommonExpression(
-          call,
-          RexUtil.expandSearch(
+        return ctx match {
+          case projectCtx: ProjectCodeGeneratorContext =>
+            projectCtx.addCommonExpression(
+              call,
+              RexUtil.expandSearch(
+                rexBuilder,
+                null,
+                newCall).accept(this)
+            )
+          case _ => RexUtil.expandSearch(
             rexBuilder,
             null,
             newCall).accept(this)
-        )
+        }
       }
     }
 
@@ -539,10 +582,14 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case (o@_, _) => o.accept(this)
     }
-    ctx.addCommonExpression(
-      call,
-      generateCallExpression(ctx, call, operands, resultType)
-    )
+    ctx match {
+      case projectCtx: ProjectCodeGeneratorContext =>
+        projectCtx.addCommonExpression(
+          call,
+          generateCallExpression(ctx, call, operands, resultType)
+        )
+      case _ => generateCallExpression(ctx, call, operands, resultType)
+    }
   }
 
   override def visitOver(over: RexOver): GeneratedExpression =

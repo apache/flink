@@ -35,7 +35,7 @@ import java.lang.{Iterable => JIterable}
 import java.util
 import java.util.function.Predicate
 
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ProjectCodeGeneratorContext}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -403,16 +403,20 @@ object FlinkRexUtil {
   }
 
   def replaceRexNodeLocalRef(call: RexNode, ctx: CodeGeneratorContext) : RexNode = {
-    call.accept(new RexShuttle() {
-      override def visitLocalRef(localRef: RexLocalRef): RexNode = {
-        val real = ctx.getRexNodeIndex(localRef.getIndex)
-        if(real == null) {
-          super.visitLocalRef(localRef)
-        } else {
-          real
-        }
-      }
-    })
+    ctx match {
+      case projectCtx:ProjectCodeGeneratorContext =>
+        call.accept(new RexShuttle() {
+          override def visitLocalRef(localRef: RexLocalRef): RexNode = {
+            val real = projectCtx.getRexNodeIndex(localRef.getIndex)
+            if(real == null) {
+              super.visitLocalRef(localRef)
+            } else {
+              real
+            }
+          }
+        })
+      case _ => call
+    }
   }
 
 

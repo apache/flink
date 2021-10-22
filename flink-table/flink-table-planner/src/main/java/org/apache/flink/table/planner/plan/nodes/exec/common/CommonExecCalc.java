@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CalcCodeGenerator;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectCodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
@@ -53,17 +54,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
     public static final String FIELD_NAME_PROJECTION = "projection";
-    public static final String FIELD_NAME_LOCAL_REFS = "localRefs";
-    public static final String FIELD_EXPAND_LOCAL_REF = "expandLocalRef";
     public static final String FIELD_NAME_CONDITION = "condition";
 
+    @JsonIgnore private final List<RexNode> projection;
+
+    @JsonIgnore private final List<RexLocalRef> localRefs;
+
     @JsonProperty(FIELD_NAME_PROJECTION)
-    private final List<RexNode> projection;
-
-    @JsonProperty(FIELD_NAME_LOCAL_REFS)
-    private final List<RexLocalRef> localRefs;
-
-    @JsonProperty(FIELD_EXPAND_LOCAL_REF)
     private final List<RexNode> expandLocalRefs;
 
     @JsonProperty(FIELD_NAME_CONDITION)
@@ -100,11 +97,12 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final CodeGeneratorContext ctx =
-                new CodeGeneratorContext(planner.getTableConfig())
-                        .setOperatorBaseClass(operatorBaseClass)
-                        .setLocalRefs(localRefs)
-                        .setExpendLocalRefs(expandLocalRefs)
-                        .loadProjection(projection);
+                new ProjectCodeGeneratorContext(
+                                planner.getTableConfig(),
+                                projection,
+                                JavaScalaConversionUtil.toScala(localRefs),
+                                JavaScalaConversionUtil.toScala(expandLocalRefs))
+                        .setOperatorBaseClass(operatorBaseClass);
 
         final CodeGenOperatorFactory<RowData> substituteStreamOperator =
                 CalcCodeGenerator.generateCalcOperator(
