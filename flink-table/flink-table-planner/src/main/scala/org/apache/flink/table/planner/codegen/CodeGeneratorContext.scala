@@ -18,10 +18,6 @@
 
 package org.apache.flink.table.planner.codegen
 
-import java.time.ZoneId
-import java.util.TimeZone
-import java.util.function.{Supplier => JSupplier}
-
 import org.apache.flink.api.common.functions.{Function, RuntimeContext}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.TableConfig
@@ -39,6 +35,10 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.InstantiationUtil
+
+import java.time.ZoneId
+import java.util.TimeZone
+import java.util.function.{Supplier => JSupplier}
 
 import scala.collection.mutable
 
@@ -134,10 +134,10 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   private var operatorBaseClass: Class[_] = classOf[TableStreamOperator[_]]
 
-
   // ---------------------------------------------------------------------------------
   // Getter
   // ---------------------------------------------------------------------------------
+
   def getReusableInputUnboxingExprs(inputTerm: String, index: Int): Option[GeneratedExpression] =
     reusableInputUnboxingExprs.get((inputTerm, index))
 
