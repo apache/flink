@@ -21,12 +21,11 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
-import org.apache.calcite.rex.RexProgram
+import org.apache.calcite.rex.{RexNode, RexProgram}
 
 import scala.collection.JavaConversions._
 
@@ -47,7 +46,7 @@ class StreamPhysicalCalc(
 
   override def translateToExecNode(): ExecNode[_] = {
     val projection = calcProgram.getExprList
-    val localRefs = calcProgram.getProjectList
+    val localRefs = calcProgram.getProjectList.map(_.asInstanceOf[RexNode])
     val expandLocalRef = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
     val condition = if (calcProgram.getCondition != null) {
       calcProgram.expandLocalRef(calcProgram.getCondition)

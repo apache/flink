@@ -38,7 +38,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgn
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -53,12 +52,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
+
+    public static final String FIELD_NAME_EXP_LIST = "expList";
+    public static final String FIELD_NAME_LOCAL_REFS = "localRefs";
     public static final String FIELD_NAME_PROJECTION = "projection";
     public static final String FIELD_NAME_CONDITION = "condition";
 
-    @JsonIgnore private final List<RexNode> expList;
+    @JsonProperty(FIELD_NAME_EXP_LIST)
+    private final List<RexNode> expList;
 
-    @JsonIgnore private final List<RexLocalRef> localRefs;
+    @JsonProperty(FIELD_NAME_LOCAL_REFS)
+    private final List<RexNode> localRefs;
 
     @JsonProperty(FIELD_NAME_PROJECTION)
     private final List<RexNode> projection;
@@ -71,7 +75,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
 
     protected CommonExecCalc(
             List<RexNode> expList,
-            List<RexLocalRef> localRefs,
+            List<RexNode> localRefs,
             List<RexNode> projection,
             @Nullable RexNode condition,
             Class<?> operatorBaseClass,

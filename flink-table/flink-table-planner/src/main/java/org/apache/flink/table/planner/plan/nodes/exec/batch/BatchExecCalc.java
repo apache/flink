@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -38,7 +37,7 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
 
     public BatchExecCalc(
             List<RexNode> projection,
-            List<RexLocalRef> localRefs,
+            List<RexNode> localRefs,
             List<RexNode> expandLocalRefs,
             @Nullable RexNode condition,
             InputProperty inputProperty,

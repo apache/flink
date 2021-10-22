@@ -32,10 +32,11 @@ import scala.collection.mutable
 class ProjectCodeGeneratorContext(
    tableConfig: TableConfig,
    expList: util.List[RexNode],
-   localRefs: Seq[RexLocalRef],
+   localRef: Seq[RexNode],
    projection: Seq[RexNode])
   extends CodeGeneratorContext(tableConfig) {
 
+  private val localRefs = localRef.map(v => v.asInstanceOf[RexLocalRef])
   private val projectionIndexMapping: mutable.Map[Int, RexNode] =
     mutable.Map[Int, RexNode]()
   JavaScalaConversionUtil.toScala(expList).zipWithIndex.foreach {
