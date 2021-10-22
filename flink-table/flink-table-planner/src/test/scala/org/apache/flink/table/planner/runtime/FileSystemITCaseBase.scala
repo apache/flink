@@ -92,7 +92,7 @@ trait FileSystemITCaseBase {
            |  a int,
            |  b bigint,
            |  c as b + 1,
-           |  f string metadata from 'filename'
+           |  f string metadata from 'filepath'
            |) partitioned by (a, b) with (
            |  'connector' = 'filesystem',
            |  'path' = '$resultPath',
@@ -122,7 +122,7 @@ trait FileSystemITCaseBase {
            |  x string,
            |  y int,
            |  a int,
-           |  f string metadata from 'filename',
+           |  f string metadata from 'filepath',
            |  b bigint
            |) with (
            |  'connector' = 'filesystem',
@@ -236,7 +236,7 @@ trait FileSystemITCaseBase {
         assertNotNull(row.getField("f"))
         assertNotNull(row.getField(1))
         assertTrue(
-          "The filename value should begin with the temporary test path",
+          "The filepath value should begin with the temporary test path",
           row.getFieldAs[String](1).contains(fileTmpFolder.getRoot.getPath))
       }
     )
@@ -248,7 +248,7 @@ trait FileSystemITCaseBase {
         assertNotNull(row.getField("f"))
         assertNotNull(row.getField(1))
         assertTrue(
-          "The filename value should begin with the temporary test path",
+          "The filepath value should begin with the temporary test path",
           row.getFieldAs[String](1).contains(fileTmpFolder.getRoot.getPath))
       }
     )
@@ -362,7 +362,7 @@ trait FileSystemITCaseBase {
         assertNotNull(row.getField("f"))
         assertNotNull(row.getField(1))
         assertTrue(
-          "The filename value should begin with the temporary test path",
+          "The filepath value should begin with the temporary test path",
           row.getFieldAs[String](1).contains(fileTmpFolder.getRoot.getPath))
       }
     )

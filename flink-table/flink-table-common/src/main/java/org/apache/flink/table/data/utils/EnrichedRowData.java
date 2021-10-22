@@ -37,7 +37,7 @@ import java.util.Objects;
  * hot code paths. The {@link RowKind} is inherited from the mutable row.
  */
 @PublicEvolving
-public class ExtendedRowData implements RowData {
+public class EnrichedRowData implements RowData {
 
     private final RowData fixedRow;
     // The index mapping is built as follows: positive indexes are indexes refer to mutable row
@@ -53,18 +53,18 @@ public class ExtendedRowData implements RowData {
 
     private RowData mutableRow;
 
-    public ExtendedRowData(RowData fixedRow, int[] indexMapping) {
+    public EnrichedRowData(RowData fixedRow, int[] indexMapping) {
         this.fixedRow = fixedRow;
         this.indexMapping = indexMapping;
     }
 
     /**
-     * Replaces the mutable {@link RowData} backing this {@link ExtendedRowData}.
+     * Replaces the mutable {@link RowData} backing this {@link EnrichedRowData}.
      *
      * <p>This method replaces the mutable row data in place and does not return a new object. This
      * is done for performance reasons.
      */
-    public ExtendedRowData replaceMutableRow(RowData mutableRow) {
+    public EnrichedRowData replaceMutableRow(RowData mutableRow) {
         this.mutableRow = mutableRow;
         return this;
     }
@@ -78,12 +78,12 @@ public class ExtendedRowData implements RowData {
 
     @Override
     public RowKind getRowKind() {
-        return this.mutableRow.getRowKind();
+        return mutableRow.getRowKind();
     }
 
     @Override
     public void setRowKind(RowKind kind) {
-        this.mutableRow.setRowKind(kind);
+        mutableRow.setRowKind(kind);
     }
 
     @Override
@@ -254,7 +254,7 @@ public class ExtendedRowData implements RowData {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        ExtendedRowData that = (ExtendedRowData) o;
+        EnrichedRowData that = (EnrichedRowData) o;
         return Objects.equals(this.fixedRow, that.fixedRow)
                 && Objects.equals(this.mutableRow, that.mutableRow);
     }
@@ -276,20 +276,31 @@ public class ExtendedRowData implements RowData {
     }
 
     /**
-     * Creates a new {@link ExtendedRowData} with the provided {@code fixedRow} as the immutable
+     * Creates a new {@link EnrichedRowData} with the provided {@code fixedRow} as the immutable
      * static row, and uses the {@code completeRowFields}, {@code fixedRowFields} and {@code
      * mutableRowFields} arguments to compute the indexes mapping.
+     *
+     * <p>The {@code completeRowFields} should include the name of fields of the full row once
+     * mutable and fixed rows are merged, while {@code fixedRowFields} and {@code mutableRowFields}
+     * should contain respectively the field names of fixed row and mutable row. All the lists are
+     * ordered with indexes matching the position of the field in the row. As an example, for a
+     * complete row {@code (a, b, c)} the mutable row might be {@code (a, c)} and the fixed row
+     * might be {@code (b)}
      */
-    public static ExtendedRowData from(
+    public static EnrichedRowData from(
             RowData fixedRow,
             List<String> completeRowFields,
             List<String> mutableRowFields,
             List<String> fixedRowFields) {
-        return new ExtendedRowData(
+        return new EnrichedRowData(
                 fixedRow, computeIndexMapping(completeRowFields, mutableRowFields, fixedRowFields));
     }
 
-    /** This method computes the index mapping for {@link ExtendedRowData}. */
+    /**
+     * This method computes the index mapping for {@link EnrichedRowData}.
+     *
+     * @see EnrichedRowData#from(RowData, List, List, List)
+     */
     public static int[] computeIndexMapping(
             List<String> completeRowFields,
             List<String> mutableRowFields,

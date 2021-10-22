@@ -52,7 +52,7 @@ public class FileSystemTableSourceTest extends TableTestBase {
                         + "  a bigint,\n"
                         + "  b int,\n"
                         + "  c varchar,\n"
-                        + "  filemeta STRING METADATA FROM 'filename'\n"
+                        + "  filemeta STRING METADATA FROM 'filepath'\n"
                         + ") with (\n"
                         + " 'connector' = 'filesystem',"
                         + " 'format' = 'testcsv',"

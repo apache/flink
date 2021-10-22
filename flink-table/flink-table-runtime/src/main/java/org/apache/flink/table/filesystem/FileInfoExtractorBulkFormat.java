@@ -25,8 +25,7 @@ import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.RecordMapperWrapperRecordIterator;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.utils.ExtendedRowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.data.utils.EnrichedRowData;
 import org.apache.flink.table.types.DataType;
 
 import javax.annotation.Nullable;
@@ -52,9 +51,10 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
     public FileInfoExtractorBulkFormat(
             BulkFormat<RowData, FileSourceSplit> wrapped,
             DataType fullDataType,
+            TypeInformation<RowData> producedType,
             Map<String, FileSystemTableSource.FileInfoAccessor> metadataColumns) {
         this.wrapped = wrapped;
-        this.producedType = InternalTypeInfo.of(fullDataType.getLogicalType());
+        this.producedType = producedType;
 
         // Compute index mapping for the extended row and the functions to compute metadata
         List<String> completeRowFields = DataType.getFieldNames(fullDataType);
@@ -64,7 +64,7 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
                         .collect(Collectors.toList());
         List<String> fixedRowFields = new ArrayList<>(metadataColumns.keySet());
         this.extendedRowIndexMapping =
-                ExtendedRowData.computeIndexMapping(
+                EnrichedRowData.computeIndexMapping(
                         completeRowFields, mutableRowFields, fixedRowFields);
         this.metadataColumnsFunctions =
                 fixedRowFields.stream().map(metadataColumns::get).collect(Collectors.toList());
@@ -100,28 +100,20 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
         }
 
         // This row is going to be reused for every record
-        final ExtendedRowData extendedRowData =
-                new ExtendedRowData(metadataRowData, this.extendedRowIndexMapping);
+        final EnrichedRowData enrichedRowData =
+                new EnrichedRowData(metadataRowData, this.extendedRowIndexMapping);
 
-        return new ReaderWrapper(
-                superReader,
-                physicalRowData -> {
-                    extendedRowData.replaceMutableRow(physicalRowData);
-                    return extendedRowData;
-                });
+        return new ReaderWrapper(superReader, enrichedRowData);
     }
 
     private static final class ReaderWrapper implements Reader<RowData> {
 
         private final Reader<RowData> wrappedReader;
-        private final RecordMapperWrapperRecordIterator.RecordMapper<RowData, RowData>
-                metadataMapper;
+        private final EnrichedRowData enrichedRowData;
 
-        private ReaderWrapper(
-                Reader<RowData> wrappedReader,
-                RecordMapperWrapperRecordIterator.RecordMapper<RowData, RowData> metadataMapper) {
+        private ReaderWrapper(Reader<RowData> wrappedReader, EnrichedRowData enrichedRowData) {
             this.wrappedReader = wrappedReader;
-            this.metadataMapper = metadataMapper;
+            this.enrichedRowData = enrichedRowData;
         }
 
         @Nullable
@@ -131,7 +123,12 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
             if (iterator == null) {
                 return null;
             }
-            return new RecordMapperWrapperRecordIterator<>(iterator, this.metadataMapper);
+            return new RecordMapperWrapperRecordIterator<>(
+                    iterator,
+                    physicalRowData -> {
+                        enrichedRowData.replaceMutableRow(physicalRowData);
+                        return enrichedRowData;
+                    });
         }
 
         @Override

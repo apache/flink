@@ -30,11 +30,11 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link JoinedRowData}. */
-public class ExtendedRowDataTest {
+public class EnrichedRowDataTest {
 
     @Test
     public void testJoinedRows() {
-        List<String> completeRowFields =
+        final List<String> completeRowFields =
                 Arrays.asList(
                         "fixedRow1",
                         "mutableRow1",
@@ -42,34 +42,34 @@ public class ExtendedRowDataTest {
                         "mutableRow2",
                         "fixedRow2",
                         "mutableRow4");
-        List<String> mutableRowFields =
+        final List<String> mutableRowFields =
                 Arrays.asList("mutableRow1", "mutableRow2", "mutableRow3", "mutableRow4");
-        List<String> fixedRowFields = Arrays.asList("fixedRow1", "fixedRow2");
+        final List<String> fixedRowFields = Arrays.asList("fixedRow1", "fixedRow2");
 
         final RowData fixedRowData = GenericRowData.of(1L, 2L);
-        final ExtendedRowData extendedRowData =
-                ExtendedRowData.from(
+        final EnrichedRowData enrichedRowData =
+                EnrichedRowData.from(
                         fixedRowData, completeRowFields, mutableRowFields, fixedRowFields);
         final RowData mutableRowData = GenericRowData.of(3L, 4L, 5L, 6L);
-        extendedRowData.replaceMutableRow(mutableRowData);
+        enrichedRowData.replaceMutableRow(mutableRowData);
 
-        assertEquals(RowKind.INSERT, extendedRowData.getRowKind());
-        assertEquals(6, extendedRowData.getArity());
-        assertEquals(1L, extendedRowData.getLong(0));
-        assertEquals(3L, extendedRowData.getLong(1));
-        assertEquals(5L, extendedRowData.getLong(2));
-        assertEquals(4L, extendedRowData.getLong(3));
-        assertEquals(2L, extendedRowData.getLong(4));
-        assertEquals(6L, extendedRowData.getLong(5));
+        assertEquals(RowKind.INSERT, enrichedRowData.getRowKind());
+        assertEquals(6, enrichedRowData.getArity());
+        assertEquals(1L, enrichedRowData.getLong(0));
+        assertEquals(3L, enrichedRowData.getLong(1));
+        assertEquals(5L, enrichedRowData.getLong(2));
+        assertEquals(4L, enrichedRowData.getLong(3));
+        assertEquals(2L, enrichedRowData.getLong(4));
+        assertEquals(6L, enrichedRowData.getLong(5));
 
         final RowData newMutableRowData = GenericRowData.of(7L, 8L, 9L, 10L);
-        extendedRowData.replaceMutableRow(newMutableRowData);
+        enrichedRowData.replaceMutableRow(newMutableRowData);
 
-        assertEquals(1L, extendedRowData.getLong(0));
-        assertEquals(7L, extendedRowData.getLong(1));
-        assertEquals(9L, extendedRowData.getLong(2));
-        assertEquals(8L, extendedRowData.getLong(3));
-        assertEquals(2L, extendedRowData.getLong(4));
-        assertEquals(10L, extendedRowData.getLong(5));
+        assertEquals(1L, enrichedRowData.getLong(0));
+        assertEquals(7L, enrichedRowData.getLong(1));
+        assertEquals(9L, enrichedRowData.getLong(2));
+        assertEquals(8L, enrichedRowData.getLong(3));
+        assertEquals(2L, enrichedRowData.getLong(4));
+        assertEquals(10L, enrichedRowData.getLong(5));
     }
 }

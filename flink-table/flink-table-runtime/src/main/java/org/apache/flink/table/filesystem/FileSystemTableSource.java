@@ -160,6 +160,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     new FileInfoExtractorBulkFormat(
                             bulkFormat,
                             this.producedDataType,
+                            InternalTypeInfo.of(this.producedDataType.getLogicalType()),
                             usedMetadata.stream()
                                     .collect(
                                             Collectors.toMap(
@@ -434,10 +435,17 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     }
 
     enum ReadableFileInfo implements Serializable {
-        FILENAME(
-                "filename",
+        FILEPATH(
+                "filepath",
                 DataTypes.STRING().notNull(),
-                split -> StringData.fromString(split.path().getPath()));
+                new FileInfoAccessor() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public Object getValue(FileSourceSplit split) {
+                        return StringData.fromString(split.path().getPath());
+                    }
+                });
 
         final String key;
         final DataType dataType;
@@ -463,8 +471,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
         public static ReadableFileInfo resolve(String key) {
             switch (key) {
-                case "filename":
-                    return ReadableFileInfo.FILENAME;
+                case "filepath":
+                    return ReadableFileInfo.FILEPATH;
                 default:
                     throw new IllegalArgumentException(
                             "Cannot resolve the provided ReadableMetadata key");
