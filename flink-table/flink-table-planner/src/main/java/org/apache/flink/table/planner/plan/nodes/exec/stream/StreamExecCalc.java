@@ -62,18 +62,18 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
 
     @JsonCreator
     public StreamExecCalc(
-            List<RexNode> projection,
+            List<RexNode> expList,
             List<RexLocalRef> localRefs,
-            @JsonProperty(FIELD_NAME_PROJECTION) List<RexNode> expandLocalRef,
+            @JsonProperty(FIELD_NAME_PROJECTION) List<RexNode> projection,
             @JsonProperty(FIELD_NAME_CONDITION) @Nullable RexNode condition,
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
-                projection,
+                expList,
                 localRefs,
-                expandLocalRef,
+                projection,
                 condition,
                 TableStreamOperator.class,
                 true, // retainHeader

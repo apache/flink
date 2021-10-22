@@ -30,15 +30,15 @@ import scala.collection.mutable
  * The context for code generator, maintaining reusable common expressions.
  */
 class ProjectCodeGeneratorContext(
-  tableConfig: TableConfig,
-  projection: util.List[RexNode],
-  localRefs: Seq[RexLocalRef],
-  expandLocalRefs: Seq[RexNode])
+   tableConfig: TableConfig,
+   expList: util.List[RexNode],
+   localRefs: Seq[RexLocalRef],
+   projection: Seq[RexNode])
   extends CodeGeneratorContext(tableConfig) {
 
   private val projectionIndexMapping: mutable.Map[Int, RexNode] =
     mutable.Map[Int, RexNode]()
-  JavaScalaConversionUtil.toScala(projection).zipWithIndex.foreach {
+  JavaScalaConversionUtil.toScala(expList).zipWithIndex.foreach {
     case(rexNode, index)=>
       projectionIndexMapping.put(index, rexNode)
   }
@@ -83,7 +83,7 @@ class ProjectCodeGeneratorContext(
 
   def getLocalRefs = localRefs
 
-  def getExpandLocalRefs = expandLocalRefs
+  def getProjection = projection
 
   def getRexNodeIndex(index: Int) : RexNode = {
     projectionIndexMapping.getOrElse(index, null)

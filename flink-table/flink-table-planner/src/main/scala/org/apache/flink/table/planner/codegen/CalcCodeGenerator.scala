@@ -123,7 +123,7 @@ object CalcCodeGenerator {
         .bindInput(inputType, inputTerm = inputTerm)
 
     val checkNodesList = ctx match {
-      case projectCtx: ProjectCodeGeneratorContext => projectCtx.getExpandLocalRefs
+      case projectCtx: ProjectCodeGeneratorContext => projectCtx.getProjection
       case _ => projection
     }
     val onlyFilter = checkNodesList.lengthCompare(inputType.getFieldCount) == 0 &&

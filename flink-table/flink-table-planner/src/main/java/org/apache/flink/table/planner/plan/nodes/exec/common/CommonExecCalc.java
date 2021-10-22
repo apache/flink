@@ -56,12 +56,12 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_PROJECTION = "projection";
     public static final String FIELD_NAME_CONDITION = "condition";
 
-    @JsonIgnore private final List<RexNode> projection;
+    @JsonIgnore private final List<RexNode> expList;
 
     @JsonIgnore private final List<RexLocalRef> localRefs;
 
     @JsonProperty(FIELD_NAME_PROJECTION)
-    private final List<RexNode> expandLocalRefs;
+    private final List<RexNode> projection;
 
     @JsonProperty(FIELD_NAME_CONDITION)
     private final @Nullable RexNode condition;
@@ -70,9 +70,9 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
     @JsonIgnore private final boolean retainHeader;
 
     protected CommonExecCalc(
-            List<RexNode> projection,
+            List<RexNode> expList,
             List<RexLocalRef> localRefs,
-            List<RexNode> expandLocalRefs,
+            List<RexNode> projection,
             @Nullable RexNode condition,
             Class<?> operatorBaseClass,
             boolean retainHeader,
@@ -82,9 +82,9 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
             String description) {
         super(id, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
-        this.projection = checkNotNull(projection);
+        this.expList = checkNotNull(expList);
         this.localRefs = localRefs;
-        this.expandLocalRefs = expandLocalRefs;
+        this.projection = projection;
         this.condition = condition;
         this.operatorBaseClass = checkNotNull(operatorBaseClass);
         this.retainHeader = retainHeader;
@@ -99,9 +99,9 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         final CodeGeneratorContext ctx =
                 new ProjectCodeGeneratorContext(
                                 planner.getTableConfig(),
-                                projection,
+                                expList,
                                 JavaScalaConversionUtil.toScala(localRefs),
-                                JavaScalaConversionUtil.toScala(expandLocalRefs))
+                                JavaScalaConversionUtil.toScala(projection))
                         .setOperatorBaseClass(operatorBaseClass);
 
         final CodeGenOperatorFactory<RowData> substituteStreamOperator =
@@ -109,7 +109,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                         ctx,
                         inputTransform,
                         (RowType) getOutputType(),
-                        JavaScalaConversionUtil.toScala(projection),
+                        JavaScalaConversionUtil.toScala(expList),
                         JavaScalaConversionUtil.toScala(Optional.ofNullable(this.condition)),
                         retainHeader,
                         getClass().getSimpleName());
