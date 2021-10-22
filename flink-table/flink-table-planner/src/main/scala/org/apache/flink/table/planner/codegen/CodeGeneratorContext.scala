@@ -36,9 +36,9 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.InstantiationUtil
 
-import java.time.ZoneId
 import java.util.TimeZone
 import java.util.function.{Supplier => JSupplier}
+import java.time.ZoneId
 
 import scala.collection.mutable
 
