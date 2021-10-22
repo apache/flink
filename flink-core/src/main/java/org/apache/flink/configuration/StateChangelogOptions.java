@@ -78,6 +78,6 @@ public class StateChangelogOptions {
                                     .linebreak()
                                     .text(
                                             "The list of recognized shortcut names currently includes"
-                                                    + " 'memory' only.")
+                                                    + " 'memory' and 'filesystem'.")
                                     .build());
 }
