@@ -32,7 +32,8 @@ import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime
 
 import org.apache.calcite.avatica.util.ByteString
-import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
+import org.apache.calcite.rex.{RexBuilder, RexCall, RexExecutor, RexLiteral, RexNode, RexUtil}
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeName
 
 import scala.collection.JavaConverters._
@@ -61,25 +62,7 @@ class ExpressionReducer(
 
     val pythonUDFExprs = new ListBuffer[RexNode]()
 
-    val literals = constExprs.asScala.map(e => (e.getType.getSqlTypeName, e)).flatMap {
-
-      // Skip expressions that contain python functions because it's quite expensive to
-      // call Python UDFs during optimization phase. They will be optimized during the runtime.
-      case (_, e) if containsPythonCall(e) =>
-        pythonUDFExprs += e
-        None
-
-      // we don't support object literals yet, we skip those constant expressions
-      case (SqlTypeName.ANY, _) |
-           (SqlTypeName.OTHER, _) |
-           (SqlTypeName.ROW, _) |
-           (SqlTypeName.STRUCTURED, _) |
-           (SqlTypeName.ARRAY, _) |
-           (SqlTypeName.MAP, _) |
-           (SqlTypeName.MULTISET, _) => None
-
-      case (_, e) => Some(e)
-    }
+    val literals = skipAndValidateExprs(rexBuilder, constExprs, pythonUDFExprs)
 
     val literalTypes = literals.map(e => FlinkTypeFactory.toLogicalType(e.getType))
     val resultType = RowType.of(literalTypes: _*)
@@ -210,6 +193,56 @@ class ExpressionReducer(
       }
       i += 1
     }
+  }
+
+  /**
+   * skip the expressions that can't be reduced now
+   * and validate the expressions
+   */
+  private def skipAndValidateExprs(
+      rexBuilder: RexBuilder,
+      constExprs: java.util.List[RexNode],
+      pythonUDFExprs: ListBuffer[RexNode]): List[RexNode] ={
+
+    constExprs.asScala.map(e => (e.getType.getSqlTypeName, e)).flatMap {
+
+      // Skip expressions that contain python functions because it's quite expensive to
+      // call Python UDFs during optimization phase. They will be optimized during the runtime.
+      case (_, e) if containsPythonCall(e) =>
+        pythonUDFExprs += e
+        None
+
+      // we don't support object literals yet, we skip those constant expressions
+      case (SqlTypeName.ANY, _) |
+           (SqlTypeName.OTHER, _) |
+           (SqlTypeName.ROW, _) |
+           (SqlTypeName.STRUCTURED, _) |
+           (SqlTypeName.ARRAY, _) |
+           (SqlTypeName.MAP, _) |
+           (SqlTypeName.MULTISET, _) => None
+
+      case (_, call: RexCall) => {
+        // to ensure the division is non-zero when the operator is DIVIDE
+        if (call.getOperator.getKind.equals(SqlKind.DIVIDE)) {
+          val ops = call.getOperands
+          val divisionLiteral = ops.get(ops.size() - 1)
+
+          // according to BuiltInFunctionDefinitions, the DEVIDE's second op must be numeric
+          assert(RexUtil.isDeterministic(divisionLiteral))
+          val divisionComparable =
+            divisionLiteral.asInstanceOf[RexLiteral].getValue.asInstanceOf[Comparable[Any]]
+          val zeroComparable = rexBuilder.makeExactLiteral(
+            new java.math.BigDecimal(0))
+            .getValue.asInstanceOf[Comparable[Any]]
+          if (divisionComparable.compareTo(zeroComparable) == 0) {
+            throw new ArithmeticException("Division by zero")
+          }
+        }
+        Some(call)
+      }
+
+      case (_, e) => Some(e)
+    }.toList
   }
 
   // We may skip the reduce if the original constant is invalid and casted as a null literal,

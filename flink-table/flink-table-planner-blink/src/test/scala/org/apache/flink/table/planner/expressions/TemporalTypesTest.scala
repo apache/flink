@@ -18,12 +18,6 @@
 
 package org.apache.flink.table.planner.expressions
 
-import java.sql.Timestamp
-import java.text.SimpleDateFormat
-import java.time.{Instant, ZoneId, ZoneOffset}
-import java.util.{Locale, TimeZone}
-import java.lang.{Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong}
-
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.planner.codegen.CodeGenException
@@ -32,7 +26,14 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
+
 import org.junit.Test
+
+import java.lang.{Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong}
+import java.sql.Timestamp
+import java.text.SimpleDateFormat
+import java.time.{Instant, ZoneId, ZoneOffset}
+import java.util.Locale
 
 class TemporalTypesTest extends ExpressionTestBase {
 
@@ -1116,6 +1117,30 @@ class TemporalTypesTest extends ExpressionTestBase {
       "1437699600")
   }
 
+  /**
+   * now Flink only support TIMESTAMP(3) as the return type in TO_TIMESTAMP
+   * See: https://issues.apache.org/jira/browse/FLINK-14925
+   */
+  @Test
+  def testToTimeStampFunctionWithHighPrecision(): Unit = {
+    testSqlApi(
+      "TO_TIMESTAMP('1970-01-01 00:00:00.123456789')",
+      "1970-01-01 00:00:00.123")
+
+    testSqlApi(
+      "TO_TIMESTAMP('1970-01-01 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSSSS')",
+      "1970-01-01 00:00:00.123")
+
+    testSqlApi(
+      "TO_TIMESTAMP('20000202 59:59.1234567', 'yyyyMMdd mm:ss.SSSSSSS')",
+      "2000-02-02 00:59:59.123")
+
+    testSqlApi(
+      "TO_TIMESTAMP('1234567', 'SSSSSSS')",
+      "1970-01-01 00:00:00.123")
+  }
+
+
   @Test
   def testHighPrecisionTimestamp(): Unit = {
     // EXTRACT should support millisecond/microsecond/nanosecond
@@ -1167,29 +1192,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     //    "TIMESTAMP '1970-01-01 00:00:00.123455789')",
     //  "1")
 
-    // TO_TIMESTAMP should support up to nanosecond
-    testSqlApi(
-      "TO_TIMESTAMP('1970-01-01 00:00:00.123456789')",
-      "1970-01-01 00:00:00.123456789")
-
-    testSqlApi(
-      "TO_TIMESTAMP('1970-01-01 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSSSS')",
-      "1970-01-01 00:00:00.12345")
-
     testSqlApi("TO_TIMESTAMP('abc')", "null")
 
     // TO_TIMESTAMP should complement YEAR/MONTH/DAY/HOUR/MINUTE/SECOND/NANO_OF_SECOND
     testSqlApi(
       "TO_TIMESTAMP('2000020210', 'yyyyMMddHH')",
       "2000-02-02 10:00:00.000")
-
-    testSqlApi(
-      "TO_TIMESTAMP('20000202 59:59.1234567', 'yyyyMMdd mm:ss.SSSSSSS')",
-      "2000-02-02 00:59:59.1234567")
-
-    testSqlApi(
-      "TO_TIMESTAMP('1234567', 'SSSSSSS')",
-      "1970-01-01 00:00:00.1234567")
 
     // CAST between two TIMESTAMPs
     testSqlApi(
