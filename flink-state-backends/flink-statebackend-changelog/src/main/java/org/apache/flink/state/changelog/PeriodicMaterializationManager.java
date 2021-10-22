@@ -43,7 +43,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stateless Materialization Manager. */
-public class PeriodicMaterializationManager implements Closeable {
+class PeriodicMaterializationManager implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(PeriodicMaterializationManager.class);
 
     /** task mailbox executor, execute from Task Thread. */

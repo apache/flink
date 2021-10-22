@@ -59,7 +59,6 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.runtime.state.StateBackendTestBase.runSnapshot;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 
 /** Test Utilities for Changelog StateBackend. */
 public class ChangelogStateBackendTestUtils {
@@ -183,7 +182,9 @@ public class ChangelogStateBackendTestUtils {
             periodicMaterializationManager.close();
 
             // make sure the asycn phase completes successfully
-            assertFalse(asyncComplete.isCompletedExceptionally());
+            if (asyncComplete.isCompletedExceptionally()) {
+                asyncComplete.get();
+            }
 
             // ============================ restore snapshot ===============================
 
@@ -209,7 +210,6 @@ public class ChangelogStateBackendTestUtils {
         } finally {
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
-            periodicMaterializationManager.close();
         }
     }
 

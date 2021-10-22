@@ -124,8 +124,7 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                         ttlTimeProvider,
                                         metricGroup,
                                         baseHandles,
-                                        cancelStreamRegistry),
-                cancelStreamRegistry);
+                                        cancelStreamRegistry));
     }
 
     @Override
@@ -163,8 +162,7 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                         metricGroup,
                                         baseHandles,
                                         cancelStreamRegistry,
-                                        managedMemoryFraction),
-                cancelStreamRegistry);
+                                        managedMemoryFraction));
     }
 
     @Override
@@ -208,8 +206,7 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
             KeyGroupRange keyGroupRange,
             TtlTimeProvider ttlTimeProvider,
             Collection<KeyedStateHandle> stateHandles,
-            BaseBackendBuilder<K> baseBackendBuilder,
-            CloseableRegistry cancelStreamRegistry)
+            BaseBackendBuilder<K> baseBackendBuilder)
             throws Exception {
         StateChangelogStorage<?> changelogStorage =
                 Preconditions.checkNotNull(
@@ -251,7 +248,7 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
         // keyedStateBackend is responsible to close periodicMaterializationManager
         // This indicates periodicMaterializationManager binds to the keyedStateBackend
         // However PeriodicMaterializationManager can not be part of keyedStateBackend
-        // because of
+        // because of cyclic reference
         keyedStateBackend.registerCloseable(periodicMaterializationManager);
 
         periodicMaterializationManager.start();
