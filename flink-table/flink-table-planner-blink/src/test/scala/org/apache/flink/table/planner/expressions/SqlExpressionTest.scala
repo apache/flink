@@ -124,8 +124,8 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("ROUND(-12.345, 2)", "-12.35")
     testSqlApi("PI()", "3.141592653589793")
     testSqlApi("E()", "2.718281828459045")
-    testSqlApi("truncate(42.345)", "42")
-    testSqlApi("truncate(cast(42.345 as decimal(5, 3)), 2)", "42.34")
+    testSqlApi("truncate(42.345)", "42.000")
+    testSqlApi("truncate(cast(42.345 as decimal(5, 3)), 2)", "42.340")
   }
 
   @Test
@@ -144,6 +144,25 @@ class SqlExpressionTest extends ExpressionTestBase {
     // Decimal(2,1) / Decimal(10,0) => Decimal(23,12)
     testSqlApi("2.0/(-3)", "-0.666666666667")
     testSqlApi("-7.9/2", "-3.950000000000")
+
+
+    // invalid division
+    val divisorZeroException = "Division by zero"
+    testExpectedSqlException(
+      "1/cast(0.00 as decimal)", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/cast(0.00 as double)", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/cast(0.00 as float)", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/cast(0 as tinyint)", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/cast(0 as smallint)", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/0", divisorZeroException, classOf[ArithmeticException])
+    testExpectedSqlException(
+      "1/cast(0 as bigint)", divisorZeroException, classOf[ArithmeticException])
+
   }
 
   @Test
