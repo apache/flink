@@ -66,7 +66,6 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FIELDS_INCLUDE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FORMAT;
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /** Utilities for {@link KafkaConnectorOptions}. */
 @Internal
@@ -412,7 +411,7 @@ class KafkaConnectorOptionsUtil {
             ReadableConfig options, DataType physicalDataType) {
         final LogicalType physicalType = physicalDataType.getLogicalType();
         Preconditions.checkArgument(
-                hasRoot(physicalType, LogicalTypeRoot.ROW), "Row data type expected.");
+                physicalType.is(LogicalTypeRoot.ROW), "Row data type expected.");
         final Optional<String> optionalKeyFormat = options.getOptional(KEY_FORMAT);
         final Optional<List<String>> optionalKeyFields = options.getOptional(KEY_FIELDS);
 
@@ -479,7 +478,7 @@ class KafkaConnectorOptionsUtil {
             ReadableConfig options, DataType physicalDataType) {
         final LogicalType physicalType = physicalDataType.getLogicalType();
         Preconditions.checkArgument(
-                hasRoot(physicalType, LogicalTypeRoot.ROW), "Row data type expected.");
+                physicalType.is(LogicalTypeRoot.ROW), "Row data type expected.");
         final int physicalFieldCount = LogicalTypeChecks.getFieldCount(physicalType);
         final IntStream physicalFields = IntStream.range(0, physicalFieldCount);
 

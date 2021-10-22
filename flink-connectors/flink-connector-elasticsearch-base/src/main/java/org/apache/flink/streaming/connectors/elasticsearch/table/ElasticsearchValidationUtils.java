@@ -31,8 +31,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
-
 /** Utility methods for validating Elasticsearch properties. */
 @Internal
 class ElasticsearchValidationUtils {
@@ -70,8 +68,7 @@ class ElasticsearchValidationUtils {
                                                                 schema.getFieldDataType(fieldName)
                                                                         .get()
                                                                         .getLogicalType();
-                                                        if (hasRoot(
-                                                                logicalType,
+                                                        if (logicalType.is(
                                                                 LogicalTypeRoot.DISTINCT_TYPE)) {
                                                             return ((DistinctType) logicalType)
                                                                     .getSourceType()

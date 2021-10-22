@@ -50,8 +50,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
-
 /**
  * Schema of a table or view.
  *
@@ -196,7 +194,7 @@ public final class Schema {
         public Builder fromRowDataType(DataType dataType) {
             Preconditions.checkNotNull(dataType, "Data type must not be null.");
             Preconditions.checkArgument(
-                    hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW),
+                    dataType.getLogicalType().is(LogicalTypeRoot.ROW),
                     "Data type of ROW expected.");
             final List<DataType> fieldDataTypes = dataType.getChildren();
             final List<String> fieldNames = ((RowType) dataType.getLogicalType()).getFieldNames();

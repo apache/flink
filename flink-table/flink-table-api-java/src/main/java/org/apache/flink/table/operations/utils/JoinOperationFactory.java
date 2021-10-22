@@ -32,11 +32,11 @@ import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import java.util.HashSet;
 import java.util.Set;
+
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
 
 /** Utility class for creating a valid {@link JoinQueryOperation} operation. */
 @Internal
@@ -101,7 +101,7 @@ final class JoinOperationFactory {
     private void verifyConditionType(ResolvedExpression condition) {
         DataType conditionType = condition.getOutputDataType();
         LogicalType logicalType = conditionType.getLogicalType();
-        if (!LogicalTypeChecks.hasRoot(logicalType, LogicalTypeRoot.BOOLEAN)) {
+        if (!logicalType.is(BOOLEAN)) {
             throw new ValidationException(
                     String.format(
                             "Filter operator requires a boolean expression as input, "

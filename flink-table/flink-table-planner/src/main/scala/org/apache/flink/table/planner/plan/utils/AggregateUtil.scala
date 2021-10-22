@@ -48,7 +48,6 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, _}
 import org.apache.flink.table.types.utils.DataTypeUtils
 
@@ -1077,11 +1076,11 @@ object AggregateUtil extends Enumeration {
   }
 
   def hasTimeIntervalType(intervalType: ValueLiteralExpression): Boolean = {
-    hasRoot(intervalType.getOutputDataType.getLogicalType, LogicalTypeRoot.INTERVAL_DAY_TIME)
+    intervalType.getOutputDataType.getLogicalType.is(LogicalTypeRoot.INTERVAL_DAY_TIME)
   }
 
   def hasRowIntervalType(intervalType: ValueLiteralExpression): Boolean = {
-    hasRoot(intervalType.getOutputDataType.getLogicalType, LogicalTypeRoot.BIGINT)
+    intervalType.getOutputDataType.getLogicalType.is(LogicalTypeRoot.BIGINT)
   }
 
   def toLong(literalExpr: ValueLiteralExpression): JLong =

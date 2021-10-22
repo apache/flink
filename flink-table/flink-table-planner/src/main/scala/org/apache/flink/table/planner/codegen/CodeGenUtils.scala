@@ -43,7 +43,7 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale, hasRoot}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.types.{Row, RowKind}
@@ -911,7 +911,7 @@ object CodeGenUtils {
     val targetTypeTerm = boxedTypeTermForType(targetType)
 
     // untyped null literal
-    if (hasRoot(internalExpr.resultType, NULL)) {
+    if (internalExpr.resultType.is(NULL)) {
       return s"($targetTypeTerm) null"
     }
 
@@ -1030,7 +1030,7 @@ object CodeGenUtils {
     val targetTypeTerm = boxedTypeTermForType(targetType)
 
     // untyped null literal
-    if (hasRoot(internalExpr.resultType, NULL)) {
+    if (internalExpr.resultType.is(NULL)) {
       return s"($targetTypeTerm) null"
     }
 

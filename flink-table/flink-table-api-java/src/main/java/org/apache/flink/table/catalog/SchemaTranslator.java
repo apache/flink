@@ -47,8 +47,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.utils.DataTypeUtils.flattenToDataTypes;
 import static org.apache.flink.table.types.utils.DataTypeUtils.flattenToNames;
 
@@ -239,9 +237,10 @@ public final class SchemaTranslator {
             return dataType;
         }
         // we only truncate timestamps
-        if (!hasFamily(
-                columnDataTypes.get(columnCount - 1).getLogicalType(),
-                LogicalTypeFamily.TIMESTAMP)) {
+        if (!columnDataTypes
+                .get(columnCount - 1)
+                .getLogicalType()
+                .is(LogicalTypeFamily.TIMESTAMP)) {
             return dataType;
         }
         // truncate last field
@@ -338,9 +337,9 @@ public final class SchemaTranslator {
         // the following lines make assumptions on what comes out of the TypeInfoDataTypeConverter
         // e.g. we can assume that there will be no DISTINCT type and only anonymously defined
         // structured types without a super type
-        if (hasRoot(type, LogicalTypeRoot.ROW)) {
+        if (type.is(LogicalTypeRoot.ROW)) {
             return patchRowDataType(dataType, columnName, columnDataType);
-        } else if (hasRoot(type, LogicalTypeRoot.STRUCTURED_TYPE)) {
+        } else if (type.is(LogicalTypeRoot.STRUCTURED_TYPE)) {
             return patchStructuredDataType(dataType, columnName, columnDataType);
         } else {
             // this also covers the case where a top-level generic type enters the

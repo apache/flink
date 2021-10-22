@@ -27,8 +27,6 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
 import java.util.Optional;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
-
 /** Type strategy specific for source watermarks that depend on the output type. */
 @Internal
 class SourceWatermarkTypeStrategy implements TypeStrategy {
@@ -38,7 +36,7 @@ class SourceWatermarkTypeStrategy implements TypeStrategy {
         final DataType timestampDataType =
                 callContext
                         .getOutputDataType()
-                        .filter(dt -> hasFamily(dt.getLogicalType(), LogicalTypeFamily.TIMESTAMP))
+                        .filter(dt -> dt.getLogicalType().is(LogicalTypeFamily.TIMESTAMP))
                         .orElse(DataTypes.TIMESTAMP_LTZ(3));
         return Optional.of(timestampDataType);
     }

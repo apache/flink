@@ -42,7 +42,6 @@ import javax.annotation.Nullable;
 
 import java.util.function.Supplier;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /** Implementation of a {@link DataTypeFactory}. */
@@ -172,7 +171,7 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 
         @Override
         protected LogicalType defaultMethod(LogicalType logicalType) {
-            if (hasRoot(logicalType, LogicalTypeRoot.UNRESOLVED)) {
+            if (logicalType.is(LogicalTypeRoot.UNRESOLVED)) {
                 final UnresolvedUserDefinedType unresolvedType =
                         (UnresolvedUserDefinedType) logicalType;
                 return resolveType(unresolvedType.getUnresolvedIdentifier())

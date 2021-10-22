@@ -39,7 +39,6 @@ import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
@@ -66,9 +65,10 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.DISTINCT_TYPE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TYPE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.getAtomicName;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.removeTimeAttributes;
@@ -105,8 +105,7 @@ public final class DataTypeUtils {
                                     .getFieldNames()
                                     .get(indexPath[0]));
             for (int index = 1; index < indexPath.length; index++) {
-                Preconditions.checkArgument(
-                        hasRoot(fieldLogicalType, LogicalTypeRoot.ROW), "Row data type expected.");
+                Preconditions.checkArgument(fieldLogicalType.is(ROW), "Row data type expected.");
                 RowType rowtype = ((RowType) fieldLogicalType);
                 builder.append("_").append(rowtype.getFieldNames().get(indexPath[index]));
                 fieldLogicalType = rowtype.getFields().get(indexPath[index]).getType();
@@ -140,8 +139,7 @@ public final class DataTypeUtils {
 
     /** Removes a string prefix from the fields of the given row data type. */
     public static DataType stripRowPrefix(DataType dataType, String prefix) {
-        Preconditions.checkArgument(
-                hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW), "Row data type expected.");
+        Preconditions.checkArgument(dataType.getLogicalType().is(ROW), "Row data type expected.");
         final RowType rowType = (RowType) dataType.getLogicalType();
         final List<String> newFieldNames =
                 rowType.getFieldNames().stream()
@@ -160,8 +158,7 @@ public final class DataTypeUtils {
 
     /** Appends the given list of fields to an existing row data type. */
     public static DataType appendRowFields(DataType dataType, List<DataTypes.Field> fields) {
-        Preconditions.checkArgument(
-                hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW), "Row data type expected.");
+        Preconditions.checkArgument(dataType.getLogicalType().is(ROW), "Row data type expected.");
         if (fields.size() == 0) {
             return dataType;
         }
@@ -222,7 +219,7 @@ public final class DataTypeUtils {
      */
     public static DataType removeTimeAttribute(DataType dataType) {
         final LogicalType type = dataType.getLogicalType();
-        if (hasFamily(type, LogicalTypeFamily.TIMESTAMP)) {
+        if (type.is(LogicalTypeFamily.TIMESTAMP)) {
             return replaceLogicalType(dataType, removeTimeAttributes(type));
         }
         return dataType;
@@ -284,7 +281,7 @@ public final class DataTypeUtils {
         if (dataType instanceof FieldsDataType) {
             return expandCompositeType((FieldsDataType) dataType);
         } else if (dataType.getLogicalType() instanceof LegacyTypeInformationType
-                && dataType.getLogicalType().getTypeRoot() == LogicalTypeRoot.STRUCTURED_TYPE) {
+                && dataType.getLogicalType().getTypeRoot() == STRUCTURED_TYPE) {
             return expandLegacyCompositeType(dataType);
         }
 
@@ -326,7 +323,7 @@ public final class DataTypeUtils {
      */
     public static List<DataType> flattenToDataTypes(DataType dataType) {
         final LogicalType type = dataType.getLogicalType();
-        if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+        if (type.is(DISTINCT_TYPE)) {
             return flattenToDataTypes(dataType.getChildren().get(0));
         } else if (isCompositeType(type)) {
             return dataType.getChildren();
@@ -345,7 +342,7 @@ public final class DataTypeUtils {
     /** @see DataTypeUtils#flattenToNames(DataType) */
     public static List<String> flattenToNames(DataType dataType, List<String> existingNames) {
         final LogicalType type = dataType.getLogicalType();
-        if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+        if (type.is(DISTINCT_TYPE)) {
             return flattenToNames(dataType.getChildren().get(0), existingNames);
         } else if (isCompositeType(type)) {
             return getFieldNames(type);
