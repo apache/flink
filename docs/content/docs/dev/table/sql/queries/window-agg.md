@@ -208,6 +208,7 @@ SELECT window_start, window_end, SUM(partial_price) as total_price
       TUMBLE(TABLE window1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
 ```
+*Note:* an exception is reported: Column 'window_start' is ambiguous, at execution time you can change window1's window_start to "window_start as window_start_bak", window_end to "window_end as window_end_bak".
 
 ## Group Window Aggregation
 
