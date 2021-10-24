@@ -131,16 +131,14 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testDeployApplicationCluster() {
+    public void testDeployApplicationCluster() throws ClusterDeploymentException {
         flinkConfig.set(
                 PipelineOptions.JARS, Collections.singletonList("local:///path/of/user.jar"));
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.APPLICATION.getName());
-        try {
-            descriptor.deployApplicationCluster(clusterSpecification, appConfig);
-        } catch (Exception ignored) {
-        }
 
-        mockExpectedServiceFromServerSide(loadBalancerSvc);
+        mockFirstEmptyFollowByExpectedServiceFromServerSide(loadBalancerSvc);
+        descriptor.deployApplicationCluster(clusterSpecification, appConfig);
+
         final ClusterClient<String> clusterClient =
                 descriptor.retrieve(CLUSTER_ID).getClusterClient();
         checkClusterClient(clusterClient);

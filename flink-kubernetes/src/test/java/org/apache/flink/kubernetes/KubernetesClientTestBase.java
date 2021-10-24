@@ -92,6 +92,14 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
         server.expect().get().withPath(path).andReturn(200, expectedService).always();
     }
 
+    protected void mockFirstEmptyFollowByExpectedServiceFromServerSide(Service expectedService) {
+        final String serviceName = expectedService.getMetadata().getName();
+        final String path =
+                String.format("/api/v1/namespaces/%s/services/%s", NAMESPACE, serviceName);
+        server.expect().get().withPath(path).andReturn(404, new Service()).once();
+        server.expect().get().withPath(path).andReturn(200, expectedService).always();
+    }
+
     protected void mockCreateConfigMapAlreadyExisting(ConfigMap configMap) {
         final String path =
                 String.format(
