@@ -221,3 +221,15 @@ FROM (VALUES
 +----------+---------------------+-------------------------+-------------------------------+-------------------------+-------------------------+-------------------------------+
 2 rows in set
 !ok
+
+ELECT 1;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.SqlParserException: SQL parse failed. Line 1 column 1. Non-query expression encountered in illegal context
+!error
+
+/*
+comment
+*/  ELECT 1;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.SqlParserException: SQL parse failed. Line 3 column 5. Non-query expression encountered in illegal context
+!error

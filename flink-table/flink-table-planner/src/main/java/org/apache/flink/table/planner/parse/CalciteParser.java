@@ -79,6 +79,16 @@ public class CalciteParser {
             if (e.getMessage().contains("Encountered \"<EOF>\"")) {
                 throw new SqlParserEOFException(e.getMessage(), e);
             }
+            if (e.getMessage().equals("Non-query expression encountered in illegal context")) {
+                throw new SqlParserException(
+                        "SQL parse failed. Line "
+                                + e.getPos().getLineNum()
+                                + " column "
+                                + e.getPos().getColumnNum()
+                                + ". "
+                                + e.getMessage(),
+                        e);
+            }
             throw new SqlParserException("SQL parse failed. " + e.getMessage(), e);
         }
     }

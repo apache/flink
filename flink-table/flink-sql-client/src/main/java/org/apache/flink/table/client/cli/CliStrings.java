@@ -347,11 +347,17 @@ public final class CliStrings {
     }
 
     public static AttributedString messageError(String message, Throwable t, boolean isVerbose) {
+        Throwable skipNonQuery = t;
         while (t.getCause() != null
                 && t.getCause().getMessage() != null
                 && !t.getCause().getMessage().isEmpty()) {
             t = t.getCause();
+            skipNonQuery =
+                    "Non-query expression encountered in illegal context".equals(t.getMessage())
+                            ? skipNonQuery
+                            : t;
         }
+        t = skipNonQuery;
         if (isVerbose) {
             return messageError(message, ExceptionUtils.stringifyException(t));
         } else {
