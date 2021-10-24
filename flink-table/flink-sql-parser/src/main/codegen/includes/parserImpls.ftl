@@ -535,6 +535,9 @@ SqlAlterTable SqlAlterTable() :
     SqlNodeList partitionSpec = null;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
+    SqlWatermark watermark = null;
+    List<SqlTableConstraint> constraints = new ArrayList<SqlTableConstraint>();
+    SqlNodeList columnList = SqlNodeList.EMPTY;
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
@@ -567,12 +570,50 @@ SqlAlterTable SqlAlterTable() :
                         propertyList);
         }
     |
-        <ADD> constraint = TableConstraint() {
-            return new SqlAlterTableAddConstraint(
-                        tableIdentifier,
-                        constraint,
-                        startPos.plus(getPos()));
+        <ADD>
+        {
+            TableDefinitionContext ctx = new TableDefinitionContext();
         }
+        (
+            TableColumn(ctx, true) {
+                if (ctx.columnList.size() == 1) {
+                    return new SqlAlterTableAddColumn(
+                                startPos.plus(getPos()),
+                                tableIdentifier,
+                                ctx.columnList.get(0));
+                }
+                if (ctx.constraints.size() == 1) {
+                    return new SqlAlterTableAddConstraint(
+                                tableIdentifier,
+                                ctx.constraints.get(0),
+                                startPos.plus(getPos()));
+                } else {
+                    return new SqlAlterTableAddWatermark(
+                                tableIdentifier,
+                                ctx.watermark,
+                                startPos.plus(getPos()));
+                }
+            }
+       |
+          <LPAREN>
+          TableColumn(ctx, true)
+          (
+              <COMMA> TableColumn(ctx, true)
+          )*
+          {
+              columnList = new SqlNodeList(ctx.columnList, startPos.plus(getPos()));
+              constraints = ctx.constraints;
+              watermark = ctx.watermark;
+          }
+          <RPAREN> {
+              return new SqlAlterTableAddColumns(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            columnList,
+                            watermark,
+                            constraints);
+          }
+        )
     |
         <DROP> <CONSTRAINT>
         constraintName = SimpleIdentifier() {
@@ -620,26 +661,26 @@ SqlNodeList TablePropertyKeys():
     {  return new SqlNodeList(proKeyList, span.end(this)); }
 }
 
-void TableColumn(TableCreationContext context) :
+void TableColumn(TableDefinitionContext context, boolean allowReferencePosition) :
 {
     SqlTableConstraint constraint;
 }
 {
     (
         LOOKAHEAD(2)
-        TypedColumn(context)
+        TypedColumn(context, allowReferencePosition)
     |
         constraint = TableConstraint() {
             context.constraints.add(constraint);
         }
     |
-        ComputedColumn(context)
+        ComputedColumn(context, allowReferencePosition)
     |
         Watermark(context)
     )
 }
 
-void Watermark(TableCreationContext context) :
+SqlWatermark Watermark(TableDefinitionContext context) :
 {
     SqlIdentifier eventTimeColumnName;
     SqlParserPos pos;
@@ -656,11 +697,12 @@ void Watermark(TableCreationContext context) :
         } else {
             context.watermark = new SqlWatermark(pos, eventTimeColumnName, watermarkStrategy);
         }
+        return context.watermark;
     }
 }
 
 /** Parses {@code column_name column_data_type [...]}. */
-void TypedColumn(TableCreationContext context) :
+void TypedColumn(TableDefinitionContext context, boolean allowReferencePosition) :
 {
     SqlIdentifier name;
     SqlParserPos pos;
@@ -670,19 +712,21 @@ void TypedColumn(TableCreationContext context) :
     name = SimpleIdentifier() {pos = getPos();}
     type = ExtendedDataType()
     (
-        MetadataColumn(context, name, type)
+        MetadataColumn(context, name, type, allowReferencePosition)
     |
-        RegularColumn(context, name, type)
+        RegularColumn(context, name, type, allowReferencePosition)
     )
 }
 
 /** Parses {@code column_name AS expr [COMMENT 'comment']}. */
-void ComputedColumn(TableCreationContext context) :
+void ComputedColumn(TableDefinitionContext context, boolean allowReferencePosition) :
 {
     SqlIdentifier name;
     SqlParserPos pos;
     SqlNode expr;
     SqlNode comment = null;
+    ColumnPositionDesc positionDesc = ColumnPositionDesc.DEFAULT_POSIT;
+    SqlIdentifier referencedColumn;
 }
 {
     name = SimpleIdentifier() {pos = getPos();}
@@ -692,22 +736,49 @@ void ComputedColumn(TableCreationContext context) :
         <COMMENT>
         comment = StringLiteral()
     ]
+    [
+        (
+            <AFTER> {
+                if(!allowReferencePosition) {
+                    throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.columnPositionCreateDdlUnsupported());
+                }
+            }
+            referencedColumn = SimpleIdentifier()
+            {
+                positionDesc = ColumnPositionDesc.of(referencedColumn,
+                  ColumnPositionDesc.Preposition.AFTER);
+            }
+        |
+            <FIRST>
+            {
+                if(!allowReferencePosition) {
+                    throw SqlUtil.newContextException(getPos(),
+                        ParserResource.RESOURCE.columnPositionCreateDdlUnsupported());
+                }
+                positionDesc = ColumnPositionDesc.FIRST_POSIT;
+            }
+        )
+    ]
     {
         SqlTableColumn computedColumn = new SqlTableColumn.SqlComputedColumn(
             getPos(),
             name,
             comment,
-            expr);
+            expr,
+            positionDesc);
         context.columnList.add(computedColumn);
     }
 }
 
 /** Parses {@code column_name column_data_type METADATA [FROM 'alias_name'] [VIRTUAL] [COMMENT 'comment']}. */
-void MetadataColumn(TableCreationContext context, SqlIdentifier name, SqlDataTypeSpec type) :
+void MetadataColumn(TableDefinitionContext context, SqlIdentifier name, SqlDataTypeSpec type, boolean allowReferencePosition) :
 {
     SqlNode metadataAlias = null;
     boolean isVirtual = false;
     SqlNode comment = null;
+    ColumnPositionDesc positionDesc = ColumnPositionDesc.DEFAULT_POSIT;
+    SqlIdentifier referencedColumn;
 }
 {
     <METADATA>
@@ -724,6 +795,29 @@ void MetadataColumn(TableCreationContext context, SqlIdentifier name, SqlDataTyp
         <COMMENT>
         comment = StringLiteral()
     ]
+    [
+        (
+            <AFTER> {
+                if(!allowReferencePosition) {
+                    throw SqlUtil.newContextException(getPos(),
+                                      ParserResource.RESOURCE.columnPositionCreateDdlUnsupported());
+                }
+            }
+            referencedColumn = SimpleIdentifier()
+            {
+                positionDesc = ColumnPositionDesc.of(referencedColumn,
+                    ColumnPositionDesc.Preposition.AFTER);
+            }
+        |
+            <FIRST> {
+                if(!allowReferencePosition) {
+                    throw SqlUtil.newContextException(getPos(),
+                                      ParserResource.RESOURCE.columnPositionCreateDdlUnsupported());
+                }
+                positionDesc = ColumnPositionDesc.FIRST_POSIT;
+            }
+        )
+    ]
     {
         SqlTableColumn metadataColumn = new SqlTableColumn.SqlMetadataColumn(
             getPos(),
@@ -731,16 +825,19 @@ void MetadataColumn(TableCreationContext context, SqlIdentifier name, SqlDataTyp
             comment,
             type,
             metadataAlias,
-            isVirtual);
+            isVirtual,
+            positionDesc);
         context.columnList.add(metadataColumn);
     }
 }
 
 /** Parses {@code column_name column_data_type [constraint] [COMMENT 'comment']}. */
-void RegularColumn(TableCreationContext context, SqlIdentifier name, SqlDataTypeSpec type) :
+void RegularColumn(TableDefinitionContext context, SqlIdentifier name, SqlDataTypeSpec type, boolean allowReferencePosition) :
 {
     SqlTableConstraint constraint = null;
     SqlNode comment = null;
+    ColumnPositionDesc positionDesc = ColumnPositionDesc.DEFAULT_POSIT;
+    SqlIdentifier referencedColumn;
 }
 {
     [
@@ -750,13 +847,38 @@ void RegularColumn(TableCreationContext context, SqlIdentifier name, SqlDataType
         <COMMENT>
         comment = StringLiteral()
     ]
+    [
+        (
+            <AFTER> {
+                if(!allowReferencePosition) {
+                    throw SqlUtil.newContextException(getPos(),
+                                  ParserResource.RESOURCE.columnPositionCreateDdlUnsupported());
+                }
+            }
+            referencedColumn = SimpleIdentifier()
+            {
+                positionDesc = ColumnPositionDesc.of(referencedColumn,
+                    ColumnPositionDesc.Preposition.AFTER);
+            }
+        |
+            <FIRST>
+            {
+                if(!allowReferencePosition) {
+                    throw SqlUtil.newContextException(getPos(),
+                        ParserResource.RESOURCE.columnPositionCreateDdlUnsupported());
+                }
+                positionDesc = ColumnPositionDesc.FIRST_POSIT;
+            }
+        )
+    ]
     {
         SqlTableColumn regularColumn = new SqlTableColumn.SqlRegularColumn(
             getPos(),
             name,
             comment,
             type,
-            constraint);
+            constraint,
+            positionDesc);
         context.columnList.add(regularColumn);
     }
 }
@@ -934,8 +1056,8 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     List<SqlTableConstraint> constraints = new ArrayList<SqlTableConstraint>();
     SqlWatermark watermark = null;
     SqlNodeList columnList = SqlNodeList.EMPTY;
-	SqlCharStringLiteral comment = null;
-	SqlTableLike tableLike = null;
+    SqlCharStringLiteral comment = null;
+    SqlTableLike tableLike = null;
 
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
@@ -948,10 +1070,10 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 
     tableName = CompoundIdentifier()
     [
-        <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
-        TableColumn(ctx)
+        <LPAREN> { pos = getPos(); TableDefinitionContext ctx = new TableCreationContext();}
+        TableColumn(ctx, false)
         (
-            <COMMA> TableColumn(ctx)
+            <COMMA> TableColumn(ctx, false)
         )*
         {
             pos = pos.plus(getPos());

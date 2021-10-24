@@ -52,6 +52,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.api.ColumnPosition.ReferencedColumnNotFoundException;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.Field;
 import static org.apache.flink.table.api.DataTypes.ROW;
@@ -679,7 +680,25 @@ public class TableSchema {
          * <p>The call order of this method determines the order of fields in the schema.
          */
         public Builder add(TableColumn column) {
-            columns.add(column);
+            ColumnPosition colPos = column.getColPosition();
+            if (ColumnPosition.DEFAULT_POSIT.equals(colPos)) {
+                columns.add(column);
+            } else if (ColumnPosition.FIRST_POSIT.equals(colPos)) {
+                columns.add(0, column);
+            } else {
+                List<String> columnNames =
+                        columns == null
+                                ? Collections.emptyList()
+                                : columns.stream()
+                                        .map(TableColumn::getName)
+                                        .collect(Collectors.toList());
+                int afterIndex = columnNames.indexOf(colPos.getReferencedColumn());
+                if (afterIndex == -1) {
+                    throw new ReferencedColumnNotFoundException(
+                            column.getName(), colPos.getReferencedColumn());
+                }
+                columns.add(afterIndex + 1, column);
+            }
             return this;
         }
 

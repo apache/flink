@@ -22,6 +22,7 @@ import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.sql.parser.ddl.context.TableDefinitionContext;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
@@ -327,11 +328,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
     }
 
     /** Table creation context. */
-    public static class TableCreationContext {
-        public List<SqlNode> columnList = new ArrayList<>();
-        public List<SqlTableConstraint> constraints = new ArrayList<>();
-        @Nullable public SqlWatermark watermark;
-    }
+    public static class TableCreationContext extends TableDefinitionContext {}
 
     public String[] fullTableName() {
         return tableName.names.toArray(new String[0]);

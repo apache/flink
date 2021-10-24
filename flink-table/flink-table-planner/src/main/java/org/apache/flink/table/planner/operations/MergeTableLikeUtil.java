@@ -27,7 +27,9 @@ import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
+import org.apache.flink.sql.parser.ddl.columnposition.ColumnPositionDesc;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.table.api.ColumnPosition;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableColumn.ComputedColumn;
 import org.apache.flink.table.api.TableColumn.MetadataColumn;
@@ -62,7 +64,10 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
-/** A utility class with logic for handling the {@code CREATE TABLE ... LIKE} clause. */
+/**
+ * A utility class with logic for handling the {@code CREATE TABLE ... LIKE} clause & {@code ALTER
+ * TABLE ... ADD} clause.
+ */
 class MergeTableLikeUtil {
     /** Default merging strategy if given option was not provided explicitly by the user. */
     private static final HashMap<FeatureOption, MergingStrategy> defaultMergingStrategies =
@@ -196,8 +201,8 @@ class MergeTableLikeUtil {
                             && options.containsKey(key)) {
                         throw new ValidationException(
                                 String.format(
-                                        "There already exists an option ['%s' -> '%s']  in the "
-                                                + "base table. You might want to specify EXCLUDING OPTIONS or OVERWRITING OPTIONS.",
+                                        "There already exists an option ['%s' -> '%s'] in the "
+                                                + "base table. You might want to specify EXCLUDING OPTIONS or OVERWRITING OPTIONS when you are using 'create table ... like ...' clause.",
                                         key, options.get(key)));
                     }
 
@@ -281,7 +286,7 @@ class MergeTableLikeUtil {
             if (derivedPrimaryKey != null && primaryKey != null) {
                 throw new ValidationException(
                         "The base table already has a primary key. You might "
-                                + "want to specify EXCLUDING CONSTRAINTS.");
+                                + "want to specify EXCLUDING CONSTRAINTS when you are using 'create table ... like ...' clause.");
             } else if (derivedPrimaryKey != null) {
                 List<String> primaryKeyColumns = new ArrayList<>();
                 for (SqlNode primaryKeyNode : derivedPrimaryKey.getColumns()) {
@@ -354,7 +359,8 @@ class MergeTableLikeUtil {
                 throw new ValidationException(
                         String.format(
                                 "There already exists a watermark spec for column '%s' in the base table. You "
-                                        + "might want to specify EXCLUDING WATERMARKS or OVERWRITING WATERMARKS.",
+                                        + "might want to specify EXCLUDING WATERMARKS or OVERWRITING WATERMARKS "
+                                        + "when you are using 'create table ... like ...' clause.",
                                 fullRowtimeExpression));
             }
 
@@ -428,7 +434,7 @@ class MergeTableLikeUtil {
                             throw new ValidationException(
                                     String.format(
                                             "A generated column named '%s' already exists in the base table. You "
-                                                    + "might want to specify EXCLUDING GENERATED or OVERWRITING GENERATED.",
+                                                    + "might want to specify EXCLUDING GENERATED or OVERWRITING GENERATED when you are using 'create table ... like ...' clause.",
                                             name));
                         }
                     }
@@ -462,7 +468,7 @@ class MergeTableLikeUtil {
                             throw new ValidationException(
                                     String.format(
                                             "A column named '%s' already exists in the base table. "
-                                                    + "Metadata columns can only overwrite other metadata columns.",
+                                                    + "Metadata columns can only overwrite other metadata columns when you are using 'create table ... like ...' clause.",
                                             name));
                         }
 
@@ -471,13 +477,13 @@ class MergeTableLikeUtil {
                             throw new ValidationException(
                                     String.format(
                                             "A metadata column named '%s' already exists in the base table. You "
-                                                    + "might want to specify EXCLUDING METADATA or OVERWRITING METADATA.",
+                                                    + "might want to specify EXCLUDING METADATA or OVERWRITING METADATA when you are using 'create table ... like ...' clause.",
                                             name));
                         }
                     }
 
                     SqlDataTypeSpec type = metadataColumn.getType();
-                    boolean nullable = type.getNullable() == null ? true : type.getNullable();
+                    boolean nullable = type.getNullable() == null || type.getNullable();
                     RelDataType relType = type.deriveType(sqlValidator, nullable);
                     column =
                             TableColumn.metadata(
@@ -489,6 +495,13 @@ class MergeTableLikeUtil {
                 } else {
                     throw new ValidationException("Unsupported column type: " + derivedColumn);
                 }
+                ColumnPositionDesc columnPositionDesc =
+                        ((SqlTableColumn) derivedColumn).getColumnPositionDesc();
+                column.setColPosition(
+                        ColumnPosition.of(
+                                columnPositionDesc.getReferencedColumnStr(),
+                                ColumnPosition.Preposition.valueOf(
+                                        columnPositionDesc.getPreposition().toString())));
                 columns.put(column.getName(), column);
             }
         }
@@ -505,7 +518,7 @@ class MergeTableLikeUtil {
                                         name));
                     }
                     SqlDataTypeSpec type = regularColumn.getType();
-                    boolean nullable = type.getNullable() == null ? true : type.getNullable();
+                    boolean nullable = type.getNullable() == null || type.getNullable();
                     RelDataType relType = type.deriveType(sqlValidator, nullable);
                     // add field name and field type to physical field list
                     RelDataType oldType = physicalFieldNamesToTypes.put(name, relType);

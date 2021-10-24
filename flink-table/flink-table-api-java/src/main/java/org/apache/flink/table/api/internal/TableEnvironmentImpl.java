@@ -119,7 +119,9 @@ import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableAddColumnsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
+import org.apache.flink.table.operations.ddl.AlterTableAddWatermarkOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
@@ -984,6 +986,35 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     for (CatalogPartitionSpec spec : dropPartitionsOperation.getPartitionSpecs()) {
                         catalog.dropPartition(tablePath, spec, ifExists);
                     }
+                } else if (alterTableOperation instanceof AlterTableAddWatermarkOperation) {
+                    AlterTableAddWatermarkOperation addWatermarkOperation =
+                            (AlterTableAddWatermarkOperation) alterTableOperation;
+                    CatalogTable oriTable =
+                            catalogManager
+                                    .getTable(addWatermarkOperation.getTableIdentifier())
+                                    .get()
+                                    .getTable();
+                    TableSchema.Builder builder =
+                            TableSchemaUtils.builderWithGivenSchema(oriTable.getSchema())
+                                    .watermark(
+                                            addWatermarkOperation.getRowtimeAttribute(),
+                                            addWatermarkOperation.getExpressions(),
+                                            addWatermarkOperation.getExprDataType());
+                    CatalogTable newTable =
+                            new CatalogTableImpl(
+                                    builder.build(),
+                                    oriTable.getPartitionKeys(),
+                                    oriTable.getOptions(),
+                                    oriTable.getComment());
+                    catalogManager.alterTable(
+                            newTable, alterTableOperation.getTableIdentifier(), false);
+                } else if (operation instanceof AlterTableAddColumnsOperation) {
+                    AlterTableAddColumnsOperation addColumnsOperation =
+                            (AlterTableAddColumnsOperation) operation;
+                    catalogManager.alterTable(
+                            addColumnsOperation.getNewCatalogTable(),
+                            addColumnsOperation.getTableIdentifier(),
+                            false);
                 }
                 return TableResultImpl.TABLE_RESULT_OK;
             } catch (TableAlreadyExistException | TableNotExistException e) {
@@ -1675,7 +1706,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     name));
                 } else {
                     // wrapper contains only sink (not source)
-                    ConnectorCatalogTable sourceAndSink =
+                    ConnectorCatalogTable<?, ?> sourceAndSink =
                             ConnectorCatalogTable.sourceAndSink(
                                     tableSource,
                                     sourceSinkTable.getTableSink().get(),

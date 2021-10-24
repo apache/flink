@@ -440,6 +440,259 @@ Empty set
 !ok
 
 # ==========================================================================
+# test alter table add table schema components.
+# ==========================================================================
+
+# test alter table add watermark
+CREATE TABLE `default_catalog`.`default_database`.`t_user` (
+  `user` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+);
+[INFO] Execute statement succeed.
+!info
+
+# test alter table add watermark for non_exist table field
+alter table t_user add watermark for `non_exist_field` as `non_exist_field` - interval '1' second;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: The rowtime attribute field 'non_exist_field' is not defined in the table schema, at line 1, column 38
+Available fields: ['user', 'product', 'amount', 'ts']
+!error
+
+# test alter table add watermark for normal case
+alter table t_user add watermark for `ts` as `ts` - interval '1' second;
+[INFO] Execute statement succeed.
+!info
+
+# check the add watermark result
+desc t_user;
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |
+|  amount |                         INT |  TRUE |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+5 rows in set
+!ok
+
+# test alter table add watermark for duplicated watermark
+alter table t_user add watermark for `ts` as `ts` - interval '2' second;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: There already exists a watermark spec for column 'ts' in the base table. You might want to specify EXCLUDING WATERMARKS or OVERWRITING WATERMARKS when you are using 'create table ... like ...' clause.
+!error
+
+# test alter table add metadata column
+alter table t_user add mc1 timestamp_ltz(3) not null metadata from 'timestamp' virtual comment 'mc_cmt';
+[INFO] Execute statement succeed.
+!info
+
+alter table t_user add mc2 timestamp_ltz(3)  metadata from 'timestamp' virtual comment 'mc_cmt' first;
+[INFO] Execute statement succeed.
+!info
+
+alter table t_user add mc3 timestamp_ltz(3) not null metadata from 'timestamp' virtual comment 'mc_cmt' after mc2;
+[INFO] Execute statement succeed.
+!info
+
+# check alter table add metadata column result
+desc t_user;
++---------+-----------------------------+-------+-----------+-----------------------------------+----------------------------+
+|    name |                        type |  null |       key |                            extras |                  watermark |
++---------+-----------------------------+-------+-----------+-----------------------------------+----------------------------+
+|     mc2 |            TIMESTAMP_LTZ(3) |  TRUE |           | METADATA FROM 'timestamp' VIRTUAL |                            |
+|     mc3 |            TIMESTAMP_LTZ(3) | FALSE |           | METADATA FROM 'timestamp' VIRTUAL |                            |
+|    user |                      BIGINT | FALSE | PRI(user) |                                   |                            |
+| product |                 VARCHAR(32) |  TRUE |           |                                   |                            |
+|  amount |                         INT |  TRUE |           |                                   |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |                                   | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           |                     AS PROCTIME() |                            |
+|     mc1 |            TIMESTAMP_LTZ(3) | FALSE |           | METADATA FROM 'timestamp' VIRTUAL |                            |
++---------+-----------------------------+-------+-----------+-----------------------------------+----------------------------+
+8 rows in set
+!ok
+
+# test for alter table add metadata column error cases
+alter table t_user add amount timestamp_ltz(3) not null metadata from 'timestamp' virtual comment 'mc_cmt';
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: A column named 'amount' already exists in the table. Duplicate columns exist in the metadata column and regular column.
+!error
+
+alter table t_user add (amount timestamp_ltz(3) not null metadata from 'timestamp' virtual comment 'mc_cmt');
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: A column named 'amount' already exists in the table. Duplicate columns exist in the metadata column and regular column.
+!error
+
+# test alter table add computed column
+alter table t_user add cost bigint not null;
+[INFO] Execute statement succeed.
+!info
+
+alter table t_user add cmp1 as (cost - amount) comment 'c';
+[INFO] Execute statement succeed.
+!info
+
+alter table t_user add cmp2 as (cost - amount) comment 'c' first;
+[INFO] Execute statement succeed.
+!info
+
+alter table t_user add cmp3 as (cost - 1) comment 'c' after cmp2;
+[INFO] Execute statement succeed.
+!info
+
+# check alter table add computed column result
+desc t_user;
++---------+-----------------------------+-------+-----------+-----------------------------------+----------------------------+
+|    name |                        type |  null |       key |                            extras |                  watermark |
++---------+-----------------------------+-------+-----------+-----------------------------------+----------------------------+
+|    cmp2 |                      BIGINT |  TRUE |           |              AS `cost` - `amount` |                            |
+|    cmp3 |                      BIGINT | FALSE |           |                     AS `cost` - 1 |                            |
+|     mc2 |            TIMESTAMP_LTZ(3) |  TRUE |           | METADATA FROM 'timestamp' VIRTUAL |                            |
+|     mc3 |            TIMESTAMP_LTZ(3) | FALSE |           | METADATA FROM 'timestamp' VIRTUAL |                            |
+|    user |                      BIGINT | FALSE | PRI(user) |                                   |                            |
+| product |                 VARCHAR(32) |  TRUE |           |                                   |                            |
+|  amount |                         INT |  TRUE |           |                                   |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |                                   | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           |                     AS PROCTIME() |                            |
+|     mc1 |            TIMESTAMP_LTZ(3) | FALSE |           | METADATA FROM 'timestamp' VIRTUAL |                            |
+|    cost |                      BIGINT | FALSE |           |                                   |                            |
+|    cmp1 |                      BIGINT |  TRUE |           |              AS `cost` - `amount` |                            |
++---------+-----------------------------+-------+-----------+-----------------------------------+----------------------------+
+12 rows in set
+!ok
+
+# test alter table add computed column error cases
+alter table t_user add cmp1 as (cost - amount) comment 'c';
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: A generated column named 'cmp1' already exists in the base table. You might want to specify EXCLUDING GENERATED or OVERWRITING GENERATED when you are using 'create table ... like ...' clause.
+!error
+
+alter table t_user add (cmp1 as (cost - amount) comment 'c');
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: A generated column named 'cmp1' already exists in the base table. You might want to specify EXCLUDING GENERATED or OVERWRITING GENERATED when you are using 'create table ... like ...' clause.
+!error
+
+# computed unknown referenced
+alter table t_user add cmp4 as (cost - amount) comment 'c' after non_col;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ColumnPosition$ReferencedColumnNotFoundException: The column 'non_col' referenced by column 'cmp4' was not found.
+!error
+
+# test alter table add physical column
+alter table t_user add num int not null comment 'num' first;
+[INFO] Execute statement succeed.
+!info
+
+alter table t_user add cost1 int not null comment 'cost1' after num;
+[INFO] Execute statement succeed.
+!info
+
+alter table t_user add num1 int not null comment 'num1';
+[INFO] Execute statement succeed.
+!info
+
+alter table t_user drop constraint PK_3599338;
+[INFO] Execute statement succeed.
+!info
+
+alter table t_user add physical_constraint_col int not null constraint test_pk primary key not enforced first;
+[INFO] Execute statement succeed.
+!info
+
+# check alter table add physical column result
+desc t_user;
++-------------------------+-----------------------------+-------+------------------------------+-----------------------------------+----------------------------+
+|                    name |                        type |  null |                          key |                            extras |                  watermark |
++-------------------------+-----------------------------+-------+------------------------------+-----------------------------------+----------------------------+
+| physical_constraint_col |                         INT | FALSE | PRI(physical_constraint_col) |                                   |                            |
+|                     num |                         INT | FALSE |                              |                                   |                            |
+|                   cost1 |                         INT | FALSE |                              |                                   |                            |
+|                    cmp2 |                      BIGINT |  TRUE |                              |              AS `cost` - `amount` |                            |
+|                    cmp3 |                      BIGINT | FALSE |                              |                     AS `cost` - 1 |                            |
+|                     mc2 |            TIMESTAMP_LTZ(3) |  TRUE |                              | METADATA FROM 'timestamp' VIRTUAL |                            |
+|                     mc3 |            TIMESTAMP_LTZ(3) | FALSE |                              | METADATA FROM 'timestamp' VIRTUAL |                            |
+|                    user |                      BIGINT | FALSE |                              |                                   |                            |
+|                 product |                 VARCHAR(32) |  TRUE |                              |                                   |                            |
+|                  amount |                         INT |  TRUE |                              |                                   |                            |
+|                      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |                              |                                   | `ts` - INTERVAL '1' SECOND |
+|                   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |                              |                     AS PROCTIME() |                            |
+|                     mc1 |            TIMESTAMP_LTZ(3) | FALSE |                              | METADATA FROM 'timestamp' VIRTUAL |                            |
+|                    cost |                      BIGINT | FALSE |                              |                                   |                            |
+|                    cmp1 |                      BIGINT |  TRUE |                              |              AS `cost` - `amount` |                            |
+|                    num1 |                         INT | FALSE |                              |                                   |                            |
++-------------------------+-----------------------------+-------+------------------------------+-----------------------------------+----------------------------+
+16 rows in set
+!ok
+
+# test add physical column duplicated
+alter table t_user add num int not null comment 'num1';
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: A column named 'num' already exists in the base table.
+!error
+
+# test add physical column reference unknown column
+alter table t_user add num3 int not null comment 'num3' after non_col;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ColumnPosition$ReferencedColumnNotFoundException: The column 'non_col' referenced by column 'num3' was not found.
+!error
+
+alter table t_user drop constraint test_pk;
+[INFO] Execute statement succeed.
+!info
+
+# test alter table add column components with parentthese
+alter table t_user add (
+    num5 int not null comment 'num5' first,
+    num6 int not null comment 'num6',
+    mc4 timestamp_ltz(3) not null metadata from 'timestamp' virtual comment 'c' first,
+    cmp4 as (`user` - 1) comment 'c' after mc4,
+    constraint ck1 primary key(num1)
+);
+[INFO] Execute statement succeed.
+!info
+
+# test alter table add column components with parentthese result.
+desc t_user;
++-------------------------+-----------------------------+-------+-----------+-----------------------------------+----------------------------+
+|                    name |                        type |  null |       key |                            extras |                  watermark |
++-------------------------+-----------------------------+-------+-----------+-----------------------------------+----------------------------+
+|                     mc4 |            TIMESTAMP_LTZ(3) | FALSE |           | METADATA FROM 'timestamp' VIRTUAL |                            |
+|                    cmp4 |                      BIGINT | FALSE |           |                     AS `user` - 1 |                            |
+|                    num5 |                         INT | FALSE |           |                                   |                            |
+| physical_constraint_col |                         INT | FALSE |           |                                   |                            |
+|                     num |                         INT | FALSE |           |                                   |                            |
+|                   cost1 |                         INT | FALSE |           |                                   |                            |
+|                    cmp2 |                      BIGINT |  TRUE |           |              AS `cost` - `amount` |                            |
+|                    cmp3 |                      BIGINT | FALSE |           |                     AS `cost` - 1 |                            |
+|                     mc2 |            TIMESTAMP_LTZ(3) |  TRUE |           | METADATA FROM 'timestamp' VIRTUAL |                            |
+|                     mc3 |            TIMESTAMP_LTZ(3) | FALSE |           | METADATA FROM 'timestamp' VIRTUAL |                            |
+|                    user |                      BIGINT | FALSE |           |                                   |                            |
+|                 product |                 VARCHAR(32) |  TRUE |           |                                   |                            |
+|                  amount |                         INT |  TRUE |           |                                   |                            |
+|                      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |                                   | `ts` - INTERVAL '1' SECOND |
+|                   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           |                     AS PROCTIME() |                            |
+|                     mc1 |            TIMESTAMP_LTZ(3) | FALSE |           | METADATA FROM 'timestamp' VIRTUAL |                            |
+|                    cost |                      BIGINT | FALSE |           |                                   |                            |
+|                    cmp1 |                      BIGINT |  TRUE |           |              AS `cost` - `amount` |                            |
+|                    num1 |                         INT | FALSE | PRI(num1) |                                   |                            |
+|                    num6 |                         INT | FALSE |           |                                   |                            |
++-------------------------+-----------------------------+-------+-----------+-----------------------------------+----------------------------+
+20 rows in set
+!ok
+
+# delete t_user
+drop table t_user;
+[INFO] Execute statement succeed.
+!info
+
+# ==========================================================================
 # test temporary table
 # ==========================================================================
 

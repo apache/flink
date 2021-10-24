@@ -23,14 +23,19 @@
   # Example. "org.apache.calcite.sql.*", "java.util.List".
   # Please keep the import classes in alphabetical order if new class is added.
   imports: [
+    "org.apache.flink.sql.parser.ddl.columnposition.ColumnPositionDesc"
     "org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement"
     "org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint"
     "org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec"
+    "org.apache.flink.sql.parser.ddl.context.TableDefinitionContext"
     "org.apache.flink.sql.parser.ddl.SqlAddJar"
     "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
     "org.apache.flink.sql.parser.ddl.SqlAlterFunction"
     "org.apache.flink.sql.parser.ddl.SqlAlterTable"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableAddColumn"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableAddColumns"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableAddWatermark"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableCompact"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableOptions"
@@ -162,7 +167,6 @@
     "ADA"
     "ADD"
     "ADMIN"
-    "AFTER"
     "ALWAYS"
     "APPLY"
     "ASC"
@@ -238,7 +242,6 @@
     "EXCLUDE"
     "EXCLUDING"
     "FINAL"
-    "FIRST"
     "FOLLOWING"
     "FORMAT"
     "FORTRAN"
@@ -480,10 +483,12 @@
   # Please keep the keyword in alphabetical order if new keyword is added.
   nonReservedKeywordsToAdd: [
     # not in core, added in Flink
+    "AFTER"
     "CHANGELOG_MODE"
     "COLUMNS"
     "ENFORCED"
     "ESTIMATED_COST"
+    "FIRST"
     "IF"
     "JSON_EXECUTION_PLAN"
     "METADATA"

@@ -40,4 +40,7 @@ public interface ParserResource {
 
     @Resources.BaseMessage("Duplicate EXPLAIN DETAIL is not allowed.")
     Resources.ExInst<ParseException> explainDetailIsDuplicate();
+
+    @Resources.BaseMessage("Referenced COLUMN POSITION AFTER / FIRST is not supported yet.")
+    Resources.ExInst<ParseException> columnPositionCreateDdlUnsupported();
 }

@@ -133,6 +133,52 @@ show views;
 2 rows in set
 !ok
 
+# test alter table add watermark clause
+alter table v1 add watermark for ts as ts - interval '5' second;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`v1` doesn't exist or is a temporary table.
+!error
+
+# test alter table add constraint clause
+alter table v1 add constraint ct1 primary key(amount) not enforced;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`v1` doesn't exist or is a temporary table.
+!error
+
+alter table v1 add unique(amount);
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`v1` doesn't exist or is a temporary table.
+!error
+
+# test alter table add column clause
+alter table v1 add col_added1 int;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`v1` doesn't exist or is a temporary table.
+!error
+
+alter table v1 add col_metadata1 int metadata;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`v1` doesn't exist or is a temporary table.
+!error
+
+alter table v1 add col_computed1 as amount - 1.0;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`v1` doesn't exist or is a temporary table.
+!error
+
+# test alter table add column components
+alter table v1 add (
+    watermark for ts as ts - interval '5' second,
+    constraint ct1 primary key(amount) not enforced,
+    unique(amount),
+    col_added1 int,
+    col_metadata1 int metadata,
+    col_computed1 as amount - 1.0
+);
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`v1` doesn't exist or is a temporary table.
+!error
+
 # test describe view
 describe v1;
 +---------+-----------------------------+-------+-----+--------+-----------+

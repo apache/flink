@@ -24,7 +24,10 @@ import org.apache.flink.sql.parser.ddl.SqlAddReplaceColumns;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableAddColumn;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableAddColumns;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableAddWatermark;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableCompact;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
@@ -50,10 +53,12 @@ import org.apache.flink.sql.parser.ddl.SqlDropView;
 import org.apache.flink.sql.parser.ddl.SqlRemoveJar;
 import org.apache.flink.sql.parser.ddl.SqlReset;
 import org.apache.flink.sql.parser.ddl.SqlSet;
+import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.ddl.SqlUseModules;
+import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
@@ -83,6 +88,7 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
@@ -94,6 +100,7 @@ import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -144,7 +151,10 @@ import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableAddColumnOperation;
+import org.apache.flink.table.operations.ddl.AlterTableAddColumnsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
+import org.apache.flink.table.operations.ddl.AlterTableAddWatermarkOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -169,7 +179,10 @@ import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
 
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.HintStrategyTable;
@@ -208,6 +221,7 @@ public class SqlToOperationConverter {
     private final FlinkPlannerImpl flinkPlanner;
     private final CatalogManager catalogManager;
     private final SqlCreateTableConverter createTableConverter;
+    private final MergeTableLikeUtil mergeTableLikeUtil;
 
     // ~ Constructors -----------------------------------------------------------
 
@@ -220,6 +234,9 @@ public class SqlToOperationConverter {
                         catalogManager,
                         this::getQuotedSqlString,
                         this::validateTableConstraint);
+        this.mergeTableLikeUtil =
+                new MergeTableLikeUtil(
+                        flinkPlanner.getOrCreateSqlValidator(), this::getQuotedSqlString);
     }
 
     /**
@@ -379,9 +396,7 @@ public class SqlToOperationConverter {
                 catalogManager.getTable(viewIdentifier);
         if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
             throw new ValidationException(
-                    String.format(
-                            "View %s doesn't exist or is a temporary view.",
-                            viewIdentifier.toString()));
+                    String.format("View %s doesn't exist or is a temporary view.", viewIdentifier));
         }
         CatalogBaseTable baseTable = optionalCatalogTable.get().getTable();
         if (baseTable instanceof CatalogTable) {
@@ -530,6 +545,17 @@ public class SqlToOperationConverter {
                 specs.add(new CatalogPartitionSpec(dropPartitions.getPartitionKVs(i)));
             }
             return new DropPartitionsOperation(tableIdentifier, dropPartitions.ifExists(), specs);
+        } else if (sqlAlterTable instanceof SqlAlterTableAddWatermark) {
+            SqlAlterTableAddWatermark alterTableAddWatermark =
+                    (SqlAlterTableAddWatermark) sqlAlterTable;
+            return convertAlterTableAddWatermark(alterTableAddWatermark);
+        } else if (sqlAlterTable instanceof SqlAlterTableAddColumn) {
+            SqlAlterTableAddColumn alterTableAddColumn = (SqlAlterTableAddColumn) sqlAlterTable;
+            return convertAlterTableAddColumn(alterTableAddColumn);
+        } else if (sqlAlterTable instanceof SqlAlterTableAddColumns) {
+            SqlAlterTableAddColumns sqlAlterTableAddColumns =
+                    (SqlAlterTableAddColumns) sqlAlterTable;
+            return convertAlterTableAddColumns(sqlAlterTableAddColumns);
         } else if (sqlAlterTable instanceof SqlAlterTableCompact) {
             return convertAlterTableCompact(
                     tableIdentifier,
@@ -541,6 +567,135 @@ public class SqlToOperationConverter {
                             "[%s] needs to implement",
                             sqlAlterTable.toSqlString(CalciteSqlDialect.DEFAULT)));
         }
+    }
+
+    private CatalogTable lookupTargetTable(SqlAlterTable sqlAlterTable) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlAlterTable.getTableName().names);
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        ContextResolvedTable lookupResult =
+                catalogManager
+                        .getTable(identifier)
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                String.format(
+                                                        "Target table '%s' of the ALTER clause not found in the catalog, at %s",
+                                                        identifier,
+                                                        sqlAlterTable
+                                                                .getTableName()
+                                                                .getParserPosition())));
+        if (!(lookupResult.getTable() instanceof CatalogTable)) {
+            throw new ValidationException(
+                    String.format(
+                            "Target table '%s' of the ALTER clause can not be a VIEW, at %s",
+                            identifier, sqlAlterTable.getTableName().getParserPosition()));
+        }
+        return lookupResult.getTable();
+    }
+
+    private Operation convertAlterTableAddColumns(SqlAlterTableAddColumns sqlAlterTableAddColumns) {
+
+        List<SqlNode> columnList = sqlAlterTableAddColumns.getColumnNodes();
+        sqlAlterTableAddColumns.getFullConstraints().stream()
+                .filter(SqlTableConstraint::isUnique)
+                .findAny()
+                .ifPresent(this::validateTableConstraint);
+        Optional<SqlTableConstraint> primaryKey =
+                sqlAlterTableAddColumns.getFullConstraints().stream()
+                        .filter(SqlTableConstraint::isPrimaryKey)
+                        .findAny();
+        List<SqlWatermark> watermarks = sqlAlterTableAddColumns.getWatermarks();
+        CatalogTable oriTable = lookupTargetTable(sqlAlterTableAddColumns);
+        Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies =
+                mergeTableLikeUtil.computeMergingStrategies(Collections.emptyList());
+        TableSchema sourceTableSchema =
+                TableSchema.fromResolvedSchema(
+                        oriTable.getUnresolvedSchema().resolve(catalogManager.getSchemaResolver()));
+
+        TableSchema mergedSchema =
+                mergeTableLikeUtil.mergeTables(
+                        mergingStrategies,
+                        sourceTableSchema,
+                        columnList,
+                        watermarks,
+                        primaryKey.orElse(null));
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlAlterTableAddColumns.fullTableName());
+        ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        return new AlterTableAddColumnsOperation(
+                tableIdentifier,
+                new CatalogTableImpl(
+                        mergedSchema,
+                        oriTable.getPartitionKeys(),
+                        oriTable.getOptions(),
+                        oriTable.getComment()),
+                oriTable);
+    }
+
+    private Operation convertAlterTableAddColumn(SqlAlterTableAddColumn alterTableAddColumn) {
+        List<SqlNode> columnList = Collections.singletonList(alterTableAddColumn.getColumnNode());
+        CatalogTable oriTable = lookupTargetTable(alterTableAddColumn);
+        alterTableAddColumn.getConstraint().ifPresent(this::validateTableConstraint);
+        Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies =
+                mergeTableLikeUtil.computeMergingStrategies(Collections.emptyList());
+        TableSchema sourceTableSchema =
+                TableSchema.fromResolvedSchema(
+                        oriTable.getUnresolvedSchema().resolve(catalogManager.getSchemaResolver()));
+
+        TableSchema mergedSchema =
+                mergeTableLikeUtil.mergeTables(
+                        mergingStrategies,
+                        sourceTableSchema,
+                        columnList,
+                        Collections.emptyList(),
+                        alterTableAddColumn.getConstraint().orElse(null));
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(alterTableAddColumn.fullTableName());
+        ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        return new AlterTableAddColumnOperation(
+                tableIdentifier,
+                new CatalogTableImpl(
+                        mergedSchema,
+                        oriTable.getPartitionKeys(),
+                        oriTable.getOptions(),
+                        oriTable.getComment()),
+                oriTable);
+    }
+
+    private Operation convertAlterTableAddWatermark(
+            SqlAlterTableAddWatermark alterTableAddWatermark) {
+
+        Preconditions.checkNotNull(
+                alterTableAddWatermark.getWatermark(),
+                "Watermark in alter table clause must not be null.");
+
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(alterTableAddWatermark.fullTableName());
+        ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        CatalogTable table = lookupTargetTable(alterTableAddWatermark);
+        final TableSchema sourceTableSchema =
+                TableSchema.fromResolvedSchema(
+                        table.getUnresolvedSchema().resolve(catalogManager.getSchemaResolver()));
+
+        // reuse the part of create ... like ... clause code.
+        TableSchema mergedSchema =
+                mergeTableLikeUtil.mergeTables(
+                        Maps.newHashMap(),
+                        sourceTableSchema,
+                        Collections.emptyList(),
+                        Collections.singletonList(alterTableAddWatermark.getWatermark()),
+                        null);
+        WatermarkSpec toAddWatermark = mergedSchema.getWatermarkSpecs().get(0);
+
+        return new AlterTableAddWatermarkOperation(
+                tableIdentifier,
+                toAddWatermark.getRowtimeAttribute(),
+                toAddWatermark.getWatermarkExpr(),
+                toAddWatermark.getWatermarkExprOutputType());
     }
 
     private Operation convertAlterTableOptions(

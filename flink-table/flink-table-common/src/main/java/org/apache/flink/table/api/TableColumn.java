@@ -45,9 +45,12 @@ public abstract class TableColumn {
 
     private final DataType type;
 
+    protected ColumnPosition colPosition;
+
     private TableColumn(String name, DataType type) {
         this.name = name;
         this.type = type;
+        this.colPosition = ColumnPosition.DEFAULT_POSIT;
     }
 
     /** Creates a regular table column that represents physical data. */
@@ -116,6 +119,18 @@ public abstract class TableColumn {
     @Deprecated
     public static TableColumn of(String name, DataType type, String expression) {
         return computed(name, type, expression);
+    }
+
+    /** Returns the position reference information of this column. */
+    @Deprecated
+    public ColumnPosition getColPosition() {
+        return colPosition;
+    }
+
+    /** Sets the position reference information of this column. */
+    @Deprecated
+    public void setColPosition(ColumnPosition colPosition) {
+        this.colPosition = colPosition;
     }
 
     /**

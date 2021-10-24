@@ -18,6 +18,7 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.ddl.columnposition.ColumnPositionDesc;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
 import org.apache.calcite.sql.SqlCall;
@@ -37,6 +38,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -51,10 +53,28 @@ public abstract class SqlTableColumn extends SqlCall {
 
     protected final SqlNode comment;
 
+    protected final ColumnPositionDesc columnPositionDesc;
+
     private SqlTableColumn(SqlParserPos pos, SqlIdentifier name, @Nullable SqlNode comment) {
+        this(pos, name, comment, ColumnPositionDesc.DEFAULT_POSIT);
+    }
+
+    private SqlTableColumn(
+            SqlParserPos pos,
+            SqlIdentifier name,
+            @Nullable SqlNode comment,
+            ColumnPositionDesc columnPositionDesc) {
         super(pos);
         this.name = requireNonNull(name, "Column name should not be null");
         this.comment = comment;
+        this.columnPositionDesc =
+                Objects.nonNull(columnPositionDesc)
+                        ? columnPositionDesc
+                        : ColumnPositionDesc.DEFAULT_POSIT;
+    }
+
+    public ColumnPositionDesc getColumnPositionDesc() {
+        return this.columnPositionDesc;
     }
 
     protected abstract void unparseColumn(SqlWriter writer, int leftPrec, int rightPrec);
@@ -73,6 +93,13 @@ public abstract class SqlTableColumn extends SqlCall {
         if (comment != null) {
             writer.keyword("COMMENT");
             comment.unparse(writer, leftPrec, rightPrec);
+        }
+
+        if (columnPositionDesc != ColumnPositionDesc.DEFAULT_POSIT) {
+            writer.keyword(columnPositionDesc.getPreposition().toString());
+            if (columnPositionDesc != ColumnPositionDesc.FIRST_POSIT) {
+                columnPositionDesc.getReferencedColumn().unparse(writer, leftPrec, rightPrec);
+            }
         }
     }
 
@@ -97,7 +124,17 @@ public abstract class SqlTableColumn extends SqlCall {
                 @Nullable SqlNode comment,
                 SqlDataTypeSpec type,
                 @Nullable SqlTableConstraint constraint) {
-            super(pos, name, comment);
+            this(pos, name, comment, type, constraint, ColumnPositionDesc.DEFAULT_POSIT);
+        }
+
+        public SqlRegularColumn(
+                SqlParserPos pos,
+                SqlIdentifier name,
+                @Nullable SqlNode comment,
+                SqlDataTypeSpec type,
+                @Nullable SqlTableConstraint constraint,
+                @Nullable ColumnPositionDesc columnPositionDesc) {
+            super(pos, name, comment, columnPositionDesc);
             this.type = requireNonNull(type, "Column type should not be null");
             this.constraint = constraint;
         }
@@ -148,7 +185,25 @@ public abstract class SqlTableColumn extends SqlCall {
                 SqlDataTypeSpec type,
                 @Nullable SqlNode metadataAlias,
                 boolean isVirtual) {
-            super(pos, name, comment);
+            this(
+                    pos,
+                    name,
+                    comment,
+                    type,
+                    metadataAlias,
+                    isVirtual,
+                    ColumnPositionDesc.DEFAULT_POSIT);
+        }
+
+        public SqlMetadataColumn(
+                SqlParserPos pos,
+                SqlIdentifier name,
+                @Nullable SqlNode comment,
+                SqlDataTypeSpec type,
+                @Nullable SqlNode metadataAlias,
+                boolean isVirtual,
+                @Nullable ColumnPositionDesc columnPositionDesc) {
+            super(pos, name, comment, columnPositionDesc);
             this.type = requireNonNull(type, "Column type should not be null");
             this.metadataAlias = metadataAlias;
             this.isVirtual = isVirtual;
@@ -197,7 +252,16 @@ public abstract class SqlTableColumn extends SqlCall {
 
         public SqlComputedColumn(
                 SqlParserPos pos, SqlIdentifier name, @Nullable SqlNode comment, SqlNode expr) {
-            super(pos, name, comment);
+            this(pos, name, comment, expr, ColumnPositionDesc.DEFAULT_POSIT);
+        }
+
+        public SqlComputedColumn(
+                SqlParserPos pos,
+                SqlIdentifier name,
+                @Nullable SqlNode comment,
+                SqlNode expr,
+                @Nullable ColumnPositionDesc columnPositionDesc) {
+            super(pos, name, comment, columnPositionDesc);
             this.expr = requireNonNull(expr, "Column expression should not be null");
         }
 

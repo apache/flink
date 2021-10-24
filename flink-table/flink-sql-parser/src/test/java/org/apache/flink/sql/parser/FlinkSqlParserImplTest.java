@@ -295,32 +295,167 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     public void testDescribeStatement() {}
 
     @Test
-    public void testAlterTable() {
+    public void testAlterTableRename() {
         sql("alter table t1 rename to t2").ok("ALTER TABLE `T1` RENAME TO `T2`");
         sql("alter table c1.d1.t1 rename to t2").ok("ALTER TABLE `C1`.`D1`.`T1` RENAME TO `T2`");
-        final String sql0 = "alter table t1 set ('key1'='value1')";
-        final String expected0 = "ALTER TABLE `T1` SET (\n" + "  'key1' = 'value1'\n" + ")";
-        sql(sql0).ok(expected0);
-        final String sql1 = "alter table t1 " + "add constraint ct1 primary key(a, b) not enforced";
-        final String expected1 =
-                "ALTER TABLE `T1` " + "ADD CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED";
-        sql(sql1).ok(expected1);
-        final String sql2 = "alter table t1 " + "add unique(a, b)";
-        final String expected2 = "ALTER TABLE `T1` " + "ADD UNIQUE (`A`, `B`)";
-        sql(sql2).ok(expected2);
-        final String sql3 = "alter table t1 drop constraint ct1";
-        final String expected3 = "ALTER TABLE `T1` DROP CONSTRAINT `CT1`";
-        sql(sql3).ok(expected3);
     }
 
     @Test
-    public void testAlterTableReset() {
+    public void testAlterTableProps() {
+        final String sql0 = "alter table t1 set ('key1'='value1')";
+        final String expected0 = "ALTER TABLE `T1` SET (\n" + "  'key1' = 'value1'\n" + ")";
+        sql(sql0).ok(expected0);
+
         sql("alter table t1 reset ('key1')").ok("ALTER TABLE `T1` RESET (\n  'key1'\n)");
 
         sql("alter table t1 reset ('key1', 'key2')")
                 .ok("ALTER TABLE `T1` RESET (\n  'key1',\n  'key2'\n)");
 
         sql("alter table t1 reset()").ok("ALTER TABLE `T1` RESET (\n)");
+    }
+
+    @Test
+    public void testAlterTableConstraint() {
+        final String sql1 = "alter table t1 " + "add constraint ct1 primary key(a, b) not enforced";
+        final String expected1 =
+                "ALTER TABLE `T1` " + "ADD CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED";
+        sql(sql1).ok(expected1);
+
+        final String sql2 = "alter table t1 " + "add unique(a, b)";
+        final String expected2 = "ALTER TABLE `T1` " + "ADD UNIQUE (`A`, `B`)";
+        sql(sql2).ok(expected2);
+
+        final String sql3 = "alter table t1 drop constraint ct1";
+        final String expected3 = "ALTER TABLE `T1` DROP CONSTRAINT `CT1`";
+        sql(sql3).ok(expected3);
+    }
+
+    @Test
+    public void testAlterTableWatermark() {
+        final String sql1 = "alter table t1 add watermark for ts as ts - interval '1' second";
+        final String expect1 =
+                "ALTER TABLE `T1` ADD WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)";
+        sql(sql1).ok(expect1);
+
+        final String sql2 =
+                "alter table default_database.t1 add watermark for ts as ts - interval '1' second";
+        final String expect2 =
+                "ALTER TABLE `DEFAULT_DATABASE`.`T1` "
+                        + "ADD WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)";
+        sql(sql2).ok(expect2);
+
+        final String sql3 =
+                "alter table default_catalog.default_database.t1 "
+                        + "add watermark for ts as ts - interval '1' second";
+        final String expect3 =
+                "ALTER TABLE `DEFAULT_CATALOG`.`DEFAULT_DATABASE`.`T1` "
+                        + "ADD WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)";
+        sql(sql3).ok(expect3);
+    }
+
+    @Test
+    public void testAlterTableAddPhysicalCol() {
+        final String sql1 = "alter table t_a add col_int int";
+        final String expect1 = "ALTER TABLE `T_A` ADD `COL_INT` INTEGER";
+        sql(sql1).ok(expect1);
+
+        final String sql2 = "alter table t_a add col_int int after col_b";
+        final String expect2 = "ALTER TABLE `T_A` ADD `COL_INT` INTEGER AFTER `COL_B`";
+        sql(sql2).ok(expect2);
+
+        final String sql3 = "alter table t_a add col_int int comment 'comment_str'";
+        final String expect3 = "ALTER TABLE `T_A` ADD `COL_INT` INTEGER COMMENT 'comment_str'";
+        sql(sql3).ok(expect3);
+
+        final String sql4 = "alter table t_a add col_int int comment 'comment_str' first";
+        final String expect4 =
+                "ALTER TABLE `T_A` ADD `COL_INT` INTEGER COMMENT 'comment_str' FIRST";
+        sql(sql4).ok(expect4);
+
+        final String sql5 = "alter table t_a add col_int int comment 'comment_str' after col_b";
+        final String expect5 =
+                "ALTER TABLE `T_A` ADD `COL_INT` INTEGER COMMENT 'comment_str' AFTER `COL_B`";
+        sql(sql5).ok(expect5);
+    }
+
+    @Test
+    public void testAlterTableAddComputedCol() {
+        final String sql = "alter table t_a add col_int as col_a - col_b";
+        final String sql1 = "alter table t_a add col_int as (col_a - col_b)";
+        final String expect1 = "ALTER TABLE `T_A` ADD `COL_INT` AS (`COL_A` - `COL_B`)";
+        sql(sql1).ok(expect1);
+        sql(sql).ok(expect1);
+
+        final String sql2 = "alter table t_a add col_int as col_a - col_b after col_b";
+        final String expect2 =
+                "ALTER TABLE `T_A` ADD `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`";
+        sql(sql2).ok(expect2);
+
+        final String sql3 = "alter table t_a add col_int as col_a - col_b comment 'comment_str'";
+        final String expect3 =
+                "ALTER TABLE `T_A` ADD `COL_INT` AS (`COL_A` - `COL_B`) COMMENT 'comment_str'";
+        sql(sql3).ok(expect3);
+
+        final String sql4 =
+                "alter table t_a add col_int as col_a - col_b comment 'comment_str' first";
+        final String expect4 =
+                "ALTER TABLE `T_A` ADD `COL_INT` AS (`COL_A` - `COL_B`) COMMENT 'comment_str' FIRST";
+        sql(sql4).ok(expect4);
+
+        final String sql5 =
+                "alter table t_a add col_int as col_a - col_b comment 'comment_str' after col_b";
+        final String expect5 =
+                "ALTER TABLE `T_A` ADD `COL_INT` AS (`COL_A` - `COL_B`) "
+                        + "COMMENT 'comment_str' AFTER `COL_B`";
+        sql(sql5).ok(expect5);
+    }
+
+    @Test
+    public void testAlterTableAddMetaDataCol() {
+        final String sql1 = "alter table t_a add col_int int metadata";
+        final String expect1 = "ALTER TABLE `T_A` ADD `COL_INT` INTEGER METADATA";
+        sql(sql1).ok(expect1);
+
+        final String sql2 =
+                "alter table t_a add col_int int metadata from 'mk1' virtual "
+                        + "comment 'comment_str' after col_b";
+        final String expect2 =
+                "ALTER TABLE `T_A` ADD `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL "
+                        + "COMMENT 'comment_str' AFTER `COL_B`";
+        sql(sql2).ok(expect2);
+
+        final String sql3 = "alter table t_a add col_int int metadata first";
+        final String expect3 = "ALTER TABLE `T_A` ADD `COL_INT` INTEGER METADATA FIRST";
+        sql(sql3).ok(expect3);
+    }
+
+    @Test
+    public void testAlterTableAddColumnComponents() {
+        final String sql =
+                "alter table t1 add ("
+                        + "constraint ct1 primary key(a, b) not enforced,"
+                        + "unique(a, b),"
+                        + "watermark for ts as ts - interval '1' second,"
+                        + "col1 int comment 'c' first,"
+                        + "col2 int comment 'c' after colb,"
+                        + "col3 as col_a - col_b comment 'c' first,"
+                        + "col4 as (col_a - col_b) comment 'c' after colb,"
+                        + "col5 int metadata from 'mk1' virtual comment 'c' after colb,"
+                        + "col6 int metadata from 'mk1' virtual comment 'c' first"
+                        + ")";
+        final String expectSql =
+                "ALTER TABLE `T1` ADD (\n"
+                        + "  `COL1` INTEGER COMMENT 'c' FIRST,\n"
+                        + "  `COL2` INTEGER COMMENT 'c' AFTER `COLB`,\n"
+                        + "  `COL3` AS (`COL_A` - `COL_B`) COMMENT 'c' FIRST,\n"
+                        + "  `COL4` AS (`COL_A` - `COL_B`) COMMENT 'c' AFTER `COLB`,\n"
+                        + "  `COL5` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'c' AFTER `COLB`,\n"
+                        + "  `COL6` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'c' FIRST,\n"
+                        + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED,\n"
+                        + "  UNIQUE (`A`, `B`),\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                        + ")";
+        sql(sql).ok(expectSql);
     }
 
     @Test
