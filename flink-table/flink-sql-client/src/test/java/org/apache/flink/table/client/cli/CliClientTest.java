@@ -45,11 +45,11 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.jline.reader.Candidate;
+import org.jline.reader.Completer;
 import org.jline.reader.LineReader;
-import org.jline.reader.LineReaderBuilder;
-import org.jline.reader.ParsedLine;
-import org.jline.reader.Parser;
+import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
 import org.junit.Rule;
@@ -67,12 +67,13 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
@@ -120,15 +121,16 @@ public class CliClientTest extends TestLogger {
 
     @Test
     public void testSqlCompletion() throws IOException {
-        verifySqlCompletion("", 0, Arrays.asList("CLEAR", "HELP", "EXIT", "QUIT", "RESET", "SET"));
-        verifySqlCompletion("SELE", 4, Collections.emptyList());
-        verifySqlCompletion("QU", 2, Collections.singletonList("QUIT"));
-        verifySqlCompletion("qu", 2, Collections.singletonList("QUIT"));
-        verifySqlCompletion("  qu", 2, Collections.singletonList("QUIT"));
-        verifySqlCompletion("set ", 3, Collections.emptyList());
-        verifySqlCompletion("show t ", 6, Collections.emptyList());
-        verifySqlCompletion("show ", 4, Collections.emptyList());
-        verifySqlCompletion("show modules", 12, Collections.emptyList());
+        verifySqlCompletion("INSERT IN", Collections.singletonList("INSERT INTO"));
+        verifySqlCompletion("INSERT O", Collections.singletonList("INSERT OVERWRITE"));
+        verifySqlCompletion("SELE", Collections.singletonList("SELECT"));
+        verifySqlCompletion("QU", Collections.singletonList("QUIT;"));
+        verifySqlCompletion("qu", Collections.singletonList("QUIT;"));
+        verifySqlCompletion("  qu", Collections.singletonList("QUIT;"));
+        verifySqlCompletion("set ", Collections.singletonList("set"));
+        verifySqlCompletion("sh", Collections.singletonList("SHOW"));
+        verifySqlCompletion("SHOW t", Collections.singletonList("SHOW TABLES;"));
+        verifySqlCompletion("SHOW M", Collections.singletonList("SHOW MODULES;"));
     }
 
     @Test
@@ -360,28 +362,25 @@ public class CliClientTest extends TestLogger {
         }
     }
 
-    private void verifySqlCompletion(String statement, int position, List<String> expectedHints)
+    private void verifySqlCompletion(String statement, List<String> expectedHints)
             throws IOException {
         final MockExecutor mockExecutor = new MockExecutor();
         String sessionId = mockExecutor.openSession("test-session");
 
-        final SqlCompleter completer = new SqlCompleter(sessionId, mockExecutor);
-        final SqlMultiLineParser parser = new SqlMultiLineParser();
-
+        final Completer completer = new FlinkSqlCompleter(sessionId, mockExecutor);
         try (Terminal terminal = TerminalUtils.createDumbTerminal()) {
-            final LineReader reader = LineReaderBuilder.builder().terminal(terminal).build();
+            final MockLineReaderImpl reader = new MockLineReaderImpl(terminal);
+            reader.setCompleter(completer);
+            reader.setOpt(LineReader.Option.CASE_INSENSITIVE);
 
-            final ParsedLine parsedLine =
-                    parser.parse(statement, position, Parser.ParseContext.COMPLETE);
-            final List<Candidate> candidates = new ArrayList<>();
-            final List<String> results = new ArrayList<>();
-            completer.complete(reader, parsedLine, candidates);
-            candidates.forEach(item -> results.add(item.value()));
-
-            assertTrue(results.containsAll(expectedHints));
-
-            assertEquals(statement, mockExecutor.receivedStatement);
-            assertEquals(position, mockExecutor.receivedPosition);
+            for (Candidate candidate : reader.complete(statement)) {
+                assertThat(
+                        candidate,
+                        Matchers.isIn(
+                                expectedHints.stream()
+                                        .map(Candidate::new)
+                                        .collect(Collectors.toList())));
+            }
         }
     }
 
@@ -581,6 +580,33 @@ public class CliClientTest extends TestLogger {
         @Override
         public List<String> listJars(String sessionId) {
             throw new UnsupportedOperationException("Not implemented.");
+        }
+    }
+
+    private static class MockLineReaderImpl extends LineReaderImpl {
+        List<Candidate> list;
+
+        MockLineReaderImpl(Terminal terminal) throws IOException {
+            super(terminal);
+        }
+
+        List<Candidate> complete(final String line) {
+            buf.write(line);
+            buf.cursor(line.length());
+            doComplete(CompletionType.Complete, true, true);
+            final String buffer = buf.toString();
+            buf.clear();
+            return list == null || buffer.length() > line.length()
+                    ? Collections.singletonList(new Candidate(buffer.trim()))
+                    : list;
+        }
+
+        protected boolean doMenu(
+                List<Candidate> original,
+                String completed,
+                BiFunction<CharSequence, Boolean, CharSequence> escaper) {
+            list = original;
+            return true;
         }
     }
 }

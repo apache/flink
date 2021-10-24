@@ -19,15 +19,19 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.lang3.StringUtils;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Utility class that contains all strings for CLI commands and messages. */
 public final class CliStrings {
@@ -44,89 +48,131 @@ public final class CliStrings {
     private static final String CMD_DESC_DELIMITER = "\t\t";
 
     /** SQL Client HELP command helper class. */
-    private static final class SQLCliCommandsDescriptions {
-        private int commandMaxLength;
-        private final Map<String, String> commandsDescriptions;
+    public enum SQLCliCommandsDescriptions {
+        HELP("HELP;", "Prints the available commands."),
+        QUIT("QUIT;", "Quits the SQL CLI client.", "EXIT;"),
+        CLEAR("CLEAR;", "Clears the current terminal."),
+        SET(
+                "SET",
+                "Sets a session configuration property. Syntax: \"SET '<key>'='<value>';\". Use \"SET;\" for listing all properties."),
+        RESET(
+                "RESET",
+                "Resets a session configuration property. Syntax: \"RESET '<key>';\". Use \"RESET;\" for reset all session properties."),
+        INSERT_INTO(
+                "INSERT INTO",
+                "Inserts the results of a SQL SELECT query into a declared table sink."),
+        INSERT_OVERWRITE(
+                "INSERT OVERWRITE",
+                "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data."),
+        SELECT("SELECT", "Executes a SQL SELECT query on the Flink cluster."),
+        EXPLAIN("EXPLAIN", "Describes the execution plan of a query or table with the given name."),
+        BEGIN("BEGIN STATEMENT SET;", "Begins a statement set. Syntax: \"BEGIN STATEMENT SET;\""),
+        END("END;", "Ends a statement set. Syntax: \"END;\""),
+        ADD(
+                "ADD JAR",
+                "Adds the specified jar file to the submitted jobs' classloader. Syntax: \"ADD JAR '<path_to_filename>.jar'\""),
+        REMOVE(
+                "REMOVE JAR",
+                "Removes the specified jar file from the submitted jobs' classloader. Syntax: \"REMOVE JAR '<path_to_filename>.jar'\""),
+        SHOW(
+                "SHOW JARS",
+                "Shows the list of user-specified jar dependencies. This list is impacted by the --jar and --library startup options as well as the ADD/REMOVE JAR commands."),
+        SHOW_CATALOGS("SHOW CATALOGS;", "Show all catalogs."),
+        SHOW_CURRENT_CATALOGS("SHOW CURRENT CATALOG;", "Show current catalog."),
+        SHOW_DATABASES("SHOW DATABASES;", "Show all databases in the current catalog."),
+        SHOW_CURRENT_DATABASE("SHOW CURRENT DATABASE;", "Show current database."),
+        SHOW_FUNCTIONS(
+                "SHOW FUNCTIONS;",
+                "Show all functions including system functions and user-defined functions in the current catalog and current database."),
+        SHOW_USER_FUNCTIONS(
+                "SHOW USER FUNCTIONS;",
+                "Show only user-defined functions in the current catalog and current database."),
+        SHOW_TABLES(
+                "SHOW TABLES;", "Show all tables in the current catalog and the current database."),
+        SHOW_VIEWS(
+                "SHOW VIEWS;", "Show all views in the current catalog and the current database."),
+        SHOW_MODULES("SHOW MODULES;", "Show all enabled module names with resolution order."),
+        SHOW_FULL_MODULES(
+                "SHOW FULL MODULES;",
+                "Show all loaded modules and enabled status with resolution order.");
 
-        public SQLCliCommandsDescriptions() {
-            this.commandsDescriptions = new LinkedHashMap<>();
-            this.commandMaxLength = -1;
+        private final String name;
+        private final String description;
+        private final Set<String> otherNames;
+        private static int commandMaxLength =
+                Arrays.stream(values())
+                        .map(t -> t.joinNames().length())
+                        .max(Integer::compare)
+                        .orElse(-1);
+        private static final Set<String> NAMES =
+                Arrays.stream(values()).map(t -> t.name).collect(Collectors.toSet());
+
+        SQLCliCommandsDescriptions(String name, String description, String... otherNames) {
+            this.name = name;
+            this.description = description;
+            this.otherNames =
+                    otherNames == null
+                            ? Collections.emptySet()
+                            : Stream.of(otherNames).collect(Collectors.toSet());
         }
 
-        public SQLCliCommandsDescriptions commandDescription(String command, String description) {
-            Preconditions.checkState(
-                    StringUtils.isNotBlank(command), "content of command must not be empty.");
-            Preconditions.checkState(
-                    StringUtils.isNotBlank(description),
-                    "content of command's description must not be empty.");
-            this.updateMaxCommandLength(command.length());
-            this.commandsDescriptions.put(command, description);
-            return this;
+        public String getName() {
+            return name;
         }
 
-        private void updateMaxCommandLength(int newLength) {
-            Preconditions.checkState(newLength > 0);
-            if (this.commandMaxLength < newLength) {
-                this.commandMaxLength = newLength;
+        public String getDescription() {
+            return description;
+        }
+
+        public Set<String> getOtherNames() {
+            return otherNames;
+        }
+
+        public static boolean isCommand(String string) {
+            if (string == null) {
+                return false;
             }
+            String input = string.trim().replaceAll(" +", " ").toUpperCase(Locale.ROOT);
+            for (String name : NAMES) {
+                if (input.length() <= name.length() && name.startsWith(input)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
-        public AttributedString build() {
+        public static String build() {
             AttributedStringBuilder attributedStringBuilder = new AttributedStringBuilder();
-            if (!this.commandsDescriptions.isEmpty()) {
-                this.commandsDescriptions.forEach(
-                        (cmd, cmdDesc) -> {
-                            attributedStringBuilder
-                                    .style(AttributedStyle.DEFAULT.bold())
-                                    .append(
-                                            String.format(
-                                                    String.format("%%-%ds", commandMaxLength), cmd))
-                                    .append(CMD_DESC_DELIMITER)
-                                    .style(AttributedStyle.DEFAULT)
-                                    .append(cmdDesc)
-                                    .append('\n');
-                        });
+            for (SQLCliCommandsDescriptions command : values()) {
+                String displayName = command.joinNames();
+                attributedStringBuilder
+                        .style(AttributedStyle.DEFAULT.bold())
+                        .append(
+                                String.format(
+                                        String.format("%%-%ds", commandMaxLength), displayName))
+                        .append(CMD_DESC_DELIMITER)
+                        .style(AttributedStyle.DEFAULT)
+                        .append(command.description)
+                        .append('\n');
             }
-            return attributedStringBuilder.toAttributedString();
+            return attributedStringBuilder.toAttributedString().toAnsi();
+        }
+
+        private static String stripSemicolon(String str) {
+            return str.endsWith(";") ? str.substring(0, str.length() - 1) : str;
+        }
+
+        private String joinNames() {
+            List<String> names = new ArrayList<>();
+            names.add(name);
+            names.addAll(getOtherNames());
+            return names.stream()
+                    .map(SQLCliCommandsDescriptions::stripSemicolon)
+                    .collect(Collectors.joining("/"));
         }
     }
 
-    private static final AttributedString SQL_CLI_COMMANDS_DESCRIPTIONS =
-            new SQLCliCommandsDescriptions()
-                    .commandDescription("HELP", "Prints the available commands.")
-                    .commandDescription("QUIT/EXIT", "Quits the SQL CLI client.")
-                    .commandDescription("CLEAR", "Clears the current terminal.")
-                    .commandDescription(
-                            "SET",
-                            "Sets a session configuration property. Syntax: \"SET '<key>'='<value>';\". Use \"SET;\" for listing all properties.")
-                    .commandDescription(
-                            "RESET",
-                            "Resets a session configuration property. Syntax: \"RESET '<key>';\". Use \"RESET;\" for reset all session properties.")
-                    .commandDescription(
-                            "INSERT INTO",
-                            "Inserts the results of a SQL SELECT query into a declared table sink.")
-                    .commandDescription(
-                            "INSERT OVERWRITE",
-                            "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data.")
-                    .commandDescription(
-                            "SELECT", "Executes a SQL SELECT query on the Flink cluster.")
-                    .commandDescription(
-                            "EXPLAIN",
-                            "Describes the execution plan of a query or table with the given name.")
-                    .commandDescription(
-                            "BEGIN STATEMENT SET",
-                            "Begins a statement set. Syntax: \"BEGIN STATEMENT SET;\"")
-                    .commandDescription("END", "Ends a statement set. Syntax: \"END;\"")
-                    .commandDescription(
-                            "ADD JAR",
-                            "Adds the specified jar file to the submitted jobs' classloader. Syntax: \"ADD JAR '<path_to_filename>.jar'\"")
-                    .commandDescription(
-                            "REMOVE JAR",
-                            "Removes the specified jar file from the submitted jobs' classloader. Syntax: \"REMOVE JAR '<path_to_filename>.jar'\"")
-                    .commandDescription(
-                            "SHOW JARS",
-                            "Shows the list of user-specified jar dependencies. This list is impacted by the --jar and --library startup options as well as the ADD/REMOVE JAR commands.")
-                    .build();
+    private static final String SQL_CLI_COMMANDS_DESCRIPTIONS = SQLCliCommandsDescriptions.build();
 
     // --------------------------------------------------------------------------------------------
 

@@ -23,6 +23,7 @@ import org.apache.flink.table.client.cli.TerminalUtils;
 import org.apache.flink.util.FileUtils;
 
 import org.jline.terminal.Terminal;
+import org.jline.utils.AttributedString;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -196,7 +197,7 @@ public class SqlClientTest {
         List<String> statements = Collections.singletonList("HELP;\n");
         String sqlFilePath = createSqlFile(statements, "test-sql.sql");
         String[] args = new String[] {"-f", sqlFilePath};
-        String output = runSqlClient(args);
+        String output = AttributedString.stripAnsi(runSqlClient(args));
         final URL url = getClass().getClassLoader().getResource("sql-client-help-command.out");
         final String help = FileUtils.readFileUtf8(new File(url.getFile()));
 
