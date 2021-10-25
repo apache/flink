@@ -105,7 +105,7 @@ to its documentation markdown. The following are available for use:
 
     {{< artifact flink-streaming-scala withScalaVersion >}}
 
-This will be replaced by the maven artifact for flink-streaming-java that users should copy into their pom.xml file. It will render out to:
+This will be replaced by the maven artifact for flink-streaming-scala that users should copy into their pom.xml file. It will render out to:
 
 ```xml
 <dependency>
