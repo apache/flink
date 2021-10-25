@@ -28,6 +28,7 @@ under the License.
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
+	<!-- There is a transitive scala dependency from mbknor-jackson-jsonschema -->
 	<artifactId>flink-avro-glue-schema-registry_${scala.binary.version}</artifactId>
 	<name>Flink : Formats : Avro AWS Glue Schema Registry</name>
 	<packaging>jar</packaging>
@@ -91,6 +92,7 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<!-- This has a transitive dependency on mbknor-jackson-jsonschema which needs scala -->
 			<groupId>software.amazon.glue</groupId>
 			<artifactId>schema-registry-serde</artifactId>
 			<version>${glue.schema.registry.version}</version>

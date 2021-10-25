@@ -81,7 +81,7 @@ When setting up a project manually, you need to add the following dependencies f
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-java{{< scala_version >}}</artifactId>
+  <artifactId>flink-streaming-java</artifactId>
   <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>
@@ -124,7 +124,7 @@ Below is an example adding the connector for Kafka as a dependency (Maven syntax
 ```xml
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-connector-kafka{{< scala_version >}}</artifactId>
+    <artifactId>flink-connector-kafka</artifactId>
     <version>{{< version >}}</version>
 </dependency>
 ```
@@ -373,13 +373,13 @@ dependencies {
     // Compile-time dependencies that should NOT be part of the
     // shadow jar and are provided in the lib folder of Flink
     // --------------------------------------------------------------
-    compile "org.apache.flink:flink-streaming-java_${scalaBinaryVersion}:${flinkVersion}"
+    compile "org.apache.flink:flink-streaming-java:${flinkVersion}"
 
     // --------------------------------------------------------------
     // Dependencies that should be part of the shadow jar, e.g.
     // connectors. These must be in the flinkShadowJar configuration!
     // --------------------------------------------------------------
-    //flinkShadowJar "org.apache.flink:flink-connector-kafka_${scalaBinaryVersion}:${flinkVersion}"
+    //flinkShadowJar "org.apache.flink:flink-connector-kafka:${flinkVersion}"
 
     compile "org.apache.logging.log4j:log4j-api:${log4jVersion}"
     compile "org.apache.logging.log4j:log4j-core:${log4jVersion}"

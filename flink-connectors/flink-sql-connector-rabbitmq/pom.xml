@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-sql-connector-rabbitmq_${scala.binary.version}</artifactId>
+	<artifactId>flink-sql-connector-rabbitmq</artifactId>
 	<name>Flink : Connectors : SQL : RabbitMQ</name>
 
 	<packaging>jar</packaging>
@@ -38,7 +38,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-rabbitmq_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-rabbitmq</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -60,7 +60,7 @@ under the License.
 							<artifactSet>
 								<includes>
 									<include>com.rabbitmq:amqp-client</include>
-									<include>org.apache.flink:flink-connector-rabbitmq_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-connector-rabbitmq</include>
 								</includes>
 							</artifactSet>
 							<relocations>

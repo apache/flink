@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-elasticsearch7_${scala.binary.version}</artifactId>
+	<artifactId>flink-connector-elasticsearch7</artifactId>
 	<name>Flink : Connectors : Elasticsearch 7</name>
 
 	<packaging>jar</packaging>
@@ -46,7 +46,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -55,7 +55,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-elasticsearch-base_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-elasticsearch-base</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<!-- Elasticsearch Java Client has been moved to a different module in 5.x -->
@@ -71,7 +71,7 @@ under the License.
 		<!-- Projects depending on this project won't depend on flink-table-*. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-api-java-bridge</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 			<optional>true</optional>
@@ -94,14 +94,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -109,7 +109,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-elasticsearch-base_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-elasticsearch-base</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>

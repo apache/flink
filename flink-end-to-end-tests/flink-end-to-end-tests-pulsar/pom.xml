@@ -42,12 +42,12 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-pulsar_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-pulsar</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-pulsar_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-pulsar</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 		</dependency>
@@ -75,7 +75,7 @@ under the License.
 					<artifactItems>
 						<artifactItem>
 							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-connector-pulsar_${scala.binary.version}</artifactId>
+							<artifactId>flink-connector-pulsar</artifactId>
 							<version>${project.version}</version>
 							<destFileName>pulsar-connector.jar</destFileName>
 							<type>jar</type>

@@ -79,7 +79,7 @@ Flink 的 `MATCH_RECOGNIZE` 子句实现是一个完整标准子集。仅支持�
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-cep{{< scala_version >}}</artifactId>
+  <artifactId>flink-cep</artifactId>
   <version>{{< version >}}</version>
 </dependency>
 ```

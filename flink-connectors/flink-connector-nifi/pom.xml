@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-nifi_${scala.binary.version}</artifactId>
+	<artifactId>flink-connector-nifi</artifactId>
 	<name>Flink : Connectors : Nifi</name>
 
 	<packaging>jar</packaging>
@@ -48,13 +48,13 @@ under the License.
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+            <artifactId>flink-streaming-java</artifactId>
             <version>${project.version}</version>
 			<scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+            <artifactId>flink-streaming-java</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
