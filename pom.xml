@@ -920,6 +920,7 @@ under the License.
 		</profile>
 
 		<profile>
+			<id>java11-target</id>
 			<build>
 				<plugins>
 					<plugin>
