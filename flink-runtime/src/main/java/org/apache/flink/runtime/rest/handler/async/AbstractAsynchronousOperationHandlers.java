@@ -29,12 +29,12 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.types.Either;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nonnull;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -175,27 +175,33 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
 
             final K key = getOperationKey(request);
 
-            final Either<Throwable, R> operationResultOrError;
-            try {
-                operationResultOrError = completedOperationCache.get(key);
-            } catch (UnknownOperationKeyException e) {
+            final Optional<OperationResult<R>> operationResultOptional =
+                    completedOperationCache.get(key);
+            if (!operationResultOptional.isPresent()) {
                 return FutureUtils.completedExceptionally(
-                        new NotFoundException("Operation not found under key: " + key, e));
+                        new NotFoundException("Operation not found under key: " + key));
             }
 
-            if (operationResultOrError != null) {
-                if (operationResultOrError.isLeft()) {
+            final OperationResult<R> operationResult = operationResultOptional.get();
+            switch (operationResult.getStatus()) {
+                case SUCCESS:
+                    return CompletableFuture.completedFuture(
+                            AsynchronousOperationResult.completed(
+                                    operationResultResponse(operationResult.getResult())));
+                case FAILURE:
                     return CompletableFuture.completedFuture(
                             AsynchronousOperationResult.completed(
                                     exceptionalOperationResultResponse(
-                                            operationResultOrError.left())));
-                } else {
+                                            operationResult.getThrowable())));
+                case IN_PROGRESS:
                     return CompletableFuture.completedFuture(
-                            AsynchronousOperationResult.completed(
-                                    operationResultResponse(operationResultOrError.right())));
-                }
-            } else {
-                return CompletableFuture.completedFuture(AsynchronousOperationResult.inProgress());
+                            AsynchronousOperationResult.inProgress());
+                default:
+                    throw new IllegalStateException(
+                            "No handler for operation status "
+                                    + operationResult.getStatus()
+                                    + ", encountered for key "
+                                    + key);
             }
         }
 

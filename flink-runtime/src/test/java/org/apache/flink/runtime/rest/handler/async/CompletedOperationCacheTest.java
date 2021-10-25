@@ -20,20 +20,21 @@ package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.util.ManualTicker;
-import org.apache.flink.types.Either;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link CompletedOperationCache}. */
@@ -72,11 +73,13 @@ public class CompletedOperationCacheTest extends TestLogger {
         final CompletableFuture<Void> closeCacheFuture = completedOperationCache.closeAsync();
         assertThat(closeCacheFuture.isDone(), is(false));
 
-        final Either<Throwable, String> operationResultOrError =
+        final Optional<OperationResult<String>> operationResultOptional =
                 completedOperationCache.get(TEST_OPERATION_KEY);
 
-        assertThat(operationResultOrError, is(notNullValue()));
-        assertThat(operationResultOrError.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
+        assertTrue(operationResultOptional.isPresent());
+        OperationResult<String> operationResult = operationResultOptional.get();
+        assertEquals(operationResult.getStatus(), OperationResultStatus.SUCCESS);
+        assertThat(operationResult.getResult(), is(equalTo(TEST_OPERATION_RESULT.get())));
         assertThat(closeCacheFuture.isDone(), is(true));
     }
 
@@ -103,8 +106,12 @@ public class CompletedOperationCacheTest extends TestLogger {
         completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
         completedOperationCache.closeAsync();
 
-        final Either<Throwable, String> result = completedOperationCache.get(TEST_OPERATION_KEY);
+        final Optional<OperationResult<String>> operationResultOptional =
+                completedOperationCache.get(TEST_OPERATION_KEY);
 
-        assertThat(result.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
+        assertTrue(operationResultOptional.isPresent());
+        final OperationResult<String> operationResult = operationResultOptional.get();
+        assertEquals(operationResult.getStatus(), OperationResultStatus.SUCCESS);
+        assertThat(operationResult.getResult(), is(equalTo(TEST_OPERATION_RESULT.get())));
     }
 }
