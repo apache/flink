@@ -142,7 +142,7 @@ public interface RestfulGateway extends RpcGateway {
      * @return A future to the {@link CompletedCheckpoint#getExternalPointer() external pointer} of
      *     the savepoint.
      */
-    default CompletableFuture<String> triggerSavepoint(
+    default CompletableFuture<String> triggerSavepointAndGetLocation(
             JobID jobId,
             String targetDirectory,
             TriggerSavepointMode savepointMode,
@@ -160,7 +160,7 @@ public interface RestfulGateway extends RpcGateway {
      * @param timeout for the rpc call
      * @return Future which is completed with the savepoint path once completed
      */
-    default CompletableFuture<String> stopWithSavepoint(
+    default CompletableFuture<String> stopWithSavepointAndGetLocation(
             final JobID jobId,
             final String targetDirectory,
             final TriggerSavepointMode savepointMode,

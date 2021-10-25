@@ -741,7 +741,7 @@ public class MiniCluster implements AutoCloseableAsync {
             JobID jobId, String targetDirectory, boolean cancelJob) {
         return runDispatcherCommand(
                 dispatcherGateway ->
-                        dispatcherGateway.triggerSavepoint(
+                        dispatcherGateway.triggerSavepointAndGetLocation(
                                 jobId,
                                 targetDirectory,
                                 cancelJob
@@ -759,7 +759,7 @@ public class MiniCluster implements AutoCloseableAsync {
             JobID jobId, String targetDirectory, boolean terminate) {
         return runDispatcherCommand(
                 dispatcherGateway ->
-                        dispatcherGateway.stopWithSavepoint(
+                        dispatcherGateway.stopWithSavepointAndGetLocation(
                                 jobId,
                                 targetDirectory,
                                 terminate

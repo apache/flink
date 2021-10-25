@@ -696,7 +696,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     @Override
-    public CompletableFuture<String> triggerSavepoint(
+    public CompletableFuture<String> triggerSavepointAndGetLocation(
             final JobID jobId,
             final String targetDirectory,
             final TriggerSavepointMode savepointMode,
@@ -710,7 +710,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     @Override
-    public CompletableFuture<String> stopWithSavepoint(
+    public CompletableFuture<String> stopWithSavepointAndGetLocation(
             final JobID jobId,
             final String targetDirectory,
             TriggerSavepointMode savepointMode,

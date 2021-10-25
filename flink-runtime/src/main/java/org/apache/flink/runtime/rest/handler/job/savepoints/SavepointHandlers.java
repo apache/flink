@@ -173,7 +173,7 @@ public class SavepointHandlers
                     requestedTargetDirectory != null
                             ? requestedTargetDirectory
                             : defaultSavepointDir;
-            return gateway.stopWithSavepoint(
+            return gateway.stopWithSavepointAndGetLocation(
                     jobId, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }
     }
@@ -212,7 +212,7 @@ public class SavepointHandlers
                     requestedTargetDirectory != null
                             ? requestedTargetDirectory
                             : defaultSavepointDir;
-            return gateway.triggerSavepoint(
+            return gateway.triggerSavepointAndGetLocation(
                     jobId, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }
     }

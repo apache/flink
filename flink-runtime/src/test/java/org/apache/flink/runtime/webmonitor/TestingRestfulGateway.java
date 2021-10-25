@@ -256,13 +256,13 @@ public class TestingRestfulGateway implements RestfulGateway {
     }
 
     @Override
-    public CompletableFuture<String> triggerSavepoint(
+    public CompletableFuture<String> triggerSavepointAndGetLocation(
             JobID jobId, String targetDirectory, TriggerSavepointMode savepointMode, Time timeout) {
         return triggerSavepointFunction.apply(jobId, targetDirectory);
     }
 
     @Override
-    public CompletableFuture<String> stopWithSavepoint(
+    public CompletableFuture<String> stopWithSavepointAndGetLocation(
             JobID jobId, String targetDirectory, TriggerSavepointMode savepointMode, Time timeout) {
         return stopWithSavepointFunction.apply(jobId, targetDirectory);
     }
