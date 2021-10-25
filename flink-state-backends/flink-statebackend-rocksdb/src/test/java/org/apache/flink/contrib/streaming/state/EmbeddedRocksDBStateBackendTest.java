@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStorage;
@@ -121,7 +122,8 @@ public class EmbeddedRocksDBStateBackendTest
                                 () -> {
                                     String checkpointPath =
                                             TEMP_FOLDER.newFolder().toURI().toString();
-                                    return new FileSystemCheckpointStorage(checkpointPath);
+                                    return new FileSystemCheckpointStorage(
+                                            new Path(checkpointPath), 0, -1);
                                 }
                     }
                 });

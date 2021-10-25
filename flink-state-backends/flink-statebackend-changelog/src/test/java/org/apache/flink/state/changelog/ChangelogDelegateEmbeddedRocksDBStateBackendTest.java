@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendTest;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -78,5 +79,13 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
     @Override
     protected ConfigurableStateBackend getStateBackend() throws IOException {
         return new ChangelogStateBackend(super.getStateBackend());
+    }
+
+    @Test
+    public void testMaterializedRestore() throws Exception {
+        CheckpointStreamFactory streamFactory = createStreamFactory();
+
+        ChangelogStateBackendTestUtils.testMaterializedRestore(
+                getStateBackend(), env, streamFactory);
     }
 }

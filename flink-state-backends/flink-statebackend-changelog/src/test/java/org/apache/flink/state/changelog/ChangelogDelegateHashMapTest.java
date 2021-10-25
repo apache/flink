@@ -20,6 +20,7 @@ package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.HashMapStateBackendTest;
@@ -27,6 +28,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 
 import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -69,5 +71,13 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
     @Override
     protected ConfigurableStateBackend getStateBackend() {
         return new ChangelogStateBackend(super.getStateBackend());
+    }
+
+    @Test
+    public void testMaterializedRestore() throws Exception {
+        CheckpointStreamFactory streamFactory = createStreamFactory();
+
+        ChangelogStateBackendTestUtils.testMaterializedRestore(
+                getStateBackend(), env, streamFactory);
     }
 }
