@@ -28,6 +28,7 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
@@ -166,7 +167,8 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                             fatalErrorHandler,
                             VoidHistoryServerArchivist.INSTANCE,
                             null,
-                            ForkJoinPool.commonPool());
+                            ForkJoinPool.commonPool(),
+                            new DispatcherOperationCaches());
 
             final JobGraph jobGraph = createJobGraphWithBlobs();
 

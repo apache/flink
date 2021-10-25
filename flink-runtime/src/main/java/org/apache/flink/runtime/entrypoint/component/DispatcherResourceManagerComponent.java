@@ -20,6 +20,7 @@ package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -70,13 +71,16 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 
     private final FatalErrorHandler fatalErrorHandler;
 
+    private final DispatcherOperationCaches dispatcherOperationCaches;
+
     DispatcherResourceManagerComponent(
             @Nonnull DispatcherRunner dispatcherRunner,
             @Nonnull ResourceManagerService resourceManagerService,
             @Nonnull LeaderRetrievalService dispatcherLeaderRetrievalService,
             @Nonnull LeaderRetrievalService resourceManagerRetrievalService,
             @Nonnull AutoCloseableAsync webMonitorEndpoint,
-            @Nonnull FatalErrorHandler fatalErrorHandler) {
+            @Nonnull FatalErrorHandler fatalErrorHandler,
+            @Nonnull DispatcherOperationCaches dispatcherOperationCaches) {
         this.dispatcherRunner = dispatcherRunner;
         this.resourceManagerService = resourceManagerService;
         this.dispatcherLeaderRetrievalService = dispatcherLeaderRetrievalService;
@@ -85,6 +89,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
         this.fatalErrorHandler = fatalErrorHandler;
         this.terminationFuture = new CompletableFuture<>();
         this.shutDownFuture = new CompletableFuture<>();
+        this.dispatcherOperationCaches = dispatcherOperationCaches;
 
         registerShutDownFuture();
         handleUnexpectedResourceManagerTermination();
@@ -139,9 +144,14 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
     private CompletableFuture<Void> internalShutdown(
             final Supplier<CompletableFuture<?>> additionalShutdownAction) {
         if (isRunning.compareAndSet(true, false)) {
+            final CompletableFuture<Void> operationsConsumedFuture =
+                    dispatcherOperationCaches.shutdownCaches();
+            final CompletableFuture<Void> webMonitorShutdownFuture =
+                    FutureUtils.composeAfterwards(
+                            operationsConsumedFuture, webMonitorEndpoint::closeAsync);
             final CompletableFuture<Void> closeWebMonitorAndAdditionalShutdownActionFuture =
                     FutureUtils.composeAfterwards(
-                            webMonitorEndpoint.closeAsync(), additionalShutdownAction);
+                            webMonitorShutdownFuture, additionalShutdownAction);
 
             return FutureUtils.composeAfterwards(
                     closeWebMonitorAndAdditionalShutdownActionFuture, this::closeAsyncInternal);
