@@ -44,9 +44,9 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
   sortWriteRecordsFn = this.sortFn('metrics.write-records');
   sortAttemptFn = this.sortFn('attempt');
   sortHostFn = this.sortFn('host');
-  sortStartTimeFn = this.sortFn('detail.start-time');
-  sortDurationFn = this.sortFn('detail.duration');
-  sortEndTimeFn = this.sortFn('detail.end-time');
+  sortStartTimeFn = this.sortFn('start-time');
+  sortDurationFn = this.sortFn('duration');
+  sortEndTimeFn = this.sortFn('end-time');
   sortStatusFn = this.sortFn('status');
 
   sortFn(path: string): NzTableSortFn<VertexTaskManagerDetailInterface> {
