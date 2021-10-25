@@ -916,7 +916,11 @@ under the License.
 						</plugin>
 					</plugins>
 				</pluginManagement>
+			</build>
+		</profile>
 
+		<profile>
+			<build>
 				<plugins>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
