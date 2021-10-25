@@ -20,15 +20,16 @@ package org.apache.flink.table.planner.plan.rules.physical.batch;
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalExchange;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLocalSortAggregate;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLocalHashAggregate;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalTableSourceScan;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 
 /**
- * Planner rule that tries to push a local hash or sort aggregate which without sort into a {@link
+ * Planner rule that tries to push a local hash aggregate which with calc into a {@link
  * BatchPhysicalTableSourceScan} whose table is a {@link TableSourceTable} with a source supporting
  * {@link SupportsAggregatePushDown}. The {@link
  * OptimizerConfigOptions#TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED} need to be true.
@@ -38,8 +39,9 @@ import org.apache.calcite.plan.RelOptRuleCall;
  * <pre>{@code
  * BatchPhysicalHashAggregate (global)
  * +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
- *    +- BatchPhysicalLocalSortAggregate (local)
- *       +- BatchPhysicalTableSourceScan
+ *    +- BatchPhysicalLocalHashAggregate (local)
+ *       +- BatchPhysicalCalc (filed projection only)
+ *          +- BatchPhysicalTableSourceScan
  * }</pre>
  *
  * <p>This physical plan will be rewritten to:
@@ -50,31 +52,41 @@ import org.apache.calcite.plan.RelOptRuleCall;
  *    +- BatchPhysicalTableSourceScan (with local aggregate pushed down)
  * }</pre>
  */
-public class PushLocalSortAggWithoutSortIntoScanRule extends PushLocalAggIntoScanRuleBase {
-    public static final PushLocalSortAggWithoutSortIntoScanRule INSTANCE =
-            new PushLocalSortAggWithoutSortIntoScanRule();
+public class PushLocalHashAggWithCalcIntoScanRule extends PushLocalAggIntoScanRuleBase {
+    public static final PushLocalHashAggWithCalcIntoScanRule INSTANCE =
+            new PushLocalHashAggWithCalcIntoScanRule();
 
-    public PushLocalSortAggWithoutSortIntoScanRule() {
+    public PushLocalHashAggWithCalcIntoScanRule() {
         super(
                 operand(
                         BatchPhysicalExchange.class,
                         operand(
-                                BatchPhysicalLocalSortAggregate.class,
-                                operand(BatchPhysicalTableSourceScan.class, none()))),
-                "PushLocalSortAggWithoutSortIntoScanRule");
+                                BatchPhysicalLocalHashAggregate.class,
+                                operand(
+                                        BatchPhysicalCalc.class,
+                                        operand(BatchPhysicalTableSourceScan.class, none())))),
+                "PushLocalHashAggWithCalcIntoScanRule");
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
-        BatchPhysicalLocalSortAggregate localAggregate = call.rel(1);
-        BatchPhysicalTableSourceScan tableSourceScan = call.rel(2);
-        return isMatch(call, localAggregate, tableSourceScan);
+        BatchPhysicalLocalHashAggregate localHashAgg = call.rel(1);
+        BatchPhysicalCalc calc = call.rel(2);
+        BatchPhysicalTableSourceScan tableSourceScan = call.rel(3);
+
+        return checkCalcInputRefOnly(calc)
+                && checkNoProjectionPushDown(tableSourceScan)
+                && checkMatchesAggregatePushDown(call, localHashAgg, tableSourceScan);
     }
 
     @Override
     public void onMatch(RelOptRuleCall call) {
-        BatchPhysicalLocalSortAggregate localHashAgg = call.rel(1);
-        BatchPhysicalTableSourceScan oldScan = call.rel(2);
-        pushLocalAggregateIntoScan(call, localHashAgg, oldScan);
+        BatchPhysicalLocalHashAggregate localHashAgg = call.rel(1);
+        BatchPhysicalCalc calc = call.rel(2);
+        BatchPhysicalTableSourceScan oldScan = call.rel(3);
+
+        int[] calcRefFields = getRefFiledIndexFromCalc(calc);
+
+        pushLocalAggregateIntoScan(call, localHashAgg, oldScan, calcRefFields);
     }
 }

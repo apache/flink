@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.calcite.plan.RelOptRuleCall;
 
 /**
- * Planner rule that tries to push a local hash or sort aggregate which without sort into a {@link
+ * Planner rule that tries to push a local hash aggregate which without sort into a {@link
  * BatchPhysicalTableSourceScan} whose table is a {@link TableSourceTable} with a source supporting
  * {@link SupportsAggregatePushDown}. The {@link
  * OptimizerConfigOptions#TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED} need to be true.
@@ -67,7 +67,7 @@ public class PushLocalHashAggIntoScanRule extends PushLocalAggIntoScanRuleBase {
     public boolean matches(RelOptRuleCall call) {
         BatchPhysicalLocalHashAggregate localAggregate = call.rel(1);
         BatchPhysicalTableSourceScan tableSourceScan = call.rel(2);
-        return isMatch(call, localAggregate, tableSourceScan);
+        return checkMatchesAggregatePushDown(call, localAggregate, tableSourceScan);
     }
 
     @Override

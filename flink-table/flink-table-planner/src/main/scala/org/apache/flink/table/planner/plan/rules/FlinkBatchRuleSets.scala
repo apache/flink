@@ -450,7 +450,10 @@ object FlinkBatchRuleSets {
     EnforceLocalHashAggRule.INSTANCE,
     EnforceLocalSortAggRule.INSTANCE,
     PushLocalHashAggIntoScanRule.INSTANCE,
+    PushLocalHashAggWithCalcIntoScanRule.INSTANCE,
+    PushLocalSortAggIntoScanRule.INSTANCE,
     PushLocalSortAggWithSortIntoScanRule.INSTANCE,
-    PushLocalSortAggWithoutSortIntoScanRule.INSTANCE
+    PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
+    PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
   )
 }

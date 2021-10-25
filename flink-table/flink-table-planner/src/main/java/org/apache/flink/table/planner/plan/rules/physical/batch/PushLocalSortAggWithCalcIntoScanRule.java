@@ -20,17 +20,17 @@ package org.apache.flink.table.planner.plan.rules.physical.batch;
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalExchange;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalGroupAggregateBase;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLocalSortAggregate;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSort;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalTableSourceScan;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 
 /**
- * Planner rule that tries to push a local sort aggregate which with sort into a {@link
+ * Planner rule that tries to push a local sort aggregate which without sort into a {@link
  * BatchPhysicalTableSourceScan} whose table is a {@link TableSourceTable} with a source supporting
  * {@link SupportsAggregatePushDown}. The {@link
  * OptimizerConfigOptions#TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED} need to be true.
@@ -39,49 +39,56 @@ import org.apache.calcite.plan.RelOptRuleCall;
  *
  * <pre>{@code
  * BatchPhysicalSortAggregate (global)
- * +- BatchPhysicalSort (exists if group keys are not empty)
- *    +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
- *       +- BatchPhysicalLocalSortAggregate (local)
- *          +- BatchPhysicalSort (exists if group keys are not empty)
- *             +- BatchPhysicalTableSourceScan
+ * +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
+ *    +- BatchPhysicalLocalSortAggregate (local)
+ *       +- BatchPhysicalCalc (filed projection only)
+ *          +- BatchPhysicalTableSourceScan
  * }</pre>
  *
  * <p>This physical plan will be rewritten to:
  *
  * <pre>{@code
  * BatchPhysicalSortAggregate (global)
- * +- BatchPhysicalSort (exists if group keys are not empty)
- *    +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
- *       +- BatchPhysicalTableSourceScan (with local aggregate pushed down)
+ * +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
+ *    +- BatchPhysicalTableSourceScan (with local aggregate pushed down)
  * }</pre>
  */
-public class PushLocalSortAggWithSortIntoScanRule extends PushLocalAggIntoScanRuleBase {
-    public static final PushLocalSortAggWithSortIntoScanRule INSTANCE =
-            new PushLocalSortAggWithSortIntoScanRule();
+public class PushLocalSortAggWithCalcIntoScanRule extends PushLocalAggIntoScanRuleBase {
+    public static final PushLocalSortAggWithCalcIntoScanRule INSTANCE =
+            new PushLocalSortAggWithCalcIntoScanRule();
 
-    public PushLocalSortAggWithSortIntoScanRule() {
+    public PushLocalSortAggWithCalcIntoScanRule() {
         super(
                 operand(
                         BatchPhysicalExchange.class,
                         operand(
                                 BatchPhysicalLocalSortAggregate.class,
                                 operand(
-                                        BatchPhysicalSort.class,
+                                        BatchPhysicalCalc.class,
                                         operand(BatchPhysicalTableSourceScan.class, none())))),
-                "PushLocalSortAggWithSortIntoScanRule");
+                "PushLocalSortAggWithCalcIntoScanRule");
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
-        BatchPhysicalGroupAggregateBase localAggregate = call.rel(1);
+        BatchPhysicalLocalSortAggregate localAggregate = call.rel(1);
+        BatchPhysicalCalc calc = call.rel(2);
         BatchPhysicalTableSourceScan tableSourceScan = call.rel(3);
-        return checkMatchesAggregatePushDown(call, localAggregate, tableSourceScan);
+
+        return checkCalcInputRefOnly(calc)
+                && checkNoProjectionPushDown(tableSourceScan)
+                && checkMatchesAggregatePushDown(call, localAggregate, tableSourceScan);
     }
 
     @Override
     public void onMatch(RelOptRuleCall call) {
-        BatchPhysicalGroupAggregateBase localSortAgg = call.rel(1);
+        BatchPhysicalLocalSortAggregate localHashAgg = call.rel(1);
+        BatchPhysicalCalc calc = call.rel(2);
         BatchPhysicalTableSourceScan oldScan = call.rel(3);
-        pushLocalAggregateIntoScan(call, localSortAgg, oldScan);
+
+        int[] calcRefFields =
+                RexNodeExtractor.extractRefInputFields(calc.getProgram().getExprList());
+
+        pushLocalAggregateIntoScan(call, localHashAgg, oldScan, calcRefFields);
     }
 }

@@ -24,7 +24,10 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.abilities.source.AggregatePushDownSpec;
+import org.apache.flink.table.planner.plan.abilities.source.ProjectPushDownSpec;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalGroupAggregateBase;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalTableSourceScan;
@@ -38,9 +41,18 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexProgram;
+import org.apache.calcite.rex.RexSlot;
+import org.apache.commons.lang3.ArrayUtils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Planner rule that tries to push a local aggregator into an {@link BatchPhysicalTableSourceScan}
@@ -62,7 +74,7 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
         super(operand, description);
     }
 
-    protected boolean isMatch(
+    protected boolean checkMatchesAggregatePushDown(
             RelOptRuleCall call,
             BatchPhysicalGroupAggregateBase aggregate,
             BatchPhysicalTableSourceScan tableSourceScan) {
@@ -100,9 +112,26 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
             RelOptRuleCall call,
             BatchPhysicalGroupAggregateBase localAgg,
             BatchPhysicalTableSourceScan oldScan) {
+        pushLocalAggregateIntoScan(call, localAgg, oldScan, null);
+    }
+
+    protected void pushLocalAggregateIntoScan(
+            RelOptRuleCall call,
+            BatchPhysicalGroupAggregateBase localAgg,
+            BatchPhysicalTableSourceScan oldScan,
+            int[] calcRefFields) {
         RowType inputType = FlinkTypeFactory.toLogicalRowType(oldScan.getRowType());
-        List<int[]> groupingSets = Arrays.asList(localAgg.grouping(), localAgg.auxGrouping());
+        List<int[]> groupingSets =
+                Collections.singletonList(
+                        ArrayUtils.addAll(localAgg.grouping(), localAgg.auxGrouping()));
         List<AggregateCall> aggCallList = JavaScalaConversionUtil.toJava(localAgg.getAggCallList());
+
+        // map arg index in aggregate to field index in scan through referred fields by calc.
+        if (calcRefFields != null) {
+            groupingSets = translateGroupingArgIndex(groupingSets, calcRefFields);
+            aggCallList = translateAggCallArgIndex(aggCallList, calcRefFields);
+        }
+
         RowType producedType = FlinkTypeFactory.toLogicalRowType(localAgg.getRowType());
 
         TableSourceTable oldTableSourceTable = oldScan.tableSourceTable();
@@ -110,24 +139,38 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
 
         boolean isPushDownSuccess =
                 AggregatePushDownSpec.apply(
-                        inputType, groupingSets, aggCallList, producedType, newTableSource);
+                        inputType,
+                        groupingSets,
+                        aggCallList,
+                        producedType,
+                        newTableSource,
+                        SourceAbilityContext.from(oldScan));
 
         if (!isPushDownSuccess) {
             // aggregate push down failed, just return without changing any nodes.
             return;
         }
 
-        FlinkStatistic newFlinkStatistic = getNewFlinkStatistic(oldTableSourceTable);
+        // create new source table with new spec and statistic.
         AggregatePushDownSpec aggregatePushDownSpec =
                 new AggregatePushDownSpec(inputType, groupingSets, aggCallList, producedType);
+
+        Set<String> groupColumns =
+                Arrays.stream(groupingSets.get(0))
+                        .boxed()
+                        .map(idx -> inputType.getFieldNames().get(idx))
+                        .collect(Collectors.toSet());
+        FlinkStatistic newFlinkStatistic = getNewFlinkStatistic(oldTableSourceTable, groupColumns);
 
         TableSourceTable newTableSourceTable =
                 oldTableSourceTable
                         .copy(
                                 newTableSource,
-                                newFlinkStatistic,
+                                localAgg.getRowType(),
                                 new SourceAbilitySpec[] {aggregatePushDownSpec})
-                        .copy(localAgg.getRowType());
+                        .copy(newFlinkStatistic);
+
+        // transform to new nodes.
         BatchPhysicalTableSourceScan newScan =
                 oldScan.copy(oldScan.getTraitSet(), newTableSourceTable);
         BatchPhysicalExchange oldExchange = call.rel(0);
@@ -136,13 +179,85 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
         call.transformTo(newExchange);
     }
 
-    private FlinkStatistic getNewFlinkStatistic(TableSourceTable tableSourceTable) {
+    private FlinkStatistic getNewFlinkStatistic(
+            TableSourceTable tableSourceTable, Set<String> groupColumns) {
         FlinkStatistic oldStatistic = tableSourceTable.getStatistic();
-        if (oldStatistic == FlinkStatistic.UNKNOWN()) {
-            return oldStatistic;
-        } else {
-            // Remove tableStats after all aggregates have been pushed down
-            return FlinkStatistic.builder().statistic(oldStatistic).tableStats(null).build();
+
+        // Create new unique keys if there are group columns
+        Set<Set<String>> uniqueKeys = null;
+        if (!groupColumns.isEmpty()) {
+            uniqueKeys = new HashSet<>();
+            uniqueKeys.add(groupColumns);
         }
+
+        // Remove tableStats after all aggregates have been pushed down
+        return FlinkStatistic.builder()
+                .statistic(oldStatistic)
+                .uniqueKeys(uniqueKeys)
+                .tableStats(null)
+                .build();
+    }
+
+    protected boolean checkNoProjectionPushDown(BatchPhysicalTableSourceScan tableSourceScan) {
+        TableSourceTable tableSourceTable = tableSourceScan.tableSourceTable();
+        return tableSourceTable != null
+                && Arrays.stream(tableSourceTable.abilitySpecs())
+                        .noneMatch(spec -> spec instanceof ProjectPushDownSpec);
+    }
+
+    /**
+     * Currently, we only supports to push down aggregate above calc which has input ref only.
+     *
+     * @param calc BatchPhysicalCalc
+     * @return true if OK to be pushed down
+     */
+    protected boolean checkCalcInputRefOnly(BatchPhysicalCalc calc) {
+        RexProgram program = calc.getProgram();
+
+        // check if condition exists. All filters should have been pushed down.
+        if (program.getCondition() != null) {
+            return false;
+        }
+
+        return program.getExprList().stream().allMatch(RexInputRef.class::isInstance)
+                && !program.getProjectList().isEmpty();
+    }
+
+    protected int[] getRefFiledIndexFromCalc(BatchPhysicalCalc calc) {
+        return calc.getProgram().getProjectList().stream()
+                .map(RexSlot::getIndex)
+                .mapToInt(x -> x)
+                .toArray();
+    }
+
+    protected List<int[]> translateGroupingArgIndex(List<int[]> groupingSets, int[] refFields) {
+        List<int[]> newGroupingSets = new ArrayList<>();
+        groupingSets.forEach(
+                grouping -> {
+                    int[] newGrouping = new int[grouping.length];
+                    for (int i = 0; i < grouping.length; i++) {
+                        int argIndex = grouping[i];
+                        newGrouping[i] = refFields[argIndex];
+                    }
+                    newGroupingSets.add(newGrouping);
+                });
+
+        return newGroupingSets;
+    }
+
+    protected List<AggregateCall> translateAggCallArgIndex(
+            List<AggregateCall> aggCallList, int[] refFields) {
+        List<AggregateCall> newAggCallList = new ArrayList<>();
+        aggCallList.forEach(
+                aggCall -> {
+                    List<Integer> argList = new ArrayList<>();
+                    for (int i = 0; i < aggCall.getArgList().size(); i++) {
+                        int argIndex = aggCall.getArgList().get(i);
+                        argList.add(refFields[argIndex]);
+                    }
+                    newAggCallList.add(aggCall.copy(argList, aggCall.filterArg, aggCall.collation));
+                });
+
+        return newAggCallList;
     }
 }

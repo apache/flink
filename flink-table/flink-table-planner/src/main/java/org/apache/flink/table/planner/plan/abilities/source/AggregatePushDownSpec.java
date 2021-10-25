@@ -39,7 +39,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -90,12 +89,18 @@ public class AggregatePushDownSpec extends SourceAbilitySpecBase {
     @Override
     public void apply(DynamicTableSource tableSource, SourceAbilityContext context) {
         checkArgument(getProducedType().isPresent());
-        apply(inputType, groupingSets, aggregateCalls, getProducedType().get(), tableSource);
+        apply(
+                inputType,
+                groupingSets,
+                aggregateCalls,
+                getProducedType().get(),
+                tableSource,
+                context);
     }
 
     @Override
     public String getDigests(SourceAbilityContext context) {
-        int[] grouping = ArrayUtils.addAll(groupingSets.get(0), groupingSets.get(1));
+        int[] grouping = groupingSets.get(0);
         String groupingStr =
                 Arrays.stream(grouping)
                         .mapToObj(index -> inputType.getFieldNames().get(index))
@@ -120,7 +125,10 @@ public class AggregatePushDownSpec extends SourceAbilitySpecBase {
             List<int[]> groupingSets,
             List<AggregateCall> aggregateCalls,
             RowType producedType,
-            DynamicTableSource tableSource) {
+            DynamicTableSource tableSource,
+            SourceAbilityContext context) {
+        assert context.isBatchMode();
+
         List<AggregateExpression> aggregateExpressions =
                 buildAggregateExpressions(inputType, aggregateCalls);
 
@@ -160,7 +168,7 @@ public class AggregatePushDownSpec extends SourceAbilitySpecBase {
             }
             if (aggInfo.function() instanceof AvgAggFunction) {
                 Tuple2<Sum0AggFunction, CountAggFunction> sum0AndCountFunction =
-                        AggregateUtil.deriveSumAndCountFromAvg(aggInfo.function());
+                        AggregateUtil.deriveSumAndCountFromAvg((AvgAggFunction) aggInfo.function());
                 AggregateExpression sum0Expression =
                         new AggregateExpression(
                                 sum0AndCountFunction._1(),
