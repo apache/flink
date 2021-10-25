@@ -498,8 +498,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 .new SavepointTriggerHandler(leaderRetriever, timeout, responseHeaders);
 
         final SavepointHandlers.SavepointStatusHandler savepointStatusHandler =
-                savepointHandlers
-                .new SavepointStatusHandler(leaderRetriever, timeout, responseHeaders);
+                new SavepointHandlers.SavepointStatusHandler(
+                        leaderRetriever, timeout, responseHeaders);
 
         final SubtaskExecutionAttemptDetailsHandler subtaskExecutionAttemptDetailsHandler =
                 new SubtaskExecutionAttemptDetailsHandler(

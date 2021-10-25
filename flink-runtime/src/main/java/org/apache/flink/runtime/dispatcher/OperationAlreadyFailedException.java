@@ -16,20 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.async;
+package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.rest.messages.TriggerId;
-import org.apache.flink.util.FlinkException;
-
-/**
- * Exception that indicates that there is no ongoing or completed savepoint for a given {@link
- * JobID} and {@link TriggerId} pair.
- */
-class UnknownOperationKeyException extends FlinkException {
-    private static final long serialVersionUID = 1L;
-
-    UnknownOperationKeyException(final Object operationKey) {
-        super("No ongoing operation for " + operationKey);
+/** Exception indicating that a requested operation already exists and has failed. */
+public class OperationAlreadyFailedException extends DispatcherException {
+    public OperationAlreadyFailedException(Throwable throwable) {
+        super(throwable);
     }
 }

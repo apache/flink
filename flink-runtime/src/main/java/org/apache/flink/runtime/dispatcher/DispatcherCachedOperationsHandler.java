@@ -18,10 +18,109 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
+import org.apache.flink.runtime.rest.handler.async.OperationResult;
+import org.apache.flink.runtime.rest.handler.async.OperationResultStatus;
+import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
+import org.apache.flink.util.concurrent.FutureUtils;
+
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
 /**
  * A handler for async operations triggered by the {@link Dispatcher} whose keys and results are
  * cached.
  */
 public class DispatcherCachedOperationsHandler {
-    DispatcherCachedOperationsHandler(DispatcherOperationCaches operationCaches) {}
+
+    private final CompletedOperationCache<AsynchronousJobOperationKey, String>
+            savepointTriggerCache;
+
+    private final TriggerSavepointFunction triggerSavepointFunction;
+
+    private final TriggerSavepointFunction stopWithSavepointFunction;
+
+    DispatcherCachedOperationsHandler(
+            DispatcherOperationCaches operationCaches,
+            TriggerSavepointFunction triggerSavepointFunction,
+            TriggerSavepointFunction stopWithSavepointFunction) {
+        this(
+                triggerSavepointFunction,
+                stopWithSavepointFunction,
+                operationCaches.getSavepointTriggerCache());
+    }
+
+    @VisibleForTesting
+    DispatcherCachedOperationsHandler(
+            TriggerSavepointFunction triggerSavepointFunction,
+            TriggerSavepointFunction stopWithSavepointFunction,
+            CompletedOperationCache<AsynchronousJobOperationKey, String> savepointTriggerCache) {
+        this.triggerSavepointFunction = triggerSavepointFunction;
+        this.stopWithSavepointFunction = stopWithSavepointFunction;
+        this.savepointTriggerCache = savepointTriggerCache;
+    }
+
+    public CompletableFuture<Acknowledge> triggerSavepoint(
+            AsynchronousJobOperationKey operationKey,
+            String targetDirectory,
+            TriggerSavepointMode savepointMode,
+            Time timeout) {
+        return registerOperationIdempotently(
+                operationKey,
+                () ->
+                        triggerSavepointFunction.apply(
+                                operationKey.getJobId(), targetDirectory, savepointMode, timeout));
+    }
+
+    public CompletableFuture<Acknowledge> stopWithSavepoint(
+            AsynchronousJobOperationKey operationKey,
+            String targetDirectory,
+            TriggerSavepointMode savepointMode,
+            Time timeout) {
+        return registerOperationIdempotently(
+                operationKey,
+                () ->
+                        stopWithSavepointFunction.apply(
+                                operationKey.getJobId(), targetDirectory, savepointMode, timeout));
+    }
+
+    public CompletableFuture<OperationResult<String>> getSavepointStatus(
+            AsynchronousJobOperationKey operationKey) {
+        return savepointTriggerCache
+                .get(operationKey)
+                .map(CompletableFuture::completedFuture)
+                .orElse(
+                        FutureUtils.completedExceptionally(
+                                new UnknownOperationKeyException(operationKey)));
+    }
+
+    private CompletableFuture<Acknowledge> registerOperationIdempotently(
+            AsynchronousJobOperationKey operationKey,
+            Supplier<CompletableFuture<String>> operation) {
+        Optional<OperationResult<String>> resultOptional = savepointTriggerCache.get(operationKey);
+        if (resultOptional.isPresent()) {
+            return convertToFuture(resultOptional.get());
+        }
+
+        savepointTriggerCache.registerOngoingOperation(operationKey, operation.get());
+
+        return savepointTriggerCache
+                .get(operationKey)
+                .map(DispatcherCachedOperationsHandler::convertToFuture)
+                // This shouldn't happen as we just registered the operation. We assume it is a
+                // temporary issue with the cache
+                .orElse(CompletableFuture.completedFuture(Acknowledge.get()));
+    }
+
+    private static CompletableFuture<Acknowledge> convertToFuture(OperationResult<String> result) {
+        if (result.getStatus() == OperationResultStatus.FAILURE) {
+            return FutureUtils.completedExceptionally(
+                    new OperationAlreadyFailedException(result.getThrowable()));
+        }
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
 }
