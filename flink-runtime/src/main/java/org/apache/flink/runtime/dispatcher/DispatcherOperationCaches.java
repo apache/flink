@@ -17,13 +17,23 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
+import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Encapsulates caches for results of asynchronous operations triggered by the {@link Dispatcher}.
  */
 public class DispatcherOperationCaches {
+    private final CompletedOperationCache<AsynchronousJobOperationKey, String>
+            savepointTriggerCache = new CompletedOperationCache<>();
+
+    public CompletedOperationCache<AsynchronousJobOperationKey, String> getSavepointTriggerCache() {
+        return savepointTriggerCache;
+    }
+
     public CompletableFuture<Void> shutdownCaches() {
-        return CompletableFuture.completedFuture(null);
+        return savepointTriggerCache.closeAsync();
     }
 }
