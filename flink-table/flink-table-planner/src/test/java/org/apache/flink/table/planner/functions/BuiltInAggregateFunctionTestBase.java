@@ -73,13 +73,10 @@ public class BuiltInAggregateFunctionTestBase {
 
     @Parameter public TestSpec testSpec;
 
-    protected EnvironmentSettings getEnvironmentSettings() {
-        return EnvironmentSettings.inStreamingMode();
-    }
-
     @Test
     public void testFunction() throws Exception {
-        final TableEnvironment tEnv = TableEnvironment.create(getEnvironmentSettings());
+        final TableEnvironment tEnv =
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         final Table sourceTable = asTable(tEnv, testSpec.sourceRowType, testSpec.sourceRows);
 
         for (final TestItem testItem : testSpec.testItems) {
@@ -184,7 +181,7 @@ public class BuiltInAggregateFunctionTestBase {
             return new TestSpec(definition);
         }
 
-        TestSpec as(String description) {
+        TestSpec withDescription(String description) {
             this.description = description;
             return this;
         }
