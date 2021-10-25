@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -136,12 +137,16 @@ public interface RestfulGateway extends RpcGateway {
      *
      * @param jobId ID of the job for which the savepoint should be triggered.
      * @param targetDirectory Target directory for the savepoint.
+     * @param savepointMode context of the savepoint operation
      * @param timeout Timeout for the asynchronous operation
      * @return A future to the {@link CompletedCheckpoint#getExternalPointer() external pointer} of
      *     the savepoint.
      */
     default CompletableFuture<String> triggerSavepoint(
-            JobID jobId, String targetDirectory, boolean cancelJob, @RpcTimeout Time timeout) {
+            JobID jobId,
+            String targetDirectory,
+            TriggerSavepointMode savepointMode,
+            @RpcTimeout Time timeout) {
         throw new UnsupportedOperationException();
     }
 
@@ -151,14 +156,14 @@ public interface RestfulGateway extends RpcGateway {
      * @param jobId ID of the job for which the savepoint should be triggered.
      * @param targetDirectory to which to write the savepoint data or null if the default savepoint
      *     directory should be used
-     * @param terminate flag indicating if the job should terminate or just suspend
+     * @param savepointMode context of the savepoint operation
      * @param timeout for the rpc call
      * @return Future which is completed with the savepoint path once completed
      */
     default CompletableFuture<String> stopWithSavepoint(
             final JobID jobId,
             final String targetDirectory,
-            final boolean terminate,
+            final TriggerSavepointMode savepointMode,
             @RpcTimeout final Time timeout) {
         throw new UnsupportedOperationException();
     }

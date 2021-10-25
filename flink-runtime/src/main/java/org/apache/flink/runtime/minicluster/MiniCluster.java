@@ -41,6 +41,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -741,7 +742,12 @@ public class MiniCluster implements AutoCloseableAsync {
         return runDispatcherCommand(
                 dispatcherGateway ->
                         dispatcherGateway.triggerSavepoint(
-                                jobId, targetDirectory, cancelJob, rpcTimeout));
+                                jobId,
+                                targetDirectory,
+                                cancelJob
+                                        ? TriggerSavepointMode.CANCEL_WITH_SAVEPOINT
+                                        : TriggerSavepointMode.SAVEPOINT,
+                                rpcTimeout));
     }
 
     public CompletableFuture<String> triggerCheckpoint(JobID jobID) {
@@ -754,7 +760,12 @@ public class MiniCluster implements AutoCloseableAsync {
         return runDispatcherCommand(
                 dispatcherGateway ->
                         dispatcherGateway.stopWithSavepoint(
-                                jobId, targetDirectory, terminate, rpcTimeout));
+                                jobId,
+                                targetDirectory,
+                                terminate
+                                        ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
+                                        : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT,
+                                rpcTimeout));
     }
 
     public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) {

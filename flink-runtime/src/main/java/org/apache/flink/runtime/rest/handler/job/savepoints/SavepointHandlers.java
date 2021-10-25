@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job.savepoints;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.async.AbstractAsynchronousOperationHandlers;
@@ -164,13 +165,16 @@ public class SavepointHandlers
                         HttpResponseStatus.BAD_REQUEST);
             }
 
-            final boolean shouldDrain = request.getRequestBody().shouldDrain();
+            final TriggerSavepointMode savepointMode =
+                    request.getRequestBody().shouldDrain()
+                            ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
+                            : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT;
             final String targetDirectory =
                     requestedTargetDirectory != null
                             ? requestedTargetDirectory
                             : defaultSavepointDir;
             return gateway.stopWithSavepoint(
-                    jobId, targetDirectory, shouldDrain, RpcUtils.INF_TIMEOUT);
+                    jobId, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }
     }
 
@@ -200,13 +204,16 @@ public class SavepointHandlers
                         HttpResponseStatus.BAD_REQUEST);
             }
 
-            final boolean cancelJob = request.getRequestBody().isCancelJob();
+            final TriggerSavepointMode savepointMode =
+                    request.getRequestBody().isCancelJob()
+                            ? TriggerSavepointMode.CANCEL_WITH_SAVEPOINT
+                            : TriggerSavepointMode.SAVEPOINT;
             final String targetDirectory =
                     requestedTargetDirectory != null
                             ? requestedTargetDirectory
                             : defaultSavepointDir;
             return gateway.triggerSavepoint(
-                    jobId, targetDirectory, cancelJob, RpcUtils.INF_TIMEOUT);
+                    jobId, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }
     }
 
