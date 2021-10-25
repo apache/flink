@@ -163,6 +163,26 @@ public class FactoryUtilTest {
     }
 
     @Test
+    public void testCustomSecretOption() {
+        assertCreateTableSourceWithOptionModifier(
+                options -> {
+                    options.remove("target");
+                    options.put("secret", "456");
+                },
+                "Table options are:\n"
+                        + "\n"
+                        + "'buffer-size'='1000'\n"
+                        + "'connector'='test-connector'\n"
+                        + "'key.format'='test-format'\n"
+                        + "'key.test-format.delimiter'=','\n"
+                        + "'property-version'='1'\n"
+                        + "'secret'='******'\n"
+                        + "'value.format'='test-format'\n"
+                        + "'value.test-format.delimiter'='|'\n"
+                        + "'value.test-format.fail-on-missing'='true'");
+    }
+
+    @Test
     public void testUnconsumedOption() {
         assertCreateTableSourceWithOptionModifier(
                 options -> {
@@ -188,6 +208,7 @@ public class FactoryUtilTest {
                         + "key.test-format.readable-metadata\n"
                         + "password\n"
                         + "property-version\n"
+                        + "secret\n"
                         + "target\n"
                         + "value.format\n"
                         + "value.test-format.changelog-mode\n"
