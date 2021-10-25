@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
@@ -51,7 +52,8 @@ public class ZooKeeperCheckpointRecoveryFactory implements CheckpointRecoveryFac
             JobID jobId,
             int maxNumberOfCheckpointsToRetain,
             ClassLoader userClassLoader,
-            SharedStateRegistry sharedStateRegistry)
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor)
             throws Exception {
 
         CompletedCheckpointStore completedCheckpointStore =
@@ -60,12 +62,13 @@ public class ZooKeeperCheckpointRecoveryFactory implements CheckpointRecoveryFac
                                 client, ZooKeeperUtils.getPathForJob(jobId)),
                         config,
                         maxNumberOfCheckpointsToRetain,
-                        sharedStateRegistry,
+                        sharedStateRegistryFactory.create(ioExecutor),
                         executor);
 
+        SharedStateRegistry sharedStateRegistry = completedCheckpointStore.getSharedStateRegistry();
         for (CompletedCheckpoint completedCheckpoint :
                 completedCheckpointStore.getAllCheckpoints()) {
-            completedCheckpointStore.registerSharedState(completedCheckpoint.getOperatorStates());
+            sharedStateRegistry.registerAll(completedCheckpoint.getOperatorStates().values());
         }
         return completedCheckpointStore;
     }

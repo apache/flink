@@ -245,7 +245,8 @@ public class AdaptiveScheduler
                         configuration,
                         userCodeClassLoader,
                         checkpointRecoveryFactory,
-                        SharedStateRegistry.DEFAULT_FACTORY.create(ioExecutor),
+                        SharedStateRegistry.DEFAULT_FACTORY,
+                        ioExecutor,
                         LOG);
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(

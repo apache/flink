@@ -181,7 +181,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         jobMasterConfiguration,
                         userCodeLoader,
                         checkNotNull(checkpointRecoveryFactory),
-                        SharedStateRegistry.DEFAULT_FACTORY.create(ioExecutor),
+                        SharedStateRegistry.DEFAULT_FACTORY,
+                        ioExecutor,
                         log);
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(

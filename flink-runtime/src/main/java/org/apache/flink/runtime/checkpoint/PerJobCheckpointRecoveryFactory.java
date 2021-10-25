@@ -21,10 +21,12 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.util.function.TriFunction;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
@@ -73,12 +75,15 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
             JobID jobId,
             int maxNumberOfCheckpointsToRetain,
             ClassLoader userClassLoader,
-            SharedStateRegistry sharedStateRegistry) {
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor) {
         return store.compute(
                 jobId,
                 (key, previous) ->
                         completedCheckpointStorePerJobFactory.apply(
-                                maxNumberOfCheckpointsToRetain, previous, sharedStateRegistry));
+                                maxNumberOfCheckpointsToRetain,
+                                previous,
+                                sharedStateRegistryFactory.create(ioExecutor)));
     }
 
     @Override

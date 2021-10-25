@@ -20,14 +20,12 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Map;
 
 /** A bounded LIFO-queue of {@link CompletedCheckpoint} instances. */
 public interface CompletedCheckpointStore {
@@ -108,7 +106,8 @@ public interface CompletedCheckpointStore {
      */
     boolean requiresExternalizedCheckpoints();
 
-    void registerSharedState(Map<OperatorID, OperatorState> operatorStates);
+    /** Returns the {@link SharedStateRegistry} used to register the shared state. */
+    SharedStateRegistry getSharedStateRegistry();
 
     @VisibleForTesting
     static CompletedCheckpointStore storeFor(

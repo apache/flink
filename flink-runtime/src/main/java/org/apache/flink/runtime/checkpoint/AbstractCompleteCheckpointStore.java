@@ -18,10 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-
-import java.util.Map;
 
 /**
  * The abstract class of {@link CompletedCheckpointStore}, which holds the {@link
@@ -35,7 +32,7 @@ public abstract class AbstractCompleteCheckpointStore implements CompletedCheckp
     }
 
     @Override
-    public void registerSharedState(Map<OperatorID, OperatorState> operatorStates) {
-        sharedStateRegistry.registerAll(operatorStates.values());
+    public SharedStateRegistry getSharedStateRegistry() {
+        return sharedStateRegistry;
     }
 }

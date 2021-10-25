@@ -47,7 +47,8 @@ public class SchedulerUtilsTest extends TestLogger {
                         jobManagerConfig,
                         getClass().getClassLoader(),
                         new StandaloneCheckpointRecoveryFactory(),
-                        SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor()),
+                        SharedStateRegistry.DEFAULT_FACTORY,
+                        Executors.directExecutor(),
                         log,
                         new JobID());
 

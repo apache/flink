@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -1208,7 +1209,8 @@ public class CheckpointCoordinator {
 
         // As a first step to complete the checkpoint, we register its state with the registry
         Map<OperatorID, OperatorState> operatorStates = pendingCheckpoint.getOperatorStates();
-        completedCheckpointStore.registerSharedState(operatorStates);
+        SharedStateRegistry sharedStateRegistry = completedCheckpointStore.getSharedStateRegistry();
+        sharedStateRegistry.registerAll(operatorStates.values());
 
         try {
             try {

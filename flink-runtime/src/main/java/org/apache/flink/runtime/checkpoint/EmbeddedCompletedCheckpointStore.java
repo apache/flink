@@ -74,7 +74,7 @@ public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpoint
         this.checkpoints.addAll(initialCheckpoints);
 
         for (CompletedCheckpoint completedCheckpoint : this.checkpoints) {
-            this.registerSharedState(completedCheckpoint.getOperatorStates());
+            getSharedStateRegistry().registerAll(completedCheckpoint.getOperatorStates().values());
         }
     }
 

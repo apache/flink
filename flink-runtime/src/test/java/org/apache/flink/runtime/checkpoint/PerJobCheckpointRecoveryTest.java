@@ -49,7 +49,8 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
                         firstJobId,
                         1,
                         classLoader,
-                        SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor())));
+                        SharedStateRegistry.DEFAULT_FACTORY,
+                        Executors.directExecutor()));
         assertThrows(
                 UnsupportedOperationException.class,
                 () ->
@@ -57,8 +58,8 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
                                 firstJobId,
                                 1,
                                 classLoader,
-                                SharedStateRegistry.DEFAULT_FACTORY.create(
-                                        Executors.directExecutor())));
+                                SharedStateRegistry.DEFAULT_FACTORY,
+                                Executors.directExecutor()));
 
         final JobID secondJobId = new JobID();
         assertSame(
@@ -67,7 +68,8 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
                         secondJobId,
                         1,
                         classLoader,
-                        SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor())));
+                        SharedStateRegistry.DEFAULT_FACTORY,
+                        Executors.directExecutor()));
         assertThrows(
                 UnsupportedOperationException.class,
                 () ->
@@ -75,7 +77,7 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
                                 secondJobId,
                                 1,
                                 classLoader,
-                                SharedStateRegistry.DEFAULT_FACTORY.create(
-                                        Executors.directExecutor())));
+                                SharedStateRegistry.DEFAULT_FACTORY,
+                                Executors.directExecutor()));
     }
 }
