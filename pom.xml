@@ -917,7 +917,12 @@ under the License.
 						</plugin>
 					</plugins>
 				</pluginManagement>
+			</build>
+		</profile>
 
+		<profile>
+			<id>java11-target</id>
+			<build>
 				<plugins>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
