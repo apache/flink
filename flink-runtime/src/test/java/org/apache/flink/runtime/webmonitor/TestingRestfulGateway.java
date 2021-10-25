@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -256,13 +257,13 @@ public class TestingRestfulGateway implements RestfulGateway {
 
     @Override
     public CompletableFuture<String> triggerSavepoint(
-            JobID jobId, String targetDirectory, boolean cancelJob, Time timeout) {
+            JobID jobId, String targetDirectory, TriggerSavepointMode savepointMode, Time timeout) {
         return triggerSavepointFunction.apply(jobId, targetDirectory);
     }
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            JobID jobId, String targetDirectory, boolean terminate, Time timeout) {
+            JobID jobId, String targetDirectory, TriggerSavepointMode savepointMode, Time timeout) {
         return stopWithSavepointFunction.apply(jobId, targetDirectory);
     }
 

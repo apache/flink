@@ -26,6 +26,7 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -93,12 +94,18 @@ public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway 
     public CompletableFuture<String> stopWithSavepoint(
             final boolean advanceToEndOfEventTime, @Nullable final String savepointDirectory) {
         return dispatcherGateway.stopWithSavepoint(
-                jobId, savepointDirectory, advanceToEndOfEventTime, timeout);
+                jobId,
+                savepointDirectory,
+                advanceToEndOfEventTime
+                        ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
+                        : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT,
+                timeout);
     }
 
     @Override
     public CompletableFuture<String> triggerSavepoint(@Nullable final String savepointDirectory) {
-        return dispatcherGateway.triggerSavepoint(jobId, savepointDirectory, false, timeout);
+        return dispatcherGateway.triggerSavepoint(
+                jobId, savepointDirectory, TriggerSavepointMode.SAVEPOINT, timeout);
     }
 
     @Override

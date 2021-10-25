@@ -699,21 +699,27 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     public CompletableFuture<String> triggerSavepoint(
             final JobID jobId,
             final String targetDirectory,
-            final boolean cancelJob,
+            final TriggerSavepointMode savepointMode,
             final Time timeout) {
 
         return performOperationOnJobMasterGateway(
-                jobId, gateway -> gateway.triggerSavepoint(targetDirectory, cancelJob, timeout));
+                jobId,
+                gateway ->
+                        gateway.triggerSavepoint(
+                                targetDirectory, savepointMode.isTerminalMode(), timeout));
     }
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
             final JobID jobId,
             final String targetDirectory,
-            final boolean terminate,
+            TriggerSavepointMode savepointMode,
             final Time timeout) {
         return performOperationOnJobMasterGateway(
-                jobId, gateway -> gateway.stopWithSavepoint(targetDirectory, terminate, timeout));
+                jobId,
+                gateway ->
+                        gateway.stopWithSavepoint(
+                                targetDirectory, savepointMode.isTerminalMode(), timeout));
     }
 
     @Override
