@@ -144,8 +144,10 @@ public class ParquetRowDataWriter {
                     && logicalType instanceof LogicalTypeAnnotation.MapLogicalTypeAnnotation) {
                 return new MapWriter(
                         ((MapType) t).getKeyType(), ((MapType) t).getValueType(), groupType);
-            } else {
+            } else if (t instanceof RowType && type instanceof GroupType) {
                 return new RowWriter(t, groupType);
+            } else {
+                throw new UnsupportedOperationException("Unsupported type: " + type);
             }
         }
     }
