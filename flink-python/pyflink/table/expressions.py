@@ -30,7 +30,8 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
-           'json_object', 'json_object_agg', 'json_array', 'call', 'call_sql', 'source_watermark']
+           'json_object', 'json_object_agg', 'json_array', 'json_array_agg', 'call', 'call_sql',
+           'source_watermark']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -714,6 +715,25 @@ def json_array(on_null: JsonOnNull = JsonOnNull.ABSENT, *args) -> Expression:
     .. seealso:: :func:`~pyflink.table.expressions.json_object`
     """
     return _varargs_op("jsonArray", *(on_null._to_j_json_on_null(), *args))
+
+
+def json_array_agg(on_null: JsonOnNull, item_expr) -> Expression:
+    """
+    Builds a JSON object string by aggregating items into an array.
+
+    Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`, the
+    `on_null` behavior defines what to do.
+
+    This function is currently not supported in `OVER` windows, unbounded session windows, or hop
+    windows.
+
+    Examples:
+    ::
+
+        >>> # '["Apple","Banana","Orange"]'
+        >>> orders.select(json_array_agg(JsonOnNull.NULL, col("product")))
+    """
+    return _binary_op("jsonArrayAgg", on_null._to_j_json_on_null(), item_expr)
 
 
 def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:

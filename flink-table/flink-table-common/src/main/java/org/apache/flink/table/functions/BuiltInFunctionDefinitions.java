@@ -1621,6 +1621,24 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeDeferred()
                     .build();
 
+    public static final BuiltInFunctionDefinition JSON_ARRAYAGG_NULL_ON_NULL =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_ARRAYAGG_NULL_ON_NULL")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(sequence(JSON_ARGUMENT))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
+                    .runtimeDeferred()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_ARRAYAGG_ABSENT_ON_NULL =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_ARRAYAGG_ABSENT_ON_NULL")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(sequence(JSON_ARGUMENT))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
+                    .runtimeDeferred()
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Other functions
     // --------------------------------------------------------------------------------------------

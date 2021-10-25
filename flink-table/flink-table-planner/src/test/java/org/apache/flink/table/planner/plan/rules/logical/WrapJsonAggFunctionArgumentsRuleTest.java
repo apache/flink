@@ -69,4 +69,28 @@ public class WrapJsonAggFunctionArgumentsRuleTest extends TableTestBase {
         util.tableEnv().createTable("T", sourceDescriptor);
         util.verifyRelPlan("SELECT f0, JSON_OBJECTAGG(f1 VALUE f0) FROM T GROUP BY f0");
     }
+
+    @Test
+    public void testJsonArrayAgg() {
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(Schema.newBuilder().column("f0", STRING()).build())
+                        .unboundedScanSource(ChangelogMode.all())
+                        .build();
+
+        util.tableEnv().createTable("T", sourceDescriptor);
+        util.verifyRelPlan("SELECT JSON_ARRAYAGG(f0) FROM T");
+    }
+
+    @Test
+    public void testJsonArrayAggInGroupWindow() {
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(Schema.newBuilder().column("f0", INT()).build())
+                        .unboundedScanSource()
+                        .build();
+
+        util.tableEnv().createTable("T", sourceDescriptor);
+        util.verifyRelPlan("SELECT f0, JSON_ARRAYAGG(f0) FROM T GROUP BY f0");
+    }
 }

@@ -126,6 +126,10 @@ class AggFunctionFactory(
         val onNull = fn.asInstanceOf[SqlJsonObjectAggAggFunction].getNullClause
         new JsonObjectAggFunction(argTypes, onNull == SqlJsonConstructorNullClause.ABSENT_ON_NULL)
 
+      case fn: SqlAggFunction if fn.getKind == SqlKind.JSON_ARRAYAGG =>
+        val onNull = fn.asInstanceOf[SqlJsonArrayAggAggFunction].getNullClause
+        new JsonArrayAggFunction(argTypes, onNull == SqlJsonConstructorNullClause.ABSENT_ON_NULL)
+
       case udagg: AggSqlFunction =>
         // Can not touch the literals, Calcite make them in previous RelNode.
         // In here, all inputs are input refs.
