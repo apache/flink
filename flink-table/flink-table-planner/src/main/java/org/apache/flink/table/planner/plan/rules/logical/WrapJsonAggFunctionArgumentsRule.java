@@ -32,6 +32,8 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.fun.SqlJsonArrayAggAggFunction;
 import org.apache.calcite.sql.fun.SqlJsonObjectAggAggFunction;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.mapping.MappingType;
@@ -155,7 +157,9 @@ public class WrapJsonAggFunctionArgumentsRule
     }
 
     private static boolean isJsonAggregation(AggregateCall aggCall) {
-        return aggCall.getAggregation() instanceof SqlJsonObjectAggAggFunction;
+        final SqlAggFunction aggregation = aggCall.getAggregation();
+        return aggregation instanceof SqlJsonObjectAggAggFunction
+                || aggregation instanceof SqlJsonArrayAggAggFunction;
     }
 
     // ---------------------------------------------------------------------------------------------

@@ -33,6 +33,7 @@ import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.jsonArrayAgg;
 import static org.apache.flink.table.api.Expressions.jsonObjectAgg;
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
@@ -43,6 +44,7 @@ public class JsonAggregationFunctionsITCase extends BuiltInAggregateFunctionTest
     @Parameterized.Parameters(name = "{index}: {0}")
     public static List<TestSpec> testData() throws Exception {
         return Arrays.asList(
+                // JSON_OBJECTAGG
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL)
                         .withDescription("Basic Aggregation")
                         .withSource(
@@ -118,6 +120,51 @@ public class JsonAggregationFunctionsITCase extends BuiltInAggregateFunctionTest
                                 ROW(INT(), STRING().notNull()),
                                 Arrays.asList(
                                         Row.of(1, "{\"A\":0,\"B\":0}"),
-                                        Row.of(2, "{\"A\":0,\"C\":0}"))));
+                                        Row.of(2, "{\"A\":0,\"C\":0}"))),
+
+                // JSON_ARRAYAGG
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL)
+                        .withDescription("Basic Aggregation")
+                        .withSource(
+                                ROW(STRING()),
+                                Arrays.asList(
+                                        Row.ofKind(INSERT, "A"),
+                                        Row.ofKind(INSERT, (String) null),
+                                        Row.ofKind(INSERT, "C")))
+                        .testResult(
+                                source -> "SELECT JSON_ARRAYAGG(f0) FROM " + source,
+                                source -> source.select(jsonArrayAgg(JsonOnNull.ABSENT, $("f0"))),
+                                ROW(VARCHAR(2000).notNull()),
+                                ROW(STRING().notNull()),
+                                Collections.singletonList(Row.of("[\"A\",\"C\"]"))),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAYAGG_NULL_ON_NULL)
+                        .withDescription("Keeps NULLs")
+                        .withSource(
+                                ROW(STRING()),
+                                Arrays.asList(
+                                        Row.ofKind(INSERT, "A"),
+                                        Row.ofKind(INSERT, (String) null),
+                                        Row.ofKind(INSERT, "C")))
+                        .testResult(
+                                source -> "SELECT JSON_ARRAYAGG(f0 NULL ON NULL) FROM " + source,
+                                source -> source.select(jsonArrayAgg(JsonOnNull.NULL, $("f0"))),
+                                ROW(VARCHAR(2000).notNull()),
+                                ROW(STRING().notNull()),
+                                Collections.singletonList(Row.of("[\"A\",null,\"C\"]"))),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL)
+                        .withDescription("Retractions")
+                        .withSource(
+                                ROW(INT()),
+                                Arrays.asList(
+                                        Row.ofKind(INSERT, 1),
+                                        Row.ofKind(INSERT, 2),
+                                        Row.ofKind(INSERT, 3),
+                                        Row.ofKind(DELETE, 2)))
+                        .testResult(
+                                source -> "SELECT JSON_ARRAYAGG(f0) FROM " + source,
+                                source -> source.select(jsonArrayAgg(JsonOnNull.ABSENT, $("f0"))),
+                                ROW(VARCHAR(2000).notNull()),
+                                ROW(STRING().notNull()),
+                                Collections.singletonList(Row.of("[1,3]"))));
     }
 }

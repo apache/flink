@@ -45,6 +45,8 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCa
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAYAGG_NULL_ON_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECTAGG_ABSENT_ON_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL;
@@ -651,6 +653,7 @@ public final class Expressions {
      * }</pre>
      *
      * @see #jsonObject(JsonOnNull, Object...)
+     * @see #jsonArrayAgg(JsonOnNull, Object)
      */
     public static ApiExpression jsonObjectAgg(JsonOnNull onNull, Object keyExpr, Object valueExpr) {
         final BuiltInFunctionDefinition functionDefinition;
@@ -725,6 +728,40 @@ public final class Expressions {
                 Stream.concat(Stream.of(onNull), Arrays.stream(values)).toArray(Object[]::new);
 
         return apiCall(JSON_ARRAY, arguments);
+    }
+
+    /**
+     * Builds a JSON object string by aggregating items into an array.
+     *
+     * <p>Item expressions can be arbitrary, including other JSON functions. If a value is {@code
+     * NULL}, the {@link JsonOnNull onNull} behavior defines what to do.
+     *
+     * <p>This function is currently not supported in {@code OVER} windows, unbounded session
+     * windows, or hop windows.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // "[\"Apple\",\"Banana\",\"Orange\"]"
+     * orders.select(jsonArrayAgg(JsonOnNull.NULL, $("product")))
+     * }</pre>
+     *
+     * @see #jsonArray(JsonOnNull, Object...)
+     * @see #jsonObjectAgg(JsonOnNull, Object, Object)
+     */
+    public static ApiExpression jsonArrayAgg(JsonOnNull onNull, Object itemExpr) {
+        final BuiltInFunctionDefinition functionDefinition;
+        switch (onNull) {
+            case NULL:
+                functionDefinition = JSON_ARRAYAGG_NULL_ON_NULL;
+                break;
+            case ABSENT:
+            default:
+                functionDefinition = JSON_ARRAYAGG_ABSENT_ON_NULL;
+                break;
+        }
+
+        return apiCall(functionDefinition, itemExpr);
     }
 
     /**

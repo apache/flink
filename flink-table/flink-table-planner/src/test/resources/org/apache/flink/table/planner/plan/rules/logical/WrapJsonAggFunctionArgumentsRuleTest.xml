@@ -16,6 +16,44 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testJsonArrayAgg">
+    <Resource name="sql">
+      <![CDATA[SELECT JSON_ARRAYAGG(f0) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[JSON_ARRAYAGG_ABSENT_ON_NULL_RETRACT($f1) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[f0, JSON_STRING(f0) AS $f1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonArrayAggInGroupWindow">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, JSON_ARRAYAGG(f0) FROM T GROUP BY f0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(groupBy=[f0], select=[f0, JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EXPR$1])
++- Exchange(distribution=[hash[f0]])
+   +- Calc(select=[f0, JSON_STRING(f0) AS $f1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJsonObjectAggInGroupWindow">
     <Resource name="sql">
       <![CDATA[SELECT f0, JSON_OBJECTAGG(f1 VALUE f0) FROM T GROUP BY f0]]>

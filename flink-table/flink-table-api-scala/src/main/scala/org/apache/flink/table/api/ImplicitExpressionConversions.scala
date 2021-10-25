@@ -922,4 +922,25 @@ trait ImplicitExpressionConversions {
   def jsonArray(onNull: JsonOnNull, values: Expression*): Expression = {
     Expressions.jsonArray(onNull, values: _*)
   }
+
+  /**
+   * Builds a JSON object string by aggregating items into an array.
+   *
+   * Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`,
+   * [[JsonOnNull onNull]] behavior defines what to do.
+   *
+   * This function is currently not supported in `OVER` windows, unbounded session windows, or hop
+   * windows.
+   *
+   * Examples:
+   * {{{
+   * // "[\"Apple\",\"Banana\",\"Orange\"]"
+   * orders.select(jsonArrayAgg(JsonOnNull.NULL, $("product")))
+   * }}}
+   *
+   * @see #jsonObject
+   */
+  def jsonArrayAgg(onNull: JsonOnNull, itemExpr: Expression): Expression = {
+    Expressions.jsonArrayAgg(onNull, itemExpr)
+  }
 }
