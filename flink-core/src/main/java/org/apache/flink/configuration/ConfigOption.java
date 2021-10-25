@@ -72,6 +72,8 @@ public class ConfigOption<T> {
 
     private final boolean isList;
 
+    private boolean isSecret;
+
     // ------------------------------------------------------------------------
 
     Class<?> getClazz() {
@@ -80,6 +82,10 @@ public class ConfigOption<T> {
 
     boolean isList() {
         return isList;
+    }
+
+    public boolean isSecret() {
+        return isSecret;
     }
 
     /**
@@ -106,6 +112,31 @@ public class ConfigOption<T> {
         this.fallbackKeys = fallbackKeys == null || fallbackKeys.length == 0 ? EMPTY : fallbackKeys;
         this.clazz = checkNotNull(clazz);
         this.isList = isList;
+        this.isSecret = false;
+    }
+
+    /**
+     * Creates a new config option with fallback keys.
+     *
+     * @param key The current key for that config option
+     * @param clazz describes type of the ConfigOption, see description of the clazz field
+     * @param description Description for that option
+     * @param defaultValue The default value for this option
+     * @param isList tells if the ConfigOption describes a list option, see description of the clazz
+     *     field
+     * @param isSecret make the ConfigOption sensitive.
+     * @param fallbackKeys The list of fallback keys, in the order to be checked
+     */
+    ConfigOption(
+            String key,
+            Class<?> clazz,
+            Description description,
+            T defaultValue,
+            boolean isList,
+            boolean isSecret,
+            FallbackKey... fallbackKeys) {
+        this(key, clazz, description, defaultValue, isList, fallbackKeys);
+        this.isSecret = isSecret;
     }
 
     // ------------------------------------------------------------------------
@@ -178,7 +209,18 @@ public class ConfigOption<T> {
      * @return A new config option, with given description.
      */
     public ConfigOption<T> withDescription(final Description description) {
-        return new ConfigOption<>(key, clazz, description, defaultValue, isList, fallbackKeys);
+        return new ConfigOption<>(
+                key, clazz, description, defaultValue, isList, false, fallbackKeys);
+    }
+
+    /**
+     * Create a new config option, and enable this option sensitive.
+     *
+     * @return A new config option, with setting secret.
+     */
+    public ConfigOption<T> enableSecret() {
+        return new ConfigOption<>(
+                key, clazz, description, defaultValue, isList, true, fallbackKeys);
     }
 
     // ------------------------------------------------------------------------
