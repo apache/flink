@@ -140,6 +140,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private DispatcherBootstrap dispatcherBootstrap;
 
+    private final DispatcherCachedOperationsHandler dispatcherCachedOperationsHandler;
+
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
         SUBMISSION,
@@ -189,6 +191,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.dispatcherBootstrapFactory = checkNotNull(dispatcherBootstrapFactory);
 
         this.recoveredJobs = new HashSet<>(recoveredJobs);
+
+        this.dispatcherCachedOperationsHandler =
+                new DispatcherCachedOperationsHandler(dispatcherServices.getOperationCaches());
     }
 
     // ------------------------------------------------------

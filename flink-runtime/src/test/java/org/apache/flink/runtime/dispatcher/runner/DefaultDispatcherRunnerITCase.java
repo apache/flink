@@ -26,6 +26,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherBootstrapFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.JobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
@@ -120,7 +121,8 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
                         fatalErrorHandler,
                         VoidHistoryServerArchivist.INSTANCE,
                         null,
-                        ForkJoinPool.commonPool());
+                        ForkJoinPool.commonPool(),
+                        new DispatcherOperationCaches());
     }
 
     @After
