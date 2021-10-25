@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
@@ -57,8 +56,7 @@ public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBa
                                 () -> {
                                     String checkpointPath =
                                             TEMP_FOLDER.newFolder().toURI().toString();
-                                    return new FileSystemCheckpointStorage(
-                                            new Path(checkpointPath), 0, -1);
+                                    return new FileSystemCheckpointStorage(checkpointPath);
                                 }
                     }
                 });

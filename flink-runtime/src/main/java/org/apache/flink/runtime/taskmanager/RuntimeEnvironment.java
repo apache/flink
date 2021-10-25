@@ -42,7 +42,6 @@ import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
@@ -55,7 +54,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** In implementation of the {@link Environment}. */
 public class RuntimeEnvironment implements Environment {
@@ -99,13 +97,11 @@ public class RuntimeEnvironment implements Environment {
 
     private final Task containingTask;
 
-    private final ThroughputCalculator throughputCalculator;
-
     @Nullable private MailboxExecutor mainMailboxExecutor;
 
     @Nullable private ExecutorService asyncOperationsThreadPool;
 
-    @Nullable private CheckpointStorageAccess checkpointStorageAccess;
+    private final ThroughputCalculator throughputCalculator;
 
     // ------------------------------------------------------------------------
 
@@ -326,13 +322,7 @@ public class RuntimeEnvironment implements Environment {
     }
 
     @Override
-    public ThroughputCalculator getThroughputCalculator() {
-        return throughputCalculator;
-    }
-
-    @Override
     public void setMainMailboxExecutor(MailboxExecutor mainMailboxExecutor) {
-        checkState(this.mainMailboxExecutor == null, "Can not set mainMailboxExecutor twice!");
         this.mainMailboxExecutor = mainMailboxExecutor;
     }
 
@@ -344,9 +334,6 @@ public class RuntimeEnvironment implements Environment {
 
     @Override
     public void setAsyncOperationsThreadPool(ExecutorService executorService) {
-        checkState(
-                this.asyncOperationsThreadPool == null,
-                "Can not set asyncOperationsThreadPool twice!");
         this.asyncOperationsThreadPool = executorService;
     }
 
@@ -358,15 +345,7 @@ public class RuntimeEnvironment implements Environment {
     }
 
     @Override
-    public void setCheckpointStorageAccess(CheckpointStorageAccess checkpointStorageAccess) {
-        checkState(
-                this.checkpointStorageAccess == null, "Can not set checkpointStorageAccess twice!");
-        this.checkpointStorageAccess = checkpointStorageAccess;
-    }
-
-    @Override
-    public CheckpointStorageAccess getCheckpointStorageAccess() {
-        return checkNotNull(
-                checkpointStorageAccess, "checkpointStorage has not been initialized yet!");
+    public ThroughputCalculator getThroughputCalculator() {
+        return throughputCalculator;
     }
 }

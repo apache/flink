@@ -9,6 +9,18 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>state.backend.changelog.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable state backend to write state changes to StateChangelog. If this config is not set explicitly, it means no preference for enabling the change log, and the value in lower config level will take effect. The default value 'false' here means if no value set (job or cluster), the change log will not be enabled.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.changelog.storage</h5></td>
+            <td style="word-wrap: break-word;">"memory"</td>
+            <td>String</td>
+            <td>The storage to be used to store state changelog.<br />The implementation can be specified via their shortcut name.<br />The list of recognized shortcut names currently includes 'memory' and 'filesystem'.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.incremental</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

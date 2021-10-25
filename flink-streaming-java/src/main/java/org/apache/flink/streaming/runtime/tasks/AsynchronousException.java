@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 

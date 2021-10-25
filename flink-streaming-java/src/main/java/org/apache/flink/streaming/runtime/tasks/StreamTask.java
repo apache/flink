@@ -60,14 +60,11 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
-import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
@@ -390,14 +387,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         this.stateBackend = createStateBackend();
         this.checkpointStorage = createCheckpointStorage(stateBackend);
 
-        CheckpointStorageAccess checkpointStorageAccess =
-                checkpointStorage.createCheckpointStorage(getEnvironment().getJobID());
-
-        environment.setCheckpointStorageAccess(checkpointStorageAccess);
-
         this.subtaskCheckpointCoordinator =
                 new SubtaskCheckpointCoordinatorImpl(
-                        checkpointStorageAccess,
+                        checkpointStorage.createCheckpointStorage(environment.getJobID()),
                         getName(),
                         actionExecutor,
                         getCancelables(),
@@ -1571,15 +1563,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     // ------------------------------------------------------------------------
 
     /** Utility class to encapsulate the handling of asynchronous exceptions. */
-    static class StreamTaskAsyncExceptionHandler implements AsyncExceptionHandler {
+    static class StreamTaskAsyncExceptionHandler {
         private final Environment environment;
 
         StreamTaskAsyncExceptionHandler(Environment environment) {
             this.environment = environment;
         }
 
-        @Override
-        public void handleAsyncException(String message, Throwable exception) {
+        void handleAsyncException(String message, Throwable exception) {
             environment.failExternally(new AsynchronousException(message, exception));
         }
     }
