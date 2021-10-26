@@ -26,15 +26,14 @@ import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isCharacterString
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.RawValue
-
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SqlJsonConstructorNullClause
-
 import java.time.format.DateTimeFormatter
+
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 /** Utility for generating JSON function calls. */
 object JsonGenerateUtils {
@@ -47,7 +46,8 @@ object JsonGenerateUtils {
       ctx: CodeGeneratorContext,
       expression: GeneratedExpression,
       operand: RexNode): String = {
-    if (isJsonFunctionOperand(operand)) {
+    val newOperand = FlinkRexUtil.replaceRexNodeLocalRef(operand, ctx)
+    if (isJsonFunctionOperand(newOperand)) {
       createRawNodeTerm(expression)
     } else {
       createNodeTerm(ctx, expression)
