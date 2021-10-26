@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
@@ -61,6 +62,9 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.operations.{DataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -745,6 +749,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     ExecNodeBase.resetIdCounter()
     val jsonPlan = getTableEnv.asInstanceOf[TableEnvironmentInternal].getJsonPlan(insert)
     val jsonPlanWithoutFlinkVersion = TableTestUtil.replaceFlinkVersion(jsonPlan)
+    val jsonPlanWithoutExpressionNode = removeCommonExpressionNodes(jsonPlanWithoutFlinkVersion)
     // add the postfix to the path to avoid conflicts
     // between the test class name and the result file name
     val path = test.getClass.getName.replaceAll("\\.", "/") + "_jsonplan"
@@ -756,14 +761,29 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
         TableTestUtil.replaceExecNodeId(
           TableTestUtil.getFormattedJson(expected)),
         TableTestUtil.replaceExecNodeId(
-          TableTestUtil.getFormattedJson(jsonPlanWithoutFlinkVersion)))
+          TableTestUtil.getFormattedJson(jsonPlanWithoutExpressionNode)))
     } else {
       file.getParentFile.mkdirs()
       assertTrue(file.createNewFile())
-      val prettyJson = TableTestUtil.getPrettyJson(jsonPlanWithoutFlinkVersion)
+      val prettyJson = TableTestUtil.getPrettyJson(jsonPlanWithoutExpressionNode)
       Files.write(Paths.get(file.toURI), prettyJson.getBytes)
       fail(s"$fileName does not exist.")
     }
+  }
+
+  def removeCommonExpressionNodes(json: String) : String = {
+    val parser = new ObjectMapper().getFactory.createParser(json)
+    val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
+    val nodes = jsonNode.get("nodes").asInstanceOf[ArrayNode]
+    nodes.filter( node =>
+      node.get("class").textValue().equals(classOf[StreamExecCalc].getName) ||
+        node.get("class").textValue().equals(classOf[BatchExecCalc].getName) )
+        .foreach(node => {
+          val calc = node.asInstanceOf[ObjectNode]
+          calc.remove(CommonExecCalc.FIELD_NAME_EXP_LIST)
+          calc.remove(CommonExecCalc.FIELD_NAME_LOCAL_REFS)
+        })
+    jsonNode.toString
   }
 
   /**

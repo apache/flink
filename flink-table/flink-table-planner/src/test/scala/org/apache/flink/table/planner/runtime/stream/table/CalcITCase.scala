@@ -391,7 +391,6 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     result.toAppendStream[Row].addSink(sink)
     env.execute()
-    println(sink.getAppendResults.sorted)
   }
 
   class NonStaticClassScalarFunction extends ScalarFunction {
