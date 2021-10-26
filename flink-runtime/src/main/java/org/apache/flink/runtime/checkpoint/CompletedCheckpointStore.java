@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 
 import org.slf4j.Logger;
@@ -104,16 +103,4 @@ public interface CompletedCheckpointStore {
      *     false if the store stores the metadata itself.
      */
     boolean requiresExternalizedCheckpoints();
-
-    @VisibleForTesting
-    static CompletedCheckpointStore storeFor(
-            Runnable postCleanupAction, CompletedCheckpoint... checkpoints) throws Exception {
-        StandaloneCompletedCheckpointStore store =
-                new StandaloneCompletedCheckpointStore(checkpoints.length);
-        CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
-        for (final CompletedCheckpoint checkpoint : checkpoints) {
-            store.addCheckpoint(checkpoint, checkpointsCleaner, postCleanupAction);
-        }
-        return store;
-    }
 }
