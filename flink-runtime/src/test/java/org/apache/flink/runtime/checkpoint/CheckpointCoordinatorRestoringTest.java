@@ -778,8 +778,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
                         .setExecutionGraph(newGraph)
-                        .setCompletedCheckpointStore(
-                                CompletedCheckpointStore.storeFor(() -> {}, completedCheckpoint))
+                        .setCompletedCheckpointStore(storeFor(() -> {}, completedCheckpoint))
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .build();
 
@@ -934,6 +933,17 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         comparePartitionableState(
                 expectedManagedOperatorStates.get(0), actualManagedOperatorStates);
         comparePartitionableState(expectedRawOperatorStates.get(0), actualRawOperatorStates);
+    }
+
+    static CompletedCheckpointStore storeFor(
+            Runnable postCleanupAction, CompletedCheckpoint... checkpoints) throws Exception {
+        StandaloneCompletedCheckpointStore store =
+                new StandaloneCompletedCheckpointStore(checkpoints.length);
+        CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
+        for (final CompletedCheckpoint checkpoint : checkpoints) {
+            store.addCheckpoint(checkpoint, checkpointsCleaner, postCleanupAction);
+        }
+        return store;
     }
 
     @Test
