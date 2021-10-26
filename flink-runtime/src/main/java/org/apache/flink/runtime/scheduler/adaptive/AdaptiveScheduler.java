@@ -420,10 +420,12 @@ public class AdaptiveScheduler
 
         backgroundTask.abort();
         // wait for the background task to finish and then close services
-        return FutureUtils.runAfterwardsAsync(
-                backgroundTask.getTerminationFuture(),
-                () -> stopCheckpointServicesSafely(jobTerminationFuture.get()),
-                getMainThreadExecutor());
+        return CompletableFuture.allOf(
+                FutureUtils.runAfterwardsAsync(
+                        backgroundTask.getTerminationFuture(),
+                        () -> stopCheckpointServicesSafely(jobTerminationFuture.get()),
+                        getMainThreadExecutor()),
+                checkpointsCleaner.closeAsync());
     }
 
     private void stopCheckpointServicesSafely(JobStatus terminalState) {
