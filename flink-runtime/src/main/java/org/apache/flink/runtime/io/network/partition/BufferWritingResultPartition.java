@@ -269,12 +269,17 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         return buffer;
     }
 
-    private void addToSubpartition(BufferBuilder buffer, int targetSubpartition, int i)
+    private void addToSubpartition(
+            BufferBuilder buffer, int targetSubpartition, int partialRecordLength)
             throws IOException {
         int desirableBufferSize =
                 subpartitions[targetSubpartition].add(
-                        buffer.createBufferConsumerFromBeginning(), i);
+                        buffer.createBufferConsumerFromBeginning(), partialRecordLength);
 
+        resizeBuffer(buffer, desirableBufferSize);
+    }
+
+    private void resizeBuffer(BufferBuilder buffer, int desirableBufferSize) {
         if (desirableBufferSize > 0) {
             // !! If some of partial data has written already to this buffer, the result size can
             // not be less than written value.
@@ -338,7 +343,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
                                 ? Math.min(desirableBufferSize, subPartitionBufferSize)
                                 : desirableBufferSize;
             }
-            buffer.trim(desirableBufferSize);
+            resizeBuffer(buffer, desirableBufferSize);
         }
     }
 
