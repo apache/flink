@@ -88,7 +88,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         checkArgument(inputProperties.size() == 1);
         this.expList = checkNotNull(expList);
         this.localRefs = localRefs;
-        this.projection = projection;
+        this.projection = checkNotNull(projection);
         this.condition = condition;
         this.operatorBaseClass = checkNotNull(operatorBaseClass);
         this.retainHeader = retainHeader;
