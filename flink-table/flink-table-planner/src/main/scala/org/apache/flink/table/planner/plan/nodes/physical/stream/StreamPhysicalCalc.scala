@@ -45,9 +45,9 @@ class StreamPhysicalCalc(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    val projection = calcProgram.getExprList
+    val expList = calcProgram.getExprList
     val localRefs = calcProgram.getProjectList.map(_.asInstanceOf[RexNode])
-    val expandLocalRef = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
+    val projection = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
     val condition = if (calcProgram.getCondition != null) {
       calcProgram.expandLocalRef(calcProgram.getCondition)
     } else {
@@ -56,9 +56,9 @@ class StreamPhysicalCalc(
 
 
     new StreamExecCalc(
-      projection,
+      expList,
       localRefs,
-      expandLocalRef,
+      projection,
       condition,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),

@@ -41,17 +41,17 @@ import java.util.List;
 public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<RowData> {
 
     public StreamExecCalc(
-            List<RexNode> projection,
+            List<RexNode> expList,
             List<RexNode> localRefs,
-            List<RexNode> expandLocalRef,
+            List<RexNode> projection,
             @Nullable RexNode condition,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
         this(
-                projection,
+                expList,
                 localRefs,
-                expandLocalRef,
+                projection,
                 condition,
                 getNewNodeId(),
                 Collections.singletonList(inputProperty),

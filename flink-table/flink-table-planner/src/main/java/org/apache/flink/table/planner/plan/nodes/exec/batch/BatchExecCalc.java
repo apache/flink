@@ -36,17 +36,17 @@ import java.util.List;
 public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowData> {
 
     public BatchExecCalc(
-            List<RexNode> projection,
+            List<RexNode> expList,
             List<RexNode> localRefs,
-            List<RexNode> expandLocalRefs,
+            List<RexNode> projection,
             @Nullable RexNode condition,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
         super(
-                projection,
+                expList,
                 localRefs,
-                expandLocalRefs,
+                projection,
                 condition,
                 TableStreamOperator.class,
                 false, // retainHeader
