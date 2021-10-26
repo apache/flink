@@ -60,7 +60,11 @@ public class AvroToRowDataConverters {
      */
     @FunctionalInterface
     public interface AvroToRowDataConverter extends Serializable {
-        Object convert(Object object);
+        default Object convert(Object object) {
+            return convert(object, null);
+        }
+
+        Object convert(Object object, Object reuse);
     }
 
     // -------------------------------------------------------------------------------------
@@ -68,20 +72,30 @@ public class AvroToRowDataConverters {
     // -------------------------------------------------------------------------------------
 
     public static AvroToRowDataConverter createRowConverter(RowType rowType) {
+        return createRowConverter(rowType, rowType);
+    }
+
+    public static AvroToRowDataConverter createRowConverter(RowType rowType, RowType physicalType) {
         final AvroToRowDataConverter[] fieldConverters =
                 rowType.getFields().stream()
                         .map(RowType.RowField::getType)
                         .map(AvroToRowDataConverters::createNullableConverter)
                         .toArray(AvroToRowDataConverter[]::new);
+        final int[] indexInPhysicalType =
+                rowType.getFieldNames().stream()
+                        .mapToInt(name -> physicalType.getFieldNames().indexOf(name))
+                        .toArray();
         final int arity = rowType.getFieldCount();
 
-        return avroObject -> {
+        return (avroObject, reuse) -> {
             IndexedRecord record = (IndexedRecord) avroObject;
-            GenericRowData row = new GenericRowData(arity);
+            GenericRowData row = reuse == null ? new GenericRowData(arity) : (GenericRowData) reuse;
             for (int i = 0; i < arity; ++i) {
-                // avro always deserialize successfully even though the type isn't matched
-                // so no need to throw exception about which field can't be deserialized
-                row.setField(i, fieldConverters[i].convert(record.get(i)));
+                if (indexInPhysicalType[i] >= 0) {
+                    // avro always deserialize successfully even though the type isn't matched
+                    // so no need to throw exception about which field can't be deserialized
+                    row.setField(i, fieldConverters[i].convert(record.get(indexInPhysicalType[i])));
+                }
             }
             return row;
         };
@@ -90,11 +104,11 @@ public class AvroToRowDataConverters {
     /** Creates a runtime converter which is null safe. */
     private static AvroToRowDataConverter createNullableConverter(LogicalType type) {
         final AvroToRowDataConverter converter = createConverter(type);
-        return avroObject -> {
+        return (avroObject, reuse) -> {
             if (avroObject == null) {
                 return null;
             }
-            return converter.convert(avroObject);
+            return converter.convert(avroObject, reuse);
         };
     }
 
@@ -102,11 +116,11 @@ public class AvroToRowDataConverters {
     private static AvroToRowDataConverter createConverter(LogicalType type) {
         switch (type.getTypeRoot()) {
             case NULL:
-                return avroObject -> null;
+                return (avroObject, reuse) -> null;
             case TINYINT:
-                return avroObject -> ((Integer) avroObject).byteValue();
+                return (avroObject, reuse) -> ((Integer) avroObject).byteValue();
             case SMALLINT:
-                return avroObject -> ((Integer) avroObject).shortValue();
+                return (avroObject, reuse) -> ((Integer) avroObject).shortValue();
             case BOOLEAN: // boolean
             case INTEGER: // int
             case INTERVAL_YEAR_MONTH: // long
@@ -114,19 +128,20 @@ public class AvroToRowDataConverters {
             case INTERVAL_DAY_TIME: // long
             case FLOAT: // float
             case DOUBLE: // double
-                return avroObject -> avroObject;
+                return (avroObject, reuse) -> avroObject;
             case DATE:
-                return AvroToRowDataConverters::convertToDate;
+                return (avroObject, reuse) -> AvroToRowDataConverters.convertToDate(avroObject);
             case TIME_WITHOUT_TIME_ZONE:
-                return AvroToRowDataConverters::convertToTime;
+                return (avroObject, reuse) -> AvroToRowDataConverters.convertToTime(avroObject);
             case TIMESTAMP_WITHOUT_TIME_ZONE:
-                return AvroToRowDataConverters::convertToTimestamp;
+                return (avroObject, reuse) ->
+                        AvroToRowDataConverters.convertToTimestamp(avroObject);
             case CHAR:
             case VARCHAR:
-                return avroObject -> StringData.fromString(avroObject.toString());
+                return (avroObject, reuse) -> StringData.fromString(avroObject.toString());
             case BINARY:
             case VARBINARY:
-                return AvroToRowDataConverters::convertToBytes;
+                return (avroObject, reuse) -> AvroToRowDataConverters.convertToBytes(avroObject);
             case DECIMAL:
                 return createDecimalConverter((DecimalType) type);
             case ARRAY:
@@ -145,7 +160,7 @@ public class AvroToRowDataConverters {
     private static AvroToRowDataConverter createDecimalConverter(DecimalType decimalType) {
         final int precision = decimalType.getPrecision();
         final int scale = decimalType.getScale();
-        return avroObject -> {
+        return (avroObject, reuse) -> {
             final byte[] bytes;
             if (avroObject instanceof GenericFixed) {
                 bytes = ((GenericFixed) avroObject).bytes();
@@ -166,7 +181,7 @@ public class AvroToRowDataConverters {
         final Class<?> elementClass =
                 LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
 
-        return avroObject -> {
+        return (avroObject, reuse) -> {
             final List<?> list = (List<?>) avroObject;
             final int length = list.size();
             final Object[] array = (Object[]) Array.newInstance(elementClass, length);
@@ -183,7 +198,7 @@ public class AvroToRowDataConverters {
         final AvroToRowDataConverter valueConverter =
                 createNullableConverter(extractValueTypeToAvroMap(type));
 
-        return avroObject -> {
+        return (avroObject, reuse) -> {
             final Map<?, ?> map = (Map<?, ?>) avroObject;
             Map<Object, Object> result = new HashMap<>();
             for (Map.Entry<?, ?> entry : map.entrySet()) {
