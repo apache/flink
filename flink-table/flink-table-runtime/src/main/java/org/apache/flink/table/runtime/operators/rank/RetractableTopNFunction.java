@@ -375,14 +375,23 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
                 }
             } else if (findsSortKey) {
                 List<RowData> inputs = dataState.get(key);
-                int i = 0;
-                while (i < inputs.size() && isInRankEnd(currentRank)) {
-                    RowData currentRow = inputs.get(i);
-                    collectUpdateBefore(out, prevRow, currentRank);
-                    collectUpdateAfter(out, currentRow, currentRank);
-                    prevRow = currentRow;
-                    currentRank += 1;
-                    i++;
+                if (inputs == null) {
+                    // Skip the data if it's state is cleared because of state ttl.
+                    if (lenient) {
+                        LOG.warn(STATE_CLEARED_WARN_MSG);
+                    } else {
+                        throw new RuntimeException(STATE_CLEARED_WARN_MSG);
+                    }
+                } else {
+                    int i = 0;
+                    while (i < inputs.size() && isInRankEnd(currentRank)) {
+                        RowData currentRow = inputs.get(i);
+                        collectUpdateBefore(out, prevRow, currentRank);
+                        collectUpdateAfter(out, currentRow, currentRank);
+                        prevRow = currentRow;
+                        currentRank += 1;
+                        i++;
+                    }
                 }
             } else {
                 currentRank += entry.getValue();
@@ -455,9 +464,18 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
                     // sends the record if there is a record recently upgrades to Top-N
                     int index = Long.valueOf(rankEnd - nextRank).intValue();
                     List<RowData> inputs = dataState.get(key);
-                    RowData toAdd = inputs.get(index);
-                    collectInsert(out, toAdd);
-                    break;
+                    if (inputs == null) {
+                        // Skip the data if it's state is cleared because of state ttl.
+                        if (lenient) {
+                            LOG.warn(STATE_CLEARED_WARN_MSG);
+                        } else {
+                            throw new RuntimeException(STATE_CLEARED_WARN_MSG);
+                        }
+                    } else {
+                        RowData toAdd = inputs.get(index);
+                        collectInsert(out, toAdd);
+                        break;
+                    }
                 }
             } else {
                 nextRank += entry.getValue();
