@@ -261,7 +261,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
         if (buffer == null) {
             buffer = requestNewUnicastBufferBuilder(targetSubpartition);
-            addToSubpartition(buffer, targetSubpartition, 0);
+            addToSubpartition(buffer, targetSubpartition, 0, record.remaining());
         }
 
         buffer.appendAndCommit(record);
@@ -270,20 +270,24 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     private void addToSubpartition(
-            BufferBuilder buffer, int targetSubpartition, int partialRecordLength)
+            BufferBuilder buffer,
+            int targetSubpartition,
+            int partialRecordLength,
+            int minDesirableBufferSize)
             throws IOException {
         int desirableBufferSize =
                 subpartitions[targetSubpartition].add(
                         buffer.createBufferConsumerFromBeginning(), partialRecordLength);
 
-        resizeBuffer(buffer, desirableBufferSize);
+        resizeBuffer(buffer, desirableBufferSize, minDesirableBufferSize);
     }
 
-    private void resizeBuffer(BufferBuilder buffer, int desirableBufferSize) {
+    private void resizeBuffer(
+            BufferBuilder buffer, int desirableBufferSize, int minDesirableBufferSize) {
         if (desirableBufferSize > 0) {
             // !! If some of partial data has written already to this buffer, the result size can
             // not be less than written value.
-            buffer.trim(desirableBufferSize);
+            buffer.trim(Math.max(minDesirableBufferSize, desirableBufferSize));
         }
     }
 
@@ -298,7 +302,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         // with a complete record.
         // !! The next two lines can not change order.
         final int partialRecordBytes = buffer.appendAndCommit(remainingRecordBytes);
-        addToSubpartition(buffer, targetSubpartition, partialRecordBytes);
+        addToSubpartition(buffer, targetSubpartition, partialRecordBytes, partialRecordBytes);
 
         return buffer;
     }
@@ -309,7 +313,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
         if (buffer == null) {
             buffer = requestNewBroadcastBufferBuilder();
-            createBroadcastBufferConsumers(buffer, 0);
+            createBroadcastBufferConsumers(buffer, 0, record.remaining());
         }
 
         buffer.appendAndCommit(record);
@@ -327,12 +331,13 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         // with a complete record.
         // !! The next two lines can not change order.
         final int partialRecordBytes = buffer.appendAndCommit(remainingRecordBytes);
-        createBroadcastBufferConsumers(buffer, partialRecordBytes);
+        createBroadcastBufferConsumers(buffer, partialRecordBytes, partialRecordBytes);
 
         return buffer;
     }
 
-    private void createBroadcastBufferConsumers(BufferBuilder buffer, int partialRecordBytes)
+    private void createBroadcastBufferConsumers(
+            BufferBuilder buffer, int partialRecordBytes, int minDesirableBufferSize)
             throws IOException {
         try (final BufferConsumer consumer = buffer.createBufferConsumerFromBeginning()) {
             int desirableBufferSize = Integer.MAX_VALUE;
@@ -343,7 +348,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
                                 ? Math.min(desirableBufferSize, subPartitionBufferSize)
                                 : desirableBufferSize;
             }
-            resizeBuffer(buffer, desirableBufferSize);
+            resizeBuffer(buffer, desirableBufferSize, minDesirableBufferSize);
         }
     }
 

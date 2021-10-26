@@ -554,14 +554,17 @@ public class PartitionRequestQueueTest {
         // and: New records emit.
         parent.emitRecord(ByteBuffer.allocate(128), 0);
         parent.emitRecord(ByteBuffer.allocate(10), 0);
+        parent.emitRecord(ByteBuffer.allocate(60), 0);
 
         reader.notifyDataAvailable();
         channel.runPendingTasks();
 
         // then: Buffers of received size will be in outbound channel.
         Object data1 = channel.readOutbound();
-        assertEquals(65, ((NettyMessage.BufferResponse) data1).buffer.getSize());
+        // The size can not be less than the first record in buffer.
+        assertEquals(128, ((NettyMessage.BufferResponse) data1).buffer.getSize());
         Object data2 = channel.readOutbound();
+        // The size should shrink up to notified buffer size.
         assertEquals(65, ((NettyMessage.BufferResponse) data2).buffer.getSize());
     }
 
