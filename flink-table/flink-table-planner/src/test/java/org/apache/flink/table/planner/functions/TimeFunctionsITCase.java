@@ -27,6 +27,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -439,8 +441,11 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 // Fractional seconds are lost
                                 LocalTime.of(11, 22, 33),
                                 LocalDate.of(1990, 10, 14),
-                                LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987654321))
-                        .andDataTypes(TIME(), DATE(), TIMESTAMP())
+                                LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987654321),
+                                // DST in EU finishes October 31
+                                ZonedDateTime.of(2021, 10, 25, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant())
+                        .andDataTypes(TIME(), DATE(), TIMESTAMP(), TIMESTAMP_LTZ(3))
                         .testResult(
                                 $("f0").ceil(TimeIntervalUnit.MILLISECOND),
                                 "CEIL(f0 TO MILLISECOND)",
@@ -522,6 +527,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2020, 3, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
+                                $("f3").ceil(TimeIntervalUnit.WEEK),
+                                "CEIL(f3 TO WEEK)",
+                                ZonedDateTime.of(2021, 10, 31, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
                                 $("f1").ceil(TimeIntervalUnit.MONTH),
                                 "CEIL(f1 TO MONTH)",
                                 LocalDate.of(1990, 11, 1),
@@ -531,6 +542,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "CEIL(f2 TO MONTH)",
                                 LocalDateTime.of(2020, 3, 1, 0, 0),
                                 TIMESTAMP().nullable())
+                        .testResult(
+                                $("f3").ceil(TimeIntervalUnit.MONTH),
+                                "CEIL(f3 TO MONTH)",
+                                ZonedDateTime.of(2021, 11, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
                         .testResult(
                                 $("f1").ceil(TimeIntervalUnit.QUARTER),
                                 "CEIL(f1 TO QUARTER)",
@@ -542,6 +559,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2020, 4, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
+                                $("f3").ceil(TimeIntervalUnit.QUARTER),
+                                "CEIL(f3 TO QUARTER)",
+                                ZonedDateTime.of(2022, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
                                 $("f1").ceil(TimeIntervalUnit.YEAR),
                                 "CEIL(f1 TO YEAR)",
                                 LocalDate.of(1991, 1, 1),
@@ -551,6 +574,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "CEIL(f2 TO YEAR)",
                                 LocalDateTime.of(2021, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
+                        .testResult(
+                                $("f3").ceil(TimeIntervalUnit.YEAR),
+                                "CEIL(f3 TO YEAR)",
+                                ZonedDateTime.of(2022, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
                         .testResult(
                                 $("f1").ceil(TimeIntervalUnit.DECADE),
                                 "CEIL(f1 TO DECADE)",
@@ -562,6 +591,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2030, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
+                                $("f3").ceil(TimeIntervalUnit.DECADE),
+                                "CEIL(f3 TO DECADE)",
+                                ZonedDateTime.of(2030, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
                                 $("f1").ceil(TimeIntervalUnit.CENTURY),
                                 "CEIL(f1 TO CENTURY)",
                                 LocalDate.of(2001, 1, 1),
@@ -572,6 +607,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2101, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
+                                $("f3").ceil(TimeIntervalUnit.CENTURY),
+                                "CEIL(f3 TO CENTURY)",
+                                ZonedDateTime.of(2101, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
                                 $("f1").ceil(TimeIntervalUnit.MILLENNIUM),
                                 "CEIL(f1 TO MILLENNIUM)",
                                 LocalDate.of(2001, 1, 1),
@@ -580,7 +621,13 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f2").ceil(TimeIntervalUnit.MILLENNIUM),
                                 "CEIL(f2 TO MILLENNIUM)",
                                 LocalDateTime.of(3001, 1, 1, 0, 0),
-                                TIMESTAMP().nullable()));
+                                TIMESTAMP().nullable())
+                        .testResult(
+                                $("f3").ceil(TimeIntervalUnit.MILLENNIUM),
+                                "CEIL(f3 TO MILLENNIUM)",
+                                ZonedDateTime.of(3001, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable()));
     }
 
     private Stream<TestSetSpec> floorTestCases() {
@@ -591,8 +638,10 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 // Fractional seconds are lost
                                 LocalTime.of(11, 22, 33),
                                 LocalDate.of(1990, 10, 14),
-                                LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987654321))
-                        .andDataTypes(TIME(), DATE(), TIMESTAMP())
+                                LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987654321),
+                                // DST in the USA started 14.03.2021
+                                Instant.ofEpochSecond(1635000000))
+                        .andDataTypes(TIME(), DATE(), TIMESTAMP(), TIMESTAMP_LTZ(3))
                         .testResult(
                                 $("f0").floor(TimeIntervalUnit.MILLISECOND),
                                 "FLOOR(f0 TO MILLISECOND)",
@@ -674,6 +723,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2020, 2, 23, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
+                                $("f3").floor(TimeIntervalUnit.WEEK),
+                                "FLOOR(f3 TO WEEK)",
+                                ZonedDateTime.of(2021, 10, 17, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
                                 $("f1").floor(TimeIntervalUnit.MONTH),
                                 "FLOOR(f1 TO MONTH)",
                                 LocalDate.of(1990, 10, 1),
@@ -683,6 +738,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "FLOOR(f2 TO MONTH)",
                                 LocalDateTime.of(2020, 2, 1, 0, 0),
                                 TIMESTAMP().nullable())
+                        .testResult(
+                                $("f3").floor(TimeIntervalUnit.MONTH),
+                                "FLOOR(f3 TO MONTH)",
+                                ZonedDateTime.of(2021, 10, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
                         .testResult(
                                 $("f1").floor(TimeIntervalUnit.QUARTER),
                                 "FLOOR(f1 TO QUARTER)",
@@ -694,6 +755,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2020, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
+                                $("f3").floor(TimeIntervalUnit.QUARTER),
+                                "FLOOR(f3 TO QUARTER)",
+                                ZonedDateTime.of(2021, 10, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
                                 $("f1").floor(TimeIntervalUnit.YEAR),
                                 "FLOOR(f1 TO YEAR)",
                                 LocalDate.of(1990, 1, 1),
@@ -703,6 +770,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "FLOOR(f2 TO YEAR)",
                                 LocalDateTime.of(2020, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
+                        .testResult(
+                                $("f3").floor(TimeIntervalUnit.YEAR),
+                                "FLOOR(f3 TO YEAR)",
+                                ZonedDateTime.of(2021, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
                         .testResult(
                                 $("f1").floor(TimeIntervalUnit.DECADE),
                                 "FLOOR(f1 TO DECADE)",
@@ -714,6 +787,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2020, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
+                                $("f3").floor(TimeIntervalUnit.DECADE),
+                                "FLOOR(f3 TO DECADE)",
+                                ZonedDateTime.of(2020, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
                                 $("f1").floor(TimeIntervalUnit.CENTURY),
                                 "FLOOR(f1 TO CENTURY)",
                                 LocalDate.of(1901, 1, 1),
@@ -724,6 +803,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2001, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
+                                $("f3").floor(TimeIntervalUnit.CENTURY),
+                                "FLOOR(f3 TO CENTURY)",
+                                ZonedDateTime.of(2001, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
                                 $("f1").floor(TimeIntervalUnit.MILLENNIUM),
                                 "FLOOR(f1 TO MILLENNIUM)",
                                 LocalDate.of(1001, 1, 1),
@@ -732,6 +817,12 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f2").floor(TimeIntervalUnit.MILLENNIUM),
                                 "FLOOR(f2 TO MILLENNIUM)",
                                 LocalDateTime.of(2001, 1, 1, 0, 0),
-                                TIMESTAMP().nullable()));
+                                TIMESTAMP().nullable())
+                        .testResult(
+                                $("f3").floor(TimeIntervalUnit.MILLENNIUM),
+                                "FLOOR(f3 TO MILLENNIUM)",
+                                ZonedDateTime.of(2001, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault())
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable()));
     }
 }
