@@ -36,6 +36,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
+import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
@@ -443,6 +444,9 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof ShowCreateTableOperation) {
             // SHOW CREATE TABLE
             callShowCreateTable((ShowCreateTableOperation) operation);
+        } else if (operation instanceof ShowCreateViewOperation) {
+            // SHOW CREATE VIEW
+            callShowCreateView((ShowCreateViewOperation) operation);
         } else {
             // fallback to default implementation
             executeOperation(operation);
@@ -590,6 +594,10 @@ public class CliClient implements AutoCloseable {
     }
 
     public void callShowCreateTable(ShowCreateTableOperation operation) {
+        printRawContent(operation);
+    }
+
+    public void callShowCreateView(ShowCreateViewOperation operation) {
         printRawContent(operation);
     }
 

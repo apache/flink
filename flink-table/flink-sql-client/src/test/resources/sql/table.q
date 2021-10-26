@@ -332,6 +332,12 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
 
 !ok
 
+# test SHOW CREATE VIEW for tables
+show create view orders2;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.TableException: SHOW CREATE VIEW is only supported for views, but `default_catalog`.`default_database`.`orders2` is a table. Please use SHOW CREATE TABLE instead.
+!error
+
 # test explain plan to verify the table source cannot be created
 explain plan for select * from orders2;
 [ERROR] Could not execute SQL statement. Reason:

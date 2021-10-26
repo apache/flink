@@ -198,6 +198,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testShowCreateView() {
+        sql("show create view v1").ok("SHOW CREATE VIEW `V1`");
+        sql("show create view db1.v1").ok("SHOW CREATE VIEW `DB1`.`V1`");
+        sql("show create view catalog1.db1.v1").ok("SHOW CREATE VIEW `CATALOG1`.`DB1`.`V1`");
+    }
+
+    @Test
     public void testDescribeTable() {
         sql("describe tbl").ok("DESCRIBE `TBL`");
         sql("describe catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");

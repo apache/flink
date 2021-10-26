@@ -456,19 +456,30 @@ SqlShowColumns SqlShowColumns() :
 }
 
 /**
-* Parse a "Show Create Table" query command.
+* Parse a "Show Create Table" query and "Show Create View" query commands.
 */
-SqlShowCreateTable SqlShowCreateTable() :
+SqlShowCreate SqlShowCreate() :
 {
-    SqlIdentifier tableName;
+    SqlIdentifier sqlIdentifier;
     SqlParserPos pos;
 }
 {
-    <SHOW> <CREATE> <TABLE> { pos = getPos();}
-    tableName = CompoundIdentifier()
-    {
-        return new SqlShowCreateTable(pos, tableName);
-    }
+    <SHOW> <CREATE>
+    (
+        <TABLE>
+        { pos = getPos(); }
+        sqlIdentifier = CompoundIdentifier()
+        {
+            return new SqlShowCreateTable(pos, sqlIdentifier);
+        }
+    |
+        <VIEW>
+        { pos = getPos(); }
+        sqlIdentifier = CompoundIdentifier()
+        {
+            return new SqlShowCreateView(pos, sqlIdentifier);
+        }
+    )
 }
 
 /**

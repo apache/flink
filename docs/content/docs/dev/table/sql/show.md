@@ -26,7 +26,9 @@ under the License.
 
 # SHOW Statements
 
-SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or show create statement for specified table, or list all functions including system functions and user-defined functions in the current catalog and current database, or list only user-defined functions in the current catalog and current database, or list enabled module names, or list all loaded modules with enabled status in the current session, or list the columns of the table or the view with the given name and the optional like clause.
+SHOW statements are used to list objects within their corresponding parent, such as catalogs, databases, tables and views, columns, functions, and modules. See the individual commands for more details and additional options.
+
+SHOW CREATE statements are used to print a DDL statement with which a given object can be created. The currently 'SHOW CREATE' statement is only available in printing DDL statement of the given table and view.
 
 Flink SQL supports the following SHOW statements for now:
 - SHOW CATALOGS
@@ -37,6 +39,7 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW CREATE TABLE
 - SHOW COLUMNS
 - SHOW VIEWS
+- SHOW CREATE VIEW
 - SHOW FUNCTIONS
 - SHOW MODULES
 - SHOW JARS
@@ -131,7 +134,7 @@ tEnv.executeSql("SHOW CREATE TABLE my_table").print();
 // )
 
 // show columns
-tEnv.executeSql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print();
+tEnv.executeSql("SHOW COLUMNS FROM my_table LIKE '%f%'").print();
 // +--------+-------+------+-----+--------+-----------+
 // |   name |  type | null | key | extras | watermark |
 // +--------+-------+------+-----+--------+-----------+
@@ -140,7 +143,7 @@ tEnv.executeSql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print();
 
 
 // create a view
-tEnv.executeSql("CREATE VIEW my_view AS ...");
+tEnv.executeSql("CREATE VIEW my_view AS SELECT * FROM my_table");
 // show views
 tEnv.executeSql("SHOW VIEWS").print();
 // +-----------+
@@ -148,6 +151,12 @@ tEnv.executeSql("SHOW VIEWS").print();
 // +-----------+
 // |   my_view |
 // +-----------+
+
+// show create view
+tEnv.executeSql("SHOW CREATE VIEW my_view").print();
+// CREATE VIEW `default_catalog`.`default_db`.`my_view`(`field1`, `field2`, ...) as
+// SELECT *
+// FROM `default_catalog`.`default_database`.`my_table`
 
 // show functions
 tEnv.executeSql("SHOW FUNCTIONS").print();
@@ -229,7 +238,7 @@ tEnv.executeSql("SHOW CREATE TABLE my_table").print()
 // )
 
 // show columns
-tEnv.executeSql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print()
+tEnv.executeSql("SHOW COLUMNS FROM my_table LIKE '%f%'").print()
 // +--------+-------+------+-----+--------+-----------+
 // |   name |  type | null | key | extras | watermark |
 // +--------+-------+------+-----+--------+-----------+
@@ -237,7 +246,7 @@ tEnv.executeSql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print()
 // +--------+-------+------+-----+--------+-----------+
 
 // create a view
-tEnv.executeSql("CREATE VIEW my_view AS ...")
+tEnv.executeSql("CREATE VIEW my_view AS SELECT * FROM my_table")
 // show views
 tEnv.executeSql("SHOW VIEWS").print()
 // +-----------+
@@ -245,6 +254,12 @@ tEnv.executeSql("SHOW VIEWS").print()
 // +-----------+
 // |   my_view |
 // +-----------+
+
+// show create view
+tEnv.executeSql("SHOW CREATE VIEW my_view").print();
+// CREATE VIEW `default_catalog`.`default_db`.`my_view`(`field1`, `field2`, ...) as
+// SELECT *
+// FROM `default_catalog`.`default_database`.`my_table`
 
 // show functions
 tEnv.executeSql("SHOW FUNCTIONS").print()
@@ -324,7 +339,7 @@ table_env.executeSql("SHOW CREATE TABLE my_table").print()
 # )
 
 # show columns
-table_env.execute_sql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print()
+table_env.execute_sql("SHOW COLUMNS FROM my_table LIKE '%f%'").print()
 # +--------+-------+------+-----+--------+-----------+
 # |   name |  type | null | key | extras | watermark |
 # +--------+-------+------+-----+--------+-----------+
@@ -332,7 +347,7 @@ table_env.execute_sql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print()
 # +--------+-------+------+-----+--------+-----------+
 
 # create a view
-table_env.execute_sql("CREATE VIEW my_view AS ...")
+table_env.execute_sql("CREATE VIEW my_view AS SELECT * FROM my_table")
 # show views
 table_env.execute_sql("SHOW VIEWS").print()
 # +-----------+
@@ -340,6 +355,12 @@ table_env.execute_sql("SHOW VIEWS").print()
 # +-----------+
 # |   my_view |
 # +-----------+
+
+# show create view
+table_env.execute_sql("SHOW CREATE VIEW my_view").print()
+# CREATE VIEW `default_catalog`.`default_db`.`my_view`(`field1`, `field2`, ...) as
+# SELECT *
+# FROM `default_catalog`.`default_database`.`my_table`
 
 # show functions
 table_env.execute_sql("SHOW FUNCTIONS").print()
@@ -413,11 +434,16 @@ Flink SQL> SHOW COLUMNS from MyUserTable LIKE '%f%';
 1 row in set
 
 
-Flink SQL> CREATE VIEW my_view AS ...;
+Flink SQL> CREATE VIEW my_view AS SELECT * from my_table;
 [INFO] View has been created.
 
 Flink SQL> SHOW VIEWS;
 my_view
+
+Flink SQL> SHOW CREATE VIEW my_view;
+CREATE VIEW `default_catalog`.`default_db`.`my_view`(`field1`, `field2`, ...) as
+SELECT *
+FROM `default_catalog`.`default_database`.`my_table`
 
 Flink SQL> SHOW FUNCTIONS;
 mod
@@ -604,6 +630,14 @@ SHOW VIEWS
 ```
 
 Show all views in the current catalog and the current database.
+
+## SHOW CREATE VIEW
+
+```sql
+SHOW CREATE VIEW [catalog_name.][db_name.]view_name
+```
+
+Show create view statement for specified view.
 
 ## SHOW FUNCTIONS
 
