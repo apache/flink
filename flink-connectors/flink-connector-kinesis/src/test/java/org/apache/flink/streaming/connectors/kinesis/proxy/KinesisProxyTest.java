@@ -38,6 +38,7 @@ import com.amazonaws.services.kinesis.model.ListShardsResult;
 import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.http.conn.ConnectTimeoutException;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Assert;
@@ -71,6 +72,15 @@ import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /** Test for methods in the {@link KinesisProxy} class. */
 public class KinesisProxyTest {
+
+    @Test
+    public void testIsRecoverableExceptionWithConnectError() {
+        Properties kinesisConsumerConfig = new Properties();
+        kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+        KinesisProxy kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
+        final SdkClientException ex = new SdkClientException("asdf", new ConnectTimeoutException());
+        assertTrue(kinesisProxy.isRecoverableSdkClientException(ex));
+    }
 
     @Test
     public void testIsRecoverableExceptionWithProvisionedThroughputExceeded() {

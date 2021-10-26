@@ -45,6 +45,7 @@ import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.amazonaws.services.kinesis.model.StreamStatus;
+import org.apache.http.conn.ConnectTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -420,6 +421,8 @@ public class KinesisProxy implements KinesisProxyInterface {
     protected boolean isRecoverableSdkClientException(SdkClientException ex) {
         if (ex instanceof AmazonServiceException) {
             return KinesisProxy.isRecoverableException((AmazonServiceException) ex);
+        } else if (ex.getCause() instanceof ConnectTimeoutException) {
+            return true;
         }
         // customizations may decide to retry other errors, such as read timeouts
         return false;
