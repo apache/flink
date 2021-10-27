@@ -1,9 +1,10 @@
 ---
-title: "Unaligned checkpoints"
+title: "Checkpointing under backpressure"
 weight: 9
 type: docs
 aliases:
 - /ops/state/unalgined_checkpoints.html
+- /ops/state/checkpointing_under_backpressure.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,7 +24,40 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-# Unaligned checkpoints
+# Checkpointing under backpressure
+
+Normally aligned checkpointing time is dominated by the synchronous and asynchronous parts of the 
+checkpointing process. However, when a Flink job is running under heavy backpressure, the dominant 
+factor in the end-to-end time of a checkpoint can be the time to propagate checkpoint barriers to 
+all operators/subtasks. This is explained in the overview of the
+[checkpointing process]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing)).
+and can be observed by high
+[alignment time and start delay metrics]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}}#history-tab).
+When this happens and becomes an issue, there are three ways to address the problem:
+1. Remove the backpressure source by optimizing the Flink job, by adjusting Flink or JVM configurations, or by scaling up.
+2. Reduce the amount of buffered in-flight data in the Flink job.
+3. Enable unaligned checkpoints.
+
+These options are not mutually exclusive and can be combined together. This document
+focuses on the latter two options.
+
+## Buffer debloating
+
+Flink 1.14 introduced a new tool to automatically control the amount of buffered in-flight data
+between Flink operators/subtasks. The buffer debloating mechanism can be enabled by setting the property
+`taskmanager.network.memory.buffer-debloat.enabled` to `true`. 
+
+This feature works with both aligned and unaligned checkpoints and can improve checkpointing times
+in both cases, but the effect of the debloating is most visible with aligned checkpoints.
+When using buffer debloating with unaligned checkpoints, the added benefit will be smaller checkpoint
+sizes and quicker recovery times (there will be less in-flight data to persist and recover). 
+
+For more information on how the buffer debloating feature works and how to configure it, please refer to the 
+[network memory tuning guide]({{< ref "docs/deployment/memory/network_mem_tuning" >}}).
+Keep in mind that you can also manually reduce the amount of buffered in-flight data which is also
+described in the aforementioned tuning guide.
+
+## Unaligned checkpoints
 
 Starting with Flink 1.11, checkpoints can be unaligned.
 [Unaligned checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#unaligned-checkpointing) 
@@ -57,16 +91,16 @@ When activated, each checkpoint will still begin as an aligned checkpoint, but i
 the start of the global checkpoint and the start of the checkpoint on a subtask exceeds the aligned
 checkpoint timeout, then the checkpoint will proceed as an unaligned checkpoint.
 
-## Limitations
+### Limitations
 
-### Concurrent checkpoints
+#### Concurrent checkpoints
 
 Flink currently does not support concurrent unaligned checkpoints. However, due to the more
 predictable and shorter checkpointing times, concurrent checkpoints might not be needed at all.
 However, savepoints can also not happen concurrently to unaligned checkpoints, so they will take
 slightly longer.
 
-### Interplay with watermarks
+#### Interplay with watermarks
 
 Unaligned checkpoints break with an implicit guarantee in respect to watermarks during recovery.
 Currently, Flink generates the watermark as the first step of recovery instead of storing the latest
@@ -77,7 +111,7 @@ aligned checkpoints. If your operator depends on the latest watermark being alwa
 workaround is to store the watermark in the operator state. In that case, watermarks should be
 stored per key group in a union state to support rescaling.
 
-### Certain data distribution patterns are not checkpointed
+#### Certain data distribution patterns are not checkpointed
 
 There are types of connections with properties that are impossible to keep with channel data stored
 in checkpoints. To preserve these characteristics and ensure no state corruption or unexpected
@@ -119,9 +153,9 @@ from subtask 0 of the stateful operator. Upon restore, we send that copy to all 
 operators. Therefore it might happen that an operator will get the state with changes applied for a
 record that it will soon consume from its checkpointed channels.
 
-## Troubleshooting
+### Troubleshooting
 
-### Corrupted in-flight data
+#### Corrupted in-flight data
 {{< hint warning >}}
 Actions described below are a last resort as they will lead to data loss.
 {{< /hint >}}
