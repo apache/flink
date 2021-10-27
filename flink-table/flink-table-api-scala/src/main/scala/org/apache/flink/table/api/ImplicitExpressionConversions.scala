@@ -866,7 +866,7 @@ trait ImplicitExpressionConversions {
   }
 
   /**
-   * Builds a JSON object string by aggregating over key-value expressions.
+   * Builds a JSON object string by aggregating key-value expressions into a single JSON object.
    *
    * The key expression must return a non-nullable character string. Value expressions can be
    * arbitrary, including other JSON functions. If a value is `NULL`, the [[JsonOnNull onNull]]

@@ -35,8 +35,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Null
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.RawValue;
 
-import org.apache.calcite.sql.SqlJsonConstructorNullClause;
-
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
@@ -64,15 +62,15 @@ public class JsonObjectAggFunction
     private static final NullNode NULL_NODE = getNodeFactory().nullNode();
 
     private final transient List<DataType> argumentTypes;
-    private final SqlJsonConstructorNullClause onNull;
+    private final boolean skipNulls;
 
-    public JsonObjectAggFunction(LogicalType[] argumentTypes, SqlJsonConstructorNullClause onNull) {
+    public JsonObjectAggFunction(LogicalType[] argumentTypes, boolean skipNulls) {
         this.argumentTypes =
                 Arrays.stream(argumentTypes)
                         .map(DataTypeUtils::toInternalDataType)
                         .collect(Collectors.toList());
 
-        this.onNull = onNull;
+        this.skipNulls = skipNulls;
     }
 
     @Override
@@ -92,7 +90,8 @@ public class JsonObjectAggFunction
                 DataTypes.FIELD(
                         "map",
                         MapView.newMapViewDataType(
-                                DataTypes.STRING().notNull(), DataTypes.STRING())));
+                                DataTypes.STRING().notNull().toInternal(),
+                                DataTypes.STRING().toInternal())));
     }
 
     @Override
@@ -109,15 +108,8 @@ public class JsonObjectAggFunction
         assertKeyNotPresent(acc, keyData);
 
         if (valueData == null) {
-            switch (onNull) {
-                case NULL_ON_NULL:
-                    acc.map.put(keyData, null);
-                    break;
-                case ABSENT_ON_NULL:
-                    break;
-                default:
-                    throw new TableException(
-                            String.format("Unsupported ON NULL behavior: %s", onNull));
+            if (!skipNulls) {
+                acc.map.put(keyData, null);
             }
         } else {
             acc.map.put(keyData, valueData);
