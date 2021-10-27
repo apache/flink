@@ -1277,7 +1277,7 @@
           "type" : "integer"
         },
         "checkpoints_after_tasks_finish" : {
-           "type" : "boolean"
+          "type" : "boolean"
         }
       }
     }
