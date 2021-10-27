@@ -23,15 +23,29 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import javax.annotation.Nullable;
 
+import java.util.function.Consumer;
+
+
+
 /**
  * Provides facilities to customize {@link ClassLoaderFactory} by user ,it is instantinate by ServiceLoader.
  * @see java.util.ServiceLoader
  */
 public interface ClassLoaderFactoryBuilder {
 
-    public ClassLoaderFactory build(
+    public default ClassLoaderFactory buildServerLoaderFactory(
             FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
             String[] alwaysParentFirstPatterns,
-            @Nullable FatalErrorHandler fatalErrorHandlerJvmMetaspaceOomError,
-            boolean checkClassLoaderLeak);
+            @Nullable Consumer<Throwable> exceptionHander,
+            boolean checkClassLoaderLeak){
+        throw new UnsupportedOperationException();
+    }
+
+    public default ClassLoaderFactory buildClientLoaderFactory(
+            FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
+            String[] alwaysParentFirstPatterns,
+            @Nullable Consumer<Throwable> exceptionHander,
+            boolean checkClassLoaderLeak){
+        throw new UnsupportedOperationException();
+    }
 }

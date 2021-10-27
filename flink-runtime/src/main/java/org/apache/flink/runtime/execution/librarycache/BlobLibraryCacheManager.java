@@ -138,7 +138,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
     /**
      * Default ClassLoader factory.
      */
-    public static final class DefaultClassLoaderFactory implements ClassLoaderFactory {
+    public static class DefaultClassLoaderFactory implements ClassLoaderFactory {
 
         /** The resolve order to use when creating a {@link ClassLoader}. */
         private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
@@ -187,24 +187,23 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
             String[] alwaysParentFirstPatterns,
             @Nullable FatalErrorHandler fatalErrorHandlerJvmMetaspaceOomError,
             boolean checkClassLoaderLeak) {
-
-        ServiceLoader<ClassLoaderFactoryBuilder> classLoaderService =
-                ServiceLoader.load(ClassLoaderFactoryBuilder.class);
+        Consumer<Throwable> exceptionHandler = createClassLoadingExceptionHandler(fatalErrorHandlerJvmMetaspaceOomError);
+        ServiceLoader<ClassLoaderFactoryBuilder> classLoaderService = ServiceLoader.load(ClassLoaderFactoryBuilder.class);
         Iterator<ClassLoaderFactoryBuilder> factoryIt = classLoaderService.iterator();
         ClassLoaderFactoryBuilder factory = null;
         while (factoryIt.hasNext()) {
             factory = factoryIt.next();
-            return factory.build(
+            return factory.buildServerLoaderFactory(
                     classLoaderResolveOrder,
                     alwaysParentFirstPatterns,
-                    fatalErrorHandlerJvmMetaspaceOomError,
+                    exceptionHandler,
                     checkClassLoaderLeak);
         }
 
         return new DefaultClassLoaderFactory(
                 classLoaderResolveOrder,
                 alwaysParentFirstPatterns,
-                createClassLoadingExceptionHandler(fatalErrorHandlerJvmMetaspaceOomError),
+                exceptionHandler,
                 checkClassLoaderLeak);
     }
 

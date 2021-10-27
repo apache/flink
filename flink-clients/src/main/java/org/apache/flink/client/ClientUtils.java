@@ -30,6 +30,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobInitializationException;
+import org.apache.flink.runtime.execution.librarycache.ClassLoaderFactoryBuilder;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
@@ -41,8 +42,10 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.ServiceLoader;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -70,6 +73,20 @@ public enum ClientUtils {
                 FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
         final boolean checkClassloaderLeak =
                 configuration.getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
+
+        ServiceLoader<ClassLoaderFactoryBuilder> classLoaderService =
+                ServiceLoader.load(ClassLoaderFactoryBuilder.class);
+        Iterator<ClassLoaderFactoryBuilder> factoryIt = classLoaderService.iterator();
+        ClassLoaderFactoryBuilder factory = null;
+        while (factoryIt.hasNext()) {
+            factory = factoryIt.next();
+            return factory.buildClientLoaderFactory(
+                    resolveOrder,
+                    alwaysParentFirstLoaderPatterns,
+                    NOOP_EXCEPTION_HANDLER,
+                    checkClassloaderLeak).createClassLoader(urls);
+        }
+
         return FlinkUserCodeClassLoaders.create(
                 resolveOrder,
                 urls,
