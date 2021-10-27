@@ -322,7 +322,7 @@ function install_sphinx() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q Sphinx==2.4.4 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q Sphinx==2.4.4 Docutils==0.17.1 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install sphinx failed \
         please try to exec the script again.\
