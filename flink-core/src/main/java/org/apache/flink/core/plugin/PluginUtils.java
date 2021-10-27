@@ -18,25 +18,81 @@
 
 package org.apache.flink.core.plugin;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 
 /** Utility functions for the plugin mechanism. */
 public final class PluginUtils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(PluginConfig.class);
 
     private PluginUtils() {
         throw new AssertionError("Singleton class.");
     }
 
+    /**
+     * Creates a {@link PluginManager} based on the job's {@link Configuration} and derive the
+     * plugin directory from the root folder and the set environment variable {@link
+     * ConfigConstants#ENV_FLINK_PLUGINS_DIR} or default to {@link
+     * ConfigConstants#DEFAULT_FLINK_PLUGINS_DIRS}.
+     *
+     * @param configuration of the job
+     * @return {@link PluginManager} to load the plugins
+     */
     public static PluginManager createPluginManagerFromRootFolder(Configuration configuration) {
-        return createPluginManagerFromRootFolder(PluginConfig.fromConfiguration(configuration));
+        final Optional<File> pluginDirOpt = getPluginsDirFromEnvironment();
+        return pluginDirOpt
+                .map(file -> createPluginManagerFromFolder(configuration, file.toPath()))
+                .orElseGet(
+                        () ->
+                                createPluginManagerFromPluginConfig(
+                                        new PluginConfig(
+                                                Optional.empty(),
+                                                CoreOptions.getPluginParentFirstLoaderPatterns(
+                                                        configuration))));
     }
 
-    private static PluginManager createPluginManagerFromRootFolder(PluginConfig pluginConfig) {
+    /**
+     * Creates a {@link PluginManager} based on the job's {@link Configuration} and takes the passed
+     * {@code pluginsDir} as plugin directory.
+     *
+     * @param configuration of the job
+     * @param pluginsDir denoting the directory to look for the plugins
+     * @return {@link PluginManager} to load the plugins
+     */
+    public static PluginManager createPluginManagerFromFolder(
+            Configuration configuration, Path pluginsDir) {
+        if (!Files.exists(pluginsDir)) {
+            throw new FlinkRuntimeException(
+                    String.format(
+                            "Plugin directory %s does not exist.", pluginsDir.toAbsolutePath()));
+        }
+        if (!Files.isDirectory(pluginsDir)) {
+            throw new FlinkRuntimeException(
+                    String.format(
+                            "Plugin directory %s is not a directory.",
+                            pluginsDir.toAbsolutePath()));
+        }
+        return createPluginManagerFromPluginConfig(
+                new PluginConfig(
+                        Optional.of(pluginsDir),
+                        CoreOptions.getPluginParentFirstLoaderPatterns(configuration)));
+    }
+
+    private static PluginManager createPluginManagerFromPluginConfig(PluginConfig pluginConfig) {
         if (pluginConfig.getPluginsPath().isPresent()) {
             try {
                 Collection<PluginDescriptor> pluginDescriptors =
@@ -52,5 +108,25 @@ public final class PluginUtils {
             return new DefaultPluginManager(
                     Collections.emptyList(), pluginConfig.getAlwaysParentFirstPatterns());
         }
+    }
+
+    /**
+     * Tries to extract the plugin directory from the environment.
+     *
+     * @return if plugin directory is a directory otherwise {@link Optional#empty()}
+     */
+    public static Optional<File> getPluginsDirFromEnvironment() {
+        String pluginsDir =
+                System.getenv()
+                        .getOrDefault(
+                                ConfigConstants.ENV_FLINK_PLUGINS_DIR,
+                                ConfigConstants.DEFAULT_FLINK_PLUGINS_DIRS);
+
+        File pluginsDirFile = new File(pluginsDir);
+        if (!pluginsDirFile.isDirectory()) {
+            LOG.warn("The plugins directory [{}] does not exist.", pluginsDirFile);
+            return Optional.empty();
+        }
+        return Optional.of(pluginsDirFile);
     }
 }

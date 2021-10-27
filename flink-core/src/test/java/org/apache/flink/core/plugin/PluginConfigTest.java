@@ -65,7 +65,7 @@ public class PluginConfigTest extends TestLogger {
                         ConfigConstants.ENV_FLINK_PLUGINS_DIR, pluginsDirectory.getAbsolutePath());
         CommonTestUtils.setEnv(envVariables);
 
-        assertThat(PluginConfig.getPluginsDir().get(), is(pluginsDirectory));
+        assertThat(PluginUtils.getPluginsDirFromEnvironment().get(), is(pluginsDirectory));
     }
 
     @Test
@@ -77,6 +77,6 @@ public class PluginConfigTest extends TestLogger {
                                 .getAbsolutePath());
         CommonTestUtils.setEnv(envVariables);
 
-        assertFalse(PluginConfig.getPluginsDir().isPresent());
+        assertFalse(PluginUtils.getPluginsDirFromEnvironment().isPresent());
     }
 }

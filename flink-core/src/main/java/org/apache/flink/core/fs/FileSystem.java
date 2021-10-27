@@ -382,6 +382,15 @@ public abstract class FileSystem {
         }
     }
 
+    /** Resets the internal state of the {@link FileSystem} singleton. */
+    public static void uninitialize() {
+        LOCK.lock();
+        CACHE.clear();
+        FS_FACTORIES.clear();
+        ALLOWED_FALLBACK_FILESYSTEMS.clear();
+        LOCK.unlock();
+    }
+
     // ------------------------------------------------------------------------
     //  Obtaining File System Instances
     // ------------------------------------------------------------------------

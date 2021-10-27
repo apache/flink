@@ -26,10 +26,14 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -103,6 +107,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -120,11 +125,19 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** MiniCluster to execute Flink jobs locally. */
 public class MiniCluster implements AutoCloseableAsync {
+
+    public static final ConfigOption<String> PLUGIN_DIRECTORY =
+            key("minicluster.plugin.directory")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The config parameter pointing to the local directory to initialize plugins.");
 
     private static final Logger LOG = LoggerFactory.getLogger(MiniCluster.class);
 
@@ -203,6 +216,9 @@ public class MiniCluster implements AutoCloseableAsync {
     @GuardedBy("lock")
     private RpcSystem rpcSystem;
 
+    @GuardedBy("lock")
+    private volatile boolean initializedFilesystems = false;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -279,6 +295,14 @@ public class MiniCluster implements AutoCloseableAsync {
                     miniClusterConfiguration.getRpcServiceSharing() == RpcServiceSharing.SHARED;
 
             try {
+                if (configuration.contains(PLUGIN_DIRECTORY)) {
+                    final PluginManager pluginManager =
+                            PluginUtils.createPluginManagerFromFolder(
+                                    configuration, Paths.get(configuration.get(PLUGIN_DIRECTORY)));
+                    FileSystem.initialize(configuration, pluginManager);
+                    initializedFilesystems = true;
+                }
+
                 initializeIOFormatClasses(configuration);
 
                 rpcSystem = RpcSystem.load(configuration);
@@ -540,6 +564,9 @@ public class MiniCluster implements AutoCloseableAsync {
     public CompletableFuture<Void> closeAsync() {
         synchronized (lock) {
             if (running) {
+                if (initializedFilesystems) {
+                    FileSystem.uninitialize();
+                }
                 LOG.info("Shutting down Flink Mini Cluster");
                 try {
                     final long shutdownTimeoutMillis =

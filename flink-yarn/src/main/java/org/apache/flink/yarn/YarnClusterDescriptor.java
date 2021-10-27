@@ -41,7 +41,6 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.core.plugin.PluginConfig;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -1690,7 +1689,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
     @VisibleForTesting
     void addPluginsFoldersToShipFiles(Collection<File> effectiveShipFiles) {
-        final Optional<File> pluginsDir = PluginConfig.getPluginsDir();
+        final Optional<File> pluginsDir = PluginUtils.getPluginsDirFromEnvironment();
         pluginsDir.ifPresent(effectiveShipFiles::add);
     }
 
