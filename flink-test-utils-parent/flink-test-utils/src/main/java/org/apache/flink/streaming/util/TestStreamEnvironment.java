@@ -20,7 +20,7 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -45,8 +45,6 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false"));
     private static final String STATE_CHANGE_LOG_CONFIG =
             System.getProperty("checkpointing.changelog", STATE_CHANGE_LOG_CONFIG_UNSET).trim();
-    private static final boolean RANDOMIZE_BUFFER_DEBLOAT_CONFIG =
-            Boolean.parseBoolean(System.getProperty("buffer-debloat.randomization", "false"));
 
     public TestStreamEnvironment(
             MiniCluster miniCluster,
@@ -86,38 +84,50 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                     TestStreamEnvironment env =
                             new TestStreamEnvironment(
                                     miniCluster, parallelism, jarFiles, classpaths);
-                    if (RANDOMIZE_CHECKPOINTING_CONFIG) {
-                        randomize(
-                                conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
-                        randomize(
-                                conf,
-                                ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT,
-                                Duration.ofSeconds(0),
-                                Duration.ofMillis(100),
-                                Duration.ofSeconds(2));
-                    }
-                    if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
-                        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
-                            conf.set(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true);
-                        }
-                    } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(
-                            STATE_CHANGE_LOG_CONFIG_RAND)) {
-                        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
-                            randomize(
-                                    conf,
-                                    CheckpointingOptions.ENABLE_STATE_CHANGE_LOG,
-                                    true,
-                                    false);
-                        }
-                    }
-                    if (RANDOMIZE_BUFFER_DEBLOAT_CONFIG) {
-                        randomize(conf, TaskManagerOptions.BUFFER_DEBLOAT_ENABLED, true, false);
-                    }
+
+                    randomizeConfiguration(miniCluster, conf);
+
                     env.configure(conf, env.getUserClassloader());
                     return env;
                 };
 
         initializeContextEnvironment(factory);
+    }
+
+    /**
+     * This is the place for randomization the configuration that relates to DataStream API such as
+     * ExecutionConf, CheckpointConf, StreamExecutionEnvironment. List of the configurations can be
+     * found here {@link StreamExecutionEnvironment#configure(ReadableConfig, ClassLoader)}. All
+     * other configuration should be randomized here {@link
+     * org.apache.flink.runtime.testutils.MiniClusterResource#randomizeConfiguration(Configuration)}.
+     */
+    private static void randomizeConfiguration(MiniCluster miniCluster, Configuration conf) {
+        // randomize ITTests for enabling unaligned checkpoint
+        if (RANDOMIZE_CHECKPOINTING_CONFIG) {
+            randomize(conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
+            randomize(
+                    conf,
+                    ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT,
+                    Duration.ofSeconds(0),
+                    Duration.ofMillis(100),
+                    Duration.ofSeconds(2));
+        }
+
+        // randomize ITTests for enabling state change log
+        if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
+            if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
+                conf.set(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true);
+            }
+        } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(
+                STATE_CHANGE_LOG_CONFIG_RAND)) {
+            if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
+                randomize(
+                        conf,
+                        CheckpointingOptions.ENABLE_STATE_CHANGE_LOG,
+                        true,
+                        false);
+            }
+        }
     }
 
     private static boolean isConfigurationSupportedByChangelog(Configuration configuration) {
