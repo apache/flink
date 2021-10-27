@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.FallbackKey;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.api.TableException;
@@ -142,14 +143,11 @@ public final class FactoryUtil {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
                         objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
-        final Set<String> secretSet = new HashSet();
-
         try {
             final DynamicTableSourceFactory factory =
                     preferredFactory != null
                             ? preferredFactory
                             : discoverTableFactory(DynamicTableSourceFactory.class, context);
-            initSecretSet(secretSet, factory);
             return factory.createDynamicTableSource(context);
         } catch (Throwable t) {
             throw new ValidationException(
@@ -161,7 +159,7 @@ public final class FactoryUtil {
                             catalogTable.getOptions().entrySet().stream()
                                     .map(
                                             e -> {
-                                                if (secretSet.contains(e.getKey())) {
+                                                if (GlobalConfiguration.isSensitive(e.getKey())) {
                                                     return stringifyOption(
                                                             e.getKey(), HIDDEN_CONTENT);
                                                 } else {
@@ -221,14 +219,13 @@ public final class FactoryUtil {
         final DefaultDynamicTableContext context =
                 new DefaultDynamicTableContext(
                         objectIdentifier, catalogTable, configuration, classLoader, isTemporary);
-        final Set<String> secretSet = new HashSet();
 
         try {
             final DynamicTableSinkFactory factory =
                     preferredFactory != null
                             ? preferredFactory
                             : discoverTableFactory(DynamicTableSinkFactory.class, context);
-            initSecretSet(secretSet, factory);
+
             return factory.createDynamicTableSink(context);
         } catch (Throwable t) {
             throw new ValidationException(
@@ -240,7 +237,7 @@ public final class FactoryUtil {
                             catalogTable.getOptions().entrySet().stream()
                                     .map(
                                             e -> {
-                                                if (secretSet.contains(e.getKey())) {
+                                                if (GlobalConfiguration.isSensitive(e.getKey())) {
                                                     return stringifyOption(
                                                             e.getKey(), HIDDEN_CONTENT);
                                                 } else {
@@ -383,10 +380,18 @@ public final class FactoryUtil {
                                 catalogName,
                                 options.entrySet().stream()
                                         .map(
-                                                optionEntry ->
-                                                        stringifyOption(
+                                                optionEntry -> {
+                                                    if (GlobalConfiguration.isSensitive(
+                                                            optionEntry.getKey())) {
+                                                        return stringifyOption(
                                                                 optionEntry.getKey(),
-                                                                optionEntry.getValue()))
+                                                                HIDDEN_CONTENT);
+                                                    } else {
+                                                        return stringifyOption(
+                                                                optionEntry.getKey(),
+                                                                optionEntry.getValue());
+                                                    }
+                                                })
                                         .sorted()
                                         .collect(Collectors.joining("\n"))),
                         t);
@@ -720,21 +725,6 @@ public final class FactoryUtil {
             LOG.error("Could not load service provider for factories.", e);
             throw new TableException("Could not load service provider for factories.", e);
         }
-    }
-
-    private static void initSecretSet(Set<String> secretSet, DynamicTableFactory factory) {
-        Set<String> requiredSet =
-                factory.requiredOptions().stream()
-                        .filter(o -> o.isSecret())
-                        .map(o -> o.key())
-                        .collect(Collectors.toSet());
-        secretSet.addAll(requiredSet);
-        Set<String> optionalSet =
-                factory.optionalOptions().stream()
-                        .filter(o -> o.isSecret())
-                        .map(o -> o.key())
-                        .collect(Collectors.toSet());
-        secretSet.addAll(optionalSet);
     }
 
     private static String stringifyOption(String key, String value) {
