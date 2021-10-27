@@ -193,7 +193,8 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             configuration, webMonitorEndpoint, ioExecutor);
 
             final DispatcherOperationCaches dispatcherOperationCaches =
-                    new DispatcherOperationCaches();
+                    new DispatcherOperationCaches(
+                            configuration.get(RestOptions.ASYNC_OPERATION_STORE_DURATION));
 
             final PartialDispatcherServices partialDispatcherServices =
                     new PartialDispatcherServices(

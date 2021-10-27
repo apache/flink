@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.handler.async;
 
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.util.ManualTicker;
 import org.apache.flink.util.TestLogger;
@@ -25,6 +26,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -113,5 +115,44 @@ public class CompletedOperationCacheTest extends TestLogger {
         final OperationResult<String> operationResult = operationResultOptional.get();
         assertEquals(operationResult.getStatus(), OperationResultStatus.SUCCESS);
         assertThat(operationResult.getResult(), is(equalTo(TEST_OPERATION_RESULT.get())));
+    }
+
+    @Test
+    public void testCacheTimeout() throws Exception {
+        final Duration timeout = RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue();
+
+        completedOperationCache = new CompletedOperationCache<>(timeout, manualTicker);
+        completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+
+        // sanity check that the operation can be retrieved before the timeout
+        assertTrue(completedOperationCache.get(TEST_OPERATION_KEY).isPresent());
+
+        manualTicker.advanceTime(timeout.multipliedBy(2).getSeconds(), TimeUnit.SECONDS);
+
+        assertFalse(completedOperationCache.get(TEST_OPERATION_KEY).isPresent());
+    }
+
+    @Test
+    public void testCacheTimeoutCanBeDisabled() throws Exception {
+        completedOperationCache =
+                new CompletedOperationCache<>(Duration.ofSeconds(0), manualTicker);
+        completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+
+        manualTicker.advanceTime(365, TimeUnit.DAYS);
+
+        assertTrue(completedOperationCache.get(TEST_OPERATION_KEY).isPresent());
+    }
+
+    @Test
+    public void testCacheTimeoutCanBeConfigured() throws Exception {
+        final Duration baseTimeout = RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue();
+
+        completedOperationCache =
+                new CompletedOperationCache<>(baseTimeout.multipliedBy(10), manualTicker);
+        completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+
+        manualTicker.advanceTime(baseTimeout.multipliedBy(2).getSeconds(), TimeUnit.SECONDS);
+
+        assertTrue(completedOperationCache.get(TEST_OPERATION_KEY).isPresent());
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
@@ -69,7 +70,9 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                 TriggerSavepointSpyFunction.wrap(
                         (jobID, targetDirectory, savepointMode, timeout) ->
                                 savepointLocationFuture);
-        cache = new CompletedOperationCache<>();
+        cache =
+                new CompletedOperationCache<>(
+                        RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue());
         handler =
                 new DispatcherCachedOperationsHandler(
                         triggerSavepointFunction, stopWithSavepointFunction, cache);

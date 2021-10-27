@@ -17,9 +17,12 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -27,7 +30,17 @@ import java.util.concurrent.CompletableFuture;
  */
 public class DispatcherOperationCaches {
     private final CompletedOperationCache<AsynchronousJobOperationKey, String>
-            savepointTriggerCache = new CompletedOperationCache<>();
+            savepointTriggerCache;
+
+    @VisibleForTesting
+    public DispatcherOperationCaches() {
+        this(RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue());
+    }
+
+    @VisibleForTesting
+    public DispatcherOperationCaches(Duration cacheDuration) {
+        savepointTriggerCache = new CompletedOperationCache<>(cacheDuration);
+    }
 
     public CompletedOperationCache<AsynchronousJobOperationKey, String> getSavepointTriggerCache() {
         return savepointTriggerCache;
