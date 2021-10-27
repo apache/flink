@@ -42,23 +42,25 @@ public final class StreamingCommitterHandler<CommT>
     private final Committer<CommT> committer;
 
     public StreamingCommitterHandler(
-            Committer<CommT> committer, SimpleVersionedSerializer<CommT> committableSerializer) {
+            Committer<CommT> committer,
+            SimpleVersionedSerializer<InternalCommittable<CommT>> committableSerializer) {
         super(committableSerializer);
         this.committer = checkNotNull(committer);
     }
 
     @Override
-    List<CommT> prepareCommit(List<CommT> input) {
+    List<InternalCommittable<CommT>> prepareCommit(List<InternalCommittable<CommT>> input) {
         return prependRecoveredCommittables(checkNotNull(input));
     }
 
     @Override
-    List<CommT> commitInternal(List<CommT> committables) throws IOException, InterruptedException {
+    List<InternalCommittable<CommT>> commitInternal(List<InternalCommittable<CommT>> committables)
+            throws IOException, InterruptedException {
         return committer.commit(checkNotNull(committables));
     }
 
     @Override
-    protected Collection<CommT> retry(List<CommT> recoveredCommittables)
+    protected Collection<InternalCommittable<CommT>> retry(List<CommT> recoveredCommittables)
             throws IOException, InterruptedException {
         return commitAndReturnSuccess(recoveredCommittables);
     }

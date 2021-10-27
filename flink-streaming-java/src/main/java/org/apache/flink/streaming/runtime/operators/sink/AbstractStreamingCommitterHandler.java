@@ -26,7 +26,6 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,13 +63,14 @@ abstract class AbstractStreamingCommitterHandler<CommT, StateT>
                     "streaming_committer_raw_states", BytePrimitiveArraySerializer.INSTANCE);
 
     /** Group the committable by the checkpoint id. */
-    private final NavigableMap<Long, List<StateT>> committablesPerCheckpoint;
+    private final NavigableMap<Long, List<InternalCommittable<StateT>>> committablesPerCheckpoint;
 
     /** The committable's serializer. */
-    private final StreamingCommitterStateSerializer<StateT> streamingCommitterStateSerializer;
+    private final StreamingCommitterStateSerializer<InternalCommittable<StateT>>
+            streamingCommitterStateSerializer;
 
     /** The operator's state. */
-    private ListState<StreamingCommitterState<StateT>> streamingCommitterState;
+    private ListState<StreamingCommitterState<InternalCommittable<StateT>>> streamingCommitterState;
 
     /**
      * Prepares a commit.
@@ -78,9 +78,11 @@ abstract class AbstractStreamingCommitterHandler<CommT, StateT>
      * @param input A list of input elements received since last pre-commit
      * @return A list of committables that could be committed in the following checkpoint complete.
      */
-    abstract List<StateT> prepareCommit(List<CommT> input) throws IOException;
+    abstract List<InternalCommittable<StateT>> prepareCommit(List<InternalCommittable<CommT>> input)
+            throws IOException;
 
-    AbstractStreamingCommitterHandler(SimpleVersionedSerializer<StateT> committableSerializer) {
+    AbstractStreamingCommitterHandler(
+            SimpleVersionedSerializer<InternalCommittable<StateT>> committableSerializer) {
         this.streamingCommitterStateSerializer =
                 new StreamingCommitterStateSerializer<>(committableSerializer);
         this.committablesPerCheckpoint = new TreeMap<>();
@@ -94,7 +96,7 @@ abstract class AbstractStreamingCommitterHandler<CommT, StateT>
                         context.getOperatorStateStore()
                                 .getListState(STREAMING_COMMITTER_RAW_STATES_DESC),
                         streamingCommitterStateSerializer);
-        final List<StateT> restored = new ArrayList<>();
+        final List<InternalCommittable<StateT>> restored = new ArrayList<>();
         streamingCommitterState.get().forEach(s -> restored.addAll(s.getCommittables()));
         recoveredCommittables(restored);
     }

@@ -53,11 +53,12 @@ public final class GlobalBatchCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    public Collection<CommT> endOfInput() throws IOException, InterruptedException {
-        List<CommT> allCommittables = pollCommittables();
+    public Collection<InternalCommittable<CommT>> endOfInput()
+            throws IOException, InterruptedException {
+        List<InternalCommittable<CommT>> allCommittables = pollCommittables();
         if (!allCommittables.isEmpty()) {
-            final GlobalCommT globalCommittable = globalCommitter.combine(allCommittables);
-            commit(Collections.singletonList(globalCommittable));
+            final GlobalCommT globalCommittable = globalCommitter.combine(unwrap(allCommittables));
+            commit2(Collections.singletonList(globalCommittable));
         }
         globalCommitter.endOfInput();
         return Collections.emptyList();

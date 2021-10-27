@@ -67,7 +67,7 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    List<GlobalCommT> prepareCommit(List<CommT> input) throws IOException {
+    List<GlobalCommT> prepareCommit(List<InternalCommittable<CommT>> input) throws IOException {
         return prependRecoveredCommittables(
                 input.isEmpty()
                         ? Collections.emptyList()
@@ -81,7 +81,7 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    public Collection<CommT> endOfInput() {
+    public Collection<InternalCommittable<CommT>> endOfInput() {
         endOfInput = true;
         return Collections.emptyList();
     }
@@ -93,7 +93,7 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    public Collection<CommT> notifyCheckpointCompleted(long checkpointId)
+    public Collection<InternalCommittable<CommT>> notifyCheckpointCompleted(long checkpointId)
             throws IOException, InterruptedException {
         super.notifyCheckpointCompleted(checkpointId);
         commitUpTo(checkpointId);
