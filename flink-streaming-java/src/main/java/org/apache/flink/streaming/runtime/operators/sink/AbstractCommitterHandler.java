@@ -26,12 +26,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.runtime.operators.sink.InternalCommittable.match;
+import static org.apache.flink.streaming.runtime.operators.sink.InternalCommittable.unwrap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -81,33 +79,10 @@ abstract class AbstractCommitterHandler<CommT, StateT> implements CommitterHandl
             return new CommitResult<>(committables, Collections.emptyList());
         }
 
-        // Assume that (Global)Committer#commit does not create a new instance for failed
-        // committables. This assumption is documented in the respective JavaDoc.
-        Set<StateT> failedRaw =
-                Collections.newSetFromMap(new IdentityHashMap<>(committables.size()));
-        failedRaw.addAll(failed);
-
-        Map<Boolean, List<InternalCommittable<StateT>>> correlated =
-                committables.stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        stic -> failedRaw.contains(stic.getCommittable())));
-        recoveredCommittables(correlated.get(true));
-        return new CommitResult<>(correlated.get(false), correlated.get(true));
-    }
-
-    protected final void commit2(List<StateT> committables)
-            throws IOException, InterruptedException {
-        List<StateT> failed = commitInternal(committables);
-        if (!failed.isEmpty()) {
-            recoveredCommittables(failed);
-        }
-    }
-
-    static <CommT> List<CommT> unwrap(List<InternalCommittable<CommT>> committables) {
-        return committables.stream()
-                .map(InternalCommittable::getCommittable)
-                .collect(Collectors.toList());
+        InternalCommittable.MatchResult<InternalCommittable<StateT>> correlatedFailed =
+                match(committables, failed);
+        recoveredCommittables(correlatedFailed.getMatched());
+        return new CommitResult<>(correlatedFailed.getUnmatched(), correlatedFailed.getMatched());
     }
 
     /**

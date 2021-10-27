@@ -78,7 +78,10 @@ public final class SinkOperatorFactory<InputT, CommT, WriterStateT, GlobalCommT>
                             sink::createWriter,
                             writerStateHandler,
                             committerHandlerFactory.create(sink),
-                            emitCommittables ? sink.getCommittableSerializer().get() : null);
+                            emitCommittables
+                                    ? new InternalCommittable.Serializer<>(
+                                            sink.getCommittableSerializer().get())
+                                    : null);
             sinkOperator.setup(
                     parameters.getContainingTask(),
                     parameters.getStreamConfig(),

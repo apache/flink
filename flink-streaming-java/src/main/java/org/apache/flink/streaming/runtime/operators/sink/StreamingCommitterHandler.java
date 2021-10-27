@@ -54,15 +54,15 @@ public final class StreamingCommitterHandler<CommT>
     }
 
     @Override
-    List<InternalCommittable<CommT>> commitInternal(List<InternalCommittable<CommT>> committables)
-            throws IOException, InterruptedException {
-        return committer.commit(checkNotNull(committables));
+    List<CommT> commitInternal(List<CommT> committables) throws IOException, InterruptedException {
+        return committer.commit(committables);
     }
 
     @Override
-    protected Collection<InternalCommittable<CommT>> retry(List<CommT> recoveredCommittables)
+    protected Collection<InternalCommittable<CommT>> retry(
+            List<InternalCommittable<CommT>> recoveredCommittables)
             throws IOException, InterruptedException {
-        return commitAndReturnSuccess(recoveredCommittables);
+        return commit(recoveredCommittables).getSuccessful();
     }
 
     @Override
@@ -72,9 +72,9 @@ public final class StreamingCommitterHandler<CommT>
     }
 
     @Override
-    public Collection<CommT> notifyCheckpointCompleted(long checkpointId)
+    public Collection<InternalCommittable<CommT>> notifyCheckpointCompleted(long checkpointId)
             throws IOException, InterruptedException {
-        return commitUpTo(checkpointId);
+        return commitUpTo(checkpointId).getSuccessful();
     }
 
     /** The serializable factory of the handler. */
@@ -84,7 +84,8 @@ public final class StreamingCommitterHandler<CommT>
         public CommitterHandler<CommT> create(Sink<?, CommT, ?, ?> sink) throws IOException {
             return new StreamingCommitterHandler<>(
                     checkCommitterPresent(sink.createCommitter(), false),
-                    checkSerializerPresent(sink.getCommittableSerializer(), false));
+                    new InternalCommittable.Serializer<>(
+                            checkSerializerPresent(sink.getCommittableSerializer(), false)));
         }
     }
 }

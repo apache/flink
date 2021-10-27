@@ -29,6 +29,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.streaming.runtime.operators.sink.InternalCommittable.match;
+import static org.apache.flink.streaming.runtime.operators.sink.InternalCommittable.unwrap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -53,7 +55,7 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
 
     public GlobalStreamingCommitterHandler(
             GlobalCommitter<CommT, GlobalCommT> globalCommitter,
-            SimpleVersionedSerializer<GlobalCommT> committableSerializer) {
+            SimpleVersionedSerializer<InternalCommittable<GlobalCommT>> committableSerializer) {
         super(committableSerializer);
         this.globalCommitter = checkNotNull(globalCommitter);
 
@@ -61,17 +63,23 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    protected void recoveredCommittables(List<GlobalCommT> committables) throws IOException {
-        super.recoveredCommittables(
-                globalCommitter.filterRecoveredCommittables(checkNotNull(committables)));
+    protected void recoveredCommittables(List<InternalCommittable<GlobalCommT>> committables)
+            throws IOException {
+        InternalCommittable.MatchResult<InternalCommittable<GlobalCommT>> filtered =
+                match(
+                        committables,
+                        globalCommitter.filterRecoveredCommittables(unwrap(committables)));
+        super.recoveredCommittables(filtered.getMatched());
     }
 
     @Override
-    List<GlobalCommT> prepareCommit(List<InternalCommittable<CommT>> input) throws IOException {
+    List<InternalCommittable<GlobalCommT>> prepareCommit(List<InternalCommittable<CommT>> input)
+            throws IOException {
         return prependRecoveredCommittables(
                 input.isEmpty()
                         ? Collections.emptyList()
-                        : Collections.singletonList(globalCommitter.combine(input)));
+                        : InternalCommittable.singletonList(
+                                globalCommitter.combine(unwrap(input))));
     }
 
     @Override
@@ -111,7 +119,8 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
                 throws IOException {
             return new GlobalStreamingCommitterHandler<>(
                     checkCommitterPresent(sink.createGlobalCommitter(), true),
-                    checkSerializerPresent(sink.getGlobalCommittableSerializer(), true));
+                    new InternalCommittable.Serializer<>(
+                            checkSerializerPresent(sink.getGlobalCommittableSerializer(), true)));
         }
     }
 }

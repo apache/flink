@@ -21,12 +21,10 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.function.ThrowingConsumer;
-
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -34,7 +32,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 class CommitRetrierTest {
 
-    public static final ThrowingConsumer<Collection<String>, IOException> NO_OP = dummy -> {};
+    public static final ThrowingConsumer<Collection<InternalCommittable<String>>, IOException>
+            NO_OP = dummy -> {};
 
     @Test
     void testRetry() throws Exception {
@@ -123,7 +122,8 @@ class CommitRetrierTest {
         }
 
         @Override
-        public List<String> retry() throws IOException, InterruptedException {
+        public Collection<InternalCommittable<String>> retry()
+                throws IOException, InterruptedException {
             retriesNeeded.decrementAndGet();
             return null;
         }

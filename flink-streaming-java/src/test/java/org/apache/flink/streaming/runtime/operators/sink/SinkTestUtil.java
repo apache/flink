@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.core.io.SimpleVersionedSerialization;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -28,6 +29,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 class SinkTestUtil {
+
+    public static final SimpleVersionedSerializer<InternalCommittable<String>> SERIALIZER =
+            new InternalCommittable.Serializer<>(TestSink.StringCommittableSerializer.INSTANCE);
+
     static StreamRecord<byte[]> committableRecord(String element) {
         return new StreamRecord<>(toBytes(element));
     }
@@ -47,7 +52,7 @@ class SinkTestUtil {
     static byte[] toBytes(String obj) {
         try {
             return SimpleVersionedSerialization.writeVersionAndSerialize(
-                    TestSink.StringCommittableSerializer.INSTANCE, obj);
+                    SERIALIZER, InternalCommittable.wrap(obj));
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -76,8 +81,8 @@ class SinkTestUtil {
 
     static String fromBytes(byte[] obj) {
         try {
-            return SimpleVersionedSerialization.readVersionAndDeSerialize(
-                    TestSink.StringCommittableSerializer.INSTANCE, obj);
+            return SimpleVersionedSerialization.readVersionAndDeSerialize(SERIALIZER, obj)
+                    .getCommittable();
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }

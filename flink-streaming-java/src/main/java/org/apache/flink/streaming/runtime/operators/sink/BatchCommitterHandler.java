@@ -45,9 +45,10 @@ public final class BatchCommitterHandler<CommT> extends AbstractCommitterHandler
     }
 
     @Override
-    protected Collection<CommT> retry(List<CommT> recoveredCommittables)
+    protected Collection<InternalCommittable<CommT>> retry(
+            List<InternalCommittable<CommT>> recoveredCommittables)
             throws IOException, InterruptedException {
-        return commitAndReturnSuccess(recoveredCommittables);
+        return commit(recoveredCommittables).getSuccessful();
     }
 
     @Override
@@ -56,8 +57,9 @@ public final class BatchCommitterHandler<CommT> extends AbstractCommitterHandler
     }
 
     @Override
-    public Collection<CommT> endOfInput() throws IOException, InterruptedException {
-        return commitAndReturnSuccess(pollCommittables());
+    public Collection<InternalCommittable<CommT>> endOfInput()
+            throws IOException, InterruptedException {
+        return commit(pollCommittables()).getSuccessful();
     }
 
     @Override

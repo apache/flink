@@ -1,12 +1,19 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -34,6 +41,38 @@ public class InternalCommittable<CommT> {
         this.checkpointId = checkpointId;
         this.committableIndex = committableIndex;
         this.numberCommittablesOfSubtask = numberCommittablesOfSubtask;
+    }
+
+    public static <CommT> List<InternalCommittable<CommT>> singletonList(CommT committable) {
+        return Collections.singletonList(wrap(committable));
+    }
+
+    @VisibleForTesting
+    static <CommT> InternalCommittable<CommT> wrap(CommT committable) {
+        return new InternalCommittable<>(committable, 0, 1, Long.MAX_VALUE, 0, 1);
+    }
+
+    static <StateT> MatchResult<InternalCommittable<StateT>> match(
+            List<InternalCommittable<StateT>> internalCommittables,
+            List<StateT> innerCommittables) {
+        // Assume that (Global)Committer#commit does not create a new instance for returned
+        // committables. This assumption is documented in the respective JavaDoc.
+        Set<StateT> lookup =
+                Collections.newSetFromMap(new IdentityHashMap<>(internalCommittables.size()));
+        lookup.addAll(innerCommittables);
+
+        Map<Boolean, List<InternalCommittable<StateT>>> matched =
+                internalCommittables.stream()
+                        .collect(Collectors.groupingBy(c -> lookup.contains(c.getCommittable())));
+        return new MatchResult<>(
+                matched.getOrDefault(true, Collections.emptyList()),
+                matched.getOrDefault(false, Collections.emptyList()));
+    }
+
+    static <CommT> List<CommT> unwrap(List<InternalCommittable<CommT>> committables) {
+        return committables.stream()
+                .map(InternalCommittable::getCommittable)
+                .collect(Collectors.toList());
     }
 
     public CommT getCommittable() {
@@ -98,6 +137,24 @@ public class InternalCommittable<CommT> {
                     in.readLong(),
                     in.readInt(),
                     in.readInt());
+        }
+    }
+
+    static class MatchResult<T> {
+        private final List<T> matched;
+        private final List<T> unmatched;
+
+        MatchResult(List<T> matched, List<T> unmatched) {
+            this.unmatched = checkNotNull(unmatched);
+            this.matched = checkNotNull(matched);
+        }
+
+        public List<T> getMatched() {
+            return matched;
+        }
+
+        public List<T> getUnmatched() {
+            return unmatched;
         }
     }
 }

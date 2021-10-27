@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.streaming.runtime.operators.sink.InternalCommittable.unwrap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -58,7 +59,7 @@ public final class GlobalBatchCommitterHandler<CommT, GlobalCommT>
         List<InternalCommittable<CommT>> allCommittables = pollCommittables();
         if (!allCommittables.isEmpty()) {
             final GlobalCommT globalCommittable = globalCommitter.combine(unwrap(allCommittables));
-            commit2(Collections.singletonList(globalCommittable));
+            commit(InternalCommittable.singletonList(globalCommittable));
         }
         globalCommitter.endOfInput();
         return Collections.emptyList();

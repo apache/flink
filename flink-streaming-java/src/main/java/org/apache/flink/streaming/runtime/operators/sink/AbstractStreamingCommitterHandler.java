@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -113,22 +112,25 @@ abstract class AbstractStreamingCommitterHandler<CommT, StateT>
     /**
      * Commits all pending committables up to the given checkpointId and returns a list of
      * successful committables.
+     *
+     * @return
      */
-    protected Collection<StateT> commitUpTo(long checkpointId)
+    protected CommitResult<InternalCommittable<StateT>> commitUpTo(long checkpointId)
             throws IOException, InterruptedException {
-        NavigableMap<Long, List<StateT>> headMap =
+        NavigableMap<Long, List<InternalCommittable<StateT>>> headMap =
                 committablesPerCheckpoint.headMap(checkpointId, true);
-        final List<StateT> readyCommittables;
+        final List<InternalCommittable<StateT>> readyCommittables;
         if (headMap.size() == 1) {
             readyCommittables = headMap.pollFirstEntry().getValue();
         } else {
 
             readyCommittables = new ArrayList<>();
 
-            final Iterator<Map.Entry<Long, List<StateT>>> it = headMap.entrySet().iterator();
+            final Iterator<Map.Entry<Long, List<InternalCommittable<StateT>>>> it =
+                    headMap.entrySet().iterator();
             while (it.hasNext()) {
-                final Map.Entry<Long, List<StateT>> entry = it.next();
-                final List<StateT> committables = entry.getValue();
+                final Map.Entry<Long, List<InternalCommittable<StateT>>> entry = it.next();
+                final List<InternalCommittable<StateT>> committables = entry.getValue();
 
                 readyCommittables.addAll(committables);
                 it.remove();
@@ -136,7 +138,7 @@ abstract class AbstractStreamingCommitterHandler<CommT, StateT>
         }
 
         LOG.info("Committing the state for checkpoint {}", checkpointId);
-        return commitAndReturnSuccess(readyCommittables);
+        return commit(readyCommittables);
     }
 
     @Override
