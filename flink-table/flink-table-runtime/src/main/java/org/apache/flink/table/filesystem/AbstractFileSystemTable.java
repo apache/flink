@@ -40,7 +40,7 @@ abstract class AbstractFileSystemTable {
     final ObjectIdentifier tableIdentifier;
     final Configuration tableOptions;
     final ResolvedSchema schema;
-    final List<String> partitionKeys;
+    List<String> partitionKeys;
     final Path path;
     final String defaultPartName;
 

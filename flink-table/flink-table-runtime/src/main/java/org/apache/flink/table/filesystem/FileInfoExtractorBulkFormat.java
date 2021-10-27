@@ -23,18 +23,24 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.RecordMapperWrapperRecordIterator;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.EnrichedRowData;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.PartitionPathUtils;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * This {@link BulkFormat} is a wrapper that attaches file information columns to the output
@@ -46,28 +52,58 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
     private final TypeInformation<RowData> producedType;
 
     private final List<FileSystemTableSource.FileInfoAccessor> metadataColumnsFunctions;
+    private final List<Map.Entry<String, DataType>> partitionColumnTypes;
     private final int[] extendedRowIndexMapping;
+
+    private final String defaultPartName;
 
     public FileInfoExtractorBulkFormat(
             BulkFormat<RowData, FileSourceSplit> wrapped,
             DataType fullDataType,
-            TypeInformation<RowData> producedType,
-            Map<String, FileSystemTableSource.FileInfoAccessor> metadataColumns) {
+            Map<String, FileSystemTableSource.FileInfoAccessor> metadataColumns,
+            List<String> partitionColumns,
+            String defaultPartName) {
         this.wrapped = wrapped;
-        this.producedType = producedType;
+        this.producedType = InternalTypeInfo.of(fullDataType.getLogicalType());
+        this.defaultPartName = defaultPartName;
 
         // Compute index mapping for the extended row and the functions to compute metadata
-        List<String> completeRowFields = DataType.getFieldNames(fullDataType);
-        List<String> mutableRowFields =
-                completeRowFields.stream()
-                        .filter(key -> !metadataColumns.containsKey(key))
+        List<DataTypes.Field> completeRowField = DataType.getFields(fullDataType);
+        List<String> completeRowFieldNames =
+                completeRowField.stream()
+                        .map(DataTypes.Field::getName)
                         .collect(Collectors.toList());
-        List<String> fixedRowFields = new ArrayList<>(metadataColumns.keySet());
+        List<String> mutableRowFieldNames =
+                completeRowFieldNames.stream()
+                        .filter(
+                                key ->
+                                        !metadataColumns.containsKey(key)
+                                                && !partitionColumns.contains(key))
+                        .collect(Collectors.toList());
+        List<String> metadataFieldNames = new ArrayList<>(metadataColumns.keySet());
+
+        List<String> fixedRowFieldNames =
+                Stream.concat(metadataFieldNames.stream(), partitionColumns.stream())
+                        .collect(Collectors.toList());
+
+        this.partitionColumnTypes =
+                partitionColumns.stream()
+                        .map(
+                                fieldName ->
+                                        new SimpleImmutableEntry<>(
+                                                fieldName,
+                                                completeRowField
+                                                        .get(
+                                                                completeRowFieldNames.indexOf(
+                                                                        fieldName))
+                                                        .getDataType()))
+                        .collect(Collectors.toList());
+
         this.extendedRowIndexMapping =
                 EnrichedRowData.computeIndexMapping(
-                        completeRowFields, mutableRowFields, fixedRowFields);
+                        completeRowFieldNames, mutableRowFieldNames, fixedRowFieldNames);
         this.metadataColumnsFunctions =
-                fixedRowFields.stream().map(metadataColumns::get).collect(Collectors.toList());
+                metadataFieldNames.stream().map(metadataColumns::get).collect(Collectors.toList());
     }
 
     @Override
@@ -93,10 +129,36 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
     }
 
     private Reader<RowData> wrapReader(Reader<RowData> superReader, FileSourceSplit split) {
-        // Fill the metadata row
-        final GenericRowData metadataRowData = new GenericRowData(metadataColumnsFunctions.size());
-        for (int i = 0; i < metadataColumnsFunctions.size(); i++) {
-            metadataRowData.setField(i, metadataColumnsFunctions.get(i).getValue(split));
+        // Fill the metadata + partition columns row
+        final GenericRowData metadataRowData =
+                new GenericRowData(
+                        metadataColumnsFunctions.size() + this.partitionColumnTypes.size());
+        int metadataRowIndex = 0;
+        for (; metadataRowIndex < metadataColumnsFunctions.size(); metadataRowIndex++) {
+            metadataRowData.setField(
+                    metadataRowIndex,
+                    metadataColumnsFunctions.get(metadataRowIndex).getValue(split));
+        }
+        if (!partitionColumnTypes.isEmpty()) {
+            LinkedHashMap<String, String> partitionSpec =
+                    PartitionPathUtils.extractPartitionSpecFromPath(split.path());
+            for (int partitionFieldIndex = 0;
+                    metadataRowIndex < metadataRowData.getArity();
+                    metadataRowIndex++, partitionFieldIndex++) {
+                String fieldName = this.partitionColumnTypes.get(partitionFieldIndex).getKey();
+                DataType fieldType = this.partitionColumnTypes.get(partitionFieldIndex).getValue();
+                if (!partitionSpec.containsKey(fieldName)) {
+                    throw new RuntimeException(
+                            "Cannot find the partition value from path for partition: "
+                                    + fieldName);
+                }
+
+                String valueStr = partitionSpec.get(fieldName);
+                valueStr = valueStr.equals(defaultPartName) ? null : valueStr;
+                metadataRowData.setField(
+                        metadataRowIndex,
+                        PartitionPathUtils.convertStringToInternalValue(valueStr, fieldType));
+            }
         }
 
         // This row is going to be reused for every record
