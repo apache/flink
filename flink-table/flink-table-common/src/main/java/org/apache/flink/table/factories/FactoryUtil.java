@@ -157,16 +157,7 @@ public final class FactoryUtil {
                                     + "%s",
                             objectIdentifier.asSummaryString(),
                             catalogTable.getOptions().entrySet().stream()
-                                    .map(
-                                            e -> {
-                                                if (GlobalConfiguration.isSensitive(e.getKey())) {
-                                                    return stringifyOption(
-                                                            e.getKey(), HIDDEN_CONTENT);
-                                                } else {
-                                                    return stringifyOption(
-                                                            e.getKey(), e.getValue());
-                                                }
-                                            })
+                                    .map(e -> stringifyOption(e.getKey(), e.getValue()))
                                     .sorted()
                                     .collect(Collectors.joining("\n"))),
                     t);
@@ -235,16 +226,7 @@ public final class FactoryUtil {
                                     + "%s",
                             objectIdentifier.asSummaryString(),
                             catalogTable.getOptions().entrySet().stream()
-                                    .map(
-                                            e -> {
-                                                if (GlobalConfiguration.isSensitive(e.getKey())) {
-                                                    return stringifyOption(
-                                                            e.getKey(), HIDDEN_CONTENT);
-                                                } else {
-                                                    return stringifyOption(
-                                                            e.getKey(), e.getValue());
-                                                }
-                                            })
+                                    .map(e -> stringifyOption(e.getKey(), e.getValue()))
                                     .sorted()
                                     .collect(Collectors.joining("\n"))),
                     t);
@@ -380,18 +362,10 @@ public final class FactoryUtil {
                                 catalogName,
                                 options.entrySet().stream()
                                         .map(
-                                                optionEntry -> {
-                                                    if (GlobalConfiguration.isSensitive(
-                                                            optionEntry.getKey())) {
-                                                        return stringifyOption(
+                                                optionEntry ->
+                                                        stringifyOption(
                                                                 optionEntry.getKey(),
-                                                                HIDDEN_CONTENT);
-                                                    } else {
-                                                        return stringifyOption(
-                                                                optionEntry.getKey(),
-                                                                optionEntry.getValue());
-                                                    }
-                                                })
+                                                                optionEntry.getValue()))
                                         .sorted()
                                         .collect(Collectors.joining("\n"))),
                         t);
@@ -728,6 +702,9 @@ public final class FactoryUtil {
     }
 
     private static String stringifyOption(String key, String value) {
+        if (GlobalConfiguration.isSensitive(key)) {
+            value = HIDDEN_CONTENT;
+        }
         return String.format(
                 "'%s'='%s'",
                 EncodingUtils.escapeSingleQuotes(key), EncodingUtils.escapeSingleQuotes(value));
