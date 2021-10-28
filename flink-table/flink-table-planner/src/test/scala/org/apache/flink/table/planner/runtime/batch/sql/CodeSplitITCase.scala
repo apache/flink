@@ -20,15 +20,16 @@ package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.core.testutils.FlinkMatchers
 import org.apache.flink.table.api.config.TableConfigOptions
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.{nullablesOfData3, smallData3, type3}
 import org.apache.flink.types.Row
+
 import org.hamcrest.MatcherAssert
 import org.junit.{Assert, Before, Test}
-import java.io.{OutputStream, PrintStream}
 
-import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import java.io.{OutputStream, PrintStream}
 
 import scala.collection.Seq
 
