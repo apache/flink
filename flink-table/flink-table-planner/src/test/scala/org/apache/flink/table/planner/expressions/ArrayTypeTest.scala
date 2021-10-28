@@ -67,13 +67,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       array(nullOf(DataTypes.INT), 1),
       "array(Null(INT), 1)",
       "ARRAY[NULLIF(1,1), 1]",
-      "[null, 1]")
+      "[NULL, 1]")
 
     testAllApis(
       array(array(nullOf(DataTypes.INT), 1)),
       "array(array(Null(INT), 1))",
       "ARRAY[ARRAY[NULLIF(1,1), 1]]",
-      "[[null, 1]]")
+      "[[NULL, 1]]")
 
     // implicit conversion
     testTableApi(
@@ -178,13 +178,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       array('f0, 'f1),
       "array(f0, f1)",
       "ARRAY[f0, f1]",
-      "[null, 42]")
+      "[NULL, 42]")
 
     testAllApis(
       array('f0, 'f1),
       "array(f0, f1)",
       "ARRAY[f0, f1]",
-      "[null, 42]")
+      "[NULL, 42]")
 
     testAllApis(
       'f2,
@@ -202,13 +202,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       'f5,
       "f5",
       "f5",
-      "[[1, 2, 3], null]")
+      "[[1, 2, 3], NULL]")
 
     testAllApis(
       'f6,
       "f6",
       "f6",
-      "[1, null, null, 4]")
+      "[1, NULL, NULL, 4]")
 
     testAllApis(
       'f2,

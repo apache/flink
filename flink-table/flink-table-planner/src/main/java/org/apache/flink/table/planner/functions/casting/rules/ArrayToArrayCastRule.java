@@ -30,12 +30,14 @@ import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAccess;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.constructorCall;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.methodCall;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.newArray;
 
-/** Array to array casting rule. */
+/** {@link LogicalTypeRoot#ARRAY} to {@link LogicalTypeRoot#ARRAY} cast rule. */
 @Internal
 public class ArrayToArrayCastRule
         extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, ArrayData> {
@@ -68,63 +70,61 @@ public class ArrayToArrayCastRule
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        LogicalType innerInputType = ((ArrayType) inputLogicalType).getElementType();
-        LogicalType innerTargetType = ((ArrayType) targetLogicalType).getElementType();
+        final LogicalType innerInputType = ((ArrayType) inputLogicalType).getElementType();
+        final LogicalType innerTargetType =
+                sanitizeTargetType((ArrayType) inputLogicalType, (ArrayType) targetLogicalType);
 
-        String innerTargetTypeTerm = arrayElementType(innerTargetType);
-        String arraySize = inputTerm + ".size()";
-        String objArrayTerm = newName("objArray");
+        final String innerTargetTypeTerm = arrayElementType(innerTargetType);
+        final String arraySize = methodCall(inputTerm, "size");
+        final String objArrayTerm = newName("objArray");
 
-        StringBuilder result = new StringBuilder();
-        result.append(
-                innerTargetTypeTerm
-                        + "[] "
-                        + objArrayTerm
-                        + " = new "
-                        + innerTargetTypeTerm
-                        + "["
-                        + arraySize
-                        + "];\n");
+        return new CastRuleUtils.CodeWriter()
+                .declStmt(
+                        innerTargetTypeTerm + "[]",
+                        objArrayTerm,
+                        newArray(innerTargetTypeTerm, arraySize))
+                .forStmt(
+                        arraySize,
+                        (index, loopWriter) -> {
+                            CastCodeBlock codeBlock =
+                                    CastRuleProvider.generateCodeBlock(
+                                            context,
+                                            rowFieldReadAccess(index, inputTerm, innerInputType),
+                                            "false",
+                                            // Null check is done at the array access level
+                                            innerInputType.copy(false),
+                                            innerTargetType);
 
-        result.append("for (int i = 0; i < " + arraySize + "; i++) {\n");
-        CastCodeBlock codeBlock =
-                CastRuleProvider.generateCodeBlock(
-                        context,
-                        rowFieldReadAccess("i", inputTerm, innerInputType),
-                        functionCall(inputTerm + ".isNullAt", "i"),
-                        innerInputType.copy(false), // Null check is done at the array access level
-                        innerTargetType);
+                            if (innerTargetType.isNullable()) {
+                                loopWriter.ifStmt(
+                                        "!" + functionCall(inputTerm + ".isNullAt", index),
+                                        thenWriter ->
+                                                thenWriter
+                                                        .append(codeBlock)
+                                                        .assignArrayStmt(
+                                                                objArrayTerm,
+                                                                index,
+                                                                codeBlock.getReturnTerm()));
+                            } else {
+                                loopWriter
+                                        .append(codeBlock)
+                                        .assignArrayStmt(
+                                                objArrayTerm, index, codeBlock.getReturnTerm());
+                            }
+                        })
+                .assignStmt(returnVariable, constructorCall(GenericArrayData.class, objArrayTerm))
+                .toString();
+    }
 
-        String innerElementCode =
-                codeBlock.getCode()
-                        + "\n"
-                        + objArrayTerm
-                        + "[i] = "
-                        + codeBlock.getReturnTerm()
-                        + ";\n";
-
-        // Add null check if inner type is nullable
-        if (innerInputType.isNullable()) {
-            result.append("if (" + inputTerm + ".isNullAt(i)) {\n")
-                    .append(objArrayTerm + "[i] = null;\n")
-                    .append("} else {\n")
-                    .append(innerElementCode)
-                    .append("}\n");
-        } else {
-            result.append(innerElementCode);
+    private static LogicalType sanitizeTargetType(
+            ArrayType inputArrayType, ArrayType targetArrayType) {
+        LogicalType innerTargetType = targetArrayType.getElementType();
+        // TODO this seems rather a bug of the planner that generates/allows/doesn't sanitize
+        //  casting ARRAY<NULLABLE> to ARRAY<NOT NULL>
+        if (inputArrayType.getElementType().isNullable() && !innerTargetType.isNullable()) {
+            innerTargetType = innerTargetType.copy(true);
         }
-
-        result.append("}\n");
-
-        result.append(
-                returnVariable
-                        + " = new "
-                        + className(GenericArrayData.class)
-                        + "("
-                        + objArrayTerm
-                        + ");\n");
-
-        return result.toString();
+        return innerTargetType;
     }
 
     private static String arrayElementType(LogicalType t) {

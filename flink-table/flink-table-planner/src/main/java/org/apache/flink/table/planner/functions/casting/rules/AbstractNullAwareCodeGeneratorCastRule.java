@@ -19,12 +19,12 @@
 package org.apache.flink.table.planner.functions.casting.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import static org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveDefaultValue;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveTypeTermForType;
 
 /**
@@ -57,41 +57,37 @@ public abstract class AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
             String inputIsNullTerm,
             LogicalType inputType,
             LogicalType targetType) {
-        StringBuilder resultCode = new StringBuilder();
+        final CastRuleUtils.CodeWriter writer = new CastRuleUtils.CodeWriter();
 
         // Result of a casting can be null only and only if the input is null
-        boolean isResultNullable = inputType.isNullable();
+        final boolean isResultNullable = inputType.isNullable();
         String nullTerm;
         if (isResultNullable) {
             nullTerm = context.declareVariable("boolean", "isNull");
-            resultCode.append(nullTerm).append(" = ").append(inputIsNullTerm).append(";\n");
+            writer.assignStmt(nullTerm, inputIsNullTerm);
         } else {
             nullTerm = "false";
         }
 
         // Create the result value variable
-        String returnTerm = context.declareVariable(primitiveTypeTermForType(targetType), "result");
+        final String returnTerm =
+                context.declareVariable(primitiveTypeTermForType(targetType), "result");
 
         // Generate the code block
-        String castCodeBlock =
+        final String castCodeBlock =
                 this.generateCodeBlockInternal(
                         context, inputTerm, returnTerm, inputType, targetType);
 
         if (isResultNullable) {
-            resultCode
-                    .append("if (!")
-                    .append(nullTerm)
-                    .append(") {\n  ")
-                    .append(castCodeBlock)
-                    .append("\n} else {\n")
-                    .append(returnTerm)
-                    .append(" = ")
-                    .append(CodeGenUtils.primitiveDefaultValue(targetType))
-                    .append(";\n}");
+            writer.ifStmt(
+                    "!" + nullTerm,
+                    thenWriter -> thenWriter.append(castCodeBlock),
+                    elseWriter ->
+                            elseWriter.assignStmt(returnTerm, primitiveDefaultValue(targetType)));
         } else {
-            resultCode.append(castCodeBlock).append("\n");
+            writer.append(castCodeBlock).append("\n");
         }
 
-        return new CastCodeBlock(resultCode.toString(), returnTerm, nullTerm);
+        return new CastCodeBlock(writer.toString(), returnTerm, nullTerm);
     }
 }

@@ -29,11 +29,11 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.calcite.avatica.util.DateTimeUtils;
 
-import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.accessStaticField;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
 
-/** Timestamp and timestamp ltz casting to string. */
+/** {@link LogicalTypeFamily#TIMESTAMP} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
 @Internal
 public class TimestampToStringCastRule extends AbstractCharacterFamilyTargetRule<TimestampData> {
 
@@ -53,11 +53,11 @@ public class TimestampToStringCastRule extends AbstractCharacterFamilyTargetRule
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        String zoneId =
+        final String zoneId =
                 (inputLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE))
                         ? context.getSessionTimeZoneTerm()
-                        : className(DateTimeUtils.class) + ".UTC_ZONE";
-        int precision = LogicalTypeChecks.getPrecision(inputLogicalType);
+                        : accessStaticField(DateTimeUtils.class, "UTC_ZONE");
+        final int precision = LogicalTypeChecks.getPrecision(inputLogicalType);
 
         return functionCall(TIMESTAMP_TO_STRING_TIME_ZONE(), inputTerm, zoneId, precision);
     }

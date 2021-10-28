@@ -23,11 +23,15 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
 
-/** Base class for cast rules converting to string with code generation. */
+/**
+ * Base class for cast rules converting to {@link LogicalTypeFamily#CHARACTER_STRING} with code
+ * generation.
+ */
 @Internal
 public abstract class AbstractCharacterFamilyTargetRule<IN>
         extends AbstractExpressionCodeGeneratorCastRule<IN, StringData> {
@@ -48,7 +52,7 @@ public abstract class AbstractCharacterFamilyTargetRule<IN>
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        String stringExpr =
+        final String stringExpr =
                 generateStringExpression(context, inputTerm, inputLogicalType, targetLogicalType);
 
         return functionCall(BINARY_STRING_DATA_FROM_STRING(), stringExpr);

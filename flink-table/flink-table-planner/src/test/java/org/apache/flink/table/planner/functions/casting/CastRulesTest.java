@@ -18,31 +18,65 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.GenericMapData;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.MapData;
+import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.functions.CastFunctionITCase;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.DateTimeUtils;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BINARY;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.BYTES;
+import static org.apache.flink.table.api.DataTypes.CHAR;
+import static org.apache.flink.table.api.DataTypes.DATE;
+import static org.apache.flink.table.api.DataTypes.DAY;
+import static org.apache.flink.table.api.DataTypes.DECIMAL;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.INTERVAL;
+import static org.apache.flink.table.api.DataTypes.MAP;
+import static org.apache.flink.table.api.DataTypes.MONTH;
+import static org.apache.flink.table.api.DataTypes.RAW;
+import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.apache.flink.table.api.DataTypes.VARBINARY;
+import static org.apache.flink.table.api.DataTypes.VARCHAR;
+import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -52,6 +86,24 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  */
 class CastRulesTest {
 
+    private static final CastRule.Context CET_CONTEXT =
+            CastRule.Context.create(
+                    ZoneId.of("CET"), Thread.currentThread().getContextClassLoader());
+
+    private static final int DATE =
+            DateTimeUtils.localDateToUnixDate(LocalDate.parse("2021-09-24"));
+    private static final int TIME =
+            DateTimeUtils.localTimeToUnixDate(LocalTime.parse("12:34:56.123"));
+    private static final StringData DATE_STRING = StringData.fromString("2021-09-24");
+    private static final StringData TIME_STRING = StringData.fromString("12:34:56.123");
+
+    private static final TimestampData TIMESTAMP =
+            TimestampData.fromLocalDateTime(LocalDateTime.parse("2021-09-24T12:34:56.123456"));
+    private static final StringData TIMESTAMP_STRING =
+            StringData.fromString("2021-09-24 12:34:56.123456");
+    private static final StringData TIMESTAMP_STRING_CET =
+            StringData.fromString("2021-09-24 14:34:56.123456");
+
     Stream<CastTestSpecBuilder> testCases() {
         return Stream.of(
                 CastTestSpecBuilder.testCastTo(BIGINT())
@@ -60,31 +112,134 @@ class CastRulesTest {
                         .fromCase(SMALLINT(), (short) 10, 10L)
                         .fromCase(TINYINT(), (byte) 10, 10L),
                 CastTestSpecBuilder.testCastTo(STRING())
+                        .fromCase(STRING(), null, null)
+                        .fromCase(
+                                CHAR(3), StringData.fromString("foo"), StringData.fromString("foo"))
+                        .fromCase(
+                                VARCHAR(5),
+                                StringData.fromString("Flink"),
+                                StringData.fromString("Flink"))
+                        .fromCase(
+                                VARCHAR(10),
+                                StringData.fromString("Flink"),
+                                StringData.fromString("Flink"))
+                        .fromCase(
+                                STRING(),
+                                StringData.fromString("Apache Flink"),
+                                StringData.fromString("Apache Flink"))
+                        .fromCase(BOOLEAN(), true, StringData.fromString("true"))
+                        .fromCase(BOOLEAN(), false, StringData.fromString("false"))
+                        .fromCase(
+                                BINARY(2), new byte[] {0, 1}, StringData.fromString("\u0000\u0001"))
+                        .fromCase(
+                                VARBINARY(3),
+                                new byte[] {0, 1, 2},
+                                StringData.fromString("\u0000\u0001\u0002"))
+                        .fromCase(
+                                VARBINARY(5),
+                                new byte[] {0, 1, 2},
+                                StringData.fromString("\u0000\u0001\u0002"))
+                        .fromCase(
+                                BYTES(),
+                                new byte[] {0, 1, 2, 3, 4},
+                                StringData.fromString("\u0000\u0001\u0002\u0003\u0004"))
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                StringData.fromString("9.870"))
+                        .fromCase(
+                                DECIMAL(5, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 5, 3),
+                                StringData.fromString("9.870"))
+                        .fromCase(TINYINT(), (byte) -125, StringData.fromString("-125"))
+                        .fromCase(SMALLINT(), (short) 32767, StringData.fromString("32767"))
+                        .fromCase(INT(), -12345678, StringData.fromString("-12345678"))
+                        .fromCase(BIGINT(), 1234567891234L, StringData.fromString("1234567891234"))
+                        .fromCase(FLOAT(), -123.456f, StringData.fromString("-123.456"))
+                        .fromCase(DOUBLE(), 12345.678901d, StringData.fromString("12345.678901"))
+                        .fromCase(
+                                FLOAT(),
+                                Float.MAX_VALUE,
+                                StringData.fromString(String.valueOf(Float.MAX_VALUE)))
+                        .fromCase(
+                                DOUBLE(),
+                                Double.MAX_VALUE,
+                                StringData.fromString(String.valueOf(Double.MAX_VALUE)))
                         .fromCase(
                                 STRING(),
                                 StringData.fromString("Hello"),
                                 StringData.fromString("Hello"))
+                        .fromCase(TIMESTAMP(), TIMESTAMP, TIMESTAMP_STRING)
+                        .fromCase(TIMESTAMP_LTZ(), CET_CONTEXT, TIMESTAMP, TIMESTAMP_STRING_CET)
+                        .fromCase(DATE(), DATE, DATE_STRING)
+                        .fromCase(TIME(5), TIME, TIME_STRING)
+                        .fromCase(INTERVAL(YEAR()), 84, StringData.fromString("+7-00"))
+                        .fromCase(INTERVAL(MONTH()), 5, StringData.fromString("+0-05"))
+                        .fromCase(INTERVAL(MONTH()), 123, StringData.fromString("+10-03"))
+                        .fromCase(INTERVAL(MONTH()), 12334, StringData.fromString("+1027-10"))
+                        .fromCase(INTERVAL(DAY()), 10L, StringData.fromString("+0 00:00:00.010"))
                         .fromCase(
-                                TIMESTAMP(),
-                                TimestampData.fromLocalDateTime(
-                                        LocalDateTime.parse("2021-09-24T12:34:56.123456")),
-                                StringData.fromString("2021-09-24 12:34:56.123456"))
+                                INTERVAL(DAY()),
+                                123456789L,
+                                StringData.fromString("+1 10:17:36.789"))
                         .fromCase(
-                                TIMESTAMP_LTZ(),
-                                CastRule.Context.create(
-                                        ZoneId.of("CET"),
-                                        Thread.currentThread().getContextClassLoader()),
-                                TimestampData.fromLocalDateTime(
-                                        LocalDateTime.parse("2021-09-24T12:34:56.123456")),
-                                StringData.fromString("2021-09-24 14:34:56.123456")),
+                                INTERVAL(DAY()),
+                                Duration.ofHours(36).toMillis(),
+                                StringData.fromString("+1 12:00:00.000"))
+                        .fromCase(
+                                ARRAY(INTERVAL(MONTH())),
+                                new GenericArrayData(new int[] {-123, 123}),
+                                StringData.fromString("[-10-03, +10-03]"))
+                        .fromCase(
+                                ARRAY(INT()),
+                                new GenericArrayData(new int[] {-123, 456}),
+                                StringData.fromString("[-123, 456]"))
+                        .fromCase(
+                                ARRAY(INT().nullable()),
+                                new GenericArrayData(new Integer[] {null, 456}),
+                                StringData.fromString("[NULL, 456]"))
+                        .fromCase(
+                                ARRAY(INT()),
+                                new GenericArrayData(new Integer[] {}),
+                                StringData.fromString("[]"))
+                        .fromCase(
+                                MAP(STRING(), INTERVAL(MONTH())),
+                                mapData(
+                                        entry(StringData.fromString("a"), -123),
+                                        entry(StringData.fromString("b"), 123)),
+                                StringData.fromString("{a=-10-03, b=+10-03}"))
+                        .fromCase(
+                                MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
+                                mapData(entry(null, -123), entry(StringData.fromString("b"), null)),
+                                StringData.fromString("{NULL=-10-03, b=NULL}"))
+                        .fromCase(
+                                MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
+                                mapData(entry(null, null)),
+                                StringData.fromString("{NULL=NULL}"))
+                        .fromCase(
+                                MAP(STRING(), INTERVAL(MONTH())),
+                                mapData(),
+                                StringData.fromString("{}"))
+                        .fromCase(
+                                ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
+                                GenericRowData.of(123, StringData.fromString("abc")),
+                                StringData.fromString("(123,abc)"))
+                        .fromCase(
+                                ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
+                                GenericRowData.of(null, StringData.fromString("abc")),
+                                StringData.fromString("(NULL,abc)"))
+                        .fromCase(ROW(), GenericRowData.of(), StringData.fromString("()"))
+                        .fromCase(
+                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
+                                RawValueData.fromObject(
+                                        LocalDateTime.parse("2020-11-11T18:08:01.123")),
+                                StringData.fromString("2020-11-11T18:08:01.123")),
                 CastTestSpecBuilder.testCastTo(ARRAY(STRING().nullable()))
                         .fromCase(
                                 ARRAY(TIMESTAMP().nullable()),
                                 new GenericArrayData(
                                         new Object[] {
-                                            TimestampData.fromLocalDateTime(
-                                                    LocalDateTime.parse(
-                                                            "2021-09-24T12:34:56.123456")),
+                                            TIMESTAMP,
                                             null,
                                             TimestampData.fromLocalDateTime(
                                                     LocalDateTime.parse(
@@ -92,7 +247,7 @@ class CastRulesTest {
                                         }),
                                 new GenericArrayData(
                                         new Object[] {
-                                            StringData.fromString("2021-09-24 12:34:56.123456"),
+                                            TIMESTAMP_STRING,
                                             null,
                                             StringData.fromString("2021-09-24 14:34:56.123456")
                                         })),
@@ -114,6 +269,22 @@ class CastRulesTest {
                 testCases().flatMap(CastTestSpecBuilder::toSpecs),
                 CastTestSpec::toString,
                 CastTestSpec::run);
+    }
+
+    private static <K, V> Map.Entry<K, V> entry(K k, V v) {
+        return new AbstractMap.SimpleImmutableEntry<>(k, v);
+    }
+
+    @SafeVarargs
+    private static <K, V> MapData mapData(Map.Entry<K, V>... entries) {
+        if (entries == null) {
+            return new GenericMapData(Collections.emptyMap());
+        }
+        Map<K, V> map = new HashMap<>();
+        for (Map.Entry<K, V> entry : entries) {
+            map.put(entry.getKey(), entry.getValue());
+        }
+        return new GenericMapData(map);
     }
 
     private static class CastTestSpec {
@@ -143,9 +314,20 @@ class CastRulesTest {
                             this.castContext,
                             this.inputType.getLogicalType(),
                             this.targetType.getLogicalType());
-            assertNotNull(executor);
+            assertNotNull(
+                    executor,
+                    "Cannot resolve an executor for input "
+                            + this.inputType
+                            + " and target "
+                            + this.targetType);
 
             assertEquals(this.expectedData, executor.cast(this.inputData));
+
+            // Run twice to make sure rules are reusable without causing issues
+            assertEquals(
+                    this.expectedData,
+                    executor.cast(this.inputData),
+                    "Error when reusing the rule. Perhaps there is some state that needs to be reset");
         }
 
         @Override

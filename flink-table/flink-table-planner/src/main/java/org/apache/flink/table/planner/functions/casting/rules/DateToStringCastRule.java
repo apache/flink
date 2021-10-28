@@ -18,46 +18,34 @@
 
 package org.apache.flink.table.planner.functions.casting.rules;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-/**
- * Identity cast rule. For more details on when the rule is applied, check {@link
- * #isIdentityCast(LogicalType, LogicalType)}
- */
-@Internal
-public class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Object> {
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.UNIX_DATE_TO_STRING;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
 
-    public static final IdentityCastRule INSTANCE = new IdentityCastRule();
+/** {@link LogicalTypeRoot#DATE} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+public class DateToStringCastRule extends AbstractCharacterFamilyTargetRule<Long> {
 
-    private IdentityCastRule() {
-        super(CastRulePredicate.builder().predicate(IdentityCastRule::isIdentityCast).build());
-    }
+    public static final DateToStringCastRule INSTANCE = new DateToStringCastRule();
 
-    private static boolean isIdentityCast(
-            LogicalType inputLogicalType, LogicalType targetLogicalType) {
-        // TODO string to string casting now behaves like string casting.
-        //  the discussion in FLINK-24413 will address it
-        if (inputLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)
-                && targetLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
-            return true;
-        }
-
-        // Identity cast applies if the two types are equals, except nullability
-        return inputLogicalType.copy(true).equals(targetLogicalType.copy(true));
+    private DateToStringCastRule() {
+        super(
+                CastRulePredicate.builder()
+                        .input(LogicalTypeRoot.DATE)
+                        .target(LogicalTypeFamily.CHARACTER_STRING)
+                        .build());
     }
 
     @Override
-    public CastCodeBlock generateCodeBlock(
+    public String generateStringExpression(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
-            String inputIsNullTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return new CastCodeBlock("", inputTerm, inputIsNullTerm);
+        return functionCall(UNIX_DATE_TO_STRING(), inputTerm);
     }
 }

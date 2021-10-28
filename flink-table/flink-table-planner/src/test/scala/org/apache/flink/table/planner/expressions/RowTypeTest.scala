@@ -61,7 +61,7 @@ class RowTypeTest extends RowTypeTestBase {
       row(1 + 1, 2 * 3, nullOf(DataTypes.STRING())),
       "row(1 + 1, 2 * 3, Null(STRING))",
       "ROW(1 + 1, 2 * 3, NULLIF(1, 1))",
-      "(2,6,null)"
+      "(2,6,NULL)"
     )
 
     testSqlApi("(1, 'foo', true)", "(1,foo,true)")
@@ -73,7 +73,7 @@ class RowTypeTest extends RowTypeTestBase {
       row('f0, 'f1),
       "row(f0, f1)",
       "(f0, f1)",
-      "(null,1)"
+      "(NULL,1)"
     )
 
     testAllApis(
@@ -87,7 +87,7 @@ class RowTypeTest extends RowTypeTestBase {
       row('f2, 'f5),
       "row(f2, f5)",
       "(f2, f5)",
-      "((2,foo,true),(foo,null))"
+      "((2,foo,true),(foo,NULL))"
     )
 
     testAllApis(

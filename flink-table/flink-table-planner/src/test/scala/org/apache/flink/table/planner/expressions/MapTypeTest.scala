@@ -78,7 +78,7 @@ class MapTypeTest extends MapTypeTestBase {
       map(1, nullOf(DataTypes.INT)),
       "map(1, Null(INT))",
       "map[1, NULLIF(1,1)]",
-      "{1=null}")
+      "{1=NULL}")
 
     // explicit conversion
     testAllApis(
@@ -162,7 +162,7 @@ class MapTypeTest extends MapTypeTestBase {
       map('f1.at("a"), 'f5),
       "map(f1.at('a'), f5)",
       "MAP[f1['a'], f5]",
-      "{null=12}")
+      "{NULL=12}")
 
     testAllApis(
       'f1,
