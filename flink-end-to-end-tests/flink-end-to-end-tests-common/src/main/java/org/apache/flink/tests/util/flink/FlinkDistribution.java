@@ -169,6 +169,13 @@ final class FlinkDistribution {
             commands.add("-p");
             commands.add(String.valueOf(jobSubmission.getParallelism()));
         }
+        jobSubmission
+                .getMainClass()
+                .ifPresent(
+                        mainClass -> {
+                            commands.add("--class");
+                            commands.add(mainClass);
+                        });
         commands.add(jobSubmission.getJar().toAbsolutePath().toString());
         commands.addAll(jobSubmission.getArguments());
 
