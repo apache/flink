@@ -109,12 +109,17 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
     testHarness.setStateTtlProcessingTime(1001)
     testHarness.processElement(binaryRecord(DELETE, "a", "1", 2L: JLong, "1"))
 
+    // currently there should only exists one record in state, test adding two new record
+    testHarness.processElement(binaryRecord(INSERT, "a", "1", 2L: JLong, "1"))
+    testHarness.processElement(binaryRecord(INSERT, "a", "1", 2L: JLong, "1"))
+
     val result = dropWatermarks(testHarness.getOutput.toArray)
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(binaryRecord(INSERT, "a", "1", 2L: JLong, "1", 1L: JLong))
     expectedOutput.add(binaryRecord(INSERT, "a", "1", 2L: JLong, "1", 2L: JLong))
+
     expectedOutput.add(binaryRecord(UPDATE_BEFORE, "a", "1", 2L: JLong, "1", 1L: JLong))
     expectedOutput.add(binaryRecord(UPDATE_AFTER, "a", "1", 2L: JLong, "1", 1L: JLong))
     expectedOutput.add(binaryRecord(UPDATE_BEFORE, "a", "1", 2L: JLong, "1", 2L: JLong))
@@ -131,6 +136,9 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
 
     // if not expired, this is expected result
     // expectedOutput.add(binaryRecord(INSERT, "a", "1", 1L: JLong, "1", 2L: JLong))
+
+    // only output one result
+    expectedOutput.add(binaryRecord(INSERT, "a", "1", 2L: JLong, "1", 2L: JLong))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()
@@ -191,6 +199,10 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
     testHarness.setStateTtlProcessingTime(1001)
     testHarness.processElement(binaryRecord(DELETE, "a", "1", 2L: JLong, "1"))
 
+    // currently there should not exists any record in state, test adding two new record
+    testHarness.processElement(binaryRecord(INSERT, "a", "1", 2L: JLong, "1"))
+    testHarness.processElement(binaryRecord(INSERT, "a", "1", 2L: JLong, "1"))
+
     val result = dropWatermarks(testHarness.getOutput.toArray)
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -202,6 +214,8 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
 
     // if not expired, this is expected result
     // expectedOutput.add(binaryRecord(INSERT, "a", "1", 1L: JLong, "1"))
+
+    expectedOutput.add(binaryRecord(INSERT, "a", "1", 2L: JLong, "1"))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()
