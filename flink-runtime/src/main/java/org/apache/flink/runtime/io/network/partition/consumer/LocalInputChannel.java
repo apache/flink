@@ -346,7 +346,8 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
     @Override
     int getBuffersInUseCount() {
-        return subpartitionView.getNumberOfQueuedBuffers();
+        ResultSubpartitionView view = this.subpartitionView;
+        return view == null ? 0 : view.getNumberOfQueuedBuffers();
     }
 
     @Override

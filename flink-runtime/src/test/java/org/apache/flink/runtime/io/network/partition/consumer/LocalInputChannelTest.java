@@ -643,6 +643,31 @@ public class LocalInputChannelTest {
         assertEquals(20, subpartition1.add(createFilledFinishedBufferConsumer(16)));
     }
 
+    @Test
+    public void testReceivingBuffersInUseBeforeSubpartitionViewInitialization() throws Exception {
+        // given: Local input channel without initialized subpartition view.
+        ResultSubpartitionView subpartitionView =
+                createResultSubpartitionView(
+                        createFilledFinishedBufferConsumer(4096),
+                        createFilledFinishedBufferConsumer(4096),
+                        createFilledFinishedBufferConsumer(4096));
+        TestingResultPartitionManager partitionManager =
+                new TestingResultPartitionManager(subpartitionView);
+        final SingleInputGate inputGate = createSingleInputGate(1);
+        final LocalInputChannel localChannel = createLocalInputChannel(inputGate, partitionManager);
+
+        inputGate.setInputChannels(localChannel);
+
+        // then: Buffers in use should be equal to 0 until subpartition view initialization.
+        assertEquals(0, localChannel.getBuffersInUseCount());
+
+        // when: The subpartition view is initialized.
+        localChannel.requestSubpartition(0);
+
+        // then: Buffers in use should show correct value.
+        assertEquals(3, localChannel.getBuffersInUseCount());
+    }
+
     // ---------------------------------------------------------------------------------------------
 
     private static ResultSubpartitionView createResultSubpartitionView(boolean addBuffer)
