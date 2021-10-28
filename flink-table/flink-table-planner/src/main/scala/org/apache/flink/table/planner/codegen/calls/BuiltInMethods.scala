@@ -231,7 +231,7 @@ object BuiltInMethods {
   val UNIX_TIME_TO_STRING = Types.lookupMethod(
     classOf[DateTimeUtils],
     "unixTimeToString",
-    classOf[Int])
+    classOf[Int], classOf[Int])
 
   val UNIX_DATE_TO_STRING = Types.lookupMethod(
     classOf[DateTimeUtils],

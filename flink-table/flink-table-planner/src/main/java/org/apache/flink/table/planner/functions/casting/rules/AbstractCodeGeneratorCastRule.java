@@ -32,7 +32,6 @@ import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -148,9 +147,10 @@ public abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCas
                                     classCode)
                             .getConstructors()[0]
                             .newInstance(constructorArgs);
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+        } catch (Throwable e) {
             throw new FlinkRuntimeException(
-                    "Cast executor cannot be instantiated. This is a bug. Please file an issue.",
+                    "Cast executor cannot be instantiated. This is a bug. Please file an issue. Code:\n"
+                            + classCode,
                     e);
         }
     }

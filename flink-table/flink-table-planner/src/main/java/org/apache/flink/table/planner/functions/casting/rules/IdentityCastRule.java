@@ -23,17 +23,31 @@ import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
-import java.util.Objects;
-
-/** Identity casting rule. */
+/**
+ * Identity cast rule. For more details on when the rule is applied, check {@link
+ * #isIdentityCast(LogicalType, LogicalType)}
+ */
 @Internal
 public class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Object> {
 
     public static final IdentityCastRule INSTANCE = new IdentityCastRule();
 
     private IdentityCastRule() {
-        super(CastRulePredicate.builder().predicate(Objects::equals).build());
+        super(CastRulePredicate.builder().predicate(IdentityCastRule::isIdentityCast).build());
+    }
+
+    private static boolean isIdentityCast(
+            LogicalType inputLogicalType, LogicalType targetLogicalType) {
+        // TODO string to string casting now behaves like string casting.
+        //  the discussion in FLINK-24413 will address it
+        if (inputLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)
+                && targetLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
+            return true;
+        }
+        return LogicalTypeCasts.supportsAvoidingCast(inputLogicalType, targetLogicalType);
     }
 
     @Override

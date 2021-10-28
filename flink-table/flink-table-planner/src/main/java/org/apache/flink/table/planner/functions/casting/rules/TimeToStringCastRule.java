@@ -19,41 +19,39 @@
 package org.apache.flink.table.planner.functions.casting.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.UNIX_TIME_TO_STRING;
 
 /**
- * Base class for cast rules converting to {@link LogicalTypeFamily#CHARACTER_STRING} with code
- * generation.
+ * {@link LogicalTypeRoot#TIME_WITHOUT_TIME_ZONE} to {@link LogicalTypeFamily#CHARACTER_STRING} cast
+ * rule.
  */
 @Internal
-public abstract class AbstractCharacterFamilyTargetRule<IN>
-        extends AbstractExpressionCodeGeneratorCastRule<IN, StringData> {
+public class TimeToStringCastRule extends AbstractCharacterFamilyTargetRule<Long> {
 
-    protected AbstractCharacterFamilyTargetRule(CastRulePredicate predicate) {
-        super(predicate);
+    public static final TimeToStringCastRule INSTANCE = new TimeToStringCastRule();
+
+    private TimeToStringCastRule() {
+        super(
+                CastRulePredicate.builder()
+                        .input(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE)
+                        .target(LogicalTypeFamily.CHARACTER_STRING)
+                        .build());
     }
 
-    public abstract String generateStringExpression(
-            CodeGeneratorCastRule.Context context,
-            String inputTerm,
-            LogicalType inputLogicalType,
-            LogicalType targetLogicalType);
-
     @Override
-    String generateExpression(
+    public String generateStringExpression(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final String stringExpr =
-                generateStringExpression(context, inputTerm, inputLogicalType, targetLogicalType);
-
-        return CastRuleUtils.staticCall(BINARY_STRING_DATA_FROM_STRING(), stringExpr);
+        return CastRuleUtils.staticCall(
+                UNIX_TIME_TO_STRING(), inputTerm, LogicalTypeChecks.getPrecision(inputLogicalType));
     }
 }

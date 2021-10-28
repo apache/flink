@@ -21,7 +21,17 @@ package org.apache.flink.table.planner.functions.casting;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.functions.casting.rules.ArrayToArrayCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.ArrayToStringCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.BinaryToStringCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.BooleanToStringCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.DateToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.IdentityCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.IntervalToStringCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.MapToStringCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.NumericToStringCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.RawToStringCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.RowToStringCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.TimeToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.TimestampToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.UpcastToBigIntCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -44,10 +54,25 @@ public class CastRuleProvider {
     private static final CastRuleProvider INSTANCE = new CastRuleProvider();
 
     static {
-        INSTANCE.addRule(TimestampToStringCastRule.INSTANCE)
-                .addRule(IdentityCastRule.INSTANCE)
+        INSTANCE
+                // Numeric rules
                 .addRule(UpcastToBigIntCastRule.INSTANCE)
-                .addRule(ArrayToArrayCastRule.INSTANCE);
+                // To string rules
+                .addRule(NumericToStringCastRule.INSTANCE)
+                .addRule(BooleanToStringCastRule.INSTANCE)
+                .addRule(BinaryToStringCastRule.INSTANCE)
+                .addRule(TimestampToStringCastRule.INSTANCE)
+                .addRule(TimeToStringCastRule.INSTANCE)
+                .addRule(DateToStringCastRule.INSTANCE)
+                .addRule(IntervalToStringCastRule.INSTANCE)
+                .addRule(ArrayToStringCastRule.INSTANCE)
+                .addRule(MapToStringCastRule.INSTANCE)
+                .addRule(RowToStringCastRule.INSTANCE)
+                .addRule(RawToStringCastRule.INSTANCE)
+                // Collection rules
+                .addRule(ArrayToArrayCastRule.INSTANCE)
+                // Special rules
+                .addRule(IdentityCastRule.INSTANCE);
     }
 
     /* ------- Entrypoint ------- */
@@ -58,6 +83,14 @@ public class CastRuleProvider {
      */
     public static @Nullable CastRule<?, ?> resolve(LogicalType inputType, LogicalType targetType) {
         return INSTANCE.internalResolve(inputType, targetType);
+    }
+
+    /**
+     * Returns {@code true} if and only if a {@link CastRule} can be resolved for the provided input
+     * type and target type.
+     */
+    public static boolean exists(LogicalType inputType, LogicalType targetType) {
+        return resolve(inputType, targetType) != null;
     }
 
     /**

@@ -19,41 +19,39 @@
 package org.apache.flink.table.planner.functions.casting.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
-import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
+import java.nio.charset.StandardCharsets;
+
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.accessStaticField;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.constructorCall;
 
 /**
- * Base class for cast rules converting to {@link LogicalTypeFamily#CHARACTER_STRING} with code
- * generation.
+ * {@link LogicalTypeFamily#BINARY_STRING} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule.
  */
 @Internal
-public abstract class AbstractCharacterFamilyTargetRule<IN>
-        extends AbstractExpressionCodeGeneratorCastRule<IN, StringData> {
+public class BinaryToStringCastRule extends AbstractCharacterFamilyTargetRule<byte[]> {
 
-    protected AbstractCharacterFamilyTargetRule(CastRulePredicate predicate) {
-        super(predicate);
+    public static final BinaryToStringCastRule INSTANCE = new BinaryToStringCastRule();
+
+    private BinaryToStringCastRule() {
+        super(
+                CastRulePredicate.builder()
+                        .input(LogicalTypeFamily.BINARY_STRING)
+                        .target(LogicalTypeFamily.CHARACTER_STRING)
+                        .build());
     }
 
-    public abstract String generateStringExpression(
-            CodeGeneratorCastRule.Context context,
-            String inputTerm,
-            LogicalType inputLogicalType,
-            LogicalType targetLogicalType);
-
     @Override
-    String generateExpression(
+    public String generateStringExpression(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final String stringExpr =
-                generateStringExpression(context, inputTerm, inputLogicalType, targetLogicalType);
-
-        return CastRuleUtils.staticCall(BINARY_STRING_DATA_FROM_STRING(), stringExpr);
+        return constructorCall(
+                String.class, inputTerm, accessStaticField(StandardCharsets.class, "UTF_8"));
     }
 }

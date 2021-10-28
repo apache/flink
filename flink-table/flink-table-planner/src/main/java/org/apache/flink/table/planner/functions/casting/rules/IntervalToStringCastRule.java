@@ -19,41 +19,42 @@
 package org.apache.flink.table.planner.functions.casting.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
+import java.lang.reflect.Method;
 
-/**
- * Base class for cast rules converting to {@link LogicalTypeFamily#CHARACTER_STRING} with code
- * generation.
- */
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.INTERVAL_DAY_TIME_TO_STRING;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.INTERVAL_YEAR_MONTH_TO_STRING;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
+
+/** {@link LogicalTypeFamily#INTERVAL} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
 @Internal
-public abstract class AbstractCharacterFamilyTargetRule<IN>
-        extends AbstractExpressionCodeGeneratorCastRule<IN, StringData> {
+public class IntervalToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> {
 
-    protected AbstractCharacterFamilyTargetRule(CastRulePredicate predicate) {
-        super(predicate);
+    public static final IntervalToStringCastRule INSTANCE = new IntervalToStringCastRule();
+
+    private IntervalToStringCastRule() {
+        super(
+                CastRulePredicate.builder()
+                        .input(LogicalTypeFamily.INTERVAL)
+                        .target(LogicalTypeFamily.CHARACTER_STRING)
+                        .build());
     }
 
-    public abstract String generateStringExpression(
-            CodeGeneratorCastRule.Context context,
-            String inputTerm,
-            LogicalType inputLogicalType,
-            LogicalType targetLogicalType);
-
     @Override
-    String generateExpression(
+    public String generateStringExpression(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final String stringExpr =
-                generateStringExpression(context, inputTerm, inputLogicalType, targetLogicalType);
-
-        return CastRuleUtils.staticCall(BINARY_STRING_DATA_FROM_STRING(), stringExpr);
+        final Method method =
+                inputLogicalType.is(LogicalTypeRoot.INTERVAL_YEAR_MONTH)
+                        ? INTERVAL_YEAR_MONTH_TO_STRING()
+                        : INTERVAL_DAY_TIME_TO_STRING();
+        return staticCall(method, inputTerm);
     }
 }
