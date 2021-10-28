@@ -141,19 +141,19 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
     public static class DefaultClassLoaderFactory implements ClassLoaderFactory {
 
         /** The resolve order to use when creating a {@link ClassLoader}. */
-        private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
+        protected final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
 
         /**
          * List of patterns for classes that should always be resolved from the parent ClassLoader,
          * if possible.
          */
-        private final String[] alwaysParentFirstPatterns;
+        protected final String[] alwaysParentFirstPatterns;
 
         /** Class loading exception handler. */
-        private final Consumer<Throwable> classLoadingExceptionHandler;
+        protected final Consumer<Throwable> classLoadingExceptionHandler;
 
         /** Test if classloader is used outside of job. */
-        private final boolean checkClassLoaderLeak;
+        protected final boolean checkClassLoaderLeak;
 
         protected DefaultClassLoaderFactory(
                 FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,

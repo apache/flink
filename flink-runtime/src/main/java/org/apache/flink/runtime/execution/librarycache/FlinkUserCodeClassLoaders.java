@@ -84,7 +84,7 @@ public class FlinkUserCodeClassLoaders {
         }
     }
 
-    private static URLClassLoader wrapWithSafetyNet(
+    public static URLClassLoader wrapWithSafetyNet(
             FlinkUserCodeClassLoader classLoader, boolean check) {
         return check
                 ? new SafetyNetWrapperClassLoader(classLoader, classLoader.getParent())
