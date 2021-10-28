@@ -105,7 +105,7 @@ public interface OffsetsInitializer extends Serializable {
      * @return an offset initializer which initialize the offsets to the committed offsets.
      */
     static OffsetsInitializer committedOffsets() {
-        return committedOffsets(OffsetResetStrategy.NONE);
+        return committedOffsets(OffsetResetStrategy.LATEST);
     }
 
     /**
