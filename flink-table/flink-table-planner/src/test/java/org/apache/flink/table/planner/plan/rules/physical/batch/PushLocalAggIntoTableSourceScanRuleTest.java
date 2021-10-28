@@ -105,7 +105,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
                         + "WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'filterable-fields' = 'id;type',\n"
-                        + " 'disable-projection-push-down' = 'true',\n"
+                        + " 'enable-projection-push-down' = 'false',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl4);
@@ -259,12 +259,18 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotPushDownLocalAggWithAuxGrouping() {
+    public void testCanPushDownLocalAggWithAuxGrouping() {
+        // enable two-phase aggregate, otherwise there is no local aggregate
+        util.getTableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
+
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  id, name, count(*)\n"
                         + "FROM inventory_meta\n"
-                        + "  group by id, name, abs(amount)");
+                        + "  group by id, name");
     }
 
     @Test

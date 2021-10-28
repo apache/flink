@@ -51,7 +51,8 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  deposit bigint,\n"
                         + "  points bigint,\n"
                         + "  metadata_1 BIGINT METADATA,\n"
-                        + "  metadata_2 STRING METADATA\n"
+                        + "  metadata_2 STRING METADATA,\n"
+                        + "  PRIMARY KEY (`id`) NOT ENFORCED\n"
                         + ") WITH (\n"
                         + "  'connector' = 'values',\n"
                         + "  'data-id' = '"
@@ -64,7 +65,6 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
         tEnv().executeSql(ddl);
 
         // partitioned table
-        String testDataId2 = TestValuesTableFactory.registerData(TestData.personData());
         String ddl2 =
                 "CREATE TABLE AggregatableTable_Part (\n"
                         + "  id int,\n"
@@ -89,7 +89,6 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
         tEnv().executeSql(ddl2);
 
         // partitioned table
-        String testDataId3 = TestValuesTableFactory.registerData(TestData.personData());
         String ddl3 =
                 "CREATE TABLE AggregatableTable_No_Proj (\n"
                         + "  id int,\n"
@@ -108,7 +107,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + testDataId
                         + "',\n"
                         + "  'filterable-fields' = 'id;age',\n"
-                        + "  'disable-projection-push-down' = 'true',\n"
+                        + "  'enable-projection-push-down' = 'false',\n"
                         + "  'bounded' = 'true'\n"
                         + ")";
         tEnv().executeSql(ddl3);
@@ -290,6 +289,30 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "GROUP BY gender, age",
                 JavaScalaConversionUtil.toScala(
                         Arrays.asList(Row.of(50, 50, 1, "f", 19), Row.of(200, 200, 1, "f", 20))),
+                false);
+    }
+
+    @Test
+    public void testPushDownLocalAggWithoutAuxGrouping() {
+        // enable two-phase aggregate, otherwise there is no local aggregate
+        tEnv().getConfig()
+                .getConfiguration()
+                .setString(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
+
+        checkResult(
+                "SELECT\n"
+                        + "  id,\n"
+                        + "  name,\n"
+                        + "  count(*)\n"
+                        + "FROM\n"
+                        + "  AggregatableTable\n"
+                        + "WHERE id > 8\n"
+                        + "GROUP BY id, name",
+                JavaScalaConversionUtil.toScala(
+                        Arrays.asList(
+                                Row.of(9, "emma", 1),
+                                Row.of(10, "benji", 1),
+                                Row.of(11, "eva", 1))),
                 false);
     }
 }

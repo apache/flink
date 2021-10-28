@@ -298,8 +298,8 @@ public final class TestValuesTableFactory
     private static final ConfigOption<Integer> SINK_EXPECTED_MESSAGES_NUM =
             ConfigOptions.key("sink-expected-messages-num").intType().defaultValue(-1);
 
-    private static final ConfigOption<Boolean> DISABLE_PROJECTION_PUSH_DOWN =
-            ConfigOptions.key("disable-projection-push-down").booleanType().defaultValue(false);
+    private static final ConfigOption<Boolean> ENABLE_PROJECTION_PUSH_DOWN =
+            ConfigOptions.key("enable-projection-push-down").booleanType().defaultValue(true);
 
     private static final ConfigOption<Boolean> NESTED_PROJECTION_SUPPORTED =
             ConfigOptions.key("nested-projection-supported").booleanType().defaultValue(false);
@@ -376,7 +376,7 @@ public final class TestValuesTableFactory
         boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
         String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
         boolean disableLookup = helper.getOptions().get(DISABLE_LOOKUP);
-        boolean disableProjectionPushDown = helper.getOptions().get(DISABLE_PROJECTION_PUSH_DOWN);
+        boolean enableProjectionPushDown = helper.getOptions().get(ENABLE_PROJECTION_PUSH_DOWN);
         boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
         boolean enableWatermarkPushDown = helper.getOptions().get(ENABLE_WATERMARK_PUSH_DOWN);
         boolean failingSource = helper.getOptions().get(FAILING_SOURCE);
@@ -414,7 +414,7 @@ public final class TestValuesTableFactory
                 partition2Rows.put(Collections.emptyMap(), data);
             }
 
-            if (disableProjectionPushDown) {
+            if (!enableProjectionPushDown) {
                 return new TestValuesScanTableSourceWithoutProjectionPushDown(
                         producedDataType,
                         changelogMode,
@@ -576,7 +576,7 @@ public final class TestValuesTableFactory
                         SINK_INSERT_ONLY,
                         RUNTIME_SINK,
                         SINK_EXPECTED_MESSAGES_NUM,
-                        DISABLE_PROJECTION_PUSH_DOWN,
+                        ENABLE_PROJECTION_PUSH_DOWN,
                         NESTED_PROJECTION_SUPPORTED,
                         FILTERABLE_FIELDS,
                         PARTITION_LIST,

@@ -127,7 +127,7 @@ public class AggregatePushDownSpec extends SourceAbilitySpecBase {
             RowType producedType,
             DynamicTableSource tableSource,
             SourceAbilityContext context) {
-        assert context.isBatchMode();
+        assert context.isBatchMode() && groupingSets.size() == 1;
 
         List<AggregateExpression> aggregateExpressions =
                 buildAggregateExpressions(inputType, aggregateCalls);

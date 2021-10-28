@@ -146,29 +146,25 @@ Calc(select=[EXPR$0, name, type])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCannotPushDownLocalAggWithAuxGrouping">
+  <TestCase name="testCanPushDownLocalAggWithAuxGrouping">
     <Resource name="sql">
       <![CDATA[SELECT
   id, name, count(*)
 FROM inventory_meta
-  group by id, name, abs(amount)]]>
+  group by id, name]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], EXPR$2=[$3])
-+- LogicalAggregate(group=[{0, 1, 2}], EXPR$2=[COUNT()])
-   +- LogicalProject(id=[$0], name=[$1], $f2=[ABS($2)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, inventory_meta]])
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()])
++- LogicalProject(id=[$0], name=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, inventory_meta]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[id, name, EXPR$2])
-+- HashAggregate(isMerge=[true], groupBy=[id, $f2], auxGrouping=[name], select=[id, $f2, name, Final_COUNT(count1$0) AS EXPR$2])
-   +- Exchange(distribution=[hash[id, $f2]])
-      +- LocalHashAggregate(groupBy=[id, $f2], auxGrouping=[name], select=[id, $f2, name, Partial_COUNT(*) AS count1$0])
-         +- Calc(select=[id, name, ABS(amount) AS $f2])
-            +- TableSourceScan(table=[[default_catalog, default_database, inventory_meta, project=[id, name, amount], metadata=[]]], fields=[id, name, amount])
+HashAggregate(isMerge=[true], groupBy=[id], auxGrouping=[name], select=[id, name, Final_COUNT(count1$0) AS EXPR$2])
++- Exchange(distribution=[hash[id]])
+   +- TableSourceScan(table=[[default_catalog, default_database, inventory_meta, project=[id, name], metadata=[], aggregates=[grouping=[id,name], aggFunctions=[Count1AggFunction()]]]], fields=[id, name, count1$0])
 ]]>
     </Resource>
   </TestCase>

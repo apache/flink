@@ -27,12 +27,11 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLoc
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSort;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalTableSourceScan;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
-import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 
 /**
- * Planner rule that tries to push a local sort aggregate which with sort into a {@link
+ * Planner rule that tries to push a local sort aggregate which with sort and calc into a {@link
  * BatchPhysicalTableSourceScan} whose table is a {@link TableSourceTable} with a source supporting
  * {@link SupportsAggregatePushDown}. The {@link
  * OptimizerConfigOptions#TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED} need to be true.
@@ -84,9 +83,9 @@ public class PushLocalSortAggWithSortAndCalcIntoScanRule extends PushLocalAggInt
         BatchPhysicalCalc calc = call.rel(3);
         BatchPhysicalTableSourceScan tableSourceScan = call.rel(4);
 
-        return checkCalcInputRefOnly(calc)
-                && checkNoProjectionPushDown(tableSourceScan)
-                && checkMatchesAggregatePushDown(call, localAggregate, tableSourceScan);
+        return isInputRefOnly(calc)
+                && isProjectionNotPushedDown(tableSourceScan)
+                && canPushDown(call, localAggregate, tableSourceScan);
     }
 
     @Override
@@ -95,8 +94,7 @@ public class PushLocalSortAggWithSortAndCalcIntoScanRule extends PushLocalAggInt
         BatchPhysicalCalc calc = call.rel(3);
         BatchPhysicalTableSourceScan oldScan = call.rel(4);
 
-        int[] calcRefFields =
-                RexNodeExtractor.extractRefInputFields(calc.getProgram().getExprList());
+        int[] calcRefFields = getRefFiledIndex(calc);
 
         pushLocalAggregateIntoScan(call, localSortAgg, oldScan, calcRefFields);
     }
