@@ -55,6 +55,9 @@ public final class TestDynamicTableFactory
     public static final ConfigOption<Long> BUFFER_SIZE =
             ConfigOptions.key("buffer-size").longType().defaultValue(100L);
 
+    public static final ConfigOption<String> PASSWORD =
+            ConfigOptions.key("password").stringType().noDefaultValue();
+
     public static final ConfigOption<String> KEY_FORMAT =
             ConfigOptions.key("key" + FORMAT_SUFFIX).stringType().noDefaultValue();
 
@@ -120,6 +123,7 @@ public final class TestDynamicTableFactory
         options.add(KEY_FORMAT);
         options.add(FORMAT);
         options.add(VALUE_FORMAT);
+        options.add(PASSWORD);
         return options;
     }
 
