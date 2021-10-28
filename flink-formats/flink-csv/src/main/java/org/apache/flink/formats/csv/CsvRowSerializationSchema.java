@@ -56,8 +56,13 @@ import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOC
  *
  * <p>Result <code>byte[]</code> messages can be deserialized using {@link
  * CsvRowDeserializationSchema}.
+ *
+ * @deprecated The format was developed for the Table API users and will not be maintained for
+ *     DataStream API users anymore. Either use Table API or switch to Data Stream, defining your
+ *     own {@link SerializationSchema}.
  */
 @PublicEvolving
+@Deprecated
 public final class CsvRowSerializationSchema implements SerializationSchema<Row> {
 
     private static final long serialVersionUID = 2098447220136965L;
