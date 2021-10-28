@@ -43,8 +43,8 @@ import java.util.List;
  */
 public class TestCsvDeserializationSchema implements DeserializationSchema<RowData> {
 
-    private final List<DataType> outputFieldTypes;
-    private final int outputFieldCount;
+    private final List<DataType> physicalFieldTypes;
+    private final int physicalFieldCount;
 
     private final TypeInformation<RowData> typeInfo;
     private final int[] indexMapping;
@@ -54,14 +54,14 @@ public class TestCsvDeserializationSchema implements DeserializationSchema<RowDa
 
     private transient FieldParser<?>[] fieldParsers;
 
-    public TestCsvDeserializationSchema(DataType outputDataType, List<String> orderedCsvColumns) {
-        this.outputFieldTypes = DataType.getFieldDataTypes(outputDataType);
-        this.outputFieldCount = outputFieldTypes.size();
-        this.typeInfo = InternalTypeInfo.of((RowType) outputDataType.getLogicalType());
+    public TestCsvDeserializationSchema(DataType physicalDataType, List<String> orderedCsvColumns) {
+        this.physicalFieldTypes = DataType.getFieldDataTypes(physicalDataType);
+        this.physicalFieldCount = physicalFieldTypes.size();
+        this.typeInfo = InternalTypeInfo.of((RowType) physicalDataType.getLogicalType());
 
-        List<String> outputTypeFields = DataType.getFieldNames(outputDataType);
+        List<String> physicalFieldNames = DataType.getFieldNames(physicalDataType);
         this.indexMapping =
-                orderedCsvColumns.stream().mapToInt(outputTypeFields::indexOf).toArray();
+                orderedCsvColumns.stream().mapToInt(physicalFieldNames::indexOf).toArray();
 
         initFieldParsers();
     }
@@ -74,7 +74,7 @@ public class TestCsvDeserializationSchema implements DeserializationSchema<RowDa
     @SuppressWarnings("unchecked")
     @Override
     public RowData deserialize(byte[] message) throws IOException {
-        GenericRowData row = new GenericRowData(outputFieldCount);
+        GenericRowData row = new GenericRowData(physicalFieldCount);
         int startIndex = 0;
         for (int csvColumn = 0; csvColumn < indexMapping.length; csvColumn++) {
             startIndex =
@@ -113,7 +113,7 @@ public class TestCsvDeserializationSchema implements DeserializationSchema<RowDa
                                 FieldParser.getParserForType(String.class), FieldParser.class);
                 continue;
             }
-            DataType fieldType = outputFieldTypes.get(indexMapping[csvColumn]);
+            DataType fieldType = physicalFieldTypes.get(indexMapping[csvColumn]);
             Class<? extends FieldParser<?>> parserType =
                     FieldParser.getParserForType(
                             logicalTypeRootToFieldParserClass(

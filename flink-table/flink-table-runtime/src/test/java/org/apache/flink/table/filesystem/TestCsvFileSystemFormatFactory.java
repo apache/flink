@@ -120,7 +120,7 @@ public class TestCsvFileSystemFormatFactory
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-        List<String> originalTypeFields =
+        List<String> schemaFields =
                 DataType.getFieldNames(context.getPhysicalRowDataType()).stream()
                         .filter(
                                 field ->
@@ -136,8 +136,8 @@ public class TestCsvFileSystemFormatFactory
                 // implicit assumption done by tests is that the csv rows are composed by only the
                 // physical fields (excluding partition fields) in the same order as defined in the
                 // table declaration. This is why TestCsvDeserializationSchema needs
-                // originalTypeFields.
-                return new TestCsvDeserializationSchema(physicalDataType, originalTypeFields);
+                // schemaFields.
+                return new TestCsvDeserializationSchema(physicalDataType, schemaFields);
             }
 
             @Override

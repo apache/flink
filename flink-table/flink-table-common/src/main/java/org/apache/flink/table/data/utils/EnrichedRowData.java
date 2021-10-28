@@ -277,10 +277,10 @@ public class EnrichedRowData implements RowData {
 
     /**
      * Creates a new {@link EnrichedRowData} with the provided {@code fixedRow} as the immutable
-     * static row, and uses the {@code completeRowFields}, {@code fixedRowFields} and {@code
+     * static row, and uses the {@code producedRowFields}, {@code fixedRowFields} and {@code
      * mutableRowFields} arguments to compute the indexes mapping.
      *
-     * <p>The {@code completeRowFields} should include the name of fields of the full row once
+     * <p>The {@code producedRowFields} should include the name of fields of the full row once
      * mutable and fixed rows are merged, while {@code fixedRowFields} and {@code mutableRowFields}
      * should contain respectively the field names of fixed row and mutable row. All the lists are
      * ordered with indexes matching the position of the field in the row. As an example, for a
@@ -289,11 +289,11 @@ public class EnrichedRowData implements RowData {
      */
     public static EnrichedRowData from(
             RowData fixedRow,
-            List<String> completeRowFields,
+            List<String> producedRowFields,
             List<String> mutableRowFields,
             List<String> fixedRowFields) {
         return new EnrichedRowData(
-                fixedRow, computeIndexMapping(completeRowFields, mutableRowFields, fixedRowFields));
+                fixedRow, computeIndexMapping(producedRowFields, mutableRowFields, fixedRowFields));
     }
 
     /**
@@ -302,13 +302,13 @@ public class EnrichedRowData implements RowData {
      * @see EnrichedRowData#from(RowData, List, List, List)
      */
     public static int[] computeIndexMapping(
-            List<String> completeRowFields,
+            List<String> producedRowFields,
             List<String> mutableRowFields,
             List<String> fixedRowFields) {
-        int[] indexMapping = new int[completeRowFields.size()];
+        int[] indexMapping = new int[producedRowFields.size()];
 
-        for (int i = 0; i < completeRowFields.size(); i++) {
-            String fieldName = completeRowFields.get(i);
+        for (int i = 0; i < producedRowFields.size(); i++) {
+            String fieldName = producedRowFields.get(i);
 
             int newIndex = mutableRowFields.indexOf(fieldName);
             if (newIndex < 0) {

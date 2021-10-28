@@ -59,22 +59,22 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
 
     public FileInfoExtractorBulkFormat(
             BulkFormat<RowData, FileSourceSplit> wrapped,
-            DataType fullDataType,
+            DataType producedDataType,
             Map<String, FileSystemTableSource.FileInfoAccessor> metadataColumns,
             List<String> partitionColumns,
             String defaultPartName) {
         this.wrapped = wrapped;
-        this.producedType = InternalTypeInfo.of(fullDataType.getLogicalType());
+        this.producedType = InternalTypeInfo.of(producedDataType.getLogicalType());
         this.defaultPartName = defaultPartName;
 
         // Compute index mapping for the extended row and the functions to compute metadata
-        List<DataTypes.Field> completeRowField = DataType.getFields(fullDataType);
-        List<String> completeRowFieldNames =
-                completeRowField.stream()
+        List<DataTypes.Field> producedRowField = DataType.getFields(producedDataType);
+        List<String> producedRowFieldNames =
+                producedRowField.stream()
                         .map(DataTypes.Field::getName)
                         .collect(Collectors.toList());
         List<String> mutableRowFieldNames =
-                completeRowFieldNames.stream()
+                producedRowFieldNames.stream()
                         .filter(
                                 key ->
                                         !metadataColumns.containsKey(key)
@@ -92,16 +92,16 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
                                 fieldName ->
                                         new SimpleImmutableEntry<>(
                                                 fieldName,
-                                                completeRowField
+                                                producedRowField
                                                         .get(
-                                                                completeRowFieldNames.indexOf(
+                                                                producedRowFieldNames.indexOf(
                                                                         fieldName))
                                                         .getDataType()))
                         .collect(Collectors.toList());
 
         this.extendedRowIndexMapping =
                 EnrichedRowData.computeIndexMapping(
-                        completeRowFieldNames, mutableRowFieldNames, fixedRowFieldNames);
+                        producedRowFieldNames, mutableRowFieldNames, fixedRowFieldNames);
         this.metadataColumnsFunctions =
                 metadataFieldNames.stream().map(metadataColumns::get).collect(Collectors.toList());
     }
@@ -130,23 +130,22 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
 
     private Reader<RowData> wrapReader(Reader<RowData> superReader, FileSourceSplit split) {
         // Fill the metadata + partition columns row
-        final GenericRowData metadataRowData =
-                new GenericRowData(
-                        metadataColumnsFunctions.size() + this.partitionColumnTypes.size());
-        int metadataRowIndex = 0;
-        for (; metadataRowIndex < metadataColumnsFunctions.size(); metadataRowIndex++) {
-            metadataRowData.setField(
-                    metadataRowIndex,
-                    metadataColumnsFunctions.get(metadataRowIndex).getValue(split));
+        final GenericRowData fileInfoRowData =
+                new GenericRowData(metadataColumnsFunctions.size() + partitionColumnTypes.size());
+        int fileInfoRowIndex = 0;
+        for (; fileInfoRowIndex < metadataColumnsFunctions.size(); fileInfoRowIndex++) {
+            fileInfoRowData.setField(
+                    fileInfoRowIndex,
+                    metadataColumnsFunctions.get(fileInfoRowIndex).getValue(split));
         }
         if (!partitionColumnTypes.isEmpty()) {
-            LinkedHashMap<String, String> partitionSpec =
+            final LinkedHashMap<String, String> partitionSpec =
                     PartitionPathUtils.extractPartitionSpecFromPath(split.path());
             for (int partitionFieldIndex = 0;
-                    metadataRowIndex < metadataRowData.getArity();
-                    metadataRowIndex++, partitionFieldIndex++) {
-                String fieldName = this.partitionColumnTypes.get(partitionFieldIndex).getKey();
-                DataType fieldType = this.partitionColumnTypes.get(partitionFieldIndex).getValue();
+                    fileInfoRowIndex < fileInfoRowData.getArity();
+                    fileInfoRowIndex++, partitionFieldIndex++) {
+                final String fieldName = partitionColumnTypes.get(partitionFieldIndex).getKey();
+                final DataType fieldType = partitionColumnTypes.get(partitionFieldIndex).getValue();
                 if (!partitionSpec.containsKey(fieldName)) {
                     throw new RuntimeException(
                             "Cannot find the partition value from path for partition: "
@@ -155,27 +154,27 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
 
                 String valueStr = partitionSpec.get(fieldName);
                 valueStr = valueStr.equals(defaultPartName) ? null : valueStr;
-                metadataRowData.setField(
-                        metadataRowIndex,
+                fileInfoRowData.setField(
+                        fileInfoRowIndex,
                         PartitionPathUtils.convertStringToInternalValue(valueStr, fieldType));
             }
         }
 
         // This row is going to be reused for every record
-        final EnrichedRowData enrichedRowData =
-                new EnrichedRowData(metadataRowData, this.extendedRowIndexMapping);
+        final EnrichedRowData producedRowData =
+                new EnrichedRowData(fileInfoRowData, this.extendedRowIndexMapping);
 
-        return new ReaderWrapper(superReader, enrichedRowData);
+        return new ReaderWrapper(superReader, producedRowData);
     }
 
     private static final class ReaderWrapper implements Reader<RowData> {
 
         private final Reader<RowData> wrappedReader;
-        private final EnrichedRowData enrichedRowData;
+        private final EnrichedRowData producedRowData;
 
-        private ReaderWrapper(Reader<RowData> wrappedReader, EnrichedRowData enrichedRowData) {
+        private ReaderWrapper(Reader<RowData> wrappedReader, EnrichedRowData producedRowData) {
             this.wrappedReader = wrappedReader;
-            this.enrichedRowData = enrichedRowData;
+            this.producedRowData = producedRowData;
         }
 
         @Nullable
@@ -188,8 +187,8 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
             return new RecordMapperWrapperRecordIterator<>(
                     iterator,
                     physicalRowData -> {
-                        enrichedRowData.replaceMutableRow(physicalRowData);
-                        return enrichedRowData;
+                        producedRowData.replaceMutableRow(physicalRowData);
+                        return producedRowData;
                     });
         }
 

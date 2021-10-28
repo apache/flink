@@ -294,12 +294,12 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             return Optional.empty();
         }
 
-        // Compute fullOutputDataType (including partition fields) and physicalDataType (excluding
+        // Compute producedDataType (including partition fields) and physicalDataType (excluding
         // partition fields)
-        final DataType fullOutputDataType = getPhysicalDataType();
+        final DataType producedDataType = getPhysicalDataType();
         final DataType physicalDataType =
                 DataTypes.ROW(
-                        DataType.getFields(fullOutputDataType).stream()
+                        DataType.getFields(producedDataType).stream()
                                 .filter(field -> !partitionKeys.contains(field.getName()))
                                 .toArray(DataTypes.Field[]::new));
 
@@ -308,7 +308,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                     new FileInfoExtractorBulkFormat(
                             bulkReaderFormat.createRuntimeDecoder(
                                     createSourceContext(context), physicalDataType),
-                            fullOutputDataType,
+                            producedDataType,
                             Collections.emptyMap(),
                             partitionKeys,
                             defaultPartName);
@@ -320,7 +320,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             final BulkFormat<RowData, FileSourceSplit> format =
                     new FileInfoExtractorBulkFormat(
                             new DeserializationSchemaAdapter(decoder),
-                            fullOutputDataType,
+                            producedDataType,
                             Collections.emptyMap(),
                             partitionKeys,
                             defaultPartName);

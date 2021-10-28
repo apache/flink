@@ -87,7 +87,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     private List<ResolvedExpression> filters;
     private Long limit;
 
-    private DataType fullOutputDataType;
+    private DataType producedDataType;
     private List<String> metadataKeys;
     private int[][] projectFields;
 
@@ -110,7 +110,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         this.deserializationFormat = deserializationFormat;
         this.formatFactory = formatFactory;
 
-        this.fullOutputDataType = context.getPhysicalRowDataType();
+        this.producedDataType = context.getPhysicalRowDataType();
     }
 
     @Override
@@ -120,46 +120,45 @@ public class FileSystemTableSource extends AbstractFileSystemTable
             return InputFormatProvider.of(new CollectionInputFormat<>(new ArrayList<>(), null));
         }
 
-        // Compute output type and physical type
-        DataType fullOutputDataType = this.fullOutputDataType;
+        // Compute produced data type
+        DataType producedDataType = this.producedDataType;
         if (projectFields != null) {
-            fullOutputDataType = DataType.projectFields(fullOutputDataType, projectFields);
+            producedDataType = DataType.projectFields(producedDataType, projectFields);
         }
 
         // Physical type is computed from the full data type, filtering out partition and
-        // metadata columns
+        // metadata columns. This type is going to be used by formats to parse the input.
+        List<DataTypes.Field> producedDataTypeFields = DataType.getFields(producedDataType);
+        if (metadataKeys != null) {
+            // If metadata keys are present, then by SupportsReadingMetadata contract all the
+            // metadata columns will be at the end of the producedDataType, so we can just remove
+            // from the list the last metadataKeys.size() fields.
+            producedDataTypeFields =
+                    producedDataTypeFields.subList(
+                            0, producedDataTypeFields.size() - metadataKeys.size());
+        }
         DataType physicalDataType =
                 DataTypes.ROW(
-                        DataType.getFields(fullOutputDataType).stream()
+                        producedDataTypeFields.stream()
                                 .filter(
-                                        f -> {
-                                            if (partitionKeys != null
-                                                    && partitionKeys.contains(f.getName())) {
-                                                return false;
-                                            }
-
-                                            if (metadataKeys != null
-                                                    && metadataKeys.contains(f.getName())) {
-                                                return false;
-                                            }
-
-                                            return true;
-                                        })
+                                        f ->
+                                                partitionKeys == null
+                                                        || !partitionKeys.contains(f.getName()))
                                 .toArray(DataTypes.Field[]::new));
 
-        // Resolve metadata and make sure to filter out metadata not in the full output type
+        // Resolve metadata and make sure to filter out metadata not in the producedDataType
         List<String> metadataKeys =
                 (this.metadataKeys == null) ? Collections.emptyList() : this.metadataKeys;
         metadataKeys =
-                DataType.getFieldNames(fullOutputDataType).stream()
+                DataType.getFieldNames(producedDataType).stream()
                         .filter(metadataKeys::contains)
                         .collect(Collectors.toList());
         List<ReadableFileInfo> metadataToExtract =
                 metadataKeys.stream().map(ReadableFileInfo::resolve).collect(Collectors.toList());
 
-        // Filter out partition columns not in full output type
+        // Filter out partition columns not in producedDataType
         List<String> partitionKeysToExtract =
-                DataType.getFieldNames(fullOutputDataType).stream()
+                DataType.getFieldNames(producedDataType).stream()
                         .filter(this.partitionKeys::contains)
                         .collect(Collectors.toList());
 
@@ -177,7 +176,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
             return SourceFunctionProvider.of(
                     new InputFormatSourceFunction<>(
                             getInputFormat(),
-                            InternalTypeInfo.of(fullOutputDataType.getLogicalType())),
+                            InternalTypeInfo.of(producedDataType.getLogicalType())),
                     true);
         }
 
@@ -190,7 +189,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
             BulkFormat<RowData, FileSourceSplit> bulkFormat =
                     wrapBulkFormat(
                             bulkReaderFormat.createRuntimeDecoder(scanContext, physicalDataType),
-                            fullOutputDataType,
+                            producedDataType,
                             metadataToExtract,
                             partitionKeysToExtract);
             return createSourceProvider(bulkFormat);
@@ -200,7 +199,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
             BulkFormat<RowData, FileSourceSplit> bulkFormat =
                     wrapBulkFormat(
                             new DeserializationSchemaAdapter(decoder),
-                            fullOutputDataType,
+                            producedDataType,
                             metadataToExtract,
                             partitionKeysToExtract);
             return createSourceProvider(bulkFormat);
@@ -215,14 +214,14 @@ public class FileSystemTableSource extends AbstractFileSystemTable
      */
     private BulkFormat<RowData, FileSourceSplit> wrapBulkFormat(
             BulkFormat<RowData, FileSourceSplit> bulkFormat,
-            DataType fullOutputDataType,
+            DataType producedDataType,
             List<ReadableFileInfo> metadata,
             List<String> partitionKeys) {
         if (!metadata.isEmpty() || !partitionKeys.isEmpty()) {
             bulkFormat =
                     new FileInfoExtractorBulkFormat(
                             bulkFormat,
-                            fullOutputDataType,
+                            producedDataType,
                             metadata.stream()
                                     .collect(
                                             Collectors.toMap(
@@ -375,7 +374,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         source.projectFields = projectFields;
         source.metadataKeys = metadataKeys;
         source.partitionKeys = partitionKeys;
-        source.fullOutputDataType = fullOutputDataType;
+        source.producedDataType = producedDataType;
         return source;
     }
 
@@ -420,9 +419,9 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
         if (!metadataKeys.isEmpty()) {
             this.metadataKeys = metadataKeys;
-            this.fullOutputDataType = producedDataType;
-            // If a projection was pushed down, we need to remove it here because producedDataType
-            // is already projected
+            this.producedDataType = producedDataType;
+            // If a projection was pushed down, we need to clear it here so getScanRuntimeProvider()
+            // won't reapply the projection again.
             if (projectFields != null) {
                 projectFields = null;
             }
