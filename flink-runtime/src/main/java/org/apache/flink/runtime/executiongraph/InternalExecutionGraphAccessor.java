@@ -31,6 +31,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import javax.annotation.Nonnull;
 
@@ -43,7 +44,7 @@ import java.util.concurrent.Executor;
  */
 public interface InternalExecutionGraphAccessor {
 
-    ClassLoader getUserClassLoader();
+    UserCodeClassLoader getUserClassLoader();
 
     JobID getJobID();
 

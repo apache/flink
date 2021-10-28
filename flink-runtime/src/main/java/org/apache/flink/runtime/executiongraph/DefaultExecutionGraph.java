@@ -80,6 +80,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
@@ -166,7 +167,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     private final Time rpcTimeout;
 
     /** The classloader for the user code. Needed for calls into user code classes. */
-    private final ClassLoader userClassLoader;
+    private final UserCodeClassLoader userClassLoader;
 
     /** Registered KvState instances reported by the TaskManagers. */
     private final KvStateLocationRegistry kvStateLocationRegistry;
@@ -277,7 +278,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             Executor ioExecutor,
             Time rpcTimeout,
             int maxPriorAttemptsHistoryLength,
-            ClassLoader userClassLoader,
+            UserCodeClassLoader userClassLoader,
             BlobWriter blobWriter,
             PartitionGroupReleaseStrategy.Factory partitionGroupReleaseStrategyFactory,
             ShuffleMaster<?> shuffleMaster,
@@ -563,7 +564,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public ClassLoader getUserClassLoader() {
+    public UserCodeClassLoader getUserClassLoader() {
         return this.userClassLoader;
     }
 
@@ -984,7 +985,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         // create a summary of all relevant data accessed in the web interface's JobConfigHandler
         try {
             ExecutionConfig executionConfig =
-                    jobInformation.getSerializedExecutionConfig().deserializeValue(userClassLoader);
+                    jobInformation
+                            .getSerializedExecutionConfig()
+                            .deserializeValue(userClassLoader.asClassLoader());
             if (executionConfig != null) {
                 return executionConfig.archive();
             }
@@ -1086,7 +1089,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
                 try {
                     for (ExecutionJobVertex ejv : verticesInCreationOrder) {
-                        ejv.getJobVertex().finalizeOnMaster(getUserClassLoader());
+                        ejv.getJobVertex().finalizeOnMaster(getUserClassLoader().asClassLoader());
                     }
                 } catch (Throwable t) {
                     ExceptionUtils.rethrowIfFatalError(t);
@@ -1249,7 +1252,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 // this deserialization is exception-free
                 accumulators = deserializeAccumulators(state);
                 attempt.markFailed(
-                        state.getError(userClassLoader),
+                        state.getError(userClassLoader.asClassLoader()),
                         state.getCancelTask(),
                         accumulators,
                         state.getIOMetrics(),
@@ -1342,7 +1345,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         if (serializedAccumulators != null) {
             try {
-                return serializedAccumulators.deserializeUserAccumulators(userClassLoader);
+                return serializedAccumulators.deserializeUserAccumulators(
+                        userClassLoader.asClassLoader());
             } catch (Throwable t) {
                 // we catch Throwable here to include all form of linking errors that may
                 // occur if user classes are missing in the classpath
@@ -1413,7 +1417,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     public void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
         Map<String, Accumulator<?, ?>> userAccumulators;
         try {
-            userAccumulators = accumulatorSnapshot.deserializeUserAccumulators(userClassLoader);
+            userAccumulators =
+                    accumulatorSnapshot.deserializeUserAccumulators(
+                            userClassLoader.asClassLoader());
 
             ExecutionAttemptID execID = accumulatorSnapshot.getExecutionAttemptID();
             Execution execution = currentExecutions.get(execID);

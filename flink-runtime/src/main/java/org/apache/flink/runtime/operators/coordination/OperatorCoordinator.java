@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import javax.annotation.Nullable;
 
@@ -253,7 +254,7 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
          * Gets the classloader that contains the additional dependencies, which are not part of the
          * JVM's classpath.
          */
-        ClassLoader getUserCodeClassloader();
+        UserCodeClassLoader getUserCodeClassloader();
     }
 
     // ------------------------------------------------------------------------

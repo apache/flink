@@ -43,6 +43,7 @@ import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,7 +170,7 @@ public class TestingDefaultExecutionGraphBuilder {
                 jobMasterConfig,
                 futureExecutor,
                 ioExecutor,
-                userClassLoader,
+                SimpleUserCodeClassLoader.create(userClassLoader),
                 completedCheckpointStore,
                 new CheckpointsCleaner(),
                 checkpointIdCounter,

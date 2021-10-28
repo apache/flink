@@ -40,6 +40,7 @@ import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
 
@@ -67,7 +68,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
             Configuration jobMasterConfiguration,
             SlotPoolService slotPoolService,
             ScheduledExecutorService futureExecutor,
-            ClassLoader userCodeLoader,
+            UserCodeClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
             Time rpcTimeout,
             BlobWriter blobWriter,
@@ -91,7 +92,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
         final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                                 jobGraph.getSerializedExecutionConfig()
-                                        .deserializeValue(userCodeLoader)
+                                        .deserializeValue(userCodeLoader.asClassLoader())
                                         .getRestartStrategy(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())
@@ -124,7 +125,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 declarativeSlotPool,
                 slotAllocator,
                 ioExecutor,
-                userCodeLoader,
+                userCodeLoader.asClassLoader(),
                 checkpointRecoveryFactory,
                 initialResourceAllocationTimeout,
                 resourceStabilizationTimeout,

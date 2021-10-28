@@ -39,6 +39,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.MatcherAssert;
@@ -119,7 +120,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
                         new Configuration(),
-                        ClassLoader.getSystemClassLoader(),
+                        SimpleUserCodeClassLoader.create(ClassLoader.getSystemClassLoader()),
                         new DefaultExecutionDeploymentTracker(),
                         TestingUtils.defaultExecutor(),
                         TestingUtils.defaultExecutor(),

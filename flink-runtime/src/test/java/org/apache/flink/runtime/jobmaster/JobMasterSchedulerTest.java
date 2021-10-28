@@ -40,6 +40,7 @@ import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -100,7 +101,7 @@ public class JobMasterSchedulerTest extends TestLogger {
                 Configuration jobMasterConfiguration,
                 SlotPoolService slotPoolService,
                 ScheduledExecutorService futureExecutor,
-                ClassLoader userCodeLoader,
+                UserCodeClassLoader userCodeLoader,
                 CheckpointRecoveryFactory checkpointRecoveryFactory,
                 Time rpcTimeout,
                 BlobWriter blobWriter,

@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
@@ -57,7 +58,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
             final Configuration jobMasterConfiguration,
             final SlotPoolService slotPoolService,
             final ScheduledExecutorService futureExecutor,
-            final ClassLoader userCodeLoader,
+            final UserCodeClassLoader userCodeLoader,
             final CheckpointRecoveryFactory checkpointRecoveryFactory,
             final Time rpcTimeout,
             final BlobWriter blobWriter,
@@ -90,7 +91,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
         final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                                 jobGraph.getSerializedExecutionConfig()
-                                        .deserializeValue(userCodeLoader)
+                                        .deserializeValue(userCodeLoader.asClassLoader())
                                         .getRestartStrategy(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())
@@ -121,7 +122,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                 jobMasterConfiguration,
                 schedulerComponents.getStartUpAction(),
                 new ScheduledExecutorServiceAdapter(futureExecutor),
-                userCodeLoader,
+                userCodeLoader.asClassLoader(),
                 checkpointRecoveryFactory,
                 jobManagerJobMetricGroup,
                 schedulerComponents.getSchedulingStrategyFactory(),

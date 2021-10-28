@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.function.CachingSupplier;
 
 import org.slf4j.Logger;
@@ -53,7 +54,7 @@ import java.util.function.Supplier;
 public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
 
     private final Configuration configuration;
-    private final ClassLoader userCodeClassLoader;
+    private final UserCodeClassLoader userCodeClassLoader;
     private final ExecutionDeploymentTracker executionDeploymentTracker;
     private final ScheduledExecutorService futureExecutor;
     private final Executor ioExecutor;
@@ -66,7 +67,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
 
     public DefaultExecutionGraphFactory(
             Configuration configuration,
-            ClassLoader userCodeClassLoader,
+            UserCodeClassLoader userCodeClassLoader,
             ExecutionDeploymentTracker executionDeploymentTracker,
             ScheduledExecutorService futureExecutor,
             Executor ioExecutor,
@@ -177,7 +178,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         savepointRestoreSettings.getRestorePath(),
                         savepointRestoreSettings.allowNonRestoredState(),
                         executionGraphToRestore.getAllVertices(),
-                        userCodeClassLoader);
+                        userCodeClassLoader.asClassLoader());
             }
         }
     }

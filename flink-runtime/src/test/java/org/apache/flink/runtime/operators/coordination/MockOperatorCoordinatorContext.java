@@ -19,27 +19,34 @@ limitations under the License.
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
+import org.apache.flink.util.UserCodeClassLoader;
 
 /** A simple implementation of {@link OperatorCoordinator.Context} for testing purposes. */
 public class MockOperatorCoordinatorContext implements OperatorCoordinator.Context {
 
     private final OperatorID operatorID;
-    private final ClassLoader userCodeClassLoader;
+    private final UserCodeClassLoader userCodeClassLoader;
     private final int numSubtasks;
 
     private boolean jobFailed;
     private Throwable jobFailureReason;
 
     public MockOperatorCoordinatorContext(OperatorID operatorID, int numSubtasks) {
-        this(operatorID, numSubtasks, MockOperatorCoordinatorContext.class.getClassLoader());
+        this(
+                operatorID,
+                numSubtasks,
+                SimpleUserCodeClassLoader.create(
+                        MockOperatorCoordinatorContext.class.getClassLoader()));
     }
 
-    public MockOperatorCoordinatorContext(OperatorID operatorID, ClassLoader userCodeClassLoader) {
+    public MockOperatorCoordinatorContext(
+            OperatorID operatorID, UserCodeClassLoader userCodeClassLoader) {
         this(operatorID, 1, userCodeClassLoader);
     }
 
     public MockOperatorCoordinatorContext(
-            OperatorID operatorID, int numSubtasks, ClassLoader userCodeClassLoader) {
+            OperatorID operatorID, int numSubtasks, UserCodeClassLoader userCodeClassLoader) {
         this.operatorID = operatorID;
         this.numSubtasks = numSubtasks;
         this.jobFailed = false;
@@ -64,7 +71,7 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
     }
 
     @Override
-    public ClassLoader getUserCodeClassloader() {
+    public UserCodeClassLoader getUserCodeClassloader() {
         return userCodeClassLoader;
     }
 

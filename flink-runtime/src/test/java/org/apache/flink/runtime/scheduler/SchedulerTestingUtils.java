@@ -68,6 +68,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
@@ -535,7 +536,7 @@ public class SchedulerTestingUtils {
             final ExecutionGraphFactory executionGraphFactory =
                     new DefaultExecutionGraphFactory(
                             jobMasterConfiguration,
-                            userCodeLoader,
+                            SimpleUserCodeClassLoader.create(userCodeLoader),
                             new DefaultExecutionDeploymentTracker(),
                             futureExecutor,
                             ioExecutor,

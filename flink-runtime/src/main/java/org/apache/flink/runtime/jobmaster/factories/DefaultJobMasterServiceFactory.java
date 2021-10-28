@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobmaster.SlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.function.FunctionUtils;
 
 import java.util.UUID;
@@ -53,7 +54,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
     private final HeartbeatServices heartbeatServices;
     private final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory;
     private final FatalErrorHandler fatalErrorHandler;
-    private final ClassLoader userCodeClassloader;
+    private final UserCodeClassLoader userCodeClassloader;
     private final ShuffleMaster<?> shuffleMaster;
     private final long initializationTimestamp;
 
@@ -68,7 +69,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
             HeartbeatServices heartbeatServices,
             JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
             FatalErrorHandler fatalErrorHandler,
-            ClassLoader userCodeClassloader,
+            UserCodeClassLoader userCodeClassloader,
             long initializationTimestamp) {
         this.executor = executor;
         this.rpcService = rpcService;

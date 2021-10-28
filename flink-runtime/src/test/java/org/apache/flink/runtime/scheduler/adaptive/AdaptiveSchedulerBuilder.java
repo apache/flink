@@ -45,6 +45,7 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
 
 import javax.annotation.Nullable;
 
@@ -188,7 +189,7 @@ public class AdaptiveSchedulerBuilder {
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
                         jobMasterConfiguration,
-                        userCodeLoader,
+                        SimpleUserCodeClassLoader.create(userCodeLoader),
                         new DefaultExecutionDeploymentTracker(),
                         futureExecutor,
                         ioExecutor,

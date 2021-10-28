@@ -54,6 +54,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
 
@@ -78,7 +79,7 @@ public class DefaultExecutionGraphBuilder {
             Configuration jobManagerConfig,
             ScheduledExecutorService futureExecutor,
             Executor ioExecutor,
-            ClassLoader classLoader,
+            UserCodeClassLoader classLoader,
             CompletedCheckpointStore completedCheckpointStore,
             CheckpointsCleaner checkpointsCleaner,
             CheckpointIDCounter checkpointIdCounter,
@@ -172,7 +173,7 @@ public class DefaultExecutionGraphBuilder {
             }
 
             try {
-                vertex.initializeOnMaster(classLoader);
+                vertex.initializeOnMaster(classLoader.asClassLoader());
             } catch (Throwable t) {
                 throw new JobExecutionException(
                         jobId,
@@ -215,7 +216,7 @@ public class DefaultExecutionGraphBuilder {
             } else {
                 try {
                     applicationConfiguredBackend =
-                            serializedAppConfigured.deserializeValue(classLoader);
+                            serializedAppConfigured.deserializeValue(classLoader.asClassLoader());
                 } catch (IOException | ClassNotFoundException e) {
                     throw new JobExecutionException(
                             jobId, "Could not deserialize application-defined state backend.", e);
@@ -229,7 +230,7 @@ public class DefaultExecutionGraphBuilder {
                                 applicationConfiguredBackend,
                                 snapshotSettings.isChangelogStateBackendEnabled(),
                                 jobManagerConfig,
-                                classLoader,
+                                classLoader.asClassLoader(),
                                 log);
             } catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
                 throw new JobExecutionException(
@@ -246,7 +247,8 @@ public class DefaultExecutionGraphBuilder {
             } else {
                 try {
                     applicationConfiguredStorage =
-                            serializedAppConfiguredStorage.deserializeValue(classLoader);
+                            serializedAppConfiguredStorage.deserializeValue(
+                                    classLoader.asClassLoader());
                 } catch (IOException | ClassNotFoundException e) {
                     throw new JobExecutionException(
                             jobId,
@@ -263,7 +265,7 @@ public class DefaultExecutionGraphBuilder {
                                 null,
                                 rootBackend,
                                 jobManagerConfig,
-                                classLoader,
+                                classLoader.asClassLoader(),
                                 log);
             } catch (IllegalConfigurationException | DynamicCodeLoadingException e) {
                 throw new JobExecutionException(
@@ -281,7 +283,7 @@ public class DefaultExecutionGraphBuilder {
             } else {
                 final MasterTriggerRestoreHook.Factory[] hookFactories;
                 try {
-                    hookFactories = serializedHooks.deserializeValue(classLoader);
+                    hookFactories = serializedHooks.deserializeValue(classLoader.asClassLoader());
                 } catch (IOException | ClassNotFoundException e) {
                     throw new JobExecutionException(
                             jobId, "Could not instantiate user-defined checkpoint hooks", e);
@@ -289,12 +291,14 @@ public class DefaultExecutionGraphBuilder {
 
                 final Thread thread = Thread.currentThread();
                 final ClassLoader originalClassLoader = thread.getContextClassLoader();
-                thread.setContextClassLoader(classLoader);
+                thread.setContextClassLoader(classLoader.asClassLoader());
 
                 try {
                     hooks = new ArrayList<>(hookFactories.length);
                     for (MasterTriggerRestoreHook.Factory factory : hookFactories) {
-                        hooks.add(MasterHooks.wrapHook(factory.create(), classLoader));
+                        hooks.add(
+                                MasterHooks.wrapHook(
+                                        factory.create(), classLoader.asClassLoader()));
                     }
                 } finally {
                     thread.setContextClassLoader(originalClassLoader);

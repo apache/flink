@@ -209,7 +209,7 @@ public class ExecutionJobVertex
                         coordinatorProviders) {
                     coordinators.add(
                             OperatorCoordinatorHolder.create(
-                                    provider, this, graph.getUserClassLoader()));
+                                    provider, this, graph.getUserClassLoader().asClassLoader()));
                 }
             } catch (Exception | LinkageError e) {
                 IOUtils.closeAllQuietly(coordinators);
@@ -228,7 +228,7 @@ public class ExecutionJobVertex
             if (splitSource != null) {
                 Thread currentThread = Thread.currentThread();
                 ClassLoader oldContextClassLoader = currentThread.getContextClassLoader();
-                currentThread.setContextClassLoader(graph.getUserClassLoader());
+                currentThread.setContextClassLoader(graph.getUserClassLoader().asClassLoader());
                 try {
                     inputSplits =
                             splitSource.createInputSplits(this.parallelismInfo.getParallelism());

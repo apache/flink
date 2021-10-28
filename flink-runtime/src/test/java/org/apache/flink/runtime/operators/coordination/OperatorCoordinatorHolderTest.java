@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks.EventWithSubtask;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -507,7 +508,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
                         opId,
                         provider,
                         "test-coordinator-name",
-                        getClass().getClassLoader(),
+                        SimpleUserCodeClassLoader.create(getClass().getClassLoader()),
                         3,
                         1775,
                         eventTarget);

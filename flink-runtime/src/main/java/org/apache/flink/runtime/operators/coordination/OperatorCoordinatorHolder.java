@@ -28,6 +28,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TemporaryClassLoaderContext;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
@@ -450,7 +451,7 @@ public class OperatorCoordinatorHolder
             final OperatorID opId,
             final OperatorCoordinator.Provider coordinatorProvider,
             final String operatorName,
-            final ClassLoader userCodeClassLoader,
+            final UserCodeClassLoader userCodeClassLoader,
             final int operatorParallelism,
             final int operatorMaxParallelism,
             final SubtaskAccess.SubtaskAccessFactory taskAccesses)
@@ -492,7 +493,7 @@ public class OperatorCoordinatorHolder
 
         private final OperatorID operatorId;
         private final String operatorName;
-        private final ClassLoader userCodeClassLoader;
+        private final UserCodeClassLoader userCodeClassLoader;
         private final int operatorParallelism;
 
         private Consumer<Throwable> globalFailureHandler;
@@ -503,7 +504,7 @@ public class OperatorCoordinatorHolder
         public LazyInitializedCoordinatorContext(
                 final OperatorID operatorId,
                 final String operatorName,
-                final ClassLoader userCodeClassLoader,
+                final UserCodeClassLoader userCodeClassLoader,
                 final int operatorParallelism) {
             this.operatorId = checkNotNull(operatorId);
             this.operatorName = checkNotNull(operatorName);
@@ -569,7 +570,7 @@ public class OperatorCoordinatorHolder
         }
 
         @Override
-        public ClassLoader getUserCodeClassloader() {
+        public UserCodeClassLoader getUserCodeClassloader() {
             return userCodeClassLoader;
         }
     }

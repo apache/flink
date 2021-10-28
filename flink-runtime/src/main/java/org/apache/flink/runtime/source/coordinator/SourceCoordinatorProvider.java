@@ -70,7 +70,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
         final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
         CoordinatorExecutorThreadFactory coordinatorThreadFactory =
                 new CoordinatorExecutorThreadFactory(
-                        coordinatorThreadName, context.getUserCodeClassloader());
+                        coordinatorThreadName, context.getUserCodeClassloader().asClassLoader());
         ExecutorService coordinatorExecutor =
                 Executors.newSingleThreadExecutor(coordinatorThreadFactory);
 

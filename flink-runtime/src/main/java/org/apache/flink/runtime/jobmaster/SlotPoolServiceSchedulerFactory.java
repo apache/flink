@@ -33,6 +33,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
 
@@ -70,7 +71,7 @@ public interface SlotPoolServiceSchedulerFactory {
             Configuration configuration,
             SlotPoolService slotPoolService,
             ScheduledExecutorService futureExecutor,
-            ClassLoader userCodeLoader,
+            UserCodeClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
             Time rpcTimeout,
             BlobWriter blobWriter,

@@ -39,6 +39,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -86,11 +87,9 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
                         .getLibraryCacheManager()
                         .registerClassLoaderLease(jobGraph.getJobID());
 
-        final ClassLoader userCodeClassLoader =
-                classLoaderLease
-                        .getOrResolveClassLoader(
-                                jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths())
-                        .asClassLoader();
+        final UserCodeClassLoader userCodeClassLoader =
+                classLoaderLease.getOrResolveClassLoader(
+                        jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
 
         final DefaultJobMasterServiceFactory jobMasterServiceFactory =
                 new DefaultJobMasterServiceFactory(

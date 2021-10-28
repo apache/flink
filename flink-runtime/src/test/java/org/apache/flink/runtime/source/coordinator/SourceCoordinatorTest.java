@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
 
 import org.junit.Test;
 
@@ -309,7 +310,8 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     public void testUserClassLoaderWhenCreatingNewEnumerator() throws Exception {
         final ClassLoader testClassLoader = new URLClassLoader(new URL[0]);
         final OperatorCoordinator.Context context =
-                new MockOperatorCoordinatorContext(new OperatorID(), testClassLoader);
+                new MockOperatorCoordinatorContext(
+                        new OperatorID(), SimpleUserCodeClassLoader.create(testClassLoader));
 
         final EnumeratorCreatingSource<?, ClassLoaderTestEnumerator> source =
                 new EnumeratorCreatingSource<>(ClassLoaderTestEnumerator::new);
@@ -331,7 +333,8 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     public void testUserClassLoaderWhenRestoringEnumerator() throws Exception {
         final ClassLoader testClassLoader = new URLClassLoader(new URL[0]);
         final OperatorCoordinator.Context context =
-                new MockOperatorCoordinatorContext(new OperatorID(), testClassLoader);
+                new MockOperatorCoordinatorContext(
+                        new OperatorID(), SimpleUserCodeClassLoader.create(testClassLoader));
 
         final EnumeratorCreatingSource<?, ClassLoaderTestEnumerator> source =
                 new EnumeratorCreatingSource<>(ClassLoaderTestEnumerator::new);

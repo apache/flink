@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -229,7 +230,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         }
 
         @Override
-        public ClassLoader getUserCodeClassloader() {
+        public UserCodeClassLoader getUserCodeClassloader() {
             return context.getUserCodeClassloader();
         }
 

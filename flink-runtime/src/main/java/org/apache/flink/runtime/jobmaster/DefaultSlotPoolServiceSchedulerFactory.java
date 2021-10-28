@@ -44,6 +44,7 @@ import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.slf4j.Logger;
@@ -93,7 +94,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
             Configuration configuration,
             SlotPoolService slotPoolService,
             ScheduledExecutorService futureExecutor,
-            ClassLoader userCodeLoader,
+            UserCodeClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
             Time rpcTimeout,
             BlobWriter blobWriter,

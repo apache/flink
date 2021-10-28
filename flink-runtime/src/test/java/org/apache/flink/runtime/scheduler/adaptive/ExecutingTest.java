@@ -60,6 +60,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -835,7 +836,7 @@ public class ExecutingTest extends TestLogger {
         // --- mocked methods
 
         @Override
-        public ClassLoader getUserClassLoader() {
+        public UserCodeClassLoader getUserClassLoader() {
             return null;
         }
 
