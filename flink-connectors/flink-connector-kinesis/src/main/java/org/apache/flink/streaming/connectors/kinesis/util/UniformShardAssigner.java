@@ -48,7 +48,11 @@ public class UniformShardAssigner implements KinesisShardAssigner {
         BigInteger hashKeyStart = new BigInteger(range.getStartingHashKey());
         BigInteger hashKeyEnd = new BigInteger(range.getEndingHashKey());
         BigInteger hashKeyMid = hashKeyStart.add(hashKeyEnd).divide(TWO);
-        // index = hashKeyMid / HASH_KEY_BOUND * nSubtasks
-        return hashKeyMid.multiply(BigInteger.valueOf(nSubtasks)).divide(HASH_KEY_BOUND).intValue();
+        // index = hashKeyMid / HASH_KEY_BOUND * nSubtasks + stream-specific offset
+        // The stream specific offset is added so that different streams will be less likely to be
+        // distributed in the same way, even if they are sharded in the same way.
+        // (The caller takes result modulo nSubtasks.)
+        return hashKeyMid.multiply(BigInteger.valueOf(nSubtasks)).divide(HASH_KEY_BOUND).intValue()
+                + streamShardHandle.getStreamName().hashCode();
     }
 }

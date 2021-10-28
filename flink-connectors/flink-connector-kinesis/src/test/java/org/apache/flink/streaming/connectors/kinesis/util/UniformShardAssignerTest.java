@@ -65,9 +65,11 @@ public class UniformShardAssignerTest {
                                 new HashKeyRange()
                                         .withStartingHashKey(rangeStart.toString())
                                         .withEndingHashKey(rangeEnd.toString()));
-        StreamShardHandle handle = new StreamShardHandle("streamName", shard);
+        StreamShardHandle handle = new StreamShardHandle("", shard);
+        // streamName = "" hashes to zero
 
         Assertions.assertEquals(
-                expectedSubtask, new UniformShardAssigner().assign(handle, nSubtasks));
+                expectedSubtask,
+                Math.abs(new UniformShardAssigner().assign(handle, nSubtasks)) % nSubtasks);
     }
 }
