@@ -33,6 +33,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
@@ -211,6 +212,22 @@ final class FlinkDistribution {
                 .setStdInputs(job.getSqlLines().toArray(new String[0]))
                 .setStdoutProcessor(LOG::info) // logging the SQL statements and error message
                 .runBlocking(timeout);
+    }
+
+    public void performJarAddition(JarAddition addition) throws IOException {
+        final Path target = mapJarLocationToPath(addition.getTarget());
+        final Path sourceJar = addition.getJar();
+
+        final String jarNameWithoutExtension =
+                FilenameUtils.removeExtension(sourceJar.getFileName().toString());
+
+        // put the jar into a directory within the target location; this is primarily needed for
+        // plugins/, but also works for lib/
+        final Path targetJar =
+                target.resolve(jarNameWithoutExtension).resolve(sourceJar.getFileName());
+        Files.createDirectories(targetJar.getParent());
+
+        Files.copy(sourceJar, targetJar);
     }
 
     public void performJarOperation(JarOperation operation) throws IOException {
