@@ -255,7 +255,7 @@ orangeStream
 
         @Override
         public void processElement(Integer left, Integer right, Context ctx, Collector<String> out) {
-            out.collect(first + "," + second);
+            out.collect(left + "," + right);
         }
     });
 ```
