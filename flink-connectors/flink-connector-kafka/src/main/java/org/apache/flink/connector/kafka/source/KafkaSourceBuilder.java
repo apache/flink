@@ -455,6 +455,7 @@ public class KafkaSourceBuilder<OUT> {
                 KafkaSourceOptions.CLIENT_ID_PREFIX.key(),
                 props.containsKey(ConsumerConfig.GROUP_ID_CONFIG)
                         ? props.getProperty(ConsumerConfig.GROUP_ID_CONFIG)
+                                + new Random().nextLong()
                         : "KafkaSource-" + new Random().nextLong(),
                 false);
     }
