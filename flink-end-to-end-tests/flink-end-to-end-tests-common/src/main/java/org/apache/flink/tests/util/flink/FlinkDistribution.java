@@ -188,24 +188,14 @@ final class FlinkDistribution {
                     }
                 };
 
-        try (AutoClosableProcess flink =
-                AutoClosableProcess.create(commands.toArray(new String[0]))
-                        .setStdoutProcessor(stdoutProcessor)
-                        .runNonBlocking()) {
-            if (jobSubmission.isDetached()) {
-                try {
-                    flink.getProcess().waitFor();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
+        AutoClosableProcess.create(commands.toArray(new String[0]))
+                .setStdoutProcessor(stdoutProcessor)
+                .runBlocking();
 
-            try {
-                return JobID.fromHexString(
-                        rawJobIdFuture.get(timeout.getSeconds(), TimeUnit.SECONDS));
-            } catch (Exception e) {
-                throw new IOException("Could not determine Job ID.", e);
-            }
+        try {
+            return JobID.fromHexString(rawJobIdFuture.get(timeout.getSeconds(), TimeUnit.SECONDS));
+        } catch (Exception e) {
+            throw new IOException("Could not determine Job ID.", e);
         }
     }
 
