@@ -79,9 +79,10 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 
     // flag to skip records with non-exist error instead to fail, true by default.
     private final boolean lenient = true;
+
     // data converter for logging only.
-    private transient DataStructureConverter rowConverter;
-    private transient DataStructureConverter sortKeyConverter;
+    private final DataStructureConverter rowConverter;
+    private final DataStructureConverter sortKeyConverter;
 
     // a map state stores mapping from row key to record which is in topN
     // in tuple2, f0 is the record row, f1 is the index in the list of the same sort_key
