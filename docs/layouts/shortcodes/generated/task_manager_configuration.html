@@ -71,7 +71,7 @@
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.buffer-debloat.period</h5></td>
-            <td style="word-wrap: break-word;">500 ms</td>
+            <td style="word-wrap: break-word;">200 ms</td>
             <td>Duration</td>
             <td>The minimum period of time after which the buffer size will be debloated if required. The low value provides a fast reaction to the load fluctuation but can influence the performance.</td>
         </tr>
@@ -89,7 +89,7 @@
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.buffer-debloat.threshold-percentages</h5></td>
-            <td style="word-wrap: break-word;">50</td>
+            <td style="word-wrap: break-word;">25</td>
             <td>Integer</td>
             <td>The minimum difference in percentage between the newly calculated buffer size and the old one to announce the new value. Can be used to avoid constant back and forth small adjustments.</td>
         </tr>
