@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
 
 class SinkTestUtil {
 
-    public static final SimpleVersionedSerializer<InternalCommittable<String>> SERIALIZER =
-            new InternalCommittable.Serializer<>(TestSink.StringCommittableSerializer.INSTANCE);
+    public static final SimpleVersionedSerializer<CommittableWrapper<String>> SERIALIZER =
+            new CommittableWrapper.Serializer<>(TestSink.StringCommittableSerializer.INSTANCE);
 
     static StreamRecord<byte[]> committableRecord(String element) {
         return new StreamRecord<>(toBytes(element));
@@ -52,7 +52,7 @@ class SinkTestUtil {
     static byte[] toBytes(String obj) {
         try {
             return SimpleVersionedSerialization.writeVersionAndSerialize(
-                    SERIALIZER, InternalCommittable.wrap(obj));
+                    SERIALIZER, CommittableWrapper.wrap(obj));
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }

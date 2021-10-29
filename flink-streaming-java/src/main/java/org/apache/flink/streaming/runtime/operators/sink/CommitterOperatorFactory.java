@@ -66,7 +66,7 @@ public final class CommitterOperatorFactory<CommT, SinkT extends Sink<?, CommT, 
             final CommitterOperator<CommT> committerOperator =
                     new CommitterOperator<>(
                             processingTimeService,
-                            new InternalCommittable.Serializer<>(
+                            new CommittableWrapper.Serializer<>(
                                     sink.getCommittableSerializer().get()),
                             committerHandler,
                             emitDownstream);

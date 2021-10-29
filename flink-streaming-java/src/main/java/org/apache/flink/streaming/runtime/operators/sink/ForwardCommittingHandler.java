@@ -41,7 +41,8 @@ public class ForwardCommittingHandler<CommT> extends AbstractCommitterHandler<Co
     }
 
     @Override
-    public Collection<InternalCommittable<CommT>> processCommittables(Collection<InternalCommittable<CommT>> committables) {
+    public Collection<Committable<CommT>> processCommittables(
+            Collection<Committable<CommT>> committables) {
         return committables;
     }
 

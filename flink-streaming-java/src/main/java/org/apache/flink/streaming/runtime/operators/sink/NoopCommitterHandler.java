@@ -35,8 +35,8 @@ public enum NoopCommitterHandler implements CommitterHandler<Object> {
     }
 
     @Override
-    public Collection<InternalCommittable<Object>> processCommittables(
-            Collection<InternalCommittable<Object>> committables) {
+    public Collection<Committable<Object>> processCommittables(
+            Collection<Committable<Object>> committables) {
         return Collections.emptyList();
     }
 
@@ -49,8 +49,7 @@ public enum NoopCommitterHandler implements CommitterHandler<Object> {
     }
 
     @Override
-    public Collection<InternalCommittable<Object>> retry()
-            throws IOException, InterruptedException {
+    public Collection<Committable<Object>> retry() throws IOException, InterruptedException {
         return Collections.emptyList();
     }
 

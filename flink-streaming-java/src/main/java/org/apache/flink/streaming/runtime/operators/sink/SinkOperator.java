@@ -82,8 +82,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
 
     private CommitRetrier<CommT> commitRetrier;
 
-    @Nullable
-    private final SimpleVersionedSerializer<InternalCommittable<CommT>> committableSerializer;
+    @Nullable private final SimpleVersionedSerializer<Committable<CommT>> committableSerializer;
 
     private final BiFunctionWithException<
                     Sink.InitContext,
@@ -108,7 +107,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
                     writerFactory,
             SinkWriterStateHandler<WriterStateT> sinkWriterStateHandler,
             CommitterHandler<CommT> committerHandler,
-            @Nullable SimpleVersionedSerializer<InternalCommittable<CommT>> committableSerializer) {
+            @Nullable SimpleVersionedSerializer<Committable<CommT>> committableSerializer) {
         this.processingTimeService = checkNotNull(processingTimeService);
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.writerFactory = checkNotNull(writerFactory);
@@ -159,7 +158,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
         super.prepareSnapshotPreBarrier(checkpointId);
         if (!endOfInput) {
-            Collection<InternalCommittable<CommT>> committables =
+            Collection<Committable<CommT>> committables =
                     toInternalCommittables(sinkWriter.prepareCommit(false), checkpointId);
             emitCommittables(committerHandler.processCommittables(committables));
         }
@@ -183,21 +182,21 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
     @Override
     public void endInput() throws Exception {
         endOfInput = true;
-        Collection<InternalCommittable<CommT>> committables =
+        Collection<Committable<CommT>> committables =
                 toInternalCommittables(sinkWriter.prepareCommit(true), Long.MAX_VALUE);
         emitCommittables(committerHandler.processCommittables(committables));
         emitCommittables(committerHandler.endOfInput());
         commitRetrier.retryIndefinitely();
     }
 
-    private Collection<InternalCommittable<CommT>> toInternalCommittables(
+    private Collection<Committable<CommT>> toInternalCommittables(
             List<CommT> committables, long checkpointId) {
-        List<InternalCommittable<CommT>> list = new ArrayList<>();
+        List<Committable<CommT>> list = new ArrayList<>();
         for (int index = 0, committablesSize = committables.size();
                 index < committablesSize;
                 index++) {
             list.add(
-                    new InternalCommittable<>(
+                    new Committable<>(
                             committables.get(index),
                             getRuntimeContext().getIndexOfThisSubtask(),
                             getRuntimeContext().getMaxNumberOfParallelSubtasks(),
@@ -208,10 +207,9 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
         return list;
     }
 
-    private void emitCommittables(Collection<InternalCommittable<CommT>> committables)
-            throws IOException {
+    private void emitCommittables(Collection<Committable<CommT>> committables) throws IOException {
         if (committableSerializer != null) {
-            for (InternalCommittable<CommT> committable : committables) {
+            for (Committable<CommT> committable : committables) {
                 output.collect(
                         new StreamRecord<>(
                                 SimpleVersionedSerialization.writeVersionAndSerialize(

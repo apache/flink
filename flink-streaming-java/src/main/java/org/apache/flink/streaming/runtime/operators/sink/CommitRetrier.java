@@ -36,14 +36,14 @@ class CommitRetrier<CommT> {
     @VisibleForTesting static final int RETRY_DELAY = 1000;
     private final ProcessingTimeService processingTimeService;
     private final CommitterHandler<CommT> committerHandler;
-    private final ThrowingConsumer<? super Collection<InternalCommittable<CommT>>, IOException>
+    private final ThrowingConsumer<? super Collection<Committable<CommT>>, IOException>
             committableConsumer;
     private final Clock clock;
 
     public CommitRetrier(
             ProcessingTimeService processingTimeService,
             CommitterHandler<CommT> committerHandler,
-            ThrowingConsumer<? super Collection<InternalCommittable<CommT>>, IOException>
+            ThrowingConsumer<? super Collection<Committable<CommT>>, IOException>
                     committableConsumer) {
         this(
                 processingTimeService,
@@ -56,7 +56,7 @@ class CommitRetrier<CommT> {
     public CommitRetrier(
             ProcessingTimeService processingTimeService,
             CommitterHandler<CommT> committerHandler,
-            ThrowingConsumer<? super Collection<InternalCommittable<CommT>>, IOException>
+            ThrowingConsumer<? super Collection<Committable<CommT>>, IOException>
                     committableConsumer,
             Clock clock) {
         this.processingTimeService = checkNotNull(processingTimeService);

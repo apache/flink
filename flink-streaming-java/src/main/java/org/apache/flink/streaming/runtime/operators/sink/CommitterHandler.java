@@ -50,7 +50,8 @@ public interface CommitterHandler<CommT> extends AutoCloseable {
      *
      * @return a list of output committables that is sent downstream.
      */
-    Collection<InternalCommittable<CommT>> processCommittables(Collection<InternalCommittable<CommT>> committables);
+    Collection<Committable<CommT>> processCommittables(
+            Collection<Committable<CommT>> committables);
 
     /**
      * Called when no more committables are going to be added through {@link
@@ -58,14 +59,13 @@ public interface CommitterHandler<CommT> extends AutoCloseable {
      *
      * @return a list of output committables that is sent downstream.
      */
-    default Collection<InternalCommittable<CommT>> endOfInput() throws IOException, InterruptedException {
+    default Collection<Committable<CommT>> endOfInput()
+            throws IOException, InterruptedException {
         return Collections.emptyList();
     }
 
-    /**
-     * Called when a checkpoint is completed and returns a list of output to be sent downstream.
-     */
-    default Collection<InternalCommittable<CommT>> notifyCheckpointCompleted(long checkpointId)
+    /** Called when a checkpoint is completed and returns a list of output to be sent downstream. */
+    default Collection<Committable<CommT>> notifyCheckpointCompleted(long checkpointId)
             throws IOException, InterruptedException {
         return Collections.emptyList();
     }
@@ -79,7 +79,7 @@ public interface CommitterHandler<CommT> extends AutoCloseable {
      *
      * @return successfully retried committables that is sent downstream.
      */
-    Collection<InternalCommittable<CommT>> retry() throws IOException, InterruptedException;
+    Collection<Committable<CommT>> retry() throws IOException, InterruptedException;
 
     /**
      * The serializable factory of a committer handler such that the stateful implementations of

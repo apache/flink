@@ -28,8 +28,8 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 
-import static org.apache.flink.streaming.runtime.operators.sink.InternalCommittable.match;
-import static org.apache.flink.streaming.runtime.operators.sink.InternalCommittable.unwrap;
+import static org.apache.flink.streaming.runtime.operators.sink.CommittableWrapper.match;
+import static org.apache.flink.streaming.runtime.operators.sink.CommittableWrapper.unwrap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -42,10 +42,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 abstract class AbstractCommitterHandler<CommT, StateT> implements CommitterHandler<CommT> {
 
     /** Record all the committables until commit. */
-    private final Deque<InternalCommittable<CommT>> committables = new ArrayDeque<>();
+    private final Deque<Committable<CommT>> committables = new ArrayDeque<>();
 
     /** The committables that need to be committed again after recovering from a failover. */
-    private final List<InternalCommittable<StateT>> recoveredCommittables = new ArrayList<>();
+    private final List<Committable<StateT>> recoveredCommittables = new ArrayList<>();
 
     /**
      * Notifies a list of committables that might need to be committed again after recovering from a
@@ -53,17 +53,16 @@ abstract class AbstractCommitterHandler<CommT, StateT> implements CommitterHandl
      *
      * @param recovered A list of committables
      */
-    protected void recoveredCommittables(List<InternalCommittable<StateT>> recovered)
-            throws IOException {
+    protected void recoveredCommittables(List<Committable<StateT>> recovered) throws IOException {
         recoveredCommittables.addAll(checkNotNull(recovered));
     }
 
-    protected List<InternalCommittable<StateT>> prependRecoveredCommittables(
-            List<InternalCommittable<StateT>> committables) {
+    protected List<Committable<StateT>> prependRecoveredCommittables(
+            List<Committable<StateT>> committables) {
         if (recoveredCommittables.isEmpty()) {
             return committables;
         }
-        List<InternalCommittable<StateT>> all =
+        List<Committable<StateT>> all =
                 new ArrayList<>(recoveredCommittables.size() + committables.size());
         all.addAll(recoveredCommittables);
         all.addAll(committables);
@@ -71,15 +70,14 @@ abstract class AbstractCommitterHandler<CommT, StateT> implements CommitterHandl
         return all;
     }
 
-    protected final CommitResult<InternalCommittable<StateT>> commit(
-            List<InternalCommittable<StateT>> committables)
+    protected final CommitResult<Committable<StateT>> commit(List<Committable<StateT>> committables)
             throws IOException, InterruptedException {
         List<StateT> failed = commitInternal(unwrap(committables));
         if (failed.isEmpty()) {
             return new CommitResult<>(committables, Collections.emptyList());
         }
 
-        InternalCommittable.MatchResult<InternalCommittable<StateT>> correlatedFailed =
+        CommittableWrapper.MatchResult<Committable<StateT>> correlatedFailed =
                 match(committables, failed);
         recoveredCommittables(correlatedFailed.getMatched());
         return new CommitResult<>(correlatedFailed.getUnmatched(), correlatedFailed.getMatched());
@@ -100,26 +98,25 @@ abstract class AbstractCommitterHandler<CommT, StateT> implements CommitterHandl
     }
 
     @Override
-    public Collection<InternalCommittable<CommT>> retry() throws IOException, InterruptedException {
+    public Collection<Committable<CommT>> retry() throws IOException, InterruptedException {
         return retry(prependRecoveredCommittables(Collections.emptyList()));
     }
 
-    protected Collection<InternalCommittable<CommT>> retry(
-            List<InternalCommittable<StateT>> recoveredCommittables)
+    protected Collection<Committable<CommT>> retry(List<Committable<StateT>> recoveredCommittables)
             throws IOException, InterruptedException {
         commit(recoveredCommittables);
         return Collections.emptyList();
     }
 
     @Override
-    public Collection<InternalCommittable<CommT>> processCommittables(
-            Collection<InternalCommittable<CommT>> committables) {
+    public Collection<Committable<CommT>> processCommittables(
+            Collection<Committable<CommT>> committables) {
         this.committables.addAll(committables);
         return Collections.emptyList();
     }
 
-    protected List<InternalCommittable<CommT>> pollCommittables() {
-        List<InternalCommittable<CommT>> committables = new ArrayList<>(this.committables);
+    protected List<Committable<CommT>> pollCommittables() {
+        List<Committable<CommT>> committables = new ArrayList<>(this.committables);
         this.committables.clear();
         return committables;
     }
