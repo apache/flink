@@ -237,7 +237,10 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
             final Throwable callStackCapture = captureAskCallStack ? new Throwable() : null;
 
             // execute an asynchronous call
-            final CompletableFuture<?> resultFuture = ask(rpcInvocation, futureTimeout);
+            final CompletableFuture<?> resultFuture =
+                    ask(rpcInvocation, futureTimeout)
+                            .thenApply(
+                                    resultValue -> deserializeValueIfNeeded(resultValue, method));
 
             final CompletableFuture<Object> completableFuture = new CompletableFuture<>();
             resultFuture.whenComplete(
@@ -245,10 +248,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
                         if (failure != null) {
                             completableFuture.completeExceptionally(
                                     resolveTimeoutException(
-                                            failure, callStackCapture, address, rpcInvocation));
+                                            ExceptionUtils.stripCompletionException(failure),
+                                            callStackCapture,
+                                            address,
+                                            rpcInvocation));
                         } else {
-                            completableFuture.complete(
-                                    deserializeValueIfNeeded(resultValue, method));
+                            completableFuture.complete(resultValue);
                         }
                     });
 
