@@ -361,59 +361,35 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
             RowData oldSortKey,
             RankRow oldRow,
             int oldRank,
-            Collector<RowData> out)
-            throws Exception {
+            Collector<RowData> out) {
         Iterator<Map.Entry<RowData, Collection<RowData>>> iterator = buffer.entrySet().iterator();
         int currentRank = 0;
         RowData currentRow = null;
         RowData prevRow = null;
-        boolean findAllAffected = false;
 
-        while (iterator.hasNext() && isInRankEnd(currentRank) && !findAllAffected) {
+        while (iterator.hasNext() && currentRank <= newRank) {
             Map.Entry<RowData, Collection<RowData>> entry = iterator.next();
             RowData curSortKey = entry.getKey();
             Collection<RowData> rowKeys = entry.getValue();
             Iterator<RowData> rowKeyIter = rowKeys.iterator();
-            while (rowKeyIter.hasNext() && !findAllAffected) {
+            while (rowKeyIter.hasNext()) {
                 RowData rowKey = rowKeyIter.next();
                 currentRank += 1;
                 currentRow = rowKeyMap.get(rowKey).row;
-                if (oldRank <= currentRank && currentRank <= newRank) {
+                if (oldRank <= currentRank) {
                     if (currentRank == oldRank) {
                         checkArgument(0 == sortKeyComparator.compare(curSortKey, oldSortKey));
                         collectUpdateBefore(out, oldRow.row, oldRank);
-                    } else if (currentRank <= newRank) {
+                    } else {
                         checkArgument(0 >= sortKeyComparator.compare(curSortKey, newSortKey));
                         collectUpdateBefore(out, prevRow, currentRank);
                         collectUpdateAfter(out, prevRow, currentRank - 1);
                         if (currentRank == newRank) {
                             collectUpdateAfter(out, newRow, currentRank);
                         }
-                    } else {
-                        // currentRank > newRank, current sort key is smaller than newSortKey,
-                        // the following rank is not changed, so skip
-                        findAllAffected = true;
                     }
                 }
                 prevRow = currentRow;
-            }
-        }
-        if (!isInRankEnd(currentRank)) {
-            // remove the records associated to the sort key which is out of topN
-            List<RowData> toDeleteSortKeys = new ArrayList<>();
-            while (iterator.hasNext()) {
-                Map.Entry<RowData, Collection<RowData>> entry = iterator.next();
-                Collection<RowData> rowKeys = entry.getValue();
-                Iterator<RowData> rowKeyIter = rowKeys.iterator();
-                while (rowKeyIter.hasNext()) {
-                    RowData rowKey = rowKeyIter.next();
-                    rowKeyMap.remove(rowKey);
-                    dataState.remove(rowKey);
-                }
-                toDeleteSortKeys.add(entry.getKey());
-            }
-            for (RowData toDeleteKey : toDeleteSortKeys) {
-                buffer.removeAll(toDeleteKey);
             }
         }
     }
