@@ -65,6 +65,47 @@ public final class FlinkAssertions {
     }
 
     /**
+     * Shorthand to assert the chain of causes includes a specific {@link Throwable}. Same as:
+     *
+     * <pre>{@code
+     * assertThatChainOfCauses(t)
+     *     .anySatisfy(
+     *          cause ->
+     *              assertThat(cause)
+     *                  .isInstanceOf(throwable.getClass())
+     *                  .hasMessage(throwable.getMessage()));
+     * }</pre>
+     */
+    public static ThrowingConsumer<? super Throwable> containsCause(Throwable throwable) {
+        return t ->
+                assertThatChainOfCauses(t)
+                        .anySatisfy(
+                                cause ->
+                                        assertThat(cause)
+                                                .isInstanceOf(throwable.getClass())
+                                                .hasMessage(throwable.getMessage()));
+    }
+
+    /**
+     * Shorthand to assert the chain of causes includes a {@link Throwable} matching a specific
+     * {@link Class}. Same as:
+     *
+     * <pre>{@code
+     * assertThatChainOfCauses(throwable)
+     *     .anySatisfy(
+     *          cause ->
+     *              assertThat(cause)
+     *                  .isInstanceOf(clazz));
+     * }</pre>
+     */
+    public static ThrowingConsumer<? super Throwable> anyCauseMatches(
+            Class<? extends Throwable> clazz) {
+        return t ->
+                assertThatChainOfCauses(t)
+                        .anySatisfy(cause -> assertThat(cause).isInstanceOf(clazz));
+    }
+
+    /**
      * Shorthand to assert the chain of causes includes a {@link Throwable} matching a specific
      * {@link Class} and containing the provided message. Same as:
      *
