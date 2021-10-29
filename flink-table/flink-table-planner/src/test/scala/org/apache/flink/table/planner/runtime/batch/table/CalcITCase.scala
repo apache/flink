@@ -342,38 +342,6 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  def testCasting() {
-    val table = BatchTableEnvUtil.fromElements(tEnv, (1, 0.0, 1L, true))
-      .select(
-        // * -> String
-        '_1.cast(STRING), '_2.cast(STRING), '_3.cast(STRING), '_4.cast(STRING),
-        // NUMERIC TYPE -> Boolean
-        '_1.cast(BOOLEAN), '_3.cast(BOOLEAN),
-        // NUMERIC TYPE -> NUMERIC TYPE
-        '_1.cast(DOUBLE), '_2.cast(INT), '_3.cast(SMALLINT),
-        // Boolean -> NUMERIC TYPE
-        '_4.cast(DOUBLE),
-        // identity casting
-        '_1.cast(INT), '_2.cast(DOUBLE), '_3.cast(BIGINT), '_4.cast(BOOLEAN))
-
-    val results = executeQuery(table)
-    val expected = "1,0.0,1,true," + "true,true," +
-      "1.0,0,1," + "1.0," + "1,0.0,1,true\n"
-    compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testCastFromString() {
-    val table = BatchTableEnvUtil.fromElements(tEnv, ("1", "true", "2.0"))
-      .select('_1.cast(TINYINT), '_1.cast(SMALLINT), '_1.cast(INT), '_1.cast(BIGINT),
-        '_3.cast(DOUBLE), '_3.cast(FLOAT), '_2.cast(BOOLEAN))
-
-    val results = executeQuery(table)
-    val expected = "1,1,1,1,2.0,2.0,true\n"
-    compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
   def testUserDefinedScalarFunctionWithParameter(): Unit = {
     registerFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))

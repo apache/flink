@@ -935,7 +935,7 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  def testCast(): Unit = {
+  def testCastInWhere(): Unit = {
     checkResult(
       "SELECT CAST(a AS VARCHAR(10)) FROM Table3 WHERE CAST(a AS VARCHAR(10)) = '1'",
       Seq(row(1)))
