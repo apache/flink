@@ -71,6 +71,41 @@ backpressure. Then, checkpointing time becomes mostly independent of the end-to-
 aware unaligned checkpointing adds to I/O to the state storage, so you shouldn't use it when the
 I/O to the state storage is actually the bottleneck during checkpointing.
 
+In order to enable unaligned checkpoints you can:
+
+{{< tabs "4b9c6a74-8a45-4ad2-9e80-52fe44a85991" >}}
+{{< tab "Java" >}}
+```java
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+// enables the unaligned checkpoints
+env.getCheckpointConfig().enableUnalignedCheckpoints();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+
+// enables the unaligned checkpoints
+env.getCheckpointConfig.enableUnalignedCheckpoints()
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+
+# enables the unaligned checkpoints
+env.get_checkpoint_config().enable_unaligned_checkpoints()
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+or in the `flink-conf.yml` configuration file:
+
+```
+execution.checkpointing.unaligned: true
+```
+
 ### Aligned checkpoint timeout
 
 After enabling unaligned checkpoints, you can also specify the aligned checkpoint timeout
