@@ -40,9 +40,10 @@ abstract class AbstractFileSystemTable {
     final ObjectIdentifier tableIdentifier;
     final Configuration tableOptions;
     final ResolvedSchema schema;
-    List<String> partitionKeys;
     final Path path;
     final String defaultPartName;
+
+    List<String> partitionKeys;
 
     AbstractFileSystemTable(DynamicTableFactory.Context context) {
         this.context = context;
@@ -50,9 +51,10 @@ abstract class AbstractFileSystemTable {
         this.tableOptions = new Configuration();
         context.getCatalogTable().getOptions().forEach(tableOptions::setString);
         this.schema = context.getCatalogTable().getResolvedSchema();
-        this.partitionKeys = context.getCatalogTable().getPartitionKeys();
         this.path = new Path(tableOptions.get(PATH));
         this.defaultPartName = tableOptions.get(PARTITION_DEFAULT_NAME);
+
+        this.partitionKeys = context.getCatalogTable().getPartitionKeys();
     }
 
     ReadableConfig formatOptions(String identifier) {

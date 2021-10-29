@@ -83,13 +83,13 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     @Nullable private final DecodingFormat<DeserializationSchema<RowData>> deserializationFormat;
     @Nullable private final FileSystemFormatFactory formatFactory;
 
+    // These mutable fields
     private List<Map<String, String>> remainingPartitions;
     private List<ResolvedExpression> filters;
     private Long limit;
-
-    private DataType producedDataType;
-    private List<String> metadataKeys;
     private int[][] projectFields;
+    private List<String> metadataKeys;
+    private DataType producedDataType;
 
     public FileSystemTableSource(
             DynamicTableFactory.Context context,
@@ -367,13 +367,12 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         FileSystemTableSource source =
                 new FileSystemTableSource(
                         context, bulkReaderFormat, deserializationFormat, formatFactory);
+        source.partitionKeys = partitionKeys;
         source.remainingPartitions = remainingPartitions;
         source.filters = filters;
         source.limit = limit;
-
         source.projectFields = projectFields;
         source.metadataKeys = metadataKeys;
-        source.partitionKeys = partitionKeys;
         source.producedDataType = producedDataType;
         return source;
     }
