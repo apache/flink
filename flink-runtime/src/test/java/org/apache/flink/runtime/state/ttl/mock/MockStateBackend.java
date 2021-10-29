@@ -42,6 +42,15 @@ import java.util.Collection;
 /** mack state backend. */
 public class MockStateBackend extends AbstractStateBackend {
     private static final long serialVersionUID = 995676510267499393L;
+    private final boolean emptySnapshot;
+
+    public MockStateBackend() {
+        this(false);
+    }
+
+    public MockStateBackend(boolean emptySnapshot) {
+        this.emptySnapshot = emptySnapshot;
+    }
 
     @Override
     public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
@@ -67,7 +76,8 @@ public class MockStateBackend extends AbstractStateBackend {
                         LatencyTrackingStateConfig.disabled(),
                         stateHandles,
                         AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
-                        cancelStreamRegistry)
+                        cancelStreamRegistry,
+                        emptySnapshot)
                 .build();
     }
 
@@ -77,6 +87,6 @@ public class MockStateBackend extends AbstractStateBackend {
             String operatorIdentifier,
             @Nonnull Collection<OperatorStateHandle> stateHandles,
             CloseableRegistry cancelStreamRegistry) {
-        throw new UnsupportedOperationException();
+        return new MockOperatorStateBackend(emptySnapshot);
     }
 }
