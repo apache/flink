@@ -115,7 +115,7 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 env.getCheckpointConfig().enableExternalizedCheckpoints(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-// enables the experimental unaligned checkpoints
+// enables the unaligned checkpoints
 env.getCheckpointConfig().enableUnalignedCheckpoints();
 
 // sets the checkpoint storage where checkpoint snapshots will be written
@@ -156,7 +156,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 env.getCheckpointConfig().enableExternalizedCheckpoints(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
-// enables the experimental unaligned checkpoints
+// enables the unaligned checkpoints
 env.getCheckpointConfig.enableUnalignedCheckpoints()
 
 // sets the checkpoint storage where checkpoint snapshots will be written
@@ -195,7 +195,7 @@ env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
 # enable externalized checkpoints which are retained after job cancellation
 env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
-# enables the experimental unaligned checkpoints
+# enables the unaligned checkpoints
 env.get_checkpoint_config().enable_unaligned_checkpoints()
 ```
 {{< /tab >}}
