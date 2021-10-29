@@ -52,7 +52,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -194,12 +193,8 @@ public abstract class BuiltInFunctionTestBase {
         } catch (AssertionError e) {
             throw e;
         } catch (Throwable t) {
-            if (testItem instanceof TableApiErrorTestItem) {
-                assertThat(t, containsCause(new ValidationException(testItem.errorMessage)));
-            } else {
-                assertTrue(t instanceof ValidationException);
-                assertThat(t.getMessage(), containsString(testItem.errorMessage));
-            }
+            assertTrue(t instanceof ValidationException);
+            assertThat(t.getMessage(), containsString(testItem.errorMessage));
         }
     }
 
