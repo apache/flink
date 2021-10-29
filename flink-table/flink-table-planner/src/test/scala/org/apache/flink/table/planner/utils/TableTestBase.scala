@@ -22,6 +22,7 @@ import _root_.java.util
 import java.io.{File, IOException}
 import java.nio.file.{Files, Paths}
 import java.time.Duration
+
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.parser.SqlParserPos
@@ -41,7 +42,7 @@ import org.apache.flink.table.api.bridge.java.internal.{StreamTableEnvironmentIm
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.internal.{StreamTableEnvironmentImpl => ScalaStreamTableEnvImpl}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.data.RowData
@@ -1000,12 +1001,6 @@ abstract class TableTestUtil(
   tableEnv.getConfig
     .getConfiguration
     .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
-
-  // Disable push down aggregates to avoid conflicts with existing test cases that verify plans.
-  tableEnv.getConfig
-    .getConfiguration
-    .setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED, false)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
 
