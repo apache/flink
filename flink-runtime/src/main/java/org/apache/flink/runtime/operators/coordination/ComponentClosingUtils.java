@@ -18,6 +18,7 @@ limitations under the License.
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -42,9 +43,15 @@ public class ComponentClosingUtils {
      *     component.
      */
     public static CompletableFuture<Void> closeAsyncWithTimeout(
-            String componentName, Runnable closingSequence, Duration closeTimeout) {
+            String componentName,
+            Runnable closingSequence,
+            Duration closeTimeout,
+            ClassLoader userCodeClassLoader) {
         return closeAsyncWithTimeout(
-                componentName, (ThrowingRunnable<Exception>) closingSequence::run, closeTimeout);
+                componentName,
+                (ThrowingRunnable<Exception>) closingSequence::run,
+                closeTimeout,
+                userCodeClassLoader);
     }
 
     /**
@@ -59,14 +66,16 @@ public class ComponentClosingUtils {
     public static CompletableFuture<Void> closeAsyncWithTimeout(
             String componentName,
             ThrowingRunnable<Exception> closingSequence,
-            Duration closeTimeout) {
+            Duration closeTimeout,
+            ClassLoader userCodeClassLoader) {
 
         final CompletableFuture<Void> future = new CompletableFuture<>();
         // Start a dedicate thread to close the component.
         final Thread t =
                 new Thread(
                         () -> {
-                            try {
+                            try (TemporaryClassLoaderContext ignored =
+                                    TemporaryClassLoaderContext.of(userCodeClassLoader)) {
                                 closingSequence.run();
                                 future.complete(null);
                             } catch (Throwable error) {

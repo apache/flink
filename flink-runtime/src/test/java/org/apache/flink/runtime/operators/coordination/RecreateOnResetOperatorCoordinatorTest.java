@@ -20,15 +20,23 @@ package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.util.UserCodeClassLoader;
 
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -252,6 +260,31 @@ public class RecreateOnResetOperatorCoordinatorTest {
                 "Timed out when waiting for the coordinator to close.");
     }
 
+    @Test
+    public void testSyncUserCodeClassloaderAndCloseOperation() throws Exception {
+        final TestingUserCodeClassLoader userCodeClassLoader = new TestingUserCodeClassLoader();
+        MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS, userCodeClassLoader);
+        final CountDownLatch latch = new CountDownLatch(1);
+        final TestingCoordinatorProvider provider = new TestingCoordinatorProvider(latch);
+        final RecreateOnResetOperatorCoordinator coordinator = createCoordinator(provider, context);
+        coordinator.start();
+        // Check classloader release hook is registered
+        MatcherAssert.assertThat(
+                userCodeClassLoader.getHooks(),
+                IsMapContaining.hasKey(
+                        CoreMatchers.equalTo("sync-coordinator-close-hook-" + OPERATOR_ID)));
+        userCodeClassLoader.releaseAsync();
+        assertFalse(userCodeClassLoader.isReleased());
+        coordinator.close();
+        assertFalse(userCodeClassLoader.isReleased());
+        latch.countDown();
+        CommonTestUtils.waitUtil(
+                userCodeClassLoader::isReleased,
+                Duration.ofSeconds(30),
+                "USerCodeClassLoader is not released within timeout");
+    }
+
     // ---------------
 
     private RecreateOnResetOperatorCoordinator createCoordinator(
@@ -311,6 +344,40 @@ public class RecreateOnResetOperatorCoordinatorTest {
 
         private int getId() {
             return id;
+        }
+    }
+
+    private static class TestingUserCodeClassLoader implements UserCodeClassLoader {
+        private final Map<String, Runnable> hooks = new HashMap<>();
+        private volatile boolean released = false;
+
+        @Override
+        public ClassLoader asClassLoader() {
+            return Thread.currentThread().getContextClassLoader();
+        }
+
+        @Override
+        public void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
+            this.hooks.put(releaseHookName, releaseHook);
+        }
+
+        public void releaseAsync() {
+            final ExecutorService executor = Executors.newSingleThreadExecutor();
+            executor.execute(
+                    () -> {
+                        for (Runnable hook : this.hooks.values()) {
+                            hook.run();
+                        }
+                        released = true;
+                    });
+        }
+
+        public Map<String, Runnable> getHooks() {
+            return hooks;
+        }
+
+        public boolean isReleased() {
+            return released;
         }
     }
 }

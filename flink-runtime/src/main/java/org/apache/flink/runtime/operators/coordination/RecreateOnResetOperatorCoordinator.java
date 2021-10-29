@@ -50,10 +50,10 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
     private DeferrableCoordinator coordinator;
     private boolean started;
     private volatile boolean closed;
+    private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
     private RecreateOnResetOperatorCoordinator(
-            OperatorCoordinator.Context context, Provider provider, long closingTimeoutMs)
-            throws Exception {
+            OperatorCoordinator.Context context, Provider provider, long closingTimeoutMs) {
         this.context = context;
         this.provider = provider;
         this.coordinator = new DeferrableCoordinator(context.getOperatorId());
@@ -62,6 +62,17 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         this.closingTimeoutMs = closingTimeoutMs;
         this.started = false;
         this.closed = false;
+        this.context
+                .getUserCodeClassloader()
+                .registerReleaseHookIfAbsent(
+                        "sync-coordinator-close-hook-" + coordinator.operatorId,
+                        () -> {
+                            try {
+                                closeFuture.get();
+                            } catch (Exception e) {
+                                LOG.error("Erro");
+                            }
+                        });
     }
 
     @Override
@@ -74,7 +85,16 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
     @Override
     public void close() throws Exception {
         closed = true;
-        coordinator.closeAsync(closingTimeoutMs);
+        coordinator
+                .closeAsync(closingTimeoutMs)
+                .whenComplete(
+                        (result, throwable) -> {
+                            if (throwable != null) {
+                                LOG.error(
+                                        "Error when closing coordinator asynchronously", throwable);
+                            }
+                            this.closeFuture.complete(null);
+                        });
     }
 
     @Override
@@ -322,7 +342,8 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                 return closeAsyncWithTimeout(
                                 "SourceCoordinator for " + operatorId,
                                 (ThrowingRunnable<Exception>) internalCoordinator::close,
-                                Duration.ofMillis(timeoutMs))
+                                Duration.ofMillis(timeoutMs),
+                                internalQuiesceableContext.getUserCodeClassloader().asClassLoader())
                         .exceptionally(
                                 e -> {
                                     cleanAndFailJob(e);
