@@ -52,27 +52,6 @@ class CalcITCase extends StreamingTestBase {
   def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
-  def testCastNumericToBooleanInProjection(): Unit ={
-    val sqlQuery =
-      "SELECT CAST(1 AS BOOLEAN), CAST(0 AS BOOLEAN)"
-
-    val outputType = InternalTypeInfo.ofFields(
-      new BooleanType(),
-      new BooleanType()
-    )
-
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
-    val sink = new TestingAppendRowDataSink(outputType)
-    result.addSink(sink)
-    env.execute()
-
-    val expected = List(
-      "+I(true,false)"
-    )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-  @Test
   def testCastNumericToBooleanInCondition(): Unit ={
     val sqlQuery =
       s"""

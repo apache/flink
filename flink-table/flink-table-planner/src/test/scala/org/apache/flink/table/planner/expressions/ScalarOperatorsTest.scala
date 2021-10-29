@@ -144,14 +144,10 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testSqlApi("CASE WHEN 'a'='a' THEN 1 END", "1")
     testSqlApi("CASE 2 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "bcd")
     testSqlApi("CASE 1 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "a")
-    testSqlApi("CASE 1 WHEN 1 THEN CAST ('a' as varchar(1)) WHEN 2 THEN " +
-      "CAST ('bcd' as varchar(3)) END", "a")
     testSqlApi("CASE f2 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END", "11")
     testSqlApi("CASE f7 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END", "null")
     testSqlApi("CASE 42 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "null")
     testSqlApi("CASE 1 WHEN 1 THEN true WHEN 2 THEN false ELSE NULL END", "true")
-
-    testSqlApi("CASE WHEN f2 = 1 THEN CAST ('' as INT) ELSE 0 END", "null")
     testSqlApi("IF(true, CAST ('non-numeric' AS BIGINT), 0)", "null")
   }
 
@@ -177,17 +173,13 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   def testTemporalTypeEqualsStringLiteral(): Unit = {
     testSqlApi("f15 = '1996-11-10'", "true")
     testSqlApi("f15 = '1996-11-11'", "false")
-    testSqlApi("f15 = cast(null as string)", "null")
     testSqlApi("'1996-11-10' = f15", "true")
     testSqlApi("'1996-11-11' = f15", "false")
-    testSqlApi("cast(null as string) = f15", "null")
 
     testSqlApi("f21 = '12:34:56'", "true")
     testSqlApi("f21 = '13:34:56'", "false")
-    testSqlApi("f21 = cast(null as string)", "null")
     testSqlApi("'12:34:56' = f21", "true")
     testSqlApi("'13:34:56' = f21", "false")
-    testSqlApi("cast(null as string) = f21", "null")
 
     testSqlApi("f22 = '1996-11-10 12:34:56'", "true")
     testSqlApi("f22 = '1996-11-10 12:34:57'", "false")
