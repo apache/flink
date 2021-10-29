@@ -46,7 +46,9 @@ public class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 "INT NOT NULL",
                                 DataTypes.STRING())
                         .testTableApiValidationError(
-                                call("TYPEOF", $("f0"), $("f2")), "Invalid input arguments.")
+                                call("TYPEOF", $("f0"), $("f2")),
+                                "Invalid function call:\n"
+                                        + "TYPEOF(INT NOT NULL, BOOLEAN NOT NULL)")
                         .testSqlValidationError(
                                 "TYPEOF(f0, f2)",
                                 "SQL validation failed. Invalid function call:\nTYPEOF(INT NOT NULL, BOOLEAN NOT NULL)")
