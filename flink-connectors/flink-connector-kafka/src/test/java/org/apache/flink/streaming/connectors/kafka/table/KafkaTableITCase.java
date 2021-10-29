@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
@@ -27,6 +28,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 
+import org.apache.kafka.clients.consumer.NoOffsetForPartitionException;
+import org.assertj.core.api.Assertions;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,6 +45,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -819,6 +824,151 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         tableResult.getJobClient().ifPresent(JobClient::cancel);
         deleteTestTopic(topic);
+    }
+
+    @Test
+    public void testStartFromGroupOffsetsLatest() throws Exception {
+        testStartFromGroupOffsets("latest");
+    }
+
+    @Test
+    public void testStartFromGroupOffsetsEarliest() throws Exception {
+        testStartFromGroupOffsets("earliest");
+    }
+
+    @Test
+    public void testStartFromGroupOffsetsNone() {
+        Assertions.assertThatThrownBy(() -> testStartFromGroupOffsetsWithNoneResetStrategy())
+                .satisfies(FlinkAssertions.anyCauseMatches(NoOffsetForPartitionException.class));
+    }
+
+    private List<String> appendNewData(String tableName)
+            throws ExecutionException, InterruptedException {
+        String appendValues =
+                "INSERT INTO "
+                        + tableName
+                        + "\n"
+                        + "VALUES\n"
+                        + " (2, 6),\n"
+                        + " (2, 7),\n"
+                        + " (2, 8)\n";
+        tEnv.executeSql(appendValues).await();
+        return Arrays.asList("+I[2, 6]", "+I[2, 7]", "+I[2, 8]");
+    }
+
+    private TableResult startFromGroupOffset(
+            String tableName, String topic, String groupId, String resetStrategy, String sinkName)
+            throws ExecutionException, InterruptedException {
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        createTestTopic(topic, 4, 1);
+
+        // ---------- Produce an event time stream into Kafka -------------------
+        String bootstraps = getBootstrapServers();
+        tEnv.getConfig()
+                .getConfiguration()
+                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
+
+        final String createTableSql =
+                "CREATE TABLE %s (\n"
+                        + "  `partition_id` INT,\n"
+                        + "  `value` INT\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'topic' = '%s',\n"
+                        + "  'properties.bootstrap.servers' = '%s',\n"
+                        + "  'properties.group.id' = '%s',\n"
+                        + "  'scan.startup.mode' = 'group-offsets',\n"
+                        + "  'properties.auto.offset.reset' = '%s',\n"
+                        + "  'format' = '%s'\n"
+                        + ")";
+        tEnv.executeSql(
+                String.format(
+                        createTableSql,
+                        tableName,
+                        topic,
+                        bootstraps,
+                        groupId,
+                        resetStrategy,
+                        format));
+
+        String initialValues =
+                "INSERT INTO "
+                        + tableName
+                        + "\n"
+                        + "VALUES\n"
+                        + " (0, 0),\n"
+                        + " (0, 1),\n"
+                        + " (0, 2),\n"
+                        + " (1, 3),\n"
+                        + " (1, 4),\n"
+                        + " (1, 5)\n";
+        tEnv.executeSql(initialValues).await();
+
+        // ---------- Consume stream from Kafka -------------------
+
+        env.setParallelism(1);
+        String createSink =
+                "CREATE TABLE "
+                        + sinkName
+                        + "(\n"
+                        + "  `partition_id` INT,\n"
+                        + "  `value` INT\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values'\n"
+                        + ")";
+        tEnv.executeSql(createSink);
+
+        return tEnv.executeSql("INSERT INTO " + sinkName + " SELECT * FROM " + tableName);
+    }
+
+    private void testStartFromGroupOffsets(String resetStrategy) throws Exception {
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        final String tableName = "Table" + format + resetStrategy;
+        final String topic = "groupOffset_" + format + resetStrategy;
+        String groupId = format + resetStrategy;
+        String sinkName = "mySink" + format + resetStrategy;
+        List<String> expected =
+                Arrays.asList(
+                        "+I[0, 0]", "+I[0, 1]", "+I[0, 2]", "+I[1, 3]", "+I[1, 4]", "+I[1, 5]");
+
+        TableResult tableResult = null;
+        try {
+            tableResult = startFromGroupOffset(tableName, topic, groupId, resetStrategy, sinkName);
+            if ("latest".equals(resetStrategy)) {
+                expected = appendNewData(tableName);
+            }
+            KafkaTableTestUtils.waitingExpectedResults(sinkName, expected, Duration.ofSeconds(5));
+        } finally {
+            // ------------- cleanup -------------------
+            if (tableResult != null) {
+                tableResult.getJobClient().ifPresent(JobClient::cancel);
+            }
+            deleteTestTopic(topic);
+        }
+    }
+
+    private void testStartFromGroupOffsetsWithNoneResetStrategy()
+            throws ExecutionException, InterruptedException {
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        final String resetStrategy = "none";
+        final String tableName = resetStrategy + "Table";
+        final String topic = "groupOffset_" + format;
+        String groupId = resetStrategy + (new Random()).nextInt();
+
+        TableResult tableResult = null;
+        try {
+            tableResult = startFromGroupOffset(tableName, topic, groupId, resetStrategy, "MySink");
+            tableResult.await();
+        } finally {
+            // ------------- cleanup -------------------
+            if (tableResult != null) {
+                tableResult.getJobClient().ifPresent(JobClient::cancel);
+            }
+            deleteTestTopic(topic);
+        }
     }
 
     // --------------------------------------------------------------------------------------------

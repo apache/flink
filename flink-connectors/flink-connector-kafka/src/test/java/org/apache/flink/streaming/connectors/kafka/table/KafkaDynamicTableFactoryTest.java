@@ -68,15 +68,16 @@ import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.assertj.core.api.Assertions;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -91,22 +92,19 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkAssertions.containsCause;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.AVRO_CONFLUENT;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.DEBEZIUM_AVRO_CONFLUENT;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.PROPERTIES_PREFIX;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Abstract test base for {@link KafkaDynamicTableFactory}. */
-public class KafkaDynamicTableFactoryTest extends TestLogger {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
+@ExtendWith(TestLoggerExtension.class)
+public class KafkaDynamicTableFactoryTest {
 
     private static final String TOPIC = "myTopic";
     private static final String TOPICS = "myTopic-1;myTopic-2;myTopic-3";
@@ -216,7 +214,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         StartupMode.SPECIFIC_OFFSETS,
                         specificOffsets,
                         0);
-        Assertions.assertThat(actualKafkaSource).isEqualTo(expectedKafkaSource);
+        assertThat(actualKafkaSource).isEqualTo(expectedKafkaSource);
 
         ScanTableSource.ScanRuntimeProvider provider =
                 actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
@@ -259,7 +257,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         specificOffsets,
                         0);
         final KafkaDynamicSource actualKafkaSource = (KafkaDynamicSource) actualSource;
-        assertEquals(actualKafkaSource, expectedKafkaSource);
+        assertThat(actualKafkaSource).isEqualTo(expectedKafkaSource);
 
         ScanTableSource.ScanRuntimeProvider provider =
                 actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
@@ -300,7 +298,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         Collections.emptyMap(),
                         0);
 
-        assertEquals(actualSource, expectedKafkaSource);
+        assertThat(actualSource).isEqualTo(expectedKafkaSource);
     }
 
     @Test
@@ -353,7 +351,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         expectedKafkaSource.producedDataType = SCHEMA_WITH_METADATA.toSourceRowDataType();
         expectedKafkaSource.metadataKeys = Collections.singletonList("timestamp");
 
-        assertEquals(actualSource, expectedKafkaSource);
+        assertThat(actualSource).isEqualTo(expectedKafkaSource);
     }
 
     @Test
@@ -363,22 +361,73 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         getBasicSourceOptions(), options -> options.remove("properties.group.id"));
         final DynamicTableSource tableSource = createTableSource(SCHEMA, modifiedOptions);
 
-        assertThat(tableSource, instanceOf(KafkaDynamicSource.class));
+        assertThat(tableSource).isInstanceOf(KafkaDynamicSource.class);
         ScanTableSource.ScanRuntimeProvider providerWithoutGroupId =
                 ((KafkaDynamicSource) tableSource)
                         .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-        assertThat(providerWithoutGroupId, instanceOf(DataStreamScanProvider.class));
+        assertThat(providerWithoutGroupId).isInstanceOf(DataStreamScanProvider.class);
         final KafkaSource<?> kafkaSource = assertKafkaSource(providerWithoutGroupId);
         final Configuration configuration =
                 KafkaSourceTestUtils.getKafkaSourceConfiguration(kafkaSource);
 
         // Test offset commit on checkpoint should be disabled when do not set consumer group.
-        assertFalse(configuration.get(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT));
-        assertFalse(
-                configuration.get(
-                        ConfigOptions.key(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)
-                                .booleanType()
-                                .noDefaultValue()));
+        assertThat(configuration.get(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT)).isFalse();
+        assertThat(
+                        configuration.get(
+                                ConfigOptions.key(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)
+                                        .booleanType()
+                                        .noDefaultValue()))
+                .isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "earliest", "latest"})
+    @NullSource
+    public void testTableSourceSetOffsetReset(final String strategyName) {
+        testSetOffsetResetForStartFromGroupOffsets(strategyName);
+    }
+
+    @Test
+    public void testTableSourceSetOffsetResetWithException() {
+        String errorStrategy = "errorStrategy";
+        assertThatThrownBy(() -> testTableSourceSetOffsetReset(errorStrategy))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        String.format(
+                                "%s can not be set to %s. Valid values: [latest,earliest,none]",
+                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, errorStrategy));
+    }
+
+    private void testSetOffsetResetForStartFromGroupOffsets(String value) {
+        final Map<String, String> modifiedOptions =
+                getModifiedOptions(
+                        getBasicSourceOptions(),
+                        options -> {
+                            options.remove("scan.startup.mode");
+                            if (value == null) {
+                                return;
+                            }
+                            options.put(
+                                    PROPERTIES_PREFIX + ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                                    value);
+                        });
+        final DynamicTableSource tableSource = createTableSource(SCHEMA, modifiedOptions);
+        assertThat(tableSource).isInstanceOf(KafkaDynamicSource.class);
+        ScanTableSource.ScanRuntimeProvider provider =
+                ((KafkaDynamicSource) tableSource)
+                        .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        assertThat(provider).isInstanceOf(DataStreamScanProvider.class);
+        final KafkaSource<?> kafkaSource = assertKafkaSource(provider);
+        final Configuration configuration =
+                KafkaSourceTestUtils.getKafkaSourceConfiguration(kafkaSource);
+
+        if (value == null) {
+            assertThat(configuration.toMap().get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG))
+                    .isEqualTo("none");
+        } else {
+            assertThat(configuration.toMap().get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG))
+                    .isEqualTo(value);
+        }
     }
 
     @Test
@@ -409,16 +458,16 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         DeliveryGuarantee.EXACTLY_ONCE,
                         null,
                         "kafka-sink");
-        assertEquals(expectedSink, actualSink);
+        assertThat(actualSink).isEqualTo(expectedSink);
 
         // Test kafka producer.
         final KafkaDynamicSink actualKafkaSink = (KafkaDynamicSink) actualSink;
         DynamicTableSink.SinkRuntimeProvider provider =
                 actualKafkaSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider, instanceOf(SinkProvider.class));
+        assertThat(provider).isInstanceOf(SinkProvider.class);
         final SinkProvider sinkProvider = (SinkProvider) provider;
         final Sink<RowData, ?, ?, ?> sinkFunction = sinkProvider.createSink();
-        assertThat(sinkFunction, instanceOf(KafkaSink.class));
+        assertThat(sinkFunction).isInstanceOf(KafkaSink.class);
     }
 
     @Test
@@ -449,7 +498,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                             DeliveryGuarantee.valueOf(semantic.toUpperCase().replace("-", "_")),
                             null,
                             "kafka-sink");
-            assertEquals(expectedSink, actualSink);
+            assertThat(actualSink).isEqualTo(expectedSink);
         }
     }
 
@@ -493,7 +542,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         "kafka-sink");
 
-        assertEquals(expectedSink, actualSink);
+        assertThat(actualSink).isEqualTo(expectedSink);
     }
 
     @Test
@@ -520,14 +569,14 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         DeliveryGuarantee.EXACTLY_ONCE,
                         100,
                         "kafka-sink");
-        assertEquals(expectedSink, actualSink);
+        assertThat(actualSink).isEqualTo(expectedSink);
 
         final DynamicTableSink.SinkRuntimeProvider provider =
                 actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider, instanceOf(SinkProvider.class));
+        assertThat(provider).isInstanceOf(SinkProvider.class);
         final SinkProvider sinkProvider = (SinkProvider) provider;
-        assertTrue(sinkProvider.getParallelism().isPresent());
-        assertEquals(100, (long) sinkProvider.getParallelism().get());
+        assertThat(sinkProvider.getParallelism().isPresent()).isTrue();
+        assertThat((long) sinkProvider.getParallelism().get()).isEqualTo(100);
     }
 
     @Test
@@ -642,7 +691,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             } else {
                 expectedValueEncoder = createDebeziumAvroSerSchema(rowType, expectedValueSubject);
             }
-            assertEquals(expectedValueEncoder, actualValueEncoder);
+            assertThat(actualValueEncoder).isEqualTo(expectedValueEncoder);
         }
 
         if (avroFormats.contains(keyFormat)) {
@@ -656,7 +705,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             } else {
                 expectedKeyEncoder = createDebeziumAvroSerSchema(rowType, expectedKeySubject);
             }
-            assertEquals(expectedKeyEncoder, actualKeyEncoder);
+            assertThat(actualKeyEncoder).isEqualTo(expectedKeyEncoder);
         }
     }
 
@@ -680,106 +729,129 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
     @Test
     public void testSourceTableWithTopicAndTopicPattern() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "Option 'topic' and 'topic-pattern' shouldn't be set together.")));
+        assertThatThrownBy(
+                        () -> {
+                            final Map<String, String> modifiedOptions =
+                                    getModifiedOptions(
+                                            getBasicSourceOptions(),
+                                            options -> {
+                                                options.put("topic", TOPICS);
+                                                options.put("topic-pattern", TOPIC_REGEX);
+                                            });
 
-        final Map<String, String> modifiedOptions =
-                getModifiedOptions(
-                        getBasicSourceOptions(),
-                        options -> {
-                            options.put("topic", TOPICS);
-                            options.put("topic-pattern", TOPIC_REGEX);
-                        });
-
-        createTableSource(SCHEMA, modifiedOptions);
+                            createTableSource(SCHEMA, modifiedOptions);
+                        })
+                .isInstanceOf(ValidationException.class)
+                .satisfies(
+                        containsCause(
+                                new ValidationException(
+                                        "Option 'topic' and 'topic-pattern' shouldn't be set together.")));
     }
 
     @Test
     public void testMissingStartupTimestamp() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "'scan.startup.timestamp-millis' "
-                                        + "is required in 'timestamp' startup mode but missing.")));
+        assertThatThrownBy(
+                        () -> {
+                            final Map<String, String> modifiedOptions =
+                                    getModifiedOptions(
+                                            getBasicSourceOptions(),
+                                            options ->
+                                                    options.put("scan.startup.mode", "timestamp"));
 
-        final Map<String, String> modifiedOptions =
-                getModifiedOptions(
-                        getBasicSourceOptions(),
-                        options -> options.put("scan.startup.mode", "timestamp"));
-
-        createTableSource(SCHEMA, modifiedOptions);
+                            createTableSource(SCHEMA, modifiedOptions);
+                        })
+                .isInstanceOf(ValidationException.class)
+                .satisfies(
+                        containsCause(
+                                new ValidationException(
+                                        "'scan.startup.timestamp-millis' "
+                                                + "is required in 'timestamp' startup mode but missing.")));
     }
 
     @Test
     public void testMissingSpecificOffsets() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "'scan.startup.specific-offsets' "
-                                        + "is required in 'specific-offsets' startup mode but missing.")));
+        assertThatThrownBy(
+                        () -> {
+                            final Map<String, String> modifiedOptions =
+                                    getModifiedOptions(
+                                            getBasicSourceOptions(),
+                                            options ->
+                                                    options.remove(
+                                                            "scan.startup.specific-offsets"));
 
-        final Map<String, String> modifiedOptions =
-                getModifiedOptions(
-                        getBasicSourceOptions(),
-                        options -> options.remove("scan.startup.specific-offsets"));
-
-        createTableSource(SCHEMA, modifiedOptions);
+                            createTableSource(SCHEMA, modifiedOptions);
+                        })
+                .isInstanceOf(ValidationException.class)
+                .satisfies(
+                        containsCause(
+                                new ValidationException(
+                                        "'scan.startup.specific-offsets' "
+                                                + "is required in 'specific-offsets' startup mode but missing.")));
     }
 
     @Test
     public void testInvalidSinkPartitioner() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "Could not find and instantiate partitioner " + "class 'abc'")));
+        assertThatThrownBy(
+                        () -> {
+                            final Map<String, String> modifiedOptions =
+                                    getModifiedOptions(
+                                            getBasicSinkOptions(),
+                                            options -> options.put("sink.partitioner", "abc"));
 
-        final Map<String, String> modifiedOptions =
-                getModifiedOptions(
-                        getBasicSinkOptions(), options -> options.put("sink.partitioner", "abc"));
-
-        createTableSink(SCHEMA, modifiedOptions);
+                            createTableSink(SCHEMA, modifiedOptions);
+                        })
+                .isInstanceOf(ValidationException.class)
+                .satisfies(
+                        containsCause(
+                                new ValidationException(
+                                        "Could not find and instantiate partitioner "
+                                                + "class 'abc'")));
     }
 
     @Test
     public void testInvalidRoundRobinPartitionerWithKeyFields() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "Currently 'round-robin' partitioner only works "
-                                        + "when option 'key.fields' is not specified.")));
+        assertThatThrownBy(
+                        () -> {
+                            final Map<String, String> modifiedOptions =
+                                    getModifiedOptions(
+                                            getKeyValueOptions(),
+                                            options ->
+                                                    options.put("sink.partitioner", "round-robin"));
 
-        final Map<String, String> modifiedOptions =
-                getModifiedOptions(
-                        getKeyValueOptions(),
-                        options -> options.put("sink.partitioner", "round-robin"));
-
-        createTableSink(SCHEMA, modifiedOptions);
+                            createTableSink(SCHEMA, modifiedOptions);
+                        })
+                .isInstanceOf(ValidationException.class)
+                .satisfies(
+                        containsCause(
+                                new ValidationException(
+                                        "Currently 'round-robin' partitioner only works "
+                                                + "when option 'key.fields' is not specified.")));
     }
 
     @Test
     public void testExactlyOnceGuaranteeWithoutTransactionalIdPrefix() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "sink.transactional-id-prefix must be specified when using DeliveryGuarantee.EXACTLY_ONCE.")));
-        final Map<String, String> modifiedOptions =
-                getModifiedOptions(
-                        getKeyValueOptions(),
-                        options -> {
-                            options.remove(KafkaConnectorOptions.TRANSACTIONAL_ID_PREFIX.key());
-                            options.put(
-                                    KafkaConnectorOptions.DELIVERY_GUARANTEE.key(),
-                                    DeliveryGuarantee.EXACTLY_ONCE.toString());
-                        });
-        createTableSink(SCHEMA, modifiedOptions);
+        assertThatThrownBy(
+                        () -> {
+                            final Map<String, String> modifiedOptions =
+                                    getModifiedOptions(
+                                            getKeyValueOptions(),
+                                            options -> {
+                                                options.remove(
+                                                        KafkaConnectorOptions
+                                                                .TRANSACTIONAL_ID_PREFIX
+                                                                .key());
+                                                options.put(
+                                                        KafkaConnectorOptions.DELIVERY_GUARANTEE
+                                                                .key(),
+                                                        DeliveryGuarantee.EXACTLY_ONCE.toString());
+                                            });
+                            createTableSink(SCHEMA, modifiedOptions);
+                        })
+                .isInstanceOf(ValidationException.class)
+                .satisfies(
+                        containsCause(
+                                new ValidationException(
+                                        "sink.transactional-id-prefix must be specified when using DeliveryGuarantee.EXACTLY_ONCE.")));
     }
 
     @Test
@@ -798,12 +870,12 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         try {
             createTableSink(SCHEMA, modifiedOptions);
         } catch (Throwable t) {
-            assertEquals(
-                    String.format(
-                            errorMessageTemp,
-                            "'topic'",
-                            String.format("[%s]", String.join(", ", TOPIC_LIST))),
-                    t.getCause().getMessage());
+            assertThat(t.getCause().getMessage())
+                    .isEqualTo(
+                            String.format(
+                                    errorMessageTemp,
+                                    "'topic'",
+                                    String.format("[%s]", String.join(", ", TOPIC_LIST))));
         }
 
         modifiedOptions =
@@ -814,9 +886,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         try {
             createTableSink(SCHEMA, modifiedOptions);
         } catch (Throwable t) {
-            assertEquals(
-                    String.format(errorMessageTemp, "'topic-pattern'", TOPIC_REGEX),
-                    t.getCause().getMessage());
+            assertThat(t.getCause().getMessage())
+                    .isEqualTo(String.format(errorMessageTemp, "'topic-pattern'", TOPIC_REGEX));
         }
     }
 
@@ -1032,18 +1103,18 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     }
 
     private KafkaSource<?> assertKafkaSource(ScanTableSource.ScanRuntimeProvider provider) {
-        assertThat(provider, instanceOf(DataStreamScanProvider.class));
+        assertThat(provider).isInstanceOf(DataStreamScanProvider.class);
         final DataStreamScanProvider dataStreamScanProvider = (DataStreamScanProvider) provider;
         final Transformation<RowData> transformation =
                 dataStreamScanProvider
                         .produceDataStream(StreamExecutionEnvironment.createLocalEnvironment())
                         .getTransformation();
-        assertThat(transformation, instanceOf(SourceTransformation.class));
+        assertThat(transformation).isInstanceOf(SourceTransformation.class);
         SourceTransformation<RowData, KafkaPartitionSplit, KafkaSourceEnumState>
                 sourceTransformation =
                         (SourceTransformation<RowData, KafkaPartitionSplit, KafkaSourceEnumState>)
                                 transformation;
-        assertThat(sourceTransformation.getSource(), instanceOf(KafkaSource.class));
+        assertThat(sourceTransformation.getSource()).isInstanceOf(KafkaSource.class);
         return (KafkaSource<?>) sourceTransformation.getSource();
     }
 }
