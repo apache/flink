@@ -659,6 +659,39 @@ class WindowAggregateITCase(
       CumulateWindowRollupExpectedData.sorted.mkString("\n"),
       sink.getAppendResults.sorted.mkString("\n"))
   }
+
+  @Test
+  def testFieldNameConflict(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  window_time,
+        |  MIN(rowtime) as start_time,
+        |  MAX(rowtime) as end_time
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY window_start, window_end, window_time
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = if (useTimestampLtz) {
+      Seq(
+        "2020-10-09T16:00:04.999Z,2020-10-09T16:00:01Z,2020-10-09T16:00:04Z",
+        "2020-10-09T16:00:09.999Z,2020-10-09T16:00:06Z,2020-10-09T16:00:08Z",
+        "2020-10-09T16:00:19.999Z,2020-10-09T16:00:16Z,2020-10-09T16:00:16Z",
+        "2020-10-09T16:00:34.999Z,2020-10-09T16:00:32Z,2020-10-09T16:00:34Z")
+    } else {
+      Seq(
+        "2020-10-10T00:00:04.999,2020-10-10T00:00:01,2020-10-10T00:00:04",
+        "2020-10-10T00:00:09.999,2020-10-10T00:00:06,2020-10-10T00:00:08",
+        "2020-10-10T00:00:19.999,2020-10-10T00:00:16,2020-10-10T00:00:16",
+        "2020-10-10T00:00:34.999,2020-10-10T00:00:32,2020-10-10T00:00:34")
+    }
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
 }
 
 object WindowAggregateITCase {

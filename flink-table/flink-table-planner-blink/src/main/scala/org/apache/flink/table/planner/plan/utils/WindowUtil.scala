@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.inferAggAccumulatorNames
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
+import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.TimestampType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType
@@ -43,6 +44,7 @@ import java.time.Duration
 import java.util.Collections
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -119,10 +121,10 @@ object WindowUtil {
     var containsTimeAttribute = false
     var newTimeAttributeIndex = -1
     val calcFieldShifting = ArrayBuffer[Int]()
-
+    val visitedProjectNames = new mutable.ArrayBuffer[String]
     oldProgram.getNamedProjects.foreach { namedProject =>
       val expr = oldProgram.expandLocalRef(namedProject.left)
-      val name = namedProject.right
+      val uniqueName = RowTypeUtils.getUniqueName(namedProject.right, visitedProjectNames)
       // project columns except window columns
       expr match {
         case inputRef: RexInputRef if windowColumns.contains(inputRef.getIndex) =>
@@ -130,7 +132,8 @@ object WindowUtil {
 
         case _ =>
           try {
-            programBuilder.addProject(expr, name)
+            programBuilder.addProject(expr, uniqueName)
+            visitedProjectNames += uniqueName
           } catch {
             case e: Throwable =>
               e.printStackTrace()
@@ -149,9 +152,11 @@ object WindowUtil {
 
     // append time attribute if the calc doesn't refer it
     if (!containsTimeAttribute) {
+      val oldTimeAttributeFieldName = inputRowType.getFieldNames.get(inputTimeAttributeIndex)
+      val uniqueName = RowTypeUtils.getUniqueName(oldTimeAttributeFieldName, visitedProjectNames)
       programBuilder.addProject(
         inputTimeAttributeIndex,
-        inputRowType.getFieldNames.get(inputTimeAttributeIndex))
+        uniqueName)
       newTimeAttributeIndex = programBuilder.getProjectList.size() - 1
     }
 

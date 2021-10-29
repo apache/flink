@@ -1000,6 +1000,19 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
       """.stripMargin
     util.verifyRelPlan(sql)
   }
+
+  @Test
+  def testFieldNameConflict(): Unit = {
+    val sql =
+      """
+        |SELECT window_time,
+        |  MIN(rowtime) as start_time,
+        |  MAX(rowtime) as end_time
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY window_start, window_end, window_time
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
 }
 
 object WindowAggregateTest {

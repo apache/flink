@@ -1029,6 +1029,75 @@ Calc(select=[a, b, uv])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testFieldNameConflict[aggPhaseEnforcer=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT window_time,
+  MIN(rowtime) as start_time,
+  MAX(rowtime) as end_time
+FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+GROUP BY window_start, window_end, window_time
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(window_time=[$2], start_time=[$3], end_time=[$4])
++- LogicalAggregate(group=[{0, 1, 2}], start_time=[MIN($3)], end_time=[MAX($3)])
+   +- LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], rowtime=[$5])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE($6, DESCRIPTOR($5), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[window_time, start_time, end_time])
++- WindowAggregate(window=[TUMBLE(time_col=[rowtime_0], size=[15 min])], select=[MIN(rowtime) AS start_time, MAX(rowtime) AS end_time, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[CAST(rowtime) AS rowtime, rowtime AS rowtime_0])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+            +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFieldNameConflict[aggPhaseEnforcer=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT window_time,
+  MIN(rowtime) as start_time,
+  MAX(rowtime) as end_time
+FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+GROUP BY window_start, window_end, window_time
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(window_time=[$2], start_time=[$3], end_time=[$4])
++- LogicalAggregate(group=[{0, 1, 2}], start_time=[MIN($3)], end_time=[MAX($3)])
+   +- LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], rowtime=[$5])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE($6, DESCRIPTOR($5), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[window_time, start_time, end_time])
++- GlobalWindowAggregate(window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[MIN(min$0) AS start_time, MAX(max$1) AS end_time, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
+   +- Exchange(distribution=[single])
+      +- LocalWindowAggregate(window=[TUMBLE(time_col=[rowtime_0], size=[15 min])], select=[MIN(rowtime) AS min$0, MAX(rowtime) AS max$1, slice_end('w$) AS $slice_end])
+         +- Calc(select=[CAST(rowtime) AS rowtime, rowtime AS rowtime_0])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+               +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testHop_Cube[aggPhaseEnforcer=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[
