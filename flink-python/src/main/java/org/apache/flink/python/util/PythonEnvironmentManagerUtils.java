@@ -150,7 +150,8 @@ public class PythonEnvironmentManagerUtils {
         if (environmentVariables.containsKey(PYFLINK_UDF_RUNNER_DIR)) {
             runnerDir = environmentVariables.get(PYFLINK_UDF_RUNNER_DIR);
         } else {
-            String[] commands = new String[] {pythonExecutable, "-c", GET_RUNNER_DIR_SCRIPT};
+            String[] commands =
+                    new String[] {pythonExecutable, "-c", bashQuoteString(GET_RUNNER_DIR_SCRIPT)};
             String out = execute(commands, environmentVariables, false);
             runnerDir = out.trim();
         }
@@ -167,7 +168,9 @@ public class PythonEnvironmentManagerUtils {
             String prefix, String pythonExecutable, Map<String, String> environmentVariables)
             throws IOException {
         String[] commands =
-                new String[] {pythonExecutable, "-c", GET_SITE_PACKAGES_PATH_SCRIPT, prefix};
+                new String[] {
+                    pythonExecutable, "-c", bashQuoteString(GET_SITE_PACKAGES_PATH_SCRIPT), prefix
+                };
         String out = execute(commands, environmentVariables, false);
         return String.join(File.pathSeparator, out.trim().split("\n"));
     }
@@ -176,7 +179,9 @@ public class PythonEnvironmentManagerUtils {
             String pipVersion, String pythonExecutable, Map<String, String> environmentVariables)
             throws IOException {
         String[] commands =
-                new String[] {pythonExecutable, "-c", CHECK_PIP_VERSION_SCRIPT, pipVersion};
+                new String[] {
+                    pythonExecutable, "-c", bashQuoteString(CHECK_PIP_VERSION_SCRIPT), pipVersion
+                };
         String out = execute(commands, environmentVariables, false);
         return Boolean.parseBoolean(out.trim());
     }
@@ -226,5 +231,20 @@ public class PythonEnvironmentManagerUtils {
         } else {
             env.put(key, value);
         }
+    }
+
+    /**
+     * Quote the given bash arg so that bash will interpret it as a single value. Note this only
+     * quotes the input argument for one level for bash.
+     *
+     * @param arg the argument to quote
+     * @return the quoted string
+     */
+    static String bashQuoteString(String arg) {
+        StringBuilder sb = new StringBuilder(arg.length() + 2);
+        sb.append('\'');
+        sb.append(arg.replace("'", "'\\''"));
+        sb.append('\'');
+        return sb.toString();
     }
 }
