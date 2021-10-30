@@ -427,7 +427,7 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 
 通用的升级步骤概述见 [升级 Jobs 和 Flink 版本指南]({{< ref "docs/ops/upgrading" >}})。对于 Kafka，你还需要遵循这些步骤：
 
-* 不要同时升级 Flink 和 Kafka 连接器
+* 不要同时升级 Flink 和 Kafka 客户端
 * 确保你对 Consumer 设置了 `group.id`
 * 在 Consumer 上设置 `setCommitOffsetsOnCheckpoints(true)`，以便读 offset 提交到 Kafka。务必在停止和恢复 savepoint 前执行此操作。你可能需要在旧的连接器版本上进行停止/重启循环来启用此设置。
 * 在 Consumer 上设置 `setStartFromGroupOffsets(true)`，以便我们从 Kafka 获取读 offset。这只会在 Flink 状态中没有读 offset 时生效，这也是为什么下一步非要重要的原因。

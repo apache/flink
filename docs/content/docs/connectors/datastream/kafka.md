@@ -492,7 +492,7 @@ The generic upgrade steps are outlined in [upgrading jobs and Flink versions
 guide]({{< ref "docs/ops/upgrading" >}}). For Kafka, you additionally need
 to follow these steps:
 
-* Do not upgrade Flink and the Kafka Connector version at the same time.
+* Do not upgrade Flink and the Kafka client version at the same time.
 * Make sure you have a `group.id` configured for your Consumer.
 * Set `setCommitOffsetsOnCheckpoints(true)` on the consumer so that read
   offsets are committed to Kafka. It's important to do this before stopping and
