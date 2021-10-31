@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.core.testutils.FlinkMatchers
 import org.apache.flink.table.api.config.TableConfigOptions
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.{nullablesOfData3, smallData3, type3}
@@ -90,6 +91,34 @@ class CodeSplitITCase extends BatchTestBase {
     }
 
     runTest(sql.mkString, Seq(result))
+  }
+
+  @Test
+  def testManyValues(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE test_many_values (
+         |${Range(0, 100).map(i => s"  f$i INT").mkString(",\n")}
+         |) WITH (
+         |  'connector' = 'values'
+         |)
+         |""".stripMargin
+    ).await()
+
+    tEnv.executeSql(
+      s"""
+         |INSERT INTO test_many_values VALUES
+         |${Range(0, 100)
+        .map(i => "(" + Range(0, 100).map(_ => s"$i").mkString(", ") + ")")
+        .mkString(", ")}
+         |""".stripMargin
+    ).await()
+
+    val expected = new java.util.ArrayList[String]()
+    for (i <- 0 until 100) {
+      expected.add(s"+I[${Range(0, 100).map(_ => s"$i").mkString(", ")}]")
+    }
+    Assert.assertEquals(expected, TestValuesTableFactory.getResults("test_many_values"))
   }
 
   private[flink] def runTest(sql: String, results: Seq[Row]): Unit = {
