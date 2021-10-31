@@ -211,24 +211,24 @@ public final class SliceAssigners {
             if (size <= 0 || slide <= 0) {
                 throw new IllegalArgumentException(
                         String.format(
-                                "Slicing Hopping Window must satisfy slide > 0 and size > 0, but " 
+                                "Slicing Hopping Window must satisfy slide > 0 and size > 0, but "
                                         + "got slide %dms and size %dms.",
                                 slide, size));
             }
             if (size % slide != 0) {
                 throw new IllegalArgumentException(
                         String.format(
-                                "Slicing Hopping Window requires size must be an integral " 
+                                "Slicing Hopping Window requires size must be an integral "
                                         + "multiple of slide, but got size %dms and slide %dms.",
                                 size, slide));
             }
             checkArgument(
                     Math.abs(offset) < slide,
                     String.format(
-                            "Slicing Window parameters must satisfy abs(offset) < slide, bot got" 
+                            "Slicing Window parameters must satisfy abs(offset) < slide, bot got"
                                     + " slide %dms and offset %dms.",
                             slide, offset));
-            
+
             this.size = size;
             this.slide = slide;
             this.offset = offset;
