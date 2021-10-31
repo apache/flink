@@ -184,17 +184,17 @@ public final class LogicalTypeCasts {
 
         castTo(DATE)
                 .implicitFrom(DATE, TIMESTAMP_WITHOUT_TIME_ZONE)
-                .explicitFromFamily(TIMESTAMP, CHARACTER_STRING, BINARY_STRING)
+                .explicitFromFamily(TIMESTAMP, CHARACTER_STRING)
                 .build();
 
         castTo(TIME_WITHOUT_TIME_ZONE)
                 .implicitFrom(TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE)
-                .explicitFromFamily(TIME, TIMESTAMP, CHARACTER_STRING, BINARY_STRING)
+                .explicitFromFamily(TIME, TIMESTAMP, CHARACTER_STRING)
                 .build();
 
         castTo(TIMESTAMP_WITHOUT_TIME_ZONE)
                 .implicitFrom(TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                .explicitFromFamily(DATETIME, CHARACTER_STRING, BINARY_STRING, NUMERIC)
+                .explicitFromFamily(DATETIME, CHARACTER_STRING, NUMERIC)
                 .build();
 
         castTo(TIMESTAMP_WITH_TIME_ZONE)
@@ -204,7 +204,7 @@ public final class LogicalTypeCasts {
 
         castTo(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
                 .implicitFrom(TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE)
-                .explicitFromFamily(DATETIME, CHARACTER_STRING, BINARY_STRING, NUMERIC)
+                .explicitFromFamily(DATETIME, CHARACTER_STRING, NUMERIC)
                 .build();
 
         castTo(INTERVAL_YEAR_MONTH)
