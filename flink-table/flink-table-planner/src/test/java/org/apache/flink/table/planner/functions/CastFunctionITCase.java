@@ -789,9 +789,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "2021/09/27", null)
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
-                        // BINARY
-                        // VARBINARY
-                        // BYTES
+                        .failTableApi(BINARY(2), DEFAULT_BINARY)
+                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApi(BYTES(), DEFAULT_BYTES)
                         .fail(DECIMAL(5, 3), 12.345)
                         .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
                         .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
@@ -836,9 +836,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "2021-09-27 12:34:56.123456789", null)
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
-                        // BINARY
-                        // VARBINARY
-                        // BYTES
+                        .failTableApi(BINARY(2), DEFAULT_BINARY)
+                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApi(BYTES(), DEFAULT_BYTES)
                         .fail(DECIMAL(5, 3), 12.345)
                         .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
                         .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
@@ -881,9 +881,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123456789))
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
-                        // BINARY
-                        // VARBINARY
-                        // BYTES
+                        .failTableApi(BINARY(2), DEFAULT_BINARY)
+                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApi(BYTES(), DEFAULT_BYTES)
                         .fail(DECIMAL(5, 3), 12.345)
                         .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
                         .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
@@ -957,9 +957,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
-                        // BINARY
-                        // VARBINARY
-                        // BYTES
+                        .failTableApi(BINARY(2), DEFAULT_BINARY)
+                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApi(BYTES(), DEFAULT_BYTES)
                         .fail(DECIMAL(5, 3), 12.345)
                         .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
                         .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
