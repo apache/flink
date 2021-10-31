@@ -60,6 +60,7 @@ public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
         final DataType producedDataType =
                 context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
 
-        return new PubsubDynamicSource(project, subscription, decodingFormat, producedDataType,checkpointDisabled);
+        return new PubsubDynamicSource(
+                project, subscription, decodingFormat, producedDataType, checkpointDisabled);
     }
 }
