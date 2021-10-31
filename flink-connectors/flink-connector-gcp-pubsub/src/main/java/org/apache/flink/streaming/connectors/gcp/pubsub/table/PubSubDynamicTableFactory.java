@@ -30,6 +30,7 @@ public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
         final Set<ConfigOption<?>> options = new HashSet<>();
         options.add(PubSubConnectorOptions.PROJECT_NAME);
         options.add(PubSubConnectorOptions.SUBSCRIPTION);
+        options.add(PubSubConnectorOptions.CHECKPOINT_DISABLED);
         options.add(FactoryUtil.FORMAT);
         return options;
     }
@@ -54,10 +55,11 @@ public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
         final ReadableConfig options = helper.getOptions();
         final String project = options.get(PubSubConnectorOptions.PROJECT_NAME);
         final String subscription = options.get(PubSubConnectorOptions.SUBSCRIPTION);
+        final boolean checkpointDisabled = options.get(PubSubConnectorOptions.CHECKPOINT_DISABLED);
 
         final DataType producedDataType =
                 context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
 
-        return new PubsubDynamicSource(project, subscription, decodingFormat, producedDataType);
+        return new PubsubDynamicSource(project, subscription, decodingFormat, producedDataType,checkpointDisabled);
     }
 }

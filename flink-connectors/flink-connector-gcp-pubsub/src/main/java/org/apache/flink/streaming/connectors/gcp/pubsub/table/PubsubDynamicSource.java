@@ -30,17 +30,21 @@ public class PubsubDynamicSource implements ScanTableSource {
     private final DecodingFormat<DeserializationSchema<RowData>> decodingFormat;
     /** Data type that describes the final output of the source. */
     private final DataType producedDataType;
+    private boolean checkpointDisabled;
 
     public PubsubDynamicSource(
             String project,
             String subscription,
             DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
-            DataType producedDataType) {
+            DataType producedDataType,
+            boolean checkpointDisabled
+            ) {
 
         this.project = project;
         this.subscription = subscription;
         this.decodingFormat = decodingFormat;
         this.producedDataType = producedDataType;
+        this.checkpointDisabled = checkpointDisabled;
     }
 
     @Override
@@ -59,6 +63,7 @@ public class PubsubDynamicSource implements ScanTableSource {
                             .withDeserializationSchema(deserializer)
                             .withProjectName(project)
                             .withSubscriptionName(subscription)
+                            .disableCheckpoint(checkpointDisabled)
                             .build();
             return SourceFunctionProvider.of(source, false);
         } catch (IOException e) {
@@ -68,7 +73,7 @@ public class PubsubDynamicSource implements ScanTableSource {
 
     @Override
     public DynamicTableSource copy() {
-        return new PubsubDynamicSource(project, subscription, decodingFormat, producedDataType);
+        return new PubsubDynamicSource(project, subscription, decodingFormat, producedDataType, checkpointDisabled);
     }
 
     @Override

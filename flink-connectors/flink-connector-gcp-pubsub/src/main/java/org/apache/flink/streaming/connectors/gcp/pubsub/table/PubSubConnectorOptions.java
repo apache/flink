@@ -20,5 +20,11 @@ public class PubSubConnectorOptions {
                     .noDefaultValue()
                     .withDescription("Name of the PubSub subscription backing this table.");
 
+    public static final ConfigOption<Boolean> CHECKPOINT_DISABLED =
+            ConfigOptions.key("checkpointDisabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Disable checkpoints, relevant only for testing and preview.");
+
     private PubSubConnectorOptions() {}
 }
