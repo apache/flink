@@ -1,5 +1,5 @@
 {
-  "en dOfLine": "auto",
+  "endOfLine": "auto",
   "singleQuote": true,
   "useTabs": false,
   "printWidth": 120,
