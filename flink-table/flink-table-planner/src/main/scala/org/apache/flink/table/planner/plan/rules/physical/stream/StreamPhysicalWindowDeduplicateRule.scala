@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowRank
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowDeduplicate
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.utils.{RankUtil, WindowUtil}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -31,14 +31,14 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.RelNode
 
 /**
- * Rule to convert a [[FlinkLogicalRank]] into a [[StreamPhysicalWindowRank]].
+ * Rule to convert a [[FlinkLogicalRank]] into a [[StreamPhysicalWindowDeduplicate]].
  */
-class StreamPhysicalWindowRankRule
+class StreamPhysicalWindowDeduplicateRule
   extends ConverterRule(
     classOf[FlinkLogicalRank],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalWindowRankRule") {
+    "StreamPhysicalWindowDeduplicateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
@@ -47,7 +47,7 @@ class StreamPhysicalWindowRankRule
     val windowProperties = fmq.getRelWindowProperties(rank.getInput)
     val partitionKey = rank.partitionKey
     WindowUtil.groupingContainsWindowStartEnd(partitionKey, windowProperties) &&
-      !RankUtil.canConvertToDeduplicate(rank)
+      RankUtil.canConvertToDeduplicate(rank)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -75,22 +75,21 @@ class StreamPhysicalWindowRankRule
       startColumns.toArray.head,
       endColumns.toArray.head)
 
-    new StreamPhysicalWindowRank(
+    // order by timeIndicator desc ==> lastRow, otherwise is firstRow
+    val fieldCollation = rank.orderKey.getFieldCollations.get(0)
+    val isLastRow = fieldCollation.direction.isDescending
+
+    new StreamPhysicalWindowDeduplicate(
       rank.getCluster,
       providedTraitSet,
       newInput,
-      newPartitionKey,
-      rank.orderKey,
-      rank.rankType,
-      rank.rankRange,
-      rank.rankNumberType,
-      rank.outputRankNumber,
+      newPartitionKey.toArray,
+      fieldCollation.getFieldIndex,
+      isLastRow,
       windowingStrategy)
   }
-
 }
 
-object StreamPhysicalWindowRankRule {
-  val INSTANCE = new StreamPhysicalWindowRankRule
-
+object StreamPhysicalWindowDeduplicateRule {
+  val INSTANCE = new StreamPhysicalWindowDeduplicateRule
 }

@@ -210,7 +210,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = new ModifyKindSetTrait(builder.build())
         createNewNode(window, children, providedTrait, requiredTrait, requester)
 
-      case _: StreamPhysicalWindowAggregate | _: StreamPhysicalWindowRank =>
+      case _: StreamPhysicalWindowAggregate | _: StreamPhysicalWindowRank |
+           _: StreamPhysicalWindowDeduplicate =>
         // WindowAggregate and WindowRank support insert-only in input
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         val providedTrait = ModifyKindSetTrait.INSERT_ONLY
@@ -480,7 +481,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(rel, children, requiredTrait)
 
       case _: StreamPhysicalWindowAggregate | _: StreamPhysicalWindowRank |
-           _: StreamPhysicalDeduplicate | _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
+           _: StreamPhysicalWindowDeduplicate | _: StreamPhysicalDeduplicate |
+           _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
            _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin =>
         // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP,
