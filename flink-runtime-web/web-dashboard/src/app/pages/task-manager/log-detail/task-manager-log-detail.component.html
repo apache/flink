@@ -37,4 +37,11 @@
     (fullScreen)="toggleFullScreen($event)"
   ></flink-refresh-download>
 </div>
-<flink-monaco-editor [value]="logs"></flink-monaco-editor>
+<div class="editor-container">
+  <nz-code-editor
+    flinkAutoResize
+    [nzLoading]="isLoading"
+    [ngModel]="logs"
+    [nzEditorOption]="editorOptions"
+  ></nz-code-editor>
+</div>

@@ -24,21 +24,25 @@
     [nzShowPagination]="false"
     [nzVirtualItemSize]="39"
     [nzVirtualForTrackBy]="trackByName"
-    [nzScroll]="{ y: '570px' }"
+    [nzVirtualMinBufferPx]="480"
+    [nzVirtualMaxBufferPx]="480"
+    [nzScroll]="{ y: '440px' }"
   >
     <thead>
       <tr>
-        <th>Log Name</th>
-        <th>Size (KB)</th>
+        <th nzWidth="50%">Log Name</th>
+        <th nzWidth="50%">Size (KB)</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let log of listOfLog">
-        <td>
-          <a [routerLink]="[log.name]">{{ log.name }}</a>
-        </td>
-        <td>{{ log.size / 1024 | number: '1.0-2' }}</td>
-      </tr>
+      <ng-template nz-virtual-scroll let-data>
+        <tr>
+          <td>
+            <a [routerLink]="[data.name]">{{ data.name }}</a>
+          </td>
+          <td>{{ data.size / 1024 | number: '1.0-2' }}</td>
+        </tr>
+      </ng-template>
     </tbody>
   </nz-table>
 </nz-card>

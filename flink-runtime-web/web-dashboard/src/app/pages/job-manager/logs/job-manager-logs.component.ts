@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
 import { JobManagerService } from 'services';
-import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { flinkEditorOptions } from 'share/common/editor/editor-config';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'flink-job-manager-logs',
@@ -26,21 +29,33 @@ import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.
   styleUrls: ['./job-manager-logs.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JobManagerLogsComponent implements OnInit {
+export class JobManagerLogsComponent implements OnInit, OnDestroy {
   logs = '';
-  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
+  loading = true;
+  editorOptions: EditorOptions = flinkEditorOptions;
+  private destroy$ = new Subject<void>();
 
   reload() {
-    this.jobManagerService.loadLogs().subscribe(data => {
-      this.monacoEditorComponent.layout();
-      this.logs = data;
-      this.cdr.markForCheck();
-    });
+    this.loading = true;
+    this.cdr.markForCheck();
+    this.jobManagerService
+      .loadLogs()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.loading = false;
+        this.logs = data;
+        this.cdr.markForCheck();
+      });
   }
 
   constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.reload();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }
