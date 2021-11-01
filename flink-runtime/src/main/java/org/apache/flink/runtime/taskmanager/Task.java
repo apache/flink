@@ -423,7 +423,7 @@ public class Task
         this.inputGates = new IndexedInputGate[gates.length];
         this.throughputCalculator =
                 new ThroughputCalculator(
-                        SystemClock.getInstance(), taskConfiguration.get(BUFFER_DEBLOAT_SAMPLES));
+                        SystemClock.getInstance(), tmConfig.get(BUFFER_DEBLOAT_SAMPLES));
         int counter = 0;
         for (IndexedInputGate gate : gates) {
             inputGates[counter++] =
