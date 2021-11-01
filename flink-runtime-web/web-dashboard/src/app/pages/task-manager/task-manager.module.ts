@@ -18,9 +18,11 @@
 
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
 import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
 import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzIconModule } from 'ng-zorro-antd/icon';
@@ -54,7 +56,9 @@ import { TaskManagerThreadDumpComponent } from './thread-dump/task-manager-threa
     NzProgressModule,
     NzGridModule,
     NzDividerModule,
-    NzSkeletonModule
+    NzSkeletonModule,
+    NzCodeEditorModule,
+    FormsModule
   ],
   declarations: [
     TaskManagerListComponent,
