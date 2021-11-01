@@ -36,9 +36,11 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.junit.Assert.assertEquals;
@@ -101,8 +103,10 @@ public class NFATest extends TestLogger {
         NFA<Event> nfa = new NFA<>(states, 0, false);
         NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
 
-        Collection<Map<String, List<Event>>> actualPatterns =
-                nfaTestHarness.consumeRecords(streamEvents);
+        List<Map<String, List<Event>>> actualPatterns =
+                nfaTestHarness.consumeRecords(streamEvents).stream()
+                        .sorted(Comparator.comparing(m -> m.get("start").get(0).getId()))
+                        .collect(Collectors.toList());
 
         assertEquals(expectedPatterns, actualPatterns);
     }
