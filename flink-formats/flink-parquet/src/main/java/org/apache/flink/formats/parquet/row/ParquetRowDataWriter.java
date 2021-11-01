@@ -181,7 +181,7 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(Object value) {
-            recordConsumer.addInteger((int) value);
+            recordConsumer.addInteger((byte) value);
         }
     }
 
