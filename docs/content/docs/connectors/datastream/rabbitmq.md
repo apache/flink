@@ -42,7 +42,7 @@ must be aware that this may be subject to conditions declared in the Mozilla Pub
 
 This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/). To use this connector, add the following dependency to your project:
 
-{{< artifact flink-connector-rabbitmq withScalaVersion >}}
+{{< artifact flink-connector-rabbitmq >}}
 
 Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
 

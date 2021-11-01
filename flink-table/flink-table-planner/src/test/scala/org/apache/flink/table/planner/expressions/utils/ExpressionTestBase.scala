@@ -303,6 +303,7 @@ abstract class ExpressionTestBase {
       exceptionClass: Class[_ <: Throwable],
       exprs: mutable.ArrayBuffer[_]): Unit = {
     val builder = new HepProgramBuilder()
+    builder.addRuleInstance(CoreRules.PROJECT_REDUCE_EXPRESSIONS)
     builder.addRuleInstance(CoreRules.PROJECT_TO_CALC)
     val hep = new HepPlanner(builder.build())
     hep.setRoot(relNode)

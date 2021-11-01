@@ -70,7 +70,7 @@ object LongHashJoinGenerator {
       keyMapping: Array[Int],
       rowTerm: String): String = {
     val singleType = keyType.getTypeAt(0)
-    val getCode = rowFieldReadAccess(ctx, keyMapping(0), rowTerm, singleType)
+    val getCode = rowFieldReadAccess(keyMapping(0), rowTerm, singleType)
     val term = singleType.getTypeRoot match {
       case FLOAT => s"Float.floatToIntBits($getCode)"
       case DOUBLE => s"Double.doubleToLongBits($getCode)"

@@ -101,8 +101,6 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /** Utilities for merging multiple {@link LogicalType}. */
 @Internal
@@ -191,7 +189,7 @@ public final class LogicalTypeMerging {
         if (foundType != null) {
             final LogicalType typeWithNullability = foundType.copy(hasNullableTypes);
             // NULL is reserved for untyped literals only
-            if (hasRoot(typeWithNullability, NULL)) {
+            if (typeWithNullability.is(NULL)) {
                 return Optional.empty();
             }
             return Optional.of(typeWithNullability);
@@ -262,7 +260,7 @@ public final class LogicalTypeMerging {
     /** Finds the result type of a decimal average aggregation. */
     public static LogicalType findAvgAggType(LogicalType argType) {
         final LogicalType resultType;
-        if (hasRoot(argType, LogicalTypeRoot.DECIMAL)) {
+        if (argType.is(DECIMAL)) {
             // a hack to make legacy types possible until we drop them
             if (argType instanceof LegacyTypeInformationType) {
                 return argType;
@@ -283,7 +281,7 @@ public final class LogicalTypeMerging {
         // adopted from
         // https://docs.microsoft.com/en-us/sql/t-sql/functions/sum-transact-sql
         final LogicalType resultType;
-        if (hasRoot(argType, LogicalTypeRoot.DECIMAL)) {
+        if (argType.is(DECIMAL)) {
             // a hack to make legacy types possible until we drop them
             if (argType instanceof LegacyTypeInformationType) {
                 return argType;
@@ -391,19 +389,19 @@ public final class LogicalTypeMerging {
             }
 
             // for types of family CHARACTER_STRING or BINARY_STRING
-            if (hasFamily(type, CHARACTER_STRING) || hasFamily(type, BINARY_STRING)) {
+            if (type.is(CHARACTER_STRING) | type.is(BINARY_STRING)) {
                 final int length = combineLength(resultType, type);
 
-                if (hasRoot(resultType, VARCHAR) || hasRoot(resultType, VARBINARY)) {
+                if (resultType.isAnyOf(VARCHAR, VARBINARY)) {
                     // variable length types remain variable length types
                     resultType = createStringType(resultType.getTypeRoot(), length);
                 } else if (getLength(resultType) != getLength(type)) {
                     // for different fixed lengths
                     // this is different from the SQL standard but prevents whitespace
                     // padding/modification of strings
-                    if (hasRoot(resultType, CHAR)) {
+                    if (resultType.is(CHAR)) {
                         resultType = createStringType(VARCHAR, length);
-                    } else if (hasRoot(resultType, BINARY)) {
+                    } else if (resultType.is(BINARY)) {
                         resultType = createStringType(VARBINARY, length);
                     }
                 } else {
@@ -412,10 +410,10 @@ public final class LogicalTypeMerging {
                 }
             }
             // for EXACT_NUMERIC types
-            else if (hasFamily(type, EXACT_NUMERIC)) {
-                if (hasFamily(resultType, EXACT_NUMERIC)) {
+            else if (type.is(EXACT_NUMERIC)) {
+                if (resultType.is(EXACT_NUMERIC)) {
                     resultType = createCommonExactNumericType(resultType, type);
-                } else if (hasFamily(resultType, APPROXIMATE_NUMERIC)) {
+                } else if (resultType.is(APPROXIMATE_NUMERIC)) {
                     // the result is already approximate
                     if (typeRoot == DECIMAL) {
                         // in case of DECIMAL we enforce DOUBLE
@@ -426,10 +424,10 @@ public final class LogicalTypeMerging {
                 }
             }
             // for APPROXIMATE_NUMERIC types
-            else if (hasFamily(type, APPROXIMATE_NUMERIC)) {
-                if (hasFamily(resultType, APPROXIMATE_NUMERIC)) {
+            else if (type.is(APPROXIMATE_NUMERIC)) {
+                if (resultType.is(APPROXIMATE_NUMERIC)) {
                     resultType = createCommonApproximateNumericType(resultType, type);
-                } else if (hasFamily(resultType, EXACT_NUMERIC)) {
+                } else if (resultType.is(EXACT_NUMERIC)) {
                     // the result was exact so far
                     if (typeRoot == DECIMAL) {
                         // in case of DECIMAL we enforce DOUBLE
@@ -443,24 +441,24 @@ public final class LogicalTypeMerging {
                 }
             }
             // for DATE
-            else if (hasRoot(type, DATE)) {
-                if (hasRoot(resultType, DATE)) {
+            else if (type.is(DATE)) {
+                if (resultType.is(DATE)) {
                     resultType = new DateType(); // for enabling findCommonTypePattern
                 } else {
                     return null;
                 }
             }
             // for TIME
-            else if (hasFamily(type, TIME)) {
-                if (hasFamily(resultType, TIME)) {
+            else if (type.is(TIME)) {
+                if (resultType.is(TIME)) {
                     resultType = new TimeType(combinePrecision(resultType, type));
                 } else {
                     return null;
                 }
             }
             // for TIMESTAMP
-            else if (hasFamily(type, TIMESTAMP)) {
-                if (hasFamily(resultType, TIMESTAMP)) {
+            else if (type.is(TIMESTAMP)) {
+                if (resultType.is(TIMESTAMP)) {
                     resultType = createCommonTimestampType(resultType, type);
                 } else {
                     return null;
@@ -496,15 +494,15 @@ public final class LogicalTypeMerging {
         // two types are similar iff they can be the operands of an SQL equality predicate
 
         // similarity based on families
-        if (hasFamily(left, CHARACTER_STRING) && hasFamily(right, CHARACTER_STRING)) {
+        if (left.is(CHARACTER_STRING) && right.is(CHARACTER_STRING)) {
             return true;
-        } else if (hasFamily(left, BINARY_STRING) && hasFamily(right, BINARY_STRING)) {
+        } else if (left.is(BINARY_STRING) && right.is(BINARY_STRING)) {
             return true;
-        } else if (hasFamily(left, NUMERIC) && hasFamily(right, NUMERIC)) {
+        } else if (left.is(NUMERIC) && right.is(NUMERIC)) {
             return true;
-        } else if (hasFamily(left, TIME) && hasFamily(right, TIME)) {
+        } else if (left.is(TIME) && right.is(TIME)) {
             return true;
-        } else if (hasFamily(left, TIMESTAMP) && hasFamily(right, TIMESTAMP)) {
+        } else if (left.is(TIMESTAMP) && right.is(TIMESTAMP)) {
             return true;
         }
         // similarity based on root
@@ -523,15 +521,13 @@ public final class LogicalTypeMerging {
 
     private static @Nullable LogicalType findCommonTypePattern(
             LogicalType resultType, LogicalType type) {
-        if (hasFamily(resultType, DATETIME) && hasFamily(type, INTERVAL)) {
+        if (resultType.is(DATETIME) && type.is(INTERVAL)) {
             return resultType;
-        } else if (hasFamily(resultType, INTERVAL) && hasFamily(type, DATETIME)) {
+        } else if (resultType.is(INTERVAL) && type.is(DATETIME)) {
             return type;
-        } else if ((hasFamily(resultType, TIMESTAMP) || hasRoot(resultType, DATE))
-                && hasFamily(type, EXACT_NUMERIC)) {
+        } else if ((resultType.is(TIMESTAMP) || resultType.is(DATE)) && type.is(EXACT_NUMERIC)) {
             return resultType;
-        } else if (hasFamily(resultType, EXACT_NUMERIC)
-                && (hasFamily(type, TIMESTAMP) || hasRoot(type, DATE))) {
+        } else if (resultType.is(EXACT_NUMERIC) && (type.is(TIMESTAMP) || type.is(DATE))) {
             return type;
         }
         // for "DATETIME + EXACT_NUMERIC", EXACT_NUMERIC is always treated as an interval of days
@@ -663,7 +659,7 @@ public final class LogicalTypeMerging {
 
     private static LogicalType createCommonApproximateNumericType(
             LogicalType resultType, LogicalType type) {
-        if (hasRoot(resultType, DOUBLE) || hasRoot(type, DOUBLE)) {
+        if (resultType.is(DOUBLE) || type.is(DOUBLE)) {
             return new DoubleType();
         }
         return resultType;

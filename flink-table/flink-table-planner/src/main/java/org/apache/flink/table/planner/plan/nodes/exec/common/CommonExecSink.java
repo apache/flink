@@ -48,6 +48,7 @@ import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.connectors.TransformationSinkProvider;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -86,12 +87,12 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     @JsonProperty(FIELD_NAME_DYNAMIC_TABLE_SINK)
     protected final DynamicTableSinkSpec tableSinkSpec;
 
-    @JsonIgnore private final ChangelogMode changelogMode;
+    @JsonIgnore private final ChangelogMode inputChangelogMode;
     @JsonIgnore private final boolean isBounded;
 
     protected CommonExecSink(
             DynamicTableSinkSpec tableSinkSpec,
-            ChangelogMode changelogMode,
+            ChangelogMode inputChangelogMode,
             boolean isBounded,
             int id,
             List<InputProperty> inputProperties,
@@ -99,7 +100,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             String description) {
         super(id, inputProperties, outputType, description);
         this.tableSinkSpec = tableSinkSpec;
-        this.changelogMode = changelogMode;
+        this.inputChangelogMode = inputChangelogMode;
         this.isBounded = isBounded;
     }
 
@@ -109,12 +110,12 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     @SuppressWarnings("unchecked")
     protected Transformation<Object> createSinkTransformation(
-            StreamExecutionEnvironment env,
-            TableConfig tableConfig,
+            PlannerBase planner,
             Transformation<RowData> inputTransform,
             int rowtimeFieldIndex,
             boolean upsertMaterialize) {
-        final DynamicTableSink tableSink = tableSinkSpec.getTableSink();
+        final DynamicTableSink tableSink = tableSinkSpec.getTableSink(planner);
+        final ChangelogMode changelogMode = tableSink.getChangelogMode(inputChangelogMode);
         final ResolvedSchema schema = tableSinkSpec.getCatalogTable().getResolvedSchema();
 
         final SinkRuntimeProvider runtimeProvider =
@@ -127,9 +128,15 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);
 
         Transformation<RowData> sinkTransform =
-                applyNotNullEnforcer(inputTransform, tableConfig, physicalRowType);
+                applyNotNullEnforcer(inputTransform, planner.getTableConfig(), physicalRowType);
 
-        sinkTransform = applyKeyBy(sinkTransform, primaryKeys, sinkParallelism, upsertMaterialize);
+        sinkTransform =
+                applyKeyBy(
+                        changelogMode,
+                        sinkTransform,
+                        primaryKeys,
+                        sinkParallelism,
+                        upsertMaterialize);
 
         if (upsertMaterialize) {
             sinkTransform =
@@ -137,13 +144,17 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             sinkTransform,
                             primaryKeys,
                             sinkParallelism,
-                            tableConfig,
+                            planner.getTableConfig(),
                             physicalRowType);
         }
 
         return (Transformation<Object>)
                 applySinkProvider(
-                        sinkTransform, env, runtimeProvider, rowtimeFieldIndex, sinkParallelism);
+                        sinkTransform,
+                        planner.getExecEnv(),
+                        runtimeProvider,
+                        rowtimeFieldIndex,
+                        sinkParallelism);
     }
 
     /**
@@ -220,6 +231,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
      * messages.
      */
     private Transformation<RowData> applyKeyBy(
+            ChangelogMode changelogMode,
             Transformation<RowData> inputTransform,
             int[] primaryKeys,
             int sinkParallelism,

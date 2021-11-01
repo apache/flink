@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -64,6 +65,7 @@ public class TemporalTableSourceSpecSerdeTest {
             new FlinkContextImpl(
                     false,
                     TableConfig.getDefault(),
+                    new ModuleManager(),
                     null,
                     CatalogManagerMocks.createEmptyCatalogManager(),
                     null);

@@ -80,7 +80,7 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
         assertEquals(expectedLabels, restService.getMetadata().getLabels());
 
         assertEquals(
-                KubernetesConfigOptions.ServiceExposedType.LoadBalancer.name(),
+                KubernetesConfigOptions.ServiceExposedType.ClusterIP.name(),
                 restService.getSpec().getType());
 
         final List<ServicePort> expectedServicePorts =

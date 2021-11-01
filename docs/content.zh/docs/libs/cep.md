@@ -43,7 +43,7 @@ FlinkCEP是在Flink上层实现的复杂事件处理库。
 
 {{< tabs "722d55a5-7f12-4bcc-b080-b28d5e8860ac" >}}
 {{< tab "Java" >}}
-{{< artifact flink-cep withScalaVersion >}}
+{{< artifact flink-cep >}}
 {{< /tab >}}
 {{< tab "Scala" >}}
 {{< artifact flink-cep-scala withScalaVersion >}}

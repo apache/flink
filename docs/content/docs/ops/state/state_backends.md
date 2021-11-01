@@ -134,7 +134,7 @@ If you want to use the `EmbeddedRocksDBStateBackend` in your IDE or configure it
 ```xml
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-statebackend-rocksdb{{< scala_version >}}</artifactId>
+    <artifactId>flink-statebackend-rocksdb</artifactId>
     <version>{{< version >}}</version>
     <scope>provided</scope>
 </dependency>

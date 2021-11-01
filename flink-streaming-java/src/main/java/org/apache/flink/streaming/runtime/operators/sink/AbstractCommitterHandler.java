@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.util.function.SupplierWithException;
-
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -72,9 +70,8 @@ abstract class AbstractCommitterHandler<InputT, OutputT, RecoverT>
             throws IOException, InterruptedException;
 
     @Override
-    public List<OutputT> processCommittables(
-            SupplierWithException<List<InputT>, Exception> committableSupplier) throws Exception {
-        this.committables.addAll(committableSupplier.get());
+    public List<OutputT> processCommittables(List<InputT> committables) {
+        this.committables.addAll(committables);
         return Collections.emptyList();
     }
 

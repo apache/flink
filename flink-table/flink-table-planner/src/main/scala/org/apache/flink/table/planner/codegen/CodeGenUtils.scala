@@ -43,7 +43,7 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale, hasRoot}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.types.{Row, RowKind}
@@ -138,6 +138,16 @@ object CodeGenUtils {
     if (name == null) {
       throw new CodeGenException(
         s"Class '${m.runtimeClass.getName}' does not have a canonical name. " +
+          s"Make sure it is statically accessible.")
+    }
+    name
+  }
+
+  def className(c: Class[_]): String = {
+    val name = c.getCanonicalName
+    if (name == null) {
+      throw new CodeGenException(
+        s"Class '${c.getName}' does not have a canonical name. " +
           s"Make sure it is statically accessible.")
     }
     name
@@ -429,19 +439,11 @@ object CodeGenUtils {
 
   // -------------------------- RowData Read Access -------------------------------
 
-  def rowFieldReadAccess(
-      ctx: CodeGeneratorContext,
-      index: Int,
-      rowTerm: String,
-      fieldType: LogicalType) : String =
-    rowFieldReadAccess(ctx, index.toString, rowTerm, fieldType)
+  def rowFieldReadAccess(index: Int, rowTerm: String, fieldType: LogicalType): String =
+    rowFieldReadAccess(index.toString, rowTerm, fieldType)
 
   @tailrec
-  def rowFieldReadAccess(
-      ctx: CodeGeneratorContext,
-      indexTerm: String,
-      rowTerm: String,
-      t: LogicalType)
+  def rowFieldReadAccess(indexTerm: String, rowTerm: String, t: LogicalType)
     : String = t.getTypeRoot match {
       // ordered by type root definition
       case CHAR | VARCHAR =>
@@ -475,7 +477,7 @@ object CodeGenUtils {
       case ROW | STRUCTURED_TYPE =>
         s"$rowTerm.getRow($indexTerm, ${getFieldCount(t)})"
       case DISTINCT_TYPE =>
-        rowFieldReadAccess(ctx, indexTerm, rowTerm, t.asInstanceOf[DistinctType].getSourceType)
+        rowFieldReadAccess(indexTerm, rowTerm, t.asInstanceOf[DistinctType].getSourceType)
       case RAW =>
         s"(($BINARY_RAW_VALUE) $rowTerm.getRawValue($indexTerm))"
       case NULL | SYMBOL | UNRESOLVED =>
@@ -911,7 +913,7 @@ object CodeGenUtils {
     val targetTypeTerm = boxedTypeTermForType(targetType)
 
     // untyped null literal
-    if (hasRoot(internalExpr.resultType, NULL)) {
+    if (internalExpr.resultType.is(NULL)) {
       return s"($targetTypeTerm) null"
     }
 
@@ -1030,7 +1032,7 @@ object CodeGenUtils {
     val targetTypeTerm = boxedTypeTermForType(targetType)
 
     // untyped null literal
-    if (hasRoot(internalExpr.resultType, NULL)) {
+    if (internalExpr.resultType.is(NULL)) {
       return s"($targetTypeTerm) null"
     }
 

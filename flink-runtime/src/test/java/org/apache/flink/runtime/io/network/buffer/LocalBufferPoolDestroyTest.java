@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.runtime.execution.CancelTaskException;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -39,7 +41,7 @@ public class LocalBufferPoolDestroyTest {
         try {
             localBufferPool.requestBuffer();
             fail("Call should have failed with an IllegalStateException");
-        } catch (IllegalStateException e) {
+        } catch (CancelTaskException e) {
             // we expect exactly that
         }
     }
@@ -96,7 +98,7 @@ public class LocalBufferPoolDestroyTest {
 
             // Verify expected Exception
             assertNotNull("Did not throw expected Exception", asyncException.get());
-            assertTrue(asyncException.get() instanceof IllegalStateException);
+            assertTrue(asyncException.get() instanceof CancelTaskException);
         } finally {
             if (localBufferPool != null) {
                 localBufferPool.lazyDestroy();

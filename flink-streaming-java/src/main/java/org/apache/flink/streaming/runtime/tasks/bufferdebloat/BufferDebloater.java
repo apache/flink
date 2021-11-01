@@ -40,8 +40,10 @@ public class BufferDebloater {
     private final long maxBufferSize;
     private final long minBufferSize;
     private final int bufferDebloatThresholdPercentages;
+    private final BufferSizeEMA bufferSizeEMA;
 
     private int lastBufferSize;
+
     private Duration lastEstimatedTimeToConsumeBuffers = Duration.ZERO;
 
     public BufferDebloater(Configuration taskConfig, IndexedInputGate[] inputGates) {
@@ -54,6 +56,11 @@ public class BufferDebloater {
                 taskConfig.getInteger(BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES);
 
         this.lastBufferSize = (int) maxBufferSize;
+        bufferSizeEMA =
+                new BufferSizeEMA(
+                        (int) maxBufferSize,
+                        (int) minBufferSize,
+                        taskConfig.get(TaskManagerOptions.BUFFER_DEBLOAT_SAMPLES));
 
         // Right now the buffer size can not be grater than integer max value according to
         // MemorySegment and buffer implementation.
@@ -72,30 +79,29 @@ public class BufferDebloater {
         for (IndexedInputGate inputGate : inputGates) {
             totalNumber += Math.max(1, inputGate.getBuffersInUseCount());
         }
-        int newSize =
-                (int)
-                        Math.max(
-                                minBufferSize,
-                                Math.min(
-                                        desiredTotalBufferSizeInBytes / totalNumber,
-                                        maxBufferSize));
+
+        int newSize = bufferSizeEMA.calculateBufferSize(desiredTotalBufferSizeInBytes, totalNumber);
+
         lastEstimatedTimeToConsumeBuffers =
                 Duration.ofMillis(
                         newSize * totalNumber * MILLIS_IN_SECOND / Math.max(1, currentThroughput));
 
         boolean skipUpdate =
-                Math.abs(1 - ((double) lastBufferSize) / newSize) * 100
-                        < bufferDebloatThresholdPercentages;
+                newSize == lastBufferSize
+                        || (newSize > minBufferSize && newSize < maxBufferSize)
+                                && Math.abs(1 - ((double) lastBufferSize) / newSize) * 100
+                                        < bufferDebloatThresholdPercentages;
 
         // Skip update if the new value pretty close to the old one.
         if (skipUpdate) {
             return;
         }
 
-        lastBufferSize = newSize;
         for (IndexedInputGate inputGate : inputGates) {
             inputGate.announceBufferSize(newSize);
         }
+        // Update last buffer size only if the announcement was successful.
+        lastBufferSize = newSize;
     }
 
     public int getLastBufferSize() {

@@ -287,6 +287,7 @@ public class FileSink<IN> implements Sink<IN, FileSinkCommittable, FileWriterBuc
         FileWriter<IN> createWriter(InitContext context) throws IOException {
             return new FileWriter<>(
                     basePath,
+                    context.metricGroup(),
                     bucketAssigner,
                     bucketFactory,
                     createBucketWriter(),
@@ -435,6 +436,7 @@ public class FileSink<IN> implements Sink<IN, FileSinkCommittable, FileWriterBuc
         FileWriter<IN> createWriter(InitContext context) throws IOException {
             return new FileWriter<>(
                     basePath,
+                    context.metricGroup(),
                     bucketAssigner,
                     bucketFactory,
                     createBucketWriter(),

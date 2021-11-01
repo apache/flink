@@ -21,6 +21,7 @@ package org.apache.flink.runtime.zookeeper;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.persistence.IntegerResourceVersion;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
@@ -783,13 +784,15 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         configuration.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 100);
         configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT, "timeout");
 
-        try (CuratorFramework client =
+        try (CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
                         ZooKeeperUtils.startCuratorFramework(
                                 configuration, NoOpFatalErrorHandler.INSTANCE);
-                CuratorFramework client2 =
+                CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper2 =
                         ZooKeeperUtils.startCuratorFramework(
                                 configuration, NoOpFatalErrorHandler.INSTANCE)) {
 
+            CuratorFramework client = curatorFrameworkWrapper.asCuratorFramework();
+            CuratorFramework client2 = curatorFrameworkWrapper2.asCuratorFramework();
             ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore =
                     new ZooKeeperStateHandleStore<>(client, longStateStorage);
 

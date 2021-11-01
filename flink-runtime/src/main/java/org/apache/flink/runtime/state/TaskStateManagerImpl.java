@@ -156,12 +156,12 @@ public class TaskStateManagerImpl implements TaskStateManager {
         return jobManagerTaskRestore.getTaskStateSnapshot().getOutputRescalingDescriptor();
     }
 
-    public boolean isFinishedOnRestore() {
+    public boolean isTaskDeployedAsFinished() {
         if (jobManagerTaskRestore == null) {
             return false;
         }
 
-        return jobManagerTaskRestore.getTaskStateSnapshot().isFinishedOnRestore();
+        return jobManagerTaskRestore.getTaskStateSnapshot().isTaskDeployedAsFinished();
     }
 
     @Override

@@ -644,6 +644,27 @@ json:
       SELECT JSON_EXISTS('{"a": true}',
         'strict $.b' FALSE ON ERROR);
       ```
+  - sql: JSON_STRING(value)
+    table: jsonString(value)
+    description: |
+      Serializes a value into JSON.
+
+      This function returns a JSON string containing the serialized value. If the value is `NULL`,
+      the function returns `NULL`.
+
+      ```
+      -- NULL
+      JSON_STRING(CAST(NULL AS INT))
+
+      -- '1'
+      JSON_STRING(1)
+      -- 'true'
+      JSON_STRING(TRUE)
+      -- '"Hello, World!"'
+      JSON_STRING('Hello, World!')
+      -- '[1,2]'
+      JSON_STRING(ARRAY[1, 2])
+      ```
   - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
     table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
     description: |
@@ -739,6 +760,10 @@ json:
       This function returns a JSON string. The `ON NULL` behavior defines how to treat `NULL`
       values. If omitted, `NULL ON NULL` is assumed by default.
 
+      Values which are created from another JSON construction function call (`JSON_OBJECT`,
+      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
+      structures.
+
       ```
       -- '{}'
       JSON_OBJECT()
@@ -761,6 +786,71 @@ json:
           VALUE 'V'
         )
       )
+      ```
+  - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
+    table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
+    description: |
+      Builds a JSON object string by aggregating key-value expressions into a single JSON object.
+
+      The key expression must return a non-nullable character string. Value expressions can be
+      arbitrary, including other JSON functions. If a value is `NULL`, the `ON NULL` behavior
+      defines what to do. If omitted, `NULL ON NULL` is assumed by default.
+
+      Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+
+      This function is currently not supported in `OVER` windows.
+
+      ```
+      -- '{"Apple":2,"Banana":17,"Orange":0}'
+      SELECT
+        JSON_OBJECTAGG(KEY product VALUE cnt)
+      FROM orders
+      ```
+  - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
+    table: jsonArray(JsonOnNull, values...)
+    description: |
+      Builds a JSON array string from a list of values.
+
+      This function returns a JSON string. The values can be arbitrary expressions. The `ON NULL`
+      behavior defines how to treat `NULL` values. If omitted, `ABSENT ON NULL` is assumed by
+      default.
+
+      Elements which are created from another JSON construction function call (`JSON_OBJECT`,
+      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
+      structures.
+
+      ```
+      -- '[]'
+      JSON_ARRAY()
+      -- '[1,"2"]'
+      JSON_ARRAY(1, '2')
+
+      -- Expressions as values
+      JSON_ARRAY(orders.orderId)
+
+      -- ON NULL
+      JSON_ARRAY(CAST(NULL AS STRING) NULL ON NULL) -- '[null]'
+      JSON_ARRAY(CAST(NULL AS STRING) ABSENT ON NULL) -- '[]'
+
+      -- '[[1]]'
+      JSON_ARRAY(JSON_ARRAY(1))
+      ```
+  - sql: JSON_ARRAYAGG(items [ { NULL | ABSENT } ON NULL ])
+    table: jsonArrayAgg(JsonOnNull, itemExpression)
+    description: |
+      Builds a JSON object string by aggregating items into an array.
+
+      Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`, the
+      `ON NULL` behavior defines what to do. If omitted, `ABSENT ON NULL` is assumed by default.
+
+      This function is currently not supported in `OVER` windows, unbounded session windows, or hop
+      windows.
+
+      ```
+      -- '["Apple","Banana","Orange"]'
+      SELECT
+        JSON_ARRAYAGG(product)
+      FROM orders
       ```
 
 valueconstruction:

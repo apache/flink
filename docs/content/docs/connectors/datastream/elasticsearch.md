@@ -44,15 +44,15 @@ of the Elasticsearch installation:
   <tbody>
     <tr>
         <td>5.x</td>
-        <td>{{< artifact flink-connector-elasticsearch5 withScalaVersion >}}</td>
+        <td>{{< artifact flink-connector-elasticsearch5 >}}</td>
     </tr>
     <tr>
         <td>6.x</td>
-        <td>{{< artifact flink-connector-elasticsearch6 withScalaVersion >}}</td>
+        <td>{{< artifact flink-connector-elasticsearch6 >}}</td>
     </tr>
     <tr>
         <td>7 and later versions</td>
-        <td>{{< artifact flink-connector-elasticsearch7 withScalaVersion >}}</td>
+        <td>{{< artifact flink-connector-elasticsearch7 >}}</td>
     </tr>
   </tbody>
 </table>

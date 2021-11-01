@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.DefaultLastStateConnectionStateListen
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointStoreUtil;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -153,9 +154,9 @@ public class ZooKeeperUtils {
      * @param configuration {@link Configuration} object containing the configuration values
      * @param fatalErrorHandler {@link FatalErrorHandler} fatalErrorHandler to handle unexpected
      *     errors of {@link CuratorFramework}
-     * @return {@link CuratorFramework} instance
+     * @return {@link CuratorFrameworkWithUnhandledErrorListener} instance
      */
-    public static CuratorFramework startCuratorFramework(
+    public static CuratorFrameworkWithUnhandledErrorListener startCuratorFramework(
             Configuration configuration, FatalErrorHandler fatalErrorHandler) {
         checkNotNull(configuration, "configuration");
         String zkQuorum = configuration.getValue(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM);
@@ -239,9 +240,10 @@ public class ZooKeeperUtils {
      * @param builder {@link CuratorFrameworkFactory.Builder} A builder for curatorFramework.
      * @param fatalErrorHandler {@link FatalErrorHandler} fatalErrorHandler to handle unexpected
      *     errors of {@link CuratorFramework}
-     * @return {@link CuratorFramework} instance
+     * @return {@link CuratorFrameworkWithUnhandledErrorListener} instance
      */
-    static CuratorFramework startCuratorFramework(
+    @VisibleForTesting
+    public static CuratorFrameworkWithUnhandledErrorListener startCuratorFramework(
             CuratorFrameworkFactory.Builder builder, FatalErrorHandler fatalErrorHandler) {
         CuratorFramework cf = builder.build();
         UnhandledErrorListener unhandledErrorListener =
@@ -257,7 +259,7 @@ public class ZooKeeperUtils {
                 };
         cf.getUnhandledErrorListenable().addListener(unhandledErrorListener);
         cf.start();
-        return cf;
+        return new CuratorFrameworkWithUnhandledErrorListener(cf, unhandledErrorListener);
     }
 
     /** Returns whether {@link HighAvailabilityMode#ZOOKEEPER} is configured. */

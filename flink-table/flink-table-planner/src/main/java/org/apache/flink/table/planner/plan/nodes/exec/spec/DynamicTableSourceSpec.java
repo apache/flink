@@ -24,7 +24,9 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.module.Module;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
@@ -71,9 +73,16 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
     private DynamicTableSource getTableSource(PlannerBase planner) {
         checkNotNull(configuration);
         if (tableSource == null) {
+            final DynamicTableSourceFactory factory =
+                    planner.getFlinkContext()
+                            .getModuleManager()
+                            .getFactory(Module::getTableSourceFactory)
+                            .orElse(null);
+
             tableSource =
-                    FactoryUtil.createTableSource(
-                            null, // catalog, TODO support create Factory from catalog
+                    FactoryUtil.createDynamicTableSource(
+                            // TODO Support creating from a catalog
+                            factory,
                             objectIdentifier,
                             catalogTable,
                             configuration,

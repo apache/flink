@@ -21,6 +21,9 @@ package org.apache.flink.configuration;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 
 /** Tests for {@link CoreOptions}. */
@@ -43,22 +46,23 @@ public class CoreOptionsTest {
 
     private void testParentFirst(
             Function<Configuration, String[]> patternGetter,
-            ConfigOption<String> patternOption,
-            ConfigOption<String> additionalOption) {
+            ConfigOption<List<String>> patternOption,
+            ConfigOption<List<String>> additionalOption) {
         Configuration config = new Configuration();
         Assert.assertArrayEquals(
-                patternOption.defaultValue().split(";"), patternGetter.apply(config));
+                patternOption.defaultValue().toArray(new String[0]), patternGetter.apply(config));
 
-        config.setString(patternOption, "hello;world");
+        config.set(patternOption, Arrays.asList("hello", "world"));
 
-        Assert.assertArrayEquals("hello;world".split(";"), patternGetter.apply(config));
+        Assert.assertArrayEquals(new String[] {"hello", "world"}, patternGetter.apply(config));
 
-        config.setString(additionalOption, "how;are;you");
+        config.set(additionalOption, Arrays.asList("how", "are", "you"));
 
-        Assert.assertArrayEquals("hello;world;how;are;you".split(";"), patternGetter.apply(config));
+        Assert.assertArrayEquals(
+                new String[] {"hello", "world", "how", "are", "you"}, patternGetter.apply(config));
 
-        config.setString(patternOption, "");
+        config.set(patternOption, Collections.emptyList());
 
-        Assert.assertArrayEquals("how;are;you".split(";"), patternGetter.apply(config));
+        Assert.assertArrayEquals(new String[] {"how", "are", "you"}, patternGetter.apply(config));
     }
 }

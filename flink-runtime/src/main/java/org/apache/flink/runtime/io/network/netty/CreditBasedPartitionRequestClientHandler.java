@@ -20,9 +20,6 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
-import org.apache.flink.runtime.io.network.netty.NettyMessage.AckAllUserRecordsProcessed;
-import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
-import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
@@ -39,16 +36,12 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdap
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Channel handler to read the messages of buffer response or error response from the producer, to
@@ -118,49 +111,6 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         if (cancelled.putIfAbsent(inputChannelId, inputChannelId) == null) {
             ctx.writeAndFlush(new NettyMessage.CancelPartitionRequest(inputChannelId));
         }
-    }
-
-    @Override
-    public void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
-        ctx.executor()
-                .execute(
-                        () ->
-                                ctx.pipeline()
-                                        .fireUserEventTriggered(
-                                                new AddCreditMessage(inputChannel)));
-    }
-
-    @Override
-    public void notifyNewBufferSize(final RemoteInputChannel inputChannel, int bufferSize) {
-        ctx.executor()
-                .execute(
-                        () ->
-                                ctx.pipeline()
-                                        .fireUserEventTriggered(
-                                                new NewBufferSizeMessage(
-                                                        inputChannel, bufferSize)));
-    }
-
-    @Override
-    public void resumeConsumption(RemoteInputChannel inputChannel) {
-        ctx.executor()
-                .execute(
-                        () ->
-                                ctx.pipeline()
-                                        .fireUserEventTriggered(
-                                                new ResumeConsumptionMessage(inputChannel)));
-    }
-
-    @Override
-    public void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel) {
-        ctx.executor()
-                .execute(
-                        () -> {
-                            ctx.pipeline()
-                                    .fireUserEventTriggered(
-                                            new AcknowledgeAllRecordsProcessedMessage(
-                                                    inputChannel));
-                        });
     }
 
     // ------------------------------------------------------------------------
@@ -442,68 +392,6 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             } catch (Throwable t) {
                 notifyAllChannelsOfErrorAndClose(t);
             }
-        }
-    }
-
-    private abstract static class ClientOutboundMessage {
-        protected final RemoteInputChannel inputChannel;
-
-        ClientOutboundMessage(RemoteInputChannel inputChannel) {
-            this.inputChannel = inputChannel;
-        }
-
-        @Nullable
-        abstract Object buildMessage();
-    }
-
-    private static class AddCreditMessage extends ClientOutboundMessage {
-
-        AddCreditMessage(RemoteInputChannel inputChannel) {
-            super(checkNotNull(inputChannel));
-        }
-
-        @Override
-        public Object buildMessage() {
-            int credits = inputChannel.getAndResetUnannouncedCredit();
-            return credits > 0 ? new AddCredit(credits, inputChannel.getInputChannelId()) : null;
-        }
-    }
-
-    private static class NewBufferSizeMessage extends ClientOutboundMessage {
-        private final int bufferSize;
-
-        NewBufferSizeMessage(RemoteInputChannel inputChannel, int bufferSize) {
-            super(checkNotNull(inputChannel));
-            this.bufferSize = bufferSize;
-        }
-
-        @Override
-        public Object buildMessage() {
-            return new NettyMessage.NewBufferSize(bufferSize, inputChannel.getInputChannelId());
-        }
-    }
-
-    private static class ResumeConsumptionMessage extends ClientOutboundMessage {
-
-        ResumeConsumptionMessage(RemoteInputChannel inputChannel) {
-            super(checkNotNull(inputChannel));
-        }
-
-        @Override
-        Object buildMessage() {
-            return new ResumeConsumption(inputChannel.getInputChannelId());
-        }
-    }
-
-    private static class AcknowledgeAllRecordsProcessedMessage extends ClientOutboundMessage {
-
-        AcknowledgeAllRecordsProcessedMessage(RemoteInputChannel inputChannel) {
-            super(checkNotNull(inputChannel));
-        }
-
-        @Override
-        Object buildMessage() {
-            return new AckAllUserRecordsProcessed(inputChannel.getInputChannelId());
         }
     }
 }

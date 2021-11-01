@@ -253,7 +253,7 @@ public class DummyEnvironment implements Environment {
 
     @Override
     public ThroughputCalculator getThroughputCalculator() {
-        return new ThroughputCalculator(SystemClock.getInstance(), 10);
+        return new ThroughputCalculator(SystemClock.getInstance());
     }
 
     public void setTaskStateManager(TaskStateManager taskStateManager) {

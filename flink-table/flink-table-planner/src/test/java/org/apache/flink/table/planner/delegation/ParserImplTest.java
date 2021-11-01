@@ -61,6 +61,7 @@ public class ParserImplTest {
             new PlannerContext(
                     !isStreamingMode,
                     tableConfig,
+                    moduleManager,
                     functionCatalog,
                     catalogManager,
                     asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),

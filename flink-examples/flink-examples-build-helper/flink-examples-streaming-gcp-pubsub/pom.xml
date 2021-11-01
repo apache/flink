@@ -35,7 +35,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-gcp-pubsub_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-gcp-pubsub</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>

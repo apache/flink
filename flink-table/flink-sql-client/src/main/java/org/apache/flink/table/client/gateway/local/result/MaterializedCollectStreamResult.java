@@ -19,12 +19,11 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.api.TableResult;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /** Collects results and returns them as table snapshots. */
@@ -35,11 +34,11 @@ public class MaterializedCollectStreamResult extends MaterializedCollectResultBa
      * smaller position are deleted) nor complete (for deletes of duplicates). However, the cache
      * narrows the search in the materialized table.
      */
-    private final Map<Row, Integer> rowPositionCache;
+    private final Map<RowData, Integer> rowPositionCache;
 
     @VisibleForTesting
     public MaterializedCollectStreamResult(
-            TableResult tableResult, int maxRowCount, int overcommitThreshold) {
+            TableResultInternal tableResult, int maxRowCount, int overcommitThreshold) {
         super(tableResult, maxRowCount, overcommitThreshold);
 
         final int initialCapacity =
@@ -49,20 +48,20 @@ public class MaterializedCollectStreamResult extends MaterializedCollectResultBa
         retrievalThread.start();
     }
 
-    public MaterializedCollectStreamResult(TableResult tableResult, int maxRowCount) {
+    public MaterializedCollectStreamResult(TableResultInternal tableResult, int maxRowCount) {
         this(tableResult, maxRowCount, computeMaterializedTableOvercommit(maxRowCount));
     }
 
     // --------------------------------------------------------------------------------------------
 
     @Override
-    protected void processRecord(Row row) {
+    protected void processRecord(RowData row) {
         synchronized (resultLock) {
             boolean isInsertOp =
-                    row.getKind() == RowKind.INSERT || row.getKind() == RowKind.UPDATE_AFTER;
+                    row.getRowKind() == RowKind.INSERT || row.getRowKind() == RowKind.UPDATE_AFTER;
             // Always set the RowKind to INSERT, so that we can compare rows correctly (RowKind will
             // be ignored),
-            row.setKind(RowKind.INSERT);
+            row.setRowKind(RowKind.INSERT);
 
             // insert
             if (isInsertOp) {
@@ -75,14 +74,9 @@ public class MaterializedCollectStreamResult extends MaterializedCollectResultBa
         }
     }
 
-    @VisibleForTesting
-    protected List<Row> getMaterializedTable() {
-        return materializedTable;
-    }
-
     // --------------------------------------------------------------------------------------------
 
-    private void processInsert(Row row) {
+    private void processInsert(RowData row) {
         // limit the materialized table
         if (materializedTable.size() - validRowPosition >= maxRowCount) {
             cleanUp();
@@ -91,7 +85,7 @@ public class MaterializedCollectStreamResult extends MaterializedCollectResultBa
         rowPositionCache.put(row, materializedTable.size() - 1);
     }
 
-    private void processDelete(Row row) {
+    private void processDelete(RowData row) {
         // delete the newest record first to minimize per-page changes
         final Integer cachedPos = rowPositionCache.get(row);
         final int startSearchPos;
@@ -112,7 +106,7 @@ public class MaterializedCollectStreamResult extends MaterializedCollectResultBa
 
     private void cleanUp() {
         // invalidate row
-        final Row deleteRow = materializedTable.get(validRowPosition);
+        final RowData deleteRow = materializedTable.get(validRowPosition);
         if (rowPositionCache.get(deleteRow) == validRowPosition) {
             // this row has no duplicates in the materialized table,
             // it can be removed from the cache

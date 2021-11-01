@@ -70,8 +70,7 @@ public class JobVertexWatermarksHandler
 
     @Override
     protected MetricCollectionResponseBody handleRequest(
-            HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
-            AccessExecutionJobVertex jobVertex)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionJobVertex jobVertex)
             throws RestHandlerException {
 
         String jobID = request.getPathParameter(JobIDPathParameter.class).toString();

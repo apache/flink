@@ -20,36 +20,26 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
-import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
-import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.runtime.io.DataInputStatus;
-import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.io.Closeable;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import static java.util.Collections.singletonList;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskTest.createTask;
-import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
@@ -57,121 +47,38 @@ import static org.junit.Assert.assertFalse;
 public class StreamTaskCancellationTest extends TestLogger {
 
     @Test
-    public void testCancellationWaitsForActiveTimers() throws Exception {
-        StreamTaskWithBlockingTimer.reset();
-        ResultPartitionDeploymentDescriptor descriptor =
-                new ResultPartitionDeploymentDescriptor(
-                        PartitionDescriptorBuilder.newBuilder().build(),
-                        NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
-                        1,
-                        false);
-        Task task =
-                new TestTaskBuilder(new NettyShuffleEnvironmentBuilder().build())
-                        .setInvokable(StreamTaskWithBlockingTimer.class)
-                        .setResultPartitions(singletonList(descriptor))
-                        .build();
-        task.startTaskThread();
-
-        StreamTaskWithBlockingTimer.timerStarted.join();
-        task.cancelExecution();
-
-        task.getTerminationFuture().join();
-        // explicitly check for exceptions as they are ignored after cancellation
-        StreamTaskWithBlockingTimer.timerFinished.join();
-        checkState(task.getExecutionState() == ExecutionState.CANCELED);
+    public void testDoNotInterruptWhileClosing() throws Exception {
+        TestInterruptInCloseOperator testOperator = new TestInterruptInCloseOperator();
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
+                        .addInput(STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(testOperator)
+                        .build()) {}
     }
 
-    /**
-     * A {@link StreamTask} that register a single timer that waits for a cancellation and then
-     * emits some data. The assumption is that output remains available until the future returned
-     * from {@link TaskInvokable#cancel()} is completed. Public * access to allow reflection in
-     * {@link Task}.
-     */
-    public static class StreamTaskWithBlockingTimer extends StreamTask {
-        static volatile CompletableFuture<Void> timerStarted;
-        static volatile CompletableFuture<Void> timerFinished;
-        static volatile CompletableFuture<Void> invokableCancelled;
-
-        public static void reset() {
-            timerStarted = new CompletableFuture<>();
-            timerFinished = new CompletableFuture<>();
-            invokableCancelled = new CompletableFuture<>();
-        }
-
-        // public access to allow reflection in Task
-        public StreamTaskWithBlockingTimer(Environment env) throws Exception {
-            super(env);
-            super.inputProcessor = getInputProcessor();
-            getProcessingTimeServiceFactory()
-                    .createProcessingTimeService(mainMailboxExecutor)
-                    .registerTimer(0, unused -> onProcessingTime());
-        }
-
+    private static class TestInterruptInCloseOperator extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String> {
         @Override
-        protected void cancelTask() throws Exception {
-            super.cancelTask();
-            invokableCancelled.complete(null);
-        }
+        public void close() throws Exception {
+            super.close();
 
-        private void onProcessingTime() {
+            AtomicBoolean running = new AtomicBoolean(true);
+            Thread thread =
+                    new Thread(
+                            () -> {
+                                while (running.get()) {}
+                            });
+            thread.start();
             try {
-                timerStarted.complete(null);
-                waitForCancellation();
-                emit();
-                timerFinished.complete(null);
-            } catch (Throwable e) { // assertion is Error
-                timerFinished.completeExceptionally(e);
-            }
-        }
-
-        private void waitForCancellation() {
-            invokableCancelled.join();
-            // allow network resources to be closed mistakenly
-            for (int i = 0; i < 10; i++) {
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    // ignore: can be interrupted by TaskCanceller/Interrupter
-                }
-            }
-        }
-
-        private void emit() throws IOException {
-            checkState(getEnvironment().getAllWriters().length > 0);
-            for (ResultPartitionWriter writer : getEnvironment().getAllWriters()) {
-                assertFalse(writer.isReleased());
-                assertFalse(writer.isFinished());
-                writer.emitRecord(ByteBuffer.allocate(10), 0);
+                getContainingTask().maybeInterruptOnCancel(thread, null, null);
+                assertFalse(thread.isInterrupted());
+            } finally {
+                running.set(false);
             }
         }
 
         @Override
-        protected void init() {}
-
-        private static StreamInputProcessor getInputProcessor() {
-            return new StreamInputProcessor() {
-
-                @Override
-                public DataInputStatus processInput() {
-                    return DataInputStatus.NOTHING_AVAILABLE;
-                }
-
-                @Override
-                public CompletableFuture<Void> prepareSnapshot(
-                        ChannelStateWriter channelStateWriter, long checkpointId) {
-                    return CompletableFuture.completedFuture(null);
-                }
-
-                @Override
-                public CompletableFuture<?> getAvailableFuture() {
-                    return new CompletableFuture<>();
-                }
-
-                @Override
-                public void close() {}
-            };
-        }
+        public void processElement(StreamRecord<String> element) throws Exception {}
     }
 
     @Test

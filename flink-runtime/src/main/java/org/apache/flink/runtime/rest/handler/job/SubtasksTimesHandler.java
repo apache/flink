@@ -69,8 +69,7 @@ public class SubtasksTimesHandler
 
     @Override
     protected SubtasksTimesInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
-            AccessExecutionJobVertex jobVertex) {
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionJobVertex jobVertex) {
         return createSubtaskTimesInfo(jobVertex);
     }
 

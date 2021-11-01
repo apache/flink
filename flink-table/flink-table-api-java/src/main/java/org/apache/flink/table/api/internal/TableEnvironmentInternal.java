@@ -63,7 +63,7 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      * @param operations The operations to be executed.
      * @return the affected row counts (-1 means unknown).
      */
-    TableResult executeInternal(List<ModifyOperation> operations);
+    TableResultInternal executeInternal(List<ModifyOperation> operations);
 
     /**
      * Execute the given operation and return the execution result.
@@ -71,7 +71,7 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      * @param operation The operation to be executed.
      * @return the content of the execution result.
      */
-    TableResult executeInternal(Operation operation);
+    TableResultInternal executeInternal(Operation operation);
 
     /**
      * Returns the AST of this table and the execution plan to compute the result of this table.

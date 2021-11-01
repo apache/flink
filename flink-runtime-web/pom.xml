@@ -29,7 +29,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-runtime-web_${scala.binary.version}</artifactId>
+	<artifactId>flink-runtime-web</artifactId>
 	<name>Flink : Runtime web</name>
 
 	<packaging>jar</packaging>
@@ -53,7 +53,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -87,7 +87,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>

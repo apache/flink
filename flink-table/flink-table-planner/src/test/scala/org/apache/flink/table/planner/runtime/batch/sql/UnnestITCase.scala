@@ -22,7 +22,7 @@ import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
 
 import org.junit.Test

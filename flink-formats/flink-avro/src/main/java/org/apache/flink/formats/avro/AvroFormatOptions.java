@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
+import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
+
 /** Options for the avro format. */
 @PublicEvolving
 public class AvroFormatOptions {
@@ -29,7 +31,7 @@ public class AvroFormatOptions {
     public static final ConfigOption<String> AVRO_OUTPUT_CODEC =
             ConfigOptions.key("codec")
                     .stringType()
-                    .noDefaultValue()
+                    .defaultValue(SNAPPY_CODEC)
                     .withDescription("The compression codec for avro");
 
     private AvroFormatOptions() {}

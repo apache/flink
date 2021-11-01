@@ -753,7 +753,7 @@ public class StreamTaskFinalCheckpointsTest {
                                 .getTaskStateManager()
                                 .getJobManagerTaskStateSnapshotsByCheckpointId()
                                 .get(2L)
-                                .isOperatorsFinished());
+                                .isTaskFinished());
 
                 // Trigger the first checkpoint after we call operators' finish method.
                 // The checkpoint is added to the mailbox and will be processed in the
@@ -776,7 +776,7 @@ public class StreamTaskFinalCheckpointsTest {
                                 .getTaskStateManager()
                                 .getJobManagerTaskStateSnapshotsByCheckpointId()
                                 .get(4L)
-                                .isOperatorsFinished());
+                                .isTaskFinished());
             }
 
         } finally {

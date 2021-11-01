@@ -22,7 +22,10 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
-/** Behavior for entries with a null value for {@link BuiltInFunctionDefinitions#JSON_OBJECT}. */
+/**
+ * Behavior for entries with a null value for {@link BuiltInFunctionDefinitions#JSON_OBJECT} and
+ * {@link BuiltInFunctionDefinitions#JSON_ARRAY}.
+ */
 @PublicEvolving
 public enum JsonOnNull implements TableSymbol {
     /** Use a JSON {@code null} value. */

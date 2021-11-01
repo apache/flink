@@ -18,18 +18,20 @@
 
 package org.apache.flink.table.filesystem;
 
-import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.factories.BulkWriterFormatFactory;
+import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
-import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -46,9 +48,14 @@ import java.util.Set;
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITER;
 
-/** Test csv {@link FileSystemFormatFactory}. */
+/**
+ * Factory for csv test format.
+ *
+ * <p>NOTE: This is meant only for testing purpose and doesn't provide a feature complete stable csv
+ * parser! If you need a feature complete CSV parser, check out the flink-csv package.
+ */
 public class TestCsvFileSystemFormatFactory
-        implements FileSystemFormatFactory, BulkWriterFormatFactory {
+        implements DeserializationFormatFactory, BulkWriterFormatFactory {
 
     @Override
     public String factoryIdentifier() {
@@ -63,17 +70,6 @@ public class TestCsvFileSystemFormatFactory
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         return new HashSet<>();
-    }
-
-    @Override
-    public InputFormat<RowData, ?> createReader(ReaderContext context) {
-        return new TestRowDataCsvInputFormat(
-                context.getPaths(),
-                context.getSchema(),
-                context.getPartitionKeys(),
-                context.getDefaultPartName(),
-                context.getProjectFields(),
-                context.getPushedDownLimit());
     }
 
     private static void writeCsvToStream(DataType[] types, RowData rowData, OutputStream stream)
@@ -110,6 +106,23 @@ public class TestCsvFileSystemFormatFactory
                 return out ->
                         new CsvBulkWriter(
                                 consumedDataType.getChildren().toArray(new DataType[0]), out);
+            }
+
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
+
+    @Override
+    public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        return new DecodingFormat<DeserializationSchema<RowData>>() {
+            @Override
+            public DeserializationSchema<RowData> createRuntimeDecoder(
+                    DynamicTableSource.Context context, DataType physicalDataType) {
+                return new TestCsvDeserializationSchema(physicalDataType);
             }
 
             @Override

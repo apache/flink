@@ -23,8 +23,7 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
-
-import org.apache.calcite.avatica.util.{TimeUnit, TimeUnitRange}
+import org.apache.flink.table.utils.DateTimeUtils.{TimeUnit, TimeUnitRange}
 
 import java.lang.reflect.Method
 
@@ -43,8 +42,11 @@ class ExtractCallGen(method: Method)
            TimeUnit.DAY |
            TimeUnit.QUARTER |
            TimeUnit.DOY |
+           TimeUnit.ISOYEAR |
            TimeUnit.DOW |
+           TimeUnit.ISODOW |
            TimeUnit.WEEK |
+           TimeUnit.DECADE |
            TimeUnit.CENTURY |
            TimeUnit.MILLENNIUM =>
         tpe.getTypeRoot match {

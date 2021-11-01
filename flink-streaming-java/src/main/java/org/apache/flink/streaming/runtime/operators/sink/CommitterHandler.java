@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
-import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -44,16 +43,15 @@ interface CommitterHandler<InputT, OutputT> extends AutoCloseable, Serializable 
 
     /**
      * Processes the committables by either directly transforming them or by adding them to the
-     * internal state of this handler. The supplier should only be queried once.
+     * internal state of this handler.
      *
      * @return a list of output committables that is send downstream.
      */
-    List<OutputT> processCommittables(
-            SupplierWithException<List<InputT>, Exception> committableSupplier) throws Exception;
+    List<OutputT> processCommittables(List<InputT> committables);
 
     /**
      * Called when no more committables are going to be added through {@link
-     * #processCommittables(SupplierWithException)}.
+     * #processCommittables(List)}.
      *
      * @return a list of output committables that is send downstream.
      */

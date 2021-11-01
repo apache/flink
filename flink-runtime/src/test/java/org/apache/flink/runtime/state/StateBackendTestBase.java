@@ -159,7 +159,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Rule public final ExpectedException expectedException = ExpectedException.none();
 
     @Before
-    public void before() throws IOException {
+    public void before() throws Exception {
         env = buildMockEnv();
     }
 
@@ -171,7 +171,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     // lazily initialized stream storage
     private CheckpointStreamFactory checkpointStreamFactory;
 
-    private MockEnvironment env;
+    protected MockEnvironment env;
 
     protected abstract ConfigurableStateBackend getStateBackend() throws Exception;
 
@@ -185,6 +185,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 "The state backend under test does not implement CheckpointStorage."
                         + "Please override 'createCheckpointStorage' and provide an appropriate"
                         + "checkpoint storage instance");
+    }
+
+    protected CheckpointStorageAccess getCheckpointStorageAccess() throws Exception {
+        return getCheckpointStorage().createCheckpointStorage(new JobID());
     }
 
     protected abstract boolean isSerializerPresenceRequiredOnRestore();
@@ -220,6 +224,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             Environment env)
             throws Exception {
 
+        env.setCheckpointStorageAccess(getCheckpointStorageAccess());
         CheckpointableKeyedStateBackend<K> backend =
                 getStateBackend()
                         .createKeyedStateBackend(
@@ -5081,7 +5086,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @Test
     public void testCheckConcurrencyProblemWhenPerformingCheckpointAsync() throws Exception {
-
         CheckpointStreamFactory streamFactory = createStreamFactory();
         ExecutorService executorService = Executors.newScheduledThreadPool(1);
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -5239,7 +5243,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         }
     }
 
-    protected KeyedStateHandle runSnapshot(
+    public static KeyedStateHandle runSnapshot(
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture,
             SharedStateRegistry sharedStateRegistry)
             throws Exception {
@@ -5561,8 +5565,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         long value;
     }
 
-    private MockEnvironment buildMockEnv() throws IOException {
-        return MockEnvironment.builder().setTaskStateManager(getTestTaskStateManager()).build();
+    private MockEnvironment buildMockEnv() throws Exception {
+        MockEnvironment mockEnvironment =
+                MockEnvironment.builder().setTaskStateManager(getTestTaskStateManager()).build();
+        mockEnvironment.setCheckpointStorageAccess(getCheckpointStorageAccess());
+        return mockEnvironment;
     }
 
     protected TestTaskStateManager getTestTaskStateManager() throws IOException {

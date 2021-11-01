@@ -1258,6 +1258,9 @@ class TableEnvironmentTest {
 
     checkExplain("explain plan for insert into MySink select a, b from MyTable where a > 10",
       "/explain/testExecuteSqlWithExplainInsert.out")
+
+    checkExplain("explain plan for insert into MySink(d) select a from MyTable where a > 10",
+      "/explain/testExecuteSqlWithExplainInsertPartialColumn.out")
   }
 
   @Test

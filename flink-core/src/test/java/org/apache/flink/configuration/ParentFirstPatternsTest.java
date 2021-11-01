@@ -22,7 +22,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.HashSet;
 
 import static org.junit.Assert.assertTrue;
@@ -34,11 +33,7 @@ import static org.junit.Assert.assertTrue;
 public class ParentFirstPatternsTest extends TestLogger {
 
     private static final HashSet<String> PARENT_FIRST_PACKAGES =
-            new HashSet<>(
-                    Arrays.asList(
-                            CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS
-                                    .defaultValue()
-                                    .split(";")));
+            new HashSet<>(CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue());
 
     /** All java and Flink classes must be loaded parent first. */
     @Test

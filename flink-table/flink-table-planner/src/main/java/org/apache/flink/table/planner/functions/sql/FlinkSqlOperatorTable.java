@@ -28,6 +28,7 @@ import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlGroupedWindowFunction;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlJsonConstructorNullClause;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
@@ -1146,6 +1147,15 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction JSON_VALUE = SqlStdOperatorTable.JSON_VALUE;
     public static final SqlFunction JSON_QUERY = SqlStdOperatorTable.JSON_QUERY;
     public static final SqlFunction JSON_OBJECT = new SqlJsonObjectFunction();
+    public static final SqlAggFunction JSON_OBJECTAGG_NULL_ON_NULL =
+            SqlStdOperatorTable.JSON_OBJECTAGG;
+    public static final SqlAggFunction JSON_OBJECTAGG_ABSENT_ON_NULL =
+            SqlStdOperatorTable.JSON_OBJECTAGG.with(SqlJsonConstructorNullClause.ABSENT_ON_NULL);
+    public static final SqlFunction JSON_ARRAY = SqlStdOperatorTable.JSON_ARRAY;
+    public static final SqlAggFunction JSON_ARRAYAGG_NULL_ON_NULL =
+            SqlStdOperatorTable.JSON_ARRAYAGG.with(SqlJsonConstructorNullClause.NULL_ON_NULL);
+    public static final SqlAggFunction JSON_ARRAYAGG_ABSENT_ON_NULL =
+            SqlStdOperatorTable.JSON_ARRAYAGG;
     public static final SqlPostfixOperator IS_JSON_VALUE = SqlStdOperatorTable.IS_JSON_VALUE;
     public static final SqlPostfixOperator IS_JSON_OBJECT = SqlStdOperatorTable.IS_JSON_OBJECT;
     public static final SqlPostfixOperator IS_JSON_ARRAY = SqlStdOperatorTable.IS_JSON_ARRAY;

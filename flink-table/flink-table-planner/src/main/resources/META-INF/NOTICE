@@ -16,7 +16,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.calcite:calcite-core:1.26.0
 - org.apache.calcite:calcite-linq4j:1.26.0
 - org.apache.calcite.avatica:avatica-core:1.17.0
-- org.scala-lang.modules:scala-parser-combinators_2.11:1.1.1
+- org.scala-lang.modules:scala-parser-combinators_2.12:1.1.1
 - commons-codec:commons-codec:1.15
 - commons-io:commons-io:2.11.0
 

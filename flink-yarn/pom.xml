@@ -27,7 +27,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-yarn_${scala.binary.version}</artifactId>
+	<artifactId>flink-yarn</artifactId>
 	<name>Flink : Yarn</name>
 	<packaging>jar</packaging>
 
@@ -49,7 +49,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

@@ -29,7 +29,7 @@ under the License.
 [Apache NiFi](https://nifi.apache.org/) 连接器提供了可以读取和写入的 Source 和 Sink。
 使用这个连接器，需要在工程中添加下面的依赖:
 
-{{< artifact flink-connector-nifi withScalaVersion >}}
+{{< artifact flink-connector-nifi >}}
 
 注意这些连接器目前还没有包含在二进制发行版中。添加依赖、打包配置以及集群运行的相关信息请参考 [这里]({{< ref "docs/dev/datastream/project-configuration" >}})。
 

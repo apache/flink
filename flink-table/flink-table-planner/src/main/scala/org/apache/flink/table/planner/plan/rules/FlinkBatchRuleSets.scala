@@ -130,7 +130,9 @@ object FlinkBatchRuleSets {
         // optimize limit 0
         FlinkLimit0RemoveRule.INSTANCE,
         // unnest rule
-        LogicalUnnestRule.INSTANCE
+        LogicalUnnestRule.INSTANCE,
+        // Wrap arguments for JSON aggregate functions
+        WrapJsonAggFunctionArgumentsRule.INSTANCE
       )).asJava)
 
   /**
@@ -446,6 +448,12 @@ object FlinkBatchRuleSets {
     */
   val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
     EnforceLocalHashAggRule.INSTANCE,
-    EnforceLocalSortAggRule.INSTANCE
+    EnforceLocalSortAggRule.INSTANCE,
+    PushLocalHashAggIntoScanRule.INSTANCE,
+    PushLocalHashAggWithCalcIntoScanRule.INSTANCE,
+    PushLocalSortAggIntoScanRule.INSTANCE,
+    PushLocalSortAggWithSortIntoScanRule.INSTANCE,
+    PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
+    PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
   )
 }

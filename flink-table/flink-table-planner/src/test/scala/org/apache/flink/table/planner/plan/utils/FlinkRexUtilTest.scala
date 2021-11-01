@@ -17,10 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.codegen.ExpressionReducer
 
-import org.apache.calcite.rex.{RexLiteral, RexNode, RexUtil}
+import org.apache.calcite.rex.{RexBuilder, RexLiteral, RexNode, RexUtil}
 import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.junit.Assert.{assertEquals, assertFalse}
 import org.junit.Test
@@ -240,7 +243,7 @@ class FlinkRexUtilTest {
       rexBuilder.makeCall(EQUALS, a, b),
       rexBuilder.makeCall(EQUALS, a, b)
     )
-    val newPredicate0 = FlinkRexUtil.simplify(rexBuilder, predicate0)
+    val newPredicate0 = simplify(rexBuilder, predicate0)
     assertEquals(rexBuilder.makeCall(EQUALS, a, b).toString, newPredicate0.toString)
 
     // a = b AND b = a
@@ -248,7 +251,7 @@ class FlinkRexUtilTest {
       rexBuilder.makeCall(EQUALS, a, b),
       rexBuilder.makeCall(EQUALS, b, a)
     )
-    val newPredicate1 = FlinkRexUtil.simplify(rexBuilder, predicate1)
+    val newPredicate1 = simplify(rexBuilder, predicate1)
     assertEquals(rexBuilder.makeCall(EQUALS, a, b).toString, newPredicate1.toString)
 
     // a = b OR b = a
@@ -256,7 +259,7 @@ class FlinkRexUtilTest {
       rexBuilder.makeCall(EQUALS, a, b),
       rexBuilder.makeCall(EQUALS, b, a)
     )
-    val newPredicate2 = FlinkRexUtil.simplify(rexBuilder, predicate2)
+    val newPredicate2 = simplify(rexBuilder, predicate2)
     assertEquals(rexBuilder.makeCall(EQUALS, a, b).toString, newPredicate2.toString)
 
     // a = b AND c < d AND b = a AND d > c
@@ -266,7 +269,7 @@ class FlinkRexUtilTest {
       rexBuilder.makeCall(EQUALS, b, a),
       rexBuilder.makeCall(GREATER_THAN, d, c)
     )
-    val newPredicate3 = FlinkRexUtil.simplify(rexBuilder, predicate3)
+    val newPredicate3 = simplify(rexBuilder, predicate3)
     assertEquals(rexBuilder.makeCall(AND,
       rexBuilder.makeCall(EQUALS, a, b),
       rexBuilder.makeCall(LESS_THAN, c, d)).toString,
@@ -279,7 +282,7 @@ class FlinkRexUtilTest {
       rexBuilder.makeCall(LESS_THAN_OR_EQUAL,
         c, rexBuilder.makeCast(typeFactory.createSqlType(INTEGER), a))
     )
-    val newPredicate4 = FlinkRexUtil.simplify(rexBuilder, predicate4)
+    val newPredicate4 = simplify(rexBuilder, predicate4)
     assertEquals(rexBuilder.makeCall(GREATER_THAN_OR_EQUAL,
       rexBuilder.makeCast(typeFactory.createSqlType(INTEGER), a), c).toString,
       newPredicate4.toString)
@@ -301,7 +304,7 @@ class FlinkRexUtilTest {
         rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, dPlus1, c),
         rexBuilder.makeCall(LESS_THAN_OR_EQUAL, c, dPlus1))
     )
-    val newPredicate5 = FlinkRexUtil.simplify(rexBuilder, predicate5)
+    val newPredicate5 = simplify(rexBuilder, predicate5)
     assertEquals(rexBuilder.makeCall(OR,
       rexBuilder.makeCall(EQUALS, aSubstring13, b),
       rexBuilder.makeCall(LESS_THAN_OR_EQUAL, c, dPlus1)).toString,
@@ -320,7 +323,7 @@ class FlinkRexUtilTest {
         rexBuilder.makeCall(LESS_THAN, b, rexBuilder.makeLiteral("k"))
       )
     )
-    val newPredicate6 = FlinkRexUtil.simplify(rexBuilder, predicate6)
+    val newPredicate6 = simplify(rexBuilder, predicate6)
     assertEquals(rexBuilder.makeCall(AND,
       rexBuilder.makeCall(OR,
         rexBuilder.makeCall(EQUALS, a, b),
@@ -342,7 +345,7 @@ class FlinkRexUtilTest {
       ),
       rexBuilder.makeCall(EQUALS, b, a)
     )
-    val newPredicate7 = FlinkRexUtil.simplify(rexBuilder, predicate7)
+    val newPredicate7 = simplify(rexBuilder, predicate7)
     assertEquals(rexBuilder.makeCall(AND,
       rexBuilder.makeCall(EQUALS, a, b),
       rexBuilder.makeCall(LESS_THAN, c, d)).toString,
@@ -356,7 +359,7 @@ class FlinkRexUtilTest {
         rexBuilder.makeCall(EQUALS, c, d)
       )
     )
-    val newPredicate8 = FlinkRexUtil.simplify(rexBuilder, predicate8)
+    val newPredicate8 = simplify(rexBuilder, predicate8)
     assertEquals(rexBuilder.makeCall(OR,
       rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, b, a),
       rexBuilder.makeCall(EQUALS, c, d)).toString,
@@ -365,43 +368,43 @@ class FlinkRexUtilTest {
     // true AND true
     val predicate9 = rexBuilder.makeCall(AND,
       rexBuilder.makeLiteral(true), rexBuilder.makeLiteral(true))
-    val newPredicate9 = FlinkRexUtil.simplify(rexBuilder, predicate9)
+    val newPredicate9 = simplify(rexBuilder, predicate9)
     assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate9.toString)
 
     // false OR false
     val predicate10 = rexBuilder.makeCall(OR,
       rexBuilder.makeLiteral(false), rexBuilder.makeLiteral(false))
-    val newPredicate10 = FlinkRexUtil.simplify(rexBuilder, predicate10)
+    val newPredicate10 = simplify(rexBuilder, predicate10)
     assertEquals(rexBuilder.makeLiteral(false).toString, newPredicate10.toString)
 
     // a = a
     val predicate11 = rexBuilder.makeCall(EQUALS, a, a)
-    val newPredicate11 = FlinkRexUtil.simplify(rexBuilder, predicate11)
+    val newPredicate11 = simplify(rexBuilder, predicate11)
     assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate11.toString)
 
     // a >= a
     val predicate12 = rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, a, a)
-    val newPredicate12 = FlinkRexUtil.simplify(rexBuilder, predicate12)
+    val newPredicate12 = simplify(rexBuilder, predicate12)
     assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate12.toString)
 
     // a <= a
     val predicate13 = rexBuilder.makeCall(LESS_THAN_OR_EQUAL, a, a)
-    val newPredicate13 = FlinkRexUtil.simplify(rexBuilder, predicate13)
+    val newPredicate13 = simplify(rexBuilder, predicate13)
     assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate13.toString)
 
     // a <> a
     val predicate14 = rexBuilder.makeCall(NOT_EQUALS, a, a)
-    val newPredicate14 = FlinkRexUtil.simplify(rexBuilder, predicate14)
+    val newPredicate14 = simplify(rexBuilder, predicate14)
     assertEquals(rexBuilder.makeLiteral(false).toString, newPredicate14.toString)
 
     // a > a
     val predicate15 = rexBuilder.makeCall(GREATER_THAN, a, a)
-    val newPredicate15 = FlinkRexUtil.simplify(rexBuilder, predicate15)
+    val newPredicate15 = simplify(rexBuilder, predicate15)
     assertEquals(rexBuilder.makeLiteral(false).toString, newPredicate15.toString)
 
     // a < a
     val predicate16 = rexBuilder.makeCall(LESS_THAN, a, a)
-    val newPredicate16 = FlinkRexUtil.simplify(rexBuilder, predicate16)
+    val newPredicate16 = simplify(rexBuilder, predicate16)
     assertEquals(rexBuilder.makeLiteral(false).toString, newPredicate16.toString)
 
     // c = 0 AND SEARCH(c, [0, 1])
@@ -412,7 +415,7 @@ class FlinkRexUtilTest {
       rexBuilder.makeIn(c, java.util.Arrays.asList(
         intLiteral(0),
         intLiteral(1))))
-    val newPredicate17 = FlinkRexUtil.simplify(rexBuilder, predicate17)
+    val newPredicate17 = simplify(rexBuilder, predicate17)
     assertEquals(
       rexBuilder.makeIn(c, Collections.singletonList[RexNode](intLiteral(0))).toString,
       newPredicate17.toString)
@@ -425,7 +428,7 @@ class FlinkRexUtilTest {
       OR,
       rexBuilder.makeCall(EQUALS, c, intLiteral(0)),
       predicate18Search)
-    val newPredicate18 = FlinkRexUtil.simplify(rexBuilder, predicate18)
+    val newPredicate18 = simplify(rexBuilder, predicate18)
     assertEquals(predicate18Search.toString, newPredicate18.toString)
 
     // c > 0 AND (
@@ -447,7 +450,7 @@ class FlinkRexUtilTest {
       AND,
       rexBuilder.makeCall(GREATER_THAN, c, intLiteral(0)),
       predicate19Layer1)
-    val newPredicate19 = FlinkRexUtil.simplify(rexBuilder, predicate19)
+    val newPredicate19 = simplify(rexBuilder, predicate19)
     assertEquals(
       rexBuilder.makeIn(c, Collections.singletonList[RexNode](intLiteral(1))).toString,
       newPredicate19.toString)
@@ -458,9 +461,40 @@ class FlinkRexUtilTest {
       OR,
       rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, c, intLiteral(0)),
       predicate18Search)
-    val newPredicate20 = FlinkRexUtil.simplify(rexBuilder, predicate20)
+    val newPredicate20 = simplify(rexBuilder, predicate20)
     assertEquals(predicate20.toString, newPredicate20.toString)
+
+    //CAST(1 AS BOOLEAN)
+    val predicate21CastFromData = intLiteral(1)
+    val predicate21Cast = makeToBooleanCast(predicate21CastFromData)
+    val newPredicate21 = simplify(rexBuilder, predicate21Cast)
+    assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate21.toString)
+
+    //CAST(0 AS BOOLEAN)
+    val predicate22CastFromData = intLiteral(0)
+    val predicate22Cast = makeToBooleanCast(predicate22CastFromData)
+    val newPredicate22 = simplify(rexBuilder, predicate22Cast)
+    assertEquals(rexBuilder.makeLiteral(false).toString, newPredicate22.toString)
+
+    //CAST(-1 AS BOOLEAN)
+    val predicate23CastFromData = intLiteral(-1)
+    val predicate23Cast = makeToBooleanCast(predicate23CastFromData)
+    val newPredicate23 = simplify(rexBuilder, predicate23Cast)
+    assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate23.toString)
   }
 
   def intLiteral(x: Int): RexLiteral = rexBuilder.makeExactLiteral(BigDecimal.valueOf(x))
+
+  def simplify(rexBuilder: RexBuilder, expr: RexNode): RexNode ={
+    val expressionReducer = new ExpressionReducer(TableConfig.getDefault, false)
+    FlinkRexUtil.simplify(rexBuilder, expr, expressionReducer)
+  }
+
+  private def makeToBooleanCast(fromData: RexNode): RexNode ={
+    val booleanType = new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.BOOLEAN)
+    rexBuilder.makeCall(
+      booleanType,
+      CAST,
+      Collections.singletonList(fromData.asInstanceOf[RexNode]))
+  }
 }

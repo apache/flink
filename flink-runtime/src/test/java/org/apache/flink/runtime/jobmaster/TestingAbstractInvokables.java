@@ -26,7 +26,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.types.IntValue;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 
 /** {@link AbstractInvokable} for testing purposes. */
 public class TestingAbstractInvokables {
@@ -107,9 +106,8 @@ public class TestingAbstractInvokables {
         }
 
         @Override
-        public Future<Void> cancel() {
+        public void cancel() {
             gotCanceledFuture.complete(true);
-            return CompletableFuture.completedFuture(null);
         }
 
         public static void resetGotCanceledFuture() {

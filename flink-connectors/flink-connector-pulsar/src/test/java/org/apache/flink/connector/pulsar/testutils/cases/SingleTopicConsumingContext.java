@@ -29,8 +29,8 @@ import org.apache.flink.connector.pulsar.testutils.PulsarTestContext;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
 
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -101,7 +101,7 @@ public class SingleTopicConsumingContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public Collection<String> generateTestData(int splitIndex, long seed) {
+    public List<String> generateTestData(int splitIndex, long seed) {
         return generateStringTestData(splitIndex, seed);
     }
 

@@ -2669,6 +2669,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "LOG(cast (null AS DOUBLE), cast (null AS DOUBLE))",
       "null"
     )
+
+    // invalid log
+    val infiniteOrNaNException = "Infinite or NaN"
+    // Infinity
+    testExpectedSqlException("LOG(1, 100)", infiniteOrNaNException, classOf[NumberFormatException])
+    // NaN
+    testExpectedSqlException("LOG(-1)", infiniteOrNaNException, classOf[NumberFormatException])
   }
 
   @Test
@@ -2936,6 +2943,14 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "20")
 
     testSqlApi(
+      "EXTRACT(DECADE FROM f18)",
+      "199")
+
+    testSqlApi(
+      "EXTRACT(DECADE FROM f16)",
+      "199")
+
+    testSqlApi(
       "EXTRACT(DOY FROM f18)",
       "315")
 
@@ -2944,12 +2959,28 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "315")
 
     testSqlApi(
+      "EXTRACT(ISOYEAR FROM f18)",
+      "1996")
+
+    testSqlApi(
+      "EXTRACT(ISOYEAR FROM f16)",
+      "1996")
+
+    testSqlApi(
       "EXTRACT(DOW FROM f18)",
       "1")
 
     testSqlApi(
       "EXTRACT(DOW FROM f16)",
       "1")
+
+    testSqlApi(
+      "EXTRACT(ISODOW FROM f18)",
+      "7")
+
+    testSqlApi(
+      "EXTRACT(ISODOW FROM f16)",
+      "7")
 
     testSqlApi(
       "EXTRACT(QUARTER FROM f18)",

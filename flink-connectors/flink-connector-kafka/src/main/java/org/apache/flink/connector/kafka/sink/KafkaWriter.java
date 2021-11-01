@@ -86,6 +86,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     private final Counter numBytesOutCounter;
     private final Sink.ProcessingTimeService timeService;
     private final boolean disabledMetrics;
+    private final Counter numRecordsOutCounter;
 
     // Number of outgoing bytes at the latest metric sync
     private long latestOutgoingByteTotal;
@@ -140,6 +141,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         this.timeService = sinkInitContext.getProcessingTimeService();
         this.metricGroup = sinkInitContext.metricGroup();
         this.numBytesOutCounter = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
+        this.numRecordsOutCounter = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
         this.kafkaSinkContext =
                 new DefaultKafkaSinkContext(
                         sinkInitContext.getSubtaskId(),
@@ -179,6 +181,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         final ProducerRecord<byte[], byte[]> record =
                 recordSerializer.serialize(element, kafkaSinkContext, context.timestamp());
         currentProducer.send(record, deliveryCallback);
+        numRecordsOutCounter.inc();
     }
 
     @Override

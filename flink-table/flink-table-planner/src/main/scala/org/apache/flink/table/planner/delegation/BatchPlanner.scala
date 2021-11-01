@@ -26,6 +26,7 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
@@ -49,9 +50,11 @@ import scala.collection.JavaConversions._
 class BatchPlanner(
     executor: Executor,
     config: TableConfig,
+    moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager)
-  extends PlannerBase(executor, config, functionCatalog, catalogManager, isStreamingMode = false) {
+  extends PlannerBase(executor, config, moduleManager, functionCatalog, catalogManager,
+    isStreamingMode = false) {
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
     Array(
@@ -158,7 +161,7 @@ class BatchPlanner(
   private def createDummyPlanner(): BatchPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new DefaultExecutor(dummyExecEnv)
-    new BatchPlanner(executor, config, functionCatalog, catalogManager)
+    new BatchPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
   }
 
   override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {

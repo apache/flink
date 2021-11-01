@@ -87,7 +87,8 @@ public final class DynamicSinkUtils {
             FlinkRelBuilder relBuilder,
             RelNode input,
             CollectModifyOperation collectModifyOperation,
-            Configuration configuration) {
+            Configuration configuration,
+            ClassLoader classLoader) {
         final DataTypeFactory dataTypeFactory =
                 unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
         final ResolvedSchema childSchema = collectModifyOperation.getChild().getResolvedSchema();
@@ -104,7 +105,8 @@ public final class DynamicSinkUtils {
                         collectModifyOperation.getTableIdentifier(),
                         consumedDataType,
                         configuration.get(CollectSinkOperatorFactory.MAX_BATCH_SIZE),
-                        configuration.get(CollectSinkOperatorFactory.SOCKET_TIMEOUT));
+                        configuration.get(CollectSinkOperatorFactory.SOCKET_TIMEOUT),
+                        classLoader);
         collectModifyOperation.setSelectResultProvider(tableSink.getSelectResultProvider());
         return convertSinkToRel(
                 relBuilder,

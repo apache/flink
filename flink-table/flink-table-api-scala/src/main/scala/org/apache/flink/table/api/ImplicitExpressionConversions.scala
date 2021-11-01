@@ -808,13 +808,38 @@ trait ImplicitExpressionConversions {
   def not(expression: Expression): Expression = Expressions.not(expression)
 
   /**
+   * Serializes a value into JSON.
+   *
+   * This function returns a JSON string containing the serialized value. If the value is `null`,
+   * the function returns `null`.
+   *
+   * Examples:
+   * {{{
+   * // null
+   * jsonString(nullOf(DataTypes.INT()))
+   *
+   * jsonString(1)                   // "1"
+   * jsonString(true)                // "true"
+   * jsonString("Hello, World!")     // "\"Hello, World!\""
+   * jsonString(Arrays.asList(1, 2)) // "[1,2]"
+   * }}}
+   */
+  def jsonString(value: Expression): Expression = {
+    Expressions.jsonString(value)
+  }
+
+  /**
    * Builds a JSON object string from a list of key-value pairs.
    *
-   * <code>keyValues</code> is an even-numbered list of alternating key/value pairs. Note that keys
-   * must be string literals, values may be arbitrary expressions.
+   * `keyValues` is an even-numbered list of alternating key/value pairs. Note that keys must be
+   * string literals, values may be arbitrary expressions.
    *
    * This function returns a JSON string. The [[JsonOnNull onNull]] behavior defines how to treat
-   * <code>NULL</code> values.
+   * `NULL` values.
+   *
+   * Values which are created from another JSON construction function call
+   * (`jsonObject`, `jsonArray`) are inserted directly rather than as a string. This allows
+   * building nested JSON structures.
    *
    * Examples:
    * {{{
@@ -833,8 +858,89 @@ trait ImplicitExpressionConversions {
    * // {"K1":{"K2":"V"}}
    * jsonObject(JsonOnNull.NULL, "K1", jsonObject(JsonOnNull.NULL, "K2", "V"))
    * }}}
+   *
+   * @see #jsonObject
    */
-  def jsonObject(onNull: JsonOnNull, keyValues: Any*): Expression = {
-    Expressions.jsonObject(onNull, keyValues)
+  def jsonObject(onNull: JsonOnNull, keyValues: Expression*): Expression = {
+    Expressions.jsonObject(onNull, keyValues: _*)
+  }
+
+  /**
+   * Builds a JSON object string by aggregating key-value expressions into a single JSON object.
+   *
+   * The key expression must return a non-nullable character string. Value expressions can be
+   * arbitrary, including other JSON functions. If a value is `NULL`, the [[JsonOnNull onNull]]
+   * behavior defines what to do.
+   *
+   * Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+   *
+   * This function is currently not supported in `OVER` windows.
+   *
+   * Examples:
+   * {{{
+   * // "{\"Apple\":2,\"Banana\":17,\"Orange\":0}"
+   * orders.select(jsonObjectAgg(JsonOnNull.NULL, $("product"), $("cnt")))
+   * }}}
+   *
+   * @see #jsonObject
+   */
+  def jsonObjectAgg(onNull: JsonOnNull, keyExpr: Expression, valueExpr: Expression): Expression = {
+    Expressions.jsonObjectAgg(onNull, keyExpr, valueExpr)
+  }
+
+  /**
+   * Builds a JSON array string from a list of values.
+   *
+   * This function returns a JSON string. The values can be arbitrary expressions. The
+   * [[JsonOnNull onNull]] behavior defines how to treat `NULL` values.
+   *
+   * Elements which are created from another JSON construction function call
+   * (`jsonObject`, `jsonArray`) are inserted directly rather than as a string. This allows
+   * building nested JSON structures.
+   *
+   * Examples:
+   *
+   * {{{
+   * // "[]"
+   * jsonArray(JsonOnNull.NULL)
+   * // "[1,\"2\"]"
+   * jsonArray(JsonOnNull.NULL, 1, "2")
+   *
+   * // Expressions as values
+   * jsonArray(JsonOnNull.NULL, $("orderId"))
+   *
+   * // ON NULL
+   * jsonArray(JsonOnNull.NULL, nullOf(DataTypes.STRING()))   // "[null]"
+   * jsonArray(JsonOnNull.ABSENT, nullOf(DataTypes.STRING())) // "[]"
+   *
+   * // "[[1]]"
+   * jsonArray(JsonOnNull.NULL, jsonArray(JsonOnNull.NULL, 1))
+   * }}}
+   *
+   * @see #jsonObject
+   */
+  def jsonArray(onNull: JsonOnNull, values: Expression*): Expression = {
+    Expressions.jsonArray(onNull, values: _*)
+  }
+
+  /**
+   * Builds a JSON object string by aggregating items into an array.
+   *
+   * Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`,
+   * [[JsonOnNull onNull]] behavior defines what to do.
+   *
+   * This function is currently not supported in `OVER` windows, unbounded session windows, or hop
+   * windows.
+   *
+   * Examples:
+   * {{{
+   * // "[\"Apple\",\"Banana\",\"Orange\"]"
+   * orders.select(jsonArrayAgg(JsonOnNull.NULL, $("product")))
+   * }}}
+   *
+   * @see #jsonObject
+   */
+  def jsonArrayAgg(onNull: JsonOnNull, itemExpr: Expression): Expression = {
+    Expressions.jsonArrayAgg(onNull, itemExpr)
   }
 }

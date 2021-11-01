@@ -141,15 +141,6 @@ class DecimalTypeTest extends ExpressionTestBase {
       "CAST(f4 AS BIGINT)",
       "123456789")
 
-    // to boolean (not SQL compliant)
-    testTableApi(
-      'f1.cast(DataTypes.BOOLEAN),
-      "true")
-
-    testTableApi(
-      'f5.cast(DataTypes.BOOLEAN),
-      "false")
-
     testTableApi(
       BigDecimal("123456789.123456789123456789").cast(DataTypes.DOUBLE),
       "1.2345678912345679E8")

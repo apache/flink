@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -239,7 +240,7 @@ class LocalBufferPool implements BufferPool {
 
         CompletableFuture<?> toNotify = null;
         synchronized (availableMemorySegments) {
-            checkState(!isDestroyed, "Buffer pool has been destroyed.");
+            checkDestroyed();
 
             if (numberOfRequestedMemorySegments < numberOfSegmentsToReserve) {
                 availableMemorySegments.addAll(
@@ -356,9 +357,7 @@ class LocalBufferPool implements BufferPool {
     private MemorySegment requestMemorySegment(int targetChannel) {
         MemorySegment segment;
         synchronized (availableMemorySegments) {
-            if (isDestroyed) {
-                throw new IllegalStateException("Buffer pool is destroyed.");
-            }
+            checkDestroyed();
 
             // target channel over quota; do not return a segment
             if (targetChannel != UNKNOWN_CHANNEL
@@ -385,6 +384,12 @@ class LocalBufferPool implements BufferPool {
             checkConsistentAvailability();
         }
         return segment;
+    }
+
+    private void checkDestroyed() {
+        if (isDestroyed) {
+            throw new CancelTaskException("Buffer pool has already been destroyed.");
+        }
     }
 
     @Override

@@ -103,14 +103,14 @@ to its documentation markdown. The following are available for use:
 
 #### Flink Artifact
 
-    {{< artifact flink-streaming-java withScalaVersion >}}
+    {{< artifact flink-streaming-scala withScalaVersion >}}
 
-This will be replaced by the maven artifact for flink-streaming-java that users should copy into their pom.xml file. It will render out to:
+This will be replaced by the maven artifact for flink-streaming-scala that users should copy into their pom.xml file. It will render out to:
 
 ```xml
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-streaming-java_2.11</artifactId>
+    <artifactId>flink-streaming-scala_2.12</artifactId>
     <version><!-- current flink version --></version>
 </dependency>
 ```

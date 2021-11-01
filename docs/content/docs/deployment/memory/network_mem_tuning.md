@@ -50,7 +50,7 @@ The buffer debloat mechanism can be enabled by setting the property `taskmanager
 The targeted time to consume the in-flight data can be configured by setting `taskmanager.network.memory.buffer-debloat.target` to `duration`.
 The default value of the debloat target should be good enough for most cases.
 
-This feature uses past throughout data to predict the time required to consume the remaining
+This feature uses past throughput data to predict the time required to consume the remaining
 in-flight data. If the predictions are incorrect, the debloating mechanism can fail in one of two ways:
 * There will not be enough buffered data to provide full throughput.
 * There will be too many buffered in-flight data which will negatively affect the aligned checkpoint barriers propagation time or the unaligned checkpoint size.

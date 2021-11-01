@@ -152,7 +152,7 @@ public class AsyncCheckpointRunnableTest {
     private AsyncCheckpointRunnable createAsyncRunnable(
             Map<OperatorID, OperatorSnapshotFutures> snapshotsInProgress,
             TestEnvironment environment,
-            boolean isFinishedOnRestore,
+            boolean isTaskDeployedAsFinished,
             boolean isTaskRunning) {
         return new AsyncCheckpointRunnable(
                 snapshotsInProgress,
@@ -165,7 +165,7 @@ public class AsyncCheckpointRunnableTest {
                 r -> {},
                 environment,
                 (msg, ex) -> {},
-                isFinishedOnRestore,
+                isTaskDeployedAsFinished,
                 false,
                 () -> isTaskRunning);
     }

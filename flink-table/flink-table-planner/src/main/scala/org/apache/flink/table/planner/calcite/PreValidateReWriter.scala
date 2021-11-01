@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.SqlProperty
 import org.apache.flink.sql.parser.dml.RichSqlInsert
+import org.apache.flink.sql.parser.dql.SqlRichExplain
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.calcite.PreValidateReWriter.{appendPartitionAndNullsProjects, notSupported}
 import org.apache.flink.table.planner.plan.schema.{CatalogSourceTable, FlinkPreparingTableBase, LegacyCatalogSourceTable}
@@ -49,15 +50,25 @@ class PreValidateReWriter(
     val typeFactory: RelDataTypeFactory) extends SqlBasicVisitor[Unit] {
   override def visit(call: SqlCall): Unit = {
     call match {
-      case r: RichSqlInsert
-          if r.getStaticPartitions.nonEmpty || r.getTargetColumnList != null => r.getSource match {
+      case e: SqlRichExplain =>
+        e.getStatement match {
+          case r: RichSqlInsert => rewriteInsert(r)
+          case _ => // do nothing
+        }
+      case r: RichSqlInsert => rewriteInsert(r)
+      case _ => // do nothing
+    }
+  }
+
+  private def rewriteInsert(r: RichSqlInsert): Unit = {
+    if (r.getStaticPartitions.nonEmpty || r.getTargetColumnList != null) {
+      r.getSource match {
         case call: SqlCall =>
           val newSource = appendPartitionAndNullsProjects(
             r, validator, typeFactory, call, r.getStaticPartitions)
           r.setOperand(2, newSource)
         case source => throw new ValidationException(notSupported(source))
       }
-      case _ =>
     }
   }
 }

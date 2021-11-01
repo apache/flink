@@ -108,7 +108,7 @@ To add new packages to be *parent-first* loaded, please set the `classloader.par
 
 ## Avoiding Dynamic Classloading for User Code
 
-All components (JobManger, TaskManager, Client, ApplicationMaster, ...) log their classpath setting on startup.
+All components (JobManager, TaskManager, Client, ApplicationMaster, ...) log their classpath setting on startup.
 They can be found as part of the environment information at the beginning of the log.
 
 When running a setup where the JobManager and TaskManagers are exclusive to one particular job, one can put user code JAR files

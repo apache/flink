@@ -36,7 +36,7 @@ under the License.
 
 ## Getting Started
 
-This *Getting Started* section guides you through the local setup (on one machine, but in separate processes) of a Flink cluster. This can easily be expanded to set up a distributed standalone cluster, which we describe in the [reference section](#example-2-start-a-distributed-cluster-jobmangers).
+This *Getting Started* section guides you through the local setup (on one machine, but in separate processes) of a Flink cluster. This can easily be expanded to set up a distributed standalone cluster, which we describe in the [reference section](#example-2-start-a-distributed-cluster-jobmanagers).
 
 ### Introduction
 
@@ -156,7 +156,7 @@ localhost
 localhost
 ```
 
-##### Example 2: Start a distributed cluster JobMangers
+##### Example 2: Start a distributed cluster JobManagers
 
 This assumes a cluster with 4 machines (`master1, worker1, worker2, worker3`), which all can reach each other over the network.
 

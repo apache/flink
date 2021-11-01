@@ -77,6 +77,8 @@ public final class Documentation {
         public static final String STATE_BACKEND_LATENCY_TRACKING =
                 "state_backend_latency_tracking";
 
+        public static final String STATE_BACKEND_CHANGELOG = "state_backend_changelog";
+
         public static final String EXPERT_CLASS_LOADING = "expert_class_loading";
         public static final String EXPERT_DEBUGGING_AND_TUNING = "expert_debugging_and_tuning";
         public static final String EXPERT_SCHEDULING = "expert_scheduling";

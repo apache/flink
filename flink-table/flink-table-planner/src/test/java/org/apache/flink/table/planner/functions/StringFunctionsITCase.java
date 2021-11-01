@@ -38,14 +38,15 @@ public class StringFunctionsITCase extends BuiltInFunctionTestBase {
                 TestSpec.forFunction(BuiltInFunctionDefinitions.REGEXP_EXTRACT, "Check return type")
                         .onFieldsWithData("22", "ABC")
                         .testResult(
-                                call("regexpExtract", $("f0"), "[A-Z]+"),
-                                "REGEXP_EXTRACT(f0,'[A-Z]+')",
-                                null,
-                                DataTypes.STRING().nullable())
-                        .testResult(
-                                call("regexpExtract", $("f1"), "[A-Z]+"),
-                                "REGEXP_EXTRACT(f1, '[A-Z]+')",
-                                "ABC",
-                                DataTypes.STRING().nullable()));
+                                resultSpec(
+                                        call("regexpExtract", $("f0"), "[A-Z]+"),
+                                        "REGEXP_EXTRACT(f0,'[A-Z]+')",
+                                        null,
+                                        DataTypes.STRING().nullable()),
+                                resultSpec(
+                                        call("regexpExtract", $("f1"), "[A-Z]+"),
+                                        "REGEXP_EXTRACT(f1, '[A-Z]+')",
+                                        "ABC",
+                                        DataTypes.STRING().nullable())));
     }
 }

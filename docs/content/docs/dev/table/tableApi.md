@@ -1108,7 +1108,7 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
 {{< /tab >}}
 {{< /tabs >}}
 
-#### Join with Temporal TAble
+#### Join with Temporal Table
 
 Temporal tables are tables that track changes over time.
 

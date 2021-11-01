@@ -24,7 +24,6 @@ import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
@@ -46,8 +45,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Test for {@link JdbcTableSource} and {@link JdbcUpsertTableSink} created by {@link
- * JdbcTableSourceSinkFactory}.
+ * Test for {@link JdbcDynamicTableSource} and {@link JdbcDynamicTableSink} created by {@link
+ * JdbcDynamicTableFactory}.
  */
 public class JdbcDynamicTableFactoryTest {
 
@@ -92,7 +91,7 @@ public class JdbcDynamicTableFactoryTest {
                         options,
                         JdbcReadOptions.builder().build(),
                         lookupOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
+                        SCHEMA.toPhysicalRowDataType());
         assertEquals(expectedSource, actualSource);
 
         // validation for sink
@@ -113,10 +112,7 @@ public class JdbcDynamicTableFactoryTest {
                         .build();
         JdbcDynamicTableSink expectedSink =
                 new JdbcDynamicTableSink(
-                        options,
-                        executionOptions,
-                        dmlOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
+                        options, executionOptions, dmlOptions, SCHEMA.toPhysicalRowDataType());
         assertEquals(expectedSink, actualSink);
     }
 
@@ -154,10 +150,7 @@ public class JdbcDynamicTableFactoryTest {
                         .build();
         JdbcDynamicTableSource expected =
                 new JdbcDynamicTableSource(
-                        options,
-                        readOptions,
-                        lookupOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
+                        options, readOptions, lookupOptions, SCHEMA.toPhysicalRowDataType());
 
         assertEquals(expected, actual);
     }
@@ -187,7 +180,7 @@ public class JdbcDynamicTableFactoryTest {
                         options,
                         JdbcReadOptions.builder().build(),
                         lookupOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
+                        SCHEMA.toPhysicalRowDataType());
 
         assertEquals(expected, actual);
     }
@@ -222,10 +215,7 @@ public class JdbcDynamicTableFactoryTest {
 
         JdbcDynamicTableSink expected =
                 new JdbcDynamicTableSink(
-                        options,
-                        executionOptions,
-                        dmlOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
+                        options, executionOptions, dmlOptions, SCHEMA.toPhysicalRowDataType());
 
         assertEquals(expected, actual);
     }
@@ -259,10 +249,7 @@ public class JdbcDynamicTableFactoryTest {
 
         JdbcDynamicTableSink expected =
                 new JdbcDynamicTableSink(
-                        options,
-                        executionOptions,
-                        dmlOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
+                        options, executionOptions, dmlOptions, SCHEMA.toPhysicalRowDataType());
 
         assertEquals(expected, actual);
     }

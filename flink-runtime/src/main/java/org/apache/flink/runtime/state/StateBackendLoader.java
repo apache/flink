@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackendFactory;
@@ -300,7 +301,7 @@ public class StateBackendLoader {
                 TernaryBoolean.TRUE.equals(isChangelogStateBackendEnableFromApplication)
                         || (TernaryBoolean.UNDEFINED.equals(
                                         isChangelogStateBackendEnableFromApplication)
-                                && config.get(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG));
+                                && config.get(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG));
 
         StateBackend backend;
         if (enableChangeLog) {

@@ -81,7 +81,7 @@ Other parameters for checkpointing include:
 
   - *externalized checkpoints*: You can configure periodic checkpoints to be persisted externally. Externalized checkpoints write their meta data out to persistent storage and are *not* automatically cleaned up when the job fails. This way, you will have a checkpoint around to resume from if your job fails. There are more details in the [deployment notes on externalized checkpoints]({{< ref "docs/ops/state/checkpoints" >}}#externalized-checkpoints).
 
-  - *unaligned checkpoints*: You can enable [unaligned checkpoints]({{< ref "docs/ops/state/unaligned_checkpoints" >}}) to greatly reduce checkpointing times under backpressure. This only works for exactly-once checkpoints and with number of concurrent checkpoints of 1.
+  - *unaligned checkpoints*: You can enable [unaligned checkpoints]({{< ref "docs/ops/state/checkpointing_under_backpressure" >}}#unaligned-checkpoints) to greatly reduce checkpointing times under backpressure. This only works for exactly-once checkpoints and with one concurrent checkpoint.
 
   - *checkpoints with finished tasks*: You can enable an experimental feature to continue performing checkpoints even if parts of the DAG have finished processing all of their records. Before doing so, please read through some [important considerations](#checkpointing-with-parts-of-the-graph-finished).
 
@@ -115,7 +115,7 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 env.getCheckpointConfig().enableExternalizedCheckpoints(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-// enables the experimental unaligned checkpoints
+// enables the unaligned checkpoints
 env.getCheckpointConfig().enableUnalignedCheckpoints();
 
 // sets the checkpoint storage where checkpoint snapshots will be written
@@ -156,7 +156,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 env.getCheckpointConfig().enableExternalizedCheckpoints(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
-// enables the experimental unaligned checkpoints
+// enables the unaligned checkpoints
 env.getCheckpointConfig.enableUnalignedCheckpoints()
 
 // sets the checkpoint storage where checkpoint snapshots will be written
@@ -195,7 +195,7 @@ env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
 # enable externalized checkpoints which are retained after job cancellation
 env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
-# enables the experimental unaligned checkpoints
+# enables the unaligned checkpoints
 env.get_checkpoint_config().enable_unaligned_checkpoints()
 ```
 {{< /tab >}}

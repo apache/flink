@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.taskmanager.AsynchronousException;
 
 /**
  * {@code RuntimeException} for wrapping exceptions that are thrown in the timer callback of the

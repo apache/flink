@@ -197,6 +197,32 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
         assertEquals("a", deserializer.deserialize(DEFAULT_TOPIC, record.value()));
     }
 
+    @Test
+    public void testSerializeRecordWithTimestamp() {
+        final SerializationSchema<String> serializationSchema = new SimpleStringSchema();
+        final KafkaRecordSerializationSchema<String> schema =
+                KafkaRecordSerializationSchema.builder()
+                        .setTopic(DEFAULT_TOPIC)
+                        .setValueSerializationSchema(serializationSchema)
+                        .setKeySerializationSchema(serializationSchema)
+                        .build();
+        final ProducerRecord<byte[], byte[]> recordWithTimestamp =
+                schema.serialize("a", null, 100L);
+        assertEquals(100L, (long) recordWithTimestamp.timestamp());
+
+        final ProducerRecord<byte[], byte[]> recordWithTimestampZero =
+                schema.serialize("a", null, 0L);
+        assertEquals(0L, (long) recordWithTimestampZero.timestamp());
+
+        final ProducerRecord<byte[], byte[]> recordWithoutTimestamp =
+                schema.serialize("a", null, null);
+        assertNull(recordWithoutTimestamp.timestamp());
+
+        final ProducerRecord<byte[], byte[]> recordWithInvalidTimestamp =
+                schema.serialize("a", null, -100L);
+        assertNull(recordWithInvalidTimestamp.timestamp());
+    }
+
     private static void assertOnlyOneSerializerAllowed(
             List<
                             Function<

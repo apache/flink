@@ -64,7 +64,7 @@ public class MockEnvironmentBuilder {
     private ExternalResourceInfoProvider externalResourceInfoProvider =
             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
     private ThroughputCalculator throughputCalculator =
-            new ThroughputCalculator(SystemClock.getInstance(), 10);
+            new ThroughputCalculator(SystemClock.getInstance());
 
     private MemoryManager buildMemoryManager(long memorySize) {
         return MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();

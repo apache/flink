@@ -24,6 +24,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
@@ -191,6 +192,10 @@ public class DefaultDispatcherResourceManagerComponentFactory
                     HistoryServerArchivist.createHistoryServerArchivist(
                             configuration, webMonitorEndpoint, ioExecutor);
 
+            final DispatcherOperationCaches dispatcherOperationCaches =
+                    new DispatcherOperationCaches(
+                            configuration.get(RestOptions.ASYNC_OPERATION_STORE_DURATION));
+
             final PartialDispatcherServices partialDispatcherServices =
                     new PartialDispatcherServices(
                             configuration,
@@ -205,7 +210,8 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             fatalErrorHandler,
                             historyServerArchivist,
                             metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
-                            ioExecutor);
+                            ioExecutor,
+                            dispatcherOperationCaches);
 
             log.debug("Starting Dispatcher.");
             dispatcherRunner =
@@ -229,7 +235,8 @@ public class DefaultDispatcherResourceManagerComponentFactory
                     dispatcherLeaderRetrievalService,
                     resourceManagerRetrievalService,
                     webMonitorEndpoint,
-                    fatalErrorHandler);
+                    fatalErrorHandler,
+                    dispatcherOperationCaches);
 
         } catch (Exception exception) {
             // clean up all started components

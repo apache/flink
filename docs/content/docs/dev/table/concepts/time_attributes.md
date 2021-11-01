@@ -172,7 +172,7 @@ Processing Time
 
 Processing time allows a table program to produce results based on the time of the local machine. It is the simplest notion of time, but it will generate non-deterministic results. Processing time does not require timestamp extraction or watermark generation.
 
-There are three ways to define a processing time attribute.
+There are two ways to define a processing time attribute.
 
 ### Defining in DDL
 

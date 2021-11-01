@@ -25,6 +25,7 @@ import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.validateInputDataType;
 
@@ -47,6 +48,11 @@ public final class LookupRuntimeProviderContext implements LookupTableSource.Loo
     public TypeInformation<?> createTypeInformation(DataType producedDataType) {
         validateInputDataType(producedDataType);
         return InternalTypeInfo.of(producedDataType.getLogicalType());
+    }
+
+    @Override
+    public TypeInformation<?> createTypeInformation(LogicalType producedLogicalType) {
+        return InternalTypeInfo.of(producedLogicalType);
     }
 
     @Override

@@ -586,9 +586,8 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         }
 
         @Override
-        public Future<Void> cancel() throws Exception {
+        public void cancel() throws Exception {
             running = false;
-            return CompletableFuture.completedFuture(null);
         }
 
         @Override

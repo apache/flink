@@ -88,6 +88,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -179,6 +180,8 @@ import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_TARGET;
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES;
+import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_SEGMENT_SIZE;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.runtime.io.network.api.writer.RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME;
@@ -189,9 +192,11 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -340,36 +345,24 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testCleanUpExceptionSuppressing() throws Exception {
-        OneInputStreamTaskTestHarness<String, String> testHarness =
-                new OneInputStreamTaskTestHarness<>(
-                        OneInputStreamTask::new, STRING_TYPE_INFO, STRING_TYPE_INFO);
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
+                        .addInput(STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(new FailingTwiceOperator())
+                        .build()) {
 
-        testHarness.setupOutputForSingletonOperatorChain();
-
-        StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setStreamOperator(new FailingTwiceOperator());
-        streamConfig.setOperatorID(new OperatorID());
-
-        testHarness.invoke();
-        testHarness.waitForTaskRunning();
-
-        testHarness.processElement(new StreamRecord<>("Doesn't matter", 0));
-
-        try {
-            testHarness.waitForTaskCompletion();
-            throw new RuntimeException("Expected an exception but ran successfully");
-        } catch (Exception ex) {
-            if (!(ex.getCause() instanceof ExpectedTestException)) {
-                throw ex;
+            try {
+                testHarness.processElement(new StreamRecord<>("Doesn't matter", 0));
+                throw new RuntimeException("Expected an exception but ran successfully");
+            } catch (Exception ex) {
+                ExceptionUtils.assertThrowable(ex, ExpectedTestException.class);
             }
-        }
 
-        try {
-            testHarness.getTask().cleanUp(null);
-        } catch (Exception ex) {
-            // todo: checking for suppression if there are more exceptions during cleanup
-            if (!(ex instanceof FailingTwiceOperator.CloseException)) {
-                throw ex;
+            try {
+                testHarness.finishProcessing();
+            } catch (Exception ex) {
+                // todo: checking for suppression if there are more exceptions during cleanup
+                ExceptionUtils.assertThrowable(ex, FailingTwiceOperator.CloseException.class);
             }
         }
     }
@@ -1576,7 +1569,7 @@ public class StreamTaskTest extends TestLogger {
                         .setupOutputForSingletonOperatorChain(
                                 new TestBoundedOneInputStreamOperator())
                         .setThroughputCalculator(
-                                new ThroughputCalculator(SystemClock.getInstance(), 10) {
+                                new ThroughputCalculator(SystemClock.getInstance()) {
                                     @Override
                                     public long calculateThroughput() {
                                         finishFuture.complete(null);
@@ -1669,6 +1662,7 @@ public class StreamTaskTest extends TestLogger {
                 new Configuration()
                         .set(BUFFER_DEBLOAT_PERIOD, Duration.ofHours(10))
                         .set(BUFFER_DEBLOAT_TARGET, Duration.ofSeconds(1))
+                        .set(BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES, 1)
                         .set(BUFFER_DEBLOAT_ENABLED, true);
 
         Map<String, Metric> metrics = new ConcurrentHashMap<>();
@@ -1683,7 +1677,7 @@ public class StreamTaskTest extends TestLogger {
                         .setupOutputForSingletonOperatorChain(
                                 new TestBoundedOneInputStreamOperator())
                         .setThroughputCalculator(
-                                new ThroughputCalculator(SystemClock.getInstance(), 10) {
+                                new ThroughputCalculator(SystemClock.getInstance()) {
                                     @Override
                                     public long calculateThroughput() {
                                         return expectedThroughput;
@@ -1693,21 +1687,32 @@ public class StreamTaskTest extends TestLogger {
             harness.processAll();
             harness.streamTask.debloat();
 
-            int expectedBufferSize = expectedThroughput / inputChannels;
+            long lastBufferSize = -1;
             for (InputGate inputGate : harness.streamTask.getEnvironment().getAllInputGates()) {
                 for (int i = 0; i < inputGate.getNumberOfInputChannels(); i++) {
+                    long currentBufferSize =
+                            ((TestInputChannel) inputGate.getChannel(i)).getCurrentBufferSize();
                     assertThat(
-                            ((TestInputChannel) inputGate.getChannel(i)).getCurrentBufferSize(),
-                            is(expectedBufferSize));
+                            currentBufferSize,
+                            lessThan(MEMORY_SEGMENT_SIZE.defaultValue().getBytes()));
+
+                    assertThat(currentBufferSize, greaterThan(0L));
+
+                    if (lastBufferSize > 0) {
+                        assertThat(lastBufferSize, is(currentBufferSize));
+                    }
+                    lastBufferSize = currentBufferSize;
                 }
             }
             assertThat(
                     ((Gauge<Integer>) metrics.get(MetricNames.DEBLOATED_BUFFER_SIZE)).getValue(),
-                    is(expectedBufferSize));
+                    is((int) lastBufferSize));
+            // The estimated time should be greater than the configured time because the buffer size
+            // is changed according to EMA, not instantly.
             assertThat(
                     ((Gauge<Long>) metrics.get(MetricNames.ESTIMATED_TIME_TO_CONSUME_BUFFERS))
                             .getValue(),
-                    is(999L));
+                    greaterThan(1000L));
         }
     }
 

@@ -92,7 +92,7 @@ project.
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-cep{{< scala_version >}}</artifactId>
+  <artifactId>flink-cep</artifactId>
   <version>{{< version >}}</version>
 </dependency>
 ```
