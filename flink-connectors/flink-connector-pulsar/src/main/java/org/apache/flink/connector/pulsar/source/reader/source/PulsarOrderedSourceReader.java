@@ -205,11 +205,6 @@ public class PulsarOrderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT> 
     }
 
     @VisibleForTesting
-    int getNumAliveFetchers() {
-        return splitFetcherManager.getNumAliveFetchers();
-    }
-
-    @VisibleForTesting
     SortedMap<Long, Map<TopicPartition, MessageId>> getCursorsToCommit() {
         return cursorsToCommit;
     }
