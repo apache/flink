@@ -32,55 +32,53 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.function.Supplier;
 
 
 
 @ExtendWith(TestLoggerExtension.class)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PulsarOrderedSourceReaderTest extends SourceReaderTestBase<PulsarPartitionSplit> {
 
     private static final String TOPIC = "PulsarOrderedSourceReaderTest";
 
     @RegisterExtension
-    final PulsarTestEnvironment environment = new PulsarTestEnvironment(runtime());
+    static final PulsarTestEnvironment environment = new PulsarTestEnvironment(runtime());
 
     /**
      * Choose the desired pulsar runtime as the test backend. The default test backend is a mocked
      * pulsar broker. Override this method when needs.
      */
-    private PulsarRuntime runtime() {
+    private static PulsarRuntime runtime() {
         return PulsarRuntime.mock();
     }
 
     /** Operate pulsar by acquiring a runtime operator. */
-    private PulsarRuntimeOperator operator() {
+    private static PulsarRuntimeOperator operator() {
         return environment.operator();
     }
 
-    @BeforeAll
+    @BeforeEach
     void beforeAll() {
         Random random = new Random(System.currentTimeMillis());
         operator().setupTopic(TOPIC, Schema.INT32, () -> random.nextInt(20), NUM_RECORDS_PER_SPLIT);
     }
 
-    @AfterAll
+    @AfterEach
     void afterAll() {
         operator().deleteTopic(TOPIC, true);
     }
