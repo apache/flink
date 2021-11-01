@@ -123,7 +123,7 @@ under the License.
 		<!-- Only the curator2 TestingServer works with ZK 3.4 -->
 		<curator.version>2.12.0</curator.version>
 		<prometheus.version>0.8.1</prometheus.version>
-		<avro.version>1.10.0</avro.version>
+		<avro.version>1.11.0</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
