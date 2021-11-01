@@ -136,4 +136,31 @@ public class WindowTableFunctionJsonPlanTest extends TableTestBase {
                         + "  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE)))\n"
                         + "WHERE rownum <= 3");
     }
+
+    @Test
+    public void testFollowedByWindowDeduplicate() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + " window_start TIMESTAMP(3),\n"
+                        + " window_end TIMESTAMP(3),\n"
+                        + " a INT,\n"
+                        + " b BIGINT,\n"
+                        + " c VARCHAR\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values')\n";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink select\n"
+                        + "  window_start,\n"
+                        + "  window_end,\n"
+                        + "  a,\n"
+                        + "  b,\n"
+                        + "  c\n"
+                        + "FROM (\n"
+                        + "  SELECT\n"
+                        + "    *,\n"
+                        + "   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY rowtime DESC) as rownum\n"
+                        + "  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE)))\n"
+                        + "WHERE rownum <= 1");
+    }
 }

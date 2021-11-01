@@ -439,7 +439,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalTemporalSortRule.INSTANCE,
     // rank
     StreamPhysicalRankRule.INSTANCE,
-    StreamPhysicalDeduplicateRule.RANK_INSTANCE,
+    StreamPhysicalDeduplicateRule.INSTANCE,
     // expand
     StreamPhysicalExpandRule.INSTANCE,
     // group agg
@@ -460,6 +460,7 @@ object FlinkStreamRuleSets {
     PullUpWindowTableFunctionIntoWindowAggregateRule.INSTANCE,
     ExpandWindowTableFunctionTransposeRule.INSTANCE,
     StreamPhysicalWindowRankRule.INSTANCE,
+    StreamPhysicalWindowDeduplicateRule.INSTANCE,
     // join
     StreamPhysicalJoinRule.INSTANCE,
     StreamPhysicalIntervalJoinRule.INSTANCE,
@@ -507,6 +508,8 @@ object FlinkStreamRuleSets {
     // simplify window tvf
     SimplifyWindowTableFunctionRules.WITH_CALC_WINDOW_RANK,
     SimplifyWindowTableFunctionRules.WITH_WINDOW_RANK,
+    SimplifyWindowTableFunctionRules.WITH_CALC_WINDOW_DEDUPLICATE,
+    SimplifyWindowTableFunctionRules.WITH_WINDOW_DEDUPLICATE,
     SimplifyWindowTableFunctionRules.WITH_LEFT_RIGHT_CALC_WINDOW_JOIN,
     SimplifyWindowTableFunctionRules.WITH_LEFT_CALC_WINDOW_JOIN,
     SimplifyWindowTableFunctionRules.WITH_RIGHT_CALC_WINDOW_JOIN,

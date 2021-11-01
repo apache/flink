@@ -70,6 +70,20 @@ object WindowUtil {
   }
 
   /**
+   * Excludes window_start, window_end and window_time properties from grouping keys.
+   */
+  def groupingExcludeWindowStartEndTimeColumns(
+      grouping: ImmutableBitSet,
+      windowProperties: RelWindowProperties): (
+    ImmutableBitSet, ImmutableBitSet, ImmutableBitSet, ImmutableBitSet) = {
+    val startColumns = windowProperties.getWindowStartColumns.intersect(grouping)
+    val endColumns = windowProperties.getWindowEndColumns.intersect(grouping)
+    val timeColumns = windowProperties.getWindowTimeColumns.intersect(grouping)
+    val newGrouping = grouping.except(startColumns).except(endColumns).except(timeColumns)
+    (startColumns, endColumns, timeColumns, newGrouping)
+  }
+
+  /**
    * Returns true if the [[RexNode]] is a window table-valued function call.
    */
   def isWindowTableFunctionCall(node: RexNode): Boolean = node match {
