@@ -83,7 +83,7 @@ import java.util.List;
  * }</pre>
  *
  * <p>We can see the original {@code LocalHashAggregate} has been removed and pushed down into the
- * {@code TableSourceScan}. Meanwhile the output datatype of {@code TableSourceScan} has changed,
+ * {@code TableSourceScan}. Meanwhile, the output datatype of {@code TableSourceScan} has changed,
  * which is the pattern of {@code grouping sets} + {@code the output of aggregate functions}.
  *
  * <p>Due to the complexity of aggregate, the aggregate push down does not support a number of more
@@ -124,6 +124,9 @@ import java.util.List;
  *
  * <p>Regardless if this interface is implemented or not, a final aggregation is always applied in a
  * subsequent operation after the source.
+ *
+ * <p>Table planner also checks option {@code table.optimizer.source.aggregate-pushdown-enabled} to
+ * determine whether aggregate pushdown is enabled or not.
  */
 @PublicEvolving
 public interface SupportsAggregatePushDown {
@@ -133,21 +136,24 @@ public interface SupportsAggregatePushDown {
      * the aggregates or nothing and return whether all the aggregates have been pushed down into
      * the source.
      *
-     * <p>Note: Use the passed {@code producedDataType} instead of {@link
-     * TableSchema#toPhysicalRowDataType()} for describing the final output data type when creating
-     * {@link TypeInformation}. The projection of grouping keys and aggregate values is already
-     * considered in the given output data type. The passed data type pattern is {@code grouping
-     * sets} + {@code aggregate function result}, downstream storage need to organize the returned
-     * aggregate data strictly in this manner.
+     * <p>Note: If aggregates are pushed down, table source should use the passed {@code
+     * producedDataType} instead of {@link TableSchema#toPhysicalRowDataType()} for describing the
+     * final output data type when creating {@link TypeInformation}. The projection of grouping keys
+     * and aggregate values is already considered in the given output data type. The passed data
+     * type pattern is {@code grouping sets} + {@code aggregate function result}, downstream storage
+     * need to organize the returned aggregate data strictly in this manner.
      *
-     * @param groupingSets a array list of the grouping sets. In the example mentioned in {@link
+     * @param groupingSets an array list of the grouping sets. Currently, this list contains one
+     *     array only. Implemented methods should check if grouping aggregates are supported by
+     *     source when array is not empty. In the example mentioned in {@link
      *     SupportsAggregatePushDown}, this method would receive the groupingSets of {@code List([1,
      *     4])} which is equivalent to {@code List(["name", "type"])}.
-     * @param aggregateExpressions a list contains all of aggregates, you should check if all of
-     *     aggregate functions can be processed by downstream system. The applying strategy is all
-     *     or nothing.
-     * @param producedDataType the final output type of the source.
-     * @return true if all the aggregates have been pushed down into source, false otherwise.
+     * @param aggregateExpressions a list containing all local aggregates. Implemented methods
+     *     should check if all aggregate functions can be processed by downstream system. The
+     *     applying strategy is all or nothing.
+     * @param producedDataType the final output type of source if aggregates are pushed down.
+     * @return true if all the aggregates have been pushed down into source, false otherwise. If the
+     *     returned value is {@code true}, local aggregates will be removed from physical plan.
      */
     boolean applyAggregates(
             List<int[]> groupingSets,
