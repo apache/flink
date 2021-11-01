@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.source.reader.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
@@ -201,5 +202,15 @@ public class PulsarOrderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT> 
             LOG.error("Fail in auto cursor commit.", e);
             cursorCommitThrowable.compareAndSet(null, e);
         }
+    }
+
+    @VisibleForTesting
+    int getNumAliveFetchers() {
+        return splitFetcherManager.getNumAliveFetchers();
+    }
+
+    @VisibleForTesting
+    SortedMap<Long, Map<TopicPartition, MessageId>> getCursorsToCommit() {
+        return cursorsToCommit;
     }
 }
