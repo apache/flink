@@ -169,4 +169,32 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
       "SELECT * FROM MyTable WHERE b = 1 OR b = 2 OR (a <> 1 AND a <> 2 AND a <> 3 " +
       "AND a <> 4 AND c = 1) OR b = 3 OR b = 4 OR c = 1")
   }
+
+  @Test
+  def testConvertToSearch(): Unit = {
+    util.verifyRelPlan(
+      """
+        |SELECT * from MyTable where e in (
+        |'CTNBSmokeSensor',
+        |'H388N',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N'
+        |)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testConvertToSearch2(): Unit = {
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE " +
+        "e = 'a' or e = 'b' or e = 'c' or e = 'd' or e = 'e' or e = 'f' or e = NULL or e = " +
+        "'HELLO " +
+        "WORLD!'"
+    )
+  }
 }
