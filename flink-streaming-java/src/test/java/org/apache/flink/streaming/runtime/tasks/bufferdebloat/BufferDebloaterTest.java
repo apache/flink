@@ -18,25 +18,16 @@
 
 package org.apache.flink.streaming.runtime.tasks.bufferdebloat;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.streaming.runtime.io.MockInputGate;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static org.apache.flink.configuration.MemorySize.MemoryUnit.BYTES;
-import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
-import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_SAMPLES;
-import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_TARGET;
-import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_SEGMENT_SIZE;
-import static org.apache.flink.configuration.TaskManagerOptions.MIN_MEMORY_SEGMENT_SIZE;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -121,46 +112,6 @@ public class BufferDebloaterTest extends TestLogger {
                 .withNumberOfBuffersInUse(asList(3, 5, 8))
                 .withThroughput(3333)
                 .expectBufferSize(-1);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testNegativeMinBufferSize() {
-        testBufferDebloater()
-                .withDebloatTarget(1200)
-                .withBufferSize(-1, 248)
-                .withNumberOfBuffersInUse(asList(3, 5, 8))
-                .withThroughput(3333)
-                .expectBufferSize(248);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testNegativeMaxBufferSize() {
-        testBufferDebloater()
-                .withDebloatTarget(1200)
-                .withBufferSize(50, -1)
-                .withNumberOfBuffersInUse(asList(3, 5, 8))
-                .withThroughput(3333)
-                .expectBufferSize(248);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testMinGreaterThanMaxBufferSize() {
-        testBufferDebloater()
-                .withDebloatTarget(1200)
-                .withBufferSize(50, 49)
-                .withNumberOfBuffersInUse(asList(3, 5, 8))
-                .withThroughput(3333)
-                .expectBufferSize(248);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testNegativeConsumptionTime() {
-        testBufferDebloater()
-                .withDebloatTarget(-1)
-                .withBufferSize(50, 1100)
-                .withNumberOfBuffersInUse(asList(3, 5, 8))
-                .withThroughput(3333)
-                .expectBufferSize(248);
     }
 
     @Test
@@ -278,16 +229,11 @@ public class BufferDebloaterTest extends TestLogger {
 
             BufferDebloater bufferDebloater =
                     new BufferDebloater(
-                            new Configuration()
-                                    .set(BUFFER_DEBLOAT_ENABLED, true)
-                                    .set(BUFFER_DEBLOAT_SAMPLES, 1)
-                                    .set(BUFFER_DEBLOAT_TARGET, Duration.ofMillis(debloatTarget))
-                                    .set(
-                                            MEMORY_SEGMENT_SIZE,
-                                            MemorySize.parse("" + maxBufferSize, BYTES))
-                                    .set(
-                                            MIN_MEMORY_SEGMENT_SIZE,
-                                            MemorySize.parse("" + minBufferSize, BYTES)),
+                            debloatTarget,
+                            (int) maxBufferSize,
+                            (int) minBufferSize,
+                            50,
+                            1,
                             inputGates);
 
             // when: Buffer size is calculated.

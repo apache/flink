@@ -87,6 +87,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHand
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.bufferdebloat.BufferDebloatConfiguration;
 import org.apache.flink.streaming.runtime.tasks.bufferdebloat.BufferDebloater;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
@@ -432,9 +433,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         this.bufferDebloatPeriod = taskManagerConf.get(BUFFER_DEBLOAT_PERIOD).toMillis();
 
-        if (taskManagerConf.get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
+        final BufferDebloatConfiguration debloatConfiguration =
+                BufferDebloatConfiguration.fromConfiguration(taskManagerConf);
+        if (debloatConfiguration.isEnabled()) {
             this.bufferDebloater =
-                    new BufferDebloater(taskManagerConf, environment.getAllInputGates());
+                    new BufferDebloater(
+                            debloatConfiguration.getTargetTotalBufferSize().toMillis(),
+                            debloatConfiguration.getMaxBufferSize(),
+                            debloatConfiguration.getMinBufferSize(),
+                            debloatConfiguration.getBufferDebloatThresholdPercentages(),
+                            debloatConfiguration.getNumberOfSamples(),
+                            environment.getAllInputGates());
             environment
                     .getMetricGroup()
                     .gauge(
