@@ -18,15 +18,9 @@
 
 package org.apache.flink.streaming.runtime.tasks.bufferdebloat;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 
 import java.time.Duration;
-
-import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_TARGET;
-import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES;
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Class for automatic calculation of the buffer size based on the current throughput and
@@ -35,7 +29,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class BufferDebloater {
     private static final long MILLIS_IN_SECOND = 1000;
 
-    private final Duration targetTotalBufferSize;
+    private final long targetTotalBufferSize;
     private final IndexedInputGate[] inputGates;
     private final long maxBufferSize;
     private final long minBufferSize;
@@ -46,34 +40,26 @@ public class BufferDebloater {
 
     private Duration lastEstimatedTimeToConsumeBuffers = Duration.ZERO;
 
-    public BufferDebloater(Configuration taskConfig, IndexedInputGate[] inputGates) {
+    public BufferDebloater(
+            long targetTotalBufferSize,
+            int maxBufferSize,
+            int minBufferSize,
+            int bufferDebloatThresholdPercentages,
+            long numberOfSamples,
+            IndexedInputGate[] inputGates) {
         this.inputGates = inputGates;
-        this.targetTotalBufferSize = taskConfig.get(BUFFER_DEBLOAT_TARGET);
-        this.maxBufferSize = taskConfig.get(TaskManagerOptions.MEMORY_SEGMENT_SIZE).getBytes();
-        this.minBufferSize = taskConfig.get(TaskManagerOptions.MIN_MEMORY_SEGMENT_SIZE).getBytes();
+        this.targetTotalBufferSize = targetTotalBufferSize;
+        this.maxBufferSize = maxBufferSize;
+        this.minBufferSize = minBufferSize;
+        this.bufferDebloatThresholdPercentages = bufferDebloatThresholdPercentages;
 
-        this.bufferDebloatThresholdPercentages =
-                taskConfig.getInteger(BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES);
-
-        this.lastBufferSize = (int) maxBufferSize;
-        bufferSizeEMA =
-                new BufferSizeEMA(
-                        (int) maxBufferSize,
-                        (int) minBufferSize,
-                        taskConfig.get(TaskManagerOptions.BUFFER_DEBLOAT_SAMPLES));
-
-        // Right now the buffer size can not be grater than integer max value according to
-        // MemorySegment and buffer implementation.
-        checkArgument(maxBufferSize <= Integer.MAX_VALUE);
-        checkArgument(maxBufferSize > 0);
-        checkArgument(minBufferSize > 0);
-        checkArgument(maxBufferSize >= minBufferSize);
-        checkArgument(targetTotalBufferSize.toMillis() > 0.0);
+        this.lastBufferSize = maxBufferSize;
+        bufferSizeEMA = new BufferSizeEMA(maxBufferSize, minBufferSize, numberOfSamples);
     }
 
     public void recalculateBufferSize(long currentThroughput) {
         long desiredTotalBufferSizeInBytes =
-                (currentThroughput * targetTotalBufferSize.toMillis()) / MILLIS_IN_SECOND;
+                (currentThroughput * targetTotalBufferSize) / MILLIS_IN_SECOND;
 
         int totalNumber = 0;
         for (IndexedInputGate inputGate : inputGates) {
