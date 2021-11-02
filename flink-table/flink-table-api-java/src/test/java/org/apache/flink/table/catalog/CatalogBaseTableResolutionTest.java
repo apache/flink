@@ -181,7 +181,7 @@ public class CatalogBaseTableResolutionTest {
 
         try {
             resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
-            fail();
+            fail("Invalid partition keys expected.");
         } catch (Exception e) {
             assertThat(
                     e,
