@@ -58,7 +58,7 @@ object TransitiveClosureNaive {
       val nextPaths = prevPaths
         .join(edges)
         .where(1).equalTo(0) {
-          (left, right) => (left._1,right._2)
+          (left, right) => (left._1, right._2)
         }.withForwardedFieldsFirst("_1").withForwardedFieldsSecond("_2")
         .union(prevPaths)
         .groupBy(0, 1)
