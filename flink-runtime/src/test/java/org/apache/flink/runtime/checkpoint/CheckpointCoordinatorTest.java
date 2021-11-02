@@ -189,10 +189,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         ExecutionVertex lateReportVertex =
                 executionGraph.getJobVertex(lateReportVertexID).getTaskVertices()[0];
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(
-                        Integer.MAX_VALUE,
-                        CheckpointCoordinatorConfiguration.builder().build(),
-                        new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
         CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
                         .setExecutionGraph(executionGraph)
@@ -437,10 +434,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         .build();
 
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(
-                        Integer.MAX_VALUE,
-                        CheckpointCoordinatorConfiguration.builder().build(),
-                        new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
         checkpointCoordinator.setCheckpointStatsTracker(statsTracker);
 
         // nothing should be happening
