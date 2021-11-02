@@ -152,7 +152,7 @@ public class DataTypeTest {
     }
 
     @Test
-    public void getFieldNames() {
+    public void testGetFieldNames() {
         assertEquals(
                 Arrays.asList("c0", "c1", "c2"),
                 DataType.getFieldNames(
@@ -169,7 +169,7 @@ public class DataTypeTest {
     }
 
     @Test
-    public void getFieldDataTypes() {
+    public void testGetFieldDataTypes() {
         assertEquals(
                 Arrays.asList(BOOLEAN(), DOUBLE(), INT()),
                 DataType.getFieldDataTypes(
@@ -186,7 +186,7 @@ public class DataTypeTest {
     }
 
     @Test
-    public void getFieldCount() {
+    public void testGetFieldCount() {
         assertEquals(
                 3,
                 DataType.getFieldCount(
@@ -203,7 +203,7 @@ public class DataTypeTest {
     }
 
     @Test
-    public void getFields() {
+    public void testGetFields() {
         assertEquals(
                 Arrays.asList(FIELD("c0", BOOLEAN()), FIELD("c1", DOUBLE()), FIELD("c2", INT())),
                 DataType.getFields(
@@ -219,5 +219,22 @@ public class DataTypeTest {
                                 FIELD("count", INT().notNull().bridgedTo(int.class)))));
         assertEquals(Collections.emptyList(), DataType.getFields(ARRAY(INT())));
         assertEquals(Collections.emptyList(), DataType.getFields(INT()));
+    }
+
+    @Test
+    public void testExcludeFields() {
+        assertEquals(
+                ROW(FIELD("c0", BOOLEAN()), FIELD("c2", INT())),
+                DataType.excludeFields(
+                        ROW(FIELD("c0", BOOLEAN()), FIELD("c1", DOUBLE()), FIELD("c2", INT())),
+                        new int[] {1}));
+        assertEquals(
+                ROW(FIELD("c0", BOOLEAN())),
+                DataType.excludeFields(
+                        ROW(
+                                FIELD("c0", BOOLEAN()),
+                                FIELD("c1", ROW(FIELD("c11", BOOLEAN()), FIELD("c12", BOOLEAN()))),
+                                FIELD("c2", INT())),
+                        new int[] {1, 2}));
     }
 }
