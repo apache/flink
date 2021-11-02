@@ -208,10 +208,7 @@ public class DefaultExecutionGraphBuilder {
             int historySize = jobManagerConfig.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
 
             CheckpointStatsTracker checkpointStatsTracker =
-                    new CheckpointStatsTracker(
-                            historySize,
-                            snapshotSettings.getCheckpointCoordinatorConfiguration(),
-                            metrics);
+                    new CheckpointStatsTracker(historySize, metrics);
 
             // load the state backend from the application settings
             final StateBackend applicationConfiguredBackend;

@@ -235,6 +235,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     // ------ Fields that are relevant to the execution and need to be cleared before archiving
     // -------
 
+    @Nullable private CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration;
+
     /** The coordinator for checkpoints, if snapshot checkpoints are enabled. */
     @Nullable private CheckpointCoordinator checkpointCoordinator;
 
@@ -405,6 +407,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 buildOpCoordinatorCheckpointContexts();
 
         checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
+        checkpointCoordinatorConfiguration =
+                checkNotNull(chkConfig, "CheckpointCoordinatorConfiguration");
 
         CheckpointFailureManager failureManager =
                 new CheckpointFailureManager(
@@ -494,8 +498,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public CheckpointCoordinatorConfiguration getCheckpointCoordinatorConfiguration() {
-        if (checkpointStatsTracker != null) {
-            return checkpointStatsTracker.getJobCheckpointingConfiguration();
+        if (checkpointCoordinatorConfiguration != null) {
+            return checkpointCoordinatorConfiguration;
         } else {
             return null;
         }
