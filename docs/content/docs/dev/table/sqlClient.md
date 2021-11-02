@@ -91,6 +91,40 @@ The `SET` command allows you to tune the job execution and the sql client behavi
 After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job.
 The [configuration section](#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
+### Key-strokes
+
+There is a list of available key-strokes in SQL client
+
+| Key-Stroke | Description                                |
+|:-----------|:-------------------------------------------|
+| `alt-b`    | Backward word                              |
+| `alt-f`    | Forward word                               |
+| `alt-c`    | Capitalize word                            |
+| `alt-l`    | Lowercase word                             |
+| `alt-u`    | Uppercase word                             |
+| `alt-d`    | Kill word                                  |
+| `alt-n`    | History search forward                     |
+| `alt-p`    | History search backward                    |
+| `alt-t`    | Transpose words                            |
+| `ctrl-a`   | To the beginning of line                   |
+| `ctrl-e`   | To the end of line                         |
+| `ctrl-b`   | Backward char                              |
+| `ctrl-f`   | Forward char                               |
+| `ctrl-d`   | Delete char                                |
+| `ctrl-h`   | Backward delete char                       |
+| `ctrl-t`   | Transpose chars                            |
+| `ctrl-i`   | Invoke completion                          |
+| `ctrl-j`   | Submit a query                             |
+| `ctrl-m`   | Submit a query                             |
+| `ctrl-k`   | Kill the line to the right from the cursor |
+| `ctrl-w`   | Kill the line to the left from the cursor  |
+| `ctrl-u`   | Kill the whole line                        |
+| `ctrl-l`   | Clear screen                               |
+| `ctrl-n`   | Down line from history                     |
+| `ctrl-p`   | Up line from history                       |
+| `ctrl-r`   | History incremental search backward        |
+| `ctrl-s`   | History incremental search forward         |
+
 ### Getting help
 
 The documentation of the SQL client commands can be accessed by typing the `HELP` command.
