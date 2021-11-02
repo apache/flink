@@ -484,4 +484,33 @@ class CalcITCase extends StreamingTestBase {
       List("1,HI,1111,true,111","2,HELLO,2222,false,222", "3,HELLO WORLD,3333,true,333")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testSearch(): Unit = {
+    val stream = env.fromElements("HC809", "H389N     ")
+    tEnv.createTemporaryView(
+      "SimpleTable", stream, Schema.newBuilder().column("f0", DataTypes.STRING()).build())
+
+    val sql =
+      """
+        |SELECT upper(f0) from SimpleTable where upper(f0) in (
+        |'CTNBSmokeSensor',
+        |'H388N',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N'
+        |)
+        |
+        |""".stripMargin
+    val result = tEnv.sqlQuery(sql).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+    val expected =
+      List("HC809", "H389N     ")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 }

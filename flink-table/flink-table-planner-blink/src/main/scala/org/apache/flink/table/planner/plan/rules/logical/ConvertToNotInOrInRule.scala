@@ -77,8 +77,8 @@ class ConvertToNotInOrInRule
   }
 
   /**
-    * Returns a condition decomposed by [[AND]] or [[OR]].
-    */
+   * Returns a condition decomposed by [[AND]] or [[OR]].
+   */
   private def decomposedBy(rex: RexNode, operator: SqlBinaryOperator): Seq[RexNode] = {
     operator match {
       case AND => RelOptUtil.conjunctions(rex)
@@ -87,12 +87,12 @@ class ConvertToNotInOrInRule
   }
 
   /**
-    * Convert a cascade predicates to [[IN]] or [[NOT_IN]].
-    *
-    * @param builder The [[RelBuilder]] to build the [[RexNode]].
-    * @param rex     The predicates to be converted.
-    * @return The converted predicates.
-    */
+   * Convert a cascade predicates to [[IN]] or [[NOT_IN]].
+   *
+   * @param builder The [[RelBuilder]] to build the [[RexNode]].
+   * @param rex     The predicates to be converted.
+   * @return The converted predicates.
+   */
   private def convertToNotInOrIn(
       builder: RelBuilder,
       rex: RexNode,
