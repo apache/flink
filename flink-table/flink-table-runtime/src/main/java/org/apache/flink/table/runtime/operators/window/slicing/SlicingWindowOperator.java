@@ -185,9 +185,18 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
         super.initializeState(context);
         ListStateDescriptor<Long> watermarkStateDesc =
                 new ListStateDescriptor<>("watermark", LongSerializer.INSTANCE);
-        this.watermarkState = context.getOperatorStateStore().getListState(watermarkStateDesc);
+        this.watermarkState = context.getOperatorStateStore().getUnionListState(watermarkStateDesc);
         if (context.isRestored()) {
-            this.currentWatermark = this.watermarkState.get().iterator().next();
+            Iterable<Long> watermarks = watermarkState.get();
+            if (watermarks != null) {
+                Long minWatermark = Long.MAX_VALUE;
+                for (Long watermark : watermarks) {
+                    minWatermark = Math.min(watermark, minWatermark);
+                }
+                if (minWatermark != Long.MAX_VALUE) {
+                    this.currentWatermark = minWatermark;
+                }
+            }
         }
     }
 
