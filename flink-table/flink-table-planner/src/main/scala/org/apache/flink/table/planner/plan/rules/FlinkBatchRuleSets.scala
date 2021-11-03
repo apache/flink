@@ -173,16 +173,22 @@ object FlinkBatchRuleSets {
   )
 
   /**
-    * RuleSet to do push predicate/partition into table scan
-    */
-  val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
-    // push a filter down into the table scan
-    PushFilterIntoTableSourceScanRule.INSTANCE,
-    PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
+   * RuleSet to push down partitions into table source
+   */
+  val PUSH_PARTITION_DOWN_RULES: RuleSet = RuleSets.ofList(
     // push partition into the table scan
     PushPartitionIntoLegacyTableSourceScanRule.INSTANCE,
     // push partition into the dynamic table scan
     PushPartitionIntoTableSourceScanRule.INSTANCE
+  )
+
+  /**
+   * RuleSet to push down filters into table source
+   */
+  val PUSH_FILTER_DOWN_RULES: RuleSet = RuleSets.ofList(
+    // push a filter down into the table scan
+    PushFilterIntoTableSourceScanRule.INSTANCE,
+    PushFilterIntoLegacyTableSourceScanRule.INSTANCE
   )
 
   /**
