@@ -300,7 +300,15 @@ public class PushProjectIntoTableSourceScanRule
                                 .getLogicalType();
 
         if (supportsProjectionPushDown(source.tableSource())) {
-            abilitySpecs.add(new ProjectPushDownSpec(physicalProjections, newProducedType));
+            abilitySpecs.add(
+                    new ProjectPushDownSpec(
+                            physicalProjections,
+                            (RowType)
+                                    DataTypeUtils.projectRow(
+                                                    TypeConversions.fromLogicalToDataType(
+                                                            producedType),
+                                                    physicalProjections)
+                                            .getLogicalType()));
         }
 
         if (supportsMetadata(source.tableSource())) {
