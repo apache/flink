@@ -65,8 +65,6 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
-import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
-import org.apache.flink.runtime.state.heap.NestedStateMap;
 import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -114,7 +112,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -4375,9 +4372,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.update(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
@@ -4398,9 +4394,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.add(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
@@ -4430,9 +4425,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.add(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
@@ -4456,27 +4450,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
                 StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
                 assertNotNull("State not set", stateTable.get(keyGroupIndex));
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
             }
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
-        }
-    }
-
-    private void checkConcurrentStateTable(StateTable<?, ?, ?> stateTable, int numberOfKeyGroups) {
-        assertNotNull("State not set", stateTable);
-        if (stateTable instanceof NestedMapsStateTable) {
-            int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-            NestedMapsStateTable<?, ?, ?> nestedMapsStateTable =
-                    (NestedMapsStateTable<?, ?, ?>) stateTable;
-            NestedStateMap<?, ?, ?>[] nestedStateMaps =
-                    (NestedStateMap<?, ?, ?>[]) nestedMapsStateTable.getState();
-            assertTrue(
-                    nestedStateMaps[keyGroupIndex].getNamespaceMap() instanceof ConcurrentHashMap);
-            assertTrue(
-                    nestedStateMaps[keyGroupIndex].getNamespaceMap().get(VoidNamespace.INSTANCE)
-                            instanceof ConcurrentHashMap);
         }
     }
 
