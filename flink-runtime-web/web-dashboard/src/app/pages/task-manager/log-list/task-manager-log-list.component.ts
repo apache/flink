@@ -19,6 +19,8 @@ import { first, flatMap } from 'rxjs/operators';
 
 import { TaskManagerService } from 'services';
 
+import { typeDefinition } from '../../../utils/strong-type';
+
 @Component({
   selector: 'flink-task-manager-log-list',
   templateUrl: './task-manager-log-list.component.html',
@@ -29,6 +31,7 @@ export class TaskManagerLogListComponent implements OnInit {
   isLoading = true;
 
   trackByName = (_: number, log: { name: string; size: number }): string => log.name;
+  readonly narrowLogData = typeDefinition<{ name: string; size: number }>();
 
   constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
 

@@ -44,7 +44,6 @@ export class JobManagerStdoutComponent implements OnInit, OnDestroy {
       .loadStdout()
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
-        // this.monacoEditorComponent.layout();
         this.loading = false;
         this.stdout = data;
         this.cdr.markForCheck();

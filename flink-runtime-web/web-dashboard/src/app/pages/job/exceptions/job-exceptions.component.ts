@@ -69,7 +69,6 @@ export class JobExceptionsComponent implements OnInit, OnDestroy {
   isLoading = false;
   maxExceptions = 0;
   total = 0;
-  index = 0;
   editorOptions: EditorOptions = flinkEditorOptions;
   private destroy$ = new Subject<void>();
 
