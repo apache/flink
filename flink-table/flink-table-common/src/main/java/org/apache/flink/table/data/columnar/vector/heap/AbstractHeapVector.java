@@ -48,8 +48,11 @@ public abstract class AbstractHeapVector extends AbstractWritableVector {
     /** Reusable column for ids of dictionary. */
     protected HeapIntVector dictionaryIds;
 
+    private int len;
+
     public AbstractHeapVector(int len) {
         isNull = new boolean[len];
+        this.len = len;
     }
 
     /**
@@ -113,5 +116,9 @@ public abstract class AbstractHeapVector extends AbstractWritableVector {
     @Override
     public HeapIntVector getDictionaryIds() {
         return dictionaryIds;
+    }
+
+    public int getLen() {
+        return this.len;
     }
 }

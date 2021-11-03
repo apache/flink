@@ -20,6 +20,7 @@ package org.apache.flink.formats.parquet.vector;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
+import org.apache.flink.formats.parquet.vector.reader.ArrayColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.BooleanColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ByteColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.BytesColumnReader;
@@ -29,12 +30,15 @@ import org.apache.flink.formats.parquet.vector.reader.FixedLenBytesColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.FloatColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.IntColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.LongColumnReader;
+import org.apache.flink.formats.parquet.vector.reader.MapColumnReader;
+import org.apache.flink.formats.parquet.vector.reader.RowColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ShortColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.columnar.vector.heap.HeapArrayVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapBooleanVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapByteVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapBytesVector;
@@ -42,22 +46,31 @@ import org.apache.flink.table.data.columnar.vector.heap.HeapDoubleVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapFloatVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapIntVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapLongVector;
+import org.apache.flink.table.data.columnar.vector.heap.HeapMapColumnVector;
+import org.apache.flink.table.data.columnar.vector.heap.HeapRowColumnVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapShortVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapTimestampVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.ParquetRuntimeException;
 import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.column.page.PageReader;
+import org.apache.parquet.column.page.PageReadStore;
+import org.apache.parquet.schema.GroupType;
+import org.apache.parquet.schema.InvalidSchemaException;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Type;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -65,6 +78,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -257,56 +271,136 @@ public class ParquetSplitReaderUtil {
         }
     }
 
+    private static List<ColumnDescriptor> getAllColumnDescriptorByType(
+            int depth, Type type, List<ColumnDescriptor> columns) throws ParquetRuntimeException {
+        List<ColumnDescriptor> res = new ArrayList<>();
+        for (ColumnDescriptor descriptor : columns) {
+            if (depth >= descriptor.getPath().length) {
+                throw new InvalidSchemaException("Corrupted Parquet schema");
+            }
+            if (type.getName().equals(descriptor.getPath()[depth])) {
+                res.add(descriptor);
+            }
+        }
+        return res;
+    }
+
     public static ColumnReader createColumnReader(
-            boolean utcTimestamp,
+            boolean isUtcTimestamp,
             LogicalType fieldType,
-            ColumnDescriptor descriptor,
-            PageReader pageReader)
+            Type type,
+            List<ColumnDescriptor> columnDescriptors,
+            PageReadStore pages,
+            int depth)
             throws IOException {
+        List<ColumnDescriptor> descriptors =
+                getAllColumnDescriptorByType(depth, type, columnDescriptors);
         switch (fieldType.getTypeRoot()) {
             case BOOLEAN:
-                return new BooleanColumnReader(descriptor, pageReader);
+                return new BooleanColumnReader(
+                        descriptors.get(0), pages.getPageReader(descriptors.get(0)));
             case TINYINT:
-                return new ByteColumnReader(descriptor, pageReader);
+                return new ByteColumnReader(
+                        descriptors.get(0), pages.getPageReader(descriptors.get(0)));
             case DOUBLE:
-                return new DoubleColumnReader(descriptor, pageReader);
+                return new DoubleColumnReader(
+                        descriptors.get(0), pages.getPageReader(descriptors.get(0)));
             case FLOAT:
-                return new FloatColumnReader(descriptor, pageReader);
+                return new FloatColumnReader(
+                        descriptors.get(0), pages.getPageReader(descriptors.get(0)));
             case INTEGER:
             case DATE:
             case TIME_WITHOUT_TIME_ZONE:
-                return new IntColumnReader(descriptor, pageReader);
+                return new IntColumnReader(
+                        descriptors.get(0), pages.getPageReader(descriptors.get(0)));
             case BIGINT:
-                return new LongColumnReader(descriptor, pageReader);
+                return new LongColumnReader(
+                        descriptors.get(0), pages.getPageReader(descriptors.get(0)));
             case SMALLINT:
-                return new ShortColumnReader(descriptor, pageReader);
+                return new ShortColumnReader(
+                        descriptors.get(0), pages.getPageReader(descriptors.get(0)));
             case CHAR:
             case VARCHAR:
             case BINARY:
             case VARBINARY:
-                return new BytesColumnReader(descriptor, pageReader);
+                return new BytesColumnReader(
+                        descriptors.get(0), pages.getPageReader(descriptors.get(0)));
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                return new TimestampColumnReader(utcTimestamp, descriptor, pageReader);
+                return new TimestampColumnReader(
+                        isUtcTimestamp,
+                        descriptors.get(0),
+                        pages.getPageReader(descriptors.get(0)));
             case DECIMAL:
-                switch (descriptor.getPrimitiveType().getPrimitiveTypeName()) {
+                switch (descriptors.get(0).getPrimitiveType().getPrimitiveTypeName()) {
                     case INT32:
-                        return new IntColumnReader(descriptor, pageReader);
+                        return new IntColumnReader(
+                                descriptors.get(0), pages.getPageReader(descriptors.get(0)));
                     case INT64:
-                        return new LongColumnReader(descriptor, pageReader);
+                        return new LongColumnReader(
+                                descriptors.get(0), pages.getPageReader(descriptors.get(0)));
                     case BINARY:
-                        return new BytesColumnReader(descriptor, pageReader);
+                        return new BytesColumnReader(
+                                descriptors.get(0), pages.getPageReader(descriptors.get(0)));
                     case FIXED_LEN_BYTE_ARRAY:
                         return new FixedLenBytesColumnReader(
-                                descriptor, pageReader, ((DecimalType) fieldType).getPrecision());
+                                descriptors.get(0),
+                                pages.getPageReader(descriptors.get(0)),
+                                ((DecimalType) fieldType).getPrecision());
                 }
+            case ARRAY:
+                return new ArrayColumnReader(
+                        descriptors.get(0),
+                        pages.getPageReader(descriptors.get(0)),
+                        isUtcTimestamp,
+                        descriptors.get(0).getPrimitiveType(),
+                        fieldType);
+            case MAP:
+                MapType mapType = (MapType) fieldType;
+                ArrayColumnReader keyReader =
+                        new ArrayColumnReader(
+                                descriptors.get(0),
+                                pages.getPageReader(descriptors.get(0)),
+                                isUtcTimestamp,
+                                descriptors.get(0).getPrimitiveType(),
+                                new ArrayType(mapType.getKeyType()));
+                ArrayColumnReader valueReader =
+                        new ArrayColumnReader(
+                                descriptors.get(1),
+                                pages.getPageReader(descriptors.get(1)),
+                                isUtcTimestamp,
+                                descriptors.get(1).getPrimitiveType(),
+                                new ArrayType(mapType.getValueType()));
+                return new MapColumnReader(keyReader, valueReader, fieldType);
+            case ROW:
+                RowType rowType = (RowType) fieldType;
+                GroupType groupType = type.asGroupType();
+                List<ColumnReader> fieldReaders = new ArrayList<>();
+                for (int i = 0; i < rowType.getFieldCount(); i++) {
+                    fieldReaders.add(
+                            createColumnReader(
+                                    isUtcTimestamp,
+                                    rowType.getTypeAt(i),
+                                    groupType.getType(i),
+                                    descriptors,
+                                    pages,
+                                    depth + 1));
+                }
+                return new RowColumnReader(fieldReaders);
             default:
                 throw new UnsupportedOperationException(fieldType + " is not supported now.");
         }
     }
 
     public static WritableColumnVector createWritableColumnVector(
-            int batchSize, LogicalType fieldType, PrimitiveType primitiveType) {
+            int batchSize,
+            LogicalType fieldType,
+            Type type,
+            List<ColumnDescriptor> columnDescriptors,
+            int depth) {
+        List<ColumnDescriptor> descriptors =
+                getAllColumnDescriptorByType(depth, type, columnDescriptors);
+        PrimitiveType primitiveType = descriptors.get(0).getPrimitiveType();
         PrimitiveType.PrimitiveTypeName typeName = primitiveType.getPrimitiveTypeName();
         switch (fieldType.getTypeRoot()) {
             case BOOLEAN:
@@ -396,6 +490,48 @@ public class ParquetSplitReaderUtil {
                             typeName);
                     return new HeapBytesVector(batchSize);
                 }
+            case ARRAY:
+                ArrayType arrayType = (ArrayType) fieldType;
+                return new HeapArrayVector(
+                        batchSize,
+                        createWritableColumnVector(
+                                batchSize,
+                                arrayType.getElementType(),
+                                type,
+                                columnDescriptors,
+                                depth));
+            case MAP:
+                MapType mapType = (MapType) fieldType;
+                GroupType repeatedType = type.asGroupType().getType(0).asGroupType();
+                return new HeapMapColumnVector(
+                        batchSize,
+                        createWritableColumnVector(
+                                batchSize,
+                                mapType.getKeyType(),
+                                repeatedType.getType(0),
+                                descriptors,
+                                depth + 2),
+                        createWritableColumnVector(
+                                batchSize,
+                                mapType.getValueType(),
+                                repeatedType.getType(1),
+                                descriptors,
+                                depth + 2));
+            case ROW:
+                RowType rowType = (RowType) fieldType;
+                GroupType groupType = type.asGroupType();
+                WritableColumnVector[] columnVectors =
+                        new WritableColumnVector[rowType.getFieldCount()];
+                for (int i = 0; i < columnVectors.length; i++) {
+                    columnVectors[i] =
+                            createWritableColumnVector(
+                                    batchSize,
+                                    rowType.getTypeAt(i),
+                                    groupType.getType(i),
+                                    descriptors,
+                                    depth + 1);
+                }
+                return new HeapRowColumnVector(batchSize, columnVectors);
             default:
                 throw new UnsupportedOperationException(fieldType + " is not supported now.");
         }

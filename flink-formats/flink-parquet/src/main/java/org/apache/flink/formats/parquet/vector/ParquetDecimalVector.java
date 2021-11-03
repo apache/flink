@@ -32,7 +32,7 @@ import org.apache.flink.table.data.columnar.vector.LongColumnVector;
  */
 public class ParquetDecimalVector implements DecimalColumnVector {
 
-    private final ColumnVector vector;
+    public final ColumnVector vector;
 
     public ParquetDecimalVector(ColumnVector vector) {
         this.vector = vector;
@@ -40,10 +40,11 @@ public class ParquetDecimalVector implements DecimalColumnVector {
 
     @Override
     public DecimalData getDecimal(int i, int precision, int scale) {
-        if (ParquetSchemaConverter.is32BitDecimal(precision)) {
+        if (ParquetSchemaConverter.is32BitDecimal(precision) && vector instanceof IntColumnVector) {
             return DecimalData.fromUnscaledLong(
                     ((IntColumnVector) vector).getInt(i), precision, scale);
-        } else if (ParquetSchemaConverter.is64BitDecimal(precision)) {
+        } else if (ParquetSchemaConverter.is64BitDecimal(precision)
+                && vector instanceof LongColumnVector) {
             return DecimalData.fromUnscaledLong(
                     ((LongColumnVector) vector).getLong(i), precision, scale);
         } else {
