@@ -64,8 +64,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.planner.utils.TimestampStringUtils.fromLocalDateTime;
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
-import static org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime;
 
 /** Visit expression to generator {@link RexNode}. */
 public class ExpressionConverter implements ExpressionVisitor<RexNode> {

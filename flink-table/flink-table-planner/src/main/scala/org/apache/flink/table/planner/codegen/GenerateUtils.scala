@@ -34,7 +34,7 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterStrin
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getFieldTypes}
-import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
+import org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime
 
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.util.TimestampString
