@@ -219,6 +219,7 @@ public class BufferDebloaterTest extends TestLogger {
 
         private BufferDebloater getBufferDebloater() {
             return new BufferDebloater(
+                    0,
                     debloatTarget,
                     maxBufferSize,
                     minBufferSize,
