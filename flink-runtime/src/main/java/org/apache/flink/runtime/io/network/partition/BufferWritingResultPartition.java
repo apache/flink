@@ -64,6 +64,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
     private TimerGauge backPressuredTimeMsPerSecond = new TimerGauge();
 
+    private long totalWrittenBytes;
+
     public BufferWritingResultPartition(
             String owningTaskName,
             int partitionIndex,
@@ -112,6 +114,17 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @Override
+    public long getSizeOfQueuedBuffersUnsafe() {
+        long totalNumberOfBytes = 0;
+
+        for (ResultSubpartition subpartition : subpartitions) {
+            totalNumberOfBytes += Math.max(0, subpartition.getTotalNumberOfBytes());
+        }
+
+        return totalWrittenBytes - totalNumberOfBytes;
+    }
+
+    @Override
     public int getNumberOfQueuedBuffers(int targetSubpartition) {
         checkArgument(targetSubpartition >= 0 && targetSubpartition < numSubpartitions);
         return subpartitions[targetSubpartition].unsynchronizedGetNumberOfQueuedBuffers();
@@ -139,6 +152,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
     @Override
     public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+        totalWrittenBytes += record.remaining();
+
         BufferBuilder buffer = appendUnicastDataForNewRecord(record, targetSubpartition);
 
         while (record.hasRemaining()) {
@@ -157,6 +172,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
     @Override
     public void broadcastRecord(ByteBuffer record) throws IOException {
+        totalWrittenBytes += ((long) record.remaining() * numSubpartitions);
+
         BufferBuilder buffer = appendBroadcastDataForNewRecord(record);
 
         while (record.hasRemaining()) {
@@ -181,6 +198,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
         try (BufferConsumer eventBufferConsumer =
                 EventSerializer.toBufferConsumer(event, isPriorityEvent)) {
+            totalWrittenBytes += ((long) eventBufferConsumer.getWrittenBytes() * numSubpartitions);
             for (ResultSubpartition subpartition : subpartitions) {
                 // Retain the buffer so that it can be recycled by each channel of targetPartition
                 subpartition.add(eventBufferConsumer.copy(), 0);

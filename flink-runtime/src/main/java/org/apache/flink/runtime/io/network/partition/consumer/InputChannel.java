@@ -298,6 +298,10 @@ public abstract class InputChannel {
         return 0;
     }
 
+    public long unsynchronizedGetSizeOfQueuedBuffers() {
+        return 0;
+    }
+
     // ------------------------------------------------------------------------
 
     /**
