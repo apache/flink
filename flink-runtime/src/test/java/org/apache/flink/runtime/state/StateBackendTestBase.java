@@ -451,7 +451,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     public void testGetKeysAndNamespaces() throws Exception {
         final int elementsNum = 1000;
-        String fieldName = "get-keys-test";
+        String valueStateFieldName = "value-state";
+        String mapStateFieldName = "map-state";
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
@@ -460,22 +461,66 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                     backend.getPartitionedState(
                             ns1,
                             StringSerializer.INSTANCE,
-                            new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE));
+                            new ValueStateDescriptor<>(
+                                    valueStateFieldName, IntSerializer.INSTANCE));
+
+            MapState<Integer, Integer> keyedState2 =
+                    backend.getPartitionedState(
+                            ns1,
+                            StringSerializer.INSTANCE,
+                            new MapStateDescriptor<>(
+                                    mapStateFieldName,
+                                    IntSerializer.INSTANCE,
+                                    IntSerializer.INSTANCE));
 
             final String ns2 = "ns2";
-            ValueState<Integer> keyedState2 =
+            ValueState<Integer> keyedState3 =
                     backend.getPartitionedState(
                             ns2,
                             StringSerializer.INSTANCE,
-                            new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE));
+                            new ValueStateDescriptor<>(
+                                    valueStateFieldName, IntSerializer.INSTANCE));
+
+            MapState<Integer, Integer> keyedState4 =
+                    backend.getPartitionedState(
+                            ns2,
+                            StringSerializer.INSTANCE,
+                            new MapStateDescriptor<>(
+                                    mapStateFieldName,
+                                    IntSerializer.INSTANCE,
+                                    IntSerializer.INSTANCE));
 
             for (int key = 0; key < elementsNum; key++) {
                 backend.setCurrentKey(key);
                 keyedState1.update(key * 2);
-                keyedState2.update(key * 2);
+                keyedState2.put(key * 2, key * 2);
+                keyedState2.put(key * 3, key * 2);
+                keyedState3.update(key * 2);
+                keyedState4.put(key * 2, key * 2);
+                keyedState4.put(key * 3, key * 2);
             }
 
-            try (Stream<Tuple2<Integer, String>> stream = backend.getKeysAndNamespaces(fieldName)) {
+            // valid for valueState
+            try (Stream<Tuple2<Integer, String>> stream =
+                    backend.getKeysAndNamespaces(valueStateFieldName)) {
+                final Map<String, Set<Integer>> keysByNamespace = new HashMap<>();
+                stream.forEach(
+                        entry -> {
+                            assertThat("Unexpected namespace", entry.f1, isOneOf(ns1, ns2));
+                            assertThat(
+                                    "Unexpected key",
+                                    entry.f0,
+                                    is(both(greaterThanOrEqualTo(0)).and(lessThan(elementsNum))));
+
+                            Set<Integer> keys =
+                                    keysByNamespace.computeIfAbsent(entry.f1, k -> new HashSet<>());
+                            assertTrue("Duplicate key for namespace", keys.add(entry.f0));
+                        });
+            }
+
+            // valid for mapState
+            try (Stream<Tuple2<Integer, String>> stream =
+                    backend.getKeysAndNamespaces(mapStateFieldName)) {
                 final Map<String, Set<Integer>> keysByNamespace = new HashMap<>();
                 stream.forEach(
                         entry -> {
