@@ -386,7 +386,9 @@ public class SingleInputGate extends IndexedInputGate {
     @Override
     public void announceBufferSize(int newBufferSize) {
         for (InputChannel channel : channels) {
-            channel.announceBufferSize(newBufferSize);
+            if (!channel.isReleased()) {
+                channel.announceBufferSize(newBufferSize);
+            }
         }
     }
 

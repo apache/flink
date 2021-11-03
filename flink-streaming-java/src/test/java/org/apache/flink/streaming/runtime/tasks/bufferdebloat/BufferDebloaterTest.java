@@ -218,7 +218,7 @@ public class BufferDebloaterTest extends TestLogger {
 
         public TestBufferSizeInputGate(int bufferInUseCount) {
             // Number of channels don't make sense here because
-            super(1, Collections.emptyList());
+            super(1, Collections.emptyList(), false);
             this.bufferInUseCount = bufferInUseCount;
         }
 

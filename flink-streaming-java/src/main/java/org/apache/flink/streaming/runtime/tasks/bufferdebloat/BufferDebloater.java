@@ -96,7 +96,9 @@ public class BufferDebloater {
 
         lastBufferSize = newSize;
         for (IndexedInputGate inputGate : inputGates) {
-            inputGate.announceBufferSize(newSize);
+            if (!inputGate.isFinished()) {
+                inputGate.announceBufferSize(newSize);
+            }
         }
     }
 
