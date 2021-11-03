@@ -18,15 +18,24 @@
 
 package org.apache.flink.formats.parquet;
 
+import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.GenericMapData;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DateType;
@@ -35,20 +44,16 @@ import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.DateTimeUtils;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.OriginalType;
-import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
-import org.apache.parquet.schema.Type.Repetition;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -63,18 +68,20 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.connector.file.src.util.Utils.forEachRemaining;
-import static org.apache.flink.formats.parquet.utils.ParquetWriterUtil.createTempParquetFile;
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
-import static org.apache.parquet.schema.Types.primitive;
+import static org.apache.parquet.schema.Types.list;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -87,45 +94,43 @@ public class ParquetColumnarRowInputFormatTest {
     private static final org.apache.flink.configuration.Configuration EMPTY_CONF =
             new org.apache.flink.configuration.Configuration();
 
-    private static final MessageType PARQUET_SCHEMA =
-            new MessageType(
-                    "TOP",
-                    primitive(PrimitiveTypeName.BINARY, Repetition.OPTIONAL).named("f0"),
-                    primitive(PrimitiveTypeName.BOOLEAN, Repetition.OPTIONAL).named("f1"),
-                    primitive(PrimitiveTypeName.INT32, Repetition.OPTIONAL).named("f2"),
-                    primitive(PrimitiveTypeName.INT32, Repetition.OPTIONAL).named("f3"),
-                    primitive(PrimitiveTypeName.INT32, Repetition.OPTIONAL).named("f4"),
-                    primitive(PrimitiveTypeName.INT64, Repetition.OPTIONAL).named("f5"),
-                    primitive(PrimitiveTypeName.FLOAT, Repetition.OPTIONAL).named("f6"),
-                    primitive(PrimitiveTypeName.DOUBLE, Repetition.OPTIONAL).named("f7"),
-                    primitive(PrimitiveTypeName.INT96, Repetition.OPTIONAL).named("f8"),
-                    primitive(PrimitiveTypeName.INT32, Repetition.OPTIONAL)
-                            .precision(5)
-                            .as(OriginalType.DECIMAL)
-                            .named("f9"),
-                    primitive(PrimitiveTypeName.INT64, Repetition.OPTIONAL)
-                            .precision(15)
-                            .as(OriginalType.DECIMAL)
-                            .named("f10"),
-                    primitive(PrimitiveTypeName.BINARY, Repetition.OPTIONAL)
-                            .precision(20)
-                            .as(OriginalType.DECIMAL)
-                            .named("f11"),
-                    primitive(PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, Repetition.OPTIONAL)
-                            .length(16)
-                            .precision(5)
-                            .as(OriginalType.DECIMAL)
-                            .named("f12"),
-                    primitive(PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, Repetition.OPTIONAL)
-                            .length(16)
-                            .precision(15)
-                            .as(OriginalType.DECIMAL)
-                            .named("f13"),
-                    primitive(PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, Repetition.OPTIONAL)
-                            .length(16)
-                            .precision(20)
-                            .as(OriginalType.DECIMAL)
-                            .named("f14"));
+    private static final RowType ROW_TYPE =
+            RowType.of(
+                    new VarCharType(VarCharType.MAX_LENGTH),
+                    new BooleanType(),
+                    new TinyIntType(),
+                    new SmallIntType(),
+                    new IntType(),
+                    new BigIntType(),
+                    new FloatType(),
+                    new DoubleType(),
+                    new TimestampType(9),
+                    new DecimalType(5, 0),
+                    new DecimalType(15, 0),
+                    new DecimalType(20, 0),
+                    new DecimalType(5, 0),
+                    new DecimalType(15, 0),
+                    new DecimalType(20, 0),
+                    new ArrayType(new VarCharType(VarCharType.MAX_LENGTH)),
+                    new ArrayType(new BooleanType()),
+                    new ArrayType(new TinyIntType()),
+                    new ArrayType(new SmallIntType()),
+                    new ArrayType(new IntType()),
+                    new ArrayType(new BigIntType()),
+                    new ArrayType(new FloatType()),
+                    new ArrayType(new DoubleType()),
+                    new ArrayType(new TimestampType(9)),
+                    new ArrayType(new DecimalType(5, 0)),
+                    new ArrayType(new DecimalType(15, 0)),
+                    new ArrayType(new DecimalType(20, 0)),
+                    new ArrayType(new DecimalType(5, 0)),
+                    new ArrayType(new DecimalType(15, 0)),
+                    new ArrayType(new DecimalType(20, 0)),
+                    new MapType(
+                            new VarCharType(VarCharType.MAX_LENGTH),
+                            new VarCharType(VarCharType.MAX_LENGTH)),
+                    new MapType(new IntType(), new BooleanType()),
+                    RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -221,16 +226,13 @@ public class ParquetColumnarRowInputFormatTest {
     @Test
     public void testProjection() throws IOException {
         int number = 1000;
-        List<Row> records = new ArrayList<>(number);
+        List<RowData> records = new ArrayList<>(number);
         for (int i = 0; i < number; i++) {
             Integer v = i;
             records.add(newRow(v));
         }
 
-        Path testPath =
-                createTempParquetFile(
-                        TEMPORARY_FOLDER.newFolder(), PARQUET_SCHEMA, records, rowGroupSize);
-
+        Path testPath = createTempParquetFile(TEMPORARY_FOLDER.newFolder(), records, rowGroupSize);
         // test reader
         LogicalType[] fieldTypes =
                 new LogicalType[] {new DoubleType(), new TinyIntType(), new IntType()};
@@ -260,15 +262,13 @@ public class ParquetColumnarRowInputFormatTest {
     @Test
     public void testProjectionReadUnknownField() throws IOException {
         int number = 1000;
-        List<Row> records = new ArrayList<>(number);
+        List<RowData> records = new ArrayList<>(number);
         for (int i = 0; i < number; i++) {
             Integer v = i;
             records.add(newRow(v));
         }
 
-        Path testPath =
-                createTempParquetFile(
-                        TEMPORARY_FOLDER.newFolder(), PARQUET_SCHEMA, records, rowGroupSize);
+        Path testPath = createTempParquetFile(TEMPORARY_FOLDER.newFolder(), records, rowGroupSize);
 
         // test reader
         LogicalType[] fieldTypes =
@@ -304,7 +304,7 @@ public class ParquetColumnarRowInputFormatTest {
     public void testPartitionValues() throws IOException {
         // prepare parquet file
         int number = 1000;
-        List<Row> records = new ArrayList<>(number);
+        List<RowData> records = new ArrayList<>(number);
         for (int i = 0; i < number; i++) {
             Integer v = i;
             records.add(newRow(v));
@@ -314,30 +314,28 @@ public class ParquetColumnarRowInputFormatTest {
 
         List<String> partitionKeys =
                 Arrays.asList(
-                        "f15", "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23", "f24", "f25",
-                        "f26", "f27");
+                        "f33", "f34", "f35", "f36", "f37", "f38", "f39", "f40", "f41", "f42", "f43",
+                        "f44", "f45");
 
         // test partition values
 
         LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
-        partSpec.put("f15", "true");
-        partSpec.put("f16", Date.valueOf("2020-11-23").toString());
-        partSpec.put("f17", LocalDateTime.of(1999, 1, 1, 1, 1).toString());
-        partSpec.put("f18", "6.6");
-        partSpec.put("f19", "9");
-        partSpec.put("f20", "10");
-        partSpec.put("f21", "11");
-        partSpec.put("f22", "12");
-        partSpec.put("f23", "13");
-        partSpec.put("f24", "24");
-        partSpec.put("f25", "25");
-        partSpec.put("f26", "26");
-        partSpec.put("f27", "f27");
+        partSpec.put("f33", "true");
+        partSpec.put("f34", Date.valueOf("2020-11-23").toString());
+        partSpec.put("f35", LocalDateTime.of(1999, 1, 1, 1, 1).toString());
+        partSpec.put("f36", "6.6");
+        partSpec.put("f37", "9");
+        partSpec.put("f38", "10");
+        partSpec.put("f39", "11");
+        partSpec.put("f40", "12");
+        partSpec.put("f41", "13");
+        partSpec.put("f42", "24");
+        partSpec.put("f43", "25");
+        partSpec.put("f44", "26");
+        partSpec.put("f45", "f45");
 
         String partPath = generatePartitionPath(partSpec);
-        Path testPath =
-                createTempParquetFile(
-                        new File(root, partPath), PARQUET_SCHEMA, records, rowGroupSize);
+        Path testPath = createTempParquetFile(new File(root, partPath), records, rowGroupSize);
 
         innerTestPartitionValues(testPath, partitionKeys, false);
 
@@ -348,18 +346,14 @@ public class ParquetColumnarRowInputFormatTest {
         }
 
         partPath = generatePartitionPath(partSpec);
-        testPath =
-                createTempParquetFile(
-                        new File(root, partPath), PARQUET_SCHEMA, records, rowGroupSize);
+        testPath = createTempParquetFile(new File(root, partPath), records, rowGroupSize);
 
         innerTestPartitionValues(testPath, partitionKeys, true);
     }
 
     private void innerTestTypes(List<Integer> records) throws IOException {
-        List<Row> rows = records.stream().map(this::newRow).collect(Collectors.toList());
-        Path testPath =
-                createTempParquetFile(
-                        TEMPORARY_FOLDER.newFolder(), PARQUET_SCHEMA, rows, rowGroupSize);
+        List<RowData> rows = records.stream().map(this::newRow).collect(Collectors.toList());
+        Path testPath = createTempParquetFile(TEMPORARY_FOLDER.newFolder(), rows, rowGroupSize);
 
         // test reading and splitting
         long fileLen = testPath.getFileSystem().getFileStatus(testPath).getLen();
@@ -381,6 +375,25 @@ public class ParquetColumnarRowInputFormatTest {
         assertEquals(records.size() - records.size() / 2, cntAfterSeeking);
     }
 
+    private Path createTempParquetFile(File folder, List<RowData> rows, int rowGroupSize)
+            throws IOException {
+        // write data
+        Path path = new Path(folder.getPath(), UUID.randomUUID().toString());
+        Configuration conf = new Configuration();
+        conf.setInt("parquet.block.size", rowGroupSize);
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(ROW_TYPE, conf, false);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        for (int i = 0; i < rows.size(); i++) {
+            writer.addElement(rows.get(i));
+        }
+
+        writer.flush();
+        writer.finish();
+        return path;
+    }
+
     private int testReadingSplit(
             List<Integer> expected, Path path, long splitStart, long splitLength)
             throws IOException {
@@ -390,38 +403,10 @@ public class ParquetColumnarRowInputFormatTest {
     private int testReadingSplit(
             List<Integer> expected, Path path, long splitStart, long splitLength, long seekToRow)
             throws IOException {
-        LogicalType[] fieldTypes =
-                new LogicalType[] {
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new BooleanType(),
-                    new TinyIntType(),
-                    new SmallIntType(),
-                    new IntType(),
-                    new BigIntType(),
-                    new FloatType(),
-                    new DoubleType(),
-                    new TimestampType(9),
-                    new DecimalType(5, 0),
-                    new DecimalType(15, 0),
-                    new DecimalType(20, 0),
-                    new DecimalType(5, 0),
-                    new DecimalType(15, 0),
-                    new DecimalType(20, 0)
-                };
 
         ParquetColumnarRowInputFormat format =
                 new ParquetColumnarRowInputFormat(
-                        new Configuration(),
-                        RowType.of(
-                                fieldTypes,
-                                new String[] {
-                                    "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9",
-                                    "f10", "f11", "f12", "f13", "f14"
-                                }),
-                        null,
-                        500,
-                        false,
-                        true);
+                        new Configuration(), ROW_TYPE, null, 500, false, true);
 
         // validate java serialization
         try {
@@ -475,6 +460,24 @@ public class ParquetColumnarRowInputFormatTest {
                         assertTrue(row.isNullAt(12));
                         assertTrue(row.isNullAt(13));
                         assertTrue(row.isNullAt(14));
+                        assertTrue(row.isNullAt(15));
+                        assertTrue(row.isNullAt(16));
+                        assertTrue(row.isNullAt(17));
+                        assertTrue(row.isNullAt(18));
+                        assertTrue(row.isNullAt(19));
+                        assertTrue(row.isNullAt(20));
+                        assertTrue(row.isNullAt(21));
+                        assertTrue(row.isNullAt(22));
+                        assertTrue(row.isNullAt(23));
+                        assertTrue(row.isNullAt(24));
+                        assertTrue(row.isNullAt(25));
+                        assertTrue(row.isNullAt(26));
+                        assertTrue(row.isNullAt(27));
+                        assertTrue(row.isNullAt(28));
+                        assertTrue(row.isNullAt(29));
+                        assertTrue(row.isNullAt(30));
+                        assertTrue(row.isNullAt(31));
+                        assertTrue(row.isNullAt(32));
                     } else {
                         assertEquals("" + v, row.getString(0).toString());
                         assertEquals(v % 2 == 0, row.getBoolean(1));
@@ -485,17 +488,61 @@ public class ParquetColumnarRowInputFormatTest {
                         assertEquals(v.floatValue(), row.getFloat(6), 0);
                         assertEquals(v.doubleValue(), row.getDouble(7), 0);
                         assertEquals(toDateTime(v), row.getTimestamp(8, 9).toLocalDateTime());
-                        assertEquals(BigDecimal.valueOf(v), row.getDecimal(9, 5, 0).toBigDecimal());
+                        if (DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0) == null) {
+                            assertTrue(row.isNullAt(9));
+                            assertTrue(row.isNullAt(12));
+                            assertTrue(row.isNullAt(24));
+                            assertTrue(row.isNullAt(27));
+                        } else {
+                            assertEquals(
+                                    DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0),
+                                    row.getDecimal(9, 5, 0));
+                            assertEquals(
+                                    DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0),
+                                    row.getDecimal(12, 5, 0));
+                            assertEquals(
+                                    DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0),
+                                    row.getArray(24).getDecimal(0, 5, 0));
+                            assertEquals(
+                                    DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0),
+                                    row.getArray(27).getDecimal(0, 5, 0));
+                        }
                         assertEquals(
                                 BigDecimal.valueOf(v), row.getDecimal(10, 15, 0).toBigDecimal());
                         assertEquals(
                                 BigDecimal.valueOf(v), row.getDecimal(11, 20, 0).toBigDecimal());
                         assertEquals(
-                                BigDecimal.valueOf(v), row.getDecimal(12, 5, 0).toBigDecimal());
-                        assertEquals(
                                 BigDecimal.valueOf(v), row.getDecimal(13, 15, 0).toBigDecimal());
                         assertEquals(
                                 BigDecimal.valueOf(v), row.getDecimal(14, 20, 0).toBigDecimal());
+                        assertEquals("" + v, row.getArray(15).getString(0).toString());
+                        assertEquals(v % 2 == 0, row.getArray(16).getBoolean(0));
+                        assertEquals(v.byteValue(), row.getArray(17).getByte(0));
+                        assertEquals(v.shortValue(), row.getArray(18).getShort(0));
+                        assertEquals(v.intValue(), row.getArray(19).getInt(0));
+                        assertEquals(v.longValue(), row.getArray(20).getLong(0));
+                        assertEquals(v.floatValue(), row.getArray(21).getFloat(0), 0);
+                        assertEquals(v.doubleValue(), row.getArray(22).getDouble(0), 0);
+                        assertEquals(
+                                toDateTime(v),
+                                row.getArray(23).getTimestamp(0, 9).toLocalDateTime());
+
+                        assertEquals(
+                                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 15, 0),
+                                row.getArray(25).getDecimal(0, 15, 0));
+                        assertEquals(
+                                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 20, 0),
+                                row.getArray(26).getDecimal(0, 20, 0));
+                        assertEquals(
+                                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 15, 0),
+                                row.getArray(28).getDecimal(0, 15, 0));
+                        assertEquals(
+                                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 20, 0),
+                                row.getArray(29).getDecimal(0, 20, 0));
+                        assertEquals("" + v, row.getMap(30).valueArray().getString(0).toString());
+                        assertEquals(v % 2 == 0, row.getMap(31).valueArray().getBoolean(0));
+                        assertEquals("" + v, row.getRow(32, 2).getString(0).toString());
+                        assertEquals(v.intValue(), row.getRow(32, 2).getInt(1));
                     }
                     cnt.incrementAndGet();
                 });
@@ -503,27 +550,75 @@ public class ParquetColumnarRowInputFormatTest {
         return cnt.get();
     }
 
-    private Row newRow(Integer v) {
+    private RowData newRow(Integer v) {
         if (v == null) {
-            return new Row(PARQUET_SCHEMA.getFieldCount());
+            return new GenericRowData(ROW_TYPE.getFieldCount());
         }
 
-        return Row.of(
-                "" + v,
+        Map<StringData, StringData> f30 = new HashMap<>();
+        f30.put(StringData.fromString("" + v), StringData.fromString("" + v));
+
+        Map<Integer, Boolean> f31 = new HashMap<>();
+        f31.put(v, v % 2 == 0);
+
+        return GenericRowData.of(
+                StringData.fromString("" + v),
                 v % 2 == 0,
-                v,
-                v,
+                v.byteValue(),
+                v.shortValue(),
                 v,
                 v.longValue(),
                 v.floatValue(),
                 v.doubleValue(),
-                toDateTime(v),
-                BigDecimal.valueOf(v),
-                BigDecimal.valueOf(v),
-                BigDecimal.valueOf(v),
-                BigDecimal.valueOf(v),
-                BigDecimal.valueOf(v),
-                BigDecimal.valueOf(v));
+                TimestampData.fromLocalDateTime(toDateTime(v)),
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0),
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 15, 0),
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 20, 0),
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0),
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 15, 0),
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 20, 0),
+                new GenericArrayData(new Object[] {StringData.fromString("" + v), null}),
+                new GenericArrayData(new Object[] {v % 2 == 0, null}),
+                new GenericArrayData(new Object[] {v.byteValue(), null}),
+                new GenericArrayData(new Object[] {v.shortValue(), null}),
+                new GenericArrayData(new Object[] {v, null}),
+                new GenericArrayData(new Object[] {v.longValue(), null}),
+                new GenericArrayData(new Object[] {v.floatValue(), null}),
+                new GenericArrayData(new Object[] {v.doubleValue(), null}),
+                new GenericArrayData(
+                        new Object[] {TimestampData.fromLocalDateTime(toDateTime(v)), null}),
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0) == null
+                        ? null
+                        : new GenericArrayData(
+                                new Object[] {
+                                    DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0), null
+                                }),
+                new GenericArrayData(
+                        new Object[] {
+                            DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 15, 0), null
+                        }),
+                new GenericArrayData(
+                        new Object[] {
+                            DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 20, 0), null
+                        }),
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0) == null
+                        ? null
+                        : new GenericArrayData(
+                                new Object[] {
+                                    DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0), null
+                                }),
+                new GenericArrayData(
+                        new Object[] {
+                            DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 15, 0), null
+                        }),
+                new GenericArrayData(
+                        new Object[] {
+                            DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 20, 0), null
+                        }),
+                new GenericMapData(f30),
+                new GenericMapData(f31),
+                GenericRowData.of(StringData.fromString("" + v), v));
+        // new String[]{"" + v});
     }
 
     private LocalDateTime toDateTime(Integer v) {
@@ -550,6 +645,26 @@ public class ParquetColumnarRowInputFormatTest {
                     new DecimalType(5, 0),
                     new DecimalType(15, 0),
                     new DecimalType(20, 0),
+                    new ArrayType(new VarCharType(VarCharType.MAX_LENGTH)),
+                    new ArrayType(new BooleanType()),
+                    new ArrayType(new TinyIntType()),
+                    new ArrayType(new SmallIntType()),
+                    new ArrayType(new IntType()),
+                    new ArrayType(new BigIntType()),
+                    new ArrayType(new FloatType()),
+                    new ArrayType(new DoubleType()),
+                    new ArrayType(new TimestampType(9)),
+                    new ArrayType(new DecimalType(5, 0)),
+                    new ArrayType(new DecimalType(15, 0)),
+                    new ArrayType(new DecimalType(20, 0)),
+                    new ArrayType(new DecimalType(5, 0)),
+                    new ArrayType(new DecimalType(15, 0)),
+                    new ArrayType(new DecimalType(20, 0)),
+                    new MapType(
+                            new VarCharType(VarCharType.MAX_LENGTH),
+                            new VarCharType(VarCharType.MAX_LENGTH)),
+                    new MapType(new IntType(), new BooleanType()),
+                    RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
                     new BooleanType(),
                     new DateType(),
                     new TimestampType(9),
@@ -568,9 +683,9 @@ public class ParquetColumnarRowInputFormatTest {
         RowType rowType =
                 RowType.of(
                         fieldTypes,
-                        IntStream.range(0, 28).mapToObj(i -> "f" + i).toArray(String[]::new));
+                        IntStream.range(0, 46).mapToObj(i -> "f" + i).toArray(String[]::new));
 
-        int[] projected = new int[] {7, 2, 4, 15, 19, 20, 21, 22, 23, 18, 16, 17, 24, 25, 26, 27};
+        int[] projected = new int[] {7, 2, 4, 33, 37, 38, 39, 40, 41, 36, 34, 35, 42, 43, 44, 45};
 
         RowType producedType =
                 new RowType(
@@ -637,7 +752,7 @@ public class ParquetColumnarRowInputFormatTest {
                         assertEquals(
                                 DecimalData.fromBigDecimal(new BigDecimal(26), 20, 0),
                                 row.getDecimal(14, 20, 0));
-                        assertEquals("f27", row.getString(15).toString());
+                        assertEquals("f45", row.getString(15).toString());
                     }
                     cnt.incrementAndGet();
                 });
