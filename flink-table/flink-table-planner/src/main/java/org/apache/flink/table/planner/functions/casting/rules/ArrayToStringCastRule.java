@@ -60,7 +60,7 @@ public class ArrayToStringCastRule
 
     isNull$0 = _myInputIsNull;
     if (!isNull$0) {
-        builder$1.delete(0, builder$1.length());
+        builder$1.setLength(0);
         builder$1.append("[");
         for (int i$2 = 0; i$2 < _myInput.size(); i$2++) {
             if (i$2 != 0) {
@@ -97,7 +97,7 @@ public class ArrayToStringCastRule
                 className(StringBuilder.class), builderTerm, constructorCall(StringBuilder.class));
 
         return new CastRuleUtils.CodeWriter()
-                .stmt(methodCall(builderTerm, "delete", 0, methodCall(builderTerm, "length")))
+                .stmt(methodCall(builderTerm, "setLength", 0))
                 .stmt(methodCall(builderTerm, "append", strLiteral("[")))
                 .forStmt(
                         methodCall(inputTerm, "size"),

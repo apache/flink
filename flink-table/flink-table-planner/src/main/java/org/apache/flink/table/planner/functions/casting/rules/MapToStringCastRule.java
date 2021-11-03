@@ -62,7 +62,7 @@ public class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
     if (!isNull$0) {
         org.apache.flink.table.data.ArrayData keys$2 = _myInput.keyArray();
         org.apache.flink.table.data.ArrayData values$3 = _myInput.valueArray();
-        builder$1.delete(0, builder$1.length());
+        builder$1.setLength(0);
         builder$1.append("{");
         for (int i$4 = 0; i$4 < _myInput.size(); i$4++) {
             if (i$4 != 0) {
@@ -114,7 +114,7 @@ public class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
         return new CastRuleUtils.CodeWriter()
                 .declStmt(ArrayData.class, keyArrayTerm, methodCall(inputTerm, "keyArray"))
                 .declStmt(ArrayData.class, valueArrayTerm, methodCall(inputTerm, "valueArray"))
-                .stmt(methodCall(builderTerm, "delete", 0, methodCall(builderTerm, "length")))
+                .stmt(methodCall(builderTerm, "setLength", 0))
                 .stmt(methodCall(builderTerm, "append", strLiteral("{")))
                 .forStmt(
                         methodCall(inputTerm, "size"),

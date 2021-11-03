@@ -68,7 +68,7 @@ public class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
 
     isNull$0 = _myInputIsNull;
     if (!isNull$0) {
-        builder$1.delete(0, builder$1.length());
+        builder$1.setLength(0);
         builder$1.append("(");
         int f0Value$2 = -1;
         boolean f0IsNull$3 = _myInput.isNullAt(0);
@@ -114,12 +114,7 @@ public class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
 
         final CastRuleUtils.CodeWriter writer =
                 new CastRuleUtils.CodeWriter()
-                        .stmt(
-                                methodCall(
-                                        builderTerm,
-                                        "delete",
-                                        0,
-                                        methodCall(builderTerm, "length")))
+                        .stmt(methodCall(builderTerm, "setLength", 0))
                         .stmt(methodCall(builderTerm, "append", strLiteral("(")));
 
         for (int i = 0; i < fields.size(); i++) {
