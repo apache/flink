@@ -65,11 +65,13 @@ public class NettyShuffleMetricFactory {
     // task level output metrics: Shuffle.Netty.Output.*
 
     private static final String METRIC_OUTPUT_QUEUE_LENGTH = "outputQueueLength";
+    private static final String METRIC_OUTPUT_QUEUE_SIZE = "outputQueueSize";
     private static final String METRIC_OUTPUT_POOL_USAGE = "outPoolUsage";
 
     // task level input metrics: Shuffle.Netty.Input.*
 
     private static final String METRIC_INPUT_QUEUE_LENGTH = "inputQueueLength";
+    private static final String METRIC_INPUT_QUEUE_SIZE = "inputQueueSize";
     private static final String METRIC_INPUT_POOL_USAGE = "inPoolUsage";
     private static final String METRIC_INPUT_FLOATING_BUFFERS_USAGE = "inputFloatingBuffersUsage";
     private static final String METRIC_INPUT_EXCLUSIVE_BUFFERS_USAGE = "inputExclusiveBuffersUsage";
@@ -178,6 +180,7 @@ public class NettyShuffleMetricFactory {
             ResultPartitionMetrics.registerQueueLengthMetrics(outputGroup, resultPartitions);
         }
         buffersGroup.gauge(METRIC_OUTPUT_QUEUE_LENGTH, new OutputBuffersGauge(resultPartitions));
+        buffersGroup.gauge(METRIC_OUTPUT_QUEUE_SIZE, new OutputBuffersSizeGauge(resultPartitions));
         buffersGroup.gauge(
                 METRIC_OUTPUT_POOL_USAGE, new OutputBufferPoolUsageGauge(resultPartitions));
     }
@@ -201,6 +204,7 @@ public class NettyShuffleMetricFactory {
         }
 
         buffersGroup.gauge(METRIC_INPUT_QUEUE_LENGTH, new InputBuffersGauge(inputGates));
+        buffersGroup.gauge(METRIC_INPUT_QUEUE_SIZE, new InputBuffersSizeGauge(inputGates));
 
         FloatingBuffersUsageGauge floatingBuffersUsageGauge =
                 new FloatingBuffersUsageGauge(inputGates);
