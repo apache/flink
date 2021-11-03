@@ -396,12 +396,18 @@ public class SingleInputGate extends IndexedInputGate {
     @VisibleForTesting
     public void announceBufferSize(int newBufferSize) {
         for (InputChannel channel : channels) {
-            channel.announceBufferSize(newBufferSize);
+            if (!channel.isReleased()) {
+                channel.announceBufferSize(newBufferSize);
+            }
         }
     }
 
     @Override
     public void triggerDebloating() {
+        if (isFinished() || closeFuture.isDone()) {
+            return;
+        }
+
         checkState(bufferDebloater != null, "Buffer debloater should not be null");
         final long currentThroughput = throughputCalculator.calculateThroughput();
         bufferDebloater
