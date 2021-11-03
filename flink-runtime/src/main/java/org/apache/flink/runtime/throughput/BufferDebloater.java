@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.throughput;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Duration;
 import java.util.OptionalInt;
 
@@ -26,8 +29,10 @@ import java.util.OptionalInt;
  * configuration.
  */
 public class BufferDebloater {
+    private static final Logger LOG = LoggerFactory.getLogger(BufferDebloater.class);
     private static final long MILLIS_IN_SECOND = 1000;
 
+    private final int gateIndex;
     private final long targetTotalBufferSize;
     private final int maxBufferSize;
     private final int minBufferSize;
@@ -38,11 +43,13 @@ public class BufferDebloater {
     private int lastBufferSize;
 
     public BufferDebloater(
+            int gateIndex,
             long targetTotalBufferSize,
             int maxBufferSize,
             int minBufferSize,
             int bufferDebloatThresholdPercentages,
             long numberOfSamples) {
+        this.gateIndex = gateIndex;
         this.targetTotalBufferSize = targetTotalBufferSize;
         this.maxBufferSize = maxBufferSize;
         this.minBufferSize = minBufferSize;
@@ -50,6 +57,15 @@ public class BufferDebloater {
 
         this.lastBufferSize = maxBufferSize;
         bufferSizeEMA = new BufferSizeEMA(maxBufferSize, minBufferSize, numberOfSamples);
+
+        LOG.debug(
+                "Buffer debloater init settings: gateIndex={}, targetTotalBufferSize={}, maxBufferSize={}, minBufferSize={}, bufferDebloatThresholdPercentages={}, numberOfSamples={}",
+                gateIndex,
+                targetTotalBufferSize,
+                maxBufferSize,
+                minBufferSize,
+                bufferDebloatThresholdPercentages,
+                numberOfSamples);
     }
 
     public OptionalInt recalculateBufferSize(long currentThroughput, int buffersInUse) {
@@ -73,6 +89,17 @@ public class BufferDebloater {
                         || (newSize > minBufferSize && newSize < maxBufferSize)
                                 && Math.abs(1 - ((double) lastBufferSize) / newSize) * 100
                                         < bufferDebloatThresholdPercentages;
+
+        LOG.debug(
+                "Buffer size recalculation: gateIndex={}, currentSize={}, newSize={}, instantThroughput={}, desiredBufferSize={}, buffersInUse={}, estimatedTimeToConsumeBuffers={}, announceNewSize={}",
+                gateIndex,
+                lastBufferSize,
+                newSize,
+                currentThroughput,
+                desiredTotalBufferSizeInBytes,
+                buffersInUse,
+                lastEstimatedTimeToConsumeBuffers,
+                !skipUpdate);
 
         // Skip update if the new value pretty close to the old one.
         if (skipUpdate) {
