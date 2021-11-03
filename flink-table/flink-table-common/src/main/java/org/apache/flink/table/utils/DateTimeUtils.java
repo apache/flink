@@ -1123,6 +1123,9 @@ public class DateTimeUtils {
                 return floor(utcTs, MILLIS_PER_HOUR) - offset;
             case DAY:
                 return floor(utcTs, MILLIS_PER_DAY) - offset;
+            case MILLENNIUM:
+            case CENTURY:
+            case DECADE:
             case MONTH:
             case YEAR:
             case QUARTER:
@@ -1154,6 +1157,9 @@ public class DateTimeUtils {
                 return ceil(utcTs, MILLIS_PER_HOUR) - offset;
             case DAY:
                 return ceil(utcTs, MILLIS_PER_DAY) - offset;
+            case MILLENNIUM:
+            case CENTURY:
+            case DECADE:
             case MONTH:
             case YEAR:
             case QUARTER:
@@ -1205,6 +1211,18 @@ public class DateTimeUtils {
         int quarter = (month + 2) / 3;
         int year = b * 100 + d - 4800 + (m / 10);
         switch (range) {
+            case MILLENNIUM:
+                return floor
+                        ? ymdToUnixDate(1000 * ((year + 999) / 1000) - 999, 1, 1)
+                        : ymdToUnixDate(1000 * ((year + 999) / 1000) + 1, 1, 1);
+            case CENTURY:
+                return floor
+                        ? ymdToUnixDate(100 * ((year + 99) / 100) - 99, 1, 1)
+                        : ymdToUnixDate(100 * ((year + 99) / 100) + 1, 1, 1);
+            case DECADE:
+                return floor
+                        ? ymdToUnixDate(10 * (year / 10), 1, 1)
+                        : ymdToUnixDate(10 * (1 + year / 10), 1, 1);
             case YEAR:
                 if (!floor && (month > 1 || day > 1)) {
                     year += 1;
