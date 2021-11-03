@@ -356,6 +356,7 @@ under the License.
 										<exclude>META-INF/*.DSA</exclude>
 										<exclude>META-INF/*.RSA</exclude>
 										<exclude>META-INF/services/java.sql.Driver</exclude>
+										<exclude>META-INF/versions/11/module-info.class</exclude>
 										<!-- com.ibm.icu:icu4j includes a LICENSE file in its root folder -->
 										<exclude>LICENSE</exclude>
 									</excludes>
