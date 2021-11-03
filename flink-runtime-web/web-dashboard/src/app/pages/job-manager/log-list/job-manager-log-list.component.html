@@ -37,12 +37,14 @@
     </thead>
     <tbody>
       <ng-template nz-virtual-scroll let-data>
-        <tr>
-          <td>
-            <a [routerLink]="[data.name]">{{ data.name }}</a>
-          </td>
-          <td>{{ data.size / 1024 | number: '1.0-2' }}</td>
-        </tr>
+        <ng-container *ngIf="narrowLogData(data) as narrowData">
+          <tr>
+            <td>
+              <a [routerLink]="[narrowData.name]">{{ narrowData.name }}</a>
+            </td>
+            <td>{{ narrowData.size / 1024 | number: '1.0-2' }}</td>
+          </tr>
+        </ng-container>
       </ng-template>
     </tbody>
   </nz-table>

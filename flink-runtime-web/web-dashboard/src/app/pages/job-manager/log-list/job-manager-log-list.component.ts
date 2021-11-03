@@ -21,6 +21,8 @@ import { finalize } from 'rxjs/operators';
 
 import { JobManagerService } from 'services';
 
+import { typeDefinition } from '../../../utils/strong-type';
+
 @Component({
   selector: 'flink-job-manager-log-list',
   templateUrl: './job-manager-log-list.component.html',
@@ -32,6 +34,7 @@ export class JobManagerLogListComponent implements OnInit {
   isLoading = true;
 
   trackByName = (_: number, log: { name: string; size: number }): string => log.name;
+  readonly narrowLogData = typeDefinition<{ name: string; size: number }>();
 
   constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
 

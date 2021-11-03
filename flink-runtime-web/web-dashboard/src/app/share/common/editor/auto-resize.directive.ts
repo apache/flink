@@ -1,4 +1,4 @@
-import { Directive, ElementRef, OnDestroy, OnInit, Renderer2 } from '@angular/core';
+import { Directive, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import { animationFrameScheduler, interval, Observable, Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 
@@ -8,14 +8,10 @@ import { NzCodeEditorComponent } from 'ng-zorro-antd/code-editor';
   selector: 'nz-code-editor[flinkAutoResize]'
 })
 export class AutoResizeDirective implements OnDestroy, OnInit {
-  private destroy$ = new Subject();
+  private destroy$ = new Subject<void>();
   hiddenMinimap = false;
 
-  constructor(
-    private elementRef: ElementRef<HTMLElement>,
-    private nzCodeEditorComponent: NzCodeEditorComponent,
-    private renderer: Renderer2
-  ) {}
+  constructor(private elementRef: ElementRef<HTMLElement>, private nzCodeEditorComponent: NzCodeEditorComponent) {}
 
   public ngOnInit(): void {
     this.createResizeObserver()
@@ -28,20 +24,9 @@ export class AutoResizeDirective implements OnDestroy, OnInit {
         debounceTime(50, animationFrameScheduler),
         takeUntil(this.destroy$)
       )
-      .subscribe(curr => {
-        const curWidth = curr.width;
-        this.hiddenMinimap = curWidth <= 65;
-        this.setHostClass();
+      .subscribe(() => {
         this.nzCodeEditorComponent.layout();
       });
-  }
-
-  private setHostClass(): void {
-    if (this.hiddenMinimap) {
-      this.renderer.addClass(this.elementRef.nativeElement, 'hidden-minimap');
-    } else {
-      this.renderer.removeClass(this.elementRef.nativeElement, 'hidden-minimap');
-    }
   }
 
   public ngOnDestroy(): void {
