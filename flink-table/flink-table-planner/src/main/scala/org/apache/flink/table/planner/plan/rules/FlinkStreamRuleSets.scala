@@ -183,13 +183,13 @@ object FlinkStreamRuleSets {
     * RuleSet to do push predicate/partition into table scan
     */
   val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
-    // push a filter down into the table scan
-    PushFilterIntoTableSourceScanRule.INSTANCE,
-    PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
     // push partition into the table scan
     PushPartitionIntoLegacyTableSourceScanRule.INSTANCE,
     // push partition into the dynamic table scan
-    PushPartitionIntoTableSourceScanRule.INSTANCE
+    PushPartitionIntoTableSourceScanRule.INSTANCE,
+      // push a filter down into the table scan
+    PushFilterIntoTableSourceScanRule.INSTANCE,
+    PushFilterIntoLegacyTableSourceScanRule.INSTANCE
   )
 
   /**
