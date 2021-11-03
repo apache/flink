@@ -35,6 +35,7 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAccess;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.NULL_STR_LITERAL;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.constructorCall;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.methodCall;
@@ -164,7 +165,7 @@ public class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
                             elseBodyWriter ->
                                     // If element is null, just write NULL
                                     elseBodyWriter.stmt(
-                                            methodCall(builderTerm, "append", strLiteral("NULL"))));
+                                            methodCall(builderTerm, "append", NULL_STR_LITERAL)));
         }
 
         writer.stmt(methodCall(builderTerm, "append", strLiteral(")")))

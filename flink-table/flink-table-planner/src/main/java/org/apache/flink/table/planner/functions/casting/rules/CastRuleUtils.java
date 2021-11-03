@@ -39,6 +39,8 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveTypeT
 /** This class contains a set of utilities to develop {@link CastRule}. */
 final class CastRuleUtils {
 
+    static final String NULL_STR_LITERAL = strLiteral("NULL");
+
     static String functionCall(String functionName, Object... args) {
         return functionName
                 + "("
