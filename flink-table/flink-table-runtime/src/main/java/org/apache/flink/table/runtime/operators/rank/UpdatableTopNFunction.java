@@ -81,8 +81,8 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
     private final boolean lenient = true;
 
     // data converter for logging only.
-    private final DataStructureConverter rowConverter;
-    private final DataStructureConverter sortKeyConverter;
+    private transient DataStructureConverter rowConverter;
+    private transient DataStructureConverter sortKeyConverter;
 
     // a map state stores mapping from row key to record which is in topN
     // in tuple2, f0 is the record row, f1 is the index in the list of the same sort_key
@@ -125,9 +125,6 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         this.cacheSize = cacheSize;
         this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
         this.rowKeySelector = rowKeySelector;
-        this.rowConverter = RowRowConverter.create(inputRowType.getDataType());
-        this.sortKeyConverter =
-                RowRowConverter.create(sortKeySelector.getProducedType().getDataType());
     }
 
     @Override
@@ -149,6 +146,11 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                 "Top{} operator is using LRU caches key-size: {}",
                 getDefaultTopNSize(),
                 lruCacheSize);
+
+        this.rowConverter = RowRowConverter.create(inputRowType.getDataType());
+        this.sortKeyConverter =
+                RowRowConverter.create(
+                        ((RowDataKeySelector) sortKeySelector).getProducedType().getDataType());
 
         rowConverter.open(getRuntimeContext().getUserCodeClassLoader());
         sortKeyConverter.open(getRuntimeContext().getUserCodeClassLoader());
@@ -309,7 +311,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                         int newRank = newRankAndInnerRank.f0;
                         // affect rank range: [oldRank, newRank]
                         emitRecordsWithRowNumberIgnoreStateError(
-                                sortKey, inputRow, newRank, oldSortKey, oldRow, oldRank, out);
+                                inputRow, newRank, oldRow, oldRank, out);
                     } else {
                         throw new RuntimeException(errorMsg);
                     }
@@ -356,13 +358,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
     }
 
     private void emitRecordsWithRowNumberIgnoreStateError(
-            RowData newSortKey,
-            RowData newRow,
-            int newRank,
-            RowData oldSortKey,
-            RankRow oldRow,
-            int oldRank,
-            Collector<RowData> out) {
+            RowData newRow, int newRank, RankRow oldRow, int oldRank, Collector<RowData> out) {
         Iterator<Map.Entry<RowData, Collection<RowData>>> iterator = buffer.entrySet().iterator();
         int currentRank = 0;
         RowData currentRow = null;
@@ -370,7 +366,6 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 
         while (iterator.hasNext() && currentRank <= newRank) {
             Map.Entry<RowData, Collection<RowData>> entry = iterator.next();
-            RowData curSortKey = entry.getKey();
             Collection<RowData> rowKeys = entry.getValue();
             Iterator<RowData> rowKeyIter = rowKeys.iterator();
             while (rowKeyIter.hasNext()) {
@@ -379,10 +374,8 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                 currentRow = rowKeyMap.get(rowKey).row;
                 if (oldRank <= currentRank) {
                     if (currentRank == oldRank) {
-                        checkArgument(0 == sortKeyComparator.compare(curSortKey, oldSortKey));
                         collectUpdateBefore(out, oldRow.row, oldRank);
                     } else {
-                        checkArgument(0 >= sortKeyComparator.compare(curSortKey, newSortKey));
                         collectUpdateBefore(out, prevRow, currentRank);
                         collectUpdateAfter(out, prevRow, currentRank - 1);
                         if (currentRank == newRank) {

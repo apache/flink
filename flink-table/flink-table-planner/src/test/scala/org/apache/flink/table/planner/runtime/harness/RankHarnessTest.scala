@@ -265,7 +265,6 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
 
     testHarness.processElement(binaryRecord(UPDATE_AFTER, "b", 1: JInt, 10: JInt))
 
-
     val result = dropWatermarks(testHarness.getOutput.toArray)
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
