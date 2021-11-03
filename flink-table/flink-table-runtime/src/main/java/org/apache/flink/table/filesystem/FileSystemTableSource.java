@@ -271,7 +271,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     }
 
     @Override
-    public void applyProjection(int[][] projectedFields) {
+    public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.projectedFields = projectedFields;
     }
 

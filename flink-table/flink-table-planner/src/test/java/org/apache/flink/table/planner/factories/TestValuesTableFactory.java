@@ -1216,8 +1216,8 @@ public final class TestValuesTableFactory
         }
 
         @Override
-        public void applyProjection(int[][] projectedFields) {
-            this.producedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
+        public void applyProjection(int[][] projectedFields, DataType producedDataType) {
+            this.producedDataType = producedDataType;
             this.projectedPhysicalFields = projectedFields;
         }
     }

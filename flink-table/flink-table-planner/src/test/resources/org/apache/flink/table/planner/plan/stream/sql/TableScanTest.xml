@@ -210,7 +210,7 @@ LogicalProject(b=[$1], other_metadata=[CAST($4):INTEGER])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, CAST(metadata_3) AS other_metadata])
-+- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, project=[b, metadata_3], metadata=[metadata_3]]], fields=[b, metadata_3])
++- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, project=[b], metadata=[metadata_3]]], fields=[b, metadata_3])
 ]]>
     </Resource>
   </TestCase>

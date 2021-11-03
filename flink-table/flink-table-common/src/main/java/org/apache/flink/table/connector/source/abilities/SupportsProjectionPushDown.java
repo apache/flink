@@ -19,7 +19,10 @@
 package org.apache.flink.table.connector.source.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.types.DataType;
 
 /**
  * Enables to push down a (possibly nested) projection into a {@link ScanTableSource}.
@@ -49,6 +52,14 @@ public interface SupportsProjectionPushDown {
     /** Returns whether this source supports nested projection. */
     boolean supportsNestedProjection();
 
+    /** @deprecated Please implement {@link #applyProjection(int[][], DataType)} */
+    @Deprecated
+    default void applyProjection(int[][] projectedFields) {
+        throw new UnsupportedOperationException(
+                "No implementation provided for SupportsProjectionPushDown. "
+                        + "Please implement SupportsProjectionPushDown#applyProjection(int[][], DataType)");
+    }
+
     /**
      * Provides the field index paths that should be used for a projection. The indices are 0-based
      * and support fields within (possibly nested) structures if this is enabled via {@link
@@ -63,8 +74,14 @@ public interface SupportsProjectionPushDown {
      *       #supportsNestedProjection()} returns true.
      * </ul>
      *
+     * <p>Note: Use the passed data type instead of {@link ResolvedSchema#toPhysicalRowDataType()}
+     * for describing the final output data type when creating {@link TypeInformation}.
+     *
      * @param projectedFields field index paths of all fields that must be present in the physically
      *     produced data
+     * @param producedDataType the final output type of the source, with the projection applied
      */
-    void applyProjection(int[][] projectedFields);
+    default void applyProjection(int[][] projectedFields, DataType producedDataType) {
+        applyProjection(projectedFields);
+    }
 }

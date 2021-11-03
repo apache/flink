@@ -93,7 +93,7 @@ public abstract class AbstractHBaseDynamicTableSource
     }
 
     @Override
-    public void applyProjection(int[][] projectedFields) {
+    public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.hbaseSchema =
                 HBaseTableSchema.fromDataType(
                         DataType.projectFields(hbaseSchema.convertToDataType(), projectedFields));
