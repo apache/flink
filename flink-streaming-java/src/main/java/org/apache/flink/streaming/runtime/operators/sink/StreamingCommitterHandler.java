@@ -43,13 +43,13 @@ public final class StreamingCommitterHandler<CommT>
 
     public StreamingCommitterHandler(
             Committer<CommT> committer,
-            SimpleVersionedSerializer<Committable<CommT>> committableSerializer) {
+            SimpleVersionedSerializer<CommittableWrapper<CommT>> committableSerializer) {
         super(committableSerializer);
         this.committer = checkNotNull(committer);
     }
 
     @Override
-    List<Committable<CommT>> prepareCommit(List<Committable<CommT>> input) {
+    List<CommittableWrapper<CommT>> prepareCommit(List<CommittableWrapper<CommT>> input) {
         return prependRecoveredCommittables(checkNotNull(input));
     }
 
@@ -59,7 +59,8 @@ public final class StreamingCommitterHandler<CommT>
     }
 
     @Override
-    protected Collection<Committable<CommT>> retry(List<Committable<CommT>> recoveredCommittables)
+    protected Collection<CommittableWrapper<CommT>> retry(
+            List<CommittableWrapper<CommT>> recoveredCommittables)
             throws IOException, InterruptedException {
         return commit(recoveredCommittables).getSuccessful();
     }
@@ -71,7 +72,7 @@ public final class StreamingCommitterHandler<CommT>
     }
 
     @Override
-    public Collection<Committable<CommT>> notifyCheckpointCompleted(long checkpointId)
+    public Collection<CommittableWrapper<CommT>> notifyCheckpointCompleted(long checkpointId)
             throws IOException, InterruptedException {
         return commitUpTo(checkpointId).getSuccessful();
     }
@@ -83,7 +84,7 @@ public final class StreamingCommitterHandler<CommT>
         public CommitterHandler<CommT> create(Sink<?, CommT, ?, ?> sink) throws IOException {
             return new StreamingCommitterHandler<>(
                     checkCommitterPresent(sink.createCommitter(), false),
-                    new CommittableWrapper.Serializer<>(
+                    new CheckpointSummary.Serializer<>(
                             checkSerializerPresent(sink.getCommittableSerializer(), false)));
         }
     }

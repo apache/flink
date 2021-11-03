@@ -32,8 +32,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 class CommitRetrierTest {
 
-    public static final ThrowingConsumer<Collection<CommittableWrapper<String>>, IOException>
-            NO_OP = dummy -> {};
+    public static final ThrowingConsumer<Collection<CheckpointSummary<String>>, IOException> NO_OP =
+            dummy -> {};
 
     @Test
     void testRetry() throws Exception {
@@ -122,7 +122,7 @@ class CommitRetrierTest {
         }
 
         @Override
-        public Collection<CommittableWrapper<String>> retry()
+        public Collection<CheckpointSummary<String>> retry()
                 throws IOException, InterruptedException {
             retriesNeeded.decrementAndGet();
             return null;

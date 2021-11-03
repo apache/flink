@@ -29,8 +29,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.streaming.runtime.operators.sink.CommittableWrapper.match;
-import static org.apache.flink.streaming.runtime.operators.sink.CommittableWrapper.unwrap;
+import static org.apache.flink.streaming.runtime.operators.sink.CheckpointSummary.match;
+import static org.apache.flink.streaming.runtime.operators.sink.CheckpointSummary.unwrap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -55,7 +55,7 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
 
     public GlobalStreamingCommitterHandler(
             GlobalCommitter<CommT, GlobalCommT> globalCommitter,
-            SimpleVersionedSerializer<Committable<GlobalCommT>> committableSerializer) {
+            SimpleVersionedSerializer<CommittableWrapper<GlobalCommT>> committableSerializer) {
         super(committableSerializer);
         this.globalCommitter = checkNotNull(globalCommitter);
 
@@ -63,9 +63,9 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    protected void recoveredCommittables(List<Committable<GlobalCommT>> committables)
+    protected void recoveredCommittables(List<CommittableWrapper<GlobalCommT>> committables)
             throws IOException {
-        CommittableWrapper.MatchResult<Committable<GlobalCommT>> filtered =
+        CheckpointSummary.MatchResult<CommittableWrapper<GlobalCommT>> filtered =
                 match(
                         committables,
                         globalCommitter.filterRecoveredCommittables(unwrap(committables)));
@@ -73,12 +73,12 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    List<Committable<GlobalCommT>> prepareCommit(List<Committable<CommT>> input)
+    List<CommittableWrapper<GlobalCommT>> prepareCommit(List<CommittableWrapper<CommT>> input)
             throws IOException {
         return prependRecoveredCommittables(
                 input.isEmpty()
                         ? Collections.emptyList()
-                        : CommittableWrapper.singletonList(globalCommitter.combine(unwrap(input))));
+                        : CheckpointSummary.singletonList(globalCommitter.combine(unwrap(input))));
     }
 
     @Override
@@ -88,7 +88,7 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    public Collection<Committable<CommT>> endOfInput() {
+    public Collection<CommittableWrapper<CommT>> endOfInput() {
         endOfInput = true;
         return Collections.emptyList();
     }
@@ -100,7 +100,7 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    public Collection<Committable<CommT>> notifyCheckpointCompleted(long checkpointId)
+    public Collection<CommittableWrapper<CommT>> notifyCheckpointCompleted(long checkpointId)
             throws IOException, InterruptedException {
         super.notifyCheckpointCompleted(checkpointId);
         commitUpTo(checkpointId);
@@ -118,7 +118,7 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
                 throws IOException {
             return new GlobalStreamingCommitterHandler<>(
                     checkCommitterPresent(sink.createGlobalCommitter(), true),
-                    new CommittableWrapper.Serializer<>(
+                    new CheckpointSummary.Serializer<>(
                             checkSerializerPresent(sink.getGlobalCommittableSerializer(), true)));
         }
     }

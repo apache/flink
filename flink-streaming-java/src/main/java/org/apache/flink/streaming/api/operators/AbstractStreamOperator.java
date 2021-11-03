@@ -56,7 +56,6 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.LatencyStats;
 import org.apache.flink.util.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -429,7 +428,6 @@ public abstract class AbstractStreamOperator<OUT>
      * to interact with systems such as broadcast variables and managed state. This also allows to
      * register timers.
      */
-    @VisibleForTesting
     public StreamingRuntimeContext getRuntimeContext() {
         return runtimeContext;
     }

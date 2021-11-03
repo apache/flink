@@ -79,7 +79,7 @@ public final class SinkOperatorFactory<InputT, CommT, WriterStateT, GlobalCommT>
                             writerStateHandler,
                             committerHandlerFactory.create(sink),
                             emitCommittables
-                                    ? new CommittableWrapper.Serializer<>(
+                                    ? new CheckpointSummary.Serializer<>(
                                             sink.getCommittableSerializer().get())
                                     : null);
             sinkOperator.setup(

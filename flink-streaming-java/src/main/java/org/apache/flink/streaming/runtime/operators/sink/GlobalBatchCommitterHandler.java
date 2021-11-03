@@ -28,7 +28,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static java.util.Collections.singletonList;
 import static org.apache.flink.streaming.runtime.operators.sink.CommittableWrapper.unwrap;
+import static org.apache.flink.streaming.runtime.operators.sink.SinkMessage.EOF;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -54,11 +56,12 @@ public final class GlobalBatchCommitterHandler<CommT, GlobalCommT>
     }
 
     @Override
-    public Collection<Committable<CommT>> endOfInput() throws IOException, InterruptedException {
-        List<Committable<CommT>> allCommittables = pollCommittables();
+    public Collection<CommittableWrapper<CommT>> endOfInput()
+            throws IOException, InterruptedException {
+        List<CommittableWrapper<CommT>> allCommittables = pollCommittables();
         if (!allCommittables.isEmpty()) {
             final GlobalCommT globalCommittable = globalCommitter.combine(unwrap(allCommittables));
-            commit(CommittableWrapper.singletonList(globalCommittable));
+            commit(singletonList(new CommittableWrapper<>(globalCommittable, 0, 0, EOF)));
         }
         globalCommitter.endOfInput();
         return Collections.emptyList();

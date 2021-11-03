@@ -46,14 +46,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 class CommitterOperator<CommT> extends AbstractStreamOperator<byte[]>
         implements OneInputStreamOperator<byte[], byte[]>, BoundedOneInput {
 
-    private final SimpleVersionedSerializer<Committable<CommT>> committableSerializer;
+    private final SimpleVersionedSerializer<CommittableWrapper<CommT>> committableSerializer;
     private final CommitterHandler<CommT> committerHandler;
     private final CommitRetrier<CommT> commitRetrier;
     private final boolean emitDownstream;
 
     public CommitterOperator(
             ProcessingTimeService processingTimeService,
-            SimpleVersionedSerializer<Committable<CommT>> committableSerializer,
+            SimpleVersionedSerializer<CommittableWrapper<CommT>> committableSerializer,
             CommitterHandler<CommT> committerHandler,
             boolean emitDownstream) {
         this.emitDownstream = emitDownstream;
@@ -91,9 +91,10 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<byte[]>
         emitCommittables(committerHandler.notifyCheckpointCompleted(checkpointId));
     }
 
-    private void emitCommittables(Collection<Committable<CommT>> committables) throws IOException {
+    private void emitCommittables(Collection<CommittableWrapper<CommT>> committables)
+            throws IOException {
         if (emitDownstream && !committables.isEmpty()) {
-            for (Committable<CommT> committable : committables) {
+            for (CommittableWrapper<CommT> committable : committables) {
                 output.collect(
                         new StreamRecord<>(
                                 SimpleVersionedSerialization.writeVersionAndSerialize(
