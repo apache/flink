@@ -36,6 +36,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.cast;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 
 /**
  * Base class for {@link CastRule} supporting code generation. This base class implements {@link
@@ -102,12 +105,31 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
         final String functionSignature =
                 "@Override public Object cast(Object _myInputObj) throws "
                         + className(TableException.class);
-        final String inputVarDecl =
-                inputTypeTerm + " " + inputTerm + " = (" + inputTypeTerm + ") _myInputObj;\n";
-        final String inputIsNullVarDecl =
-                "boolean " + inputIsNullTerm + " = _myInputObj == null;\n";
 
-        final String returnStmt = "return " + codeBlock.getReturnTerm() + ";\n";
+        // Write the function body
+        final CastRuleUtils.CodeWriter bodyWriter = new CastRuleUtils.CodeWriter();
+        bodyWriter.declStmt(inputTypeTerm, inputTerm, cast(inputTypeTerm, "_myInputObj"));
+        bodyWriter.declStmt("boolean", inputIsNullTerm, "_myInputObj == null");
+        ctx.variableDeclarationStatements.forEach(decl -> bodyWriter.appendBlock(decl + "\n"));
+
+        if (this.canFail()) {
+            bodyWriter.tryCatchStmt(
+                    tryWriter ->
+                            tryWriter.append(codeBlock).stmt("return " + codeBlock.getReturnTerm()),
+                    (exceptionTerm, catchWriter) ->
+                            catchWriter.throwStmt(
+                                    constructorCall(
+                                            TableException.class,
+                                            strLiteral(
+                                                    "Error when casting "
+                                                            + inputLogicalType
+                                                            + " to "
+                                                            + targetLogicalType
+                                                            + "."),
+                                            exceptionTerm)));
+        } else {
+            bodyWriter.append(codeBlock).stmt("return " + codeBlock.getReturnTerm());
+        }
 
         final String classCode =
                 "public final class "
@@ -123,12 +145,7 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
                         + "}\n"
                         + functionSignature
                         + "{\n"
-                        + inputVarDecl
-                        + inputIsNullVarDecl
-                        + String.join("\n", ctx.variableDeclarationStatements)
-                        + codeBlock.getCode()
-                        + "\n"
-                        + returnStmt
+                        + bodyWriter
                         + "}\n}";
 
         try {

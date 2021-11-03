@@ -110,10 +110,8 @@ class CastRulesTest {
     private static final double DEFAULT_POSITIVE_DOUBLE = 123.456789d;
     private static final double DEFAULT_NEGATIVE_DOUBLE = -123.456789d;
 
-    private static final int DATE =
-            DateTimeUtils.localDateToUnixDate(LocalDate.parse("2021-09-24"));
-    private static final int TIME =
-            DateTimeUtils.localTimeToUnixDate(LocalTime.parse("12:34:56.123"));
+    private static final int DATE = DateTimeUtils.toInternal(LocalDate.parse("2021-09-24"));
+    private static final int TIME = DateTimeUtils.toInternal(LocalTime.parse("12:34:56.123"));
     private static final StringData DATE_STRING = StringData.fromString("2021-09-24");
     private static final StringData TIME_STRING = StringData.fromString("12:34:56.123");
 
@@ -402,15 +400,15 @@ class CastRulesTest {
                         .fromCase(
                                 STRING(),
                                 StringData.fromString("123"),
-                                DateTimeUtils.localDateToUnixDate(LocalDate.of(123, 1, 1)))
+                                DateTimeUtils.toInternal(LocalDate.of(123, 1, 1)))
                         .fromCase(
                                 STRING(),
                                 StringData.fromString("2021-09-27"),
-                                DateTimeUtils.localDateToUnixDate(LocalDate.of(2021, 9, 27)))
+                                DateTimeUtils.toInternal(LocalDate.of(2021, 9, 27)))
                         .fromCase(
                                 STRING(),
                                 StringData.fromString("2021-09-27 12:34:56.123456789"),
-                                DateTimeUtils.localDateToUnixDate(LocalDate.of(2021, 9, 27)))
+                                DateTimeUtils.toInternal(LocalDate.of(2021, 9, 27)))
                         .fail(STRING(), StringData.fromString("2021/09/27"), TableException.class),
                 CastTestSpecBuilder.testCastTo(TIME())
                         .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
@@ -418,11 +416,11 @@ class CastRulesTest {
                         .fromCase(
                                 STRING(),
                                 StringData.fromString("23"),
-                                DateTimeUtils.localTimeToUnixDate(LocalTime.of(23, 0, 0)))
+                                DateTimeUtils.toInternal(LocalTime.of(23, 0, 0)))
                         .fromCase(
                                 STRING(),
                                 StringData.fromString("23:45"),
-                                DateTimeUtils.localTimeToUnixDate(LocalTime.of(23, 45, 0)))
+                                DateTimeUtils.toInternal(LocalTime.of(23, 45, 0)))
                         .fail(STRING(), StringData.fromString("2021-09-27"), TableException.class)
                         .fail(
                                 STRING(),
@@ -431,8 +429,7 @@ class CastRulesTest {
                         .fromCase(
                                 STRING(),
                                 StringData.fromString("12:34:56.123456789"),
-                                DateTimeUtils.localTimeToUnixDate(
-                                        LocalTime.of(12, 34, 56, 123_000_000)))
+                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 123_000_000)))
                         .fail(
                                 STRING(),
                                 StringData.fromString("2021-09-27 12:34:56.123456789"),

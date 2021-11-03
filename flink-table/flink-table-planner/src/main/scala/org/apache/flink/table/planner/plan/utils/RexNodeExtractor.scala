@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLog
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.YearMonthIntervalType
-import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
+import org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime
 import org.apache.flink.util.Preconditions
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._

@@ -31,6 +31,7 @@ import org.apache.flink.table.utils.EncodingUtils;
 import java.math.BigDecimal;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
 import java.time.DateTimeException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -582,7 +583,7 @@ public class BinaryStringDataUtil {
     }
 
     public static int toDate(BinaryStringData input) throws DateTimeException {
-        Integer date = DateTimeUtils.dateStringToUnixDate(input.toString());
+        Integer date = DateTimeUtils.parseDate(input.toString());
         if (date == null) {
             throw new DateTimeException("For input string: '" + input + "'.");
         }
@@ -591,7 +592,7 @@ public class BinaryStringDataUtil {
     }
 
     public static int toTime(BinaryStringData input) throws DateTimeException {
-        Integer date = DateTimeUtils.timeStringToUnixDate(input.toString());
+        Integer date = DateTimeUtils.parseTime(input.toString());
         if (date == null) {
             throw new DateTimeException("For input string: '" + input + "'.");
         }
@@ -600,7 +601,7 @@ public class BinaryStringDataUtil {
     }
 
     public static TimestampData toTimestamp(BinaryStringData input) throws DateTimeException {
-        TimestampData timestamp = DateTimeUtils.toTimestampData(input.toString());
+        TimestampData timestamp = DateTimeUtils.parseTimestampData(input.toString());
         if (timestamp == null) {
             throw new DateTimeException("For input string: '" + input + "'.");
         }
@@ -609,12 +610,8 @@ public class BinaryStringDataUtil {
     }
 
     public static TimestampData toTimestamp(BinaryStringData input, TimeZone timeZone)
-            throws DateTimeException {
-        Long timestamp = DateTimeUtils.toTimestamp(input.toString(), timeZone);
-        if (timestamp == null) {
-            throw new DateTimeException("For input string: '" + input + "'.");
-        }
-
+            throws ParseException {
+        long timestamp = DateTimeUtils.parseTimestampMillis(input.toString(), timeZone);
         return TimestampData.fromEpochMillis(timestamp);
     }
 

@@ -1160,7 +1160,7 @@ object ScalarOperatorGens {
         generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
           val zone = ctx.addReusableSessionTimeZone()
           val method = qualifyMethod(BuiltInMethods.DATE_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-          s"$TIMESTAMP_DATA.fromEpochMillis($method($operandTerm, $zone))"
+          s"$method($operandTerm, $zone)"
         }
 
       // Timestamp with local time zone -> Date
@@ -1168,7 +1168,7 @@ object ScalarOperatorGens {
         generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
           val zone = ctx.addReusableSessionTimeZone()
           val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_DATE)
-          s"$method($operandTerm.getMillisecond(), $zone)"
+          s"$method($operandTerm, $zone)"
         }
 
       // Time -> Timestamp with local time zone
@@ -1176,7 +1176,7 @@ object ScalarOperatorGens {
         generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
           val zone = ctx.addReusableSessionTimeZone()
           val method = qualifyMethod(BuiltInMethods.TIME_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-          s"$TIMESTAMP_DATA.fromEpochMillis($method($operandTerm, $zone))"
+          s"$method($operandTerm, $zone)"
         }
 
       // Timestamp with local time zone -> Time
@@ -1184,7 +1184,7 @@ object ScalarOperatorGens {
         generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
           val zone = ctx.addReusableSessionTimeZone()
           val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME)
-          s"$method($operandTerm.getMillisecond(), $zone)"
+          s"$method($operandTerm, $zone)"
         }
 
       // Disable cast conversion between Numeric type and Timestamp type
@@ -1979,7 +1979,7 @@ object ScalarOperatorGens {
       GeneratedExpression(resultTerm, "false", "", resultType, Some(result))
     } catch {
       case e: Throwable =>
-        throw new ValidationException("Error when casting literal: " + e.getMessage, e)
+        throw new ValidationException("Error when casting literal. " + e.getMessage, e)
     }
   }
 
