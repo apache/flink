@@ -28,6 +28,7 @@ import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlGroupedWindowFunction;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlJsonConstructorNullClause;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
@@ -72,23 +73,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
         return instance;
     }
 
-    private static final SqlReturnTypeInference ROWTIME_TYPE_INFERENCE =
-            createTimeIndicatorReturnType(true, false);
     private static final SqlReturnTypeInference PROCTIME_TYPE_INFERENCE =
-            createTimeIndicatorReturnType(false, true);
-
-    private static SqlReturnTypeInference createTimeIndicatorReturnType(
-            boolean isRowTime, boolean isTimestampLtz) {
-        return ReturnTypes.explicit(
-                factory -> {
-                    if (isRowTime) {
-                        return ((FlinkTypeFactory) factory)
-                                .createRowtimeIndicatorType(false, isTimestampLtz);
-                    } else {
-                        return ((FlinkTypeFactory) factory).createProctimeIndicatorType(false);
-                    }
-                });
-    }
+            ReturnTypes.explicit(
+                    factory -> ((FlinkTypeFactory) factory).createProctimeIndicatorType(false));
 
     @Override
     public void lookupOperatorOverloads(
@@ -120,19 +107,10 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     false);
 
     /**
-     * Function used to access a event time attribute with TIMESTAMP or TIMESTAMP_LTZ type from
-     * MATCH_RECOGNIZE, for TIMESTAMP_LTZ type, we rewrite the return type in
-     * [org.apache.flink.table.planner.calcite.RelTimeIndicatorConverter].
+     * Function used to access an event time attribute with TIMESTAMP or TIMESTAMP_LTZ type from
+     * MATCH_RECOGNIZE.
      */
-    public static final SqlFunction MATCH_ROWTIME =
-            new CalciteSqlFunction(
-                    "MATCH_ROWTIME",
-                    SqlKind.OTHER_FUNCTION,
-                    ROWTIME_TYPE_INFERENCE,
-                    null,
-                    OperandTypes.NILADIC,
-                    SqlFunctionCategory.MATCH_RECOGNIZE,
-                    true);
+    public static final SqlFunction MATCH_ROWTIME = new MatchRowTimeFunction();
 
     /** Function used to access a processing time attribute from MATCH_RECOGNIZE. */
     public static final SqlFunction MATCH_PROCTIME =
@@ -218,6 +196,15 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction ROUND =
             new SqlFunction(
                     "ROUND",
+                    SqlKind.OTHER_FUNCTION,
+                    FlinkReturnTypes.ROUND_FUNCTION_NULLABLE,
+                    null,
+                    OperandTypes.or(OperandTypes.NUMERIC_INTEGER, OperandTypes.NUMERIC),
+                    SqlFunctionCategory.NUMERIC);
+
+    public static final SqlFunction TRUNCATE =
+            new SqlFunction(
+                    "TRUNCATE",
                     SqlKind.OTHER_FUNCTION,
                     FlinkReturnTypes.ROUND_FUNCTION_NULLABLE,
                     null,
@@ -416,7 +403,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     SqlKind.OTHER_FUNCTION,
                     ReturnTypes.cascade(
                             ReturnTypes.explicit(SqlTypeName.VARCHAR),
-                            SqlTypeTransforms.TO_NULLABLE),
+                            SqlTypeTransforms.FORCE_NULLABLE),
                     null,
                     OperandTypes.or(OperandTypes.STRING_STRING_INTEGER, OperandTypes.STRING_STRING),
                     SqlFunctionCategory.STRING);
@@ -1102,7 +1089,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction ABS = SqlStdOperatorTable.ABS;
     public static final SqlFunction EXP = SqlStdOperatorTable.EXP;
     public static final SqlFunction NULLIF = SqlStdOperatorTable.NULLIF;
-    public static final SqlFunction COALESCE = SqlStdOperatorTable.COALESCE;
     public static final SqlFunction FLOOR = SqlStdOperatorTable.FLOOR;
     public static final SqlFunction CEIL = SqlStdOperatorTable.CEIL;
     public static final SqlFunction LOCALTIME = SqlStdOperatorTable.LOCALTIME;
@@ -1125,7 +1111,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction PI = SqlStdOperatorTable.PI;
     public static final SqlFunction RAND = SqlStdOperatorTable.RAND;
     public static final SqlFunction RAND_INTEGER = SqlStdOperatorTable.RAND_INTEGER;
-    public static final SqlFunction TRUNCATE = SqlStdOperatorTable.TRUNCATE;
 
     // TIME FUNCTIONS
     public static final SqlFunction YEAR = SqlStdOperatorTable.YEAR;
@@ -1160,6 +1145,17 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     // JSON FUNCTIONS
     public static final SqlFunction JSON_EXISTS = SqlStdOperatorTable.JSON_EXISTS;
     public static final SqlFunction JSON_VALUE = SqlStdOperatorTable.JSON_VALUE;
+    public static final SqlFunction JSON_QUERY = SqlStdOperatorTable.JSON_QUERY;
+    public static final SqlFunction JSON_OBJECT = new SqlJsonObjectFunction();
+    public static final SqlAggFunction JSON_OBJECTAGG_NULL_ON_NULL =
+            SqlStdOperatorTable.JSON_OBJECTAGG;
+    public static final SqlAggFunction JSON_OBJECTAGG_ABSENT_ON_NULL =
+            SqlStdOperatorTable.JSON_OBJECTAGG.with(SqlJsonConstructorNullClause.ABSENT_ON_NULL);
+    public static final SqlFunction JSON_ARRAY = SqlStdOperatorTable.JSON_ARRAY;
+    public static final SqlAggFunction JSON_ARRAYAGG_NULL_ON_NULL =
+            SqlStdOperatorTable.JSON_ARRAYAGG.with(SqlJsonConstructorNullClause.NULL_ON_NULL);
+    public static final SqlAggFunction JSON_ARRAYAGG_ABSENT_ON_NULL =
+            SqlStdOperatorTable.JSON_ARRAYAGG;
     public static final SqlPostfixOperator IS_JSON_VALUE = SqlStdOperatorTable.IS_JSON_VALUE;
     public static final SqlPostfixOperator IS_JSON_OBJECT = SqlStdOperatorTable.IS_JSON_OBJECT;
     public static final SqlPostfixOperator IS_JSON_ARRAY = SqlStdOperatorTable.IS_JSON_ARRAY;

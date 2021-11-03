@@ -85,7 +85,15 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
             Configuration flinkConfig,
             NamespacedKubernetesClient client,
             ExecutorService executorService) {
-        this.clusterId = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID));
+        this.clusterId =
+                flinkConfig
+                        .getOptional(KubernetesConfigOptions.CLUSTER_ID)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                String.format(
+                                                        "Configuration option '%s' is not set.",
+                                                        KubernetesConfigOptions.CLUSTER_ID.key())));
         this.namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
         this.maxRetryAttempts =
                 flinkConfig.getInteger(
@@ -221,12 +229,26 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
     @Override
     public KubernetesWatch watchPodsAndDoCallback(
-            Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler) {
-        return new KubernetesWatch(
-                this.internalClient
-                        .pods()
-                        .withLabels(labels)
-                        .watch(new KubernetesPodsWatcher(podCallbackHandler)));
+            Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler)
+            throws Exception {
+        return FutureUtils.retry(
+                        () ->
+                                CompletableFuture.supplyAsync(
+                                        () ->
+                                                new KubernetesWatch(
+                                                        this.internalClient
+                                                                .pods()
+                                                                .withLabels(labels)
+                                                                .watch(
+                                                                        new KubernetesPodsWatcher(
+                                                                                podCallbackHandler))),
+                                        kubeClientExecutorService),
+                        maxRetryAttempts,
+                        t ->
+                                ExceptionUtils.findThrowable(t, KubernetesClientException.class)
+                                        .isPresent(),
+                        kubeClientExecutorService)
+                .get();
     }
 
     @Override

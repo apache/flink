@@ -21,7 +21,8 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -60,7 +61,7 @@ class StreamPhysicalWatermarkAssigner(
     val rowtimeFieldName = inFieldNames(rowtimeFieldIndex)
     pw.input("input", getInput())
       .item("rowtime", rowtimeFieldName)
-      .item("watermark", getExpressionString(
+      .item("watermark", FlinkRexUtil.getExpressionString(
         watermarkExpr,
         inFieldNames,
         None,

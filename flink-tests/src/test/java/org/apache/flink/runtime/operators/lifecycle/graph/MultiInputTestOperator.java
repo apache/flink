@@ -81,6 +81,7 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
                                                 output,
                                                 operatorId,
                                                 getRuntimeContext().getIndexOfThisSubtask(),
+                                                getRuntimeContext().getAttemptNumber(),
                                                 lastDataReceived,
                                                 lastDataSent))
                         .collect(Collectors.toList());
@@ -110,6 +111,7 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
                 new OperatorFinishedEvent(
                         operatorId,
                         getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getAttemptNumber(),
                         lastDataSent.get(),
                         new LastReceivedVertexDataInfo(lastDataReceived)));
         super.finish();
@@ -121,6 +123,7 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
                 new CheckpointStartedEvent(
                         operatorId,
                         getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getAttemptNumber(),
                         context.getCheckpointId()));
         super.snapshotState(context);
     }
@@ -129,7 +132,10 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         eventQueue.add(
                 new CheckpointCompletedEvent(
-                        operatorId, getRuntimeContext().getIndexOfThisSubtask(), checkpointId));
+                        operatorId,
+                        getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getAttemptNumber(),
+                        checkpointId));
         super.notifyCheckpointComplete(checkpointId);
     }
 
@@ -147,7 +153,10 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
     public void endInput(int inputId) throws Exception {
         eventQueue.add(
                 new InputEndedEvent(
-                        operatorId, getRuntimeContext().getIndexOfThisSubtask(), inputId));
+                        operatorId,
+                        getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getAttemptNumber(),
+                        inputId));
     }
 
     private static class TestEventInput implements Input<TestDataElement> {
@@ -158,6 +167,7 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
         private final int subtaskIndex;
         private final Map<String, OperatorFinishedEvent.LastVertexDataInfo> lastDataReceived;
         private final AtomicLong lastDataSent;
+        private final int attemptNumber;
 
         public TestEventInput(
                 int id,
@@ -165,6 +175,7 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
                 Output<StreamRecord<TestDataElement>> output,
                 String operatorId,
                 int subtaskIndex,
+                int attemptNumber,
                 Map<String, OperatorFinishedEvent.LastVertexDataInfo> lastDataReceived,
                 AtomicLong lastDataSent) {
             this.id = id;
@@ -174,6 +185,7 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
             this.subtaskIndex = subtaskIndex;
             this.lastDataReceived = lastDataReceived;
             this.lastDataSent = lastDataSent;
+            this.attemptNumber = attemptNumber;
         }
 
         @Override
@@ -193,7 +205,8 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
         @Override
         public void processWatermark(Watermark mark) throws Exception {
             eventQueue.add(
-                    new WatermarkReceivedEvent(operatorId, subtaskIndex, mark.getTimestamp(), id));
+                    new WatermarkReceivedEvent(
+                            operatorId, subtaskIndex, attemptNumber, mark.getTimestamp(), id));
             output.emitWatermark(mark);
         }
 

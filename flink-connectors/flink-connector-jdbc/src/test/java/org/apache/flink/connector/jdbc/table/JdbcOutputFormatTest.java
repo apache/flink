@@ -122,7 +122,6 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 
     @Test
     public void testInvalidURL() {
-        String expectedMsg = "Unknown dbURL,can not find proper dialect.";
         try {
             JdbcConnectorOptions jdbcOptions =
                     JdbcConnectorOptions.builder()
@@ -147,8 +146,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
             outputFormat.open(0, 1);
             fail("Expected exception is not thrown.");
         } catch (Exception e) {
-            assertTrue(findThrowable(e, NullPointerException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertTrue(findThrowable(e, IllegalStateException.class).isPresent());
         }
     }
 

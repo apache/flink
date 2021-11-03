@@ -209,19 +209,10 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                         .tableStats(newTableStat)
                         .build();
 
-        String extraDigest =
-                "partitions=["
-                        + String.join(
-                                ", ",
-                                remainingPartitions.stream()
-                                        .map(Object::toString)
-                                        .toArray(String[]::new))
-                        + "]";
         TableSourceTable newTableSourceTable =
                 tableSourceTable.copy(
                         dynamicTableSource,
                         newStatistic,
-                        new String[] {extraDigest},
                         new SourceAbilitySpec[] {partitionPushDownSpec});
         LogicalTableScan newScan =
                 LogicalTableScan.create(scan.getCluster(), newTableSourceTable, scan.getHints());

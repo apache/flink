@@ -17,12 +17,10 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
@@ -50,8 +48,6 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import scala.Tuple2;
-
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 
 /** Base class for rules that push down filters into table scan. */
 public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
@@ -118,13 +114,12 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
 
         // record size after applyFilters for update statistics
         int updatedPredicatesSize = result.getRemainingFilters().size();
-        // set the newStatistic newTableSource and extraDigests
+        // set the newStatistic newTableSource and sourceAbilitySpecs
         TableSourceTable newTableSourceTable =
                 oldTableSourceTable.copy(
                         newTableSource,
                         getNewFlinkStatistic(
                                 oldTableSourceTable, originPredicatesSize, updatedPredicatesSize),
-                        getNewExtraDigests(result.getAcceptedFilters()),
                         new SourceAbilitySpec[] {filterPushDownSpec});
 
         return new Tuple2<>(result, newTableSourceTable);
@@ -177,25 +172,5 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
                     FlinkStatistic.builder().statistic(oldStatistic).tableStats(null).build();
         }
         return newStatistic;
-    }
-
-    protected String[] getNewExtraDigests(List<ResolvedExpression> acceptedFilters) {
-        final String extraDigest;
-        if (!acceptedFilters.isEmpty()) {
-            // push filter successfully
-            String pushedExpr =
-                    acceptedFilters.stream()
-                            .reduce(
-                                    (l, r) ->
-                                            new CallExpression(
-                                                    AND, Arrays.asList(l, r), DataTypes.BOOLEAN()))
-                            .get()
-                            .toString();
-            extraDigest = "filter=[" + pushedExpr + "]";
-        } else {
-            // push filter successfully, but nothing is accepted
-            extraDigest = "filter=[]";
-        }
-        return new String[] {extraDigest};
     }
 }

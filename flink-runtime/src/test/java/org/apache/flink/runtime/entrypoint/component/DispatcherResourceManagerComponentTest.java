@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.runner.TestingDispatcherRunner;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerService;
@@ -69,7 +70,8 @@ public class DispatcherResourceManagerComponentTest extends TestLogger {
                 new SettableLeaderRetrievalService(),
                 new SettableLeaderRetrievalService(),
                 FutureUtils::completedVoidFuture,
-                fatalErrorHandler);
+                fatalErrorHandler,
+                new DispatcherOperationCaches());
     }
 
     @Test

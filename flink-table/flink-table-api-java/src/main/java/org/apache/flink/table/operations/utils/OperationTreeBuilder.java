@@ -50,8 +50,6 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
@@ -77,6 +75,8 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.INTERSECT;
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.MINUS;
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.UNION;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 
 /** A builder for constructing validated {@link QueryOperation}s. */
 @Internal
@@ -440,7 +440,7 @@ public final class OperationTreeBuilder {
         ExpressionResolver resolver = getResolver(child);
         ResolvedExpression resolvedExpression = resolveSingleExpression(condition, resolver);
         DataType conditionType = resolvedExpression.getOutputDataType();
-        if (!LogicalTypeChecks.hasRoot(conditionType.getLogicalType(), LogicalTypeRoot.BOOLEAN)) {
+        if (!conditionType.getLogicalType().is(BOOLEAN)) {
             throw new ValidationException(
                     "Filter operator requires a boolean expression as input,"
                             + " but $condition is of type "
@@ -570,7 +570,7 @@ public final class OperationTreeBuilder {
 
     public QueryOperation values(DataType rowType, Expression... expressions) {
         final ResolvedSchema valuesSchema;
-        if (LogicalTypeChecks.hasRoot(rowType.getLogicalType(), LogicalTypeRoot.ROW)) {
+        if (rowType.getLogicalType().is(ROW)) {
             valuesSchema = DataTypeUtils.expandCompositeTypeToSchema(rowType);
         } else {
             valuesSchema =

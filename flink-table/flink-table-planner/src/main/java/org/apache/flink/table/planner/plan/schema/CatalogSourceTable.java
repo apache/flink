@@ -21,16 +21,20 @@ package org.apache.flink.table.planner.plan.schema;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.module.Module;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.util.OptionalUtils;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
@@ -41,6 +45,10 @@ import org.apache.calcite.rel.type.RelDataType;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+
+import static org.apache.flink.util.OptionalUtils.firstPresent;
+import static org.apache.flink.util.OptionalUtils.stream;
 
 /**
  * A {@link FlinkPreparingTableBase} implementation which defines the interfaces required to
@@ -113,8 +121,28 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
     private DynamicTableSource createDynamicTableSource(
             FlinkContext context, ResolvedCatalogTable catalogTable) {
         final ReadableConfig config = context.getTableConfig().getConfiguration();
-        return FactoryUtil.createTableSource(
-                schemaTable.getCatalog().orElse(null),
+
+        final Optional<DynamicTableSourceFactory> factoryFromCatalog =
+                stream(schemaTable.getCatalog())
+                        .map(Catalog::getFactory)
+                        .flatMap(OptionalUtils::stream)
+                        .map(
+                                f ->
+                                        f instanceof DynamicTableSourceFactory
+                                                ? (DynamicTableSourceFactory) f
+                                                : null)
+                        .findFirst();
+
+        final Optional<DynamicTableSourceFactory> factoryFromModule =
+                context.getModuleManager().getFactory(Module::getTableSourceFactory);
+
+        // Since the catalog is more specific, we give it precedence over a factory provided by any
+        // modules.
+        final DynamicTableSourceFactory factory =
+                firstPresent(factoryFromCatalog, factoryFromModule).orElse(null);
+
+        return FactoryUtil.createDynamicTableSource(
+                factory,
                 schemaTable.getTableIdentifier(),
                 catalogTable,
                 config,

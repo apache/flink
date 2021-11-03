@@ -18,13 +18,13 @@
 
 package org.apache.flink.connector.jdbc.internal.converter;
 
+import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.postgresql.jdbc.PgArray;
@@ -79,8 +79,7 @@ public class PostgresRowConverter extends AbstractJdbcRowConverter {
 
     private JdbcDeserializationConverter createPostgresArrayConverter(ArrayType arrayType) {
         // PG's bytea[] is wrapped in PGobject, rather than primitive byte arrays
-        if (LogicalTypeChecks.hasFamily(
-                arrayType.getElementType(), LogicalTypeFamily.BINARY_STRING)) {
+        if (arrayType.getElementType().is(LogicalTypeFamily.BINARY_STRING)) {
             final Class<?> elementClass =
                     LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
             final JdbcDeserializationConverter elementConverter =

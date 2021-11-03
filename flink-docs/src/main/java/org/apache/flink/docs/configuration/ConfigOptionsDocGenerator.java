@@ -95,7 +95,13 @@ public class ConfigOptionsDocGenerator {
                         "flink-kubernetes", "org.apache.flink.kubernetes.configuration"),
                 new OptionsClassLocation("flink-clients", "org.apache.flink.client.cli"),
                 new OptionsClassLocation(
-                        "flink-table/flink-sql-client", "org.apache.flink.table.client.config")
+                        "flink-table/flink-sql-client", "org.apache.flink.table.client.config"),
+                new OptionsClassLocation(
+                        "flink-connectors/flink-connector-pulsar",
+                        "org.apache.flink.connector.pulsar.common.config"),
+                new OptionsClassLocation(
+                        "flink-connectors/flink-connector-pulsar",
+                        "org.apache.flink.connector.pulsar.source")
             };
 
     static final Set<String> EXCLUSIONS =

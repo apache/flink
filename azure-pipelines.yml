@@ -76,7 +76,7 @@ stages:
             vmImage: 'ubuntu-20.04'
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12"
           run_end_to_end: false
           container: flink-build-container
           jdk: 8
@@ -93,5 +93,5 @@ stages:
       - template: tools/azure-pipelines/build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12"
           container: flink-build-container

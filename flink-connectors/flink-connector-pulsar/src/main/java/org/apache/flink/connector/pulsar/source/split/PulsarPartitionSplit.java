@@ -20,7 +20,6 @@ package org.apache.flink.connector.pulsar.source.split;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarOrderedSourceReader;
@@ -41,8 +40,6 @@ public class PulsarPartitionSplit implements SourceSplit {
 
     private final TopicPartition partition;
 
-    private final StartCursor startCursor;
-
     private final StopCursor stopCursor;
 
     /**
@@ -53,10 +50,8 @@ public class PulsarPartitionSplit implements SourceSplit {
 
     @Nullable private final TxnID uncommittedTransactionId;
 
-    public PulsarPartitionSplit(
-            TopicPartition partition, StartCursor startCursor, StopCursor stopCursor) {
-        this.partition = partition;
-        this.startCursor = checkNotNull(startCursor);
+    public PulsarPartitionSplit(TopicPartition partition, StopCursor stopCursor) {
+        this.partition = checkNotNull(partition);
         this.stopCursor = checkNotNull(stopCursor);
         this.latestConsumedId = null;
         this.uncommittedTransactionId = null;
@@ -64,15 +59,10 @@ public class PulsarPartitionSplit implements SourceSplit {
 
     public PulsarPartitionSplit(
             TopicPartition partition,
-            StartCursor startCursor,
             StopCursor stopCursor,
             MessageId latestConsumedId,
             TxnID uncommittedTransactionId) {
-        this.partition = partition;
-        this.startCursor =
-                latestConsumedId == null
-                        ? checkNotNull(startCursor)
-                        : StartCursor.fromMessageId(latestConsumedId, false);
+        this.partition = checkNotNull(partition);
         this.stopCursor = checkNotNull(stopCursor);
         this.latestConsumedId = latestConsumedId;
         this.uncommittedTransactionId = uncommittedTransactionId;
@@ -85,10 +75,6 @@ public class PulsarPartitionSplit implements SourceSplit {
 
     public TopicPartition getPartition() {
         return partition;
-    }
-
-    public StartCursor getStartCursor() {
-        return startCursor;
     }
 
     public StopCursor getStopCursor() {
@@ -105,9 +91,8 @@ public class PulsarPartitionSplit implements SourceSplit {
         return uncommittedTransactionId;
     }
 
-    /** Open start & stop cursor. */
+    /** Open stop cursor. */
     public void open(PulsarAdmin admin) {
-        startCursor.open(admin, partition);
         stopCursor.open(admin, partition);
     }
 

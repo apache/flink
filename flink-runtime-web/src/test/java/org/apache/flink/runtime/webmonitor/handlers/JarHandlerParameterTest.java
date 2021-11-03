@@ -206,7 +206,7 @@ public abstract class JarHandlerParameterTest<
     public void testProvideJobId() throws Exception {
         JobID jobId = new JobID();
 
-        HandlerRequest<REQB, M> request =
+        HandlerRequest<REQB> request =
                 createRequest(
                         getJarRequestBodyWithJobId(jobId),
                         getUnresolvedJarMessageParameters(),
@@ -279,7 +279,7 @@ public abstract class JarHandlerParameterTest<
     }
 
     protected static <REQB extends JarRequestBody, M extends JarMessageParameters>
-            HandlerRequest<REQB, M> createRequest(
+            HandlerRequest<REQB> createRequest(
                     REQB requestBody, M parameters, M unresolvedMessageParameters, Path jar)
                     throws HandlerRequestException {
 
@@ -291,7 +291,7 @@ public abstract class JarHandlerParameterTest<
                                         MessageParameter::getKey,
                                         JarHandlerParameterTest::getValuesAsString));
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 requestBody,
                 unresolvedMessageParameters,
                 Collections.singletonMap(JarIdPathParameter.KEY, jar.getFileName().toString()),
@@ -316,7 +316,7 @@ public abstract class JarHandlerParameterTest<
 
     abstract REQB getJarRequestBodyWithJobId(JobID jobId);
 
-    abstract void handleRequest(HandlerRequest<REQB, M> request) throws Exception;
+    abstract void handleRequest(HandlerRequest<REQB> request) throws Exception;
 
     JobGraph validateDefaultGraph() {
         JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null);

@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
@@ -39,6 +40,7 @@ import org.apache.calcite.rel.core.TableScan;
  *   <li>project push down (SupportsProjectionPushDown)
  *   <li>partition push down (SupportsPartitionPushDown)
  *   <li>watermark push down (SupportsWatermarkPushDown)
+ *   <li>aggregate push down (SupportsAggregatePushDown)
  *   <li>reading metadata (SupportsReadingMetadata)
  * </ul>
  */
@@ -69,6 +71,11 @@ public class SourceAbilityContext implements FlinkContext {
     @Override
     public CatalogManager getCatalogManager() {
         return context.getCatalogManager();
+    }
+
+    @Override
+    public ModuleManager getModuleManager() {
+        return context.getModuleManager();
     }
 
     @Override

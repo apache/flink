@@ -32,8 +32,9 @@ public class WatermarkReceivedEvent extends TestEvent {
     public final long ts;
     public final int inputId;
 
-    public WatermarkReceivedEvent(String operatorId, int subtaskIndex, long ts, int inputId) {
-        super(operatorId, subtaskIndex);
+    public WatermarkReceivedEvent(
+            String operatorId, int subtaskIndex, int attemptNumber, long ts, int inputId) {
+        super(operatorId, subtaskIndex, attemptNumber);
         this.ts = ts;
         this.inputId = inputId;
     }

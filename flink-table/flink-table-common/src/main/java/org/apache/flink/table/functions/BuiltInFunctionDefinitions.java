@@ -21,6 +21,9 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.JsonOnNull;
+import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
+import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.TableException;
@@ -68,8 +71,10 @@ import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.first;
 import static org.apache.flink.table.types.inference.TypeStrategies.forceNullable;
 import static org.apache.flink.table.types.inference.TypeStrategies.matchFamily;
+import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAllArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
 
@@ -121,6 +126,16 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(SpecificTypeStrategies.SOURCE_WATERMARK)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.SourceWatermarkFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition COALESCE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("COALESCE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(varyingSequence(COMMON_ARG_NULLABLE, COMMON_ARG_NULLABLE))
+                    .outputTypeStrategy(nullableIfAllArgs(COMMON))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.CoalesceFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -627,7 +642,7 @@ public final class BuiltInFunctionDefinitions {
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
                     .build();
 
     public static final BuiltInFunctionDefinition FROM_BASE64 =
@@ -1137,7 +1152,7 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeFamily.NUMERIC),
                                             logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(nullableIfArgs(argument(0)))
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.ROUND))
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -1538,6 +1553,89 @@ public final class BuiltInFunctionDefinitions {
                                     symbol(JsonValueOnEmptyOrError.class),
                                     ANY))
                     .outputTypeStrategy(forceNullable(argument(2)))
+                    .runtimeDeferred()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_QUERY =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_QUERY")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                    and(logical(LogicalTypeFamily.CHARACTER_STRING), LITERAL),
+                                    symbol(JsonQueryWrapper.class),
+                                    symbol(JsonQueryOnEmptyOrError.class),
+                                    symbol(JsonQueryOnEmptyOrError.class)))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
+                    .runtimeDeferred()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_STRING =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_STRING")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(JSON_ARGUMENT))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .runtimeProvided()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_OBJECT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_OBJECT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.JSON_OBJECT)
+                    .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
+                    .runtimeDeferred()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_OBJECTAGG_NULL_ON_NULL =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_OBJECTAGG_NULL_ON_NULL")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(
+                            sequence(logical(LogicalTypeFamily.CHARACTER_STRING), JSON_ARGUMENT))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
+                    .runtimeDeferred()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_OBJECTAGG_ABSENT_ON_NULL =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_OBJECTAGG_ABSENT_ON_NULL")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(
+                            sequence(logical(LogicalTypeFamily.CHARACTER_STRING), JSON_ARGUMENT))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
+                    .runtimeDeferred()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_ARRAY =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_ARRAY")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            InputTypeStrategies.varyingSequence(
+                                    symbol(JsonOnNull.class),
+                                    SpecificInputTypeStrategies.JSON_ARGUMENT))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
+                    .runtimeDeferred()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_ARRAYAGG_NULL_ON_NULL =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_ARRAYAGG_NULL_ON_NULL")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(sequence(JSON_ARGUMENT))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
+                    .runtimeDeferred()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_ARRAYAGG_ABSENT_ON_NULL =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_ARRAYAGG_ABSENT_ON_NULL")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(sequence(JSON_ARGUMENT))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
                     .runtimeDeferred()
                     .build();
 

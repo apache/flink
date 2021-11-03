@@ -35,6 +35,11 @@ public abstract class PushFilterIntoTableSourceScanRuleTestBase extends TableTes
     }
 
     @Test
+    public void testCanPushDownWithCastConstant() {
+        util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > cast(1.1 as int)");
+    }
+
+    @Test
     public void testCanPushDownWithVirtualColumn() {
         util.verifyRelPlan("SELECT * FROM VirtualTable WHERE amount > 2");
     }
@@ -43,6 +48,12 @@ public abstract class PushFilterIntoTableSourceScanRuleTestBase extends TableTes
     public void testCannotPushDown() {
         // TestFilterableTableSource only accept predicates with `amount`
         util.verifyRelPlan("SELECT * FROM MyTable WHERE price > 10");
+    }
+
+    @Test
+    public void testCannotPushDownWithCastConstant() {
+        // TestFilterableTableSource only accept predicates with `amount`
+        util.verifyRelPlan("SELECT * FROM MyTable WHERE price > cast(10.1 as int)");
     }
 
     @Test

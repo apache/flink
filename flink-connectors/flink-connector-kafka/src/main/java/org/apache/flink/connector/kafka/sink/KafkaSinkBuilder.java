@@ -70,6 +70,8 @@ public class KafkaSinkBuilder<IN> {
     private KafkaRecordSerializationSchema<IN> recordSerializer;
     private String bootstrapServers;
 
+    KafkaSinkBuilder() {}
+
     /**
      * Sets the wanted the {@link DeliveryGuarantee}. The default delivery guarantee is {@link
      * #deliveryGuarantee}.

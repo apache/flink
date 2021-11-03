@@ -22,9 +22,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.util.RowIterator;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.Preconditions;
-
-import org.apache.calcite.avatica.util.DateTimeUtils;
 
 import java.io.Closeable;
 import java.io.IOException;

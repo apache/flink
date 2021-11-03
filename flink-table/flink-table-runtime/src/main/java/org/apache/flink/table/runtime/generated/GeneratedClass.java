@@ -71,7 +71,7 @@ public abstract class GeneratedClass<T> implements Serializable {
                     // Because Constructor.newInstance(Object... initargs), we need to load
                     // references into a new Object[], otherwise it cannot be compiled.
                     .newInstance(new Object[] {references});
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new RuntimeException(
                     "Could not instantiate generated class '" + className + "'", e);
         }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter.converters;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule;
@@ -30,6 +31,7 @@ import java.util.List;
 import static org.apache.flink.table.planner.expressions.converter.ExpressionConverter.toRexNodes;
 
 /** Conversion for {@link BuiltInFunctionDefinitions#NOT_BETWEEN}. */
+@Internal
 class NotBetweenConverter extends CustomizedConverter {
     @Override
     public RexNode convert(CallExpression call, CallExpressionConvertRule.ConvertContext context) {

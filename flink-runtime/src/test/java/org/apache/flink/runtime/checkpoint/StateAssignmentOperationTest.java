@@ -756,14 +756,14 @@ public class StateAssignmentOperationTest extends TestLogger {
         ExecutionJobVertex jobVertexWithFinishedOperator = vertices.get(operatorIds.get(0));
         for (ExecutionVertex task : jobVertexWithFinishedOperator.getTaskVertices()) {
             JobManagerTaskRestore taskRestore = task.getCurrentExecutionAttempt().getTaskRestore();
-            Assert.assertTrue(taskRestore.getTaskStateSnapshot().isFinishedOnRestore());
+            Assert.assertTrue(taskRestore.getTaskStateSnapshot().isTaskDeployedAsFinished());
         }
 
         // Check the job vertex without finished operator.
         ExecutionJobVertex jobVertexWithoutFinishedOperator = vertices.get(operatorIds.get(1));
         for (ExecutionVertex task : jobVertexWithoutFinishedOperator.getTaskVertices()) {
             JobManagerTaskRestore taskRestore = task.getCurrentExecutionAttempt().getTaskRestore();
-            Assert.assertFalse(taskRestore.getTaskStateSnapshot().isFinishedOnRestore());
+            Assert.assertFalse(taskRestore.getTaskStateSnapshot().isTaskDeployedAsFinished());
         }
     }
 

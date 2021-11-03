@@ -28,8 +28,6 @@ import org.apache.flink.util.Preconditions;
 import java.util.Objects;
 import java.util.Optional;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
-
 /** Type strategy that returns the given argument if it is of the same logical type family. */
 @Internal
 public final class MatchFamilyTypeStrategy implements TypeStrategy {
@@ -46,7 +44,7 @@ public final class MatchFamilyTypeStrategy implements TypeStrategy {
     @Override
     public Optional<DataType> inferType(CallContext callContext) {
         final DataType argumentDataType = callContext.getArgumentDataTypes().get(argumentPos);
-        if (hasFamily(argumentDataType.getLogicalType(), matchingTypeFamily)) {
+        if (argumentDataType.getLogicalType().is(matchingTypeFamily)) {
             return Optional.of(argumentDataType);
         }
         return Optional.empty();

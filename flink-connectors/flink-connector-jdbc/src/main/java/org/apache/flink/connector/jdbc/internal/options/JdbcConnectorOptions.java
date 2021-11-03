@@ -21,7 +21,7 @@ package org.apache.flink.connector.jdbc.internal.options;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
-import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialectLoader;
 
 import javax.annotation.Nullable;
 
@@ -155,7 +155,7 @@ public class JdbcConnectorOptions extends JdbcConnectionOptions {
 
         /**
          * optional, Handle the SQL dialect of jdbc driver. If not set, it will be infer by {@link
-         * JdbcDialects#get} from DB url.
+         * JdbcDialectLoader#load} from DB url.
          */
         public Builder setDialect(JdbcDialect dialect) {
             this.dialect = dialect;
@@ -171,21 +171,13 @@ public class JdbcConnectorOptions extends JdbcConnectionOptions {
             checkNotNull(dbURL, "No dbURL supplied.");
             checkNotNull(tableName, "No tableName supplied.");
             if (this.dialect == null) {
-                Optional<JdbcDialect> optional = JdbcDialects.get(dbURL);
-                this.dialect =
-                        optional.orElseGet(
-                                () -> {
-                                    throw new NullPointerException(
-                                            "Unknown dbURL,can not find proper dialect.");
-                                });
+                this.dialect = JdbcDialectLoader.load(dbURL);
             }
             if (this.driverName == null) {
                 Optional<String> optional = dialect.defaultDriverName();
                 this.driverName =
-                        optional.orElseGet(
-                                () -> {
-                                    throw new NullPointerException("No driverName supplied.");
-                                });
+                        optional.orElseThrow(
+                                () -> new NullPointerException("No driverName supplied."));
             }
 
             return new JdbcConnectorOptions(

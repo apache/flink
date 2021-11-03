@@ -21,6 +21,12 @@ package org.apache.flink.table.utils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.GenericMapData;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -40,6 +46,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
@@ -50,24 +57,41 @@ public class PrintUtilsTest {
 
     @Test
     public void testArrayToString() {
-        Row row = new Row(7);
-        row.setField(0, new int[] {1, 2});
-        row.setField(1, new Integer[] {3, 4});
-        row.setField(2, new Object[] {new int[] {5, 6}, new int[] {7, 8}});
-        row.setField(3, new Integer[][] {new Integer[] {9, 10}, new Integer[] {11, 12}});
-        row.setField(
-                4,
-                new LocalDateTime[] {
-                    LocalDateTime.parse("2021-04-18T18:00:00.123456"),
-                    LocalDateTime.parse("2021-04-18T18:00:00.000001")
-                });
-        row.setField(
-                5,
-                new Instant[][] {
-                    new Instant[] {Instant.ofEpochMilli(1), Instant.ofEpochMilli(10)},
-                    new Instant[] {Instant.ofEpochSecond(1), Instant.ofEpochSecond(10)}
-                });
-        row.setField(6, new int[] {1123, 2123});
+        RowData row =
+                GenericRowData.of(
+                        new GenericArrayData(new int[] {1, 2}),
+                        new GenericArrayData(new int[] {3, 4}),
+                        new GenericArrayData(
+                                new Object[] {
+                                    new GenericArrayData(new int[] {5, 6}),
+                                    new GenericArrayData(new int[] {7, 8})
+                                }),
+                        new GenericArrayData(
+                                new Object[] {
+                                    new GenericArrayData(new int[] {9, 10}),
+                                    new GenericArrayData(new int[] {11, 12})
+                                }),
+                        new GenericArrayData(
+                                new Object[] {
+                                    TimestampData.fromLocalDateTime(
+                                            LocalDateTime.parse("2021-04-18T18:00:00.123456")),
+                                    TimestampData.fromLocalDateTime(
+                                            LocalDateTime.parse("2021-04-18T18:00:00.000001"))
+                                }),
+                        new GenericArrayData(
+                                new Object[] {
+                                    new GenericArrayData(
+                                            new Object[] {
+                                                TimestampData.fromInstant(Instant.ofEpochMilli(1)),
+                                                TimestampData.fromInstant(Instant.ofEpochMilli(10))
+                                            }),
+                                    new GenericArrayData(
+                                            new Object[] {
+                                                TimestampData.fromInstant(Instant.ofEpochSecond(1)),
+                                                TimestampData.fromInstant(Instant.ofEpochSecond(10))
+                                            })
+                                }),
+                        new GenericArrayData(new int[] {1123, 2123}));
 
         ResolvedSchema resolvedSchema =
                 ResolvedSchema.of(
@@ -95,26 +119,31 @@ public class PrintUtilsTest {
 
     @Test
     public void testNestedRowToString() {
-        Row row = new Row(4);
-        row.setField(0, new int[] {1, 2});
-        Row row1 = new Row(4);
-        row1.setField(0, "hello");
-        row1.setField(1, new boolean[] {true, false});
-        row1.setField(
-                2,
-                new Timestamp[] {
-                    Timestamp.valueOf("2021-04-18 18:00:00.123456"),
-                    Timestamp.valueOf("2021-04-18 18:00:00.000001")
-                });
-        row1.setField(3, new Long[] {100L, 200L});
-        row.setField(1, row1);
-        row.setField(
-                2,
-                new int[][] {
-                    new int[] {1, 10},
-                    new int[] {2, 20}
-                });
-        row.setField(3, new Integer[] {3000, 4000});
+        RowData row =
+                GenericRowData.of(
+                        new GenericArrayData(new int[] {1, 2}),
+                        GenericRowData.of(
+                                StringData.fromString("hello"),
+                                new GenericArrayData(new boolean[] {true, false}),
+                                new GenericArrayData(
+                                        new Object[] {
+                                            TimestampData.fromTimestamp(
+                                                    Timestamp.valueOf(
+                                                            "2021-04-18 18:00:00.123456")),
+                                            TimestampData.fromTimestamp(
+                                                    Timestamp.valueOf("2021-04-18 18:00:00.000001"))
+                                        }),
+                                new GenericArrayData(
+                                        new Object[] {
+                                            TimestampData.fromEpochMillis(100L),
+                                            TimestampData.fromEpochMillis(200L)
+                                        })),
+                        new GenericArrayData(
+                                new Object[] {
+                                    new GenericArrayData(new int[] {1, 10}),
+                                    new GenericArrayData(new int[] {2, 20})
+                                }),
+                        new GenericArrayData(new int[] {3000, 4000}));
 
         ResolvedSchema resolvedSchema =
                 ResolvedSchema.of(
@@ -140,15 +169,15 @@ public class PrintUtilsTest {
 
     @Test
     public void testNestedMapToString() {
-        Row row = new Row(2);
-        row.setField(0, new int[] {1, 2});
-        Row row1 = new Row(2);
-        row1.setField(0, "hello");
         Map<TimestampData, TimestampData> map = new HashMap<>();
         map.put(TimestampData.fromEpochMillis(1000), TimestampData.fromEpochMillis(2000));
         map.put(TimestampData.fromEpochMillis(2000), TimestampData.fromEpochMillis(4000));
-        row1.setField(1, map);
-        row.setField(1, row1);
+
+        RowData row =
+                GenericRowData.of(
+                        new GenericArrayData(new int[] {1, 2}),
+                        GenericRowData.of(StringData.fromString("hello"), new GenericMapData(map)));
+
         ResolvedSchema resolvedSchema =
                 ResolvedSchema.of(
                         Arrays.asList(
@@ -194,10 +223,7 @@ public class PrintUtilsTest {
     @Test
     public void testPrintWithEmptyResult() {
         PrintUtils.printAsTableauForm(
-                getSchema(),
-                Collections.<Row>emptyList().iterator(),
-                new PrintWriter(outContent),
-                UTC_ZONE_ID);
+                getSchema(), Collections.emptyIterator(), new PrintWriter(outContent), UTC_ZONE_ID);
 
         assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
@@ -206,7 +232,7 @@ public class PrintUtilsTest {
     public void testPrintWithEmptyResultAndRowKind() {
         PrintUtils.printAsTableauForm(
                 getSchema(),
-                Collections.<Row>emptyList().iterator(),
+                Collections.emptyIterator(),
                 new PrintWriter(outContent),
                 PrintUtils.MAX_COLUMN_WIDTH,
                 "",
@@ -221,7 +247,7 @@ public class PrintUtilsTest {
     public void testPrintWithEmptyResultAndDeriveColumnWidthByContent() {
         PrintUtils.printAsTableauForm(
                 getSchema(),
-                Collections.<Row>emptyList().iterator(),
+                Collections.emptyIterator(),
                 new PrintWriter(outContent),
                 PrintUtils.MAX_COLUMN_WIDTH,
                 "",
@@ -252,11 +278,11 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "|  (NULL) |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "|  (NULL) |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "|   false |      (NULL) |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "|   false |      (NULL) |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "|    true |  2147483647 |               (NULL) |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "|    true |  2147483647 |               (NULL) |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
                         + "|   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
@@ -302,11 +328,11 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "| +I |         |           1 |                    2 |                            abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "| +I |         |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| +I |   false |             |                    0 |                                |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "| +I |   false |             |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| -D |    true |  2147483647 |                      |                        abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "| -D |    true |  2147483647 |                      |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
                         + "| +I |   false | -2147483648 |  9223372036854775807 |                                |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
@@ -344,11 +370,11 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "+----+---------+------------+--------+---------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "| +I |         |          1 |      2 |     abc |           1.23 | 2020-03-01 18:39:14.000000 |"
+                        + "| +I |         |          1 |      2 |     abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "| +I |   false |            |      0 |         |              1 | 2020-03-01 18:39:14.100000 |"
+                        + "| +I |   false |            |      0 |         |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "| -D |    true | 2147483647 |        | abcdefg |     1234567890 | 2020-03-01 18:39:14.120000 |"
+                        + "| -D |    true | 2147483647 |        | abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
                         + "+----+---------+------------+--------+---------+----------------+----------------------------+"
                         + System.lineSeparator()
@@ -367,14 +393,14 @@ public class PrintUtilsTest {
                 Column.physical("timestamp", DataTypes.TIMESTAMP(6)));
     }
 
-    private List<Row> getData() {
+    private List<RowData> getData() {
         List<Row> data = new ArrayList<>();
         data.add(
                 Row.ofKind(
                         RowKind.INSERT,
                         null,
                         1,
-                        2,
+                        2L,
                         "abc",
                         BigDecimal.valueOf(1.23),
                         Timestamp.valueOf("2020-03-01 18:39:14")));
@@ -383,7 +409,7 @@ public class PrintUtilsTest {
                         RowKind.INSERT,
                         false,
                         null,
-                        0,
+                        0L,
                         "",
                         BigDecimal.valueOf(1),
                         Timestamp.valueOf("2020-03-01 18:39:14.1")));
@@ -394,7 +420,7 @@ public class PrintUtilsTest {
                         Integer.MAX_VALUE,
                         null,
                         "abcdefg",
-                        BigDecimal.valueOf(1234567890),
+                        BigDecimal.valueOf(12345),
                         Timestamp.valueOf("2020-03-01 18:39:14.12")));
         data.add(
                 Row.ofKind(
@@ -419,7 +445,7 @@ public class PrintUtilsTest {
                         RowKind.UPDATE_BEFORE,
                         null,
                         -1,
-                        -1,
+                        -1L,
                         "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz",
                         BigDecimal.valueOf(-12345.06789),
                         null));
@@ -428,7 +454,7 @@ public class PrintUtilsTest {
                         RowKind.UPDATE_AFTER,
                         null,
                         -1,
-                        -1,
+                        -1L,
                         "这是一段中文",
                         BigDecimal.valueOf(-12345.06789),
                         Timestamp.valueOf("2020-03-04 18:39:14")));
@@ -437,10 +463,28 @@ public class PrintUtilsTest {
                         RowKind.DELETE,
                         null,
                         -1,
-                        -1,
+                        -1L,
                         "これは日本語をテストするための文です",
                         BigDecimal.valueOf(-12345.06789),
                         Timestamp.valueOf("2020-03-04 18:39:14")));
-        return data;
+        return data.stream()
+                .map(
+                        row ->
+                                GenericRowData.ofKind(
+                                        row.getKind(),
+                                        row.getField(0),
+                                        row.getField(1),
+                                        row.getField(2),
+                                        (row.getField(3) == null)
+                                                ? null
+                                                : StringData.fromString(row.getFieldAs(3)),
+                                        (row.getField(4) == null)
+                                                ? null
+                                                : DecimalData.fromBigDecimal(
+                                                        row.getFieldAs(4), 10, 5),
+                                        (row.getField(5) == null)
+                                                ? null
+                                                : TimestampData.fromTimestamp(row.getFieldAs(5))))
+                .collect(Collectors.toList());
     }
 }

@@ -131,4 +131,7 @@ class TestChangeLoggerKv<State> implements KvStateChangeLogger<State, String> {
                 || stateElementRemoved
                 || stateMerged;
     }
+
+    @Override
+    public void close() {}
 }

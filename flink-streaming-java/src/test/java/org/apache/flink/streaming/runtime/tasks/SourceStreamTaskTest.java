@@ -560,10 +560,19 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         harness.invoke();
         NonStoppingSource.waitForStart();
 
+        // SourceStreamTask should be still waiting for NonStoppingSource after cancellation
         harness.getTask().cancel();
-        harness.waitForTaskCompletion(500, true); // allow task to exit prematurely
+        harness.waitForTaskCompletion(50, true); // allow task to exit prematurely
         assertTrue(harness.taskThread.isAlive());
 
+        // SourceStreamTask should be still waiting for NonStoppingSource after interruptions
+        for (int i = 0; i < 10; i++) {
+            harness.getTask().maybeInterruptOnCancel(harness.getTaskThread(), null, null);
+            harness.waitForTaskCompletion(50, true); // allow task to exit prematurely
+            assertTrue(harness.taskThread.isAlive());
+        }
+
+        // It should only exit once NonStoppingSource allows for it
         NonStoppingSource.forceCancel();
         harness.waitForTaskCompletion(Long.MAX_VALUE, true);
     }

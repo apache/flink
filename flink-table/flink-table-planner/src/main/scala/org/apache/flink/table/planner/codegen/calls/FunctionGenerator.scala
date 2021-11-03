@@ -255,6 +255,16 @@ class FunctionGenerator private(config: TableConfig) {
 
   addSqlFunctionMethod(
     ROUND,
+    Seq(TINYINT, INTEGER),
+    BuiltInMethods.ROUND_BYTE)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(SMALLINT, INTEGER),
+    BuiltInMethods.ROUND_SHORT)
+
+  addSqlFunctionMethod(
+    ROUND,
     Seq(BIGINT, INTEGER),
     BuiltInMethods.ROUND_LONG)
 
@@ -270,8 +280,23 @@ class FunctionGenerator private(config: TableConfig) {
 
   addSqlFunctionMethod(
     ROUND,
+    Seq(FLOAT, INTEGER),
+    BuiltInMethods.ROUND_FLOAT)
+
+  addSqlFunctionMethod(
+    ROUND,
     Seq(DOUBLE, INTEGER),
     BuiltInMethods.ROUND_DOUBLE)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(TINYINT),
+    BuiltInMethods.ROUND_BYTE_0)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(SMALLINT),
+    BuiltInMethods.ROUND_SHORT_0)
 
   addSqlFunctionMethod(
     ROUND,
@@ -287,6 +312,11 @@ class FunctionGenerator private(config: TableConfig) {
     ROUND,
     Seq(DECIMAL),
     BuiltInMethods.ROUND_DEC_0)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(FLOAT),
+    BuiltInMethods.ROUND_FLOAT_0)
 
   addSqlFunctionMethod(
     ROUND,
@@ -373,22 +403,22 @@ class FunctionGenerator private(config: TableConfig) {
   addSqlFunction(
     EXTRACT,
     Seq(RAW, BIGINT),
-    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
+    new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     EXTRACT,
     Seq(RAW, DATE),
-    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
+    new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     EXTRACT,
     Seq(RAW, TIME_WITHOUT_TIME_ZONE),
-    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
+    new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     EXTRACT,
     Seq(RAW, TIMESTAMP_WITHOUT_TIME_ZONE),
-    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
+    new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     EXTRACT,
@@ -398,12 +428,12 @@ class FunctionGenerator private(config: TableConfig) {
   addSqlFunction(
     EXTRACT,
     Seq(RAW, INTERVAL_DAY_TIME),
-    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
+    new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     EXTRACT,
     Seq(RAW, INTERVAL_YEAR_MONTH),
-    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
+    new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     TIMESTAMP_DIFF,
@@ -433,21 +463,21 @@ class FunctionGenerator private(config: TableConfig) {
     Seq(DATE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
-      Some(BuiltInMethod.UNIX_DATE_FLOOR.method)))
+      Some(BuiltInMethods.UNIX_DATE_FLOOR)))
 
   addSqlFunction(
     FLOOR,
     Seq(TIME_WITHOUT_TIME_ZONE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
-      Some(BuiltInMethod.UNIX_DATE_FLOOR.method)))
+      Some(BuiltInMethods.UNIX_DATE_FLOOR)))
 
   addSqlFunction(
     FLOOR,
     Seq(TIMESTAMP_WITHOUT_TIME_ZONE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
-      Some(BuiltInMethod.UNIX_TIMESTAMP_FLOOR.method)))
+      Some(BuiltInMethods.UNIX_TIMESTAMP_FLOOR)))
 
   addSqlFunction(
     FLOOR,
@@ -470,14 +500,14 @@ class FunctionGenerator private(config: TableConfig) {
     Seq(TIME_WITHOUT_TIME_ZONE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
-      Some(BuiltInMethod.UNIX_DATE_CEIL.method)))
+      Some(BuiltInMethods.UNIX_DATE_CEIL)))
 
   addSqlFunction(
     CEIL,
     Seq(TIMESTAMP_WITHOUT_TIME_ZONE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
-      Some(BuiltInMethod.UNIX_TIMESTAMP_CEIL.method)))
+      Some(BuiltInMethods.UNIX_TIMESTAMP_CEIL)))
 
   addSqlFunction(
     CEIL,
@@ -788,6 +818,9 @@ class FunctionGenerator private(config: TableConfig) {
   addSqlFunctionMethod(JSON_EXISTS, Seq(VARCHAR, CHAR), BuiltInMethods.JSON_EXISTS)
   addSqlFunctionMethod(JSON_EXISTS, Seq(CHAR, CHAR, RAW), BuiltInMethods.JSON_EXISTS_ON_ERROR)
   addSqlFunctionMethod(JSON_EXISTS, Seq(VARCHAR, CHAR, RAW), BuiltInMethods.JSON_EXISTS_ON_ERROR)
+
+  addSqlFunctionMethod(JSON_QUERY, Seq(CHAR, CHAR, RAW, RAW, RAW), BuiltInMethods.JSON_QUERY)
+  addSqlFunctionMethod(JSON_QUERY, Seq(VARCHAR, CHAR, RAW, RAW, RAW), BuiltInMethods.JSON_QUERY)
 
   addSqlFunctionMethod(IS_JSON_VALUE, Seq(CHAR),
     BuiltInMethod.IS_JSON_VALUE.method, argsNullable = true)

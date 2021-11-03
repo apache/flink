@@ -58,7 +58,7 @@ public abstract class AbstractJobManagerFileHandler<M extends MessageParameters>
     protected CompletableFuture<Void> respondToRequest(
             ChannelHandlerContext ctx,
             HttpRequest httpRequest,
-            HandlerRequest<EmptyRequestBody, M> handlerRequest,
+            HandlerRequest<EmptyRequestBody> handlerRequest,
             RestfulGateway gateway) {
         File file = getFile(handlerRequest);
         if (file != null && file.exists()) {
@@ -80,5 +80,5 @@ public abstract class AbstractJobManagerFileHandler<M extends MessageParameters>
     }
 
     @Nullable
-    protected abstract File getFile(HandlerRequest<EmptyRequestBody, M> handlerRequest);
+    protected abstract File getFile(HandlerRequest<EmptyRequestBody> handlerRequest);
 }

@@ -19,8 +19,18 @@
 
 set -Eeuo pipefail
 
+KAFKA_VERSION="2.6.0"
+CONFLUENT_VERSION="6.0.4"
+CONFLUENT_MAJOR_VERSION="6.0"
+# Check the Confluent Platform <> Apache Kafka compatibility matrix when updating KAFKA_VERSION
+KAFKA_SQL_VERSION="universal"
+
 source "$(dirname "$0")"/common.sh
-source "$(dirname "$0")"/kafka-common.sh 2.6.0 5.0.0 5.0
+source "$(dirname "$0")"/kafka_sql_common.sh \
+  $KAFKA_VERSION \
+  $CONFLUENT_VERSION \
+  $CONFLUENT_MAJOR_VERSION \
+  $KAFKA_SQL_VERSION
 
 function verify_output {
   local expected=$(printf $1)

@@ -436,10 +436,11 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public CompletableFuture<Acknowledge> cancel(JobID jobID) {
-        JobCancellationMessageParameters params = new JobCancellationMessageParameters();
-        params.jobPathParameter.resolve(jobID);
-        params.terminationModeQueryParameter.resolve(
-                Collections.singletonList(TerminationModeQueryParameter.TerminationMode.CANCEL));
+        JobCancellationMessageParameters params =
+                new JobCancellationMessageParameters()
+                        .resolveJobId(jobID)
+                        .resolveTerminationMode(
+                                TerminationModeQueryParameter.TerminationMode.CANCEL);
         CompletableFuture<EmptyResponseBody> responseFuture =
                 sendRequest(JobCancellationHeaders.getInstance(), params);
         return responseFuture.thenApply(ignore -> Acknowledge.get());

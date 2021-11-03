@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter.converters;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
@@ -30,6 +31,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 
 /** Conversion for {@link BuiltInFunctionDefinitions#IS_JSON}. */
+@Internal
 class IsJsonConverter extends CustomizedConverter {
 
     @Override

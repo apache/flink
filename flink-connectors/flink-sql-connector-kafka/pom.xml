@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-sql-connector-kafka_${scala.binary.version}</artifactId>
+	<artifactId>flink-sql-connector-kafka</artifactId>
 	<name>Flink : Connectors : SQL : Kafka</name>
 
 	<packaging>jar</packaging>
@@ -38,7 +38,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-kafka</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -60,7 +60,7 @@ under the License.
 							<artifactSet>
 								<includes>
 									<include>org.apache.kafka:*</include>
-									<include>org.apache.flink:flink-connector-kafka_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-connector-kafka</include>
 								</includes>
 							</artifactSet>
 							<filters>

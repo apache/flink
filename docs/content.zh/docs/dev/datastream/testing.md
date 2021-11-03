@@ -153,9 +153,9 @@ class IncrementFlatMapFunctionTest extends FlatSpec with MockFactory {
 
 要使用测试工具，还需要一组其他的依赖项（测试范围）。
 
-{{< artifact flink-test-utils withScalaVersion withTestScope >}}
+{{< artifact flink-test-utils withTestScope >}}
 {{< artifact flink-runtime withTestScope >}}
-{{< artifact flink-streaming-java withScalaVersion withTestScope withTestClassifier >}}
+{{< artifact flink-streaming-java withTestScope withTestClassifier >}}
 
 现在，可以使用测试工具将记录和 watermark 推送到用户自定义函数或自定义算子中，控制处理时间，最后对算子的输出（包括旁路输出）进行校验。
 
@@ -401,7 +401,7 @@ Apache Flink 提供了一个名为 `MiniClusterWithClientResource` 的 Junit 规
 
 要使用 `MiniClusterWithClientResource`，需要添加一个额外的依赖项（测试范围）。
 
-{{< artifact flink-test-utils withScalaVersion withTestScope >}}
+{{< artifact flink-test-utils withTestScope >}}
 
 让我们采用与前面几节相同的简单 `MapFunction`来做示例。
 

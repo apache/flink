@@ -36,6 +36,7 @@ import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.CHAR;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
@@ -44,6 +45,7 @@ import static org.apache.flink.table.api.DataTypes.MONTH;
 import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.STRUCTURED;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.types.TypeTestingUtils.hasConversionClass;
@@ -147,5 +149,75 @@ public class DataTypeTest {
                 Arrays.asList(STRING().bridgedTo(StringData.class), ROW().bridgedTo(RowData.class));
 
         assertEquals(children, mapDataType.getChildren());
+    }
+
+    @Test
+    public void getFieldNames() {
+        assertEquals(
+                Arrays.asList("c0", "c1", "c2"),
+                DataType.getFieldNames(
+                        ROW(FIELD("c0", BOOLEAN()), FIELD("c1", DOUBLE()), FIELD("c2", INT()))));
+        assertEquals(
+                Arrays.asList("name", "count"),
+                DataType.getFieldNames(
+                        STRUCTURED(
+                                DataTypesTest.SimplePojo.class,
+                                FIELD("name", STRING()),
+                                FIELD("count", INT().notNull().bridgedTo(int.class)))));
+        assertEquals(Collections.emptyList(), DataType.getFieldNames(ARRAY(INT())));
+        assertEquals(Collections.emptyList(), DataType.getFieldNames(INT()));
+    }
+
+    @Test
+    public void getFieldDataTypes() {
+        assertEquals(
+                Arrays.asList(BOOLEAN(), DOUBLE(), INT()),
+                DataType.getFieldDataTypes(
+                        ROW(FIELD("c0", BOOLEAN()), FIELD("c1", DOUBLE()), FIELD("c2", INT()))));
+        assertEquals(
+                Arrays.asList(STRING(), INT().notNull().bridgedTo(int.class)),
+                DataType.getFieldDataTypes(
+                        STRUCTURED(
+                                DataTypesTest.SimplePojo.class,
+                                FIELD("name", STRING()),
+                                FIELD("count", INT().notNull().bridgedTo(int.class)))));
+        assertEquals(Collections.emptyList(), DataType.getFieldDataTypes(ARRAY(INT())));
+        assertEquals(Collections.emptyList(), DataType.getFieldDataTypes(INT()));
+    }
+
+    @Test
+    public void getFieldCount() {
+        assertEquals(
+                3,
+                DataType.getFieldCount(
+                        ROW(FIELD("c0", BOOLEAN()), FIELD("c1", DOUBLE()), FIELD("c2", INT()))));
+        assertEquals(
+                2,
+                DataType.getFieldCount(
+                        STRUCTURED(
+                                DataTypesTest.SimplePojo.class,
+                                FIELD("name", STRING()),
+                                FIELD("count", INT().notNull().bridgedTo(int.class)))));
+        assertEquals(0, DataType.getFieldCount(ARRAY(INT())));
+        assertEquals(0, DataType.getFieldCount(INT()));
+    }
+
+    @Test
+    public void getFields() {
+        assertEquals(
+                Arrays.asList(FIELD("c0", BOOLEAN()), FIELD("c1", DOUBLE()), FIELD("c2", INT())),
+                DataType.getFields(
+                        ROW(FIELD("c0", BOOLEAN()), FIELD("c1", DOUBLE()), FIELD("c2", INT()))));
+        assertEquals(
+                Arrays.asList(
+                        FIELD("name", STRING()),
+                        FIELD("count", INT().notNull().bridgedTo(int.class))),
+                DataType.getFields(
+                        STRUCTURED(
+                                DataTypesTest.SimplePojo.class,
+                                FIELD("name", STRING()),
+                                FIELD("count", INT().notNull().bridgedTo(int.class)))));
+        assertEquals(Collections.emptyList(), DataType.getFields(ARRAY(INT())));
+        assertEquals(Collections.emptyList(), DataType.getFields(INT()));
     }
 }

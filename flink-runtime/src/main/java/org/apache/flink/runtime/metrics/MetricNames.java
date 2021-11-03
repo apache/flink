@@ -73,7 +73,7 @@ public class MetricNames {
     public static final String TASK_BACK_PRESSURED_TIME = "backPressuredTimeMs" + SUFFIX_RATE;
 
     public static final String ESTIMATED_TIME_TO_CONSUME_BUFFERS =
-            "estimatedTimeToConsumerBuffersMs";
+            "estimatedTimeToConsumeBuffersMs";
     public static final String DEBLOATED_BUFFER_SIZE = "debloatedBufferSize";
 
     // FLIP-33 sink

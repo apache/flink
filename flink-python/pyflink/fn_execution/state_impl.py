@@ -674,7 +674,7 @@ class CachingMapStateHandler(object):
         return state_key.SerializeToString()
 
 
-class RemovableConcatIterator(collections.Iterator):
+class RemovableConcatIterator(collections.abc.Iterator):
 
     def __init__(self, internal_map_state, first, second):
         self._first = first

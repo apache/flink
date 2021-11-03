@@ -797,5 +797,4 @@ object StringCallGen {
         s"new String(${terms.head}, ${terms(1)}.toString())"
     }
   }
-
 }

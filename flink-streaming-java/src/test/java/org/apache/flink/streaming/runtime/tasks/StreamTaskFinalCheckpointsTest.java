@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -61,6 +62,7 @@ import java.util.concurrent.Future;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
+import static org.apache.flink.util.ExceptionUtils.assertThrowable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertArrayEquals;
@@ -367,7 +369,7 @@ public class StreamTaskFinalCheckpointsTest {
 
                 // trigger the synchronous savepoint
                 CompletableFuture<Boolean> savepointFuture =
-                        triggerStopWithSavepoint(testHarness, syncSavepointId);
+                        triggerStopWithSavepointDrain(testHarness, syncSavepointId);
 
                 // The checkpoint 6 would be triggered successfully.
                 testHarness.finishProcessing();
@@ -466,7 +468,7 @@ public class StreamTaskFinalCheckpointsTest {
 
             // trigger the synchronous savepoint
             CompletableFuture<Boolean> savepointFuture =
-                    triggerStopWithSavepoint(testHarness, syncSavepointId);
+                    triggerStopWithSavepointDrain(testHarness, syncSavepointId);
 
             // The checkpoint 6 would be triggered successfully.
             testHarness.finishProcessing();
@@ -478,6 +480,130 @@ public class StreamTaskFinalCheckpointsTest {
             assertEquals(
                     syncSavepointId,
                     testHarness.getTaskStateManager().getNotifiedCompletedCheckpointId());
+        }
+    }
+
+    @Test
+    public void testTriggerStopWithSavepointNoDrainWhenWaitingForFinalCheckpointOnSourceTask()
+            throws Exception {
+        int finalCheckpointId = 6;
+        int syncSavepointId = 7;
+        CompletingCheckpointResponder checkpointResponder =
+                new CompletingCheckpointResponder() {
+
+                    private CheckpointMetrics metrics;
+                    private TaskStateSnapshot stateSnapshot;
+
+                    @Override
+                    public void acknowledgeCheckpoint(
+                            JobID jobID,
+                            ExecutionAttemptID executionAttemptID,
+                            long checkpointId,
+                            CheckpointMetrics checkpointMetrics,
+                            TaskStateSnapshot subtaskState) {
+                        // do not acknowledge any checkpoints straightaway
+                        if (checkpointId == finalCheckpointId) {
+                            metrics = checkpointMetrics;
+                            stateSnapshot = subtaskState;
+                        }
+                    }
+
+                    @Override
+                    public void declineCheckpoint(
+                            JobID jobID,
+                            ExecutionAttemptID executionAttemptID,
+                            long checkpointId,
+                            CheckpointException checkpointException) {
+                        // acknowledge the last pending checkpoint once the synchronous savepoint is
+                        // declined.
+                        if (syncSavepointId == checkpointId) {
+                            super.acknowledgeCheckpoint(
+                                    jobID,
+                                    executionAttemptID,
+                                    finalCheckpointId,
+                                    metrics,
+                                    stateSnapshot);
+                        }
+                    }
+                };
+
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
+                        .modifyStreamConfig(
+                                config -> {
+                                    config.setCheckpointingEnabled(true);
+                                    config.getConfiguration()
+                                            .set(
+                                                    ExecutionCheckpointingOptions
+                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                                    true);
+                                })
+                        .setCheckpointResponder(checkpointResponder)
+                        .setupOutputForSingletonOperatorChain(
+                                new StreamSource<>(new ImmediatelyFinishingSource()))
+                        .build()) {
+            checkpointResponder.setHandlers(
+                    testHarness.streamTask::notifyCheckpointCompleteAsync,
+                    testHarness.streamTask::notifyCheckpointAbortAsync);
+
+            // start task thread
+            testHarness.streamTask.runMailboxLoop();
+
+            // trigger the final checkpoint
+            CompletableFuture<Boolean> checkpointFuture =
+                    triggerCheckpoint(testHarness, finalCheckpointId);
+
+            // trigger the synchronous savepoint w/o drain, which should be declined
+            CompletableFuture<Boolean> savepointFuture =
+                    triggerStopWithSavepointNoDrain(testHarness, syncSavepointId);
+
+            // The checkpoint 6 would be triggered successfully.
+            testHarness.finishProcessing();
+            assertTrue(checkpointFuture.isDone());
+            assertTrue(savepointFuture.isDone());
+            assertFalse(savepointFuture.get());
+            testHarness.getTaskStateManager().getWaitForReportLatch().await();
+            assertEquals(
+                    finalCheckpointId, testHarness.getTaskStateManager().getReportedCheckpointId());
+            assertEquals(
+                    finalCheckpointId,
+                    testHarness.getTaskStateManager().getNotifiedCompletedCheckpointId());
+        }
+    }
+
+    @Test
+    public void testTriggerSourceFinishesWhileStoppingWithSavepointWithoutDrain() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
+                        .modifyStreamConfig(
+                                config -> {
+                                    config.setCheckpointingEnabled(true);
+                                    config.getConfiguration()
+                                            .set(
+                                                    ExecutionCheckpointingOptions
+                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                                    true);
+                                })
+                        .setupOutputForSingletonOperatorChain(
+                                new StreamSource<>(new ImmediatelyFinishingSource()))
+                        .build()) {
+
+            // trigger the synchronous savepoint w/o drain
+            triggerStopWithSavepointNoDrain(testHarness, 1);
+
+            // start task thread
+            testHarness.streamTask.runMailboxLoop();
+        } catch (Exception ex) {
+            assertThrowable(
+                    ex,
+                    (e ->
+                            e.getMessage()
+                                    .equals(
+                                            "We run out of data to process while waiting for a "
+                                                    + "synchronous savepoint to be finished. This "
+                                                    + "can lead to a deadlock waiting for a final "
+                                                    + "checkpoint after a synchronous savepoint, "
+                                                    + "which will never be triggered.")));
         }
     }
 
@@ -627,7 +753,7 @@ public class StreamTaskFinalCheckpointsTest {
                                 .getTaskStateManager()
                                 .getJobManagerTaskStateSnapshotsByCheckpointId()
                                 .get(2L)
-                                .isOperatorsFinished());
+                                .isTaskFinished());
 
                 // Trigger the first checkpoint after we call operators' finish method.
                 // The checkpoint is added to the mailbox and will be processed in the
@@ -650,7 +776,7 @@ public class StreamTaskFinalCheckpointsTest {
                                 .getTaskStateManager()
                                 .getJobManagerTaskStateSnapshotsByCheckpointId()
                                 .get(4L)
-                                .isOperatorsFinished());
+                                .isTaskFinished());
             }
 
         } finally {
@@ -680,16 +806,29 @@ public class StreamTaskFinalCheckpointsTest {
                         checkpointOptions);
     }
 
-    static CompletableFuture<Boolean> triggerStopWithSavepoint(
+    static CompletableFuture<Boolean> triggerStopWithSavepointDrain(
             StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
+        return triggerStopWithSavepoint(
+                testHarness, checkpointId, CheckpointType.SAVEPOINT_TERMINATE);
+    }
+
+    static CompletableFuture<Boolean> triggerStopWithSavepointNoDrain(
+            StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
+        return triggerStopWithSavepoint(
+                testHarness, checkpointId, CheckpointType.SAVEPOINT_SUSPEND);
+    }
+
+    static CompletableFuture<Boolean> triggerStopWithSavepoint(
+            StreamTaskMailboxTestHarness<String> testHarness,
+            long checkpointId,
+            CheckpointType checkpointType) {
         testHarness.getTaskStateManager().getWaitForReportLatch().reset();
         return testHarness
                 .getStreamTask()
                 .triggerCheckpointAsync(
                         new CheckpointMetaData(checkpointId, checkpointId * 1000),
                         CheckpointOptions.alignedNoTimeout(
-                                CheckpointType.SAVEPOINT_TERMINATE,
-                                CheckpointStorageLocationReference.getDefault()));
+                                checkpointType, CheckpointStorageLocationReference.getDefault()));
     }
 
     static void processMailTillCheckpointSucceeds(

@@ -64,7 +64,10 @@ public class BoundedSourceITCase extends AbstractTestBase {
                 graphBuilder.build(
                         sharedObjects,
                         cfg -> cfg.setBoolean(ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true),
-                        env -> {});
+                        env ->
+                                env.getCheckpointConfig()
+                                        .setCheckpointStorage(
+                                                TEMPORARY_FOLDER.newFolder().toURI()));
 
         TestJobExecutor.execute(testJob, miniClusterResource)
                 .waitForEvent(CheckpointCompletedEvent.class)

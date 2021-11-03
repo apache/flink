@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.util.function.SupplierWithException;
-
 import java.io.IOException;
 import java.util.List;
 
@@ -31,9 +29,8 @@ class ForwardCommittingHandler<CommT> extends AbstractCommitterHandler<CommT, Co
     ForwardCommittingHandler() {}
 
     @Override
-    public List<CommT> processCommittables(
-            SupplierWithException<List<CommT>, Exception> committableSupplier) throws Exception {
-        return committableSupplier.get();
+    public List<CommT> processCommittables(List<CommT> committables) {
+        return committables;
     }
 
     @Override

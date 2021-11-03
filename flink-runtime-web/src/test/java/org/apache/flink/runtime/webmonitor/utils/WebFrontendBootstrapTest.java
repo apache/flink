@@ -20,42 +20,55 @@ package org.apache.flink.runtime.webmonitor.utils;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.netty.InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio0InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio1InboundChannelHandlerFactory;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.webmonitor.history.HistoryServerStaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.history.HistoryServerTest;
+import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.Extension;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the WebFrontendBootstrap. */
 public class WebFrontendBootstrapTest {
 
-    @Rule public TemporaryFolder tmp = new TemporaryFolder();
+    @RegisterExtension
+    static final Extension CONTEXT_CLASS_LOADER_EXTENSION =
+            ContextClassLoaderExtension.builder()
+                    .withServiceEntry(
+                            InboundChannelHandlerFactory.class,
+                            Prio0InboundChannelHandlerFactory.class.getCanonicalName(),
+                            Prio1InboundChannelHandlerFactory.class.getCanonicalName())
+                    .build();
+
+    @TempDir Path tmp;
 
     @Test
-    public void testHandlersMustBeLoaded() throws Exception {
-        File webDir = tmp.newFolder("webDir");
+    void testHandlersMustBeLoaded() throws Exception {
+        Path webDir = Files.createDirectories(tmp.resolve("webDir"));
         Configuration configuration = new Configuration();
         configuration.setString(
                 Prio0InboundChannelHandlerFactory.REDIRECT_FROM_URL, "/nonExisting");
         configuration.setString(Prio0InboundChannelHandlerFactory.REDIRECT_TO_URL, "/index.html");
-        Router router =
-                new Router().addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
+        Router<?> router =
+                new Router<>()
+                        .addGet("/:*", new HistoryServerStaticFileServerHandler(webDir.toFile()));
         WebFrontendBootstrap webUI =
                 new WebFrontendBootstrap(
                         router,
                         LoggerFactory.getLogger(WebFrontendBootstrapTest.class),
-                        tmp.newFolder("uploadDir"),
+                        Files.createDirectories(webDir.resolve("uploadDir")).toFile(),
                         null,
                         "localhost",
                         0,
@@ -73,13 +86,13 @@ public class WebFrontendBootstrapTest {
         try {
             Tuple2<Integer, String> index =
                     HistoryServerTest.getFromHTTP("http://localhost:" + port + "/index.html");
-            Assert.assertEquals(index.f0.intValue(), 200);
-            Assert.assertTrue(index.f1.contains("Apache Flink Web Dashboard"));
+            assertEquals(index.f0.intValue(), 200);
+            assertTrue(index.f1.contains("Apache Flink Web Dashboard"));
 
             Tuple2<Integer, String> index2 =
                     HistoryServerTest.getFromHTTP("http://localhost:" + port + "/nonExisting");
-            Assert.assertEquals(index2.f0.intValue(), 200);
-            Assert.assertEquals(index, index2);
+            assertEquals(index2.f0.intValue(), 200);
+            assertEquals(index, index2);
         } finally {
             webUI.shutdown();
         }

@@ -4,6 +4,7 @@ weight: 6
 type: docs
 aliases:
   - /zh/dev/connectors/streamfile_sink.html
+bookHidden: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,9 +27,11 @@ under the License.
 
 # Streaming File Sink
 
-
-
 这个连接器提供了一个 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({{< ref "docs/deployment/filesystems/overview" >}}) 接口的文件系统中。
+
+{{< hint warning >}}
+This Streaming File Sink is in the process of being phased out. Please use the unified [File Sink]({{< ref "docs/connectors/datastream/file_sink" >}}) as a drop-in replacement.
+{{< /hint >}}
 
 Streaming File Sink 会将数据写入到桶中。由于输入流可能是无界的，因此每个桶中的数据被划分为多个有限大小的文件。如何分桶是可以配置的，默认使用基于时间的分桶策略，这种策略每个小时创建一个新的桶，桶中包含的文件将记录所有该小时内从流中接收到的数据。
 

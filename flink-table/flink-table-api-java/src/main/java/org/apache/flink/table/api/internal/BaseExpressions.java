@@ -24,6 +24,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
+import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.Table;
@@ -91,6 +93,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL;
@@ -1414,11 +1417,17 @@ public abstract class BaseExpressions<InType, OutType> {
      * <p>For empty path expressions or errors a behavior can be defined to either return {@code
      * null}, raise an error or return a defined default value instead.
      *
+     * <p>See {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
+     * JsonQueryOnEmptyOrError)} for extracting non-scalar values from a JSON string.
+     *
      * <p>Examples:
      *
      * <pre>{@code
      * // STRING: "true"
      * lit("{\"a\": true}").jsonValue("$.a")
+     *
+     * // DOUBLE: 0.998
+     * lit("{\"a.b\": [0.998,0.996]}").jsonValue("$.['a.b'][0]", DataTypes.DOUBLE())
      *
      * // BOOLEAN: true
      * lit("{\"a\": true}").jsonValue("$.a", DataTypes.BOOLEAN())
@@ -1530,5 +1539,101 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType jsonValue(String path) {
         return jsonValue(path, DataTypes.STRING());
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
+     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL. The result is
+     * always returned as a {@link DataTypes#STRING()}.
+     *
+     * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
+     * into an array, and whether to do so unconditionally or only if the value itself isn't an
+     * array already.
+     *
+     * <p>{@param onEmpty} and {@param onError} determine the behavior in case the path expression
+     * is empty, or in case an error was raised, respectively. By default, in both cases {@code
+     * null} is returned. Other choices are to use an empty array, an empty object, or to raise an
+     * error.
+     *
+     * <p>See {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)} for extracting scalars from a JSON string.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("{ \"a\": { \"b\": 1 } }").jsonQuery("$.a") // "{ \"b\": 1 }"
+     * lit("[1, 2]").jsonQuery("$") // "[1, 2]"
+     * nullOf(DataTypes.STRING()).jsonQuery("$") // null
+     *
+     * // Wrap result into an array
+     * lit("{}").jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[{}]"
+     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[1, 2]"
+     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.UNCONDITIONAL_ARRAY) // "[[1, 2]]"
+     *
+     * // Scalars must be wrapped to be returned
+     * lit(1).jsonQuery("$") // null
+     * lit(1).jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[1]"
+     *
+     * // Behavior if path expression is empty / there is an error
+     * // "{}"
+     * lit("{}").jsonQuery("lax $.invalid", JsonQueryWrapper.WITHOUT_ARRAY,
+     *     JsonQueryOnEmptyOrError.EMPTY_OBJECT, JsonQueryOnEmptyOrError.NULL)
+     * // "[]"
+     * lit("{}").jsonQuery("strict $.invalid", JsonQueryWrapper.WITHOUT_ARRAY,
+     *     JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.EMPTY_ARRAY)
+     * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @param wrappingBehavior Determine if and when to wrap the resulting value into an array.
+     * @param onEmpty Behavior in case the path expression is empty.
+     * @param onError Behavior in case of an error.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(
+            String path,
+            JsonQueryWrapper wrappingBehavior,
+            JsonQueryOnEmptyOrError onEmpty,
+            JsonQueryOnEmptyOrError onError) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        JSON_QUERY,
+                        toExpr(),
+                        valueLiteral(path),
+                        valueLiteral(wrappingBehavior),
+                        valueLiteral(onEmpty),
+                        valueLiteral(onError)));
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
+     * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
+     * into an array, and whether to do so unconditionally or only if the value itself isn't an
+     * array already.
+     *
+     * <p>See also {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
+     * JsonQueryOnEmptyOrError)}.
+     *
+     * @param path JSON path to search for.
+     * @param wrappingBehavior Determine if and when to wrap the resulting value into an array.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(String path, JsonQueryWrapper wrappingBehavior) {
+        return jsonQuery(
+                path, wrappingBehavior, JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.NULL);
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
+     * <p>See also {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
+     * JsonQueryOnEmptyOrError)}.
+     *
+     * @param path JSON path to search for.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(String path) {
+        return jsonQuery(path, JsonQueryWrapper.WITHOUT_ARRAY);
     }
 }

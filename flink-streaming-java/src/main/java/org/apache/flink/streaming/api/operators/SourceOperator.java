@@ -29,6 +29,7 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
@@ -56,6 +57,8 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.function.FunctionWithException;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.List;
@@ -137,7 +140,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private OperatingMode operatingMode;
 
     private final CompletableFuture<Void> finished = new CompletableFuture<>();
-    private final CompletableFuture<Void> forcedStop = new CompletableFuture<>();
+    private final SourceOperatorAvailabilityHelper availabilityHelper =
+            new SourceOperatorAvailabilityHelper();
 
     private enum OperatingMode {
         READING,
@@ -147,6 +151,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     private InternalSourceReaderMetricGroup sourceMetricGroup;
+
+    private @Nullable LatencyMarkerEmitter<OUT> latencyMarerEmitter;
 
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
@@ -302,6 +308,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         if (eventTimeLogic != null) {
             eventTimeLogic.stopPeriodicWatermarkEmits();
         }
+        if (latencyMarerEmitter != null) {
+            latencyMarerEmitter.close();
+        }
         super.finish();
 
         finished.complete(null);
@@ -312,7 +321,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             case OUTPUT_NOT_INITIALIZED:
             case READING:
                 this.operatingMode = OperatingMode.SOURCE_STOPPED;
-                forcedStop.complete(null);
+                availabilityHelper.forceStop();
                 break;
         }
         return finished;
@@ -347,6 +356,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         switch (operatingMode) {
             case OUTPUT_NOT_INITIALIZED:
                 currentMainOutput = eventTimeLogic.createMainOutput(output);
+                initializeLatencyMarkerEmitter(output);
                 lastInvokedOutput = output;
                 this.operatingMode = OperatingMode.READING;
                 return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
@@ -360,6 +370,26 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             case READING:
             default:
                 throw new IllegalStateException("Unknown operating mode: " + operatingMode);
+        }
+    }
+
+    private void initializeLatencyMarkerEmitter(DataOutput<OUT> output) {
+        long latencyTrackingInterval =
+                getExecutionConfig().isLatencyTrackingConfigured()
+                        ? getExecutionConfig().getLatencyTrackingInterval()
+                        : getContainingTask()
+                                .getEnvironment()
+                                .getTaskManagerInfo()
+                                .getConfiguration()
+                                .getLong(MetricOptions.LATENCY_INTERVAL);
+        if (latencyTrackingInterval > 0) {
+            latencyMarerEmitter =
+                    new LatencyMarkerEmitter<>(
+                            getProcessingTimeService(),
+                            output::emitLatencyMarker,
+                            latencyTrackingInterval,
+                            getOperatorID(),
+                            getRuntimeContext().getIndexOfThisSubtask());
         }
     }
 
@@ -391,10 +421,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         switch (operatingMode) {
             case OUTPUT_NOT_INITIALIZED:
             case READING:
-                CompletableFuture<Void> sourceReaderAvailable = sourceReader.isAvailable();
-                return sourceReaderAvailable == AvailabilityProvider.AVAILABLE
-                        ? sourceReaderAvailable
-                        : CompletableFuture.anyOf(sourceReaderAvailable, forcedStop);
+                return availabilityHelper.update(sourceReader.isAvailable());
             case SOURCE_STOPPED:
             case DATA_FINISHED:
                 return AvailabilityProvider.AVAILABLE;
@@ -456,5 +483,28 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @VisibleForTesting
     ListState<SplitT> getReaderState() {
         return readerState;
+    }
+
+    private static class SourceOperatorAvailabilityHelper {
+        private final CompletableFuture<Void> forcedStopFuture = new CompletableFuture<>();
+        private CompletableFuture<Void> currentReaderFuture;
+        private CompletableFuture<?> currentCombinedFuture;
+
+        public CompletableFuture<?> update(CompletableFuture<Void> sourceReaderFuture) {
+            if (sourceReaderFuture == AvailabilityProvider.AVAILABLE) {
+                return sourceReaderFuture;
+            } else if (sourceReaderFuture == currentReaderFuture) {
+                return currentCombinedFuture;
+            } else {
+                currentReaderFuture = sourceReaderFuture;
+                currentCombinedFuture =
+                        CompletableFuture.anyOf(forcedStopFuture, sourceReaderFuture);
+                return currentCombinedFuture;
+            }
+        }
+
+        public void forceStop() {
+            this.forcedStopFuture.complete(null);
+        }
     }
 }

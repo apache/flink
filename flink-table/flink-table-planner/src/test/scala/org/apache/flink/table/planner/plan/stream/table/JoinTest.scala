@@ -31,6 +31,48 @@ import java.sql.Timestamp
   */
 class JoinTest extends TableTestBase {
 
+  @Test
+  def testDependentConditionDerivationInnerJoin: Unit = {
+    val util = streamTestUtil()
+    val left = util.addDataStream[(Long, Int, String)]("T1", 'a, 'b, 'c)
+
+    val right = util.addDataStream[(Long, Int, String)]("T2",'d, 'e, 'f)
+
+    val resultTable = left.join(right)
+      .where(('a === 1 && 'd === 1) || ('b === 2 && 'd === 5))
+      .select('a,'b,'d,'e)
+
+    util.verifyExecPlan(resultTable)
+  }
+
+  @Test
+  def testDependentConditionDerivationInnerJoinWithTrue: Unit = {
+    val util = streamTestUtil()
+    val left = util.addDataStream[(Long, Int, String)]("T1", 'a, 'b, 'c)
+
+    val right = util.addDataStream[(Long, Int, String)]("T2",'d, 'e, 'f)
+
+    val resultTable = left.join(right)
+      .where(('a === 0 && 'd === 3) || ('a === 1 && true))
+      .select('a,'b,'d,'e)
+
+    util.verifyExecPlan(resultTable)
+  }
+
+  @Test
+  def testDependentConditionDerivationInnerJoinWithNull: Unit = {
+    val util = streamTestUtil()
+    val left = util.addDataStream[(Long, Int, String)]("T1", 'a, 'b, 'c)
+
+    val right = util.addDataStream[(Long, Int, String)]("T2",'d, 'e, 'f)
+
+    val resultTable = left.join(right)
+      .where(('a === 0 && 'd === 3) || ('a === 1 && 'f.isNull))
+      .select('a,'b,'d,'e)
+
+    util.verifyExecPlan(resultTable)
+  }
+
   // Tests for inner join
   @Test
   def testRowTimeWindowInnerJoin(): Unit = {

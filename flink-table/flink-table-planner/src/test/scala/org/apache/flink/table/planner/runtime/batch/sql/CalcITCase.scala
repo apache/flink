@@ -40,7 +40,7 @@ import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TestLegacyFilterableTableSource}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
@@ -935,7 +935,7 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  def testCast(): Unit = {
+  def testCastInWhere(): Unit = {
     checkResult(
       "SELECT CAST(a AS VARCHAR(10)) FROM Table3 WHERE CAST(a AS VARCHAR(10)) = '1'",
       Seq(row(1)))
@@ -1066,6 +1066,41 @@ class CalcITCase extends BatchTestBase {
     checkResult(
       "SELECT SUM(b) FROM NullTable3 WHERE c = 'NullTuple' OR c LIKE '%Hello world%' GROUP BY c",
       Seq(row(1998), row(2), row(3)))
+  }
+
+  @Test
+  def testTruncate(): Unit = {
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS DOUBLE), 2)",
+      Seq(row(123.45)))
+
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS DOUBLE))",
+      Seq(row(123.0)))
+
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS FLOAT), 2)",
+      Seq(row(123.45f)))
+
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS FLOAT))",
+      Seq(row(123.0f)))
+
+    checkResult(
+      "SELECT TRUNCATE(123, -1)",
+      Seq(row(120)))
+
+    checkResult(
+      "SELECT TRUNCATE(123, -2)",
+      Seq(row(100)))
+
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS DECIMAL(6, 3)), 2)",
+      Seq(row(new java.math.BigDecimal("123.45"))))
+
+    checkResult(
+      "SELECT TRUNCATE(CAST(123.456 AS DECIMAL(6, 3)))",
+      Seq(row(new java.math.BigDecimal("123"))))
   }
 
   @Test

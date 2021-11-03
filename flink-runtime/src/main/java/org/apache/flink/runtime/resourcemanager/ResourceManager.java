@@ -33,8 +33,8 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
+import org.apache.flink.runtime.heartbeat.HeartbeatSender;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.heartbeat.NoOpHeartbeatManager;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
@@ -99,8 +99,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>It offers the following methods as part of its rpc interface to interact with him remotely:
  *
  * <ul>
- *   <li>{@link #registerJobManager(JobMasterId, ResourceID, String, JobID, Time)} registers a
- *       {@link JobMaster} at the resource manager
+ *   <li>{@link #registerJobMaster(JobMasterId, ResourceID, String, JobID, Time)} registers a {@link
+ *       JobMaster} at the resource manager
  * </ul>
  */
 public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
@@ -311,7 +311,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     // ------------------------------------------------------------------------
 
     @Override
-    public CompletableFuture<RegistrationResponse> registerJobManager(
+    public CompletableFuture<RegistrationResponse> registerJobMaster(
             final JobMasterId jobMasterId,
             final ResourceID jobManagerResourceId,
             final String jobManagerAddress,
@@ -492,7 +492,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public void disconnectTaskManager(final ResourceID resourceId, final Exception cause) {
-        closeTaskManagerConnection(resourceId, cause);
+        closeTaskManagerConnection(resourceId, cause).ifPresent(ResourceManager.this::stopWorker);
     }
 
     @Override
@@ -854,7 +854,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                 jobId);
 
         jobManagerHeartbeatManager.monitorTarget(
-                jobManagerResourceId, new JobMasterHeartbeatTarget(jobMasterGateway));
+                jobManagerResourceId, new JobMasterHeartbeatSender(jobMasterGateway));
 
         return new JobMasterRegistrationSuccess(getFencingToken(), resourceId);
     }
@@ -916,7 +916,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             taskExecutors.put(taskExecutorResourceId, registration);
 
             taskManagerHeartbeatManager.monitorTarget(
-                    taskExecutorResourceId, new TaskExecutorHeartbeatTarget(taskExecutorGateway));
+                    taskExecutorResourceId, new TaskExecutorHeartbeatSender(taskExecutorGateway));
 
             return new TaskExecutorRegistrationSuccess(
                     registration.getInstanceID(), resourceId, clusterInformation);
@@ -988,8 +988,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
      *
      * @param resourceID Id of the TaskManager that has failed.
      * @param cause The exception which cause the TaskManager failed.
+     * @return The {@link WorkerType} of the closed connection, or empty if already removed.
      */
-    protected void closeTaskManagerConnection(final ResourceID resourceID, final Exception cause) {
+    protected Optional<WorkerType> closeTaskManagerConnection(
+            final ResourceID resourceID, final Exception cause) {
         taskManagerHeartbeatManager.unmonitorTarget(resourceID);
 
         WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
@@ -1011,6 +1013,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     resourceID.getStringWithMetadata(),
                     cause.getMessage());
         }
+
+        return Optional.ofNullable(workerRegistration).map(WorkerRegistration::getWorker);
     }
 
     protected void removeJob(JobID jobId, Exception cause) {
@@ -1193,17 +1197,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     //  Static utility classes
     // ------------------------------------------------------------------------
 
-    private static final class JobMasterHeartbeatTarget implements HeartbeatTarget<Void> {
+    private static final class JobMasterHeartbeatSender extends HeartbeatSender<Void> {
         private final JobMasterGateway jobMasterGateway;
 
-        private JobMasterHeartbeatTarget(JobMasterGateway jobMasterGateway) {
+        private JobMasterHeartbeatSender(JobMasterGateway jobMasterGateway) {
             this.jobMasterGateway = jobMasterGateway;
-        }
-
-        @Override
-        public CompletableFuture<Void> receiveHeartbeat(ResourceID resourceID, Void payload) {
-            // the ResourceManager will always send heartbeat requests to the JobManager
-            return FutureUtils.unsupportedOperationFuture();
         }
 
         @Override
@@ -1212,18 +1210,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
-    private static final class TaskExecutorHeartbeatTarget implements HeartbeatTarget<Void> {
+    private static final class TaskExecutorHeartbeatSender extends HeartbeatSender<Void> {
         private final TaskExecutorGateway taskExecutorGateway;
 
-        private TaskExecutorHeartbeatTarget(TaskExecutorGateway taskExecutorGateway) {
+        private TaskExecutorHeartbeatSender(TaskExecutorGateway taskExecutorGateway) {
             this.taskExecutorGateway = taskExecutorGateway;
-        }
-
-        @Override
-        public CompletableFuture<Void> receiveHeartbeat(ResourceID resourceID, Void payload) {
-            // the ResourceManager will always send heartbeat requests to the
-            // TaskManager
-            return FutureUtils.unsupportedOperationFuture();
         }
 
         @Override
@@ -1325,7 +1316,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
         private void handleTaskManagerConnectionLoss(ResourceID resourceID, Exception cause) {
             validateRunsInMainThread();
-            closeTaskManagerConnection(resourceID, cause);
+            closeTaskManagerConnection(resourceID, cause)
+                    .ifPresent(ResourceManager.this::stopWorker);
         }
 
         @Override

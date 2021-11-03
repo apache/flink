@@ -1275,6 +1275,9 @@
         },
         "aligned_checkpoint_timeout" : {
           "type" : "integer"
+        },
+        "checkpoints_after_tasks_finish" : {
+           "type" : "boolean"
         }
       }
     }

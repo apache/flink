@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`._
@@ -47,9 +48,11 @@ import _root_.scala.collection.JavaConversions._
 class StreamPlanner(
     executor: Executor,
     config: TableConfig,
+    moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager)
-  extends PlannerBase(executor, config, functionCatalog, catalogManager, isStreamingMode = true) {
+  extends PlannerBase(executor, config, moduleManager, functionCatalog, catalogManager,
+    isStreamingMode = true) {
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
     Array(
@@ -151,7 +154,7 @@ class StreamPlanner(
   private def createDummyPlanner(): StreamPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new DefaultExecutor(dummyExecEnv)
-    new StreamPlanner(executor, config, functionCatalog, catalogManager)
+    new StreamPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
   }
 
   override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {

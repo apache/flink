@@ -89,8 +89,6 @@ $ python -c "import pyflink;import os;print(os.path.dirname(os.path.abspath(pyfl
 
 You can debug your python functions directly in IDEs such as PyCharm.
 
-**Note:** Currently, if you use `python-archives` in the job and the parallelism of the job is greater than `1`, you can only use [remote debug](#remote-debug) mode.
-
 ### Remote Debug
 
 You can make use of the [`pydevd_pycharm`](https://pypi.org/project/pydevd-pycharm/) tool of PyCharm to debug Python UDFs.

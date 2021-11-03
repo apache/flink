@@ -36,6 +36,8 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -199,9 +201,6 @@ public class SourceStreamTask<
     @Override
     protected void cancelTask() {
         if (stopped.compareAndSet(false, true)) {
-            if (isFailing()) {
-                interruptSourceThread(true);
-            }
             cancelOperator(true);
         }
     }
@@ -225,23 +224,31 @@ public class SourceStreamTask<
                 mainOperator.cancel();
             }
         } finally {
-            interruptSourceThread(interruptThread);
+            if (sourceThread.isAlive() && interruptThread) {
+                interruptSourceThread();
+            } else if (!sourceThread.isAlive() && !sourceThread.getCompletionFuture().isDone()) {
+                // sourceThread not alive and completion future not done means source thread
+                // didn't start and we need to manually complete the future
+                sourceThread.getCompletionFuture().complete(null);
+            }
         }
     }
 
-    private void interruptSourceThread(boolean interrupt) {
+    @Override
+    public void maybeInterruptOnCancel(
+            Thread toInterrupt, @Nullable String taskName, @Nullable Long timeout) {
+        super.maybeInterruptOnCancel(toInterrupt, taskName, timeout);
+        interruptSourceThread();
+    }
+
+    private void interruptSourceThread() {
         // Nothing need to do if the source is finished on restore
-        if (operatorChain != null && operatorChain.isFinishedOnRestore()) {
+        if (operatorChain != null && operatorChain.isTaskDeployedAsFinished()) {
             return;
         }
 
         if (sourceThread.isAlive()) {
-            if (interrupt) {
-                sourceThread.interrupt();
-            }
-        } else if (!sourceThread.getCompletionFuture().isDone()) {
-            // source thread didn't start
-            sourceThread.getCompletionFuture().complete(null);
+            sourceThread.interrupt();
         }
     }
 
@@ -304,7 +311,7 @@ public class SourceStreamTask<
         }
     }
 
-    /** Runnable that executes the the source function in the head operator. */
+    /** Runnable that executes the source function in the head operator. */
     private class LegacySourceFunctionThread extends Thread {
 
         private final CompletableFuture<Void> completionFuture;
@@ -316,7 +323,7 @@ public class SourceStreamTask<
         @Override
         public void run() {
             try {
-                if (!operatorChain.isFinishedOnRestore()) {
+                if (!operatorChain.isTaskDeployedAsFinished()) {
                     LOG.debug(
                             "Legacy source {} skip execution since the task is finished on restore",
                             getTaskNameWithSubtaskAndId());

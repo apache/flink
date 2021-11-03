@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -54,7 +55,7 @@ public class ChangelogCollectResultTest {
         int count = 0;
         boolean running = true;
         while (running) {
-            final TypedResult<List<Row>> result = changelogResult.retrieveChanges();
+            final TypedResult<List<RowData>> result = changelogResult.retrieveChanges();
             Thread.sleep(100); // slow the processing down
             switch (result.getType()) {
                 case EMPTY:

@@ -54,6 +54,7 @@ import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
@@ -62,11 +63,14 @@ import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata
 import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.AggregateExpression;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingOutputFormat;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingSinkFunction;
@@ -74,10 +78,17 @@ import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.Async
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.KeyedUpsertingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.RetractingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.CountAggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.MaxAggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.MinAggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction;
 import org.apache.flink.table.planner.runtime.utils.FailingCollectionSource;
 import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -95,6 +106,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -286,6 +298,9 @@ public final class TestValuesTableFactory
     private static final ConfigOption<Integer> SINK_EXPECTED_MESSAGES_NUM =
             ConfigOptions.key("sink-expected-messages-num").intType().defaultValue(-1);
 
+    private static final ConfigOption<Boolean> ENABLE_PROJECTION_PUSH_DOWN =
+            ConfigOptions.key("enable-projection-push-down").booleanType().defaultValue(true);
+
     private static final ConfigOption<Boolean> NESTED_PROJECTION_SUPPORTED =
             ConfigOptions.key("nested-projection-supported").booleanType().defaultValue(false);
 
@@ -361,6 +376,7 @@ public final class TestValuesTableFactory
         boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
         String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
         boolean disableLookup = helper.getOptions().get(DISABLE_LOOKUP);
+        boolean enableProjectionPushDown = helper.getOptions().get(ENABLE_PROJECTION_PUSH_DOWN);
         boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
         boolean enableWatermarkPushDown = helper.getOptions().get(ENABLE_WATERMARK_PUSH_DOWN);
         boolean failingSource = helper.getOptions().get(FAILING_SOURCE);
@@ -396,6 +412,25 @@ public final class TestValuesTableFactory
                 partitions = Collections.emptyList();
                 partition2Rows = new HashMap<>();
                 partition2Rows.put(Collections.emptyMap(), data);
+            }
+
+            if (!enableProjectionPushDown) {
+                return new TestValuesScanTableSourceWithoutProjectionPushDown(
+                        producedDataType,
+                        changelogMode,
+                        isBounded,
+                        runtimeSource,
+                        failingSource,
+                        partition2Rows,
+                        nestedProjectionSupported,
+                        null,
+                        Collections.emptyList(),
+                        filterableFieldsSet,
+                        numElementToSkip,
+                        Long.MAX_VALUE,
+                        partitions,
+                        readableMetadata,
+                        null);
             }
 
             if (disableLookup) {
@@ -541,6 +576,7 @@ public final class TestValuesTableFactory
                         SINK_INSERT_ONLY,
                         RUNTIME_SINK,
                         SINK_EXPECTED_MESSAGES_NUM,
+                        ENABLE_PROJECTION_PUSH_DOWN,
                         NESTED_PROJECTION_SUPPORTED,
                         FILTERABLE_FIELDS,
                         PARTITION_LIST,
@@ -679,14 +715,14 @@ public final class TestValuesTableFactory
     // Table sources
     // --------------------------------------------------------------------------------------------
 
-    /** Values {@link ScanTableSource} for testing. */
-    private static class TestValuesScanTableSource
+    /** Values {@link ScanTableSource} for testing that disables projection push down. */
+    private static class TestValuesScanTableSourceWithoutProjectionPushDown
             implements ScanTableSource,
-                    SupportsProjectionPushDown,
                     SupportsFilterPushDown,
                     SupportsLimitPushDown,
                     SupportsPartitionPushDown,
-                    SupportsReadingMetadata {
+                    SupportsReadingMetadata,
+                    SupportsAggregatePushDown {
 
         protected DataType producedDataType;
         protected final ChangelogMode changelogMode;
@@ -705,7 +741,10 @@ public final class TestValuesTableFactory
         protected final Map<String, DataType> readableMetadata;
         protected @Nullable int[] projectedMetadataFields;
 
-        private TestValuesScanTableSource(
+        private @Nullable int[] groupingSet;
+        private List<AggregateExpression> aggregateExpressions;
+
+        private TestValuesScanTableSourceWithoutProjectionPushDown(
                 DataType producedDataType,
                 ChangelogMode changelogMode,
                 boolean bounded,
@@ -736,6 +775,8 @@ public final class TestValuesTableFactory
             this.allPartitions = allPartitions;
             this.readableMetadata = readableMetadata;
             this.projectedMetadataFields = projectedMetadataFields;
+            this.groupingSet = null;
+            this.aggregateExpressions = Collections.emptyList();
         }
 
         @Override
@@ -803,17 +844,6 @@ public final class TestValuesTableFactory
         }
 
         @Override
-        public boolean supportsNestedProjection() {
-            return nestedProjectionSupported;
-        }
-
-        @Override
-        public void applyProjection(int[][] projectedFields) {
-            this.producedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
-            this.projectedPhysicalFields = projectedFields;
-        }
-
-        @Override
         public Result applyFilters(List<ResolvedExpression> filters) {
             List<ResolvedExpression> acceptedFilters = new ArrayList<>();
             List<ResolvedExpression> remainingFilters = new ArrayList<>();
@@ -838,7 +868,7 @@ public final class TestValuesTableFactory
 
         @Override
         public DynamicTableSource copy() {
-            return new TestValuesScanTableSource(
+            return new TestValuesScanTableSourceWithoutProjectionPushDown(
                     producedDataType,
                     changelogMode,
                     bounded,
@@ -867,26 +897,128 @@ public final class TestValuesTableFactory
                     allPartitions.isEmpty()
                             ? Collections.singletonList(Collections.emptyMap())
                             : allPartitions;
-            int numRetained = 0;
+
+            int numSkipped = 0;
             for (Map<String, String> partition : keys) {
-                for (Row row : data.get(partition)) {
+                Collection<Row> rowsInPartition = data.get(partition);
+
+                // handle element skipping
+                int numToSkipInPartition = 0;
+                if (numSkipped < numElementToSkip) {
+                    numToSkipInPartition =
+                            Math.min(rowsInPartition.size(), numElementToSkip - numSkipped);
+                }
+                numSkipped += numToSkipInPartition;
+
+                // handle predicates and projection
+                List<Row> rowsRetained =
+                        rowsInPartition.stream()
+                                .skip(numToSkipInPartition)
+                                .filter(
+                                        row ->
+                                                FilterUtils.isRetainedAfterApplyingFilterPredicates(
+                                                        filterPredicates, getValueGetter(row)))
+                                .map(
+                                        row -> {
+                                            Row projectedRow = projectRow(row);
+                                            projectedRow.setKind(row.getKind());
+                                            return projectedRow;
+                                        })
+                                .collect(Collectors.toList());
+
+                // handle aggregates
+                if (!aggregateExpressions.isEmpty()) {
+                    rowsRetained = applyAggregatesToRows(rowsRetained);
+                }
+
+                // handle row data
+                for (Row row : rowsRetained) {
+                    final RowData rowData = (RowData) converter.toInternal(row);
+                    if (rowData != null) {
+                        rowData.setRowKind(row.getKind());
+                        result.add(rowData);
+                    }
+
+                    // handle limit. No aggregates will be pushed down when there is a limit.
                     if (result.size() >= limit) {
                         return result;
                     }
-                    boolean isRetained =
-                            FilterUtils.isRetainedAfterApplyingFilterPredicates(
-                                    filterPredicates, getValueGetter(row));
-                    if (isRetained) {
-                        final Row projectedRow = projectRow(row);
-                        final RowData rowData = (RowData) converter.toInternal(projectedRow);
-                        if (rowData != null) {
-                            if (numRetained >= numElementToSkip) {
-                                rowData.setRowKind(row.getKind());
-                                result.add(rowData);
-                            }
-                            numRetained++;
-                        }
+                }
+            }
+
+            return result;
+        }
+
+        private List<Row> applyAggregatesToRows(List<Row> rows) {
+            if (groupingSet != null && groupingSet.length > 0) {
+                // has group by, group firstly
+                Map<Row, List<Row>> buffer = new HashMap<>();
+                for (Row row : rows) {
+                    Row bufferKey = new Row(groupingSet.length);
+                    for (int i = 0; i < groupingSet.length; i++) {
+                        bufferKey.setField(i, row.getField(groupingSet[i]));
                     }
+                    if (buffer.containsKey(bufferKey)) {
+                        buffer.get(bufferKey).add(row);
+                    } else {
+                        buffer.put(bufferKey, new ArrayList<>(Collections.singletonList(row)));
+                    }
+                }
+                List<Row> result = new ArrayList<>();
+                for (Map.Entry<Row, List<Row>> entry : buffer.entrySet()) {
+                    result.add(Row.join(entry.getKey(), accumulateRows(entry.getValue())));
+                }
+                return result;
+            } else {
+                return Collections.singletonList(accumulateRows(rows));
+            }
+        }
+
+        // can only apply sum/sum0/avg function for long type fields for testing
+        private Row accumulateRows(List<Row> rows) {
+            Row result = new Row(aggregateExpressions.size());
+            for (int i = 0; i < aggregateExpressions.size(); i++) {
+                FunctionDefinition aggFunction =
+                        aggregateExpressions.get(i).getFunctionDefinition();
+                List<FieldReferenceExpression> arguments = aggregateExpressions.get(i).getArgs();
+                if (aggFunction instanceof MinAggFunction) {
+                    int argIndex = arguments.get(0).getFieldIndex();
+                    Row minRow =
+                            rows.stream()
+                                    .min(Comparator.comparing(row -> row.getFieldAs(argIndex)))
+                                    .orElse(null);
+                    result.setField(i, minRow != null ? minRow.getField(argIndex) : null);
+                } else if (aggFunction instanceof MaxAggFunction) {
+                    int argIndex = arguments.get(0).getFieldIndex();
+                    Row maxRow =
+                            rows.stream()
+                                    .max(Comparator.comparing(row -> row.getFieldAs(argIndex)))
+                                    .orElse(null);
+                    result.setField(i, maxRow != null ? maxRow.getField(argIndex) : null);
+                } else if (aggFunction instanceof SumAggFunction) {
+                    int argIndex = arguments.get(0).getFieldIndex();
+                    Object finalSum =
+                            rows.stream()
+                                    .filter(row -> row.getField(argIndex) != null)
+                                    .mapToLong(row -> row.getFieldAs(argIndex))
+                                    .sum();
+
+                    boolean allNull = rows.stream().noneMatch(r -> r.getField(argIndex) != null);
+                    result.setField(i, allNull ? null : finalSum);
+                } else if (aggFunction instanceof Sum0AggFunction) {
+                    int argIndex = arguments.get(0).getFieldIndex();
+                    Object finalSum0 =
+                            rows.stream()
+                                    .filter(row -> row.getField(argIndex) != null)
+                                    .mapToLong(row -> row.getFieldAs(argIndex))
+                                    .sum();
+                    result.setField(i, finalSum0);
+                } else if (aggFunction instanceof CountAggFunction) {
+                    int argIndex = arguments.get(0).getFieldIndex();
+                    long count = rows.stream().filter(r -> r.getField(argIndex) != null).count();
+                    result.setField(i, count);
+                } else if (aggFunction instanceof Count1AggFunction) {
+                    result.setField(i, (long) rows.size());
                 }
             }
             return result;
@@ -954,6 +1086,52 @@ public final class TestValuesTableFactory
         }
 
         @Override
+        public boolean applyAggregates(
+                List<int[]> groupingSets,
+                List<AggregateExpression> aggregateExpressions,
+                DataType producedDataType) {
+            // This TestValuesScanTableSource only supports single group aggregate ar present.
+            if (groupingSets.size() > 1) {
+                return false;
+            }
+            List<AggregateExpression> aggExpressions = new ArrayList<>();
+            for (AggregateExpression aggExpression : aggregateExpressions) {
+                FunctionDefinition functionDefinition = aggExpression.getFunctionDefinition();
+                if (!(functionDefinition instanceof MinAggFunction
+                        || functionDefinition instanceof MaxAggFunction
+                        || functionDefinition instanceof SumAggFunction
+                        || functionDefinition instanceof Sum0AggFunction
+                        || functionDefinition instanceof CountAggFunction
+                        || functionDefinition instanceof Count1AggFunction)) {
+                    return false;
+                }
+                if (aggExpression.getFilterExpression().isPresent()
+                        || aggExpression.isApproximate()
+                        || aggExpression.isDistinct()) {
+                    return false;
+                }
+
+                // only Long data type is supported in this unit test expect count()
+                if (aggExpression.getArgs().stream()
+                        .anyMatch(
+                                field ->
+                                        !(field.getOutputDataType().getLogicalType()
+                                                        instanceof BigIntType)
+                                                && !(functionDefinition instanceof CountAggFunction
+                                                        || functionDefinition
+                                                                instanceof Count1AggFunction))) {
+                    return false;
+                }
+
+                aggExpressions.add(aggExpression);
+            }
+            this.groupingSet = groupingSets.get(0);
+            this.aggregateExpressions = aggExpressions;
+            this.producedDataType = producedDataType;
+            return true;
+        }
+
+        @Override
         public void applyLimit(long limit) {
             this.limit = limit;
         }
@@ -970,6 +1148,77 @@ public final class TestValuesTableFactory
             final List<String> allMetadataKeys = new ArrayList<>(listReadableMetadata().keySet());
             projectedMetadataFields =
                     remainingMetadataKeys.stream().mapToInt(allMetadataKeys::indexOf).toArray();
+        }
+    }
+
+    /** Values {@link ScanTableSource} for testing that supports projection push down. */
+    private static class TestValuesScanTableSource
+            extends TestValuesScanTableSourceWithoutProjectionPushDown
+            implements SupportsProjectionPushDown {
+
+        private TestValuesScanTableSource(
+                DataType producedDataType,
+                ChangelogMode changelogMode,
+                boolean bounded,
+                String runtimeSource,
+                boolean failingSource,
+                Map<Map<String, String>, Collection<Row>> data,
+                boolean nestedProjectionSupported,
+                @Nullable int[][] projectedPhysicalFields,
+                List<ResolvedExpression> filterPredicates,
+                Set<String> filterableFields,
+                int numElementToSkip,
+                long limit,
+                List<Map<String, String>> allPartitions,
+                Map<String, DataType> readableMetadata,
+                @Nullable int[] projectedMetadataFields) {
+            super(
+                    producedDataType,
+                    changelogMode,
+                    bounded,
+                    runtimeSource,
+                    failingSource,
+                    data,
+                    nestedProjectionSupported,
+                    projectedPhysicalFields,
+                    filterPredicates,
+                    filterableFields,
+                    numElementToSkip,
+                    limit,
+                    allPartitions,
+                    readableMetadata,
+                    projectedMetadataFields);
+        }
+
+        @Override
+        public DynamicTableSource copy() {
+            return new TestValuesScanTableSource(
+                    producedDataType,
+                    changelogMode,
+                    bounded,
+                    runtimeSource,
+                    failingSource,
+                    data,
+                    nestedProjectionSupported,
+                    projectedPhysicalFields,
+                    filterPredicates,
+                    filterableFields,
+                    numElementToSkip,
+                    limit,
+                    allPartitions,
+                    readableMetadata,
+                    projectedMetadataFields);
+        }
+
+        @Override
+        public boolean supportsNestedProjection() {
+            return nestedProjectionSupported;
+        }
+
+        @Override
+        public void applyProjection(int[][] projectedFields) {
+            this.producedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
+            this.projectedPhysicalFields = projectedFields;
         }
     }
 

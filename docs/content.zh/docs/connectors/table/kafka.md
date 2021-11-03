@@ -362,7 +362,7 @@ Kafka 消息的消息键和消息体部分都可以使用某种 [格式]({{< ref
 所有的格式配置使用格式识别符作为前缀。
 
 ```sql
-CREATE TABLE KafkaTable (,
+CREATE TABLE KafkaTable (
   `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
   `user_id` BIGINT,
   `item_id` BIGINT,

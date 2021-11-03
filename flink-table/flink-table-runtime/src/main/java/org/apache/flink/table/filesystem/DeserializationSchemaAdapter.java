@@ -28,7 +28,7 @@ import org.apache.flink.connector.file.src.util.ArrayResultIterator;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -46,6 +46,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.stream.Collectors;
 
@@ -73,31 +74,31 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
 
     public DeserializationSchemaAdapter(
             DeserializationSchema<RowData> deserializationSchema,
-            TableSchema schema,
+            DataType physicalDataType,
             int[] projectFields,
             List<String> partitionKeys,
             String defaultPartValue) {
         this.deserializationSchema = deserializationSchema;
-        this.fieldNames = schema.getFieldNames();
-        this.fieldTypes = schema.getFieldDataTypes();
+        this.fieldNames = DataType.getFieldNames(physicalDataType).toArray(new String[0]);
+        this.fieldTypes = DataType.getFieldDataTypes(physicalDataType).toArray(new DataType[0]);
         this.projectFields = projectFields;
         this.partitionKeys = partitionKeys;
         this.defaultPartValue = defaultPartValue;
 
         List<String> projectedNames =
                 Arrays.stream(projectFields)
-                        .mapToObj(idx -> schema.getFieldNames()[idx])
+                        .mapToObj(idx -> this.fieldNames[idx])
                         .collect(Collectors.toList());
 
         this.projectedRowType =
                 RowType.of(
                         Arrays.stream(projectFields)
-                                .mapToObj(idx -> schema.getFieldDataTypes()[idx].getLogicalType())
+                                .mapToObj(idx -> this.fieldTypes[idx].getLogicalType())
                                 .toArray(LogicalType[]::new),
                         projectedNames.toArray(new String[0]));
 
         List<String> formatFields =
-                Arrays.stream(schema.getFieldNames())
+                Arrays.stream(this.fieldNames)
                         .filter(field -> !partitionKeys.contains(field))
                         .collect(Collectors.toList());
 
@@ -110,11 +111,16 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
                 formatProjectedFields.stream().mapToInt(projectedNames::indexOf).toArray();
 
         this.formatFieldGetters = new RowData.FieldGetter[formatProjectedFields.size()];
+        final Map<String, DataType> fieldDataTypesMap =
+                DataType.getFields(physicalDataType).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        DataTypes.Field::getName, DataTypes.Field::getDataType));
         for (int i = 0; i < formatProjectedFields.size(); i++) {
             String name = formatProjectedFields.get(i);
             this.formatFieldGetters[i] =
                     RowData.createFieldGetter(
-                            schema.getFieldDataType(name).get().getLogicalType(),
+                            fieldDataTypesMap.get(name).getLogicalType(),
                             formatFields.indexOf(name));
         }
     }

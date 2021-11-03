@@ -21,6 +21,8 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.io.network.netty.InboundChannelHandlerFactory;
+import org.apache.flink.runtime.io.network.netty.OutboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio0InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio1InboundChannelHandlerFactory;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -29,23 +31,26 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.Extension;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** IT cases for {@link RestClient} and {@link RestServerEndpoint}. */
 public class RestExternalHandlersITCase extends TestLogger {
@@ -58,6 +63,19 @@ public class RestExternalHandlersITCase extends TestLogger {
     private RestServerEndpoint serverEndpoint;
     private RestClient restClient;
     private InetSocketAddress serverAddress;
+
+    @RegisterExtension
+    static final Extension CONTEXT_CLASS_LOADER_EXTENSION =
+            ContextClassLoaderExtension.builder()
+                    .withServiceEntry(
+                            InboundChannelHandlerFactory.class,
+                            Prio0InboundChannelHandlerFactory.class.getCanonicalName(),
+                            Prio1InboundChannelHandlerFactory.class.getCanonicalName())
+                    .withServiceEntry(
+                            OutboundChannelHandlerFactory.class,
+                            Prio0OutboundChannelHandlerFactory.class.getCanonicalName(),
+                            Prio1OutboundChannelHandlerFactory.class.getCanonicalName())
+                    .build();
 
     private final Configuration config;
 
@@ -78,15 +96,15 @@ public class RestExternalHandlersITCase extends TestLogger {
         return config;
     }
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    private void setup() throws Exception {
         serverEndpoint = TestRestServerEndpoint.builder(config).buildAndStart();
         restClient = new TestRestClient(config);
         serverAddress = serverEndpoint.getServerAddress();
     }
 
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    private void teardown() throws Exception {
         if (restClient != null) {
             restClient.shutdown(timeout);
             restClient = null;
@@ -99,7 +117,7 @@ public class RestExternalHandlersITCase extends TestLogger {
     }
 
     @Test
-    public void testHandlersMustBeLoaded() throws Exception {
+    void testHandlersMustBeLoaded() throws Exception {
         assertEquals(serverEndpoint.inboundChannelHandlerFactories.size(), 2);
         assertTrue(
                 serverEndpoint.inboundChannelHandlerFactories.get(0)

@@ -1276,7 +1276,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
     </tr>
     <tr>
       <td rowspan="2"><strong>Task (only if buffer debloating is enabled and in non-source tasks)</strong></td>
-      <td>estimatedTimeToConsumerBuffersMs</td>
+      <td>estimatedTimeToConsumeBuffersMs</td>
       <td>The estimated time (in milliseconds) by the buffer debloater to consume all of the buffered data in the network exchange preceding this task. This value is calculated by approximated amount of the in-flight data and calculated throughput.</td>
       <td>Gauge</td>
     </tr>

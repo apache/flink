@@ -159,9 +159,7 @@ public class Elasticsearch7DynamicSinkFactoryTest extends TestLogger {
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
                 "The table has a primary key on columns of illegal types: "
-                        + "[ARRAY, MAP, MULTISET, ROW, RAW, VARBINARY].\n"
-                        + " Elasticsearch sink does not support primary keys on columns of types: "
-                        + "[ARRAY, MAP, MULTISET, STRUCTURED_TYPE, ROW, RAW, BINARY, VARBINARY].");
+                        + "[ARRAY, MAP, MULTISET, ROW, RAW, VARBINARY].");
         sinkFactory.createDynamicTableSink(
                 context()
                         .withSchema(

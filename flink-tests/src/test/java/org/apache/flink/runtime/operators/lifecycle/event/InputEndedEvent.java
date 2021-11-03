@@ -30,8 +30,8 @@ import java.util.Objects;
 public class InputEndedEvent extends TestEvent {
     public final int inputId;
 
-    public InputEndedEvent(String operatorId, int subtaskIndex, int inputId) {
-        super(operatorId, subtaskIndex);
+    public InputEndedEvent(String operatorId, int subtaskIndex, int attemptNumber, int inputId) {
+        super(operatorId, subtaskIndex, attemptNumber);
         this.inputId = inputId;
     }
 

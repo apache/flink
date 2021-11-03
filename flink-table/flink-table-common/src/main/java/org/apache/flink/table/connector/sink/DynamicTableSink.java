@@ -150,6 +150,12 @@ public interface DynamicTableSink {
         <T> TypeInformation<T> createTypeInformation(DataType consumedDataType);
 
         /**
+         * Creates type information describing the internal data structures of the given {@link
+         * LogicalType}.
+         */
+        <T> TypeInformation<T> createTypeInformation(LogicalType consumedLogicalType);
+
+        /**
          * Creates a converter for mapping between Flink's internal data structures and objects
          * specified by the given {@link DataType} that can be passed into a runtime implementation.
          *

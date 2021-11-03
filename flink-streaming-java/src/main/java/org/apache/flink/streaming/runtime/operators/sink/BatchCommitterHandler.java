@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.util.List;
@@ -51,11 +50,9 @@ final class BatchCommitterHandler<InputT, OutputT>
     }
 
     @Override
-    public List<OutputT> processCommittables(
-            SupplierWithException<List<InputT>, Exception> committableSupplier) throws Exception {
-        List<InputT> committables = committableSupplier.get();
-        super.processCommittables(() -> committables);
-        return chainedHandler.processCommittables(() -> committables);
+    public List<OutputT> processCommittables(List<InputT> committables) {
+        super.processCommittables(committables);
+        return chainedHandler.processCommittables(committables);
     }
 
     @Override

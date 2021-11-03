@@ -382,6 +382,7 @@ function check_logs_for_errors {
 function check_logs_for_exceptions {
   echo "Checking for exceptions..."
   exception_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_LOG_DIR \
+   | grep -v "due to CancelTaskException" \
    | grep -v "RetriableCommitFailedException" \
    | grep -v "NoAvailableBrokersException" \
    | grep -v "Async Kafka commit failed" \

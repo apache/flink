@@ -22,8 +22,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.PrintUtils;
-import org.apache.flink.types.Row;
 
 import org.jline.keymap.KeyMap;
 import org.jline.utils.AttributedString;
@@ -108,7 +108,7 @@ public class CliChangelogResultView
     @Override
     protected void refresh() {
         // retrieve change record
-        final TypedResult<List<Row>> result;
+        final TypedResult<List<RowData>> result;
         try {
             result =
                     client.getExecutor()
@@ -129,9 +129,9 @@ public class CliChangelogResultView
                 stopRetrieval(false);
                 break;
             default:
-                List<Row> changes = result.getPayload();
+                List<RowData> changes = result.getPayload();
 
-                for (Row change : changes) {
+                for (RowData change : changes) {
                     // convert row
                     final String[] row =
                             PrintUtils.rowToString(

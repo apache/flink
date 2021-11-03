@@ -49,12 +49,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.Header;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -76,8 +73,6 @@ import java.util.stream.Stream;
 @Internal
 public class KafkaDynamicSource
         implements ScanTableSource, SupportsReadingMetadata, SupportsWatermarkPushDown {
-
-    private static final Logger LOG = LoggerFactory.getLogger(KafkaDynamicSource.class);
 
     // --------------------------------------------------------------------------------------------
     // Mutable attributes
@@ -389,17 +384,6 @@ public class KafkaDynamicSource
             kafkaSourceBuilder.setTopicPattern(topicPattern);
         }
 
-        // For compatibility with legacy source that is not validating group id
-        if (!properties.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
-            String generatedGroupId = "KafkaSource-" + tableIdentifier;
-            LOG.warn(
-                    "Property \"{}\" is required for offset commit but not set in table options. "
-                            + "Assigning \"{}\" as consumer group id",
-                    ConsumerConfig.GROUP_ID_CONFIG,
-                    generatedGroupId);
-            kafkaSourceBuilder.setGroupId(generatedGroupId);
-        }
-
         switch (startupMode) {
             case EARLIEST:
                 kafkaSourceBuilder.setStartingOffsets(OffsetsInitializer.earliest());
@@ -452,7 +436,7 @@ public class KafkaDynamicSource
 
         // adjust physical arity with value format's metadata
         final int adjustedPhysicalArity =
-                producedDataType.getChildren().size() - metadataKeys.size();
+                DataType.getFieldDataTypes(producedDataType).size() - metadataKeys.size();
 
         // adjust value format projection to include value format's metadata columns at the end
         final int[] adjustedValueProjection =

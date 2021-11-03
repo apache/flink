@@ -29,7 +29,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime;
+import static org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime;
 
 /** Test for table source json plan. */
 public class TableSourceJsonPlanITCase extends JsonPlanTestBase {

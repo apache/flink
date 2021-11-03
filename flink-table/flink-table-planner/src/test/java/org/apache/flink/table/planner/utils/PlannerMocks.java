@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
@@ -31,34 +33,49 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 
-/** A utility class for creating an instance of {@link FlinkPlannerImpl} for testing. */
+/**
+ * A utility class for instantiating and holding mocks for {@link FlinkPlannerImpl}, {@link
+ * ParserImpl} and {@link CatalogManager} for testing.
+ */
 public class PlannerMocks {
-    public static FlinkPlannerImpl createDefaultPlanner() {
-        TableConfig tableConfig = new TableConfig();
-        CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
-        ModuleManager moduleManager = new ModuleManager();
-        FunctionCatalog functionCatalog =
+
+    private final FlinkPlannerImpl planner;
+    private final ParserImpl parser;
+    private final CatalogManager catalogManager;
+
+    private PlannerMocks() {
+        this.catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+
+        final TableConfig tableConfig = new TableConfig();
+        final ModuleManager moduleManager = new ModuleManager();
+
+        final FunctionCatalog functionCatalog =
                 new FunctionCatalog(tableConfig, catalogManager, moduleManager);
-        PlannerContext plannerContext =
+
+        final PlannerContext plannerContext =
                 new PlannerContext(
                         false,
                         tableConfig,
+                        moduleManager,
                         functionCatalog,
                         catalogManager,
                         asRootSchema(new CatalogManagerCalciteSchema(catalogManager, true)),
                         new ArrayList<>());
-        FlinkPlannerImpl planner =
+
+        this.planner =
                 plannerContext.createFlinkPlanner(
                         catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
-        Parser parser =
+        this.parser =
                 new ParserImpl(
                         catalogManager,
                         () -> planner,
                         planner::parser,
                         plannerContext.getSqlExprToRexConverterFactory());
+
         catalogManager.initSchemaResolver(
                 true,
                 ExpressionResolver.resolverFor(
@@ -69,8 +86,37 @@ public class PlannerMocks {
                         functionCatalog.asLookup(parser::parseIdentifier),
                         catalogManager.getDataTypeFactory(),
                         parser::parseSqlExpression));
+    }
+
+    public FlinkPlannerImpl getPlanner() {
         return planner;
     }
 
-    private PlannerMocks() {}
+    public ParserImpl getParser() {
+        return parser;
+    }
+
+    public CatalogManager getCatalogManager() {
+        return catalogManager;
+    }
+
+    public PlannerMocks registerTemporaryTable(String tableName, Schema tableSchema) {
+        final CatalogTable table =
+                CatalogTable.of(tableSchema, null, Collections.emptyList(), Collections.emptyMap());
+
+        this.getCatalogManager()
+                .createTemporaryTable(
+                        table,
+                        ObjectIdentifier.of(
+                                this.getCatalogManager().getCurrentCatalog(),
+                                this.getCatalogManager().getCurrentDatabase(),
+                                tableName),
+                        false);
+
+        return this;
+    }
+
+    public static PlannerMocks create() {
+        return new PlannerMocks();
+    }
 }

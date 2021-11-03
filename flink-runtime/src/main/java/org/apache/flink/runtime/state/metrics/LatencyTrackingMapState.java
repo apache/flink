@@ -217,7 +217,7 @@ class LatencyTrackingMapState<K, N, UK, UV>
         private static final String MAP_STATE_PUT_LATENCY = "mapStatePutLatency";
         private static final String MAP_STATE_PUT_ALL_LATENCY = "mapStatePutAllLatency";
         private static final String MAP_STATE_REMOVE_LATENCY = "mapStateRemoveLatency";
-        private static final String MAP_STATE_CONTAINS_LATENCY = "mapStateContainsAllLatency";
+        private static final String MAP_STATE_CONTAINS_LATENCY = "mapStateContainsLatency";
         private static final String MAP_STATE_ENTRIES_INIT_LATENCY = "mapStateEntriesInitLatency";
         private static final String MAP_STATE_KEYS_INIT_LATENCY = "mapStateKeysInitLatency";
         private static final String MAP_STATE_VALUES_INIT_LATENCY = "mapStateValuesInitLatency";

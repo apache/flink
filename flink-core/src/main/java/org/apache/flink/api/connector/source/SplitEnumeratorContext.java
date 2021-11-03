@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 
 import java.util.Map;
@@ -26,14 +26,18 @@ import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
 
 /**
- * A context class for the {@link SplitEnumerator}. This class serves the following purposes: 1.
- * Host information necessary for the SplitEnumerator to make split assignment decisions. 2. Accept
- * and track the split assignment from the enumerator. 3. Provide a managed threading model so the
- * split enumerators do not need to create their own internal threads.
+ * A context class for the {@link SplitEnumerator}. This class serves the following purposes:
+ *
+ * <ol>
+ *   <li>Host information necessary for the SplitEnumerator to make split assignment decisions.
+ *   <li>Accept and track the split assignment from the enumerator.
+ *   <li>Provide a managed threading model so the split enumerators do not need to create their own
+ *       internal threads.
+ * </ol>
  *
  * @param <SplitT> the type of the splits.
  */
-@PublicEvolving
+@Public
 public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 
     SplitEnumeratorMetricGroup metricGroup();
@@ -96,7 +100,7 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
      * s may be executed in a thread pool concurrently.
      *
      * <p>It is important to make sure that the callable does not modify any shared state,
-     * especially the states that will be a part of the {@link SplitEnumerator#snapshotState()}.
+     * especially the states that will be a part of the {@link SplitEnumerator#snapshotState(long)}.
      * Otherwise the there might be unexpected behavior.
      *
      * <p>Note that an exception thrown from the handler would result in failing the job.
@@ -113,7 +117,7 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
      * <code>Callable</code>s may be executed in a thread pool concurrently.
      *
      * <p>It is important to make sure that the callable does not modify any shared state,
-     * especially the states that will be a part of the {@link SplitEnumerator#snapshotState()}.
+     * especially the states that will be a part of the {@link SplitEnumerator#snapshotState(long)}.
      * Otherwise the there might be unexpected behavior.
      *
      * <p>Note that an exception thrown from the handler would result in failing the job.
@@ -121,11 +125,14 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
      * @param callable the callable to call.
      * @param handler a handler that handles the return value of or the exception thrown from the
      *     callable.
-     * @param initialDelay the initial delay of calling the callable.
-     * @param period the period between two invocations of the callable.
+     * @param initialDelayMillis the initial delay of calling the callable, in milliseconds.
+     * @param periodMillis the period between two invocations of the callable, in milliseconds.
      */
     <T> void callAsync(
-            Callable<T> callable, BiConsumer<T, Throwable> handler, long initialDelay, long period);
+            Callable<T> callable,
+            BiConsumer<T, Throwable> handler,
+            long initialDelayMillis,
+            long periodMillis);
 
     /**
      * Invoke the given runnable in the source coordinator thread.

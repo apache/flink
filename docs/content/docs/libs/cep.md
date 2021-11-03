@@ -44,7 +44,7 @@ add the FlinkCEP dependency to the `pom.xml` of your project.
 
 {{< tabs "3b3e4675-dd86-4b2d-8487-9c8711f234b3" >}}
 {{< tab "Java" >}}
-{{< artifact flink-cep withScalaVersion >}}
+{{< artifact flink-cep >}}
 {{< /tab >}}
 {{< tab "Scala" >}}
 {{< artifact flink-cep-scala withScalaVersion >}}

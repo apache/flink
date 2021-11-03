@@ -20,6 +20,8 @@ package org.apache.flink.python.env.beam;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironment;
@@ -27,13 +29,17 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.util.CompressionUtils;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
 import org.codehaus.commons.nullanalysis.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -51,6 +57,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.flink.python.util.PythonDependencyUtils.PARAM_DELIMITER;
 
@@ -85,43 +92,44 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
     private static final long CHECK_INTERVAL = 20;
     private static final long CHECK_TIMEOUT = 1000;
 
-    private transient String baseDirectory;
-
-    /** Directory for storing the installation result of the requirements file. */
-    private transient String requirementsDirectory;
-
-    /** Directory for storing the extracted result of the archive files. */
-    private transient String archivesDirectory;
-
-    /** Directory for storing the uploaded python files. */
-    private transient String filesDirectory;
-
     private transient Thread shutdownHook;
+
+    private transient PythonEnvResources.PythonLeasedResource resource;
 
     @NotNull private final PythonDependencyInfo dependencyInfo;
     @NotNull private final Map<String, String> systemEnv;
     @NotNull private final String[] tmpDirectories;
+    @NotNull private final JobID jobID;
 
     public ProcessPythonEnvironmentManager(
             @NotNull PythonDependencyInfo dependencyInfo,
             @NotNull String[] tmpDirectories,
-            @NotNull Map<String, String> systemEnv) {
+            @NotNull Map<String, String> systemEnv,
+            @NotNull JobID jobID) {
         this.dependencyInfo = Objects.requireNonNull(dependencyInfo);
         this.tmpDirectories = Objects.requireNonNull(tmpDirectories);
         this.systemEnv = Objects.requireNonNull(systemEnv);
+        this.jobID = Objects.requireNonNull(jobID);
     }
 
     @Override
     public void open() throws Exception {
-        baseDirectory = createBaseDirectory(tmpDirectories);
-        archivesDirectory = String.join(File.separator, baseDirectory, PYTHON_ARCHIVES_DIR);
-        requirementsDirectory = String.join(File.separator, baseDirectory, PYTHON_REQUIREMENTS_DIR);
-        filesDirectory = String.join(File.separator, baseDirectory, PYTHON_FILES_DIR);
+        resource =
+                PythonEnvResources.getOrAllocateSharedResource(
+                        jobID,
+                        jobID -> {
+                            String baseDirectory = createBaseDirectory(tmpDirectories);
 
-        File baseDirectoryFile = new File(baseDirectory);
-        if (!baseDirectoryFile.exists() && !baseDirectoryFile.mkdir()) {
-            throw new IOException("Could not create the base directory: " + baseDirectory);
-        }
+                            File baseDirectoryFile = new File(baseDirectory);
+                            if (!baseDirectoryFile.exists() && !baseDirectoryFile.mkdir()) {
+                                throw new IOException(
+                                        "Could not create the base directory: " + baseDirectory);
+                            }
+
+                            Map<String, String> env = constructEnvironmentVariables(baseDirectory);
+                            installRequirements(baseDirectory, env);
+                            return Tuple2.of(baseDirectory, env);
+                        });
         shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
                         this, ProcessPythonEnvironmentManager.class.getSimpleName(), LOG);
@@ -130,29 +138,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
     @Override
     public void close() throws Exception {
         try {
-            int retries = 0;
-            while (true) {
-                try {
-                    FileUtils.deleteDirectory(new File(baseDirectory));
-                    break;
-                } catch (Throwable t) {
-                    retries++;
-                    if (retries <= CHECK_TIMEOUT / CHECK_INTERVAL) {
-                        LOG.warn(
-                                String.format(
-                                        "Failed to delete the working directory %s of the Python UDF worker. Retrying...",
-                                        baseDirectory),
-                                t);
-                    } else {
-                        LOG.warn(
-                                String.format(
-                                        "Failed to delete the working directory %s of the Python UDF worker.",
-                                        baseDirectory),
-                                t);
-                        break;
-                    }
-                }
-            }
+            PythonEnvResources.release(jobID);
         } finally {
             if (shutdownHook != null) {
                 ShutdownHookUtil.removeShutdownHook(
@@ -163,18 +149,9 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
     }
 
     @Override
-    public PythonEnvironment createEnvironment() throws IOException {
-        Map<String, String> env = constructEnvironmentVariables();
+    public PythonEnvironment createEnvironment() throws Exception {
+        HashMap<String, String> env = new HashMap<>(resource.env);
 
-        if (dependencyInfo.getRequirementsFilePath().isPresent()) {
-            LOG.info("Trying to pip install the Python requirements...");
-            PythonEnvironmentManagerUtils.pipInstallRequirements(
-                    dependencyInfo.getRequirementsFilePath().get(),
-                    dependencyInfo.getRequirementsCacheDir().orElse(null),
-                    requirementsDirectory,
-                    dependencyInfo.getPythonExec(),
-                    env);
-        }
         String runnerScript =
                 PythonEnvironmentManagerUtils.getPythonUdfRunnerScript(
                         dependencyInfo.getPythonExec(), env);
@@ -192,7 +169,8 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
     public String createRetrievalToken() throws IOException {
         File retrievalToken =
                 new File(
-                        baseDirectory, "retrieval_token_" + UUID.randomUUID().toString() + ".json");
+                        resource.baseDirectory,
+                        "retrieval_token_" + UUID.randomUUID().toString() + ".json");
         if (retrievalToken.createNewFile()) {
             final DataOutputStream dos = new DataOutputStream(new FileOutputStream(retrievalToken));
             dos.writeBytes("{\"manifest\": {}}");
@@ -216,15 +194,15 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
      * @return The environment variables which contain the paths of the python dependencies.
      */
     @VisibleForTesting
-    Map<String, String> constructEnvironmentVariables()
+    Map<String, String> constructEnvironmentVariables(String baseDirectory)
             throws IOException, IllegalArgumentException {
         Map<String, String> env = new HashMap<>(this.systemEnv);
 
-        constructFilesDirectory(env);
+        constructFilesDirectory(env, baseDirectory);
 
-        constructArchivesDirectory(env);
+        constructArchivesDirectory(env, baseDirectory);
 
-        constructRequirementsDirectory(env);
+        constructRequirementsDirectory(env, baseDirectory);
 
         // set BOOT_LOG_DIR.
         env.put("BOOT_LOG_DIR", baseDirectory);
@@ -243,13 +221,34 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
         return env;
     }
 
+    @VisibleForTesting
+    void installRequirements(String baseDirectory, Map<String, String> env) throws IOException {
+        // Directory for storing the installation result of the requirements file.
+        String requirementsDirectory =
+                String.join(File.separator, baseDirectory, PYTHON_REQUIREMENTS_DIR);
+        if (dependencyInfo.getRequirementsFilePath().isPresent()) {
+            LOG.info("Trying to pip install the Python requirements...");
+            PythonEnvironmentManagerUtils.pipInstallRequirements(
+                    dependencyInfo.getRequirementsFilePath().get(),
+                    dependencyInfo.getRequirementsCacheDir().orElse(null),
+                    requirementsDirectory,
+                    dependencyInfo.getPythonExec(),
+                    env);
+        }
+    }
+
     public void setEnvironmentVariable(String key, String value) {
         this.systemEnv.put(key, value);
     }
 
-    private void constructFilesDirectory(Map<String, String> env) throws IOException {
+    private void constructFilesDirectory(Map<String, String> env, String baseDirectory)
+            throws IOException {
         // link or copy python files to filesDirectory and add them to PYTHONPATH
         List<String> pythonFilePaths = new ArrayList<>();
+
+        // Directory for storing the uploaded python files.
+        String filesDirectory = String.join(File.separator, baseDirectory, PYTHON_FILES_DIR);
+
         for (Map.Entry<String, String> entry : dependencyInfo.getPythonFiles().entrySet()) {
             // The origin file name will be wiped when downloaded from the distributed cache,
             // restore the origin name to
@@ -318,7 +317,11 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
         LOG.info("PYTHONPATH of python worker: {}", env.get("PYTHONPATH"));
     }
 
-    private void constructArchivesDirectory(Map<String, String> env) throws IOException {
+    private void constructArchivesDirectory(Map<String, String> env, String baseDirectory)
+            throws IOException {
+        // Directory for storing the extracted result of the archive files.
+        String archivesDirectory = String.join(File.separator, baseDirectory, PYTHON_ARCHIVES_DIR);
+
         if (!dependencyInfo.getArchives().isEmpty()) {
             // set the archives directory as the working directory, then user could access the
             // content of the archives via relative path
@@ -347,10 +350,13 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
         }
     }
 
-    private void constructRequirementsDirectory(Map<String, String> env) throws IOException {
+    private void constructRequirementsDirectory(Map<String, String> env, String baseDirectory)
+            throws IOException {
         // set the requirements file and the dependencies specified by the requirements file will be
         // installed in
         // boot.py during initialization
+        String requirementsDirectory =
+                String.join(File.separator, baseDirectory, PYTHON_REQUIREMENTS_DIR);
         if (dependencyInfo.getRequirementsFilePath().isPresent()) {
             File requirementsDirectoryFile = new File(requirementsDirectory);
             if (!requirementsDirectoryFile.mkdirs()) {
@@ -382,12 +388,18 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 
     @VisibleForTesting
     String getBaseDirectory() {
-        return baseDirectory;
+        return resource.baseDirectory;
+    }
+
+    @VisibleForTesting
+    Map<String, String> getPythonEnv() {
+        return resource.env;
     }
 
     @Override
     public String getBootLog() throws Exception {
-        File bootLogFile = new File(baseDirectory + File.separator + "flink-python-udf-boot.log");
+        File bootLogFile =
+                new File(resource.baseDirectory + File.separator + "flink-python-udf-boot.log");
         String msg = "Failed to create stage bundle factory!";
         if (bootLogFile.exists()) {
             byte[] output = Files.readAllBytes(bootLogFile.toPath());
@@ -429,5 +441,118 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
                 "Could not find a unique directory name in '"
                         + Arrays.toString(tmpDirectories)
                         + "' for storing the generated files of python dependency.");
+    }
+
+    private static final class PythonEnvResources {
+
+        private static final ReentrantLock lock = new ReentrantLock();
+
+        @GuardedBy("lock")
+        private static final Map<Object, PythonLeasedResource> reservedResources = new HashMap<>();
+
+        static PythonLeasedResource getOrAllocateSharedResource(
+                Object type,
+                FunctionWithException<Object, Tuple2<String, Map<String, String>>, Exception>
+                        initializer)
+                throws Exception {
+            try {
+                lock.lockInterruptibly();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Interrupted which preparing python environment.");
+            }
+
+            try {
+                PythonLeasedResource resource = reservedResources.get(type);
+                if (resource == null) {
+                    resource = createResource(initializer, type);
+                    reservedResources.put(type, resource);
+                }
+                resource.incRef();
+                return resource;
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public static void release(JobID jobID) throws Exception {
+            lock.lock();
+            try {
+                final PythonLeasedResource resource = reservedResources.get(jobID);
+                if (resource == null) {
+                    return;
+                }
+                resource.decRef();
+                if (resource.refCount == 0) {
+                    reservedResources.remove(jobID);
+                    resource.close();
+                }
+
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        private static PythonLeasedResource createResource(
+                FunctionWithException<Object, Tuple2<String, Map<String, String>>, Exception>
+                        initializer,
+                Object type)
+                throws Exception {
+            Tuple2<String, Map<String, String>> resource = initializer.apply(type);
+            String baseDirectory = resource.f0;
+            Map<String, String> env = resource.f1;
+            return new PythonLeasedResource(baseDirectory, env);
+        }
+
+        private static final class PythonLeasedResource implements AutoCloseable {
+            private final Map<String, String> env;
+
+            /** The base directory of the Python Environment. */
+            private final String baseDirectory;
+
+            /** Keep track of the number of threads sharing this Python environment resources. */
+            private long refCount = 0;
+
+            PythonLeasedResource(String baseDirectory, Map<String, String> env) {
+                this.baseDirectory = baseDirectory;
+                this.env = env;
+            }
+
+            void incRef() {
+                this.refCount += 1;
+            }
+
+            void decRef() {
+                Preconditions.checkState(refCount > 0);
+                this.refCount -= 1;
+            }
+
+            @Override
+            public void close() throws Exception {
+                int retries = 0;
+                while (true) {
+                    try {
+                        FileUtils.deleteDirectory(new File(baseDirectory));
+                        break;
+                    } catch (Throwable t) {
+                        retries++;
+                        if (retries <= CHECK_TIMEOUT / CHECK_INTERVAL) {
+                            LOG.warn(
+                                    String.format(
+                                            "Failed to delete the working directory %s of the Python UDF worker. Retrying...",
+                                            baseDirectory),
+                                    t);
+                        } else {
+                            LOG.warn(
+                                    String.format(
+                                            "Failed to delete the working directory %s of the Python UDF worker.",
+                                            baseDirectory),
+                                    t);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 }

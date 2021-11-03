@@ -29,6 +29,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.util.Collections;
 
+import static org.apache.flink.util.IOUtils.closeAll;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -72,6 +73,8 @@ class CommitterOperator<InputT, OutputT> extends AbstractStreamOperator<byte[]>
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
         committerHandler.initializeState(context);
+        // try to re-commit recovered transactions as quickly as possible
+        commitRetrier.retryWithDelay();
     }
 
     @Override
@@ -96,15 +99,13 @@ class CommitterOperator<InputT, OutputT> extends AbstractStreamOperator<byte[]>
     @Override
     public void processElement(StreamRecord<byte[]> element) throws Exception {
         committerHandler.processCommittables(
-                () ->
-                        Collections.singletonList(
-                                SimpleVersionedSerialization.readVersionAndDeSerialize(
-                                        inputSerializer, element.getValue())));
+                Collections.singletonList(
+                        SimpleVersionedSerialization.readVersionAndDeSerialize(
+                                inputSerializer, element.getValue())));
     }
 
     @Override
     public void close() throws Exception {
-        committerHandler.close();
-        super.close();
+        closeAll(committerHandler, super::close);
     }
 }

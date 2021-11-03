@@ -133,8 +133,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-      +- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[], metadata=[]]], fields=[])
+   +- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[], metadata=[], aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0])
 ]]>
     </Resource>
   </TestCase>

@@ -325,7 +325,7 @@ class CalcStringExpressionTest extends TableTestBase {
       // * -> String
       '_1.cast(STRING), '_2.cast(STRING), '_3.cast(STRING), '_4.cast(STRING),
       // NUMERIC TYPE -> Boolean
-      '_1.cast(BOOLEAN), '_2.cast(BOOLEAN), '_3.cast(BOOLEAN),
+      '_1.cast(BOOLEAN), '_3.cast(BOOLEAN),
       // NUMERIC TYPE -> NUMERIC TYPE
       '_1.cast(DOUBLE), '_2.cast(INT), '_3.cast(SHORT),
       // Boolean -> NUMERIC TYPE
@@ -335,7 +335,7 @@ class CalcStringExpressionTest extends TableTestBase {
       // * -> String
       "_1.cast(STRING), _2.cast(STRING), _3.cast(STRING), _4.cast(STRING)," +
         // NUMERIC TYPE -> Boolean
-        "_1.cast(BOOLEAN), _2.cast(BOOLEAN), _3.cast(BOOLEAN)," +
+        "_1.cast(BOOLEAN), _3.cast(BOOLEAN)," +
         // NUMERIC TYPE -> NUMERIC TYPE
         "_1.cast(DOUBLE), _2.cast(INT), _3.cast(SHORT)," +
         // Boolean -> NUMERIC TYPE

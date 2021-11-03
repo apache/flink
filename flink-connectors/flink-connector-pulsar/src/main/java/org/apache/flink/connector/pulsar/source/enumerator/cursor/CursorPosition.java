@@ -70,6 +70,15 @@ public final class CursorPosition implements Serializable {
         }
     }
 
+    @Override
+    public String toString() {
+        if (type == Type.TIMESTAMP) {
+            return "timestamp: " + timestamp;
+        } else {
+            return "message id: " + messageId;
+        }
+    }
+
     /**
      * The position type for reader to choose whether timestamp or message id as the start position.
      */

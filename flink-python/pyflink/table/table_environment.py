@@ -48,7 +48,7 @@ from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, uda
 from pyflink.table.utils import to_expression_jarray
 from pyflink.util import java_utils
 from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr, to_jarray, get_field, get_field_value
+    to_j_explain_detail_arr, to_jarray, get_field
 
 __all__ = [
     'StreamTableEnvironment',
@@ -91,12 +91,12 @@ class TableEnvironment(object):
     def __init__(self, j_tenv, serializer=PickleSerializer()):
         self._j_tenv = j_tenv
         self._serializer = serializer
-        self._remote_mode = False
         # When running in MiniCluster, launch the Python UDF worker using the Python executable
         # specified by sys.executable if users have not specified it explicitly via configuration
         # python.executable.
         self._set_python_executable_for_local_executor()
         self._config_chaining_optimization()
+        self._open()
 
     @staticmethod
     def create(environment_settings: EnvironmentSettings) -> 'TableEnvironment':
@@ -1694,13 +1694,15 @@ class TableEnvironment(object):
         jvm = get_gateway().jvm
         jar_urls = self.get_config().get_configuration().get_string(config_key, None)
         if jar_urls is not None:
-            # normalize and remove duplicates
-            jar_urls_set = set([jvm.java.net.URL(url).toString() for url in jar_urls.split(";")])
+            # normalize
+            jar_urls_list = [jvm.java.net.URL(url).toString() for url in jar_urls.split(";")]
             j_configuration = get_j_env_configuration(self._get_j_env())
             if j_configuration.containsKey(config_key):
                 for url in j_configuration.getString(config_key, "").split(";"):
-                    jar_urls_set.add(url)
-            j_configuration.setString(config_key, ";".join(jar_urls_set))
+                    url = url.strip()
+                    if url != "" and url not in jar_urls_list:
+                        jar_urls_list.append(url)
+            j_configuration.setString(config_key, ";".join(jar_urls_list))
 
     def _get_j_env(self):
         return self._j_tenv.getPlanner().getExecEnv()
@@ -1747,27 +1749,6 @@ class TableEnvironment(object):
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         self._add_jars_to_j_env_config(jars_key)
         self._add_jars_to_j_env_config(classpaths_key)
-        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
-        if not self._remote_mode and \
-                is_local_deployment(get_j_env_configuration(self._get_j_env())):
-            from pyflink.common import Configuration
-            _j_config = jvm.org.apache.flink.python.util.PythonConfigUtil.getMergedConfig(
-                self._get_j_env(), self.get_config()._j_table_config)
-            config = Configuration(j_configuration=_j_config)
-            parallelism = int(config.get_string("parallelism.default", "1"))
-
-            if parallelism > 1 and config.contains_key(jvm.PythonOptions.PYTHON_ARCHIVES.key()):
-                import logging
-                logging.warning("Lookback mode is disabled as python archives are used and the "
-                                "parallelism of the job is greater than 1. The Python user-defined "
-                                "functions will be executed in an independent Python process.")
-            else:
-                from pyflink.fn_execution.beam.beam_worker_pool_service import \
-                    BeamFnLoopbackWorkerPoolServicer
-
-                j_env = jvm.System.getenv()
-                get_field_value(j_env, "m").put(
-                    'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
 
     def _wrap_aggregate_function_if_needed(self, function) -> UserDefinedFunctionWrapper:
         if isinstance(function, AggregateFunction):
@@ -1788,6 +1769,34 @@ class TableEnvironment(object):
         exec_env_field = get_field(self._j_tenv.getClass(), "execEnv")
         exec_env_field.set(self._j_tenv,
                            JChainingOptimizingExecutor(exec_env_field.get(self._j_tenv)))
+
+    def _open(self):
+        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
+        def startup_loopback_server():
+            from pyflink.common import Configuration
+            from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                BeamFnLoopbackWorkerPoolServicer
+
+            j_configuration = get_j_env_configuration(self._get_j_env())
+            config = Configuration(j_configuration=j_configuration)
+            config.set_string(
+                "PYFLINK_LOOPBACK_SERVER_ADDRESS", BeamFnLoopbackWorkerPoolServicer().start())
+
+        python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
+
+        if python_worker_execution_mode is None:
+            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
+                startup_loopback_server()
+        elif python_worker_execution_mode == 'loopback':
+            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
+                startup_loopback_server()
+            else:
+                raise ValueError("Loopback mode is enabled, however the job wasn't configured to "
+                                 "run in local deployment mode")
+        elif python_worker_execution_mode != 'process':
+            raise ValueError(
+                "It only supports to execute the Python worker in 'loopback' mode and 'process' "
+                "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
 
 
 class StreamTableEnvironment(TableEnvironment):

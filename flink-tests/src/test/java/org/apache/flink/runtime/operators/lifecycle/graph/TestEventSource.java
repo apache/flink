@@ -73,7 +73,8 @@ class TestEventSource extends RichSourceFunction<TestDataElement>
     public void run(SourceContext<TestDataElement> ctx) {
         long lastSent = 0;
         while (isRunning) {
-            TestCommand cmd = scheduledCommands.poll();
+            // Don't finish the source if it has not sent at least one value.
+            TestCommand cmd = lastSent == 0 ? null : scheduledCommands.poll();
             if (cmd == FINISH_SOURCES) {
                 ack(cmd);
                 isRunning = false;
@@ -98,6 +99,7 @@ class TestEventSource extends RichSourceFunction<TestDataElement>
                     new OperatorFinishedEvent(
                             operatorID,
                             getRuntimeContext().getIndexOfThisSubtask(),
+                            getRuntimeContext().getAttemptNumber(),
                             lastSent,
                             new LastReceivedVertexDataInfo(emptyMap())));
         }

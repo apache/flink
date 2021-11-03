@@ -97,32 +97,6 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   }
 
   @Test
-  def testCast(): Unit = {
-
-    // binary -> varchar
-    testSqlApi(
-      "CAST (f18 as varchar)",
-      "hello world")
-    testSqlApi(
-      "CAST (CAST (x'68656C6C6F20636F6465' as binary) as varchar)",
-      "hello code")
-
-    // varbinary -> varchar
-    testSqlApi(
-      "CAST (f19 as varchar)",
-      "hello flink")
-    testSqlApi(
-      "CAST (CAST (x'68656C6C6F2063617374' as varbinary) as varchar)",
-      "hello cast")
-
-    // null case
-    testSqlApi("CAST (NULL AS INT)", "null")
-    testSqlApi(
-      "CAST (NULL AS VARCHAR) = ''",
-      "null")
-  }
-
-  @Test
   def testOtherExpressions(): Unit = {
 
     // nested field null type
@@ -170,14 +144,10 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testSqlApi("CASE WHEN 'a'='a' THEN 1 END", "1")
     testSqlApi("CASE 2 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "bcd")
     testSqlApi("CASE 1 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "a")
-    testSqlApi("CASE 1 WHEN 1 THEN CAST ('a' as varchar(1)) WHEN 2 THEN " +
-      "CAST ('bcd' as varchar(3)) END", "a")
     testSqlApi("CASE f2 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END", "11")
     testSqlApi("CASE f7 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END", "null")
     testSqlApi("CASE 42 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "null")
     testSqlApi("CASE 1 WHEN 1 THEN true WHEN 2 THEN false ELSE NULL END", "true")
-
-    testSqlApi("CASE WHEN f2 = 1 THEN CAST ('' as INT) ELSE 0 END", "null")
     testSqlApi("IF(true, CAST ('non-numeric' AS BIGINT), 0)", "null")
   }
 
@@ -203,17 +173,13 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   def testTemporalTypeEqualsStringLiteral(): Unit = {
     testSqlApi("f15 = '1996-11-10'", "true")
     testSqlApi("f15 = '1996-11-11'", "false")
-    testSqlApi("f15 = cast(null as string)", "null")
     testSqlApi("'1996-11-10' = f15", "true")
     testSqlApi("'1996-11-11' = f15", "false")
-    testSqlApi("cast(null as string) = f15", "null")
 
     testSqlApi("f21 = '12:34:56'", "true")
     testSqlApi("f21 = '13:34:56'", "false")
-    testSqlApi("f21 = cast(null as string)", "null")
     testSqlApi("'12:34:56' = f21", "true")
     testSqlApi("'13:34:56' = f21", "false")
-    testSqlApi("cast(null as string) = f21", "null")
 
     testSqlApi("f22 = '1996-11-10 12:34:56'", "true")
     testSqlApi("f22 = '1996-11-10 12:34:57'", "false")
@@ -221,5 +187,56 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testSqlApi("'1996-11-10 12:34:56' = f22", "true")
     testSqlApi("'1996-11-10 12:34:57' = f22", "false")
     testSqlApi("cast(null as string) = f22", "null")
+  }
+
+  @Test
+  def testTemporalTypeEqualsStringType(): Unit = {
+    testSqlApi("f15 = date_format(cast(f15 as timestamp), 'yyyy-MM-dd')", "true")
+    testSqlApi(
+      "f15 = date_format(cast(f15 as timestamp) + interval '1' day, 'yyyy-MM-dd')",
+      "false")
+    testSqlApi("f15 = uuid()", "null")
+    testSqlApi("date_format(cast(f15 as timestamp), 'yyyy-MM-dd') = f15", "true")
+    testSqlApi(
+      "date_format(cast(f15 as timestamp) + interval '1' day, 'yyyy-MM-dd') = f15",
+      "false")
+    testSqlApi("uuid() = f15", "null")
+
+    testSqlApi("f21 = date_format(cast(f21 as timestamp), 'HH:mm:ss')", "true")
+    testSqlApi(
+      "f21 = date_format(cast(f21 as timestamp) + interval '1' hour, 'HH:mm:ss')",
+      "false")
+    testSqlApi("f21 = uuid()", "null")
+    testSqlApi("date_format(cast(f21 as timestamp), 'HH:mm:ss') = f21", "true")
+    testSqlApi(
+      "date_format(cast(f21 as timestamp) + interval '1' hour, 'HH:mm:ss') = f21",
+      "false")
+    testSqlApi("uuid() = f21", "null")
+
+    testSqlApi("f22 = date_format(f22, 'yyyy-MM-dd HH:mm:ss')", "true")
+    testSqlApi(
+      "f22 = date_format(f22 + interval '1' second, 'yyyy-MM-dd HH:mm:ss')",
+      "false")
+    testSqlApi("f22 = uuid()", "null")
+    testSqlApi("date_format(f22, 'yyyy-MM-dd HH:mm:ss') = f22", "true")
+    testSqlApi(
+      "date_format(f22 + interval '1' second, 'yyyy-MM-dd HH:mm:ss') = f22",
+      "false")
+    testSqlApi("uuid() = f22", "null")
+
+    testSqlApi(
+      "cast(f22 as timestamp_ltz) = date_format(f22, 'yyyy-MM-dd HH:mm:ss')",
+      "true")
+    testSqlApi(
+      "cast(f22 as timestamp_ltz) = date_format(f22 + interval '1' second, 'yyyy-MM-dd HH:mm:ss')",
+      "false")
+    testSqlApi("cast(f22 as timestamp_ltz) = uuid()", "null")
+    testSqlApi(
+      "date_format(f22, 'yyyy-MM-dd HH:mm:ss') = cast(f22 as timestamp_ltz)",
+      "true")
+    testSqlApi(
+      "date_format(f22 + interval '1' second, 'yyyy-MM-dd HH:mm:ss') = cast(f22 as timestamp_ltz)",
+      "false")
+    testSqlApi("uuid() = cast(f22 as timestamp_ltz)", "null")
   }
 }

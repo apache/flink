@@ -64,7 +64,6 @@ When deploying Flink, there are often multiple options available for each buildi
                     <li><a href="{{< ref "docs/ops/rest_api" >}}">REST Endpoint</a></li>
                     <li><a href="{{< ref "docs/dev/table/sqlClient" >}}">SQL Client</a></li>
                     <li><a href="{{< ref "docs/deployment/repls/python_shell" >}}">Python REPL</a></li>
-                    <li><a href="{{< ref "docs/deployment/repls/scala_shell" >}}">Scala REPL</a></li>
                 </ul>
             </td>
         </tr>

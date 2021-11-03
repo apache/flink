@@ -31,6 +31,8 @@ import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -82,12 +84,14 @@ public class ChangelogBackendRestoreOperation {
             StateChangelogHandleReader<T> changelogHandleReader,
             ClassLoader classLoader)
             throws Exception {
+        Map<Short, StateID> stateIds = new HashMap<>();
         for (ChangelogStateHandle changelogHandle :
                 backendHandle.getNonMaterializedStateHandles()) {
             try (CloseableIterator<StateChange> changes =
                     changelogHandleReader.getChanges((T) changelogHandle)) {
                 while (changes.hasNext()) {
-                    ChangelogBackendLogApplier.apply(changes.next(), backend, classLoader);
+                    ChangelogBackendLogApplier.apply(
+                            changes.next(), backend, classLoader, stateIds);
                 }
             }
         }

@@ -63,6 +63,21 @@ final class IndexGeneratorFactory {
 
     private IndexGeneratorFactory() {}
 
+    public static IndexGenerator createIndexGenerator(
+            String index, List<String> fieldNames, List<DataType> dataTypes) {
+        final IndexHelper indexHelper = new IndexHelper();
+        if (indexHelper.checkIsDynamicIndex(index)) {
+            return createRuntimeIndexGenerator(
+                    index,
+                    fieldNames.toArray(new String[0]),
+                    dataTypes.toArray(new DataType[0]),
+                    indexHelper);
+        } else {
+            return new StaticIndexGenerator(index);
+        }
+    }
+
+    @Deprecated
     public static IndexGenerator createIndexGenerator(String index, TableSchema schema) {
         final IndexHelper indexHelper = new IndexHelper();
         if (indexHelper.checkIsDynamicIndex(index)) {

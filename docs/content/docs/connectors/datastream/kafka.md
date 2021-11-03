@@ -1,6 +1,6 @@
 ---
 title: Kafka
-weight: 2
+weight: 3
 type: docs
 aliases:
   - /dev/connectors/kafka.html
@@ -36,11 +36,7 @@ The version of the client it uses may change between Flink releases.
 Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.
 For details on Kafka compatibility, please refer to the official [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
 
-{{< artifact flink-connector-kafka withScalaVersion >}}
-
-if you are using Kafka source, ```flink-connector-base``` is also required as dependency:
-
-{{< artifact flink-connector-base >}}
+{{< artifact flink-connector-kafka >}}
 
 Flink's streaming connectors are not currently part of the binary distribution.
 See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
@@ -93,7 +89,7 @@ Kafka source provide 3 ways of topic-partition subscription:
   ```
 ### Deserializer
 A deserializer is required for parsing Kafka messages. Deserializer (Deserialization schema) can be
-configured by ```setDeserializer(KakfaRecordDeserializationSchema)```, where
+configured by ```setDeserializer(KafkaRecordDeserializationSchema)```, where
 ```KafkaRecordDeserializationSchema``` defines how to deserialize a Kafka ```ConsumerRecord```.
 
 If only the value of Kafka ```ConsumerRecord``` is needed, you can use
@@ -154,6 +150,7 @@ KafkaSource has following options for configuration:
   below for more details.
 - ```register.consumer.metrics``` specifies whether to register metrics of KafkaConsumer in Flink
 metric group
+- ```commit.offsets.on.checkpoint``` specifies whether to commit consuming offsets to Kafka brokers on checkpoint
 
 For configurations of KafkaConsumer, you can refer to
 <a href="http://kafka.apache.org/documentation/#consumerconfigs">Apache Kafka documentation</a>
@@ -421,7 +418,7 @@ an explanation of the different guarantees.
   transaction.timeout.ms)>> maximum checkpoint duration + maximum restart duration or data loss may
   happen when Kafka expires an uncommitted transaction. 
 
-## Monitoring
+### Monitoring
 
 Kafka sink exposes the following metrics in the respective [scope]({{< ref "docs/ops/metrics" >}}/#scope).
 

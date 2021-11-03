@@ -50,8 +50,8 @@ import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
+import org.apache.flink.runtime.heartbeat.HeartbeatReceiver;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -1365,7 +1365,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         // monitor the resource manager as heartbeat target
         resourceManagerHeartbeatManager.monitorTarget(
                 resourceManagerResourceId,
-                new ResourceManagerHeartbeatTarget(resourceManagerGateway));
+                new ResourceManagerHeartbeatReceiver(resourceManagerGateway));
 
         // set the propagated blob server address
         final InetSocketAddress blobServerAddress =
@@ -1623,7 +1623,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         // monitor the job manager as heartbeat target
         jobManagerHeartbeatManager.monitorTarget(
-                jobManagerResourceID, new JobManagerHeartbeatTarget(jobMasterGateway));
+                jobManagerResourceID, new JobManagerHeartbeatReceiver(jobMasterGateway));
 
         internalOfferSlotsToJobManager(establishedConnection);
     }
@@ -2135,11 +2135,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     //  Utility classes
     // ------------------------------------------------------------------------
 
-    private static final class JobManagerHeartbeatTarget
-            implements HeartbeatTarget<TaskExecutorToJobManagerHeartbeatPayload> {
+    private static final class JobManagerHeartbeatReceiver
+            extends HeartbeatReceiver<TaskExecutorToJobManagerHeartbeatPayload> {
         private final JobMasterGateway jobMasterGateway;
 
-        private JobManagerHeartbeatTarget(JobMasterGateway jobMasterGateway) {
+        private JobManagerHeartbeatReceiver(JobMasterGateway jobMasterGateway) {
             this.jobMasterGateway = jobMasterGateway;
         }
 
@@ -2148,20 +2148,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
             return jobMasterGateway.heartbeatFromTaskManager(resourceID, payload);
         }
-
-        @Override
-        public CompletableFuture<Void> requestHeartbeat(
-                ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
-            // request heartbeat will never be called on the task manager side
-            return FutureUtils.unsupportedOperationFuture();
-        }
     }
 
-    private static final class ResourceManagerHeartbeatTarget
-            implements HeartbeatTarget<TaskExecutorHeartbeatPayload> {
+    private static final class ResourceManagerHeartbeatReceiver
+            extends HeartbeatReceiver<TaskExecutorHeartbeatPayload> {
         private final ResourceManagerGateway resourceManagerGateway;
 
-        private ResourceManagerHeartbeatTarget(ResourceManagerGateway resourceManagerGateway) {
+        private ResourceManagerHeartbeatReceiver(ResourceManagerGateway resourceManagerGateway) {
             this.resourceManagerGateway = resourceManagerGateway;
         }
 
@@ -2169,13 +2162,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         public CompletableFuture<Void> receiveHeartbeat(
                 ResourceID resourceID, TaskExecutorHeartbeatPayload heartbeatPayload) {
             return resourceManagerGateway.heartbeatFromTaskManager(resourceID, heartbeatPayload);
-        }
-
-        @Override
-        public CompletableFuture<Void> requestHeartbeat(
-                ResourceID resourceID, TaskExecutorHeartbeatPayload heartbeatPayload) {
-            // the TaskManager won't send heartbeat requests to the ResourceManager
-            return FutureUtils.unsupportedOperationFuture();
         }
     }
 

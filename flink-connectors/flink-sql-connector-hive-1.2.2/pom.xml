@@ -59,6 +59,11 @@ under the License.
 					<groupId>org.pentaho</groupId>
 					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
 				</exclusion>
+				<!-- Rely on the Guava version of Hadoop. -->
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -159,6 +164,13 @@ under the License.
 									</excludes>
 								</filter>
 							</filters>
+							<relocations>
+								<!-- Guava dependencies that still end up in the shaded JAR are relocated to avoid clashes. -->
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.com.google</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>

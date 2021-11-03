@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 
 /** A checkpoint ID counter. */
 public interface CheckpointIDCounter {
+    int INITIAL_CHECKPOINT_ID = 1;
 
     /** Starts the {@link CheckpointIDCounter} service down. */
     void start() throws Exception;

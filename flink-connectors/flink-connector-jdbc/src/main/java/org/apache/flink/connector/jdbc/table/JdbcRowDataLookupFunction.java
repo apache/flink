@@ -20,11 +20,11 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
-import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialectLoader;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
@@ -108,12 +108,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
                 options.getDialect()
                         .getSelectFromStatement(options.getTableName(), fieldNames, keyNames);
         String dbURL = options.getDbURL();
-        this.jdbcDialect =
-                JdbcDialects.get(dbURL)
-                        .orElseThrow(
-                                () ->
-                                        new UnsupportedOperationException(
-                                                String.format("Unknown dbUrl:%s", dbURL)));
+        this.jdbcDialect = JdbcDialectLoader.load(dbURL);
         this.jdbcRowConverter = jdbcDialect.getRowConverter(rowType);
         this.lookupKeyRowConverter =
                 jdbcDialect.getRowConverter(

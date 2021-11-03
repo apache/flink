@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.util.function.SupplierWithException;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -33,8 +31,7 @@ enum NoopCommitterHandler implements CommitterHandler<Object, Object> {
     }
 
     @Override
-    public List<Object> processCommittables(
-            SupplierWithException<List<Object>, Exception> committableSupplier) {
+    public List<Object> processCommittables(List<Object> committables) {
         return Collections.emptyList();
     }
 

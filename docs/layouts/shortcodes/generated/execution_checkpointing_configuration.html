@@ -15,6 +15,12 @@
             <td>Only relevant if <code class="highlighter-rouge">execution.checkpointing.unaligned</code> is enabled.<br /><br />If timeout is 0, checkpoints will always start unaligned.<br /><br />If timeout has a positive value, checkpoints will start aligned. If during checkpointing, checkpoint start delay exceeds this timeout, alignment will timeout and checkpoint barrier will start working as unaligned checkpoint.</td>
         </tr>
         <tr>
+            <td><h5>execution.checkpointing.checkpoints-after-tasks-finish.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Feature toggle for enabling checkpointing even if some of tasks have finished. Before you enable it, please take a look at <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/datastream/fault-tolerance/checkpointing/#checkpointing-with-parts-of-the-graph-finished-beta">the important considerations</a> </td>
+        </tr>
+        <tr>
             <td><h5>execution.checkpointing.externalized-checkpoint-retention</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td><p>Enum</p></td>

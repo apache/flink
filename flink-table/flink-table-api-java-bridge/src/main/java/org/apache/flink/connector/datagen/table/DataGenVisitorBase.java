@@ -24,13 +24,9 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.DateType;
-import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimeType;
-import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 import java.io.Serializable;
@@ -64,24 +60,6 @@ public abstract class DataGenVisitorBase extends LogicalTypeDefaultVisitor<DataG
     @Override
     public DataGeneratorContainer visit(TimeType timeType) {
         return DataGeneratorContainer.of(TimeGenerator.of(() -> LocalTime.now().get(MILLI_OF_DAY)));
-    }
-
-    @Override
-    public DataGeneratorContainer visit(TimestampType timestampType) {
-        return DataGeneratorContainer.of(
-                TimeGenerator.of(() -> TimestampData.fromEpochMillis(System.currentTimeMillis())));
-    }
-
-    @Override
-    public DataGeneratorContainer visit(ZonedTimestampType zonedTimestampType) {
-        return DataGeneratorContainer.of(
-                TimeGenerator.of(() -> TimestampData.fromEpochMillis(System.currentTimeMillis())));
-    }
-
-    @Override
-    public DataGeneratorContainer visit(LocalZonedTimestampType localZonedTimestampType) {
-        return DataGeneratorContainer.of(
-                TimeGenerator.of(() -> TimestampData.fromEpochMillis(System.currentTimeMillis())));
     }
 
     @Override

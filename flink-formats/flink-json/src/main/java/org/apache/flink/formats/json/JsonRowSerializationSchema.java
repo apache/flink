@@ -64,8 +64,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Result <code>byte[]</code> messages can be deserialized using {@link
  * JsonRowDeserializationSchema}.
+ *
+ * @deprecated The format was developed for the Table API users and will not be maintained for
+ *     DataStream API users anymore. Either use Table API or switch to Data Stream, defining your
+ *     own {@link SerializationSchema}.
  */
 @PublicEvolving
+@Deprecated
 public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 
     private static final long serialVersionUID = -2885556750743978636L;

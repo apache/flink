@@ -20,7 +20,6 @@ package org.apache.flink.connector.pulsar.source.enumerator.cursor.start;
 
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.CursorPosition;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
-import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 
 /** This cursor would left pulsar start consuming from a specific timestamp. */
 public class TimestampStartCursor implements StartCursor {
@@ -33,7 +32,7 @@ public class TimestampStartCursor implements StartCursor {
     }
 
     @Override
-    public CursorPosition position(PulsarPartitionSplit split) {
+    public CursorPosition position(String topic, int partitionId) {
         return new CursorPosition(timestamp);
     }
 }

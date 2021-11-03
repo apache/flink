@@ -16,7 +16,8 @@
 # limitations under the License.
 ################################################################################
 import datetime
-from collections import Generator
+from collections.abc import Generator
+
 from functools import partial
 
 from typing import Any, Tuple, Dict, List

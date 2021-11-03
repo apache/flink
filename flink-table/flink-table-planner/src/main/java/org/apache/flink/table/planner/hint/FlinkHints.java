@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.hint;
 
+import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
+
 import org.apache.calcite.rel.hint.RelHint;
 
 import java.util.Collections;
@@ -30,6 +32,12 @@ public abstract class FlinkHints {
     // ~ Static fields/initializers ---------------------------------------------
 
     public static final String HINT_NAME_OPTIONS = "OPTIONS";
+
+    /**
+     * Internal hint that JSON aggregation function arguments have been wrapped already. See {@link
+     * WrapJsonAggFunctionArgumentsRule}.
+     */
+    public static final String HINT_NAME_JSON_AGGREGATE_WRAPPED = "JSON_AGGREGATE_WRAPPED";
 
     // ~ Tools ------------------------------------------------------------------
 

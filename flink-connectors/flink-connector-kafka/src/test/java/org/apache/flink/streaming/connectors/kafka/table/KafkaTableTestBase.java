@@ -76,6 +76,9 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
             }.withEmbeddedZookeeper()
                     .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS)
+                    .withEnv(
+                            "KAFKA_TRANSACTION_MAX_TIMEOUT_MS",
+                            String.valueOf(Duration.ofHours(2).toMillis()))
                     // Disable log deletion to prevent records from being deleted during test run
                     .withEnv("KAFKA_LOG_RETENTION_MS", "-1");
 

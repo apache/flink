@@ -42,19 +42,21 @@ abstract class StateChangeLoggerTestBase<Namespace> {
         TestingStateChangelogWriter writer = new TestingStateChangelogWriter();
         InternalKeyContextImpl<String> keyContext =
                 new InternalKeyContextImpl<>(KeyGroupRange.of(1, 1000), 1000);
-        StateChangeLogger<String, Namespace> logger = getLogger(writer, keyContext);
 
-        List<Tuple2<Integer, StateChangeOperation>> expectedAppends = new ArrayList<>();
-        expectedAppends.add(Tuple2.of(COMMON_KEY_GROUP, METADATA));
+        try (StateChangeLogger<String, Namespace> logger = getLogger(writer, keyContext)) {
+            List<Tuple2<Integer, StateChangeOperation>> expectedAppends = new ArrayList<>();
+            expectedAppends.add(Tuple2.of(COMMON_KEY_GROUP, METADATA));
 
-        // log every applicable operations, several times each
-        int numOpTypes = StateChangeOperation.values().length;
-        for (int i = 0; i < numOpTypes * 7; i++) {
-            String element = Integer.toString(i);
-            StateChangeOperation operation = StateChangeOperation.byCode((byte) (i % numOpTypes));
-            log(operation, element, logger, keyContext).ifPresent(expectedAppends::add);
+            // log every applicable operations, several times each
+            int numOpTypes = StateChangeOperation.values().length;
+            for (int i = 0; i < numOpTypes * 7; i++) {
+                String element = Integer.toString(i);
+                StateChangeOperation operation =
+                        StateChangeOperation.byCode((byte) (i % numOpTypes));
+                log(operation, element, logger, keyContext).ifPresent(expectedAppends::add);
+            }
+            assertEquals(expectedAppends, writer.appends);
         }
-        assertEquals(expectedAppends, writer.appends);
     }
 
     protected abstract StateChangeLogger<String, Namespace> getLogger(

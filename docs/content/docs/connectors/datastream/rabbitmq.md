@@ -42,7 +42,7 @@ must be aware that this may be subject to conditions declared in the Mozilla Pub
 
 This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/). To use this connector, add the following dependency to your project:
 
-{{< artifact flink-connector-rabbitmq withScalaVersion >}}
+{{< artifact flink-connector-rabbitmq >}}
 
 Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
 
@@ -124,6 +124,28 @@ val stream = env
         true,                        // use correlation ids; can be false if only at-least-once is required
         new SimpleStringSchema))     // deserialization schema to turn messages into Java objects
     .setParallelism(1)               // non-parallel source is only required for exactly-once
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+# checkpointing is required for exactly-once or at-least-once guarantees
+env.enable_checkpointing(...)
+
+connection_config = RMQConnectionConfig.Builder() \
+    .set_host("localhost") \
+    .set_port(5000) \
+    ...
+    .build()
+
+stream = env \
+    .add_source(RMQSource(
+        connection_config,
+        "queueName",
+        True,
+        SimpleStringSchema(),
+    )) \
+    .set_parallelism(1)
 ```
 {{< /tab >}}
 {{< /tabs >}}

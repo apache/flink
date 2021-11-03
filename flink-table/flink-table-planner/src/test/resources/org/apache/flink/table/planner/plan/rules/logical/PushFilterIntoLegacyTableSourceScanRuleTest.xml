@@ -94,6 +94,25 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCannotPushDownWithCastConstant">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE price > cast(10.1 as int)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
++- LogicalFilter(condition=[>($3, 10.1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
++- LogicalFilter(condition=[>($3, 10)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[]]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCannotPushDownWithVirtualColumn">
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE price > 10]]>
@@ -130,6 +149,24 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCanPushDownWithCastConstant">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE amount > cast(1.1 as int)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
++- LogicalFilter(condition=[>($2, 1.1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 1)]]]])
 ]]>
     </Resource>
   </TestCase>

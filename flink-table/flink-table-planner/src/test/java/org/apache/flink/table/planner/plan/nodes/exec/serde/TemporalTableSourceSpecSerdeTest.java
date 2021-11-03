@@ -26,6 +26,8 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
@@ -59,17 +61,21 @@ import static org.junit.Assert.assertEquals;
 public class TemporalTableSourceSpecSerdeTest {
     private static final FlinkTypeFactory FACTORY = FlinkTypeFactory.INSTANCE();
 
+    private static final FlinkContext FLINK_CONTEXT =
+            new FlinkContextImpl(
+                    false,
+                    TableConfig.getDefault(),
+                    new ModuleManager(),
+                    null,
+                    CatalogManagerMocks.createEmptyCatalogManager(),
+                    null);
+
     @Test
     public void testTemporalTableSourceSpecSerde() throws IOException {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         SerdeContext serdeCtx =
                 new SerdeContext(
-                        new FlinkContextImpl(
-                                false,
-                                TableConfig.getDefault(),
-                                null,
-                                CatalogManagerMocks.createEmptyCatalogManager(),
-                                null),
+                        FLINK_CONTEXT,
                         classLoader,
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());
@@ -123,7 +129,7 @@ public class TemporalTableSourceSpecSerdeTest {
                         lookupTableSource,
                         true,
                         resolvedCatalogTable,
-                        new String[] {},
+                        FLINK_CONTEXT,
                         new SourceAbilitySpec[] {});
         TemporalTableSourceSpec temporalTableSourceSpec1 =
                 new TemporalTableSourceSpec(tableSourceTable1, new TableConfig());

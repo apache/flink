@@ -60,6 +60,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -94,7 +95,6 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
-import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.ExceptionUtils;
@@ -175,7 +175,7 @@ public class StreamExecutionEnvironment {
 
     protected final List<Transformation<?>> transformations = new ArrayList<>();
 
-    private long bufferTimeout = StreamingJobGraphGenerator.UNDEFINED_NETWORK_BUFFER_TIMEOUT;
+    private long bufferTimeout = ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis();
 
     protected boolean isChainingEnabled = true;
 
@@ -417,7 +417,7 @@ public class StreamExecutionEnvironment {
      * @param timeoutMillis The maximum time between two output flushes.
      */
     public StreamExecutionEnvironment setBufferTimeout(long timeoutMillis) {
-        if (timeoutMillis < -1) {
+        if (timeoutMillis < ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT) {
             throw new IllegalArgumentException("Timeout of buffer must be non-negative or -1");
         }
 
@@ -655,6 +655,55 @@ public class StreamExecutionEnvironment {
     @PublicEvolving
     public StateBackend getStateBackend() {
         return defaultStateBackend;
+    }
+
+    /**
+     * Enable the change log for current state backend. This change log allows operators to persist
+     * state changes in a very fine-grained manner. Currently, the change log only applies to keyed
+     * state, so non-keyed operator state and channel state are persisted as usual. The 'state' here
+     * refers to 'keyed state'. Details are as follows:
+     *
+     * <p>Stateful operators write the state changes to that log (logging the state), in addition to
+     * applying them to the state tables in RocksDB or the in-mem Hashtable.
+     *
+     * <p>An operator can acknowledge a checkpoint as soon as the changes in the log have reached
+     * the durable checkpoint storage.
+     *
+     * <p>The state tables are persisted periodically, independent of the checkpoints. We call this
+     * the materialization of the state on the checkpoint storage.
+     *
+     * <p>Once the state is materialized on checkpoint storage, the state changelog can be truncated
+     * to the corresponding point.
+     *
+     * <p>It establish a way to drastically reduce the checkpoint interval for streaming
+     * applications across state backends. For more details please check the FLIP-158.
+     *
+     * <p>If this method is not called explicitly, it means no preference for enabling the change
+     * log. Configs for change log enabling will override in different config levels
+     * (job/local/cluster).
+     *
+     * @param enabled true if enable the change log for state backend explicitly, otherwise disable
+     *     the change log.
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #isChangelogStateBackendEnabled()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment enableChangelogStateBackend(boolean enabled) {
+        this.changelogStateBackendEnabled = TernaryBoolean.fromBoolean(enabled);
+        return this;
+    }
+
+    /**
+     * Gets the enable status of change log for state backend.
+     *
+     * @return a {@link TernaryBoolean} for the enable status of change log for state backend. Could
+     *     be {@link TernaryBoolean#UNDEFINED} if user never specify this by calling {@link
+     *     #enableChangelogStateBackend(boolean)}.
+     * @see #enableChangelogStateBackend(boolean)
+     */
+    @PublicEvolving
+    public TernaryBoolean isChangelogStateBackendEnabled() {
+        return changelogStateBackendEnabled;
     }
 
     /**
@@ -916,6 +965,9 @@ public class StreamExecutionEnvironment {
         configuration
                 .getOptional(StreamPipelineOptions.TIME_CHARACTERISTIC)
                 .ifPresent(this::setStreamTimeCharacteristic);
+        configuration
+                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                .ifPresent(this::enableChangelogStateBackend);
         Optional.ofNullable(loadStateBackend(configuration, classLoader))
                 .ifPresent(this::setStateBackend);
         configuration

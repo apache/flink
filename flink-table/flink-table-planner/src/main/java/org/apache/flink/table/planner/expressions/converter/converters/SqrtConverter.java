@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter.converters;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -31,6 +32,7 @@ import java.util.Arrays;
 import static org.apache.flink.table.planner.expressions.converter.ExpressionConverter.toRexNodes;
 
 /** Conversion for {@link BuiltInFunctionDefinitions#SQRT}. */
+@Internal
 class SqrtConverter extends CustomizedConverter {
     @Override
     public RexNode convert(CallExpression call, CallExpressionConvertRule.ConvertContext context) {

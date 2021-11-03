@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.enumerator;
 
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
@@ -468,6 +469,7 @@ public class KafkaEnumeratorTest {
                 stoppingOffsetsInitializer,
                 props,
                 enumContext,
+                Boundedness.CONTINUOUS_UNBOUNDED,
                 assignedPartitions);
     }
 

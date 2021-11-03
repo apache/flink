@@ -293,11 +293,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 
         @Override
         protected CompletableFuture<TriggerResponse> handleRequest(
-                @Nonnull
-                        HandlerRequest<
-                                        SavepointTriggerRequestBody,
-                                        SavepointTriggerMessageParameters>
-                                request,
+                @Nonnull HandlerRequest<SavepointTriggerRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
 
@@ -324,7 +320,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 
         @Override
         protected CompletableFuture<AsynchronousOperationResult<SavepointInfo>> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters> request,
+                @Nonnull HandlerRequest<EmptyRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
 

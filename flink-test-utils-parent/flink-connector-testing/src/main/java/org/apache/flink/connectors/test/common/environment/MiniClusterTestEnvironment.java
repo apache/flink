@@ -19,7 +19,6 @@
 package org.apache.flink.connectors.test.common.environment;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
@@ -33,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
@@ -41,12 +39,15 @@ import java.util.concurrent.ExecutionException;
 @Experimental
 public class MiniClusterTestEnvironment implements TestEnvironment, ClusterControllable {
 
-    private final MiniClusterWithClientResource miniCluster;
-
-    private int latestTMIndex = 0;
-
     private static final Logger LOG = LoggerFactory.getLogger(MiniClusterTestEnvironment.class);
 
+    // MiniCluster
+    private final MiniClusterWithClientResource miniCluster;
+
+    // The index of current running TaskManager
+    private int latestTMIndex = 0;
+
+    // Whether MiniCluster is running
     private boolean isStarted = false;
 
     public MiniClusterTestEnvironment() {
@@ -84,9 +85,8 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
     public void triggerTaskManagerFailover(JobClient jobClient, Runnable afterFailAction)
             throws Exception {
         terminateTaskManager();
-        CommonTestUtils.waitForJobStatus(
-                jobClient,
-                Arrays.asList(JobStatus.FAILING, JobStatus.FAILED, JobStatus.RESTARTING),
+        CommonTestUtils.waitForNoTaskRunning(
+                () -> miniCluster.getRestClusterClient().getJobDetails(jobClient.getJobID()).get(),
                 Deadline.fromNow(Duration.ofMinutes(5)));
         afterFailAction.run();
         startTaskManager();

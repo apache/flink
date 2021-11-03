@@ -34,6 +34,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.Test;
@@ -374,7 +376,9 @@ public class InputGateFairnessTest {
                     STUB_BUFFER_POOL_FACTORY,
                     null,
                     new UnpooledMemorySegmentProvider(BUFFER_SIZE),
-                    BUFFER_SIZE);
+                    BUFFER_SIZE,
+                    new ThroughputCalculator(SystemClock.getInstance()),
+                    null);
 
             channelsWithData = getInputChannelsWithData();
 

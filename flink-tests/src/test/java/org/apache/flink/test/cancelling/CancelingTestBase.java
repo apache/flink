@@ -46,6 +46,8 @@ import java.util.concurrent.TimeUnit;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.junit.Assert.assertEquals;
+
 /** Base class for testing job cancellation. */
 public abstract class CancelingTestBase extends TestLogger {
 
@@ -127,9 +129,7 @@ public abstract class CancelingTestBase extends TestLogger {
             jobStatusAfterCancel =
                     client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
         }
-        if (jobStatusAfterCancel != JobStatus.CANCELED) {
-            Assert.fail("Failed to cancel job with ID " + jobID + '.');
-        }
+        assertEquals(JobStatus.CANCELED, jobStatusAfterCancel);
     }
 
     private JobGraph getJobGraph(final Plan plan) {

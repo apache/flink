@@ -175,7 +175,8 @@ public class KafkaSource<OUT>
                 startingOffsetsInitializer,
                 stoppingOffsetsInitializer,
                 props,
-                enumContext);
+                enumContext,
+                boundedness);
     }
 
     @Override
@@ -189,6 +190,7 @@ public class KafkaSource<OUT>
                 stoppingOffsetsInitializer,
                 props,
                 enumContext,
+                boundedness,
                 checkpoint.assignedPartitions());
     }
 
@@ -213,5 +215,10 @@ public class KafkaSource<OUT>
         Configuration config = new Configuration();
         props.stringPropertyNames().forEach(key -> config.setString(key, props.getProperty(key)));
         return config;
+    }
+
+    @VisibleForTesting
+    Configuration getConfiguration() {
+        return toConfiguration(props);
     }
 }

@@ -97,7 +97,7 @@ GROUP BY user_region;
 Available Metadata
 ------------------
 
-See the [regular Kafka connector]({{< ref "docs/connectors/datastream/kafka" >}}#available-metadata) for a list
+See the [regular Kafka connector]({{< ref "docs/connectors/table/kafka" >}}#available-metadata) for a list
 of all available metadata fields.
 
 Connector Options

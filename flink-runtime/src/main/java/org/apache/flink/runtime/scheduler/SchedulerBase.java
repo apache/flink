@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.KvStateID;
@@ -599,9 +598,12 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         final FlinkException cause = new FlinkException("Scheduler is being stopped.");
 
         final CompletableFuture<Void> checkpointServicesShutdownFuture =
-                executionGraph
-                        .getTerminationFuture()
-                        .thenAcceptAsync(this::shutDownCheckpointServices, getMainThreadExecutor());
+                CompletableFuture.allOf(
+                        executionGraph
+                                .getTerminationFuture()
+                                .thenAcceptAsync(
+                                        this::shutDownCheckpointServices, getMainThreadExecutor()),
+                        checkpointsCleaner.closeAsync());
         FutureUtils.assertNoException(checkpointServicesShutdownFuture);
 
         incrementVersionsOfAllVertices();
@@ -825,22 +827,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
-        if (checkpointCoordinator == null) {
-            throw new IllegalStateException(
-                    String.format("Job %s is not a streaming job.", jobGraph.getJobID()));
-        } else if (targetDirectory == null
-                && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
-            log.info(
-                    "Trying to cancel job {} with savepoint, but no savepoint directory configured.",
-                    jobGraph.getJobID());
-
-            throw new IllegalStateException(
-                    "No savepoint directory configured. You can either specify a directory "
-                            + "while cancelling via -s :targetDirectory or configure a cluster-wide "
-                            + "default via key '"
-                            + CheckpointingOptions.SAVEPOINT_DIRECTORY.key()
-                            + "'.");
-        }
+        StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
+                checkpointCoordinator, targetDirectory, getJobId(), log);
 
         log.info(
                 "Triggering {}savepoint for job {}.",
@@ -867,6 +855,31 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                                         path,
                                         jobGraph.getJobID());
                                 cancel();
+                            }
+                            return path;
+                        },
+                        mainThreadExecutor);
+    }
+
+    @Override
+    public CompletableFuture<String> triggerCheckpoint() {
+        mainThreadExecutor.assertRunningInMainThread();
+
+        final CheckpointCoordinator checkpointCoordinator =
+                executionGraph.getCheckpointCoordinator();
+        final JobID jobID = jobGraph.getJobID();
+        if (checkpointCoordinator == null) {
+            throw new IllegalStateException(String.format("Job %s is not a streaming job.", jobID));
+        }
+        log.info("Triggering a manual checkpoint for job {}.", jobID);
+
+        return checkpointCoordinator
+                .triggerCheckpoint(false)
+                .thenApply(CompletedCheckpoint::getExternalPointer)
+                .handleAsync(
+                        (path, throwable) -> {
+                            if (throwable != null) {
+                                throw new CompletionException(throwable);
                             }
                             return path;
                         },
@@ -933,7 +946,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
 
-        StopWithSavepointTerminationManager.checkStopWithSavepointPreconditions(
+        StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
                 checkpointCoordinator, targetDirectory, executionGraph.getJobID(), log);
 
         log.info("Triggering stop-with-savepoint for job {}.", jobGraph.getJobID());

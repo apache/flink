@@ -18,41 +18,31 @@
 
 package org.apache.flink.connector.pulsar.testutils;
 
-import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
+import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
 import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
 
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 
 import java.util.Collection;
 
-import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
-
 /** Source split data writer for writing test data into a Pulsar topic partition. */
 public class PulsarPartitionDataWriter implements SourceSplitDataWriter<String> {
 
-    private final Producer<String> producer;
+    private final PulsarRuntimeOperator operator;
+    private final String fullTopicName;
 
-    public PulsarPartitionDataWriter(PulsarClient client, TopicPartition partition) {
-        try {
-            this.producer =
-                    client.newProducer(Schema.STRING).topic(partition.getFullTopicName()).create();
-        } catch (PulsarClientException e) {
-            throw new IllegalStateException(e);
-        }
+    public PulsarPartitionDataWriter(PulsarRuntimeOperator operator, String fullTopicName) {
+        this.operator = operator;
+        this.fullTopicName = fullTopicName;
     }
 
     @Override
     public void writeRecords(Collection<String> records) {
-        for (String record : records) {
-            sneakyClient(() -> producer.newMessage().value(record).send());
-        }
+        operator.sendMessages(fullTopicName, Schema.STRING, records);
     }
 
     @Override
-    public void close() throws Exception {
-        producer.close();
+    public void close() {
+        // Nothing to do.
     }
 }

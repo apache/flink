@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -102,11 +101,13 @@ public abstract class SourceTestSuiteBase<T> {
             throws Exception {
 
         // Write test data to external system
-        final Collection<T> testRecords = generateAndWriteTestData(0, externalContext);
+        LOG.info("Writing test data to split 0");
+        final List<T> testRecords = generateAndWriteTestData(0, externalContext);
 
         // Build and execute Flink job
         StreamExecutionEnvironment execEnv = testEnv.createExecutionEnvironment();
 
+        LOG.info("Submitting Flink job to test environment");
         try (CloseableIterator<T> resultIterator =
                 execEnv.fromSource(
                                 externalContext.createSource(Boundedness.BOUNDED),
@@ -115,6 +116,7 @@ public abstract class SourceTestSuiteBase<T> {
                         .setParallelism(1)
                         .executeAndCollect("Source Single Split Test")) {
             // Check test result
+            LOG.info("Checking test results");
             assertThat(resultIterator, matchesSplitTestData(testRecords));
         }
     }
@@ -137,12 +139,13 @@ public abstract class SourceTestSuiteBase<T> {
             throws Exception {
 
         final int splitNumber = 4;
-        final List<Collection<T>> testRecordCollections = new ArrayList<>();
+        final List<List<T>> testRecordsLists = new ArrayList<>();
+        LOG.info("Writing test data to split 0 to 3...");
         for (int i = 0; i < splitNumber; i++) {
-            testRecordCollections.add(generateAndWriteTestData(i, externalContext));
+            testRecordsLists.add(generateAndWriteTestData(i, externalContext));
         }
 
-        LOG.debug("Build and execute Flink job");
+        LOG.info("Submitting Flink job to test environment");
         StreamExecutionEnvironment execEnv = testEnv.createExecutionEnvironment();
 
         try (final CloseableIterator<T> resultIterator =
@@ -153,7 +156,8 @@ public abstract class SourceTestSuiteBase<T> {
                         .setParallelism(splitNumber)
                         .executeAndCollect("Source Multiple Split Test")) {
             // Check test result
-            assertThat(resultIterator, matchesMultipleSplitTestData(testRecordCollections));
+            LOG.info("Checking test results");
+            assertThat(resultIterator, matchesMultipleSplitTestData(testRecordsLists));
         }
     }
 
@@ -177,11 +181,13 @@ public abstract class SourceTestSuiteBase<T> {
             throws Exception {
 
         final int splitNumber = 4;
-        final List<Collection<T>> testRecordCollections = new ArrayList<>();
+        final List<List<T>> testRecordsLists = new ArrayList<>();
+        LOG.info("Writing test data to split 0 to 3");
         for (int i = 0; i < splitNumber; i++) {
-            testRecordCollections.add(generateAndWriteTestData(i, externalContext));
+            testRecordsLists.add(generateAndWriteTestData(i, externalContext));
         }
 
+        LOG.info("Submitting Flink job to test environment");
         try (CloseableIterator<T> resultIterator =
                 testEnv.createExecutionEnvironment()
                         .fromSource(
@@ -189,8 +195,9 @@ public abstract class SourceTestSuiteBase<T> {
                                 WatermarkStrategy.noWatermarks(),
                                 "Tested Source")
                         .setParallelism(splitNumber + 1)
-                        .executeAndCollect("Redundant Parallelism Test")) {
-            assertThat(resultIterator, matchesMultipleSplitTestData(testRecordCollections));
+                        .executeAndCollect("Idle Reader Test")) {
+            LOG.info("Checking test results");
+            assertThat(resultIterator, matchesMultipleSplitTestData(testRecordsLists));
         }
     }
 
@@ -216,7 +223,8 @@ public abstract class SourceTestSuiteBase<T> {
             throws Exception {
         int splitIndex = 0;
 
-        final Collection<T> testRecordsBeforeFailure =
+        LOG.info("Writing test data to split {}", splitIndex);
+        final List<T> testRecordsBeforeFailure =
                 externalContext.generateTestData(
                         splitIndex, ThreadLocalRandom.current().nextLong());
         final SourceSplitDataWriter<T> sourceSplitDataWriter =
@@ -250,27 +258,34 @@ public abstract class SourceTestSuiteBase<T> {
         CollectStreamSink<T> sink = new CollectStreamSink<>(dataStreamSource, factory);
         sink.name("Data stream collect sink");
         env.addOperator(sink.getTransformation());
+
+        LOG.info("Submitting Flink job to test environment");
         final JobClient jobClient = env.executeAsync("TaskManager Failover Test");
         iterator.setJobClient(jobClient);
         // -------------------------------------- END ---------------------------------------------
 
+        LOG.info("Checking records before killing TaskManagers");
         assertThat(
                 iterator,
                 matchesSplitTestData(testRecordsBeforeFailure, testRecordsBeforeFailure.size()));
 
         // -------------------------------- Trigger failover ---------------------------------------
+        LOG.info("Trigger TaskManager failover");
         controller.triggerTaskManagerFailover(jobClient, () -> {});
 
+        LOG.info("Waiting for job recovering from failure");
         CommonTestUtils.waitForJobStatus(
                 jobClient,
                 Collections.singletonList(JobStatus.RUNNING),
                 Deadline.fromNow(Duration.ofSeconds(30)));
 
-        final Collection<T> testRecordsAfterFailure =
+        LOG.info("Writing test data to split {}", splitIndex);
+        final List<T> testRecordsAfterFailure =
                 externalContext.generateTestData(
                         splitIndex, ThreadLocalRandom.current().nextLong());
         sourceSplitDataWriter.writeRecords(testRecordsAfterFailure);
 
+        LOG.info("Checking records after job failover");
         assertThat(
                 iterator,
                 matchesSplitTestData(testRecordsAfterFailure, testRecordsAfterFailure.size()));
@@ -290,15 +305,14 @@ public abstract class SourceTestSuiteBase<T> {
      * Generate a set of test records and write it to the given split writer.
      *
      * @param externalContext External context
-     * @return Collection of generated test records
+     * @return List of generated test records
      */
-    protected Collection<T> generateAndWriteTestData(
-            int splitIndex, ExternalContext<T> externalContext) {
-        final Collection<T> testRecordCollection =
+    protected List<T> generateAndWriteTestData(int splitIndex, ExternalContext<T> externalContext) {
+        final List<T> testRecords =
                 externalContext.generateTestData(
                         splitIndex, ThreadLocalRandom.current().nextLong());
-        LOG.debug("Writing {} records to external system", testRecordCollection.size());
-        externalContext.createSourceSplitDataWriter().writeRecords(testRecordCollection);
-        return testRecordCollection;
+        LOG.debug("Writing {} records to external system", testRecords.size());
+        externalContext.createSourceSplitDataWriter().writeRecords(testRecords);
+        return testRecords;
     }
 }

@@ -30,7 +30,7 @@ The [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) provide
 Flink Streaming comes with a built-in `TwitterSource` class for establishing a connection to this stream.
 To use this connector, add the following dependency to your project:
 
-{{< artifact flink-connector-twitter withScalaVersion >}}
+{{< artifact flink-connector-twitter >}}
 
 Note that the streaming connectors are currently not part of the binary distribution.
 See linking with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).

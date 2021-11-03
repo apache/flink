@@ -25,7 +25,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.{DecimalDataUtils, GenericRowData, StringData, TimestampData}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.DEFAULT_COLLECTOR_TERM
 import org.apache.flink.table.planner.codegen.{ConstantCodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
+import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{BooleanType, DecimalType, LogicalType}
@@ -177,11 +177,11 @@ object PartitionPruner {
       case DECIMAL =>
         val decimalType = t.asInstanceOf[DecimalType]
         DecimalDataUtils.castFrom(v, decimalType.getPrecision, decimalType.getScale)
-      case DATE => SqlDateTimeUtils.dateStringToUnixDate(v)
-      case TIME_WITHOUT_TIME_ZONE => SqlDateTimeUtils.timeStringToUnixDate(v)
-      case TIMESTAMP_WITHOUT_TIME_ZONE => SqlDateTimeUtils.toTimestampData(v)
+      case DATE => DateTimeUtils.dateStringToUnixDate(v)
+      case TIME_WITHOUT_TIME_ZONE => DateTimeUtils.timeStringToUnixDate(v)
+      case TIMESTAMP_WITHOUT_TIME_ZONE => DateTimeUtils.toTimestampData(v)
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE => TimestampData.fromInstant(
-        SqlDateTimeUtils.toTimestampData(v).toLocalDateTime.atZone(timeZone).toInstant)
+        DateTimeUtils.toTimestampData(v).toLocalDateTime.atZone(timeZone).toInstant)
       case _ =>
         throw new TableException(s"$t is not supported in PartitionPruner")
     }

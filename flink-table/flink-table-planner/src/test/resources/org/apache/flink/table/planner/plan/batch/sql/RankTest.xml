@@ -40,8 +40,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
          +- Exchange(distribution=[hash[name]])
             +- HashAggregate(isMerge=[true], groupBy=[name, eat], select=[name, eat, Final_SUM(sum$0) AS cnt])
                +- Exchange(distribution=[hash[name, eat]])
-                  +- LocalHashAggregate(groupBy=[name, eat], select=[name, eat, Partial_SUM(age) AS sum$0])
-                     +- TableSourceScan(table=[[default_catalog, default_database, test_source]], fields=[name, eat, age])
+                  +- TableSourceScan(table=[[default_catalog, default_database, test_source, aggregates=[grouping=[name,eat], aggFunctions=[LongSumAggFunction(age)]]]], fields=[name, eat, sum$0])
 ]]>
     </Resource>
   </TestCase>

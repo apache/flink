@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -61,6 +62,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.sameInstance;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -209,6 +213,14 @@ public class SourceOperatorTest {
         operator.snapshotState(new StateSnapshotContextSynchronousImpl(100L, 100L));
         operator.notifyCheckpointAborted(100L);
         assertEquals(100L, (long) mockSourceReader.getAbortedCheckpoints().get(0));
+    }
+
+    @Test
+    public void testSameAvailabilityFuture() {
+        final CompletableFuture<?> initialFuture = operator.getAvailableFuture();
+        final CompletableFuture<?> secondFuture = operator.getAvailableFuture();
+        assertThat(initialFuture, not(sameInstance(AvailabilityProvider.AVAILABLE)));
+        assertThat(secondFuture, sameInstance(initialFuture));
     }
 
     // ---------------- helper methods -------------------------

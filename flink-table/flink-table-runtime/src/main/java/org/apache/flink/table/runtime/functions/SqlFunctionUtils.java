@@ -22,7 +22,6 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
-import org.apache.flink.table.runtime.util.JsonUtils;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.ThreadLocalCache;
 
@@ -739,12 +738,27 @@ public class SqlFunctionUtils {
         return ret;
     }
 
-    public static String jsonValue(String jsonString, String pathString) {
-        // TODO: refactor this to use jackson ?
-        return JsonUtils.getInstance().getJsonObject(jsonString, pathString);
+    // SQL ROUND
+    /** SQL <code>ROUND</code> operator applied to byte values. */
+    public static byte sround(byte b0) {
+        return sround(b0, 0);
     }
 
-    // SQL ROUND
+    /** SQL <code>ROUND</code> operator applied to byte values. */
+    public static byte sround(byte b0, int b1) {
+        return sround(BigDecimal.valueOf(b0), b1).byteValue();
+    }
+
+    /** SQL <code>ROUND</code> operator applied to short values. */
+    public static short sround(short b0) {
+        return sround(b0, 0);
+    }
+
+    /** SQL <code>ROUND</code> operator applied to short values. */
+    public static short sround(short b0, int b1) {
+        return sround(BigDecimal.valueOf(b0), b1).shortValue();
+    }
+
     /** SQL <code>ROUND</code> operator applied to int values. */
     public static int sround(int b0) {
         return sround(b0, 0);
@@ -773,6 +787,16 @@ public class SqlFunctionUtils {
     /** SQL <code>ROUND</code> operator applied to BigDecimal values. */
     public static BigDecimal sround(BigDecimal b0, int b1) {
         return b0.movePointRight(b1).setScale(0, RoundingMode.HALF_UP).movePointLeft(b1);
+    }
+
+    /** SQL <code>ROUND</code> operator applied to float values. */
+    public static float sround(float b0) {
+        return sround(b0, 0);
+    }
+
+    /** SQL <code>ROUND</code> operator applied to float values. */
+    public static float sround(float b0, int b1) {
+        return sround(BigDecimal.valueOf(b0), b1).floatValue();
     }
 
     /** SQL <code>ROUND</code> operator applied to double values. */

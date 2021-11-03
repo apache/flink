@@ -165,7 +165,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                 new HashMap<>(outEdgesInOrder.size());
         this.streamOutputs = new RecordWriterOutput<?>[outEdgesInOrder.size()];
         this.finishedOnRestoreInput =
-                this.isFinishedOnRestore()
+                this.isTaskDeployedAsFinished()
                         ? new FinishedOnRestoreInput(
                                 streamOutputs, configuration.getInputs(userCodeClassloader).length)
                         : null;
@@ -273,7 +273,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         firstOperatorWrapper = linkOperatorWrappers(allOperatorWrappers);
     }
 
-    public abstract boolean isFinishedOnRestore();
+    public abstract boolean isTaskDeployedAsFinished();
 
     public abstract void dispatchOperatorEvent(
             OperatorID operator, SerializedValue<OperatorEvent> event) throws FlinkException;
@@ -564,7 +564,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                     sourceInput,
                     new ChainedSource(
                             chainedSourceOutput,
-                            this.isFinishedOnRestore()
+                            this.isTaskDeployedAsFinished()
                                     ? new StreamTaskFinishedOnRestoreSourceInput<>(
                                             sourceOperator, sourceInputGateIndex++, inputId)
                                     : new StreamTaskSourceInput<>(

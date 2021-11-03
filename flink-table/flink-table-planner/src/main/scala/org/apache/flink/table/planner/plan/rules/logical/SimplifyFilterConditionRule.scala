@@ -60,7 +60,10 @@ class SimplifyFilterConditionRule(
     }
 
     val rexBuilder = filter.getCluster.getRexBuilder
-    val simplifiedCondition = FlinkRexUtil.simplify(rexBuilder, condition)
+    val simplifiedCondition = FlinkRexUtil.simplify(
+      rexBuilder,
+      condition,
+      filter.getCluster.getPlanner.getExecutor)
     val newCondition = RexUtil.pullFactors(rexBuilder, simplifiedCondition)
 
     if (!changed.head && !condition.equals(newCondition)) {

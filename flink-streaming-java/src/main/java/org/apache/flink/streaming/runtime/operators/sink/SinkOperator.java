@@ -22,7 +22,6 @@ import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -48,6 +47,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.OptionalLong;
 
+import static org.apache.flink.util.IOUtils.closeAll;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -103,7 +103,9 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
             writerFactory;
 
     private final MailboxExecutor mailboxExecutor;
-    private Counter numRecordsOutCounter;
+    // record endOfInput state to avoid duplicate prepareCommit on final notifyCheckpointComplete
+    // once FLIP-147 is fully operational all endOfInput processing needs to be removed
+    private boolean endOfInput = false;
 
     SinkOperator(
             ProcessingTimeService processingTimeService,
@@ -133,7 +135,6 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
             StreamConfig config,
             Output<StreamRecord<byte[]>> output) {
         super.setup(containingTask, config, output);
-        numRecordsOutCounter = getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
     }
 
     @Override
@@ -146,6 +147,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
                                 checkpointId.isPresent() ? checkpointId.getAsLong() : null),
                         sinkWriterStateHandler.initializeState(context));
         committerHandler.initializeState(context);
+        commitRetrier.retryWithDelay();
     }
 
     @Override
@@ -159,14 +161,14 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
     public void processElement(StreamRecord<InputT> element) throws Exception {
         context.element = element;
         sinkWriter.write(element.getValue(), context);
-        numRecordsOutCounter.inc();
     }
 
     @Override
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
         super.prepareSnapshotPreBarrier(checkpointId);
-        emitCommittables(
-                committerHandler.processCommittables(() -> sinkWriter.prepareCommit(false)));
+        if (!endOfInput) {
+            emitCommittables(committerHandler.processCommittables(sinkWriter.prepareCommit(false)));
+        }
     }
 
     @Override
@@ -186,8 +188,8 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
 
     @Override
     public void endInput() throws Exception {
-        emitCommittables(
-                committerHandler.processCommittables(() -> sinkWriter.prepareCommit(true)));
+        endOfInput = true;
+        emitCommittables(committerHandler.processCommittables(sinkWriter.prepareCommit(true)));
         emitCommittables(committerHandler.endOfInput());
         commitRetrier.retryIndefinitely();
     }
@@ -205,9 +207,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
 
     @Override
     public void close() throws Exception {
-        committerHandler.close();
-        sinkWriter.close();
-        super.close();
+        closeAll(committerHandler, sinkWriter, super::close);
     }
 
     private Sink.InitContext createInitContext(@Nullable Long restoredCheckpointId) {

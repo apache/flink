@@ -169,6 +169,9 @@ public class ChangelogPqStateTest {
         public boolean anythingChanged() {
             return stateElementChanged || stateElementRemoved || stateCleared;
         }
+
+        @Override
+        public void close() {}
     }
 
     private static class TestingInternalQueueState

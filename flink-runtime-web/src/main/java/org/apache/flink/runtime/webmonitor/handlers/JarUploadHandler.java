@@ -69,7 +69,7 @@ public class JarUploadHandler
 
     @Override
     protected CompletableFuture<JarUploadResponseBody> handleRequest(
-            @Nonnull final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+            @Nonnull final HandlerRequest<EmptyRequestBody> request,
             @Nonnull final RestfulGateway gateway)
             throws RestHandlerException {
         Collection<File> uploadedFiles = request.getUploadedFiles();

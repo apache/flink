@@ -72,4 +72,46 @@ LogicalProject(d=[$3])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSimplifyJoinConditionWithCastToTrue">
+    <Resource name="sql">
+      <![CDATA[SELECT d FROM MyTable1 JOIN MyTable2 ON CAST(1 AS BOOLEAN)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(d=[$3])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(d=[$3])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimplifyJoinConditionWithCastToFalse">
+    <Resource name="sql">
+      <![CDATA[SELECT d FROM MyTable1 JOIN MyTable2 ON CAST(0 AS BOOLEAN)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(d=[$3])
++- LogicalJoin(condition=[false], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(d=[$3])
++- LogicalJoin(condition=[false], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

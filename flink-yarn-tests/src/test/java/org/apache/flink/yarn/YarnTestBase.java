@@ -1216,7 +1216,7 @@ public abstract class YarnTestBase extends TestLogger {
         // to <flinkRoot>/target/flink-yarn-tests-*.
         // The files from there are picked up by the tools/ci/* scripts to upload them.
         if (isOnCI()) {
-            File target = new File("../target" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+            File target = new File("../target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
             if (!target.mkdirs()) {
                 LOG.warn("Error creating dirs to {}", target);
             }

@@ -33,8 +33,12 @@ class Recyclable<T> implements Closeable {
     }
 
     public T getObject() {
-        checkState(object != null, "Already recycled");
+        checkState(!isRecycled(), "Already recycled");
         return object;
+    }
+
+    boolean isRecycled() {
+        return object == null;
     }
 
     @Override

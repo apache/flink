@@ -57,6 +57,15 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<!-- provides fallback AkkaRpcSystem loader for the IDE -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-rpc-akka-loader</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
@@ -292,33 +301,6 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>copy-rpc-akka-jars</id>
-						<phase>process-resources</phase>
-						<goals>
-							<goal>copy</goal>
-						</goals>
-						<configuration>
-							<artifactItems>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-rpc-akka</artifactId>
-									<version>${project.version}</version>
-									<type>jar</type>
-									<overWrite>true</overWrite>
-									<destFileName>flink-rpc-akka.jar</destFileName>
-								</artifactItem>
-							</artifactItems>
-							<outputDirectory>${project.build.directory}/classes</outputDirectory>
-						</configuration>
 					</execution>
 				</executions>
 			</plugin>

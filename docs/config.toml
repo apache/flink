@@ -52,7 +52,7 @@ pygmentsUseClasses = true
   TrainingExercises = "//github.com/apache/flink-training"
 
   # This suffix is appended to the Scala-dependent Maven artifact names
-  ScalaVersion = "_2.11"
+  ScalaVersion = "_2.12"
 
   ProjectHomepage = "//flink.apache.org"
 
@@ -76,6 +76,7 @@ pygmentsUseClasses = true
   ]
 
   PreviousDocs = [
+    ["1.14", "http://nightlies.apache.org/flink/flink-docs-release-1.14"],
     ["1.13", "http://nightlies.apache.org/flink/flink-docs-release-1.13"],
     ["1.12", "http://nightlies.apache.org/flink/flink-docs-release-1.12"],
     ["1.11", "http://nightlies.apache.org/flink/flink-docs-release-1.11"],

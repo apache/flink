@@ -80,8 +80,7 @@ public class JarUploadHandlerTest extends TestLogger {
     @Test
     public void testRejectNonJarFiles() throws Exception {
         final Path uploadedFile = Files.createFile(jarDir.resolve("katrin.png"));
-        final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request =
-                createRequest(uploadedFile);
+        final HandlerRequest<EmptyRequestBody> request = createRequest(uploadedFile);
 
         try {
             jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
@@ -99,8 +98,7 @@ public class JarUploadHandlerTest extends TestLogger {
     @Test
     public void testUploadJar() throws Exception {
         final Path uploadedFile = Files.createFile(jarDir.resolve("FooBazzleExample.jar"));
-        final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request =
-                createRequest(uploadedFile);
+        final HandlerRequest<EmptyRequestBody> request = createRequest(uploadedFile);
 
         final JarUploadResponseBody jarUploadResponseBody =
                 jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
@@ -117,8 +115,7 @@ public class JarUploadHandlerTest extends TestLogger {
     @Test
     public void testFailedUpload() throws Exception {
         final Path uploadedFile = jarDir.resolve("FooBazzleExample.jar");
-        final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request =
-                createRequest(uploadedFile);
+        final HandlerRequest<EmptyRequestBody> request = createRequest(uploadedFile);
 
         try {
             jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
@@ -136,13 +133,11 @@ public class JarUploadHandlerTest extends TestLogger {
         }
     }
 
-    private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> createRequest(
-            final Path uploadedFile) throws HandlerRequestException, IOException {
-        return new HandlerRequest<>(
+    private static HandlerRequest<EmptyRequestBody> createRequest(final Path uploadedFile)
+            throws HandlerRequestException, IOException {
+        return HandlerRequest.create(
                 EmptyRequestBody.getInstance(),
                 EmptyMessageParameters.getInstance(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
                 Collections.singleton(uploadedFile.toFile()));
     }
 }

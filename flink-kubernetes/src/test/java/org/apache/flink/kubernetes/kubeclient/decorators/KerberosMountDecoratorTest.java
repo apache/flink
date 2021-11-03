@@ -19,16 +19,19 @@
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.kubernetes.KubernetesTestUtils;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesPodTestBase;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParametersTest;
 import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
@@ -43,6 +46,8 @@ public class KerberosMountDecoratorTest extends KubernetesPodTestBase {
     private AbstractKubernetesParametersTest.TestingKubernetesParameters
             testingKubernetesParameters;
 
+    private static final String CUSTOM_KRB5_CONF_FILE = "mykrb5.conf";
+
     @Override
     protected void setupFlinkConfig() {
         super.setupFlinkConfig();
@@ -51,7 +56,14 @@ public class KerberosMountDecoratorTest extends KubernetesPodTestBase {
                 SecurityOptions.KERBEROS_LOGIN_KEYTAB, kerberosDir.toString() + "/" + KEYTAB_FILE);
         flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, "test");
         flinkConfig.set(
-                SecurityOptions.KERBEROS_KRB5_PATH, kerberosDir.toString() + "/" + KRB5_CONF_FILE);
+                SecurityOptions.KERBEROS_KRB5_PATH,
+                kerberosDir.toString() + "/" + CUSTOM_KRB5_CONF_FILE);
+    }
+
+    @Override
+    protected void generateKerberosFileItems() throws IOException {
+        KubernetesTestUtils.createTemporyFile("some keytab", kerberosDir, KEYTAB_FILE);
+        KubernetesTestUtils.createTemporyFile("some conf", kerberosDir, CUSTOM_KRB5_CONF_FILE);
     }
 
     @Override
@@ -107,5 +119,38 @@ public class KerberosMountDecoratorTest extends KubernetesPodTestBase {
         assertEquals(
                 Constants.KERBEROS_KRB5CONF_MOUNT_DIR + "/krb5.conf",
                 krb5ConfVolumeMount.getMountPath());
+    }
+
+    @Test
+    public void testDecoratedFlinkPodVolumes() {
+        final FlinkPod resultFlinkPod = kerberosMountDecorator.decorateFlinkPod(baseFlinkPod);
+        List<Volume> volumes = resultFlinkPod.getPodWithoutMainContainer().getSpec().getVolumes();
+        assertEquals(2, volumes.size());
+
+        final Volume keytabVolume =
+                volumes.stream()
+                        .filter(x -> x.getName().equals(Constants.KERBEROS_KEYTAB_VOLUME))
+                        .collect(Collectors.toList())
+                        .get(0);
+        final Volume krb5ConfVolume =
+                volumes.stream()
+                        .filter(x -> x.getName().equals(Constants.KERBEROS_KRB5CONF_VOLUME))
+                        .collect(Collectors.toList())
+                        .get(0);
+        assertNotNull(keytabVolume.getSecret());
+        assertEquals(
+                KerberosMountDecorator.getKerberosKeytabSecretName(
+                        testingKubernetesParameters.getClusterId()),
+                keytabVolume.getSecret().getSecretName());
+
+        assertNotNull(krb5ConfVolume.getConfigMap());
+        assertEquals(
+                KerberosMountDecorator.getKerberosKrb5confConfigMapName(
+                        testingKubernetesParameters.getClusterId()),
+                krb5ConfVolume.getConfigMap().getName());
+        assertEquals(1, krb5ConfVolume.getConfigMap().getItems().size());
+        assertEquals(
+                CUSTOM_KRB5_CONF_FILE, krb5ConfVolume.getConfigMap().getItems().get(0).getKey());
+        assertEquals(KRB5_CONF_FILE, krb5ConfVolume.getConfigMap().getItems().get(0).getPath());
     }
 }

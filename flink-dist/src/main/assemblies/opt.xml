@@ -31,9 +31,9 @@
 	<files>
 		<!-- CEP -->
 		<file>
-			<source>../flink-libraries/flink-cep/target/flink-cep_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-libraries/flink-cep/target/flink-cep-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-cep_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-cep-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
@@ -46,9 +46,9 @@
 
 		<!-- Gelly -->
 		<file>
-			<source>../flink-libraries/flink-gelly/target/flink-gelly_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-libraries/flink-gelly/target/flink-gelly-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-gelly_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-gelly-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
@@ -69,9 +69,9 @@
 
 		<!-- State Processor API -->
 		<file>
-			<source>../flink-libraries/flink-state-processing-api/target/flink-state-processor-api_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-libraries/flink-state-processing-api/target/flink-state-processor-api-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-state-processor-api_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-state-processor-api-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 

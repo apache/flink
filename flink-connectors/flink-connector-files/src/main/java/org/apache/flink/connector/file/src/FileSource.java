@@ -161,13 +161,8 @@ public final class FileSource<T> extends AbstractFileSource<T, FileSourceSplit> 
      * (GZip).
      */
     public static <T> FileSourceBuilder<T> forRecordStreamFormat(
-            final StreamFormat<T> reader, final Path... paths) {
-        checkNotNull(reader, "reader");
-        checkNotNull(paths, "paths");
-        checkArgument(paths.length > 0, "paths must not be empty");
-
-        final BulkFormat<T, FileSourceSplit> bulkFormat = new StreamFormatAdapter<>(reader);
-        return new FileSourceBuilder<>(paths, bulkFormat);
+            final StreamFormat<T> streamFormat, final Path... paths) {
+        return forBulkFileFormat(new StreamFormatAdapter<>(streamFormat), paths);
     }
 
     /**
@@ -177,12 +172,12 @@ public final class FileSource<T> extends AbstractFileSource<T, FileSourceSplit> 
      * <p>Examples for bulk readers are compressed and vectorized formats such as ORC or Parquet.
      */
     public static <T> FileSourceBuilder<T> forBulkFileFormat(
-            final BulkFormat<T, FileSourceSplit> reader, final Path... paths) {
-        checkNotNull(reader, "reader");
+            final BulkFormat<T, FileSourceSplit> bulkFormat, final Path... paths) {
+        checkNotNull(bulkFormat, "reader");
         checkNotNull(paths, "paths");
         checkArgument(paths.length > 0, "paths must not be empty");
 
-        return new FileSourceBuilder<>(paths, reader);
+        return new FileSourceBuilder<>(paths, bulkFormat);
     }
 
     /**
@@ -193,13 +188,8 @@ public final class FileSource<T> extends AbstractFileSource<T, FileSourceSplit> 
      * requires often more careful parametrization.
      */
     public static <T> FileSourceBuilder<T> forRecordFileFormat(
-            final FileRecordFormat<T> reader, final Path... paths) {
-        checkNotNull(reader, "reader");
-        checkNotNull(paths, "paths");
-        checkArgument(paths.length > 0, "paths must not be empty");
-
-        final BulkFormat<T, FileSourceSplit> bulkFormat = new FileRecordFormatAdapter<>(reader);
-        return new FileSourceBuilder<>(paths, bulkFormat);
+            final FileRecordFormat<T> recordFormat, final Path... paths) {
+        return forBulkFileFormat(new FileRecordFormatAdapter<>(recordFormat), paths);
     }
 
     // ------------------------------------------------------------------------

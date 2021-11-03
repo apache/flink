@@ -22,7 +22,7 @@ public class OperatorStartedEvent extends TestEvent {
     private final int attemptNumber;
 
     public OperatorStartedEvent(String operatorId, int subtaskIndex, int attemptNumber) {
-        super(operatorId, subtaskIndex);
+        super(operatorId, subtaskIndex, attemptNumber);
         this.attemptNumber = attemptNumber;
     }
 

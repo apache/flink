@@ -29,7 +29,9 @@ __all__ = [
     'TimePointUnit',
     'JsonType',
     'JsonExistsOnError',
-    'JsonValueOnEmptyOrError'
+    'JsonValueOnEmptyOrError',
+    'JsonQueryWrapper',
+    'JsonQueryOnEmptyOrError'
 ]
 
 
@@ -367,6 +369,22 @@ class TimePointUnit(Enum):
         return getattr(JTimePointUnit, self.name)
 
 
+class JsonType(Enum):
+    """
+    Types of JSON objects for is_json().
+    """
+
+    VALUE = 0,
+    SCALAR = 1,
+    ARRAY = 2,
+    OBJECT = 3
+
+    def _to_j_json_type(self):
+        gateway = get_gateway()
+        JJsonType = gateway.jvm.org.apache.flink.table.api.JsonType
+        return getattr(JJsonType, self.name)
+
+
 class JsonExistsOnError(Enum):
     """
     Behavior in case of errors for json_exists().
@@ -398,20 +416,49 @@ class JsonValueOnEmptyOrError(Enum):
         return getattr(JJsonValueOnEmptyOrError, self.name)
 
 
-class JsonType(Enum):
+class JsonQueryWrapper(Enum):
     """
-    Types of JSON objects for is_json().
+    Defines whether and when to wrap the result of json_query() into an array.
     """
 
-    VALUE = 0,
-    SCALAR = 1,
-    ARRAY = 2,
-    OBJECT = 3
+    WITHOUT_ARRAY = 0,
+    CONDITIONAL_ARRAY = 1,
+    UNCONDITIONAL_ARRAY = 2
 
-    def _to_j_json_type(self):
+    def _to_j_json_query_wrapper(self):
         gateway = get_gateway()
-        JJsonType = gateway.jvm.org.apache.flink.table.api.JsonType
-        return getattr(JJsonType, self.name)
+        JJsonQueryWrapper = gateway.jvm.org.apache.flink.table.api.JsonQueryWrapper
+        return getattr(JJsonQueryWrapper, self.name)
+
+
+class JsonQueryOnEmptyOrError(Enum):
+    """
+    Defines the behavior of json_query() in case of emptiness or errors.
+    """
+
+    NULL = 0,
+    EMPTY_ARRAY = 1,
+    EMPTY_OBJECT = 2,
+    ERROR = 3
+
+    def _to_j_json_query_on_error_or_empty(self):
+        gateway = get_gateway()
+        JJsonQueryOnEmptyOrError = gateway.jvm.org.apache.flink.table.api.JsonQueryOnEmptyOrError
+        return getattr(JJsonQueryOnEmptyOrError, self.name)
+
+
+class JsonOnNull(Enum):
+    """
+    Behavior for entries with a null value for json_object().
+    """
+
+    NULL = 0,
+    ABSENT = 1
+
+    def _to_j_json_on_null(self):
+        gateway = get_gateway()
+        JJsonOnNull = gateway.jvm.org.apache.flink.table.api.JsonOnNull
+        return getattr(JJsonOnNull, self.name)
 
 
 T = TypeVar('T')
@@ -1494,10 +1541,14 @@ class Expression(Generic[T]):
         For empty path expressions or errors a behavior can be defined to either return `null`,
         raise an error or return a defined default value instead.
 
+        seealso:: :func:`~Expression.json_query`
+
         Examples:
         ::
 
             >>> lit('{"a": true}').json_value('$.a') # STRING: 'true'
+            >>> lit('{"a.b": [0.998,0.996]}').json_value("$.['a.b'][0]", \
+                    DataTypes.DOUBLE()) # DOUBLE: 0.998
             >>> lit('{"a": true}').json_value('$.a', DataTypes.BOOLEAN()) # BOOLEAN: True
             >>> lit('{"a": true}').json_value('lax $.b', \
                     JsonValueOnEmptyOrError.DEFAULT, False) # BOOLEAN: False
@@ -1510,6 +1561,50 @@ class Expression(Generic[T]):
                                         default_on_empty,
                                         on_error._to_j_json_value_on_empty_or_error(),
                                         default_on_error)
+
+    def json_query(self, path: str, wrapping_behavior=JsonQueryWrapper.WITHOUT_ARRAY,
+                   on_empty=JsonQueryOnEmptyOrError.NULL,
+                   on_error=JsonQueryOnEmptyOrError.NULL) -> 'Expression':
+        """
+        Extracts JSON values from a JSON string.
+
+        This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL. The result is
+        always returned as a `STRING`.
+
+        The `wrapping_behavior` determines whether the extracted value should be wrapped into an
+        array, and whether to do so unconditionally or only if the value itself isn't an array
+        already.
+
+        `on_empty` and `on_error` determine the behavior in case the path expression is empty, or in
+        case an error was raised, respectively. By default, in both cases `null` is returned.
+        Other choices are to use an empty array, an empty object, or to raise an error.
+
+        seealso:: :func:`~Expression.json_value`
+
+        Examples:
+        ::
+
+            >>> lit('{"a":{"b":1}}').json_query('$.a') # '{"b":1}'
+            >>> lit('[1,2]').json_query('$') # '[1,2]'
+            >>> null_of(DataTypes.STRING()).json_query('$') # None
+
+            >>> lit('{}').json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[{}]'
+            >>> lit('[1,2]').json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[1,2]'
+            >>> lit('[1,2]').json_query('$', JsonQueryWrapper.UNCONDITIONAL_ARRAY) # '[[1,2]]'
+
+            >>> lit(1).json_query('$') # null
+            >>> lit(1).json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[1]'
+
+            >>> lit('{}').json_query('lax $.invalid', JsonQueryWrapper.WITHOUT_ARRAY, \
+                                     JsonQueryOnEmptyOrError.EMPTY_OBJECT, \
+                                    JsonQueryOnEmptyOrError.NULL) # '{}'
+            >>> lit('{}').json_query('strict $.invalid', JsonQueryWrapper.WITHOUT_ARRAY, \
+                                     JsonQueryOnEmptyOrError.NULL, \
+                                     JsonQueryOnEmptyOrError.EMPTY_ARRAY) # '[]'
+        """
+        return _varargs_op("jsonQuery")(self, path, wrapping_behavior._to_j_json_query_wrapper(),
+                                        on_empty._to_j_json_query_on_error_or_empty(),
+                                        on_error._to_j_json_query_on_error_or_empty())
 
 
 # add the docs

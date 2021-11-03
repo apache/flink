@@ -29,6 +29,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.TestLogger;
@@ -51,12 +52,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -65,20 +63,22 @@ import java.util.PriorityQueue;
 import java.util.Properties;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.connector.kafka.sink.KafkaSinkITCase.drainAllRecordsFromTopic;
+import static org.apache.flink.connector.kafka.sink.KafkaUtil.createKafkaContainer;
+import static org.apache.flink.connector.kafka.sink.KafkaUtil.drainAllRecordsFromTopic;
+import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the standalone KafkaWriter. */
 public class KafkaWriterITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaWriterITCase.class);
-    private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
     private static final Network NETWORK = Network.newNetwork();
     private static final String KAFKA_METRIC_WITH_GROUP_NAME = "KafkaProducer.incoming-byte-total";
@@ -89,16 +89,9 @@ public class KafkaWriterITCase extends TestLogger {
     private TriggerTimeService timeService;
 
     private static final KafkaContainer KAFKA_CONTAINER =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:5.5.2"))
+            createKafkaContainer(KAFKA, LOG)
                     .withEmbeddedZookeeper()
-                    .withEnv("KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR", "1")
-                    .withEnv("KAFKA_TRANSACTION_STATE_LOG_MIN_ISR", "1")
-                    .withEnv("KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE", "false")
-                    .withEnv(
-                            "KAFKA_TRANSACTION_MAX_TIMEOUT_MS",
-                            String.valueOf(Duration.ofHours(2).toMillis()))
                     .withNetwork(NETWORK)
-                    .withLogConsumer(LOG_CONSUMER)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
 
     @BeforeAll
@@ -135,7 +128,7 @@ public class KafkaWriterITCase extends TestLogger {
     }
 
     @Test
-    public void testIncreasingByteOutCounter() throws Exception {
+    public void testIncreasingRecordBasedCounters() throws Exception {
         final OperatorIOMetricGroup operatorIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
         final InternalSinkWriterMetricGroup metricGroup =
@@ -145,9 +138,11 @@ public class KafkaWriterITCase extends TestLogger {
                 createWriterWithConfiguration(
                         getKafkaClientConfiguration(), DeliveryGuarantee.NONE, metricGroup)) {
             final Counter numBytesOut = operatorIOMetricGroup.getNumBytesOutCounter();
-            Assertions.assertEquals(numBytesOut.getCount(), 0L);
+            final Counter numRecordsOut = operatorIOMetricGroup.getNumRecordsOutCounter();
+            assertEquals(numBytesOut.getCount(), 0L);
             writer.write(1, SINK_WRITER_CONTEXT);
             timeService.trigger();
+            assertEquals(numRecordsOut.getCount(), 1);
             assertThat(numBytesOut.getCount(), greaterThan(0L));
         }
     }
@@ -164,7 +159,7 @@ public class KafkaWriterITCase extends TestLogger {
             final Optional<Gauge<Long>> currentSendTime =
                     metricListener.getGauge("currentSendTime");
             assertTrue(currentSendTime.isPresent());
-            Assertions.assertEquals(currentSendTime.get().getValue(), 0L);
+            assertEquals(currentSendTime.get().getValue(), 0L);
             IntStream.range(0, 100)
                     .forEach(
                             (run) -> {
@@ -191,9 +186,9 @@ public class KafkaWriterITCase extends TestLogger {
 
         // create two lingering transactions
         failedWriter.prepareCommit(false);
-        failedWriter.snapshotState(0);
-        failedWriter.prepareCommit(false);
         failedWriter.snapshotState(1);
+        failedWriter.prepareCommit(false);
+        failedWriter.snapshotState(2);
 
         try (final KafkaWriter<Integer> recoveredWriter =
                 createWriterWithConfiguration(
@@ -201,14 +196,14 @@ public class KafkaWriterITCase extends TestLogger {
             recoveredWriter.write(1, SINK_WRITER_CONTEXT);
 
             List<KafkaCommittable> committables = recoveredWriter.prepareCommit(false);
-            recoveredWriter.snapshotState(0);
+            recoveredWriter.snapshotState(1);
             assertThat(committables, hasSize(1));
             assertThat(committables.get(0).getProducer().isPresent(), equalTo(true));
 
             committables.get(0).getProducer().get().getObject().commitTransaction();
 
             List<ConsumerRecord<byte[], byte[]>> records =
-                    KafkaSinkITCase.drainAllRecordsFromTopic(topic, getKafkaClientConfiguration());
+                    drainAllRecordsFromTopic(topic, getKafkaClientConfiguration(), true);
             assertThat(records, hasSize(1));
         }
 
@@ -248,7 +243,7 @@ public class KafkaWriterITCase extends TestLogger {
             assertThat(writer.getProducerPool(), hasSize(0));
 
             List<KafkaCommittable> committables0 = writer.prepareCommit(false);
-            writer.snapshotState(0);
+            writer.snapshotState(1);
             assertThat(committables0, hasSize(1));
             assertThat(committables0.get(0).getProducer().isPresent(), equalTo(true));
 
@@ -266,7 +261,7 @@ public class KafkaWriterITCase extends TestLogger {
             assertThat(writer.getProducerPool(), hasSize(1));
 
             List<KafkaCommittable> committables1 = writer.prepareCommit(false);
-            writer.snapshotState(1);
+            writer.snapshotState(2);
             assertThat(committables1, hasSize(1));
             assertThat(committables1.get(0).getProducer().isPresent(), equalTo(true));
 
@@ -287,7 +282,7 @@ public class KafkaWriterITCase extends TestLogger {
         try (final KafkaWriter<Integer> writer =
                 createWriterWithConfiguration(properties, DeliveryGuarantee.EXACTLY_ONCE)) {
             writer.write(1, SINK_WRITER_CONTEXT);
-            assertThat(drainAllRecordsFromTopic(topic, properties), hasSize(0));
+            assertThat(drainAllRecordsFromTopic(topic, properties, true), hasSize(0));
         }
 
         try (final KafkaWriter<Integer> writer =
@@ -306,7 +301,7 @@ public class KafkaWriterITCase extends TestLogger {
                 producer.commitTransaction();
             }
 
-            assertThat(drainAllRecordsFromTopic(topic, properties), hasSize(1));
+            assertThat(drainAllRecordsFromTopic(topic, properties, true), hasSize(1));
         }
     }
 
@@ -371,7 +366,7 @@ public class KafkaWriterITCase extends TestLogger {
 
         @Override
         public MailboxExecutor getMailboxExecutor() {
-            throw new UnsupportedOperationException("Not implemented");
+            return new SyncMailboxExecutor();
         }
 
         @Override

@@ -420,10 +420,12 @@ public class AdaptiveScheduler
 
         backgroundTask.abort();
         // wait for the background task to finish and then close services
-        return FutureUtils.runAfterwardsAsync(
-                backgroundTask.getTerminationFuture(),
-                () -> stopCheckpointServicesSafely(jobTerminationFuture.get()),
-                getMainThreadExecutor());
+        return CompletableFuture.allOf(
+                FutureUtils.runAfterwardsAsync(
+                        backgroundTask.getTerminationFuture(),
+                        () -> stopCheckpointServicesSafely(jobTerminationFuture.get()),
+                        getMainThreadExecutor()),
+                checkpointsCleaner.closeAsync());
     }
 
     private void stopCheckpointServicesSafely(JobStatus terminalState) {
@@ -593,6 +595,19 @@ public class AdaptiveScheduler
                                 stateWithExecutionGraph.triggerSavepoint(
                                         targetDirectory, cancelJob),
                         "triggerSavepoint")
+                .orElse(
+                        FutureUtils.completedExceptionally(
+                                new CheckpointException(
+                                        "The Flink job is currently not executing.",
+                                        CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE)));
+    }
+
+    @Override
+    public CompletableFuture<String> triggerCheckpoint() {
+        return state.tryCall(
+                        StateWithExecutionGraph.class,
+                        StateWithExecutionGraph::triggerCheckpoint,
+                        "triggerCheckpoint")
                 .orElse(
                         FutureUtils.completedExceptionally(
                                 new CheckpointException(

@@ -58,7 +58,8 @@ public class AkkaRpcSystemLoader implements RpcSystemLoader {
             if (resourceStream == null) {
                 throw new RuntimeException(
                         "Akka RPC system could not be found. If this happened while running a test in the IDE,"
-                                + "run the process-resources phase on flink-rpc/flink-rpc-akka-loader via maven.");
+                                + "run 'mvn package -pl flink-rpc/flink-rpc-akka,flink-rpc/flink-rpc-akka-loader' on the command-line,"
+                                + "or add a test dependency on the flink-rpc-akka-loader test-jar.");
             }
 
             IOUtils.copyBytes(resourceStream, Files.newOutputStream(tempFile));

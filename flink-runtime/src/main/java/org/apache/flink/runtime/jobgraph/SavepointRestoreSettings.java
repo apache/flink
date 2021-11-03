@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -96,9 +97,7 @@ public class SavepointRestoreSettings implements Serializable {
 
         SavepointRestoreSettings that = (SavepointRestoreSettings) o;
         return allowNonRestoredState == that.allowNonRestoredState
-                && (restorePath != null
-                        ? restorePath.equals(that.restorePath)
-                        : that.restorePath == null);
+                && (Objects.equals(restorePath, that.restorePath));
     }
 
     @Override

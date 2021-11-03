@@ -56,13 +56,15 @@ public class DispatcherServices {
 
     @Nullable private final String metricQueryServiceAddress;
 
+    @Nonnull private final DispatcherOperationCaches operationCaches;
+
     @Nonnull private final JobGraphWriter jobGraphWriter;
 
     @Nonnull private final JobManagerRunnerFactory jobManagerRunnerFactory;
 
     @Nonnull private final Executor ioExecutor;
 
-    public DispatcherServices(
+    DispatcherServices(
             @Nonnull Configuration configuration,
             @Nonnull HighAvailabilityServices highAvailabilityServices,
             @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
@@ -72,6 +74,7 @@ public class DispatcherServices {
             @Nonnull FatalErrorHandler fatalErrorHandler,
             @Nonnull HistoryServerArchivist historyServerArchivist,
             @Nullable String metricQueryServiceAddress,
+            @Nonnull DispatcherOperationCaches operationCaches,
             @Nonnull JobManagerMetricGroup jobManagerMetricGroup,
             @Nonnull JobGraphWriter jobGraphWriter,
             @Nonnull JobManagerRunnerFactory jobManagerRunnerFactory,
@@ -85,6 +88,7 @@ public class DispatcherServices {
         this.fatalErrorHandler = fatalErrorHandler;
         this.historyServerArchivist = historyServerArchivist;
         this.metricQueryServiceAddress = metricQueryServiceAddress;
+        this.operationCaches = operationCaches;
         this.jobManagerMetricGroup = jobManagerMetricGroup;
         this.jobGraphWriter = jobGraphWriter;
         this.jobManagerRunnerFactory = jobManagerRunnerFactory;
@@ -142,6 +146,11 @@ public class DispatcherServices {
     }
 
     @Nonnull
+    public DispatcherOperationCaches getOperationCaches() {
+        return operationCaches;
+    }
+
+    @Nonnull
     public JobGraphWriter getJobGraphWriter() {
         return jobGraphWriter;
     }
@@ -171,6 +180,7 @@ public class DispatcherServices {
                 partialDispatcherServicesWithJobGraphStore.getFatalErrorHandler(),
                 partialDispatcherServicesWithJobGraphStore.getHistoryServerArchivist(),
                 partialDispatcherServicesWithJobGraphStore.getMetricQueryServiceAddress(),
+                partialDispatcherServicesWithJobGraphStore.getOperationCaches(),
                 partialDispatcherServicesWithJobGraphStore
                         .getJobManagerMetricGroupFactory()
                         .create(),

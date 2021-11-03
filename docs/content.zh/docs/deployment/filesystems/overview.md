@@ -49,7 +49,7 @@ Apache Flink 支持下列文件系统：
 
   - **[阿里云对象存储]({{< ref "docs/deployment/filesystems/oss" >}})** 由 `flink-oss-fs-hadoop` 支持，并通过 *oss://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
 
-  - **[Azure Blob Storage]({{< ref "docs/deployment/filesystems/azure" >}})** 由`flink-azure-fs-hadoop` 支持，并通过 *wasb(s)://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
+  - **[Azure Blob Storage]({{< ref "docs/deployment/filesystems/azure" >}})** 由`flink-azure-fs-hadoop` 支持，并通过 *abfs(s)://* 和 *wasb(s)://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
 
   - **[Google Cloud Storage]({{< ref "docs/deployment/filesystems/gcs" >}})** 由`gcs-connector` 支持，并通过 *gs://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
 

@@ -21,16 +21,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-
-import java.util.concurrent.ScheduledFuture;
 
 /**
  * {@link StreamOperator} for streaming sources.
@@ -88,12 +82,12 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
                         ? getExecutionConfig().getLatencyTrackingInterval()
                         : configuration.getLong(MetricOptions.LATENCY_INTERVAL);
 
-        LatencyMarksEmitter<OUT> latencyEmitter = null;
+        LatencyMarkerEmitter<OUT> latencyEmitter = null;
         if (latencyTrackingInterval > 0) {
             latencyEmitter =
-                    new LatencyMarksEmitter<>(
+                    new LatencyMarkerEmitter<>(
                             getProcessingTimeService(),
-                            collector,
+                            collector::emitLatencyMarker,
                             latencyTrackingInterval,
                             this.getOperatorID(),
                             getRuntimeContext().getIndexOfThisSubtask());
@@ -164,46 +158,5 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
      */
     protected boolean isCanceledOrStopped() {
         return canceledOrStopped;
-    }
-
-    private static class LatencyMarksEmitter<OUT> {
-        private final ScheduledFuture<?> latencyMarkTimer;
-
-        public LatencyMarksEmitter(
-                final ProcessingTimeService processingTimeService,
-                final Output<StreamRecord<OUT>> output,
-                long latencyTrackingInterval,
-                final OperatorID operatorId,
-                final int subtaskIndex) {
-
-            latencyMarkTimer =
-                    processingTimeService.scheduleWithFixedDelay(
-                            new ProcessingTimeCallback() {
-                                @Override
-                                public void onProcessingTime(long timestamp) throws Exception {
-                                    try {
-                                        // ProcessingTimeService callbacks are executed under the
-                                        // checkpointing lock
-                                        output.emitLatencyMarker(
-                                                new LatencyMarker(
-                                                        processingTimeService
-                                                                .getCurrentProcessingTime(),
-                                                        operatorId,
-                                                        subtaskIndex));
-                                    } catch (Throwable t) {
-                                        // we catch the Throwables here so that we don't trigger the
-                                        // processing
-                                        // timer services async exception handler
-                                        LOG.warn("Error while emitting latency marker.", t);
-                                    }
-                                }
-                            },
-                            0L,
-                            latencyTrackingInterval);
-        }
-
-        public void close() {
-            latencyMarkTimer.cancel(true);
-        }
     }
 }

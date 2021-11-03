@@ -23,9 +23,8 @@ import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNo
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{IntType, LogicalType}
-
-import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
-import org.apache.calcite.avatica.util.TimeUnit
+import org.apache.flink.table.utils.DateTimeUtils.TimeUnit
+import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
 
 class TimestampDiffCallGen extends CallGenerator {
 

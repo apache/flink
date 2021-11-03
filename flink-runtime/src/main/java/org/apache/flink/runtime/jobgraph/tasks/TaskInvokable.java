@@ -21,8 +21,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import javax.annotation.Nullable;
 
-import java.util.concurrent.Future;
-
 /**
  * An invokable part of the task.
  *
@@ -82,11 +80,8 @@ public interface TaskInvokable {
     /**
      * This method is called when a task is canceled either as a result of a user abort or an
      * execution failure. It can be overwritten to respond to shut down the user code properly.
-     *
-     * @return a future that is completed when this {@link AbstractInvokable} is fully terminated.
-     *     Note that it may never complete if the invokable is stuck.
      */
-    Future<Void> cancel() throws Exception;
+    void cancel() throws Exception;
 
     /**
      * @return true if blocking input such as {@link InputGate#getNext()} is used (as opposed to
@@ -95,9 +90,13 @@ public interface TaskInvokable {
     boolean isUsingNonBlockingInput();
 
     /**
-     * Checks whether the task should be interrupted during cancellation. This method is check both
-     * for the initial interrupt, as well as for the repeated interrupt. If this method returns true
-     * then no further interrupts will happen.
+     * Checks whether the task should be interrupted during cancellation and if so, execute the
+     * specified {@code Runnable interruptAction}.
+     *
+     * @param toInterrupt
+     * @param taskName optional taskName to log stack trace
+     * @param timeout optional timeout to log stack trace
      */
-    boolean shouldInterruptOnCancel();
+    void maybeInterruptOnCancel(
+            Thread toInterrupt, @Nullable String taskName, @Nullable Long timeout);
 }

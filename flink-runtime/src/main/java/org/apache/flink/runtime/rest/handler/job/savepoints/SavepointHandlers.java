@@ -21,9 +21,12 @@ package org.apache.flink.runtime.rest.handler.job.savepoints;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.async.AbstractAsynchronousOperationHandlers;
+import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -47,6 +50,7 @@ import org.apache.flink.util.SerializedThrowable;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Map;
@@ -103,8 +107,7 @@ import java.util.concurrent.CompletableFuture;
  * }
  * </pre>
  */
-public class SavepointHandlers
-        extends AbstractAsynchronousOperationHandlers<AsynchronousJobOperationKey, String> {
+public class SavepointHandlers {
 
     @Nullable private final String defaultSavepointDir;
 
@@ -112,24 +115,38 @@ public class SavepointHandlers
         this.defaultSavepointDir = defaultSavepointDir;
     }
 
-    private abstract class SavepointHandlerBase<T extends RequestBody>
-            extends TriggerHandler<RestfulGateway, T, SavepointTriggerMessageParameters> {
+    private abstract static class SavepointHandlerBase<B extends RequestBody>
+            extends AbstractRestHandler<
+                    RestfulGateway, B, TriggerResponse, SavepointTriggerMessageParameters> {
 
         SavepointHandlerBase(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
                 final Time timeout,
                 Map<String, String> responseHeaders,
-                final MessageHeaders<T, TriggerResponse, SavepointTriggerMessageParameters>
+                final MessageHeaders<B, TriggerResponse, SavepointTriggerMessageParameters>
                         messageHeaders) {
             super(leaderRetriever, timeout, responseHeaders, messageHeaders);
         }
 
-        @Override
-        protected AsynchronousJobOperationKey createOperationKey(
-                final HandlerRequest<T, SavepointTriggerMessageParameters> request) {
+        protected AsynchronousJobOperationKey createOperationKey(final HandlerRequest<B> request) {
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             return AsynchronousJobOperationKey.of(new TriggerId(), jobId);
         }
+
+        public CompletableFuture<TriggerResponse> handleRequest(
+                @Nonnull HandlerRequest<B> request, @Nonnull RestfulGateway gateway)
+                throws RestHandlerException {
+            final AsynchronousJobOperationKey operationKey = createOperationKey(request);
+
+            return triggerOperation(request, operationKey, gateway)
+                    .thenApply(acknowledge -> new TriggerResponse(operationKey.getTriggerId()));
+        }
+
+        protected abstract CompletableFuture<Acknowledge> triggerOperation(
+                HandlerRequest<B> request,
+                AsynchronousJobOperationKey operationKey,
+                RestfulGateway gateway)
+                throws RestHandlerException;
     }
 
     /** HTTP handler to stop a job with a savepoint. */
@@ -148,14 +165,11 @@ public class SavepointHandlers
         }
 
         @Override
-        protected CompletableFuture<String> triggerOperation(
-                final HandlerRequest<
-                                StopWithSavepointRequestBody, SavepointTriggerMessageParameters>
-                        request,
+        protected CompletableFuture<Acknowledge> triggerOperation(
+                final HandlerRequest<StopWithSavepointRequestBody> request,
+                AsynchronousJobOperationKey operationKey,
                 final RestfulGateway gateway)
                 throws RestHandlerException {
-
-            final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
 
             if (requestedTargetDirectory == null && defaultSavepointDir == null) {
@@ -167,13 +181,16 @@ public class SavepointHandlers
                         HttpResponseStatus.BAD_REQUEST);
             }
 
-            final boolean shouldDrain = request.getRequestBody().shouldDrain();
+            final TriggerSavepointMode savepointMode =
+                    request.getRequestBody().shouldDrain()
+                            ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
+                            : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT;
             final String targetDirectory =
                     requestedTargetDirectory != null
                             ? requestedTargetDirectory
                             : defaultSavepointDir;
             return gateway.stopWithSavepoint(
-                    jobId, targetDirectory, shouldDrain, RpcUtils.INF_TIMEOUT);
+                    operationKey, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }
     }
 
@@ -188,12 +205,11 @@ public class SavepointHandlers
         }
 
         @Override
-        protected CompletableFuture<String> triggerOperation(
-                HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters>
-                        request,
+        protected CompletableFuture<Acknowledge> triggerOperation(
+                HandlerRequest<SavepointTriggerRequestBody> request,
+                AsynchronousJobOperationKey operationKey,
                 RestfulGateway gateway)
                 throws RestHandlerException {
-            final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
 
             if (requestedTargetDirectory == null && defaultSavepointDir == null) {
@@ -205,19 +221,26 @@ public class SavepointHandlers
                         HttpResponseStatus.BAD_REQUEST);
             }
 
-            final boolean cancelJob = request.getRequestBody().isCancelJob();
+            final TriggerSavepointMode savepointMode =
+                    request.getRequestBody().isCancelJob()
+                            ? TriggerSavepointMode.CANCEL_WITH_SAVEPOINT
+                            : TriggerSavepointMode.SAVEPOINT;
             final String targetDirectory =
                     requestedTargetDirectory != null
                             ? requestedTargetDirectory
                             : defaultSavepointDir;
             return gateway.triggerSavepoint(
-                    jobId, targetDirectory, cancelJob, RpcUtils.INF_TIMEOUT);
+                    operationKey, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }
     }
 
     /** HTTP handler to query for the status of the savepoint. */
-    public class SavepointStatusHandler
-            extends StatusHandler<RestfulGateway, SavepointInfo, SavepointStatusMessageParameters> {
+    public static class SavepointStatusHandler
+            extends AbstractRestHandler<
+                    RestfulGateway,
+                    EmptyRequestBody,
+                    AsynchronousOperationResult<SavepointInfo>,
+                    SavepointStatusMessageParameters> {
 
         public SavepointStatusHandler(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -227,19 +250,47 @@ public class SavepointHandlers
         }
 
         @Override
+        public CompletableFuture<AsynchronousOperationResult<SavepointInfo>> handleRequest(
+                @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
+                throws RestHandlerException {
+
+            final AsynchronousJobOperationKey key = getOperationKey(request);
+
+            return gateway.getTriggeredSavepointStatus(key)
+                    .thenApply(
+                            (operationResult) -> {
+                                switch (operationResult.getStatus()) {
+                                    case SUCCESS:
+                                        return AsynchronousOperationResult.completed(
+                                                operationResultResponse(
+                                                        operationResult.getResult()));
+                                    case FAILURE:
+                                        return AsynchronousOperationResult.completed(
+                                                exceptionalOperationResultResponse(
+                                                        operationResult.getThrowable()));
+                                    case IN_PROGRESS:
+                                        return AsynchronousOperationResult.inProgress();
+                                    default:
+                                        throw new IllegalStateException(
+                                                "No handler for operation status "
+                                                        + operationResult.getStatus()
+                                                        + ", encountered for key "
+                                                        + key);
+                                }
+                            });
+        }
+
         protected AsynchronousJobOperationKey getOperationKey(
-                HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters> request) {
+                HandlerRequest<EmptyRequestBody> request) {
             final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             return AsynchronousJobOperationKey.of(triggerId, jobId);
         }
 
-        @Override
         protected SavepointInfo exceptionalOperationResultResponse(Throwable throwable) {
             return new SavepointInfo(null, new SerializedThrowable(throwable));
         }
 
-        @Override
         protected SavepointInfo operationResultResponse(String operationResult) {
             return new SavepointInfo(operationResult, null);
         }

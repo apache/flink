@@ -18,7 +18,6 @@
 
 package org.apache.flink.tests.util.flink;
 
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connectors.test.common.environment.ClusterControllable;
@@ -28,7 +27,6 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.time.Duration;
-import java.util.Arrays;
 
 import static org.apache.flink.configuration.HeartbeatManagerOptions.HEARTBEAT_INTERVAL;
 import static org.apache.flink.configuration.HeartbeatManagerOptions.HEARTBEAT_TIMEOUT;
@@ -44,10 +42,7 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
     public FlinkContainerTestEnvironment(
             int numTaskManagers, int numSlotsPerTaskManager, String... jarPath) {
 
-        Configuration flinkConfiguration = new Configuration();
-        flinkConfiguration.set(HEARTBEAT_INTERVAL, 1000L);
-        flinkConfiguration.set(HEARTBEAT_TIMEOUT, 5000L);
-        flinkConfiguration.set(SLOT_REQUEST_TIMEOUT, 10000L);
+        Configuration flinkConfiguration = flinkConfiguration();
         flinkConfiguration.set(NUM_TASK_SLOTS, numSlotsPerTaskManager);
 
         this.flinkContainer =
@@ -88,16 +83,13 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
             throws Exception {
         flinkContainer.restartTaskManager(
                 () -> {
-                    try {
-                        CommonTestUtils.waitForJobStatus(
-                                jobClient,
-                                Arrays.asList(
-                                        JobStatus.FAILING, JobStatus.FAILED, JobStatus.RESTARTING),
-                                Deadline.fromNow(Duration.ofSeconds(30)));
-                    } catch (Exception e) {
-                        throw new RuntimeException(
-                                "Error waiting for job entering failure status", e);
-                    }
+                    CommonTestUtils.waitForNoTaskRunning(
+                            () ->
+                                    flinkContainer
+                                            .getRestClusterClient()
+                                            .getJobDetails(jobClient.getJobID())
+                                            .get(),
+                            Deadline.fromNow(Duration.ofMinutes(5)));
                     afterFailAction.run();
                 });
     }
@@ -117,5 +109,14 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
      */
     public FlinkContainer getFlinkContainer() {
         return this.flinkContainer;
+    }
+
+    protected Configuration flinkConfiguration() {
+        Configuration flinkConfiguration = new Configuration();
+        flinkConfiguration.set(HEARTBEAT_INTERVAL, 1000L);
+        flinkConfiguration.set(HEARTBEAT_TIMEOUT, 5000L);
+        flinkConfiguration.set(SLOT_REQUEST_TIMEOUT, 10000L);
+
+        return flinkConfiguration;
     }
 }

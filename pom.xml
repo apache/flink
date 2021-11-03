@@ -77,6 +77,7 @@ under the License.
 		<module>flink-quickstart</module>
 		<module>flink-contrib</module>
 		<module>flink-dist</module>
+		<module>flink-dist-scala</module>
 		<module>flink-metrics</module>
 		<module>flink-yarn</module>
 		<module>flink-yarn-tests</module>
@@ -115,8 +116,8 @@ under the License.
 		<scala.macros.version>2.1.1</scala.macros.version>
 		<!-- Default scala versions, must be overwritten by build profiles, so we set something
 		invalid here -->
-		<scala.version>2.11.12</scala.version>
-		<scala.binary.version>2.11</scala.binary.version>
+		<scala.version>2.12.7</scala.version>
+		<scala.binary.version>2.12</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
 		<zookeeper.version>3.4.14</zookeeper.version>
 		<!-- Only the curator2 TestingServer works with ZK 3.4 -->
@@ -135,7 +136,7 @@ under the License.
 		<protoc.version>3.17.3</protoc.version>
 		<arrow.version>0.16.0</arrow.version>
 		<okhttp.version>3.14.9</okhttp.version>
-		<testcontainers.version>1.15.3</testcontainers.version>
+		<testcontainers.version>1.16.0</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
@@ -155,7 +156,7 @@ under the License.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
 		-->
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<japicmp.referenceVersion>1.13.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.14.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<spotless.version>2.4.2</spotless.version>
 
@@ -234,6 +235,12 @@ under the License.
 			<artifactId>hamcrest-all</artifactId>
 			<version>${hamcrest.version}</version>
 			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>junit-jupiter</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -583,13 +590,13 @@ under the License.
 			<dependency>
 				<groupId>commons-cli</groupId>
 				<artifactId>commons-cli</artifactId>
-				<version>1.3.1</version>
+				<version>1.4</version>
 			</dependency>
 
 			<dependency>
 				<groupId>commons-io</groupId>
 				<artifactId>commons-io</artifactId>
-				<version>2.8.0</version>
+				<version>2.11.0</version>
 			</dependency>
 
 			<!-- commons collections needs to be pinned to this critical security fix version -->
@@ -616,19 +623,19 @@ under the License.
 			<dependency>
 				<groupId>commons-codec</groupId>
 				<artifactId>commons-codec</artifactId>
-				<version>1.13</version>
+				<version>1.15</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-math3</artifactId>
-				<version>3.5</version>
+				<version>3.6.1</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-compress</artifactId>
-				<version>1.20</version>
+				<version>1.21</version>
 			</dependency>
 
 			<!-- Managed dependency required for HBase in flink-connector-hbase -->
@@ -687,18 +694,6 @@ under the License.
 				<artifactId>scalatest_${scala.binary.version}</artifactId>
 				<version>3.0.0</version>
 				<scope>test</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>com.github.scopt</groupId>
-				<artifactId>scopt_${scala.binary.version}</artifactId>
-				<version>3.5.0</version>
-				<exclusions>
-					<exclusion>
-						<groupId>org.scala-lang</groupId>
-						<artifactId>scala-library</artifactId>
-					</exclusion>
-				</exclusions>
 			</dependency>
 
 			<dependency>
@@ -800,54 +795,6 @@ under the License.
 
 	<profiles>
 		<profile>
-			<id>scala-2.11</id>
-			<properties>
-				<scala.version>2.11.12</scala.version>
-				<scala.binary.version>2.11</scala.binary.version>
-			</properties>
-			<activation>
-				<property>
-					<name>!scala-2.12</name>
-				</property>
-			</activation>
-			<!-- Scala Shell doesn't currently work with Scala 2.12 so only include
-			when building for Scala 2.11. -->
-			<modules>
-				<module>flink-scala-shell</module>
-			</modules>
-			<build>
-				<plugins>
-					<!-- make sure we don't have any _2.10 or _2.12 dependencies when building
-					for Scala 2.11 -->
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-enforcer-plugin</artifactId>
-						<executions>
-							<execution>
-								<id>enforce-versions</id>
-								<goals>
-									<goal>enforce</goal>
-								</goals>
-								<configuration>
-									<rules>
-										<bannedDependencies>
-											<excludes combine.children="append">
-												<exclude>*:*_2.12</exclude>
-												<exclude>*:*_2.10</exclude>
-											</excludes>
-											<message>Scala 2.10/2.12 dependencies are not allowed for Scala 2.11 builds. This can be caused by hard-coded scala versions, where the 'scala.binary.version' property should be used instead.</message>
-										</bannedDependencies>
-									</rules>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-
-
-		<profile>
 			<id>scala-2.12</id>
 			<properties>
 				<scala.version>2.12.7</scala.version>
@@ -855,34 +802,11 @@ under the License.
 			</properties>
 			<activation>
 				<property>
-					<name>scala-2.12</name>
+					<name>!old-and-unsupported-scala-version</name>
 				</property>
 			</activation>
 			<build>
 				<plugins>
-					<!-- don't run tests that don't work for Scala 2.12, because not all of the
-					required test dependencies are available for Scala 2.12. The Kafka 0.9 connector
-					still works with Scala 2.12 because it only needs the scala-version-independent
-					kafka-clients dependency at runtime. -->
-					<plugin>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>build-helper-maven-plugin</artifactId>
-						<executions>
-							<execution>
-								<id>regex-property</id>
-								<goals>
-									<goal>regex-property</goal>
-								</goals>
-								<configuration>
-									<name>maven.test.skip</name>
-									<value>${project.artifactId}</value>
-									<regex>(flink-scala-shell.*)</regex>
-									<replacement>true</replacement>
-									<failIfNoMatch>false</failIfNoMatch>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
 					<!-- make sure we don't have any _2.10 or _2.11 dependencies when building
 					for Scala 2.12 -->
 					<plugin>
@@ -993,7 +917,12 @@ under the License.
 						</plugin>
 					</plugins>
 				</pluginManagement>
+			</build>
+		</profile>
 
+		<profile>
+			<id>java11-target</id>
+			<build>
 				<plugins>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
@@ -1553,9 +1482,12 @@ under the License.
 						<hadoop.version>${hadoop.version}</hadoop.version>
 						<checkpointing.randomization>true</checkpointing.randomization>
 						<buffer-debloat.randomization>true</buffer-debloat.randomization>
-						<!-- on, unset, or random -->
-                        <!-- disable temporarily for 1.14 release -->
-						<checkpointing.changelog>unset</checkpointing.changelog>
+						<!-- force the use of the Changelog State Backend in tests on mini-cluster
+							on: enable CheckpointingOptions.ENABLE_STATE_CHANGE_LOG on cluster level
+							random: enable it randomly, unless explicitly set
+							unset: don't alter the configuration
+						-->
+						<checkpointing.changelog>random</checkpointing.changelog>
 						<project.basedir>${project.basedir}</project.basedir>
 						<!--suppress MavenModelInspection -->
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
@@ -1822,11 +1754,15 @@ under the License.
 					<execution>
 						<id>directories</id>
 						<goals>
-							<goal>highest-basedir</goal>
+							<goal>directory-of</goal>
 						</goals>
 						<phase>initialize</phase>
 						<configuration>
 							<property>rootDir</property>
+							<project>
+								<groupId>org.apache.flink</groupId>
+								<artifactId>flink-parent</artifactId>
+							</project>
 						</configuration>
 					</execution>
 				</executions>
@@ -2009,6 +1945,7 @@ under the License.
 					<version>1.0.0</version>
 					<executions>
 						<execution>
+							<phase>validate</phase>
 							<goals>
 								<goal>check</goal>
 							</goals>

@@ -144,7 +144,7 @@ public class SqlClientTest {
         String[] errorStack =
                 new String[] {
                     "at org.apache.flink.table.factories.FactoryUtil.discoverFactory",
-                    "at org.apache.flink.table.factories.FactoryUtil.createTableSource"
+                    "at org.apache.flink.table.factories.FactoryUtil.createDynamicTableSource"
                 };
         for (String stack : errorStack) {
             assertThat(output, not(containsString(stack)));
@@ -165,7 +165,7 @@ public class SqlClientTest {
                 new String[] {
                     "org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'invalid'",
                     "at org.apache.flink.table.factories.FactoryUtil.discoverFactory",
-                    "at org.apache.flink.table.factories.FactoryUtil.createTableSource"
+                    "at org.apache.flink.table.factories.FactoryUtil.createDynamicTableSource"
                 };
         for (String error : errors) {
             assertThat(output, containsString(error));

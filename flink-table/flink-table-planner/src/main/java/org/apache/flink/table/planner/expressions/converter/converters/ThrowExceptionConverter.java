@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter.converters;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule;
@@ -30,6 +31,7 @@ import org.apache.calcite.rex.RexNode;
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
 
 /** Conversion for {@link InternalFunctionDefinitions#THROW_EXCEPTION}. */
+@Internal
 class ThrowExceptionConverter extends CustomizedConverter {
     @Override
     public RexNode convert(CallExpression call, CallExpressionConvertRule.ConvertContext context) {

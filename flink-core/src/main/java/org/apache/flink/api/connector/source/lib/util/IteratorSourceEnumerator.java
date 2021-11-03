@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.connector.source.lib.util;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 
@@ -36,6 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <SplitT> The type of the splits used by the source.
  */
+@Public
 public class IteratorSourceEnumerator<SplitT extends IteratorSourceSplit<?, ?>>
         implements SplitEnumerator<SplitT, Collection<SplitT>> {
 

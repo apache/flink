@@ -89,8 +89,6 @@ import static org.mockito.Mockito.mock;
 /** Tests for submission logic of the {@link TaskExecutor}. */
 public class TaskExecutorSubmissionTest extends TestLogger {
 
-    private static final long TEST_TIMEOUT = 20000L;
-
     @Rule public final TestName testName = new TestName();
 
     private static final Time timeout = Time.milliseconds(10000L);
@@ -100,7 +98,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     /**
      * Tests that we can submit a task to the TaskManager given that we've allocated a slot there.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testTaskSubmission() throws Exception {
         final ExecutionAttemptID eid = new ExecutionAttemptID();
 
@@ -130,7 +128,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * Tests that the TaskManager sends a proper exception back to the sender if the submit task
      * message fails.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testSubmitTaskFailure() throws Exception {
         final ExecutionAttemptID eid = new ExecutionAttemptID();
 
@@ -155,7 +153,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     }
 
     /** Tests that we can cancel the task of the TaskManager given that we've submitted it. */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testTaskSubmissionAndCancelling() throws Exception {
         final ExecutionAttemptID eid1 = new ExecutionAttemptID();
         final ExecutionAttemptID eid2 = new ExecutionAttemptID();
@@ -205,7 +203,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * Tests that submitted tasks will fail when attempting to send/receive data if no
      * ResultPartitions/InputGates are set up.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testGateChannelEdgeMismatch() throws Exception {
         final ExecutionAttemptID eid1 = new ExecutionAttemptID();
         final ExecutionAttemptID eid2 = new ExecutionAttemptID();
@@ -253,7 +251,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
         }
     }
 
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testRunJobWithForwardChannel() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor sdd =
@@ -318,7 +316,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * This tests creates two tasks. The sender sends data but fails to send the state update back
      * to the job manager. the second one blocks to be canceled
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testCancellingDependentAndStateUpdateFails() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor sdd =
@@ -396,7 +394,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     /**
      * Tests that repeated remote {@link PartitionNotFoundException}s ultimately fail the receiver.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testRemotePartitionNotFound() throws Exception {
         final int dataPort = NetUtils.getAvailablePort();
         Configuration config = new Configuration();
@@ -490,7 +488,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     /**
      * Tests that repeated local {@link PartitionNotFoundException}s ultimately fail the receiver.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testLocalPartitionNotFound() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor shuffleDescriptor =
@@ -543,7 +541,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * the memory segment, we'll block the invokable and wait for the task failure due to the failed
      * notifyPartitionDataAvailable call.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testFailingNotifyPartitionDataAvailable() throws Exception {
         final Configuration configuration = new Configuration();
 

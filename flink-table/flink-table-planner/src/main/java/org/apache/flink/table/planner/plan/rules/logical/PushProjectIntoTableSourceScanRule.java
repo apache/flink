@@ -159,10 +159,7 @@ public class PushProjectIntoTableSourceScanRule
         final RelDataType newRowType = typeFactory.buildRelNodeRowType(newProducedType);
         final TableSourceTable newSource =
                 sourceTable.copy(
-                        newTableSource,
-                        newRowType,
-                        getExtraDigests(abilitySpecs),
-                        abilitySpecs.toArray(new SourceAbilitySpec[0]));
+                        newTableSource, newRowType, abilitySpecs.toArray(new SourceAbilitySpec[0]));
         final LogicalTableScan newScan =
                 new LogicalTableScan(
                         scan.getCluster(), scan.getTraitSet(), scan.getHints(), newSource);
@@ -327,33 +324,6 @@ public class PushProjectIntoTableSourceScanRule
         } else {
             return project.getProjects();
         }
-    }
-
-    private static String[] getExtraDigests(List<SourceAbilitySpec> abilitySpecs) {
-        final List<String> digests = new ArrayList<>();
-        for (SourceAbilitySpec abilitySpec : abilitySpecs) {
-            if (abilitySpec instanceof ProjectPushDownSpec) {
-                digests.add(formatPushDownDigest((ProjectPushDownSpec) abilitySpec));
-            } else if (abilitySpec instanceof ReadingMetadataSpec) {
-                digests.add(formatMetadataDigest((ReadingMetadataSpec) abilitySpec));
-            }
-        }
-
-        return digests.toArray(new String[0]);
-    }
-
-    private static String formatPushDownDigest(ProjectPushDownSpec pushDownSpec) {
-        final List<String> fieldNames =
-                pushDownSpec
-                        .getProducedType()
-                        .orElseThrow(() -> new TableException("Produced data type is not present."))
-                        .getFieldNames();
-
-        return String.format("project=[%s]", String.join(", ", fieldNames));
-    }
-
-    private static String formatMetadataDigest(ReadingMetadataSpec metadataSpec) {
-        return String.format("metadata=[%s]", String.join(", ", metadataSpec.getMetadataKeys()));
     }
 
     // ---------------------------------------------------------------------------------------------

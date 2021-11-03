@@ -48,6 +48,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.factories.DefaultJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.messages.FlinkJobTerminatedWithoutCancellationException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
@@ -58,6 +59,8 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
+import org.apache.flink.runtime.rest.handler.async.OperationResult;
+import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -139,6 +142,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private DispatcherBootstrap dispatcherBootstrap;
 
+    private final DispatcherCachedOperationsHandler dispatcherCachedOperationsHandler;
+
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
         SUBMISSION,
@@ -188,6 +193,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.dispatcherBootstrapFactory = checkNotNull(dispatcherBootstrapFactory);
 
         this.recoveredJobs = new HashSet<>(recoveredJobs);
+
+        this.dispatcherCachedOperationsHandler =
+                new DispatcherCachedOperationsHandler(
+                        dispatcherServices.getOperationCaches(),
+                        this::triggerSavepointAndGetLocation,
+                        this::stopWithSavepointAndGetLocation);
     }
 
     // ------------------------------------------------------
@@ -526,13 +537,24 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     @Override
     public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout) {
         Optional<JobManagerRunner> maybeJob = getJobManagerRunner(jobId);
-        return maybeJob.map(job -> job.cancel(timeout))
-                .orElseGet(
-                        () -> {
-                            log.debug("Dispatcher is unable to cancel job {}: not found", jobId);
-                            return FutureUtils.completedExceptionally(
-                                    new FlinkJobNotFoundException(jobId));
-                        });
+
+        if (maybeJob.isPresent()) {
+            return maybeJob.get().cancel(timeout);
+        }
+
+        final ExecutionGraphInfo executionGraphInfo = executionGraphInfoStore.get(jobId);
+        if (executionGraphInfo != null) {
+            final JobStatus jobStatus = executionGraphInfo.getArchivedExecutionGraph().getState();
+            if (jobStatus == JobStatus.CANCELED) {
+                return CompletableFuture.completedFuture(Acknowledge.get());
+            } else {
+                return FutureUtils.completedExceptionally(
+                        new FlinkJobTerminatedWithoutCancellationException(jobId, jobStatus));
+            }
+        }
+
+        log.debug("Dispatcher is unable to cancel job {}: not found", jobId);
+        return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
     }
 
     @Override
@@ -678,24 +700,58 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     @Override
-    public CompletableFuture<String> triggerSavepoint(
-            final JobID jobId,
-            final String targetDirectory,
-            final boolean cancelJob,
-            final Time timeout) {
-
+    public CompletableFuture<String> triggerCheckpoint(JobID jobID, Time timeout) {
         return performOperationOnJobMasterGateway(
-                jobId, gateway -> gateway.triggerSavepoint(targetDirectory, cancelJob, timeout));
+                jobID, gateway -> gateway.triggerCheckpoint(timeout));
     }
 
     @Override
-    public CompletableFuture<String> stopWithSavepoint(
+    public CompletableFuture<Acknowledge> triggerSavepoint(
+            final AsynchronousJobOperationKey operationKey,
+            final String targetDirectory,
+            final TriggerSavepointMode savepointMode,
+            final Time timeout) {
+        return dispatcherCachedOperationsHandler.triggerSavepoint(
+                operationKey, targetDirectory, savepointMode, timeout);
+    }
+
+    @Override
+    public CompletableFuture<String> triggerSavepointAndGetLocation(
+            JobID jobId, String targetDirectory, TriggerSavepointMode savepointMode, Time timeout) {
+        return performOperationOnJobMasterGateway(
+                jobId,
+                gateway ->
+                        gateway.triggerSavepoint(
+                                targetDirectory, savepointMode.isTerminalMode(), timeout));
+    }
+
+    @Override
+    public CompletableFuture<OperationResult<String>> getTriggeredSavepointStatus(
+            AsynchronousJobOperationKey operationKey) {
+        return dispatcherCachedOperationsHandler.getSavepointStatus(operationKey);
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> stopWithSavepoint(
+            AsynchronousJobOperationKey operationKey,
+            String targetDirectory,
+            TriggerSavepointMode savepointMode,
+            final Time timeout) {
+        return dispatcherCachedOperationsHandler.stopWithSavepoint(
+                operationKey, targetDirectory, savepointMode, timeout);
+    }
+
+    @Override
+    public CompletableFuture<String> stopWithSavepointAndGetLocation(
             final JobID jobId,
             final String targetDirectory,
-            final boolean terminate,
+            final TriggerSavepointMode savepointMode,
             final Time timeout) {
         return performOperationOnJobMasterGateway(
-                jobId, gateway -> gateway.stopWithSavepoint(targetDirectory, terminate, timeout));
+                jobId,
+                gateway ->
+                        gateway.stopWithSavepoint(
+                                targetDirectory, savepointMode.isTerminalMode(), timeout));
     }
 
     @Override
@@ -843,28 +899,36 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     protected CleanupJobState jobReachedTerminalState(ExecutionGraphInfo executionGraphInfo) {
         final ArchivedExecutionGraph archivedExecutionGraph =
                 executionGraphInfo.getArchivedExecutionGraph();
+        final JobStatus terminalJobStatus = archivedExecutionGraph.getState();
         Preconditions.checkArgument(
-                archivedExecutionGraph.getState().isTerminalState(),
+                terminalJobStatus.isTerminalState(),
                 "Job %s is in state %s which is not terminal.",
                 archivedExecutionGraph.getJobID(),
-                archivedExecutionGraph.getState());
+                terminalJobStatus);
 
-        if (archivedExecutionGraph.getFailureInfo() != null) {
+        // the failureInfo contains the reason for why job was failed/suspended, but for
+        // finished/canceled jobs it may contain the last cause of a restart (if there were any)
+        // for finished/canceled jobs we don't want to print it because it is misleading
+        final boolean isFailureInfoRelatedToJobTermination =
+                terminalJobStatus == JobStatus.SUSPENDED || terminalJobStatus == JobStatus.FAILED;
+
+        if (archivedExecutionGraph.getFailureInfo() != null
+                && isFailureInfoRelatedToJobTermination) {
             log.info(
                     "Job {} reached terminal state {}.\n{}",
                     archivedExecutionGraph.getJobID(),
-                    archivedExecutionGraph.getState(),
+                    terminalJobStatus,
                     archivedExecutionGraph.getFailureInfo().getExceptionAsString().trim());
         } else {
             log.info(
                     "Job {} reached terminal state {}.",
                     archivedExecutionGraph.getJobID(),
-                    archivedExecutionGraph.getState());
+                    terminalJobStatus);
         }
 
         archiveExecutionGraph(executionGraphInfo);
 
-        return archivedExecutionGraph.getState().isGloballyTerminalState()
+        return terminalJobStatus.isGloballyTerminalState()
                 ? CleanupJobState.GLOBAL
                 : CleanupJobState.LOCAL;
     }

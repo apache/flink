@@ -73,7 +73,7 @@ public abstract class AbstractExecutionGraphHandler<
 
     @Override
     protected CompletableFuture<R> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, M> request, @Nonnull RestfulGateway gateway)
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 
@@ -114,6 +114,6 @@ public abstract class AbstractExecutionGraphHandler<
      * @throws RestHandlerException if the handler could not process the request
      */
     protected abstract R handleRequest(
-            HandlerRequest<EmptyRequestBody, M> request, ExecutionGraphInfo executionGraphInfo)
+            HandlerRequest<EmptyRequestBody> request, ExecutionGraphInfo executionGraphInfo)
             throws RestHandlerException;
 }

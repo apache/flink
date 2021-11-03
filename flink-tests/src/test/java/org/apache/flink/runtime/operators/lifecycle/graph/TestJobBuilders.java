@@ -36,11 +36,11 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
@@ -56,8 +56,9 @@ public class TestJobBuilders {
     public interface TestingGraphBuilder {
         TestJobWithDescription build(
                 SharedObjects shared,
-                Consumer<Configuration> modifyConfig,
-                Consumer<StreamExecutionEnvironment> modifyEnvironment);
+                ThrowingConsumer<Configuration, Exception> modifyConfig,
+                ThrowingConsumer<StreamExecutionEnvironment, Exception> modifyEnvironment)
+                throws Exception;
     }
 
     private TestJobBuilders() {}
@@ -67,8 +68,9 @@ public class TestJobBuilders {
                 @Override
                 public TestJobWithDescription build(
                         SharedObjects shared,
-                        Consumer<Configuration> confConsumer,
-                        Consumer<StreamExecutionEnvironment> envConsumer) {
+                        ThrowingConsumer<Configuration, Exception> confConsumer,
+                        ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer)
+                        throws Exception {
 
                     TestEventQueue eventQueue = TestEventQueue.createShared(shared);
                     TestCommandDispatcher commandQueue = TestCommandDispatcher.createShared(shared);
@@ -119,8 +121,9 @@ public class TestJobBuilders {
                 @Override
                 public TestJobWithDescription build(
                         SharedObjects shared,
-                        Consumer<Configuration> confConsumer,
-                        Consumer<StreamExecutionEnvironment> envConsumer) {
+                        ThrowingConsumer<Configuration, Exception> confConsumer,
+                        ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer)
+                        throws Exception {
 
                     TestEventQueue eventQueue = TestEventQueue.createShared(shared);
                     TestCommandDispatcher commandQueue = TestCommandDispatcher.createShared(shared);
@@ -251,8 +254,9 @@ public class TestJobBuilders {
             };
 
     private static StreamExecutionEnvironment prepareEnv(
-            Consumer<Configuration> confConsumer,
-            Consumer<StreamExecutionEnvironment> envConsumer) {
+            ThrowingConsumer<Configuration, Exception> confConsumer,
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer)
+            throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(EXECUTION_FAILOVER_STRATEGY, "full");
         confConsumer.accept(configuration);

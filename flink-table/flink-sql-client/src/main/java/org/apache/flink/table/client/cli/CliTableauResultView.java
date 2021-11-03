@@ -23,8 +23,8 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.PrintUtils;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.jline.terminal.Terminal;
@@ -124,7 +124,7 @@ public class CliTableauResultView implements AutoCloseable {
     }
 
     private void printBatchResults(AtomicInteger receivedRowCount) {
-        final List<Row> resultRows = waitBatchResults();
+        final List<RowData> resultRows = waitBatchResults();
         receivedRowCount.addAndGet(resultRows.size());
         PrintUtils.printAsTableauForm(
                 resultDescriptor.getResultSchema(),
@@ -157,7 +157,7 @@ public class CliTableauResultView implements AutoCloseable {
         terminal.flush();
 
         while (true) {
-            final TypedResult<List<Row>> result =
+            final TypedResult<List<RowData>> result =
                     sqlExecutor.retrieveResultChanges(sessionId, resultDescriptor.getResultId());
 
             switch (result.getType()) {
@@ -184,8 +184,8 @@ public class CliTableauResultView implements AutoCloseable {
                     terminal.flush();
                     return;
                 case PAYLOAD:
-                    List<Row> changes = result.getPayload();
-                    for (Row change : changes) {
+                    List<RowData> changes = result.getPayload();
+                    for (RowData change : changes) {
                         final String[] row =
                                 PrintUtils.rowToString(
                                         change,
@@ -203,15 +203,15 @@ public class CliTableauResultView implements AutoCloseable {
         }
     }
 
-    private List<Row> waitBatchResults() {
-        List<Row> resultRows = new ArrayList<>();
+    private List<RowData> waitBatchResults() {
+        List<RowData> resultRows = new ArrayList<>();
         do {
             try {
                 Thread.sleep(50);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            TypedResult<List<Row>> result =
+            TypedResult<List<RowData>> result =
                     sqlExecutor.retrieveResultChanges(sessionId, resultDescriptor.getResultId());
 
             if (result.getType() == TypedResult.ResultType.EOS) {

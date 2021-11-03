@@ -55,7 +55,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-kafka-test_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-kafka-test</artifactId>
 			<version>${project.version}</version>
 			<!-- ensure the test jars are built beforehand -->
 			<scope>provided</scope>
@@ -63,7 +63,7 @@ under the License.
 				<exclusion>
 					<!-- For dependency convergence; conflicting dependencies are not loaded at the same time -->
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-connector-kafka-_${scala.binary.version}</artifactId>
+					<artifactId>flink-connector-kafka</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -136,13 +136,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-testing_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-testing</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-kafka</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 		</dependency>
@@ -166,7 +166,7 @@ under the License.
 					<artifactItems>
 						<artifactItem>
 							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-streaming-kafka-test_${scala.binary.version}</artifactId>
+							<artifactId>flink-streaming-kafka-test</artifactId>
 							<version>${project.version}</version>
 							<type>jar</type>
 							<overWrite>true</overWrite>
@@ -199,7 +199,7 @@ under the License.
 						</artifactItem>
 						<artifactItem>
 							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-sql-connector-kafka_${scala.binary.version}</artifactId>
+							<artifactId>flink-sql-connector-kafka</artifactId>
 							<version>${project.version}</version>
 							<destFileName>sql-kafka.jar</destFileName>
 							<type>jar</type>
@@ -207,7 +207,7 @@ under the License.
 						</artifactItem>
 						<artifactItem>
 							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
+							<artifactId>flink-connector-kafka</artifactId>
 							<version>${project.version}</version>
 							<destFileName>kafka-connector.jar</destFileName>
 							<type>jar</type>

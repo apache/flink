@@ -126,6 +126,8 @@ public class TestingJobMasterGatewayBuilder {
                             targetDirectory != null
                                     ? targetDirectory
                                     : UUID.randomUUID().toString());
+    private Supplier<CompletableFuture<String>> triggerCheckpointFunction =
+            () -> CompletableFuture.completedFuture(UUID.randomUUID().toString());
     private BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction =
             (targetDirectory, ignoredB) ->
                     CompletableFuture.completedFuture(
@@ -285,6 +287,12 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
+    public TestingJobMasterGatewayBuilder setTriggerCheckpointFunction(
+            Supplier<CompletableFuture<String>> triggerCheckpointFunction) {
+        this.triggerCheckpointFunction = triggerCheckpointFunction;
+        return this;
+    }
+
     public TestingJobMasterGatewayBuilder setStopWithSavepointSupplier(
             BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction) {
         this.stopWithSavepointFunction = stopWithSavepointFunction;
@@ -400,6 +408,7 @@ public class TestingJobMasterGatewayBuilder {
                 requestJobDetailsSupplier,
                 requestJobSupplier,
                 triggerSavepointFunction,
+                triggerCheckpointFunction,
                 stopWithSavepointFunction,
                 notifyAllocationFailureConsumer,
                 acknowledgeCheckpointConsumer,

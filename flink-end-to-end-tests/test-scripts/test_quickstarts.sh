@@ -66,16 +66,10 @@ position=$(awk '/<dependencies>/ {print NR}' pom.xml | head -1)
 sed -i -e ''$(($position + 1))'i\
 '${ES_DEPENDENCY}'' pom.xml
 
-sed -i -e "s/org.apache.flink.quickstart.StreamingJob/org.apache.flink.quickstart.$TEST_CLASS_NAME/" pom.xml
+sed -i -e "s/org.apache.flink.quickstart.DataStreamJob/org.apache.flink.quickstart.$TEST_CLASS_NAME/" pom.xml
 
 case $PROFILE in
 *"scala-2.12"*)
-  echo "Changing scala version"
-  sed -i -e "s/scala.binary.version>2.11<\/scala.binary/scala.binary.version>2.12<\/scala.binary/" pom.xml
-  # for flink-quickstart-scala, also change scala version
-  sed -i -e "s/scala.version>2.11.12<\/scala.ver/scala.version>2.12.7<\/scala.ver/" pom.xml
-  ;;
-*"scala-2.11"*)
   # all good
   ;;
 *"scala-"*)
@@ -100,7 +94,7 @@ else
     exit 1
 fi
 
-if [[ `grep -c "org/apache/flink/quickstart/StreamingJob.class" contentsInJar.txt` -eq '0' && \
+if [[ `grep -c "org/apache/flink/quickstart/DataStreamJob.class" contentsInJar.txt` -eq '0' && \
       `grep -c "org/apache/flink/quickstart/Elasticsearch5SinkExample.class" contentsInJar.txt` -eq '0' && \
       `grep -c "org/apache/flink/streaming/connectors/elasticsearch5" contentsInJar.txt` -eq '0' ]]; then
 

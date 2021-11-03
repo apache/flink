@@ -284,11 +284,11 @@ class PandasUDFITTests(object):
 
     def test_invalid_pandas_udf(self):
 
-        @udf(result_type=DataTypes.INT(), udf_type="pandas")
+        @udf(result_type=DataTypes.INT(), func_type="pandas")
         def length_mismatch(i):
             return i[1:]
 
-        @udf(result_type=DataTypes.INT(), udf_type="pandas")
+        @udf(result_type=DataTypes.INT(), func_type="pandas")
         def result_type_not_series(i):
             return i.iloc[0]
 

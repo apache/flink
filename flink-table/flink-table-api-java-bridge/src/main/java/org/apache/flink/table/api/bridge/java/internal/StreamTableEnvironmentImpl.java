@@ -152,6 +152,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                         settings.getPlanner(),
                         executor,
                         tableConfig,
+                        moduleManager,
                         catalogManager,
                         functionCatalog);
 

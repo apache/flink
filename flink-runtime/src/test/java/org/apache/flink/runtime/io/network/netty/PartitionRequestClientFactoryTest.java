@@ -210,24 +210,6 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
         serverAndClient.server().shutdown();
     }
 
-    @Test(expected = RemoteTransportException.class)
-    public void testThrowsWhenNetworkFailure() throws Exception {
-        NettyTestUtil.NettyServerAndClient nettyServerAndClient = createNettyServerAndClient();
-        try {
-            NettyClient client = nettyServerAndClient.client();
-            PartitionRequestClientFactory factory = new PartitionRequestClientFactory(client, 0);
-
-            // Connect to a wrong address
-            InetSocketAddress addr =
-                    new InetSocketAddress(InetAddress.getLocalHost(), NetUtils.getAvailablePort());
-            ConnectionID connectionID = new ConnectionID(addr, 0);
-            factory.createPartitionRequestClient(connectionID);
-        } finally {
-            nettyServerAndClient.client().shutdown();
-            nettyServerAndClient.server().shutdown();
-        }
-    }
-
     private NettyTestUtil.NettyServerAndClient createNettyServerAndClient() throws Exception {
         return NettyTestUtil.initServerAndClient(
                 new NettyProtocol(null, null) {

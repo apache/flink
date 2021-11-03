@@ -79,8 +79,7 @@ public class JobVertexDetailsHandler
 
     @Override
     protected JobVertexDetailsInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
-            AccessExecutionGraph executionGraph)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionGraph executionGraph)
             throws NotFoundException {
         JobID jobID = request.getPathParameter(JobIDPathParameter.class);
         JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);

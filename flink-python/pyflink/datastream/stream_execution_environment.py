@@ -22,7 +22,7 @@ from typing import List, Any, Optional
 
 from py4j.java_gateway import JavaObject
 
-from pyflink.common import WatermarkStrategy
+from pyflink.common import Configuration, WatermarkStrategy
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
@@ -58,8 +58,8 @@ class StreamExecutionEnvironment(object):
 
     def __init__(self, j_stream_execution_environment, serializer=PickleSerializer()):
         self._j_stream_execution_environment = j_stream_execution_environment
-        self._remote_mode = False
         self.serializer = serializer
+        self._open()
 
     def get_config(self) -> ExecutionConfig:
         """
@@ -323,6 +323,57 @@ class StreamExecutionEnvironment(object):
             self._j_stream_execution_environment.setStateBackend(state_backend._j_state_backend)
         return self
 
+    def enable_changelog_state_backend(self, enabled: bool) -> 'StreamExecutionEnvironment':
+        """
+        Enable the change log for current state backend. This change log allows operators to persist
+        state changes in a very fine-grained manner. Currently, the change log only applies to keyed
+        state, so non-keyed operator state and channel state are persisted as usual. The 'state'
+        here refers to 'keyed state'. Details are as follows:
+
+        * Stateful operators write the state changes to that log (logging the state), in addition \
+        to applying them to the state tables in RocksDB or the in-mem Hashtable.
+        * An operator can acknowledge a checkpoint as soon as the changes in the log have reached \
+        the durable checkpoint storage.
+        * The state tables are persisted periodically, independent of the checkpoints. We call \
+        this the materialization of the state on the checkpoint storage.
+        * Once the state is materialized on checkpoint storage, the state changelog can be \
+        truncated to the corresponding point.
+
+        It establish a way to drastically reduce the checkpoint interval for streaming
+        applications across state backends. For more details please check the FLIP-158.
+
+        If this method is not called explicitly, it means no preference for enabling the change
+        log. Configs for change log enabling will override in different config levels
+        (job/local/cluster).
+
+        .. seealso:: :func:`is_changelog_state_backend_enabled`
+
+
+        :param enabled: True if enable the change log for state backend explicitly, otherwise
+                        disable the change log.
+        :return: This object.
+
+        .. versionadded:: 1.14.0
+        """
+        self._j_stream_execution_environment = \
+            self._j_stream_execution_environment.enableChangelogStateBackend(enabled)
+        return self
+
+    def is_changelog_state_backend_enabled(self) -> Optional[bool]:
+        """
+        Gets the enable status of change log for state backend.
+
+        .. seealso:: :func:`enable_changelog_state_backend`
+
+        :return: An :class:`Optional[bool]` for the enable status of change log for state backend.
+                 Could be None if user never specify this by calling
+                 :func:`enable_changelog_state_backend`.
+
+        .. versionadded:: 1.14.0
+        """
+        j_ternary_boolean = self._j_stream_execution_environment.isChangelogStateBackendEnabled()
+        return j_ternary_boolean.getAsBoolean()
+
     def set_default_savepoint_directory(self, directory: str) -> 'StreamExecutionEnvironment':
         """
         Sets the default savepoint directory, where savepoints will be written to if none
@@ -461,6 +512,25 @@ class StreamExecutionEnvironment(object):
         """
         j_characteristic = self._j_stream_execution_environment.getStreamTimeCharacteristic()
         return TimeCharacteristic._from_j_time_characteristic(j_characteristic)
+
+    def configure(self, configuration: Configuration):
+        """
+        Sets all relevant options contained in the :class:`~pyflink.common.Configuration`. such as
+        e.g. `pipeline.time-characteristic`. It will reconfigure
+        :class:`~pyflink.datastream.StreamExecutionEnvironment`,
+        :class:`~pyflink.common.ExecutionConfig` and :class:`~pyflink.datastream.CheckpointConfig`.
+
+        It will change the value of a setting only if a corresponding option was set in the
+        `configuration`. If a key is not present, the current value of a field will remain
+        untouched.
+
+        :param configuration: a configuration to read the values from.
+
+        .. versionadded:: 1.15.0
+        """
+        self._j_stream_execution_environment.configure(configuration._j_configuration,
+                                                       get_gateway().jvm.Thread.currentThread()
+                                                       .getContextClassLoader())
 
     def add_python_file(self, file_path: str):
         """
@@ -870,24 +940,6 @@ class StreamExecutionEnvironment(object):
             -> JavaObject:
         gateway = get_gateway()
         JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
-        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
-        j_configuration = get_j_env_configuration(self._j_stream_execution_environment)
-        if not self._remote_mode and is_local_deployment(j_configuration):
-            jvm = gateway.jvm
-            env_config = JPythonConfigUtil.getEnvironmentConfig(
-                self._j_stream_execution_environment)
-            parallelism = self.get_parallelism()
-            if parallelism > 1 and env_config.containsKey(jvm.PythonOptions.PYTHON_ARCHIVES.key()):
-                import logging
-                logging.warning("Lookback mode is disabled as python archives are used and the "
-                                "parallelism of the job is greater than 1. The Python user-defined "
-                                "functions will be executed in an independent Python process.")
-            else:
-                from pyflink.fn_execution.beam.beam_worker_pool_service import \
-                    BeamFnLoopbackWorkerPoolServicer
-                j_env = jvm.System.getenv()
-                get_field_value(j_env, "m").put(
-                    'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
 
         JPythonConfigUtil.configPythonOperator(self._j_stream_execution_environment)
 
@@ -901,6 +953,34 @@ class StreamExecutionEnvironment(object):
         if job_name is not None:
             j_stream_graph.setJobName(job_name)
         return j_stream_graph
+
+    def _open(self):
+        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
+        j_configuration = get_j_env_configuration(self._j_stream_execution_environment)
+
+        def startup_loopback_server():
+            from pyflink.common import Configuration
+            from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                BeamFnLoopbackWorkerPoolServicer
+            config = Configuration(j_configuration=j_configuration)
+            config.set_string(
+                "PYFLINK_LOOPBACK_SERVER_ADDRESS", BeamFnLoopbackWorkerPoolServicer().start())
+
+        python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
+
+        if python_worker_execution_mode is None:
+            if is_local_deployment(j_configuration):
+                startup_loopback_server()
+        elif python_worker_execution_mode == 'loopback':
+            if is_local_deployment(j_configuration):
+                startup_loopback_server()
+            else:
+                raise ValueError("Loopback mode is enabled, however the job wasn't configured to "
+                                 "run in local deployment mode")
+        elif python_worker_execution_mode != 'process':
+            raise ValueError(
+                "It only supports to execute the Python worker in 'loopback' mode and 'process' "
+                "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
 
     def is_unaligned_checkpoints_enabled(self):
         """

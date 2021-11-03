@@ -20,11 +20,12 @@
 set -Eeuo pipefail
 
 KAFKA_VERSION="2.2.0"
-CONFLUENT_VERSION="5.0.0"
-CONFLUENT_MAJOR_VERSION="5.0"
+CONFLUENT_VERSION="5.2.6"
+CONFLUENT_MAJOR_VERSION="5.2"
+# Check the Confluent Platform <> Apache Kafka compatibility matrix when updating KAFKA_VERSION
 KAFKA_SQL_VERSION="universal"
 SQL_JARS_DIR=${END_TO_END_DIR}/flink-sql-client-test/target/sql-jars
-KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka_" )
+KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka" )
 
 function create_data_stream_kafka_source {
     topicName="test-python-data-stream-source"

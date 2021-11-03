@@ -129,11 +129,6 @@ flink-tests"
 
 MODULES_FINEGRAINED_RESOURCE_MANAGEMENT=${MODULES_CORE},${MODULES_TESTS}
 
-# we can only build the Scala Shell when building for Scala 2.11
-if [[ $PROFILE == *"scala-2.11"* ]]; then
-    MODULES_CORE="$MODULES_CORE,flink-scala-shell"
-fi
-
 function get_compile_modules_for_stage() {
     local stage=$1
 

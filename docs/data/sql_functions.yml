@@ -515,8 +515,22 @@ conditional:
     description: Returns resultX when the first conditionX is met. When no condition is met, returns result_z if it is provided and returns NULL otherwise.
   - sql: NULLIF(value1, value2)
     description: Returns NULL if value1 is equal to value2; returns value1 otherwise. E.g., NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5.
-  - sql: COALESCE(value1, value2 [, value3]*)
-    description: Returns the first value that is not NULL from value1, value2, .... E.g., COALESCE(NULL, 5) returns 5.
+  - sql: COALESCE(value1 [, value2]*)
+    table: coalesce(value1, [, value2]*)
+    description: |
+      Returns the first argument that is not NULL.
+
+      If all arguments are NULL, it returns NULL as well. The return type is the least restrictive, common type of all of its arguments.
+      The return type is nullable if all arguments are nullable as well.
+
+      ```
+      -- Returns 'default'
+      COALESCE(NULL, 'default')
+
+      -- Returns the first non-null value among f0 and f1,
+      -- or 'default' if f0 and f1 are both NULL
+      COALESCE(f0, f1, 'default')
+      ```
   - sql: IF(condition, true_value, false_value)
     description: Returns the true_value if condition is met, otherwise false_value. E.g., IF(5 > 3, 5, 3) returns 5.
   - sql: IFNULL(input, null_replacement)
@@ -630,7 +644,27 @@ json:
       SELECT JSON_EXISTS('{"a": true}',
         'strict $.b' FALSE ON ERROR);
       ```
+  - sql: JSON_STRING(value)
+    table: jsonString(value)
+    description: |
+      Serializes a value into JSON.
 
+      This function returns a JSON string containing the serialized value. If the value is `NULL`,
+      the function returns `NULL`.
+
+      ```
+      -- NULL
+      JSON_STRING(CAST(NULL AS INT))
+
+      -- '1'
+      JSON_STRING(1)
+      -- 'true'
+      JSON_STRING(TRUE)
+      -- '"Hello, World!"'
+      JSON_STRING('Hello, World!')
+      -- '[1,2]'
+      JSON_STRING(ARRAY[1, 2])
+      ```
   - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
     table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
     description: |
@@ -653,19 +687,170 @@ json:
       behavior for `ON EMPTY`, and raises an error for `ON ERROR`.
 
       ```
-      // STRING: "true"
+      -- "true"
       JSON_VALUE('{"a": true}', '$.a')
 
-      // BOOLEAN: true
+      -- TRUE
       JSON_VALUE('{"a": true}', '$.a' RETURNING BOOLEAN)
 
-      // STRING: "false"
+      -- "false"
       JSON_VALUE('{"a": true}', 'lax $.b'
           DEFAULT FALSE ON EMPTY)
 
-      // STRING: "false"
+      -- "false"
       JSON_VALUE('{"a": true}', 'strict $.b'
           DEFAULT FALSE ON ERROR)
+
+      -- 0.998D
+      JSON_VALUE('{"a.b": [0.998,0.996]}','$.["a.b"][0]' 
+          RETURNING DOUBLE)
+      ```
+  - sql: JSON_QUERY(jsonValue, path [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
+    table: STRING.jsonQuery(path [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ])
+    description: |
+      Extracts JSON values from a JSON string.
+
+      The result is always returned as a `STRING`. The `RETURNING` clause is currently not supported.
+
+      The `wrappingBehavior` determines whether the extracted value should be wrapped into an array,
+      and whether to do so unconditionally or only if the value itself isn't an array already.
+
+      `onEmpty` and `onError` determine the behavior in case the path expression is empty, or in
+      case an error was raised, respectively. By default, in both cases `null` is returned. Other
+      choices are to use an empty array, an empty object, or to raise an error.
+
+      ```
+      -- '{ "b": 1 }'
+      JSON_QUERY('{ "a": { "b": 1 } }', '$.a')
+      -- '[1, 2]'
+      JSON_QUERY('[1, 2]', '$')
+      -- NULL
+      JSON_QUERY(CAST(NULL AS STRING), '$')
+      -- '["c1","c2"]'
+      JSON_QUERY('{"a":[{"c":"c1"},{"c":"c2"}]}',
+          'lax $.a[*].c')
+
+      -- Wrap result into an array
+      -- '[{}]'
+      JSON_QUERY('{}', '$' WITH CONDITIONAL ARRAY WRAPPER)
+      -- '[1, 2]'
+      JSON_QUERY('[1, 2]', '$' WITH CONDITIONAL ARRAY WRAPPER)
+      -- '[[1, 2]]'
+      JSON_QUERY('[1, 2]', '$' WITH UNCONDITIONAL ARRAY WRAPPER)
+
+      -- Scalars must be wrapped to be returned
+      -- NULL
+      JSON_QUERY(1, '$')
+      -- '[1]'
+      JSON_QUERY(1, '$' WITH CONDITIONAL ARRAY WRAPPER)
+
+      -- Behavior if path expression is empty / there is an error
+      -- '{}'
+      JSON_QUERY('{}', 'lax $.invalid' EMPTY OBJECT ON EMPTY)
+      -- '[]'
+      JSON_QUERY('{}', 'strict $.invalid' EMPTY ARRAY ON ERROR)
+      ```
+  - sql: JSON_OBJECT([[KEY] key VALUE value]* [ { NULL | ABSENT } ON NULL ])
+    table: jsonObject(JsonOnNull, keyValues...)
+    description: |
+      Builds a JSON object string from a list of key-value pairs.
+
+      Note that keys must be non-`NULL` string literals, while values may be arbitrary expressions.
+
+      This function returns a JSON string. The `ON NULL` behavior defines how to treat `NULL`
+      values. If omitted, `NULL ON NULL` is assumed by default.
+
+      Values which are created from another JSON construction function call (`JSON_OBJECT`,
+      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
+      structures.
+
+      ```
+      -- '{}'
+      JSON_OBJECT()
+
+      -- '{"K1":"V1","K2":"V2"}'
+      JSON_OBJECT('K1' VALUE 'V1', 'K2' VALUE 'V2')
+
+      -- Expressions as values
+      JSON_OBJECT('orderNo' VALUE orders.orderId)
+
+      -- ON NULL
+      JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) NULL ON NULL)   -- '{"K1":null}'
+      JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) ABSENT ON NULL) -- '{}'
+
+      -- '{"K1":{"K2":"V"}}'
+      JSON_OBJECT(
+        KEY 'K1'
+        VALUE JSON_OBJECT(
+          KEY 'K2'
+          VALUE 'V'
+        )
+      )
+      ```
+  - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
+    table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
+    description: |
+      Builds a JSON object string by aggregating key-value expressions into a single JSON object.
+
+      The key expression must return a non-nullable character string. Value expressions can be
+      arbitrary, including other JSON functions. If a value is `NULL`, the `ON NULL` behavior
+      defines what to do. If omitted, `NULL ON NULL` is assumed by default.
+
+      Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+
+      This function is currently not supported in `OVER` windows.
+
+      ```
+      -- '{"Apple":2,"Banana":17,"Orange":0}'
+      SELECT
+        JSON_OBJECTAGG(KEY product VALUE cnt)
+      FROM orders
+      ```
+  - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
+    table: jsonArray(JsonOnNull, values...)
+    description: |
+      Builds a JSON array string from a list of values.
+
+      This function returns a JSON string. The values can be arbitrary expressions. The `ON NULL`
+      behavior defines how to treat `NULL` values. If omitted, `ABSENT ON NULL` is assumed by
+      default.
+
+      Elements which are created from another JSON construction function call (`JSON_OBJECT`,
+      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
+      structures.
+
+      ```
+      -- '[]'
+      JSON_ARRAY()
+      -- '[1,"2"]'
+      JSON_ARRAY(1, '2')
+
+      -- Expressions as values
+      JSON_ARRAY(orders.orderId)
+
+      -- ON NULL
+      JSON_ARRAY(CAST(NULL AS STRING) NULL ON NULL) -- '[null]'
+      JSON_ARRAY(CAST(NULL AS STRING) ABSENT ON NULL) -- '[]'
+
+      -- '[[1]]'
+      JSON_ARRAY(JSON_ARRAY(1))
+      ```
+  - sql: JSON_ARRAYAGG(items [ { NULL | ABSENT } ON NULL ])
+    table: jsonArrayAgg(JsonOnNull, itemExpression)
+    description: |
+      Builds a JSON object string by aggregating items into an array.
+
+      Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`, the
+      `ON NULL` behavior defines what to do. If omitted, `ABSENT ON NULL` is assumed by default.
+
+      This function is currently not supported in `OVER` windows, unbounded session windows, or hop
+      windows.
+
+      ```
+      -- '["Apple","Banana","Orange"]'
+      SELECT
+        JSON_ARRAYAGG(product)
+      FROM orders
       ```
 
 valueconstruction:

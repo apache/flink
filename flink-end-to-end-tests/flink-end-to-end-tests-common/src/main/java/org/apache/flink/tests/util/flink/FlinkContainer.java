@@ -18,12 +18,16 @@
 
 package org.apache.flink.tests.util.flink;
 
+import org.apache.flink.client.deployment.StandaloneClusterId;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
 import org.apache.flink.tests.util.parameters.ParameterProperty;
 import org.apache.flink.tests.util.util.FileUtils;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,6 +66,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * A container that wraps a Flink distribution and spawns a Flink cluster in a single Docker
  * container.
@@ -76,6 +82,8 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
     private final TemporaryFolder temporaryFolder = new TemporaryFolder();
     private final Path logBackupDir;
     private final int numTaskManagers;
+
+    @Nullable private RestClusterClient<StandaloneClusterId> restClusterClient;
 
     private FlinkContainer(
             ImageFromDockerfile image, int numTaskManagers, @Nullable Path logBackupDir) {
@@ -124,6 +132,38 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
             }
         }
         temporaryFolder.delete();
+    }
+
+    @Override
+    public void stop() {
+        if (restClusterClient != null) {
+            restClusterClient.close();
+        }
+        super.stop();
+    }
+
+    /**
+     * Get {@link RestClusterClient} connected to this FlinkContainer.
+     *
+     * <p>This method lazily initializes the REST client on-demand.
+     */
+    public RestClusterClient<StandaloneClusterId> getRestClusterClient() {
+        if (restClusterClient != null) {
+            return restClusterClient;
+        }
+        checkState(
+                this.isRunning(), "Cluster client should only be retrieved for a running cluster");
+        try {
+            final Configuration clientConfiguration = new Configuration();
+            clientConfiguration.set(RestOptions.ADDRESS, getHost());
+            clientConfiguration.set(RestOptions.PORT, getMappedPort(JOB_MANAGER_REST_PORT));
+            this.restClusterClient =
+                    new RestClusterClient<>(clientConfiguration, StandaloneClusterId.getInstance());
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Failed to create client for FlinkContainer cluster", e);
+        }
+        return restClusterClient;
     }
 
     /**
@@ -206,7 +246,7 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
      * @param afterFailAction Action to do between stopping and restarting task managers
      * @throws Exception If anything wrong happens during the restart
      */
-    public void restartTaskManager(Runnable afterFailAction) throws Exception {
+    public void restartTaskManager(RunnableWithException afterFailAction) throws Exception {
         final String[] stopCommand = {FLINK_BIN + "/taskmanager.sh", "stop-all"};
         final ExecResult stopResult = execInContainer(stopCommand);
         checkExitCode(stopResult, stopCommand);

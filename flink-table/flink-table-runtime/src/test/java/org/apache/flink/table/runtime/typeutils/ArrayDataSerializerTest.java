@@ -79,7 +79,10 @@ public class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
     @Override
     protected ArrayData[] getTestData() {
         return new ArrayData[] {
-            new GenericArrayData(new StringData[] {StringData.fromString("11")}),
+            new GenericArrayData(
+                    new StringData[] {
+                        StringData.fromString("11"), null, StringData.fromString("ke")
+                    }),
             createArray("11", "haa"),
             createArray("11", "haa", "ke"),
             createArray("11", "haa", "ke"),
