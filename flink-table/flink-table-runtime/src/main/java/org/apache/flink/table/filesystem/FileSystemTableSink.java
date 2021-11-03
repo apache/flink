@@ -437,15 +437,15 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             private static final long serialVersionUID = 1L;
 
             private transient BulkWriter<RowData> writer;
+            private transient FSDataOutputStream stream;
 
             @Override
             public void configure(Configuration parameters) {}
 
             @Override
             public void open(int taskNumber, int numTasks) throws IOException {
-                this.writer =
-                        factory.create(
-                                path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+                this.stream = path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE);
+                this.writer = factory.create(stream);
             }
 
             @Override
@@ -457,6 +457,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             public void close() throws IOException {
                 writer.flush();
                 writer.finish();
+                stream.close();
             }
         };
     }
