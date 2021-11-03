@@ -343,16 +343,11 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
     }
 
     private static TaskMetricGroup createTaskMetricGroup(Map<String, Metric> metrics) {
+
         return TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         new TestMetricRegistry(metrics), "localhost", ResourceID.generate())
-                .addTaskForJob(
-                        new JobID(),
-                        "jobName",
-                        new JobVertexID(0, 0),
-                        new ExecutionAttemptID(),
-                        "test",
-                        0,
-                        0);
+                .addJob(new JobID(), "jobName")
+                .addTask(new JobVertexID(0, 0), new ExecutionAttemptID(), "test", 0, 0);
     }
 
     /** The metric registry for storing the registered metrics to verify in tests. */

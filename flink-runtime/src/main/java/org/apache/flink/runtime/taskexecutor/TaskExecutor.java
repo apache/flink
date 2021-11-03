@@ -77,6 +77,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -640,10 +641,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                                 + ")");
             }
 
+            TaskManagerJobMetricGroup jobGroup =
+                    taskManagerMetricGroup.addJob(
+                            jobInformation.getJobId(), jobInformation.getJobName());
+
+            // note that a pre-existing job group can NOT be closed concurrently - this is done by
+            // the same TM thread in removeJobMetricsGroup
             TaskMetricGroup taskMetricGroup =
-                    taskManagerMetricGroup.addTaskForJob(
-                            jobInformation.getJobId(),
-                            jobInformation.getJobName(),
+                    jobGroup.addTask(
                             taskInformation.getJobVertexId(),
                             tdd.getExecutionAttemptId(),
                             taskInformation.getTaskName(),
@@ -1788,6 +1793,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         job -> {
                             closeJob(job, cause);
                         });
+        taskManagerMetricGroup.removeJobMetricsGroup(jobId);
         changelogStoragesManager.releaseStateChangelogStorageForJob(jobId);
         currentSlotOfferPerJob.remove(jobId);
     }
