@@ -21,9 +21,11 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
@@ -36,10 +38,12 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -214,6 +218,30 @@ public class InputChannelTestUtils {
 
     /** This class is not meant to be instantiated. */
     private InputChannelTestUtils() {}
+
+    public static ResultSubpartitionView createResultSubpartitionView(boolean addBuffer)
+            throws IOException {
+        return addBuffer
+                ? createResultSubpartitionView(createFilledFinishedBufferConsumer(4096))
+                : createResultSubpartitionView();
+    }
+
+    public static ResultSubpartitionView createResultSubpartitionView(BufferConsumer... buffers)
+            throws IOException {
+        int bufferSize = 4096;
+        PipelinedResultPartition parent =
+                (PipelinedResultPartition)
+                        PartitionTestUtils.createPartition(
+                                ResultPartitionType.PIPELINED,
+                                NoOpFileChannelManager.INSTANCE,
+                                true,
+                                bufferSize);
+        ResultSubpartition subpartition = parent.getAllPartitions()[0];
+        for (BufferConsumer buffer : buffers) {
+            subpartition.add(buffer);
+        }
+        return subpartition.createReadView(() -> {});
+    }
 
     /** Test stub for {@link MemorySegmentProvider}. */
     public static class StubMemorySegmentProvider implements MemorySegmentProvider {
