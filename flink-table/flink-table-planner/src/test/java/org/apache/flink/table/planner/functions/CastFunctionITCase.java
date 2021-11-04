@@ -160,7 +160,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BYTES(), DEFAULT_BYTES, "\u0000\u0001\u0002\u0003\u0004")
                         .fromCase(DECIMAL(4, 3), 9.87, "9.870")
                         .fromCase(DECIMAL(10, 5), 1, "1.00000")
-                        // https://issues.apache.org/jira/browse/FLINK-24403 - Left zero padding
+                        // https://issues.apache.org/jira/browse/FLINK-24414 - Left zero padding
                         // currently not working
                         // .fromCase(DECIMAL(5, 3), 09.87, "09.870")
                         .fromCase(
@@ -948,7 +948,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "2021-09-27 12:34:56.123",
                                 fromLocalToUTC(
                                         LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123000000)))
-                        // https://issues.apache.org/jira/browse/FLINK-24403 Fractional seconds are
+                        // https://issues.apache.org/jira/browse/FLINK-24446 Fractional seconds are
                         // lost
                         .fromCase(
                                 STRING(),
@@ -1021,7 +1021,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 // CastTestSpecBuilder
                 // .testCastTo(INTERVAL(YEAR()))
-                // https://issues.apache.org/jira/browse/FLINK-24403 allow cast from string
+                // https://issues.apache.org/jira/browse/FLINK-24426 allow cast from string
                 // .fromCase(CHAR(3), "foo", null)
                 // .fromCase(VARCHAR(5), "Flink", null)
                 // .fromCase(STRING(), "123", null)
@@ -1039,7 +1039,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                 // .fromCase(INTERVAL(HOUR()), Duration.ofDays(400), Period.of(1, 0, 0))
                 // .build(),
                 CastTestSpecBuilder
-                        // https://issues.apache.org/jira/browse/FLINK-24403 allow cast from string
+                        // https://issues.apache.org/jira/browse/FLINK-24426 allow cast from string
                         // .fromCase(STRING(), "'+01-05'".resultsIn(Period.of(0, 17, 0)
                         .testCastTo(INTERVAL(MONTH()))
                         .fromCase(INTERVAL(MONTH()), null, null)
@@ -1055,7 +1055,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 // CastTestSpecBuilder
                 // .testCastTo(INTERVAL(DAY()))
-                // https://issues.apache.org/jira/browse/FLINK-24403 allow cast from string
+                // https://issues.apache.org/jira/browse/FLINK-24426 allow cast from string
                 // .fromCase(STRING(), "+41 10:17:36.789", Duration.of(...))
                 // https://issues.apache.org/jira/browse/FLINK-24428
                 // .build()
