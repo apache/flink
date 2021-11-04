@@ -162,28 +162,8 @@ public final class DataTypeUtils {
         if (fields.size() == 0) {
             return dataType;
         }
-
-        final RowType rowType = (RowType) dataType.getLogicalType();
-        final List<RowField> newFields =
-                Stream.concat(
-                                rowType.getFields().stream(),
-                                fields.stream()
-                                        .map(
-                                                f ->
-                                                        new RowField(
-                                                                f.getName(),
-                                                                f.getDataType().getLogicalType(),
-                                                                f.getDescription().orElse(null))))
-                        .collect(Collectors.toList());
-        final RowType newRowType = new RowType(rowType.isNullable(), newFields);
-
-        final List<DataType> newFieldDataTypes =
-                Stream.concat(
-                                dataType.getChildren().stream(),
-                                fields.stream().map(DataTypes.Field::getDataType))
-                        .collect(Collectors.toList());
-
-        return new FieldsDataType(newRowType, dataType.getConversionClass(), newFieldDataTypes);
+        return Stream.concat(DataType.getFields(dataType).stream(), fields.stream())
+                .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
     }
 
     /**
