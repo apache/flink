@@ -19,7 +19,13 @@ package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
+import org.apache.flink.metrics.testutils.MetricListener;
+import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
@@ -37,6 +43,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -60,27 +67,75 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class AsyncSinkWriterTest {
 
     private final List<Integer> res = new ArrayList<>();
-    private final SinkInitContext sinkInitContext = new SinkInitContext();
+    private SinkInitContext sinkInitContext;
 
     @Before
     public void before() {
         res.clear();
+        sinkInitContext = new SinkInitContext();
+    }
+
+    private void performNormalWriteOfEightyRecordsToMock()
+            throws IOException, InterruptedException {
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .simulateFailures(false)
+                        .build();
+        for (int i = 0; i < 80; i++) {
+            sink.write(String.valueOf(i));
+        }
     }
 
     @Test
     public void testNumberOfRecordsIsAMultipleOfBatchSizeResultsInThatNumberOfRecordsBeingWritten()
             throws IOException, InterruptedException {
-        AsyncSinkWriterImpl sink = new AsyncSinkWriterImpl(sinkInitContext, 10, 1, 100, false);
-        for (int i = 0; i < 80; i++) {
+        performNormalWriteOfEightyRecordsToMock();
+        assertEquals(80, res.size());
+    }
+
+    @Test
+    public void testMetricsGroupHasLoggedNumberOfRecordsAndNumberOfBytesCorrectly()
+            throws IOException, InterruptedException {
+        performNormalWriteOfEightyRecordsToMock();
+        assertEquals(80, sinkInitContext.getNumRecordsOutCounter().getCount());
+        assertEquals(320, sinkInitContext.getNumBytesOutCounter().getCount());
+        assertTrue(sinkInitContext.getCurrentSendTimeGauge().get().getValue() >= 0);
+        assertTrue(sinkInitContext.getCurrentSendTimeGauge().get().getValue() < 1000);
+    }
+
+    @Test
+    public void checkLoggedSendTimesAreWithinBounds() throws IOException, InterruptedException {
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(2)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .simulateFailures(false)
+                        .delay(100)
+                        .build();
+        for (int i = 0; i < 4; i++) {
             sink.write(String.valueOf(i));
         }
-        assertEquals(80, res.size());
+        assertTrue(sinkInitContext.getCurrentSendTimeGauge().get().getValue() >= 99);
+        assertTrue(sinkInitContext.getCurrentSendTimeGauge().get().getValue() < 110);
     }
 
     @Test
     public void testThatUnwrittenRecordsInBufferArePersistedWhenSnapshotIsTaken()
             throws IOException, InterruptedException {
-        AsyncSinkWriterImpl sink = new AsyncSinkWriterImpl(sinkInitContext, 10, 1, 100, false);
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .simulateFailures(false)
+                        .build();
         for (int i = 0; i < 23; i++) {
             sink.write(String.valueOf(i));
         }
@@ -91,7 +146,14 @@ public class AsyncSinkWriterTest {
     @Test
     public void testPreparingCommitAtSnapshotTimeEnsuresBufferedRecordsArePersistedToDestination()
             throws IOException, InterruptedException {
-        AsyncSinkWriterImpl sink = new AsyncSinkWriterImpl(sinkInitContext, 10, 1, 100, false);
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .simulateFailures(false)
+                        .build();
         for (int i = 0; i < 23; i++) {
             sink.write(String.valueOf(i));
         }
@@ -102,7 +164,14 @@ public class AsyncSinkWriterTest {
     @Test
     public void testThatMailboxYieldDoesNotBlockWhileATimerIsRegisteredAndHasYetToElapse()
             throws Exception {
-        AsyncSinkWriterImpl sink = new AsyncSinkWriterImpl(sinkInitContext, 10, 1, 100, false);
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .simulateFailures(false)
+                        .build();
         sink.write(String.valueOf(0));
         sink.prepareCommit(true);
         assertEquals(1, res.size());
@@ -111,7 +180,14 @@ public class AsyncSinkWriterTest {
     @Test
     public void testThatSnapshotsAreTakenOfBufferCorrectlyBeforeAndAfterAutomaticFlush()
             throws IOException, InterruptedException {
-        AsyncSinkWriterImpl sink = new AsyncSinkWriterImpl(sinkInitContext, 3, 1, 100, false);
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(3)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .simulateFailures(false)
+                        .build();
 
         sink.write("25");
         sink.write("55");
@@ -123,10 +199,17 @@ public class AsyncSinkWriterTest {
         assertEquals(3, res.size());
     }
 
-    @Test
-    public void testThatSnapshotsAreTakenOfBufferCorrectlyBeforeAndAfterManualFlush()
+    public void writeFiveRecordsWithOneFailingThenCallPrepareCommitWithFlushing()
             throws IOException, InterruptedException {
-        AsyncSinkWriterImpl sink = new AsyncSinkWriterImpl(sinkInitContext, 3, 1, 100, false);
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(3)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .simulateFailures(false)
+                        .build();
+
         sink.write("25");
         sink.write("55");
         sink.write("75");
@@ -135,13 +218,35 @@ public class AsyncSinkWriterTest {
         assertEquals(Arrays.asList(95, 955), new ArrayList<>(sink.snapshotState().get(0)));
         sink.prepareCommit(true);
         assertEquals(Arrays.asList(), new ArrayList<>(sink.snapshotState().get(0)));
+    }
+
+    @Test
+    public void testThatSnapshotsAreTakenOfBufferCorrectlyBeforeAndAfterManualFlush()
+            throws IOException, InterruptedException {
+        writeFiveRecordsWithOneFailingThenCallPrepareCommitWithFlushing();
         assertEquals(5, res.size());
+    }
+
+    @Test
+    public void metricsAreLoggedEachTimeSubmitRequestEntriesIsCalled()
+            throws IOException, InterruptedException {
+        writeFiveRecordsWithOneFailingThenCallPrepareCommitWithFlushing();
+        assertEquals(5, sinkInitContext.getNumRecordsOutCounter().getCount());
+        assertEquals(20, sinkInitContext.getNumBytesOutCounter().getCount());
     }
 
     @Test
     public void testRuntimeErrorsInSubmitRequestEntriesEndUpAsIOExceptionsWithNumOfFailedRequests()
             throws IOException, InterruptedException {
-        AsyncSinkWriterImpl sink = new AsyncSinkWriterImpl(sinkInitContext, 3, 1, 100, true);
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(3)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .simulateFailures(true)
+                        .build();
+
         sink.write("25");
         sink.write("55");
         sink.write("75");
@@ -157,7 +262,14 @@ public class AsyncSinkWriterTest {
     @Test
     public void testRetryableErrorsDoNotViolateAtLeastOnceSemanticsDueToRequeueOfFailures()
             throws IOException, InterruptedException {
-        AsyncSinkWriterImpl sink = new AsyncSinkWriterImpl(sinkInitContext, 3, 1, 100, true);
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(3)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .simulateFailures(true)
+                        .build();
 
         writeXToSinkAssertDestinationIsInStateYAndBufferHasZ(
                 sink, "25", Arrays.asList(), Arrays.asList(25));
@@ -214,7 +326,15 @@ public class AsyncSinkWriterTest {
     @Test
     public void testFailedEntriesAreRetriedInTheNextPossiblePersistRequestAndNoLater()
             throws IOException, InterruptedException {
-        AsyncSinkWriterImpl sink = new AsyncSinkWriterImpl(sinkInitContext, 3, 1, 100, true);
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(3)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .simulateFailures(true)
+                        .build();
+
         sink.write("25");
         sink.write("55");
         sink.write("965");
@@ -242,7 +362,14 @@ public class AsyncSinkWriterTest {
         Exception e =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> new AsyncSinkWriterImpl(sinkInitContext, 10, 1, 10, false));
+                        () ->
+                                new AsyncSinkWriterImplBuilder()
+                                        .context(sinkInitContext)
+                                        .maxBatchSize(10)
+                                        .maxInFlightRequests(1)
+                                        .maxBufferedRequests(10)
+                                        .simulateFailures(false)
+                                        .build());
         assertEquals(
                 e.getMessage(),
                 "The maximum number of requests that may be buffered should be "
@@ -261,7 +388,15 @@ public class AsyncSinkWriterTest {
     public void testFlushThresholdMetBeforeBatchLimitWillCreateASmallerBatchOfSizeAboveThreshold()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
-                new AsyncSinkWriterImpl(sinkInitContext, 10, 1, 100, 30, 1000, false);
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .flushOnBufferSizeInBytes(30)
+                        .maxTimeInBufferMS(1000)
+                        .simulateFailures(false)
+                        .build();
 
         /* Sink has flush threshold of 30 bytes, each integer is 4 bytes, therefore, flushing
          * should occur once 8 elements have been written.
@@ -278,7 +413,15 @@ public class AsyncSinkWriterTest {
     public void testThatWhenNumberOfItemAndSizeOfRecordThresholdsAreMetSimultaneouslyAFlushOccurs()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
-                new AsyncSinkWriterImpl(sinkInitContext, 8, 1, 100, 32, 1000, false);
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(8)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .flushOnBufferSizeInBytes(32)
+                        .maxTimeInBufferMS(1000)
+                        .simulateFailures(false)
+                        .build();
 
         for (int i = 0; i < 8; i++) {
             sink.write(String.valueOf(i));
@@ -294,7 +437,15 @@ public class AsyncSinkWriterTest {
     public void testThatIntermittentlyFailingEntriesAreEnqueuedOnToTheBufferWithCorrectSize()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
-                new AsyncSinkWriterImpl(sinkInitContext, 10, 1, 100, 110, 1000, true);
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .flushOnBufferSizeInBytes(110)
+                        .maxTimeInBufferMS(1000)
+                        .simulateFailures(true)
+                        .build();
 
         sink.write(String.valueOf(225)); // Buffer: 100/110B; 1/10 elements; 0 inflight
         sink.write(String.valueOf(1)); //   Buffer: 104/110B; 2/10 elements; 0 inflight
@@ -313,7 +464,15 @@ public class AsyncSinkWriterTest {
     public void testThatABatchWithSizeSmallerThanMaxBatchSizeIsFlushedOnTimeoutExpiry()
             throws Exception {
         AsyncSinkWriterImpl sink =
-                new AsyncSinkWriterImpl(sinkInitContext, 10, 20, 100, 10000, 100, true);
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(20)
+                        .maxBufferedRequests(100)
+                        .flushOnBufferSizeInBytes(10_000)
+                        .maxTimeInBufferMS(100)
+                        .simulateFailures(true)
+                        .build();
 
         TestProcessingTimeService tpts = sinkInitContext.getTestProcessingTimeService();
         tpts.setCurrentTime(0L);
@@ -331,7 +490,15 @@ public class AsyncSinkWriterTest {
     public void testThatTimeBasedBatchPicksUpAllRelevantItemsUpUntilExpiryOfTimer()
             throws Exception {
         AsyncSinkWriterImpl sink =
-                new AsyncSinkWriterImpl(sinkInitContext, 10, 20, 100, 10000, 100, true);
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(20)
+                        .maxBufferedRequests(100)
+                        .flushOnBufferSizeInBytes(10_000)
+                        .maxTimeInBufferMS(100)
+                        .simulateFailures(true)
+                        .build();
 
         TestProcessingTimeService tpts = sinkInitContext.getTestProcessingTimeService();
         for (int i = 0; i < 98; i++) {
@@ -347,7 +514,15 @@ public class AsyncSinkWriterTest {
     @Test
     public void testThatOneAndOnlyOneCallbackIsEverRegistered() throws Exception {
         AsyncSinkWriterImpl sink =
-                new AsyncSinkWriterImpl(sinkInitContext, 10, 20, 100, 10000, 100, true);
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(20)
+                        .maxBufferedRequests(100)
+                        .flushOnBufferSizeInBytes(10_000)
+                        .maxTimeInBufferMS(100)
+                        .simulateFailures(true)
+                        .build();
 
         TestProcessingTimeService tpts = sinkInitContext.getTestProcessingTimeService();
         tpts.setCurrentTime(0L);
@@ -372,7 +547,15 @@ public class AsyncSinkWriterTest {
     public void testThatIntermittentlyFailingEntriesShouldBeFlushedWithMainBatchInTimeBasedFlush()
             throws Exception {
         AsyncSinkWriterImpl sink =
-                new AsyncSinkWriterImpl(sinkInitContext, 10, 1, 100, 10000, 100, true);
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(1)
+                        .maxBufferedRequests(100)
+                        .flushOnBufferSizeInBytes(10_000)
+                        .maxTimeInBufferMS(100)
+                        .simulateFailures(true)
+                        .build();
 
         TestProcessingTimeService tpts = sinkInitContext.getTestProcessingTimeService();
         tpts.setCurrentTime(0L);
@@ -392,7 +575,15 @@ public class AsyncSinkWriterTest {
     @Test
     public void testThatFlushingAnEmptyBufferDoesNotResultInErrorOrFailure() throws Exception {
         AsyncSinkWriterImpl sink =
-                new AsyncSinkWriterImpl(sinkInitContext, 10, 20, 100, 10000, 100, true);
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(20)
+                        .maxBufferedRequests(100)
+                        .flushOnBufferSizeInBytes(10_000)
+                        .maxTimeInBufferMS(100)
+                        .simulateFailures(true)
+                        .build();
 
         TestProcessingTimeService tpts = sinkInitContext.getTestProcessingTimeService();
         tpts.setCurrentTime(0L);
@@ -406,7 +597,15 @@ public class AsyncSinkWriterTest {
     @Test
     public void testThatOnExpiryOfAnOldTimeoutANewOneMayBeRegisteredImmediately() throws Exception {
         AsyncSinkWriterImpl sink =
-                new AsyncSinkWriterImpl(sinkInitContext, 10, 20, 100, 10000, 100, true);
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(20)
+                        .maxBufferedRequests(100)
+                        .flushOnBufferSizeInBytes(10_000)
+                        .maxTimeInBufferMS(100)
+                        .simulateFailures(true)
+                        .build();
 
         TestProcessingTimeService tpts = sinkInitContext.getTestProcessingTimeService();
         tpts.setCurrentTime(0L);
@@ -526,32 +725,17 @@ public class AsyncSinkWriterTest {
 
         private final Set<Integer> failedFirstAttempts = new HashSet<>();
         private final boolean simulateFailures;
+        private final int delay;
 
-        public AsyncSinkWriterImpl(
-                Sink.InitContext context,
-                int maxBatchSize,
-                int maxInFlightRequests,
-                int maxBufferedRequests,
-                boolean simulateFailures) {
-            super(
-                    (elem, ctx) -> Integer.parseInt(elem),
-                    context,
-                    maxBatchSize,
-                    maxInFlightRequests,
-                    maxBufferedRequests,
-                    10000000,
-                    1000);
-            this.simulateFailures = simulateFailures;
-        }
-
-        public AsyncSinkWriterImpl(
+        private AsyncSinkWriterImpl(
                 Sink.InitContext context,
                 int maxBatchSize,
                 int maxInFlightRequests,
                 int maxBufferedRequests,
                 long flushOnBufferSizeInBytes,
                 long maxTimeInBufferMS,
-                boolean simulateFailures) {
+                boolean simulateFailures,
+                int delay) {
             super(
                     (elem, ctx) -> Integer.parseInt(elem),
                     context,
@@ -561,6 +745,7 @@ public class AsyncSinkWriterTest {
                     flushOnBufferSizeInBytes,
                     maxTimeInBufferMS);
             this.simulateFailures = simulateFailures;
+            this.delay = delay;
         }
 
         public void write(String val) throws IOException, InterruptedException {
@@ -581,6 +766,8 @@ public class AsyncSinkWriterTest {
         @Override
         protected void submitRequestEntries(
                 List<Integer> requestEntries, Consumer<Collection<Integer>> requestResult) {
+            maybeDelay();
+
             if (requestEntries.stream().anyMatch(val -> val > 100 && val <= 200)) {
                 throw new RuntimeException(
                         "Deliberate runtime exception occurred in SinkWriterImplementation.");
@@ -608,6 +795,17 @@ public class AsyncSinkWriterTest {
             }
         }
 
+        private void maybeDelay() {
+            if (delay <= 0) {
+                return;
+            }
+            try {
+                Thread.sleep(delay);
+            } catch (InterruptedException e) {
+                fail("Thread sleeping for delay in submitRequestEntries was interrupted.");
+            }
+        }
+
         /**
          * @return If we're simulating failures and the requestEntry value is greater than 200, then
          *     the entry is size 100 bytes, otherwise each entry is 4 bytes.
@@ -618,9 +816,80 @@ public class AsyncSinkWriterTest {
         }
     }
 
+    /** A builder for {@link AsyncSinkWriterImpl}. */
+    private class AsyncSinkWriterImplBuilder {
+
+        private Boolean simulateFailures;
+        private int delay = 0;
+        private Sink.InitContext context;
+        private Integer maxBatchSize;
+        private Integer maxInFlightRequests;
+        private Integer maxBufferedRequests;
+        private long flushOnBufferSizeInBytes = 10000000;
+        private long maxTimeInBufferMS = 1000;
+
+        private AsyncSinkWriterImplBuilder context(Sink.InitContext context) {
+            this.context = context;
+            return this;
+        }
+
+        private AsyncSinkWriterImplBuilder maxBatchSize(int maxBatchSize) {
+            this.maxBatchSize = maxBatchSize;
+            return this;
+        }
+
+        private AsyncSinkWriterImplBuilder maxInFlightRequests(int maxInFlightRequests) {
+            this.maxInFlightRequests = maxInFlightRequests;
+            return this;
+        }
+
+        private AsyncSinkWriterImplBuilder maxBufferedRequests(int maxBufferedRequests) {
+            this.maxBufferedRequests = maxBufferedRequests;
+            return this;
+        }
+
+        private AsyncSinkWriterImplBuilder flushOnBufferSizeInBytes(long flushOnBufferSizeInBytes) {
+            this.flushOnBufferSizeInBytes = flushOnBufferSizeInBytes;
+            return this;
+        }
+
+        private AsyncSinkWriterImplBuilder maxTimeInBufferMS(long maxTimeInBufferMS) {
+            this.maxTimeInBufferMS = maxTimeInBufferMS;
+            return this;
+        }
+
+        private AsyncSinkWriterImplBuilder delay(int delay) {
+            this.delay = delay;
+            return this;
+        }
+
+        private AsyncSinkWriterImplBuilder simulateFailures(boolean simulateFailures) {
+            this.simulateFailures = simulateFailures;
+            return this;
+        }
+
+        private AsyncSinkWriterImpl build() {
+            return new AsyncSinkWriterImpl(
+                    context,
+                    maxBatchSize,
+                    maxInFlightRequests,
+                    maxBufferedRequests,
+                    flushOnBufferSizeInBytes,
+                    maxTimeInBufferMS,
+                    simulateFailures,
+                    delay);
+        }
+    }
+
     private static class SinkInitContext implements Sink.InitContext {
 
         private static final TestProcessingTimeService processingTimeService;
+        private final MetricListener metricListener = new MetricListener();
+        private final OperatorIOMetricGroup operatorIOMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
+        private final SinkWriterMetricGroup metricGroup =
+                InternalSinkWriterMetricGroup.mock(
+                        metricListener.getMetricGroup(), operatorIOMetricGroup);
 
         static {
             processingTimeService = new TestProcessingTimeService();
@@ -686,7 +955,7 @@ public class AsyncSinkWriterTest {
 
         @Override
         public SinkWriterMetricGroup metricGroup() {
-            return null;
+            return metricGroup;
         }
 
         @Override
@@ -696,6 +965,18 @@ public class AsyncSinkWriterTest {
 
         public TestProcessingTimeService getTestProcessingTimeService() {
             return processingTimeService;
+        }
+
+        private Optional<Gauge<Long>> getCurrentSendTimeGauge() {
+            return metricListener.getGauge("currentSendTime");
+        }
+
+        private Counter getNumRecordsOutCounter() {
+            return metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+        }
+
+        private Counter getNumBytesOutCounter() {
+            return metricGroup.getIOMetricGroup().getNumBytesOutCounter();
         }
     }
 
@@ -726,7 +1007,8 @@ public class AsyncSinkWriterTest {
                     maxBufferedRequests,
                     flushOnBufferSizeInBytes,
                     maxTimeInBufferMS,
-                    false);
+                    false,
+                    0);
             this.blockedThreadLatch = blockedThreadLatch;
             this.delayedStartLatch = delayedStartLatch;
             this.blockForLimitedTime = blockForLimitedTime;

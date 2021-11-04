@@ -21,6 +21,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -53,6 +55,21 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     private final MailboxExecutor mailboxExecutor;
     private final Sink.ProcessingTimeService timeService;
+
+    /* The timestamp of the previous batch of records was sent from this sink. */
+    private long lastSendTimestamp = 0;
+
+    /* The timestamp of the response to the previous request from this sink. */
+    private long ackTime = Long.MAX_VALUE;
+
+    /* The sink writer metric group. */
+    private final SinkWriterMetricGroup metrics;
+
+    /* Counter for number of bytes this sink has attempted to send to the destination. */
+    private final Counter numBytesOutCounter;
+
+    /* Counter for number of records this sink has attempted to send to the destination. */
+    private final Counter numRecordsOutCounter;
 
     private final int maxBatchSize;
     private final int maxInFlightRequests;
@@ -109,14 +126,53 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     private boolean existsActiveTimerCallback = false;
 
     /**
+     * The {@code accept} method should be called on this Consumer if the processing of the {@code
+     * requestEntries} raises an exception that should not be retried. Specifically, any action that
+     * we are sure will result in the same exception no matter how many times we retry should raise
+     * a {@code RuntimeException} here. For example, wrong user credentials. However, it is possible
+     * intermittent failures will recover, e.g. flaky network connections, in which case, some other
+     * mechanism may be more appropriate.
+     */
+    private final Consumer<Exception> fatalExceptionCons;
+
+    /**
      * This method specifies how to persist buffered request entries into the destination. It is
      * implemented when support for a new destination is added.
      *
      * <p>The method is invoked with a set of request entries according to the buffering hints (and
      * the valid limits of the destination). The logic then needs to create and execute the request
-     * against the destination (ideally by batching together multiple request entries to increase
-     * efficiency). The logic also needs to identify individual request entries that were not
-     * persisted successfully and resubmit them using the {@code requeueFailedRequestEntry} method.
+     * asynchronously against the destination (ideally by batching together multiple request entries
+     * to increase efficiency). The logic also needs to identify individual request entries that
+     * were not persisted successfully and resubmit them using the {@code requestResult} callback.
+     *
+     * <p>From a threading perspective, the mailbox thread will call this method and initiate the
+     * asynchronous request to persist the {@code requestEntries}. NOTE: The client must support
+     * asynchronous requests and the method called to persist the records must asynchronously
+     * execute and return a future with the results of that request. A thread from the destination
+     * client thread pool should complete the request and submit the failed entries that should be
+     * retried. The {@code requestResult} will then trigger the mailbox thread to requeue the
+     * unsuccessful elements.
+     *
+     * <p>An example implementation of this method is included:
+     *
+     * <pre>{@code
+     * @Override
+     * protected void submitRequestEntries
+     *   (List<RequestEntryT> records, Consumer<Collection<RequestEntryT>> requestResult) {
+     *     Future<Response> response = destinationClient.putRecords(records);
+     *     response.whenComplete(
+     *         (response, error) -> {
+     *             if(error){
+     *                 List<RequestEntryT> retryableFailedRecords = getRetryableFailed(response);
+     *                 requestResult.accept(retryableFailedRecords);
+     *             }else{
+     *                 requestResult.accept(Collections.emptyList());
+     *             }
+     *         }
+     *     );
+     * }
+     *
+     * }</pre>
      *
      * <p>During checkpointing, the sink needs to ensure that there are no outstanding in-flight
      * requests.
@@ -172,6 +228,19 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
         this.inFlightRequestsCount = 0;
         this.bufferedRequestEntriesTotalSizeInBytes = 0;
+
+        this.metrics = context.metricGroup();
+        this.metrics.setCurrentSendTimeGauge(() -> this.ackTime - this.lastSendTimestamp);
+        this.numBytesOutCounter = this.metrics.getIOMetricGroup().getNumBytesOutCounter();
+        this.numRecordsOutCounter = this.metrics.getIOMetricGroup().getNumRecordsOutCounter();
+
+        this.fatalExceptionCons =
+                exception ->
+                        mailboxExecutor.execute(
+                                () -> {
+                                    throw exception;
+                                },
+                                "A fatal exception occurred in the sink that cannot be recovered from or should not be retried.");
     }
 
     private void registerCallback() {
@@ -219,25 +288,30 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         List<RequestEntryT> batch = new ArrayList<>(maxBatchSize);
 
         int batchSize = Math.min(maxBatchSize, bufferedRequestEntries.size());
+        int batchSizeBytes = 0;
         for (int i = 0; i < batchSize; i++) {
             RequestEntryWrapper<RequestEntryT> elem = bufferedRequestEntries.remove();
             batch.add(elem.getRequestEntry());
             bufferedRequestEntriesTotalSizeInBytes -= elem.getSize();
+            batchSizeBytes += elem.getSize();
         }
 
         if (batch.size() == 0) {
             return;
         }
 
+        long timestampOfRequest = System.currentTimeMillis();
         Consumer<Collection<RequestEntryT>> requestResult =
                 failedRequestEntries ->
                         mailboxExecutor.execute(
-                                () -> completeRequest(failedRequestEntries),
+                                () -> completeRequest(failedRequestEntries, timestampOfRequest),
                                 "Mark in-flight request as completed and requeue %d request entries",
                                 failedRequestEntries.size());
 
         inFlightRequestsCount++;
         submitRequestEntries(batch, requestResult);
+        numRecordsOutCounter.inc(batchSize);
+        numBytesOutCounter.inc(batchSizeBytes);
     }
 
     /**
@@ -246,7 +320,10 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      *
      * @param failedRequestEntries requestEntries that need to be retried
      */
-    private void completeRequest(Collection<RequestEntryT> failedRequestEntries) {
+    private void completeRequest(
+            Collection<RequestEntryT> failedRequestEntries, long requestStartTime) {
+        lastSendTimestamp = requestStartTime;
+        ackTime = System.currentTimeMillis();
         inFlightRequestsCount--;
         failedRequestEntries.forEach(failedEntry -> addEntryToBuffer(failedEntry, true));
     }
@@ -304,4 +381,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     @Override
     public void close() {}
+
+    protected Consumer<Exception> getFatalExceptionCons() {
+        return fatalExceptionCons;
+    }
 }

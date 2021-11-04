@@ -21,6 +21,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.Serializable;
@@ -49,6 +50,28 @@ import java.util.Optional;
 public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
         implements Sink<InputT, Void, Collection<RequestEntryT>, Void> {
 
+    private final ElementConverter<InputT, RequestEntryT> elementConverter;
+    private final int maxBatchSize;
+    private final int maxInFlightRequests;
+    private final int maxBufferedRequests;
+    private final long flushOnBufferSizeInBytes;
+    private final long maxTimeInBufferMS;
+
+    protected AsyncSinkBase(
+            ElementConverter<InputT, RequestEntryT> elementConverter,
+            int maxBatchSize,
+            int maxInFlightRequests,
+            int maxBufferedRequests,
+            long flushOnBufferSizeInBytes,
+            long maxTimeInBufferMS) {
+        this.elementConverter = elementConverter;
+        this.maxBatchSize = maxBatchSize;
+        this.maxInFlightRequests = maxInFlightRequests;
+        this.maxBufferedRequests = maxBufferedRequests;
+        this.flushOnBufferSizeInBytes = flushOnBufferSizeInBytes;
+        this.maxTimeInBufferMS = maxTimeInBufferMS;
+    }
+
     @Override
     public Optional<Committer<Void>> createCommitter() {
         return Optional.empty();
@@ -67,5 +90,29 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
     @Override
     public Optional<SimpleVersionedSerializer<Void>> getGlobalCommittableSerializer() {
         return Optional.empty();
+    }
+
+    protected ElementConverter<InputT, RequestEntryT> getElementConverter() {
+        return elementConverter;
+    }
+
+    protected int getMaxBatchSize() {
+        return maxBatchSize;
+    }
+
+    protected int getMaxInFlightRequests() {
+        return maxInFlightRequests;
+    }
+
+    protected int getMaxBufferedRequests() {
+        return maxBufferedRequests;
+    }
+
+    protected long getFlushOnBufferSizeInBytes() {
+        return flushOnBufferSizeInBytes;
+    }
+
+    protected long getMaxTimeInBufferMS() {
+        return maxTimeInBufferMS;
     }
 }
