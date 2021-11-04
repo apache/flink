@@ -32,7 +32,8 @@
     <thead>
       <tr>
         <th nzWidth="50%">Log Name</th>
-        <th nzWidth="50%">Size (KB)</th>
+        <th [nzSortFn]="sortLastModifiedTimeFn">Last Modified Time</th>
+        <th [nzSortFn]="sortSizeFn">Size (KB)</th>
       </tr>
     </thead>
     <tbody>
@@ -42,6 +43,7 @@
             <td>
               <a [routerLink]="[narrowData.name]">{{ narrowData.name }}</a>
             </td>
+            <td>{{ narrowData.mtime | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
             <td>{{ narrowData.size / 1024 | number: '1.0-2' }}</td>
           </tr>
         </ng-container>

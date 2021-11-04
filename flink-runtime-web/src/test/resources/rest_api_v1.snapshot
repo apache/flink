@@ -505,6 +505,9 @@
               },
               "size" : {
                 "type" : "integer"
+              },
+              "mtime" : {
+                "type" : "integer"
               }
             }
           }
@@ -3301,6 +3304,9 @@
                 "type" : "string"
               },
               "size" : {
+                "type" : "integer"
+              },
+              "mtime" : {
                 "type" : "integer"
               }
             }

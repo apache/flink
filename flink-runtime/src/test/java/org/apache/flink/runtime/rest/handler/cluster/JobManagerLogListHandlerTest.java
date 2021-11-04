@@ -82,9 +82,9 @@ public class JobManagerLogListHandlerTest extends TestLogger {
         File logRoot = temporaryFolder.getRoot();
         List<LogInfo> expectedLogInfo =
                 Arrays.asList(
-                        new LogInfo("jobmanager.log", 5),
-                        new LogInfo("jobmanager.out", 7),
-                        new LogInfo("test.log", 13));
+                        new LogInfo("jobmanager.log", 5, 1632844800000L),
+                        new LogInfo("jobmanager.out", 7, 1632844800000L),
+                        new LogInfo("test.log", 13, 1632844800000L));
         createLogFiles(logRoot, expectedLogInfo);
 
         JobManagerLogListHandler jobManagerLogListHandler = createHandler(logRoot);
@@ -116,16 +116,17 @@ public class JobManagerLogListHandlerTest extends TestLogger {
 
     private void createLogFiles(final File logRoot, final List<LogInfo> expectedLogFiles) {
         for (LogInfo logInfo : expectedLogFiles) {
-            createFile(new File(logRoot, logInfo.getName()), logInfo.getSize());
+            createFile(new File(logRoot, logInfo.getName()), logInfo.getSize(), logInfo.getMtime());
         }
     }
 
-    private void createFile(final File file, final long size) {
+    private void createFile(final File file, final long size, final long mtime) {
         try {
             final String randomFileContent =
                     StringUtils.generateRandomAlphanumericString(
                             ThreadLocalRandom.current(), Math.toIntExact(size));
             FileUtils.writeStringToFile(file, randomFileContent, StandardCharsets.UTF_8);
+            file.setLastModified(mtime);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

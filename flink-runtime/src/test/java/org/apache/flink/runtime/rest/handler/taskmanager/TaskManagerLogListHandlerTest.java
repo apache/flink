@@ -79,9 +79,9 @@ public class TaskManagerLogListHandlerTest extends TestLogger {
     public void testGetTaskManagerLogsList() throws Exception {
         List<LogInfo> logsList =
                 Arrays.asList(
-                        new LogInfo("taskmanager.log", 1024L),
-                        new LogInfo("taskmanager.out", 1024L),
-                        new LogInfo("taskmanager-2.out", 1024L));
+                        new LogInfo("taskmanager.log", 1024L, 1632844800000L),
+                        new LogInfo("taskmanager.out", 1024L, 1632844800000L),
+                        new LogInfo("taskmanager-2.out", 1024L, 1632844800000L));
         resourceManagerGateway.setRequestTaskManagerLogListFunction(
                 EXPECTED_TASK_MANAGER_ID -> CompletableFuture.completedFuture(logsList));
         LogListInfo logListInfo =

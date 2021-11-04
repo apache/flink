@@ -19,6 +19,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { finalize } from 'rxjs/operators';
 
+import { JobManagerLogItemInterface } from 'interfaces';
 import { JobManagerService } from 'services';
 
 import { typeDefinition } from '../../../utils/strong-type';
@@ -30,11 +31,15 @@ import { typeDefinition } from '../../../utils/strong-type';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerLogListComponent implements OnInit {
-  listOfLog: Array<{ name: string; size: number }> = [];
+  listOfLog: JobManagerLogItemInterface[] = [];
   isLoading = true;
 
-  trackByName = (_: number, log: { name: string; size: number }): string => log.name;
-  readonly narrowLogData = typeDefinition<{ name: string; size: number }>();
+  trackByName = (_: number, log: JobManagerLogItemInterface): string => log.name;
+  readonly narrowLogData = typeDefinition<JobManagerLogItemInterface>();
+
+  sortLastModifiedTimeFn = (pre: JobManagerLogItemInterface, next: JobManagerLogItemInterface): number =>
+    pre.mtime - next.mtime;
+  sortSizeFn = (pre: JobManagerLogItemInterface, next: JobManagerLogItemInterface): number => pre.size - next.size;
 
   constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
 
