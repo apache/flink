@@ -1045,6 +1045,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                     newState,
                     error);
 
+            stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
             notifyJobStatusChange(newState);
             return true;
         } else {
