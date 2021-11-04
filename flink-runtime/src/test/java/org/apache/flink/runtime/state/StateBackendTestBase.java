@@ -71,6 +71,7 @@ import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -5091,35 +5092,27 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
-            final String ns1 = "ns1";
-            MapState<String, Integer> keyedState1 =
-                    backend.getPartitionedState(
-                            ns1,
+            InternalMapState<Integer, String, String, Integer> internalState =
+                    backend.createInternalState(
                             StringSerializer.INSTANCE,
                             new MapStateDescriptor<>(
                                     fieldName, StringSerializer.INSTANCE, IntSerializer.INSTANCE));
-
-            final String ns2 = "ns2";
-            MapState<String, Integer> keyedState2 =
-                    backend.getPartitionedState(
-                            ns2,
-                            StringSerializer.INSTANCE,
-                            new MapStateDescriptor<>(
-                                    fieldName, StringSerializer.INSTANCE, IntSerializer.INSTANCE));
+            String[] namespaces = new String[] {"ns1", "ns2"};
 
             for (int key = 0; key < elementsNum; key++) {
                 backend.setCurrentKey(key);
-                keyedState1.put("he", key * 2);
-                keyedState1.put("ho", key * 2);
-                keyedState2.put("he", key * 2);
-                keyedState2.put("ho", key * 2);
+                for (String ns : namespaces) {
+                    internalState.setCurrentNamespace(ns);
+                    internalState.put("hello", key);
+                    internalState.put("world", key);
+                }
             }
 
             try (Stream<Tuple2<Integer, String>> stream = backend.getKeysAndNamespaces(fieldName)) {
                 final Map<String, Set<Integer>> keysByNamespace = new HashMap<>();
                 stream.forEach(
                         entry -> {
-                            assertThat("Unexpected namespace", entry.f1, isOneOf(ns1, ns2));
+                            assertThat("Unexpected namespace", entry.f1, isOneOf(namespaces));
                             assertThat(
                                     "Unexpected key",
                                     entry.f0,
