@@ -126,10 +126,19 @@ object FlinkBatchProgram {
                 .build(), "other predicate rewrite")
             .setIterations(5).build(), "predicate rewrite")
         .addProgram(
-          FlinkHepRuleSetProgramBuilder.newBuilder
-            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkBatchRuleSets.FILTER_TABLESCAN_PUSHDOWN_RULES)
+          FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
+             .addProgram(
+               FlinkHepRuleSetProgramBuilder.newBuilder
+                 .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+                 .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                 .add(FlinkBatchRuleSets.PUSH_PARTITION_DOWN_RULES)
+                 .build(), "push down partitions into table scan")
+            .addProgram(
+              FlinkHepRuleSetProgramBuilder.newBuilder
+                .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                .add(FlinkBatchRuleSets.PUSH_FILTER_DOWN_RULES)
+                .build(), "push down filters into table scan")
             .build(), "push predicate into table scan")
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder

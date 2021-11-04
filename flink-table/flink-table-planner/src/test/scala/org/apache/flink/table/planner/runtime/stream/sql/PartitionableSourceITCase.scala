@@ -180,6 +180,21 @@ class PartitionableSourceITCase(
     )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testPushDownPartitionAndFiltersContainPartitionKeysWithSingleProjection(): Unit = {
+    val query = "SELECT name FROM PartitionableAndFilterableTable WHERE part1 = 'A' AND id > 1"
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "LiSi",
+      "Jack"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 }
 
 object PartitionableSourceITCase {

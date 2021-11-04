@@ -155,6 +155,16 @@ class PartitionableSourceITCase(
         row(3, "Jack", "A", 2, 3)
       ))
   }
+
+  @Test
+  def testPushDownPartitionAndFiltersContainPartitionKeysWithSingleProjection(): Unit = {
+    checkResult(
+      "SELECT name FROM PartitionableAndFilterableTable WHERE part1 = 'A' AND id > 1",
+      Seq(
+        row("LiSi"),
+        row("Jack")
+      ))
+  }
 }
 
 object PartitionableSourceITCase {

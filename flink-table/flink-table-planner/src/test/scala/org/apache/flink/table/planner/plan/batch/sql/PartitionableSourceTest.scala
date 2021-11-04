@@ -134,6 +134,13 @@ class PartitionableSourceTest(
       "select * from PartitionableAndFilterableTable " +
         "where part1 = 'A' and part2 > 1 and id > 1")
   }
+
+  @Test
+  def testPushDownPartitionAndFiltersContainPartitionKeysWithSingleProjection(): Unit = {
+    util.verifyExecPlan(
+      "select name from PartitionableAndFilterableTable " +
+        "where part1 = 'A' and part2 > 1 and id > 1")
+  }
 }
 
 object PartitionableSourceTest {
