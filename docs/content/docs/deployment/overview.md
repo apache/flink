@@ -180,18 +180,21 @@ network bandwidth to download dependencies and ship binaries to the cluster, and
 `main()`. This problem can be more pronounced when the Client is shared across users.
 
 Building on this observation, the *Application Mode* creates a cluster per submitted application, but this time,
-the `main()` method of the application is executed on the JobManager. Creating a cluster per application can be 
+the `main()` method of the application is executed by the *JobManager*. Creating a cluster per application can be 
 seen as creating a session cluster shared only among the jobs of a particular application, and torn down when
 the application finishes. With this architecture, the *Application Mode* provides the same resource isolation
-and load balancing guarantees as the *Per-Job* mode, but at the granularity of a whole application. Executing 
-the `main()` on the JobManager allows for saving the CPU cycles required, but also save the bandwidth required
-for downloading the dependencies locally. Furthermore, it allows for more even spread of the network load for
-downloading the dependencies of the applications in the cluster, as there is one JobManager per application.
+and load balancing guarantees as the *Per-Job* mode, but at the granularity of a whole application.
+
+The *Application Mode* builds on an assumption that the user jars are already available on the classpath (`usrlib` folder)
+of all Flink components that needs access to it (*JobManager*, *TaskManager*). In other words, your application comes
+bundled with the Flink distribution. This allows the application mode to speed up the deployment / recovery process, by
+not having to distribute the user jars to the Flink components via RPC as the other deployment modes do.
 
 {{< hint info >}}
-In the Application Mode, the `main()` is executed on the cluster and not on the client, 
-as in the other modes. This may have implications for your code as, for example, any paths you register in 
-your environment using the `registerCachedFile()` must be accessible by the JobManager of your application.
+The application mode assumes that the user jars are bundled with the Flink distribution.
+
+Executing the `main()` method on the cluster may have other implications for your code, such as any paths you register
+in your environment using the `registerCachedFile()` must be accessible by the JobManager of your application.
 {{< /hint >}}
 
 Compared to the *Per-Job* mode, the *Application Mode* allows the submission of applications consisting of
