@@ -255,7 +255,7 @@ public class AdaptiveScheduler
         declarativeSlotPool.registerNewSlotsListener(this::newResourcesAvailable);
 
         this.componentMainThreadExecutor = mainThreadExecutor;
-        this.jobStatusListener = jobStatusListener;
+        this.jobStatusListener = Preconditions.checkNotNull(jobStatusListener);
 
         this.scaleUpController = new ReactiveScaleUpController(configuration);
 
@@ -1068,13 +1068,6 @@ public class AdaptiveScheduler
                 archivedExecutionGraph.getState(),
                 optionalFailure);
 
-        if (jobStatusListener != null) {
-            jobStatusListener.jobStatusChanges(
-                    jobInformation.getJobID(),
-                    archivedExecutionGraph.getState(),
-                    archivedExecutionGraph.getStatusTimestamp(archivedExecutionGraph.getState()));
-        }
-
         jobTerminationFuture.complete(archivedExecutionGraph.getState());
     }
 
@@ -1155,9 +1148,21 @@ public class AdaptiveScheduler
                     state.getClass().getSimpleName(),
                     targetState.getStateClass().getSimpleName());
 
+            final JobStatus previousJobStatus = state.getJobStatus();
+
             state.onLeave(targetState.getStateClass());
             T targetStateInstance = targetState.getState();
             state = targetStateInstance;
+
+            final JobStatus newJobStatus = state.getJobStatus();
+
+            if (previousJobStatus != newJobStatus) {
+                jobStatusListener.jobStatusChanges(
+                        jobInformation.getJobID(),
+                        state.getJobStatus(),
+                        System.currentTimeMillis());
+            }
+
             return targetStateInstance;
         } finally {
             isTransitioningState = false;
