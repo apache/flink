@@ -19,9 +19,11 @@
 package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.JInt
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -222,8 +224,8 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
     testHarness.close()
   }
 
-  @Test
-  def testUpdateRankWithRowNumber(): Unit = {
+  def prepareUpdateRankWithRowNumberTester():
+    (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], RowDataHarnessAssertor) = {
     val data = new mutable.MutableList[(String, Int, Int)]
     val t = env.fromCollection(data).toTable(tEnv, 'word, 'cnt, 'type)
     tEnv.createTemporaryView("T", t)
@@ -253,7 +255,12 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
         DataTypes.INT().getLogicalType,
         DataTypes.INT().getLogicalType,
         DataTypes.BIGINT().getLogicalType))
+    (testHarness, assertor)
+  }
 
+  @Test
+  def testUpdateRankWithRowNumberSortKeyDropsToLast(): Unit = {
+    val (testHarness, assertor) = prepareUpdateRankWithRowNumberTester()
     testHarness.open()
 
     testHarness.processElement(binaryRecord(INSERT, "a", 1: JInt, 100: JInt))
@@ -287,6 +294,161 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
     expectedOutput.add(binaryRecord(UPDATE_AFTER, "f", 1: JInt, 70: JInt, 5L: JLong))
 
     expectedOutput.add(binaryRecord(UPDATE_AFTER, "b", 1: JInt, 10: JInt, 6L: JLong))
+
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
+    testHarness.close()
+  }
+
+  @Test
+  def testUpdateRankWithRowNumberSortKeyDropsButRankUnchange(): Unit = {
+    val (testHarness, assertor) = prepareUpdateRankWithRowNumberTester()
+    testHarness.open()
+
+    testHarness.processElement(binaryRecord(INSERT, "a", 1: JInt, 100: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "b", 1: JInt, 90: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "c", 1: JInt, 90: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "d", 1: JInt, 80: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "e", 1: JInt, 80: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "f", 1: JInt, 70: JInt))
+
+    testHarness.processElement(binaryRecord(UPDATE_AFTER, "c", 1: JInt, 88: JInt))
+
+    val result = dropWatermarks(testHarness.getOutput.toArray)
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    expectedOutput.add(binaryRecord(INSERT, "a", 1: JInt, 100: JInt, 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "b", 1: JInt, 90: JInt, 2L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "c", 1: JInt, 90: JInt, 3L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "d", 1: JInt, 80: JInt, 4L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "e", 1: JInt, 80: JInt, 5L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "f", 1: JInt, 70: JInt, 6L: JLong))
+
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "c", 1: JInt, 90: JInt, 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "c", 1: JInt, 88: JInt, 3L: JLong))
+
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
+    testHarness.close()
+  }
+
+  @Test
+  def testUpdateRankWithRowNumberSortKeyDropsToNotLast(): Unit = {
+    val (testHarness, assertor) = prepareUpdateRankWithRowNumberTester()
+    testHarness.open()
+
+    testHarness.processElement(binaryRecord(INSERT, "a", 1: JInt, 100: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "b", 1: JInt, 90: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "c", 1: JInt, 90: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "d", 1: JInt, 80: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "e", 1: JInt, 80: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "f", 1: JInt, 70: JInt))
+
+    testHarness.processElement(binaryRecord(UPDATE_AFTER, "b", 1: JInt, 80: JInt))
+
+    val result = dropWatermarks(testHarness.getOutput.toArray)
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    expectedOutput.add(binaryRecord(INSERT, "a", 1: JInt, 100: JInt, 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "b", 1: JInt, 90: JInt, 2L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "c", 1: JInt, 90: JInt, 3L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "d", 1: JInt, 80: JInt, 4L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "e", 1: JInt, 80: JInt, 5L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "f", 1: JInt, 70: JInt, 6L: JLong))
+
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "b", 1: JInt, 90: JInt, 2L: JLong))
+
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "c", 1: JInt, 90: JInt, 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "c", 1: JInt, 90: JInt, 2L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "d", 1: JInt, 80: JInt, 4L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "d", 1: JInt, 80: JInt, 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "e", 1: JInt, 80: JInt, 5L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "e", 1: JInt, 80: JInt, 4L: JLong))
+
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "b", 1: JInt, 80: JInt, 5L: JLong))
+
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
+    testHarness.close()
+  }
+
+  @Test
+  def testUpdateRankWithRowNumberCandidatesLargerThanRankEnd(): Unit = {
+    val (testHarness, assertor) = prepareUpdateRankWithRowNumberTester()
+    testHarness.open()
+
+    testHarness.processElement(binaryRecord(INSERT, "a", 1: JInt, 100: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "b", 1: JInt, 90: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "c", 1: JInt, 90: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "d", 1: JInt, 80: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "e", 1: JInt, 80: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "f", 1: JInt, 70: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "g", 1: JInt, 60: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "h", 1: JInt, 50: JInt))
+
+    testHarness.processElement(binaryRecord(UPDATE_AFTER, "b", 1: JInt, 80: JInt))
+
+    val result = dropWatermarks(testHarness.getOutput.toArray)
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    expectedOutput.add(binaryRecord(INSERT, "a", 1: JInt, 100: JInt, 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "b", 1: JInt, 90: JInt, 2L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "c", 1: JInt, 90: JInt, 3L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "d", 1: JInt, 80: JInt, 4L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "e", 1: JInt, 80: JInt, 5L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "f", 1: JInt, 70: JInt, 6L: JLong))
+
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "b", 1: JInt, 90: JInt, 2L: JLong))
+
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "c", 1: JInt, 90: JInt, 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "c", 1: JInt, 90: JInt, 2L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "d", 1: JInt, 80: JInt, 4L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "d", 1: JInt, 80: JInt, 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "e", 1: JInt, 80: JInt, 5L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "e", 1: JInt, 80: JInt, 4L: JLong))
+
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "b", 1: JInt, 80: JInt, 5L: JLong))
+
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
+    testHarness.close()
+  }
+
+  @Test
+  def testUpdateRankWithRowNumberSortKeyDropsOutOfRandEnd(): Unit = {
+    // Calc Top6: 8 candidates, old rank 2 drops to rank 7 (but it is still "rank 6")
+    val (testHarness, assertor) = prepareUpdateRankWithRowNumberTester()
+    testHarness.open()
+
+    testHarness.processElement(binaryRecord(INSERT, "a", 1: JInt, 100: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "b", 1: JInt, 90: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "c", 1: JInt, 90: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "d", 1: JInt, 80: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "e", 1: JInt, 80: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "f", 1: JInt, 70: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "g", 1: JInt, 60: JInt))
+    testHarness.processElement(binaryRecord(INSERT, "h", 1: JInt, 50: JInt))
+
+    testHarness.processElement(binaryRecord(UPDATE_AFTER, "b", 1: JInt, 55: JInt))
+
+    val result = dropWatermarks(testHarness.getOutput.toArray)
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    expectedOutput.add(binaryRecord(INSERT, "a", 1: JInt, 100: JInt, 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "b", 1: JInt, 90: JInt, 2L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "c", 1: JInt, 90: JInt, 3L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "d", 1: JInt, 80: JInt, 4L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "e", 1: JInt, 80: JInt, 5L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "f", 1: JInt, 70: JInt, 6L: JLong))
+
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "b", 1: JInt, 90: JInt, 2L: JLong))
+
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "c", 1: JInt, 90: JInt, 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "c", 1: JInt, 90: JInt, 2L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "d", 1: JInt, 80: JInt, 4L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "d", 1: JInt, 80: JInt, 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "e", 1: JInt, 80: JInt, 5L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "e", 1: JInt, 80: JInt, 4L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "f", 1: JInt, 70: JInt, 6L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "f", 1: JInt, 70: JInt, 5L: JLong))
+
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "b", 1: JInt, 55: JInt, 6L: JLong))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()

@@ -362,9 +362,12 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         Iterator<Map.Entry<RowData, Collection<RowData>>> iterator = buffer.entrySet().iterator();
         int currentRank = 0;
         RowData currentRow = null;
-        RowData prevRow = null;
 
-        while (iterator.hasNext() && currentRank <= newRank) {
+        // emit UB of the old row first
+        collectUpdateBefore(out, oldRow.row, oldRank);
+        // update all other affected rank rows
+        affected:
+        while (iterator.hasNext()) {
             Map.Entry<RowData, Collection<RowData>> entry = iterator.next();
             Collection<RowData> rowKeys = entry.getValue();
             Iterator<RowData> rowKeyIter = rowKeys.iterator();
@@ -372,20 +375,17 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                 RowData rowKey = rowKeyIter.next();
                 currentRank += 1;
                 currentRow = rowKeyMap.get(rowKey).row;
-                if (oldRank <= currentRank) {
-                    if (currentRank == oldRank) {
-                        collectUpdateBefore(out, oldRow.row, oldRank);
-                    } else {
-                        collectUpdateBefore(out, prevRow, currentRank);
-                        collectUpdateAfter(out, prevRow, currentRank - 1);
-                        if (currentRank == newRank) {
-                            collectUpdateAfter(out, newRow, currentRank);
-                        }
-                    }
+                if (currentRank == newRank) {
+                    break affected;
                 }
-                prevRow = currentRow;
+                if (oldRank <= currentRank) {
+                    collectUpdateBefore(out, currentRow, currentRank + 1);
+                    collectUpdateAfter(out, currentRow, currentRank);
+                }
             }
         }
+        // at last emit UA of the new row
+        collectUpdateAfter(out, newRow, newRank);
     }
 
     private void emitRecordsWithRowNumber(RowData sortKey, RowData inputRow, Collector<RowData> out)
