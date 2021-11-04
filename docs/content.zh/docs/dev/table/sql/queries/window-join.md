@@ -23,7 +23,7 @@ under the License.
 -->
 
 # Window Join
-{{< label Streaming >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 A window join adds the dimension of time into the join criteria themselves. In doing so, the window join joins the elements of two streams that share a common key and lie in the same window. The semantic of window join is same to the [DataStream window join]({{< ref "docs/dev/datastream/operators/joining" >}}#window-join)
 
