@@ -417,8 +417,7 @@ public class SchedulerTestingUtils {
         private ExecutionVertexVersioner executionVertexVersioner = new ExecutionVertexVersioner();
         private ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
                 new TestExecutionSlotAllocatorFactory();
-        private JobStatusListener jobStatusListener =
-                (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
+        private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
 
         public DefaultSchedulerBuilder(
                 final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {

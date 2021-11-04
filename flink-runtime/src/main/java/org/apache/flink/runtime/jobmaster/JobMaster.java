@@ -1304,10 +1304,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         @Override
         public void jobStatusChanges(
-                final JobID jobId,
-                final JobStatus newJobStatus,
-                final long timestamp,
-                final Throwable error) {
+                final JobID jobId, final JobStatus newJobStatus, final long timestamp) {
 
             if (running) {
                 // run in rpc thread to avoid concurrency

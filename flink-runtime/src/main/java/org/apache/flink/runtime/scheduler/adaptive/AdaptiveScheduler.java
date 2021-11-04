@@ -1072,8 +1072,7 @@ public class AdaptiveScheduler
             jobStatusListener.jobStatusChanges(
                     jobInformation.getJobID(),
                     archivedExecutionGraph.getState(),
-                    archivedExecutionGraph.getStatusTimestamp(archivedExecutionGraph.getState()),
-                    optionalFailure);
+                    archivedExecutionGraph.getStatusTimestamp(archivedExecutionGraph.getState()));
         }
 
         jobTerminationFuture.complete(archivedExecutionGraph.getState());

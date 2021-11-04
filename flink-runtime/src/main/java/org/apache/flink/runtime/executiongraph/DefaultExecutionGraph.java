@@ -79,7 +79,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.OptionalFailure;
-import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.FutureUtils.ConjunctFuture;
@@ -1046,8 +1045,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                     newState,
                     error);
 
-            stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
-            notifyJobStatusChange(newState, error);
+            notifyJobStatusChange(newState);
             return true;
         } else {
             return false;
@@ -1439,14 +1437,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
     }
 
-    private void notifyJobStatusChange(JobStatus newState, Throwable error) {
+    private void notifyJobStatusChange(JobStatus newState) {
         if (jobStatusListeners.size() > 0) {
             final long timestamp = System.currentTimeMillis();
-            final Throwable serializedError = error == null ? null : new SerializedThrowable(error);
 
             for (JobStatusListener listener : jobStatusListeners) {
                 try {
-                    listener.jobStatusChanges(getJobID(), newState, timestamp, serializedError);
+                    listener.jobStatusChanges(getJobID(), newState, timestamp);
                 } catch (Throwable t) {
                     LOG.warn("Error while notifying JobStatusListener", t);
                 }
