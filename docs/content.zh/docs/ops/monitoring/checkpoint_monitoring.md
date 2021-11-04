@@ -73,8 +73,7 @@ Checkpoint 历史记录保存有关最近触发的 checkpoint 的统计信息，
 - **Latest Acknowledgement**：JobManager 接收到任何 subtask 的最新确认的时间（如果尚未收到确认，则不适用）。
 - **End to End Duration**：从触发时间戳到最后一次确认的持续时间（如果还没有收到确认，则不适用）。完整 checkpoint 的端到端持续时间由确认 checkpoint 的最后一个 subtask 确定。这个时间通常大于单个 subtask 实际 checkpoint state 所需的时间。
 - **Checkpointed Data Size**：所有已确认的 subtask 的 checkpoint 的数据大小。如果启用了增量 checkpoint，则此值为 checkpoint 数据的增量大小。
-- **Processed in-flight data**：在 checkpoint alignment 期间（从接收第一个和最后一个 checkpoint barrier 之间的时间）对所有已确认的 subtask 处理的大约字节数。
-- **Persisted in-flight data**：在 checkpoint alignment 期间（从接收第一个和最后一个 checkpoint barrier 之间的时间）对所有已确认的 subtask 持久化的字节数。仅当启用 unaligned checkpoint 时，此值大于 0。
+- **Processed (persisted) in-flight data**：在 checkpoint 对齐期间（从接收第一个和最后一个 checkpoint barrier 之间的时间）所有已确认的 subtask 处理/持久化 的大约字节数。如果启用了 unaligned checkpoint，持久化的字节数可能会大于0。
 
 对于 subtask，有两个更详细的统计信息可用。
 
