@@ -20,7 +20,6 @@ package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.MiniClusterClient;
@@ -31,18 +30,16 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.testutils.WaitingCancelableInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -51,15 +48,15 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
 
-/** IT case for testing Flink's scheduling regarding local recovery. */
-public class SchedulingLocalRecoveryITCase extends TestLogger {
+/** IT case to test local recovery using {@link DefaultScheduler}. */
+public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
 
     private static final long TIMEOUT = 10_000L;
 
@@ -132,10 +129,10 @@ public class SchedulingLocalRecoveryITCase extends TestLogger {
             JobGraph jobGraph = createJobGraph(parallelism);
 
             // wait for the submission to succeed
-            JobID jobId = miniClusterClient.submitJob(jobGraph).get();
+            JobID jobId = miniClusterClient.submitJob(jobGraph).get(TIMEOUT, TimeUnit.SECONDS);
 
             // wait until all tasks running before triggering task failures
-            waitUntilAllVerticesRunning(jobId, miniCluster, TIMEOUT);
+            waitUntilAllVerticesRunning(jobId, miniCluster);
 
             // kill one TM to trigger task failure and remove one existing slot
             CompletableFuture<Void> terminationFuture = miniCluster.terminateTaskManager(0);
@@ -145,7 +142,7 @@ public class SchedulingLocalRecoveryITCase extends TestLogger {
             miniCluster.startTaskManager();
 
             // wait until all tasks running again
-            waitUntilAllVerticesRunning(jobId, miniCluster, TIMEOUT);
+            waitUntilAllVerticesRunning(jobId, miniCluster);
 
             ArchivedExecutionGraph graph =
                     miniCluster.getArchivedExecutionGraph(jobGraph.getJobID()).get();
@@ -156,43 +153,17 @@ public class SchedulingLocalRecoveryITCase extends TestLogger {
         }
     }
 
-    private void waitUntilAllVerticesRunning(
-            JobID jobId, MiniCluster miniCluster, long maxWaitMillis) throws Exception {
-        final Deadline deadline = Deadline.fromNow(Duration.ofMillis(maxWaitMillis));
-
-        boolean checkResult = false;
-        do {
-            AccessExecutionGraph graph = miniCluster.getArchivedExecutionGraph(jobId).get();
-
-            // we need the job status to be RUNNING first to ensure execution vertices are created
-            if (graph.getState() != JobStatus.RUNNING) {
-                continue;
-            }
-
-            checkResult = areAllVerticesRunning(graph);
-
-            if (!checkResult) {
-                Thread.sleep(2L);
-            }
-        } while (!checkResult && deadline.hasTimeLeft());
-
-        if (!checkResult) {
-            throw new TimeoutException("Not all vertices becomes RUNNING in time.");
-        }
-    }
-
-    private boolean areAllVerticesRunning(AccessExecutionGraph graph) {
-        for (AccessExecutionVertex vertex : graph.getAllExecutionVertices()) {
-            if (vertex.getExecutionState() != ExecutionState.RUNNING) {
-                return false;
-            }
-        }
-        return true;
+    private void waitUntilAllVerticesRunning(JobID jobId, MiniCluster miniCluster)
+            throws Exception {
+        CommonTestUtils.waitForAllTaskRunning(
+                () -> miniCluster.getExecutionGraph(jobId).get(TIMEOUT, TimeUnit.SECONDS),
+                Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
+                false);
     }
 
     private JobGraph createJobGraph(int parallelism) throws IOException {
         final JobVertex source = new JobVertex("v1");
-        source.setInvokableClass(PendingInvokable.class);
+        source.setInvokableClass(WaitingCancelableInvokable.class);
         source.setParallelism(parallelism);
 
         ExecutionConfig executionConfig = new ExecutionConfig();
@@ -202,26 +173,5 @@ public class SchedulingLocalRecoveryITCase extends TestLogger {
                 .addJobVertices(Arrays.asList(source))
                 .setExecutionConfig(executionConfig)
                 .build();
-    }
-
-    /** Invokable which does not finish. */
-    public static final class PendingInvokable extends AbstractInvokable {
-        private boolean canceled = false;
-
-        public PendingInvokable(Environment environment) {
-            super(environment);
-        }
-
-        @Override
-        public void invoke() throws Exception {
-            while (!canceled) {
-                Thread.sleep(100);
-            }
-        }
-
-        @Override
-        public void cancel() {
-            canceled = true;
-        }
     }
 }

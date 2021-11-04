@@ -70,12 +70,12 @@ interface ExecutionSlotAllocationContext extends InputsLocationsRetriever, State
     Set<CoLocationGroup> getCoLocationGroups();
 
     /**
-     * Returns all allocations to reserve. These allocations/slots were used to run certain vertices
+     * Returns all reserved allocations. These allocations/slots were used to run certain vertices
      * and reserving them can prevent other vertices to take these slots and thus help vertices to
      * be deployed into their previous slots again after failover. It is needed if {@link
      * CheckpointingOptions#LOCAL_RECOVERY} is enabled.
      *
-     * @return all allocations to reserve
+     * @return all reserved allocations
      */
-    Set<AllocationID> getAllocationsToReserve();
+    Set<AllocationID> getReservedAllocations();
 }

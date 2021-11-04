@@ -106,6 +106,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private final Map<AllocationID, Long> reservedAllocationRefCounters;
 
+    // once an execution vertex is assigned an allocation/slot, it will reserve the allocation
+    // until it is assigned a new allocation, or it finishes and does not need the allocation
+    // anymore. The reserved allocation information is needed for local recovery.
     private final Map<ExecutionVertexID, AllocationID> reservedAllocationByExecutionVertex;
 
     DefaultScheduler(
@@ -212,6 +215,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final ExecutionVertexID executionVertexId,
             final TaskExecutionStateTransition taskExecutionState) {
 
+        // once a task finishes, it will release the assigned allocation/slot and no longer
+        // needs it. Therefore, it should stop reserving the slot so that other tasks are
+        // possible to use the slot. Ideally, the `stopReserveAllocation` should happen
+        // along with the release slot process. However, that process is hidden in the depth
+        // of the ExecutionGraph, so we currently do it in DefaultScheduler after that process
+        // is done.
         if (taskExecutionState.getExecutionState() == ExecutionState.FINISHED) {
             stopReserveAllocation(executionVertexId);
         }
@@ -706,7 +715,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         }
 
         @Override
-        public Set<AllocationID> getAllocationsToReserve() {
+        public Set<AllocationID> getReservedAllocations() {
             return reservedAllocationRefCounters.keySet();
         }
     }
