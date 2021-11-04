@@ -806,21 +806,26 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case bsf: BridgingSqlFunction =>
         bsf.getDefinition match {
-          case functionDefinition : FunctionDefinition
-            if functionDefinition eq BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
+          case BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
             generateWatermark(ctx, contextTerm, resultType)
-          case functionDefinition : FunctionDefinition
-            if functionDefinition eq BuiltInFunctionDefinitions.GREATEST =>
+
+          case BuiltInFunctionDefinitions.GREATEST =>
             operands.foreach { operand =>
               requireComparable(operand)
             }
             generateGreatestLeast(resultType, operands)
-          case functionDefinition : FunctionDefinition
-            if functionDefinition eq BuiltInFunctionDefinitions.LEAST =>
+
+          case BuiltInFunctionDefinitions.LEAST =>
             operands.foreach { operand =>
               requireComparable(operand)
             }
-            generateGreatestLeast(resultType, operands, false)
+            generateGreatestLeast(resultType, operands, greatest = false)
+
+          case BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS =>
+            val left = operands.head
+            val right = operands(1)
+            generateBinaryArithmeticOperator(ctx, "+", resultType, left, right)
+
           case _ =>
             new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
         }
