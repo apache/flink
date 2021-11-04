@@ -170,6 +170,11 @@ public class AbstractKubernetesParametersTest extends TestLogger {
         }
 
         @Override
+        public Map<String, String> getSelectors() {
+            throw new UnsupportedOperationException("NOT supported");
+        }
+
+        @Override
         public Map<String, String> getNodeSelector() {
             throw new UnsupportedOperationException("NOT supported");
         }
