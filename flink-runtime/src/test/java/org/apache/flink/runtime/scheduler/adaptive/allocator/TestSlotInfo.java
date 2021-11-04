@@ -27,6 +27,15 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 class TestSlotInfo implements SlotInfo {
 
     private final AllocationID allocationId = new AllocationID();
+    private final TaskManagerLocation taskManagerLocation;
+
+    public TestSlotInfo() {
+        this(new LocalTaskManagerLocation());
+    }
+
+    public TestSlotInfo(TaskManagerLocation taskManagerLocation) {
+        this.taskManagerLocation = taskManagerLocation;
+    }
 
     @Override
     public AllocationID getAllocationId() {
@@ -35,7 +44,7 @@ class TestSlotInfo implements SlotInfo {
 
     @Override
     public TaskManagerLocation getTaskManagerLocation() {
-        return new LocalTaskManagerLocation();
+        return taskManagerLocation;
     }
 
     @Override

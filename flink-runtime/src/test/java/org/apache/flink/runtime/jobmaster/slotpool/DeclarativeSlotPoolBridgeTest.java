@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -43,15 +44,20 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link DeclarativeSlotPoolBridge}. */
@@ -83,6 +89,53 @@ public class DeclarativeSlotPoolBridgeTest extends TestLogger {
             declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(allocatedSlot));
 
             slotAllocationFuture.join();
+        }
+    }
+
+    /**
+     * This test guarantees the correctness of {@link
+     * JobManagerOptions#SLOT_ALLOCATE_ORDER_OPTIMIZATION}. The optimization only works under this
+     * assumption for DefaultScheduler.
+     */
+    @Test
+    public void testSlotAllocateOrder() throws Exception {
+        final TestingDeclarativeSlotPoolFactory declarativeSlotPoolFactory =
+                new TestingDeclarativeSlotPoolFactory(TestingDeclarativeSlotPool.builder());
+        try (DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
+                createDeclarativeSlotPoolBridge(declarativeSlotPoolFactory)) {
+
+            declarativeSlotPoolBridge.start(jobMasterId, "localhost", mainThreadExecutor);
+
+            Map<SlotRequestId, PhysicalSlot> expectMapping = new LinkedHashMap<>();
+            List<PhysicalSlot> slots = new ArrayList<>();
+
+            for (int i = 0; i < 10; ++i) {
+                final AllocationID allocationId = new AllocationID();
+                final PhysicalSlot allocatedSlot = createAllocatedSlot(allocationId);
+                slots.add(allocatedSlot);
+
+                final SlotRequestId slotRequestId = new SlotRequestId();
+                expectMapping.put(slotRequestId, allocatedSlot);
+            }
+
+            Map<SlotRequestId, CompletableFuture<PhysicalSlot>> actualMapping =
+                    new LinkedHashMap<>();
+            for (SlotRequestId slotRequestId : expectMapping.keySet()) {
+                CompletableFuture<PhysicalSlot> slotAllocationFuture =
+                        declarativeSlotPoolBridge.requestNewAllocatedSlot(
+                                slotRequestId, ResourceProfile.UNKNOWN, null);
+                actualMapping.put(slotRequestId, slotAllocationFuture);
+            }
+
+            declarativeSlotPoolBridge.newSlotsAreAvailable(slots);
+
+            for (Map.Entry<SlotRequestId, CompletableFuture<PhysicalSlot>> entry :
+                    actualMapping.entrySet()) {
+                SlotRequestId slotRequestId = entry.getKey();
+                PhysicalSlot expectSlot = expectMapping.get(slotRequestId);
+                PhysicalSlot actualSlot = entry.getValue().get(10, TimeUnit.SECONDS);
+                assertEquals(expectSlot, actualSlot);
+            }
         }
     }
 

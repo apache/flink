@@ -38,12 +38,14 @@ import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.EvenlySlotSharingOrderStrategy;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -103,7 +105,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 jobGraph.getJobID());
 
         final SlotSharingSlotAllocator slotAllocator =
-                createSlotSharingSlotAllocator(declarativeSlotPool);
+                createSlotSharingSlotAllocator(declarativeSlotPool, jobMasterConfiguration);
 
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
@@ -143,10 +145,17 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
     }
 
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
-            DeclarativeSlotPool declarativeSlotPool) {
+            DeclarativeSlotPool declarativeSlotPool, Configuration jobMasterConfiguration) {
+
+        final boolean enableSlotAllocateOrderOptimization =
+                jobMasterConfiguration.getBoolean(
+                        JobManagerOptions.SLOT_ALLOCATE_ORDER_OPTIMIZATION);
         return SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                 declarativeSlotPool::reserveFreeSlot,
                 declarativeSlotPool::freeReservedSlot,
-                declarativeSlotPool::containsFreeSlot);
+                declarativeSlotPool::containsFreeSlot,
+                enableSlotAllocateOrderOptimization
+                        ? new EvenlySlotSharingOrderStrategy()
+                        : ArrayList::new);
     }
 }
