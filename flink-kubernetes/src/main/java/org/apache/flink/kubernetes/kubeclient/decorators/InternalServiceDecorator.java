@@ -63,7 +63,7 @@ public class InternalServiceDecorator extends AbstractKubernetesStepDecorator {
                         .endMetadata()
                         .withNewSpec()
                         .withClusterIP(Constants.HEADLESS_SERVICE_CLUSTER_IP)
-                        .withSelector(kubernetesJobManagerParameters.getLabels())
+                        .withSelector(kubernetesJobManagerParameters.getSelectors())
                         .addNewPort()
                         .withName(Constants.JOB_MANAGER_RPC_PORT_NAME)
                         .withPort(kubernetesJobManagerParameters.getRPCPort())
