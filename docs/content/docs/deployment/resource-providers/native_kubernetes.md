@@ -83,6 +83,10 @@ For production use, we recommend deploying Flink Applications in the [Applicatio
 
 ### Application Mode
 
+{{< hint info >}}
+For high-level intuition behind the application mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#application-mode" >}}).
+{{< /hint >}}
+
 The [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode) requires that the user code is bundled together with the Flink image because it runs the user code's `main()` method on the cluster.
 The Application Mode makes sure that all Flink components are properly cleaned up after the termination of the application.
 
@@ -122,11 +126,19 @@ $ ./bin/flink cancel --target kubernetes-application -Dkubernetes.cluster-id=my-
 
 You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/flink`.
 
-### Per-Job Cluster Mode
+### Per-Job Mode
+
+{{< hint info >}}
+For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
+{{< /hint >}}
 
 Flink on Kubernetes does not support Per-Job Cluster Mode.
 
 ### Session Mode
+
+{{< hint info >}}
+For high-level intuition behind the session mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#session-mode" >}}).
+{{< /hint >}}
 
 You have seen the deployment of a Session cluster in the [Getting Started](#getting-started) guide at the top of this page.
 
