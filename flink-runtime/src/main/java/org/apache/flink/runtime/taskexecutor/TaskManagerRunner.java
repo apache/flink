@@ -331,12 +331,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 "Fatal error occurred while executing the TaskManager. Shutting it down...",
                 exception);
 
-        // In case of the Metaspace OutOfMemoryError, we expect that the graceful shutdown is
-        // possible,
-        // as it does not usually require more class loading to fail again with the Metaspace
-        // OutOfMemoryError.
-        if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception)
-                && !ExceptionUtils.isMetaspaceOutOfMemoryError(exception)) {
+        if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception)) {
             terminateJVM();
         } else {
             closeAsync(Result.FAILURE);
