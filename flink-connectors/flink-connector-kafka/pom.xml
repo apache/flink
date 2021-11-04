@@ -36,7 +36,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kafka.version>2.4.1</kafka.version>
+		<kafka.version>2.8.1</kafka.version>
 	</properties>
 
 	<dependencies>
@@ -108,6 +108,15 @@ under the License.
 					<artifactId>slf4j-api</artifactId>
 				</exclusion>
 			</exclusions>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Required to execute the kafka server for testing. Please change the zookeeper version accordingly when changing the Kafka version
+             https://github.com/apache/kafka/blob/839b886f9b732b151e1faeace7303c80641c08c4/gradle/dependencies.gradle#L122 -->
+		<dependency>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
+			<version>3.5.9</version>
 			<scope>test</scope>
 		</dependency>
 
