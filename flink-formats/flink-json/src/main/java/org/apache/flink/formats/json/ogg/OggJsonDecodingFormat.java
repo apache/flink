@@ -49,24 +49,28 @@ public class OggJsonDecodingFormat implements DecodingFormat<DeserializationSche
     // Mutable attributes
     // --------------------------------------------------------------------------------------------
 
-    private List<String> metadataKeys;
+    private static final StringData KEY_SOURCE_TIMESTAMP = StringData.fromString("op_ts");
 
     // --------------------------------------------------------------------------------------------
     // Ogg-specific attributes
     // --------------------------------------------------------------------------------------------
-
-    private final boolean schemaInclude;
-
+    private static final StringData KEY_SOURCE_TABLE = StringData.fromString("table");
     private final boolean ignoreParseErrors;
-
     private final TimestampFormat timestampFormat;
+    private List<String> metadataKeys;
 
-    public OggJsonDecodingFormat(
-            boolean schemaInclude, boolean ignoreParseErrors, TimestampFormat timestampFormat) {
-        this.schemaInclude = schemaInclude;
+    public OggJsonDecodingFormat(boolean ignoreParseErrors, TimestampFormat timestampFormat) {
         this.ignoreParseErrors = ignoreParseErrors;
         this.timestampFormat = timestampFormat;
         this.metadataKeys = Collections.emptyList();
+    }
+
+    private static Object readProperty(GenericRowData row, int pos, StringData key) {
+        final GenericMapData map = (GenericMapData) row.getMap(pos);
+        if (map == null) {
+            return null;
+        }
+        return map.get(key);
     }
 
     @Override
@@ -98,10 +102,13 @@ public class OggJsonDecodingFormat implements DecodingFormat<DeserializationSche
                 physicalDataType,
                 readableMetadata,
                 producedTypeInfo,
-                schemaInclude,
                 ignoreParseErrors,
                 timestampFormat);
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Metadata handling
+    // --------------------------------------------------------------------------------------------
 
     @Override
     public Map<String, DataType> listReadableMetadata() {
@@ -126,31 +133,13 @@ public class OggJsonDecodingFormat implements DecodingFormat<DeserializationSche
                 .build();
     }
 
-    // --------------------------------------------------------------------------------------------
-    // Metadata handling
-    // --------------------------------------------------------------------------------------------
-
     /** List of metadata that can be read with this format. */
     enum ReadableMetadata {
-        SCHEMA(
-                "schema",
-                DataTypes.STRING().nullable(),
-                false,
-                DataTypes.FIELD("schema", DataTypes.STRING()),
-                new MetadataConverter() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public Object convert(GenericRowData row, int pos) {
-                        return row.getString(pos);
-                    }
-                }),
-
         INGESTION_TIMESTAMP(
-                "ingestion-timestamp",
+                "current_ts",
                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
                 true,
-                DataTypes.FIELD("op_ts", DataTypes.BIGINT()),
+                DataTypes.FIELD("current_ts", DataTypes.BIGINT()),
                 new MetadataConverter() {
                     private static final long serialVersionUID = 1L;
 
@@ -164,10 +153,10 @@ public class OggJsonDecodingFormat implements DecodingFormat<DeserializationSche
                 }),
 
         SOURCE_TIMESTAMP(
-                "source.timestamp",
+                "op_ts",
                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
                 true,
-                DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+                DataTypes.FIELD("op_ts", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
                 new MetadataConverter() {
                     private static final long serialVersionUID = 1L;
 
@@ -182,39 +171,11 @@ public class OggJsonDecodingFormat implements DecodingFormat<DeserializationSche
                     }
                 }),
 
-        SOURCE_DATABASE(
-                "source.database",
-                DataTypes.STRING().nullable(),
-                true,
-                DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-                new MetadataConverter() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public Object convert(GenericRowData row, int pos) {
-                        return readProperty(row, pos, KEY_SOURCE_DATABASE);
-                    }
-                }),
-
-        SOURCE_SCHEMA(
-                "source.schema",
-                DataTypes.STRING().nullable(),
-                true,
-                DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-                new MetadataConverter() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public Object convert(GenericRowData row, int pos) {
-                        return readProperty(row, pos, KEY_SOURCE_SCHEMA);
-                    }
-                }),
-
         SOURCE_TABLE(
-                "source.table",
+                "table",
                 DataTypes.STRING().nullable(),
                 true,
-                DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+                DataTypes.FIELD("table", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
                 new MetadataConverter() {
                     private static final long serialVersionUID = 1L;
 
@@ -262,21 +223,5 @@ public class OggJsonDecodingFormat implements DecodingFormat<DeserializationSche
             this.requiredJsonField = requiredJsonField;
             this.converter = converter;
         }
-    }
-
-    private static final StringData KEY_SOURCE_TIMESTAMP = StringData.fromString("op_ts");
-
-    private static final StringData KEY_SOURCE_DATABASE = StringData.fromString("db");
-
-    private static final StringData KEY_SOURCE_SCHEMA = StringData.fromString("schema");
-
-    private static final StringData KEY_SOURCE_TABLE = StringData.fromString("table");
-
-    private static Object readProperty(GenericRowData row, int pos, StringData key) {
-        final GenericMapData map = (GenericMapData) row.getMap(pos);
-        if (map == null) {
-            return null;
-        }
-        return map.get(key);
     }
 }

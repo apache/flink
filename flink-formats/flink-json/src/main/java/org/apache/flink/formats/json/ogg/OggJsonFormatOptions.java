@@ -20,22 +20,11 @@ package org.apache.flink.formats.json.ogg;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.formats.json.JsonFormatOptions;
 
 /** Option utils for ogg-json format. */
 @PublicEvolving
 public class OggJsonFormatOptions {
-
-    public static final ConfigOption<Boolean> SCHEMA_INCLUDE =
-            ConfigOptions.key("schema-include")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "When setting up a Ogg Kafka Connect, users can enable "
-                                    + "a Kafka configuration 'value.converter.schemas.enable' to include schema in the message. "
-                                    + "This option indicates the Ogg JSON data include the schema in the message or not. "
-                                    + "Default is false.");
 
     public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS =
             JsonFormatOptions.IGNORE_PARSE_ERRORS;

@@ -37,7 +37,9 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 /**
  * Serialization schema from Flink Table/SQL internal data structure {@link RowData} to Ogg JSON.
  *
- * @see <a href="https://ogg.io/">Ogg</a>
+ * @see <a
+ *     href="https://docs.oracle.com/goldengate/bd1221/gg-bd/GADBD/GUID-F0FA2781-0802-4530-B1F0-5E102B982EC0.htm#GADBD505">Ogg
+ *     JSON Message</a>
  */
 public class OggJsonSerializationSchema implements SerializationSchema<RowData> {
     private static final long serialVersionUID = 1L;
@@ -63,6 +65,17 @@ public class OggJsonSerializationSchema implements SerializationSchema<RowData> 
                         mapNullKeyMode,
                         mapNullKeyLiteral,
                         encodeDecimalAsPlainNumber);
+    }
+
+    private static RowType createJsonRowType(DataType databaseSchema) {
+        // Ogg JSON contains some other information, e.g. "source", "ts_ms"
+        // but we don't need them.
+        return (RowType)
+                DataTypes.ROW(
+                                DataTypes.FIELD("before", databaseSchema),
+                                DataTypes.FIELD("after", databaseSchema),
+                                DataTypes.FIELD("op_type", DataTypes.STRING()))
+                        .getLogicalType();
     }
 
     @Override
@@ -112,16 +125,5 @@ public class OggJsonSerializationSchema implements SerializationSchema<RowData> 
     @Override
     public int hashCode() {
         return Objects.hash(jsonSerializer);
-    }
-
-    private static RowType createJsonRowType(DataType databaseSchema) {
-        // Ogg JSON contains some other information, e.g. "source", "ts_ms"
-        // but we don't need them.
-        return (RowType)
-                DataTypes.ROW(
-                                DataTypes.FIELD("before", databaseSchema),
-                                DataTypes.FIELD("after", databaseSchema),
-                                DataTypes.FIELD("op_type", DataTypes.STRING()))
-                        .getLogicalType();
     }
 }

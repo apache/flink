@@ -50,16 +50,16 @@ import static java.lang.String.format;
  *
  * <p>Failures during deserialization are forwarded as wrapped IOExceptions.
  *
- * @see <a href="https://ogg.io/">Ogg</a>
+ * @see <a href="https://www.oracle.com/cn/middleware/technologies/goldengate/overview.html">Ogg</a>
  */
 @Internal
 public final class OggJsonDeserializationSchema implements DeserializationSchema<RowData> {
     private static final long serialVersionUID = 1L;
 
-    private static final String OP_READ = "r"; // snapshot read
     private static final String OP_CREATE = "I"; // insert
     private static final String OP_UPDATE = "U"; // update
     private static final String OP_DELETE = "D"; // delete
+    private static final String OP_TRUNCATE = "T"; // truncate
 
     private static final String REPLICA_IDENTITY_EXCEPTION =
             "The \"before\" field of %s message is null, "
@@ -75,15 +75,8 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
     /** Metadata to be extracted for every record. */
     private final MetadataConverter[] metadataConverters;
 
-    /** {@link TypeInformation} of the produced {@link RowData} (physical + meta data). */
+    /** {@link TypeInformation} of the produced {@link RowData} (physical + metadata). */
     private final TypeInformation<RowData> producedTypeInfo;
-
-    /**
-     * Flag indicating whether the Ogg JSON data contains schema part or not. When Ogg Kafka Connect
-     * enables "value.converter.schemas.enable", the JSON will contain "schema" information, but we
-     * just ignore "schema" and extract data from "payload".
-     */
-    private final boolean schemaInclude;
 
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
@@ -92,11 +85,9 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
             DataType physicalDataType,
             List<ReadableMetadata> requestedMetadata,
             TypeInformation<RowData> producedTypeInfo,
-            boolean schemaInclude,
             boolean ignoreParseErrors,
             TimestampFormat timestampFormat) {
-        final RowType jsonRowType =
-                createJsonRowType(physicalDataType, requestedMetadata, schemaInclude);
+        final RowType jsonRowType = createJsonRowType(physicalDataType, requestedMetadata);
         this.jsonDeserializer =
                 new JsonRowDataDeserializationSchema(
                         jsonRowType,
@@ -108,11 +99,75 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
                         ignoreParseErrors,
                         timestampFormat);
         this.hasMetadata = requestedMetadata.size() > 0;
-        this.metadataConverters =
-                createMetadataConverters(jsonRowType, requestedMetadata, schemaInclude);
+        this.metadataConverters = createMetadataConverters(jsonRowType, requestedMetadata);
         this.producedTypeInfo = producedTypeInfo;
-        this.schemaInclude = schemaInclude;
         this.ignoreParseErrors = ignoreParseErrors;
+    }
+
+    private static RowType createJsonRowType(
+            DataType physicalDataType, List<ReadableMetadata> readableMetadata) {
+        DataType payload =
+                DataTypes.ROW(
+                        DataTypes.FIELD("before", physicalDataType),
+                        DataTypes.FIELD("after", physicalDataType),
+                        DataTypes.FIELD("op_type", DataTypes.STRING()));
+
+        // append fields that are required for reading metadata in the payload
+        final List<DataTypes.Field> payloadMetadataFields =
+                readableMetadata.stream()
+                        .filter(m -> m.isJsonPayload)
+                        .map(m -> m.requiredJsonField)
+                        .distinct()
+                        .collect(Collectors.toList());
+        payload = DataTypeUtils.appendRowFields(payload, payloadMetadataFields);
+
+        DataType root = payload;
+
+        // append fields that are required for reading metadata in the root
+        final List<DataTypes.Field> rootMetadataFields =
+                readableMetadata.stream()
+                        .filter(m -> !m.isJsonPayload)
+                        .map(m -> m.requiredJsonField)
+                        .distinct()
+                        .collect(Collectors.toList());
+        root = DataTypeUtils.appendRowFields(root, rootMetadataFields);
+
+        return (RowType) root.getLogicalType();
+    }
+
+    private static MetadataConverter[] createMetadataConverters(
+            RowType jsonRowType, List<ReadableMetadata> requestedMetadata) {
+        return requestedMetadata.stream()
+                .map(
+                        m -> {
+                            if (m.isJsonPayload) {
+                                return convertInPayload(jsonRowType, m);
+                            } else {
+                                return convertInRoot(jsonRowType, m);
+                            }
+                        })
+                .toArray(MetadataConverter[]::new);
+    }
+
+    private static MetadataConverter convertInRoot(RowType jsonRowType, ReadableMetadata metadata) {
+        final int pos = findFieldPos(metadata, jsonRowType);
+        return new MetadataConverter() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public Object convert(GenericRowData root, int unused) {
+                return metadata.converter.convert(root, pos);
+            }
+        };
+    }
+
+    private static MetadataConverter convertInPayload(
+            RowType jsonRowType, ReadableMetadata metadata) {
+        return convertInRoot(jsonRowType, metadata);
+    }
+
+    private static int findFieldPos(ReadableMetadata metadata, RowType jsonRowType) {
+        return jsonRowType.getFieldNames().indexOf(metadata.requiredJsonField.getName());
     }
 
     @Override
@@ -129,17 +184,11 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
         }
         try {
             GenericRowData row = (GenericRowData) jsonDeserializer.deserialize(message);
-            GenericRowData payload;
-            if (schemaInclude) {
-                payload = (GenericRowData) row.getField(0);
-            } else {
-                payload = row;
-            }
 
-            GenericRowData before = (GenericRowData) payload.getField(0);
-            GenericRowData after = (GenericRowData) payload.getField(1);
-            String op = payload.getField(2).toString();
-            if (OP_CREATE.equals(op) || OP_READ.equals(op)) {
+            GenericRowData before = (GenericRowData) row.getField(0);
+            GenericRowData after = (GenericRowData) row.getField(1);
+            String op = row.getField(2).toString();
+            if (OP_CREATE.equals(op)) {
                 after.setRowKind(RowKind.INSERT);
                 emitRow(row, after, out);
             } else if (OP_UPDATE.equals(op)) {
@@ -162,7 +211,7 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
                 if (!ignoreParseErrors) {
                     throw new IOException(
                             format(
-                                    "Unknown \"op\" value \"%s\". The Ogg JSON message is '%s'",
+                                    "Unknown \"op_type\" value \"%s\". The Ogg JSON message is '%s'",
                                     op, new String(message)));
                 }
             }
@@ -174,6 +223,8 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
             }
         }
     }
+
+    // --------------------------------------------------------------------------------------------
 
     private void emitRow(
             GenericRowData rootRow, GenericRowData physicalRow, Collector<RowData> out) {
@@ -223,102 +274,12 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
         return Objects.equals(jsonDeserializer, that.jsonDeserializer)
                 && hasMetadata == that.hasMetadata
                 && Objects.equals(producedTypeInfo, that.producedTypeInfo)
-                && schemaInclude == that.schemaInclude
                 && ignoreParseErrors == that.ignoreParseErrors;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-                jsonDeserializer, hasMetadata, producedTypeInfo, schemaInclude, ignoreParseErrors);
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    private static RowType createJsonRowType(
-            DataType physicalDataType,
-            List<ReadableMetadata> readableMetadata,
-            boolean schemaInclude) {
-        DataType payload =
-                DataTypes.ROW(
-                        DataTypes.FIELD("before", physicalDataType),
-                        DataTypes.FIELD("after", physicalDataType),
-                        DataTypes.FIELD("op_type", DataTypes.STRING()));
-
-        // append fields that are required for reading metadata in the payload
-        final List<DataTypes.Field> payloadMetadataFields =
-                readableMetadata.stream()
-                        .filter(m -> m.isJsonPayload)
-                        .map(m -> m.requiredJsonField)
-                        .distinct()
-                        .collect(Collectors.toList());
-        payload = DataTypeUtils.appendRowFields(payload, payloadMetadataFields);
-
-        DataType root = payload;
-        if (schemaInclude) {
-            // when Ogg Kafka connect enables "value.converter.schemas.enable",
-            // the JSON will contain "schema" information and we need to extract data from
-            // "payload".
-            root = DataTypes.ROW(DataTypes.FIELD("payload", payload));
-        }
-
-        // append fields that are required for reading metadata in the root
-        final List<DataTypes.Field> rootMetadataFields =
-                readableMetadata.stream()
-                        .filter(m -> !m.isJsonPayload)
-                        .map(m -> m.requiredJsonField)
-                        .distinct()
-                        .collect(Collectors.toList());
-        root = DataTypeUtils.appendRowFields(root, rootMetadataFields);
-
-        return (RowType) root.getLogicalType();
-    }
-
-    private static MetadataConverter[] createMetadataConverters(
-            RowType jsonRowType, List<ReadableMetadata> requestedMetadata, boolean schemaInclude) {
-        return requestedMetadata.stream()
-                .map(
-                        m -> {
-                            if (m.isJsonPayload) {
-                                return convertInPayload(jsonRowType, m, schemaInclude);
-                            } else {
-                                return convertInRoot(jsonRowType, m);
-                            }
-                        })
-                .toArray(MetadataConverter[]::new);
-    }
-
-    private static MetadataConverter convertInRoot(RowType jsonRowType, ReadableMetadata metadata) {
-        final int pos = findFieldPos(metadata, jsonRowType);
-        return new MetadataConverter() {
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            public Object convert(GenericRowData root, int unused) {
-                return metadata.converter.convert(root, pos);
-            }
-        };
-    }
-
-    private static MetadataConverter convertInPayload(
-            RowType jsonRowType, ReadableMetadata metadata, boolean schemaInclude) {
-        if (schemaInclude) {
-            final int pos = findFieldPos(metadata, (RowType) jsonRowType.getChildren().get(0));
-            return new MetadataConverter() {
-                private static final long serialVersionUID = 1L;
-
-                @Override
-                public Object convert(GenericRowData root, int unused) {
-                    final GenericRowData payload = (GenericRowData) root.getField(0);
-                    return metadata.converter.convert(payload, pos);
-                }
-            };
-        }
-        return convertInRoot(jsonRowType, metadata);
-    }
-
-    private static int findFieldPos(ReadableMetadata metadata, RowType jsonRowType) {
-        return jsonRowType.getFieldNames().indexOf(metadata.requiredJsonField.getName());
+        return Objects.hash(jsonDeserializer, hasMetadata, producedTypeInfo, ignoreParseErrors);
     }
 
     // --------------------------------------------------------------------------------------------

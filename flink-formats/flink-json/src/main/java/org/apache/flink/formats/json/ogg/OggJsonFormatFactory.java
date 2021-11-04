@@ -26,7 +26,6 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.JsonFormatOptionsUtil;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -48,7 +47,6 @@ import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_
 import static org.apache.flink.formats.json.ogg.OggJsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.ogg.OggJsonFormatOptions.JSON_MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.ogg.OggJsonFormatOptions.JSON_MAP_NULL_KEY_MODE;
-import static org.apache.flink.formats.json.ogg.OggJsonFormatOptions.SCHEMA_INCLUDE;
 import static org.apache.flink.formats.json.ogg.OggJsonFormatOptions.TIMESTAMP_FORMAT;
 
 /**
@@ -61,6 +59,16 @@ public class OggJsonFormatFactory
 
     public static final String IDENTIFIER = "ogg-json";
 
+    /** Validator for ogg decoding format. */
+    private static void validateDecodingFormatOptions(ReadableConfig tableOptions) {
+        JsonFormatOptionsUtil.validateDecodingFormatOptions(tableOptions);
+    }
+
+    /** Validator for ogg encoding format. */
+    private static void validateEncodingFormatOptions(ReadableConfig tableOptions) {
+        JsonFormatOptionsUtil.validateEncodingFormatOptions(tableOptions);
+    }
+
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
@@ -68,14 +76,12 @@ public class OggJsonFormatFactory
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         validateDecodingFormatOptions(formatOptions);
 
-        final boolean schemaInclude = formatOptions.get(SCHEMA_INCLUDE);
-
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
 
         final TimestampFormat timestampFormat =
                 JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
 
-        return new OggJsonDecodingFormat(schemaInclude, ignoreParseErrors, timestampFormat);
+        return new OggJsonDecodingFormat(ignoreParseErrors, timestampFormat);
     }
 
     @Override
@@ -132,30 +138,11 @@ public class OggJsonFormatFactory
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(SCHEMA_INCLUDE);
         options.add(IGNORE_PARSE_ERRORS);
         options.add(TIMESTAMP_FORMAT);
         options.add(JSON_MAP_NULL_KEY_MODE);
         options.add(JSON_MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
         return options;
-    }
-
-    /** Validator for ogg decoding format. */
-    private static void validateDecodingFormatOptions(ReadableConfig tableOptions) {
-        JsonFormatOptionsUtil.validateDecodingFormatOptions(tableOptions);
-    }
-
-    /** Validator for ogg encoding format. */
-    private static void validateEncodingFormatOptions(ReadableConfig tableOptions) {
-        JsonFormatOptionsUtil.validateEncodingFormatOptions(tableOptions);
-
-        // validator for {@link SCHEMA_INCLUDE}
-        if (tableOptions.get(SCHEMA_INCLUDE)) {
-            throw new ValidationException(
-                    String.format(
-                            "Ogg JSON serialization doesn't support '%s.%s' option been set to true.",
-                            IDENTIFIER, SCHEMA_INCLUDE.key()));
-        }
     }
 }
