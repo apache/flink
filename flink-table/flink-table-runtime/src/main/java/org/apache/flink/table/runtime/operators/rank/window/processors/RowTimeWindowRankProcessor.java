@@ -47,7 +47,7 @@ import java.util.Map;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /** An window rank processor. */
-public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
+public final class RowTimeWindowRankProcessor implements SlicingWindowProcessor<Long> {
     private static final long serialVersionUID = 1L;
 
     private final GeneratedRecordComparator generatedSortKeyComparator;
@@ -81,7 +81,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     private transient JoinedRowData reuseOutput;
     private transient GenericRowData reuseRankRow;
 
-    public WindowRankProcessor(
+    public RowTimeWindowRankProcessor(
             TypeSerializer<RowData> inputSerializer,
             GeneratedRecordComparator genSortKeyComparator,
             TypeSerializer<RowData> sortKeySerializer,
@@ -138,6 +138,11 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
         this.reuseOutput = new JoinedRowData();
         this.reuseRankRow = new GenericRowData(1);
         this.currentProgress = Long.MIN_VALUE;
+    }
+
+    @Override
+    public void initializeWatermark(long watermark) {
+        currentProgress = watermark;
     }
 
     @Override

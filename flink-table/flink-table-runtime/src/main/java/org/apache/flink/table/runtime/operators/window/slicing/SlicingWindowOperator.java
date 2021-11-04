@@ -158,8 +158,8 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
                         getKeyedStateBackend(),
                         collector,
                         getRuntimeContext()));
-        // initialize progress of window processor
-        windowProcessor.advanceProgress(currentWatermark);
+        // initialize watermark
+        windowProcessor.initializeWatermark(currentWatermark);
 
         // metrics
         this.numLateRecordsDropped = metrics.counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
