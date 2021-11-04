@@ -52,13 +52,12 @@ public interface SupportsProjectionPushDown {
     /** Returns whether this source supports nested projection. */
     boolean supportsNestedProjection();
 
-    /** @deprecated You should implement {@link #applyProjection(int[][], DataType)} */
+    /** @deprecated Please implement {@link #applyProjection(int[][], DataType)} */
     @Deprecated
     default void applyProjection(int[][] projectedFields) {
-        throw new IllegalStateException(
+        throw new UnsupportedOperationException(
                 "No implementation provided for SupportsProjectionPushDown. "
-                        + "You should implement "
-                        + "SupportsProjectionPushDown#applyProjection(int[][], DataType)");
+                        + "Please implement SupportsProjectionPushDown#applyProjection(int[][], DataType)");
     }
 
     /**

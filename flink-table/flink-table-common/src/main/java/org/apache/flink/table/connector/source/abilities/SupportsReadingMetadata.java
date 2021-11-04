@@ -123,8 +123,8 @@ public interface SupportsReadingMetadata {
      * <p>Note: Use the passed data type instead of {@link ResolvedSchema#toPhysicalRowDataType()}
      * for describing the final output data type when creating {@link TypeInformation}. If the
      * source implements {@link SupportsProjectionPushDown}, the projection is already considered in
-     * the given output data type, so you should reuse the {@code producedDataType} provided by this
-     * method instead of the {@code producedDataType} provided by {@link
+     * the given output data type, use the {@code producedDataType} provided by this method instead
+     * of the {@code producedDataType} provided by {@link
      * SupportsProjectionPushDown#applyProjection(int[][], DataType)}.
      *
      * @param metadataKeys a subset of the keys returned by {@link #listReadableMetadata()}, ordered
