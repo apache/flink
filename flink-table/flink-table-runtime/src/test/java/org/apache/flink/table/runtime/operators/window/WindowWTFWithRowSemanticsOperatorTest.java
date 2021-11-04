@@ -50,15 +50,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
-/** Tests for {@link WindowTableFunctionOperator}. */
+/** Tests for {@link WindowWTFWithRowSemanticsOperator}. */
 @RunWith(Parameterized.class)
-public class WindowTableFunctionOperatorTest {
+public class WindowWTFWithRowSemanticsOperatorTest {
 
     private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
     private static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");
     private final ZoneId shiftTimeZone;
 
-    public WindowTableFunctionOperatorTest(ZoneId shiftTimeZone) {
+    public WindowWTFWithRowSemanticsOperatorTest(ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
     }
 
@@ -124,6 +124,32 @@ public class WindowTableFunctionOperatorTest {
     }
 
     @Test
+    public void testProcessingTimeTumblingWindows() throws Exception {
+        final TumblingWindowAssigner assigner =
+                TumblingWindowAssigner.of(Duration.ofSeconds(3)).withProcessingTime();
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(assigner, shiftTimeZone);
+        testHarness.setup(OUT_SERIALIZER);
+        testHarness.open();
+
+        // process elements
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        // timestamp is ignored in processing time
+        testHarness.setProcessingTime(20L);
+        testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+        testHarness.setProcessingTime(3999L);
+        testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+        // append 3 fields: window_start, window_end, window_time
+        expectedOutput.add(
+                insertRecord("key1", 1, Long.MAX_VALUE, localMills(0L), localMills(3000L), 2999L));
+        expectedOutput.add(
+                insertRecord(
+                        "key2", 1, Long.MAX_VALUE, localMills(3000L), localMills(6000L), 5999L));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
+
+    @Test
     public void testHopWindows() throws Exception {
         final SlidingWindowAssigner assigner =
                 SlidingWindowAssigner.of(Duration.ofSeconds(3), Duration.ofSeconds(1));
@@ -165,6 +191,45 @@ public class WindowTableFunctionOperatorTest {
     }
 
     @Test
+    public void testProcessingTimeHopWindows() throws Exception {
+        final SlidingWindowAssigner assigner =
+                SlidingWindowAssigner.of(Duration.ofSeconds(3), Duration.ofSeconds(1))
+                        .withProcessingTime();
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(assigner, shiftTimeZone);
+        testHarness.setup(OUT_SERIALIZER);
+        testHarness.open();
+
+        // process elements
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        // timestamp is ignored in processing time
+        testHarness.setProcessingTime(20L);
+        testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+        testHarness.setProcessingTime(3999L);
+        testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+        // append 3 fields: window_start, window_end, window_time
+        expectedOutput.add(
+                insertRecord(
+                        "key1", 1, Long.MAX_VALUE, localMills(-2000L), localMills(1000L), 999L));
+        expectedOutput.add(
+                insertRecord(
+                        "key1", 1, Long.MAX_VALUE, localMills(-1000L), localMills(2000L), 1999L));
+        expectedOutput.add(
+                insertRecord("key1", 1, Long.MAX_VALUE, localMills(0L), localMills(3000L), 2999L));
+        expectedOutput.add(
+                insertRecord(
+                        "key2", 1, Long.MAX_VALUE, localMills(1000L), localMills(4000L), 3999L));
+        expectedOutput.add(
+                insertRecord(
+                        "key2", 1, Long.MAX_VALUE, localMills(2000L), localMills(5000L), 4999L));
+        expectedOutput.add(
+                insertRecord(
+                        "key2", 1, Long.MAX_VALUE, localMills(3000L), localMills(6000L), 5999L));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
+
+    @Test
     public void testCumulativeWindows() throws Exception {
         final CumulativeWindowAssigner assigner =
                 CumulativeWindowAssigner.of(Duration.ofSeconds(3), Duration.ofSeconds(1));
@@ -201,10 +266,48 @@ public class WindowTableFunctionOperatorTest {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
     }
 
+    @Test
+    public void testProcessingCumulativeWindows() throws Exception {
+        final CumulativeWindowAssigner assigner =
+                CumulativeWindowAssigner.of(Duration.ofSeconds(3), Duration.ofSeconds(1))
+                        .withProcessingTime();
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(assigner, shiftTimeZone);
+        testHarness.setup(OUT_SERIALIZER);
+        testHarness.open();
+
+        // process elements
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        // timestamp is ignored in processing time
+        testHarness.setProcessingTime(20L);
+        testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+        testHarness.setProcessingTime(3999L);
+        testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+        // append 3 fields: window_start, window_end, window_time
+        expectedOutput.add(
+                insertRecord("key1", 1, Long.MAX_VALUE, localMills(0), localMills(1000L), 999L));
+        expectedOutput.add(
+                insertRecord("key1", 1, Long.MAX_VALUE, localMills(0), localMills(2000L), 1999L));
+        expectedOutput.add(
+                insertRecord("key1", 1, Long.MAX_VALUE, localMills(0L), localMills(3000L), 2999L));
+        expectedOutput.add(
+                insertRecord(
+                        "key2", 1, Long.MAX_VALUE, localMills(3000L), localMills(4000L), 3999L));
+        expectedOutput.add(
+                insertRecord(
+                        "key2", 1, Long.MAX_VALUE, localMills(3000L), localMills(5000L), 4999L));
+        expectedOutput.add(
+                insertRecord(
+                        "key2", 1, Long.MAX_VALUE, localMills(3000L), localMills(6000L), 5999L));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
+
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
             WindowAssigner<TimeWindow> windowAssigner, ZoneId shiftTimeZone) throws Exception {
-        WindowTableFunctionOperator operator =
-                new WindowTableFunctionOperator(windowAssigner, ROW_TIME_INDEX, shiftTimeZone);
+        WindowWTFWithRowSemanticsOperator operator =
+                new WindowWTFWithRowSemanticsOperator(
+                        windowAssigner, ROW_TIME_INDEX, shiftTimeZone);
         return new OneInputStreamOperatorTestHarness<>(operator, INPUT_ROW_SER);
     }
 

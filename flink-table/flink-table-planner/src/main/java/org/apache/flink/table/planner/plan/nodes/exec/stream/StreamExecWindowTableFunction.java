@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
-import org.apache.flink.table.runtime.operators.window.WindowTableFunctionOperator;
+import org.apache.flink.table.runtime.operators.window.WindowWTFWithRowSemanticsOperator;
 import org.apache.flink.table.runtime.operators.window.assigners.CumulativeWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.TumblingWindowAssigner;
@@ -129,8 +129,8 @@ public class StreamExecWindowTableFunction extends ExecNodeBase<RowData>
         final ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(
                         windowingStrategy.getTimeAttributeType(), planner.getTableConfig());
-        WindowTableFunctionOperator windowTableFunctionOperator =
-                new WindowTableFunctionOperator(
+        WindowWTFWithRowSemanticsOperator windowTableFunctionOperator =
+                new WindowWTFWithRowSemanticsOperator(
                         windowAssigner, windowingStrategy.getTimeAttributeIndex(), shiftTimeZone);
         return new OneInputTransformation<>(
                 inputTransform,
