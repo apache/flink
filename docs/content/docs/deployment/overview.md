@@ -169,7 +169,7 @@ Flink can execute applications in one of three ways:
 <!-- Image source: https://docs.google.com/drawings/d/1EfloufuOp1A7YDwZmBEsHKRLIrrbtRkoWRPcfZI5RYQ/edit?usp=sharing -->
 {{< img class="img-fluid" width="80%" style="margin: 15px" src="/fig/deployment_modes.svg" alt="Figure for Deployment Modes" >}}
 
-#### Application Mode
+### Application Mode
     
 In all the other modes, the application's `main()` method is executed on the client side. This process 
 includes downloading the application's dependencies locally, executing the `main()` to extract a representation
@@ -209,7 +209,7 @@ Additionally, when any of multiple running jobs in Application Mode (submitted f
 Regular job completions (by the sources shutting down) are supported.
 {{< /hint >}}
 
-#### Per-Job Mode
+### Per-Job Mode
 
 Aiming at providing better resource isolation guarantees, the *Per-Job* mode uses the available resource provider
 framework (e.g. YARN, Kubernetes) to spin up a cluster for each submitted job. This cluster is available to 
@@ -219,7 +219,7 @@ TaskManagers. In addition, it spreads the load of book-keeping across multiple J
 one per job. For these reasons, the *Per-Job* resource allocation model is the preferred mode by many 
 production reasons.
 
-#### Session Mode
+### Session Mode
 
 *Session mode* assumes an already running cluster and uses the resources of that cluster to execute any 
 submitted application. Applications executed in the same (session) cluster use, and consequently compete
@@ -232,7 +232,7 @@ Additionally, having a single cluster running multiple jobs implies more load fo
 is responsible for the book-keeping of all the jobs in the cluster.
 
 
-#### Summary
+### Summary
 
 In *Session Mode*, the cluster lifecycle is independent of that of any job running on the cluster
 and the resources are shared across all jobs. The *Per-Job* mode pays the price of spinning up a cluster
