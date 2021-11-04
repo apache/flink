@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.junit.Test;
 
@@ -27,7 +28,14 @@ import java.util.List;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/** Tests for {@link LogicalTypeMerging#findCommonType(List)}. */
+/**
+ * Tests for {@link LogicalTypeMerging} for finding the result decimal type for the various
+ * operations, e.g.: {@link LogicalTypeMerging#findSumAggType(LogicalType)}, {@link
+ * LogicalTypeMerging#findAdditionDecimalType(int, int, int, int)}, etc.
+ *
+ * <p>For {@link LogicalTypeMerging#findCommonType(List)} tests please check {@link
+ * org.apache.flink.table.types.LogicalCommonTypeTest}
+ */
 public class LogicalTypeMergingTest {
 
     @Test

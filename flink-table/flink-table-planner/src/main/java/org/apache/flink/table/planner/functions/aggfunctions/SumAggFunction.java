@@ -28,16 +28,16 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.aggDecimalPlus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
 
 /** built-in sum aggregate function. */
 public abstract class SumAggFunction extends DeclarativeAggregateFunction {
-    private UnresolvedReferenceExpression sum = unresolvedRef("sum");
+
+    protected UnresolvedReferenceExpression sum = unresolvedRef("sum");
 
     @Override
     public int operandCount() {
@@ -62,11 +62,13 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* sum = */ adjustSumType(
+            /* sum = */ ifThenElse(
+                    isNull(operand(0)),
+                    sum,
                     ifThenElse(
                             isNull(operand(0)),
                             sum,
-                            ifThenElse(isNull(sum), operand(0), plus(sum, operand(0)))))
+                            ifThenElse(isNull(sum), operand(0), doPlus(sum, operand(0)))))
         };
     }
 
@@ -79,17 +81,16 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* sum = */ adjustSumType(
-                    ifThenElse(
-                            isNull(mergeOperand(sum)),
-                            sum,
-                            ifThenElse(
-                                    isNull(sum), mergeOperand(sum), plus(sum, mergeOperand(sum)))))
+            /* sum = */ ifThenElse(
+                    isNull(mergeOperand(sum)),
+                    sum,
+                    ifThenElse(isNull(sum), mergeOperand(sum), doPlus(sum, mergeOperand(sum))))
         };
     }
 
-    private UnresolvedCallExpression adjustSumType(UnresolvedCallExpression sumExpr) {
-        return cast(sumExpr, typeLiteral(getResultType()));
+    protected UnresolvedCallExpression doPlus(
+            UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
+        return plus(arg1, arg2);
     }
 
     @Override
@@ -149,6 +150,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
     /** Built-in Decimal Sum aggregate function. */
     public static class DecimalSumAggFunction extends SumAggFunction {
         private DecimalType decimalType;
+        private DataType returnType;
 
         public DecimalSumAggFunction(DecimalType decimalType) {
             this.decimalType = decimalType;
@@ -156,8 +158,17 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 
         @Override
         public DataType getResultType() {
-            DecimalType sumType = (DecimalType) LogicalTypeMerging.findSumAggType(decimalType);
-            return DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
+            if (returnType == null) {
+                DecimalType sumType = (DecimalType) LogicalTypeMerging.findSumAggType(decimalType);
+                returnType = DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
+            }
+            return returnType;
+        }
+
+        @Override
+        protected UnresolvedCallExpression doPlus(
+                UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
+            return aggDecimalPlus(arg1, arg2);
         }
     }
 }

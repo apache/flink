@@ -61,6 +61,9 @@ public final class SpecificTypeStrategies {
     /** See {@link DecimalPlusTypeStrategy}. */
     public static final TypeStrategy DECIMAL_PLUS = new DecimalPlusTypeStrategy();
 
+    /** See {@link AggDecimalPlusTypeStrategy}. */
+    public static final TypeStrategy AGG_DECIMAL_PLUS = new AggDecimalPlusTypeStrategy();
+
     /** See {@link DecimalScale0TypeStrategy}. */
     public static final TypeStrategy DECIMAL_SCALE_0 = new DecimalScale0TypeStrategy();
 
