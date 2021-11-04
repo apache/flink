@@ -109,7 +109,7 @@ object PartitionPruner {
       inputType,
       collectorTerm = collectorTerm)
 
-    val function = genFunction.newInstance(getClass.getClassLoader)
+    val function = genFunction.newInstance(Thread.currentThread().getContextClassLoader)
     val richMapFunction = function match {
       case r: RichMapFunction[GenericRowData, Boolean] => r
       case _ => throw new TableException("RichMapFunction[GenericRowData, Boolean] required here")
