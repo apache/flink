@@ -262,7 +262,7 @@ public class SavepointHandlersTest extends TestLogger {
     }
 
     private static HandlerRequest<SavepointTriggerRequestBody> triggerSavepointRequest(
-            final String targetDirectory, @Nullable TriggerId triggerId)
+            @Nullable final String targetDirectory, @Nullable TriggerId triggerId)
             throws HandlerRequestException {
         return HandlerRequest.resolveParametersAndCreate(
                 new SavepointTriggerRequestBody(targetDirectory, false, triggerId),

@@ -59,9 +59,9 @@ public class SavepointTriggerRequestBody implements RequestBody {
         this.triggerId = triggerId;
     }
 
-    @Nullable
-    public String getTargetDirectory() {
-        return targetDirectory;
+    @JsonIgnore
+    public Optional<String> getTargetDirectory() {
+        return Optional.ofNullable(targetDirectory);
     }
 
     @JsonIgnore
