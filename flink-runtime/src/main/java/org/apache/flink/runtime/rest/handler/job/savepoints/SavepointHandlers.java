@@ -179,9 +179,10 @@ public class SavepointHandlers {
                 AsynchronousJobOperationKey operationKey,
                 final RestfulGateway gateway)
                 throws RestHandlerException {
-            final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+            final Optional<String> requestedTargetDirectory =
+                    request.getRequestBody().getTargetDirectory();
 
-            if (requestedTargetDirectory == null && defaultSavepointDir == null) {
+            if (!requestedTargetDirectory.isPresent() && defaultSavepointDir == null) {
                 throw new RestHandlerException(
                         String.format(
                                 "Config key [%s] is not set. Property [%s] must be provided.",
@@ -194,10 +195,7 @@ public class SavepointHandlers {
                     request.getRequestBody().shouldDrain()
                             ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
                             : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT;
-            final String targetDirectory =
-                    requestedTargetDirectory != null
-                            ? requestedTargetDirectory
-                            : defaultSavepointDir;
+            final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
             return gateway.stopWithSavepoint(
                     operationKey, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }
@@ -224,9 +222,10 @@ public class SavepointHandlers {
                 AsynchronousJobOperationKey operationKey,
                 RestfulGateway gateway)
                 throws RestHandlerException {
-            final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+            final Optional<String> requestedTargetDirectory =
+                    request.getRequestBody().getTargetDirectory();
 
-            if (requestedTargetDirectory == null && defaultSavepointDir == null) {
+            if (!requestedTargetDirectory.isPresent() && defaultSavepointDir == null) {
                 throw new RestHandlerException(
                         String.format(
                                 "Config key [%s] is not set. Property [%s] must be provided.",
@@ -239,10 +238,7 @@ public class SavepointHandlers {
                     request.getRequestBody().isCancelJob()
                             ? TriggerSavepointMode.CANCEL_WITH_SAVEPOINT
                             : TriggerSavepointMode.SAVEPOINT;
-            final String targetDirectory =
-                    requestedTargetDirectory != null
-                            ? requestedTargetDirectory
-                            : defaultSavepointDir;
+            final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
             return gateway.triggerSavepoint(
                     operationKey, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }

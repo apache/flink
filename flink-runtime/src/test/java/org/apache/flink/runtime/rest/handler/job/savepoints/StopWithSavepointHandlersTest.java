@@ -267,7 +267,7 @@ public class StopWithSavepointHandlersTest extends TestLogger {
     }
 
     private static HandlerRequest<StopWithSavepointRequestBody> triggerSavepointRequest(
-            final String targetDirectory, @Nullable TriggerId triggerId)
+            @Nullable final String targetDirectory, @Nullable TriggerId triggerId)
             throws HandlerRequestException {
         return HandlerRequest.resolveParametersAndCreate(
                 new StopWithSavepointRequestBody(targetDirectory, false, triggerId),
