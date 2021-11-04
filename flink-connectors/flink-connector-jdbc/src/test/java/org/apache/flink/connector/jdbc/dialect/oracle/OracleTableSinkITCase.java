@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.table;
+package org.apache.flink.connector.jdbc.dialect.oracle;
 
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.jdbc.JdbcTestFixture;
 import org.apache.flink.connector.jdbc.internal.GenericJdbcSinkFunction;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -62,15 +61,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.connector.jdbc.JdbcTestFixture.DERBY_EBOOKSHOP_DB;
 import static org.apache.flink.connector.jdbc.internal.JdbcTableOutputFormatTest.check;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 
-/** The ITCase for {@link JdbcDynamicTableSink}. */
-public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
+/** The Table Sink ITCase for {@link OracleDialect}. */
+public class OracleTableSinkITCase extends AbstractTestBase {
 
-    public static final String DB_URL = "jdbc:derby:memory:upsert";
+    private static final OracleContainer container = new OracleContainer();
+    private static String containerUrl;
+
     public static final String OUTPUT_TABLE1 = "dynamicSinkForUpsert";
     public static final String OUTPUT_TABLE2 = "dynamicSinkForAppend";
     public static final String OUTPUT_TABLE3 = "dynamicSinkForBatch";
@@ -80,19 +80,18 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 
     @BeforeClass
     public static void beforeAll() throws ClassNotFoundException, SQLException {
-        System.setProperty(
-                "derby.stream.error.field", JdbcTestFixture.class.getCanonicalName() + ".DEV_NULL");
-
-        Class.forName(DERBY_EBOOKSHOP_DB.getDriverClass());
-        try (Connection conn = DriverManager.getConnection(DB_URL + ";create=true");
+        container.start();
+        containerUrl = container.getJdbcUrl();
+        Class.forName(container.getDriverClassName());
+        try (Connection conn = DriverManager.getConnection(containerUrl);
                 Statement stat = conn.createStatement()) {
             stat.executeUpdate(
                     "CREATE TABLE "
                             + OUTPUT_TABLE1
                             + " ("
-                            + "cnt BIGINT NOT NULL DEFAULT 0,"
-                            + "lencnt BIGINT NOT NULL DEFAULT 0,"
-                            + "cTag INT NOT NULL DEFAULT 0,"
+                            + "cnt NUMBER(38,2) DEFAULT 0 NOT NULL,"
+                            + "lencnt NUMBER(38,2) DEFAULT 0 NOT NULL,"
+                            + "cTag INT DEFAULT 0 NOT NULL,"
                             + "ts TIMESTAMP,"
                             + "PRIMARY KEY (cnt, cTag))");
 
@@ -100,8 +99,8 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
                     "CREATE TABLE "
                             + OUTPUT_TABLE2
                             + " ("
-                            + "id INT NOT NULL DEFAULT 0,"
-                            + "num BIGINT NOT NULL DEFAULT 0,"
+                            + "id INT DEFAULT 0 NOT NULL,"
+                            + "num NUMBER DEFAULT 0 NOT NULL,"
                             + "ts TIMESTAMP)");
 
             stat.executeUpdate(
@@ -109,12 +108,12 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
                             + OUTPUT_TABLE3
                             + " ("
                             + "NAME VARCHAR(20) NOT NULL,"
-                            + "SCORE BIGINT NOT NULL DEFAULT 0)");
+                            + "SCORE NUMBER DEFAULT 0 NOT NULL)");
 
             stat.executeUpdate("CREATE TABLE " + OUTPUT_TABLE4 + " (real_data REAL)");
 
             stat.executeUpdate(
-                    "CREATE TABLE " + OUTPUT_TABLE5 + " (" + "id BIGINT NOT NULL DEFAULT 0)");
+                    "CREATE TABLE " + OUTPUT_TABLE5 + " (" + "id NUMBER DEFAULT 0 NOT NULL)");
 
             stat.executeUpdate(
                     "CREATE TABLE "
@@ -132,8 +131,8 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
     @AfterClass
     public static void afterAll() throws Exception {
         TestValuesTableFactory.clearAllData();
-        Class.forName(DERBY_EBOOKSHOP_DB.getDriverClass());
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        Class.forName(container.getDriverClassName());
+        try (Connection conn = DriverManager.getConnection(containerUrl);
                 Statement stat = conn.createStatement()) {
             stat.execute("DROP TABLE " + OUTPUT_TABLE1);
             stat.execute("DROP TABLE " + OUTPUT_TABLE2);
@@ -142,6 +141,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
             stat.execute("DROP TABLE " + OUTPUT_TABLE5);
             stat.execute("DROP TABLE " + USER_TABLE);
         }
+        container.stop();
     }
 
     public static DataStream<Tuple4<Integer, Long, String, Timestamp>> get4TupleDataStream(
@@ -193,15 +193,15 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
                         + ") WITH ("
                         + "  'connector'='jdbc',"
                         + "  'url'='"
-                        + DB_URL
+                        + containerUrl
                         + "',"
                         + "  'table-name'='"
                         + OUTPUT_TABLE4
                         + "'"
                         + ")");
 
-        tEnv.executeSql("INSERT INTO upsertSink SELECT CAST(1.0 as FLOAT)").await();
-        check(new Row[] {Row.of(1.0f)}, DB_URL, "REAL_TABLE", new String[] {"real_data"});
+        tEnv.executeSql("INSERT INTO upsertSink SELECT CAST(1.1 as FLOAT)").await();
+        check(new Row[] {Row.of(1.1f)}, containerUrl, "REAL_TABLE", new String[] {"real_data"});
     }
 
     @Test
@@ -231,15 +231,15 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
         tEnv.createTemporaryView("T", t);
         tEnv.executeSql(
                 "CREATE TABLE upsertSink ("
-                        + "  cnt BIGINT,"
-                        + "  lencnt BIGINT,"
+                        + "  cnt DECIMAL(18,2),"
+                        + "  lencnt DECIMAL(18,2),"
                         + "  cTag INT,"
                         + "  ts TIMESTAMP(3),"
                         + "  PRIMARY KEY (cnt, cTag) NOT ENFORCED"
                         + ") WITH ("
                         + "  'connector'='jdbc',"
                         + "  'url'='"
-                        + DB_URL
+                        + containerUrl
                         + "',"
                         + "  'table-name'='"
                         + OUTPUT_TABLE1
@@ -265,7 +265,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
                     Row.of(7, 1, 1, Timestamp.valueOf("1970-01-01 00:00:00.021")),
                     Row.of(9, 1, 1, Timestamp.valueOf("1970-01-01 00:00:00.015"))
                 },
-                DB_URL,
+                containerUrl,
                 OUTPUT_TABLE1,
                 new String[] {"cnt", "lencnt", "cTag", "ts"});
     }
@@ -291,7 +291,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
                         + ") WITH ("
                         + "  'connector'='jdbc',"
                         + "  'url'='"
-                        + DB_URL
+                        + containerUrl
                         + "',"
                         + "  'table-name'='"
                         + OUTPUT_TABLE2
@@ -306,7 +306,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
                     Row.of(10, 4, Timestamp.valueOf("1970-01-01 00:00:00.01")),
                     Row.of(20, 6, Timestamp.valueOf("1970-01-01 00:00:00.02"))
                 },
-                DB_URL,
+                containerUrl,
                 OUTPUT_TABLE2,
                 new String[] {"id", "num", "ts"});
     }
@@ -322,7 +322,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
                         + ") WITH ( "
                         + "'connector' = 'jdbc',"
                         + "'url'='"
-                        + DB_URL
+                        + containerUrl
                         + "',"
                         + "'table-name' = '"
                         + OUTPUT_TABLE3
@@ -349,7 +349,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
                     Row.of("Kim", 42),
                     Row.of("Bob", 1)
                 },
-                DB_URL,
+                containerUrl,
                 OUTPUT_TABLE3,
                 new String[] {"NAME", "SCORE"});
     }
@@ -382,7 +382,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
                         + ") WITH (\n"
                         + "  'connector' = 'jdbc',"
                         + "  'url'='"
-                        + DB_URL
+                        + containerUrl
                         + "',"
                         + "  'table-name' = '"
                         + USER_TABLE
@@ -399,8 +399,8 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
                             "user1",
                             "Tom",
                             "tom123@gmail.com",
-                            new BigDecimal("8.10"),
-                            new BigDecimal("16.20")),
+                            new BigDecimal("8.1"),
+                            new BigDecimal("16.2")),
                     Row.of(
                             "user3",
                             "Bailey",
@@ -411,10 +411,10 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
                             "user4",
                             "Tina",
                             "tina@gmail.com",
-                            new BigDecimal("11.30"),
-                            new BigDecimal("22.60"))
+                            new BigDecimal("11.3"),
+                            new BigDecimal("22.6"))
                 },
-                DB_URL,
+                containerUrl,
                 USER_TABLE,
                 new String[] {"user_id", "user_name", "email", "balance", "balance2"});
     }
@@ -423,7 +423,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
     public void testFlushBufferWhenCheckpoint() throws Exception {
         Map<String, String> options = new HashMap<>();
         options.put("connector", "jdbc");
-        options.put("url", DB_URL);
+        options.put("url", containerUrl);
         options.put("table-name", OUTPUT_TABLE5);
         options.put("sink.buffer-flush.interval", "0");
 
@@ -442,9 +442,9 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
         sinkFunction.invoke(GenericRowData.of(1L), SinkContextUtil.forTimestamp(1));
         sinkFunction.invoke(GenericRowData.of(2L), SinkContextUtil.forTimestamp(1));
 
-        check(new Row[] {}, DB_URL, OUTPUT_TABLE5, new String[] {"id"});
+        check(new Row[] {}, containerUrl, OUTPUT_TABLE5, new String[] {"id"});
         sinkFunction.snapshotState(new StateSnapshotContextSynchronousImpl(1, 1));
-        check(new Row[] {Row.of(1L), Row.of(2L)}, DB_URL, OUTPUT_TABLE5, new String[] {"id"});
+        check(new Row[] {Row.of(1L), Row.of(2L)}, containerUrl, OUTPUT_TABLE5, new String[] {"id"});
         sinkFunction.close();
     }
 }

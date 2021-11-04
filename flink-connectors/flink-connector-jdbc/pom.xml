@@ -37,6 +37,7 @@ under the License.
 
 	<properties>
 		<postgres.version>42.2.10</postgres.version>
+		<oracle.version>19.3.0.0</oracle.version>
 		<otj-pg-embedded.version>0.13.4</otj-pg-embedded.version>
 	</properties>
 
@@ -58,6 +59,14 @@ under the License.
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<version>${postgres.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Oracle -->
+		<dependency>
+			<groupId>com.oracle.database.jdbc</groupId>
+			<artifactId>ojdbc8</artifactId>
+			<version>${oracle.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -160,6 +169,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Oracle tests -->
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>oracle-xe</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- H2 tests -->
 		<dependency>
 			<groupId>com.h2database</groupId>
@@ -179,6 +195,7 @@ under the License.
 			<artifactId>mysql</artifactId>
 			<scope>test</scope>
 		</dependency>
+
 	</dependencies>
 
 	<build>

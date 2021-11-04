@@ -45,6 +45,7 @@ A driver dependency is also required to connect to a specified database. Here ar
 | Driver      |      Group Id      |      Artifact Id       |      JAR         |
 | :-----------| :------------------| :----------------------| :----------------|
 | MySQL       |       `mysql`      | `mysql-connector-java` | [Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
+| Oracle      | `com.oracle.database.jdbc` |        `ojdbc8`        | [Download](https://mvnrepository.com/artifact/com.oracle.database.jdbc/ojdbc8) |
 | PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [Download](https://jdbc.postgresql.org/download.html) |
 | Derby       | `org.apache.derby` |        `derby`         | [Download](http://db.apache.org/derby/derby_downloads.html) |
 
@@ -311,6 +312,13 @@ As there is no standard syntax for upsert, the following table describes the dat
             <td>INSERT .. ON DUPLICATE KEY UPDATE ..</td>
         </tr>
         <tr>
+            <td>Oracle</td>
+            <td>MERGE INTO .. USING (..) ON (..) <br>
+                WHEN MATCHED THEN UPDATE SET (..) <br>
+                WHEN NOT MATCHED THEN INSERT (..) <br>
+                VALUES (..)</td>
+        </tr>
+        <tr>
             <td>PostgreSQL</td>
             <td>INSERT .. ON CONFLICT .. DO UPDATE SET ..</td>
         </tr>
@@ -469,12 +477,13 @@ SELECT * FROM `custom_schema.test_table2`;
 
 Data Type Mapping
 ----------------
-Flink supports connect to several databases which uses dialect like MySQL, PostgreSQL, Derby. The Derby dialect usually used for testing purpose. The field data type mappings from relational databases data types to Flink SQL data types are listed in the following table, the mapping table can help define JDBC table in Flink easily.
+Flink supports connect to several databases which uses dialect like MySQL, Oracle, PostgreSQL, Derby. The Derby dialect usually used for testing purpose. The field data type mappings from relational databases data types to Flink SQL data types are listed in the following table, the mapping table can help define JDBC table in Flink easily.
 
 <table class="table table-bordered">
     <thead>
       <tr>
         <th class="text-left"><a href="https://dev.mysql.com/doc/refman/8.0/en/data-types.html">MySQL type</a></th>
+        <th class="text-left"><a href="https://docs.oracle.com/database/121/SQLRF/sql_elements001.htm#SQLRF30020">Oracle type</a></th>
         <th class="text-left"><a href="https://www.postgresql.org/docs/12/datatype.html">PostgreSQL type</a></th>
         <th class="text-left"><a href="{{< ref "docs/dev/table/types" >}}">Flink SQL type</a></th>
       </tr>
@@ -483,12 +492,14 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
     <tr>
       <td><code>TINYINT</code></td>
       <td></td>
+      <td></td>
       <td><code>TINYINT</code></td>
     </tr>
     <tr>
       <td>
         <code>SMALLINT</code><br>
         <code>TINYINT UNSIGNED</code></td>
+      <td></td>
       <td>
         <code>SMALLINT</code><br>
         <code>INT2</code><br>
@@ -501,6 +512,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
         <code>INT</code><br>
         <code>MEDIUMINT</code><br>
         <code>SMALLINT UNSIGNED</code></td>
+      <td></td>
       <td>
         <code>INTEGER</code><br>
         <code>SERIAL</code></td>
@@ -510,6 +522,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
       <td>
         <code>BIGINT</code><br>
         <code>INT UNSIGNED</code></td>
+      <td></td>
       <td>
         <code>BIGINT</code><br>
         <code>BIGSERIAL</code></td>
@@ -518,15 +531,19 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
    <tr>
       <td><code>BIGINT UNSIGNED</code></td>
       <td></td>
+      <td></td>
       <td><code>DECIMAL(20, 0)</code></td>
     </tr>
     <tr>
       <td><code>BIGINT</code></td>
+      <td></td>
       <td><code>BIGINT</code></td>
       <td><code>BIGINT</code></td>
     </tr>
     <tr>
       <td><code>FLOAT</code></td>
+      <td>
+        <code>BINARY_FLOAT</code></td>
       <td>
         <code>REAL</code><br>
         <code>FLOAT4</code></td>
@@ -536,6 +553,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
       <td>
         <code>DOUBLE</code><br>
         <code>DOUBLE PRECISION</code></td>
+      <td><code>BINARY_DOUBLE</code></td>
       <td>
         <code>FLOAT8</code><br>
         <code>DOUBLE PRECISION</code></td>
@@ -544,7 +562,13 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
     <tr>
       <td>
         <code>NUMERIC(p, s)</code><br>
-         <code>DECIMAL(p, s)</code></td>
+        <code>DECIMAL(p, s)</code></td>
+      <td>
+        <code>SMALLINT</code><br> 
+        <code>FLOAT(s)</code><br> 
+        <code>DOUBLE PRECISION</code><br> 
+        <code>REAL</code><br>
+        <code>NUMBER(p, s)</code></td>
       <td>
         <code>NUMERIC(p, s)</code><br>
         <code>DECIMAL(p, s)</code></td>
@@ -553,22 +577,26 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
     <tr>
       <td>
         <code>BOOLEAN</code><br>
-         <code>TINYINT(1)</code></td>
+        <code>TINYINT(1)</code></td>
+      <td></td>
       <td><code>BOOLEAN</code></td>
       <td><code>BOOLEAN</code></td>
     </tr>
     <tr>
+      <td><code>DATE</code></td>
       <td><code>DATE</code></td>
       <td><code>DATE</code></td>
       <td><code>DATE</code></td>
     </tr>
     <tr>
       <td><code>TIME [(p)]</code></td>
+      <td><code>DATE</code></td>
       <td><code>TIME [(p)] [WITHOUT TIMEZONE]</code></td>
       <td><code>TIME [(p)] [WITHOUT TIMEZONE]</code></td>
     </tr>
     <tr>
       <td><code>DATETIME [(p)]</code></td>
+      <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
     </tr>
@@ -577,6 +605,10 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
         <code>CHAR(n)</code><br>
         <code>VARCHAR(n)</code><br>
         <code>TEXT</code></td>
+      <td>
+        <code>CHAR(n)</code><br>
+        <code>VARCHAR(n)</code><br>
+        <code>CLOB</code></td>
       <td>
         <code>CHAR(n)</code><br>
         <code>CHARACTER(n)</code><br>
@@ -590,10 +622,14 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
         <code>BINARY</code><br>
         <code>VARBINARY</code><br>
         <code>BLOB</code></td>
+      <td>
+        <code>RAW(s)</code><br>
+        <code>BLOB</code></td>
       <td><code>BYTEA</code></td>
       <td><code>BYTES</code></td>
     </tr>
     <tr>
+      <td></td>
       <td></td>
       <td><code>ARRAY</code></td>
       <td><code>ARRAY</code></td>

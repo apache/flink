@@ -46,9 +46,9 @@ JDBC 连接器允许使用 JDBC 驱动向任意类型的关系型数据库读取
 | Driver      |      Group Id      |      Artifact Id       |      JAR         |
 | :-----------| :------------------| :----------------------| :----------------|
 | MySQL       |       `mysql`      | `mysql-connector-java` | [下载](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
+| Oracle      | `com.oracle.database.jdbc` |        `ojdbc8`        | [下载](https://mvnrepository.com/artifact/com.oracle.database.jdbc/ojdbc8)
 | PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [下载](https://jdbc.postgresql.org/download.html) |
-| Derby       | `org.apache.derby` |        `derby`         | [下载](http://db.apache.org/derby/derby_downloads.html) |
-
+| Derby       | `org.apache.derby` |        `derby`         | [下载](http://db.apache.org/derby/derby_downloads.html) | |
 
 当前，JDBC 连接器和驱动不在 Flink 二进制发布包中，请参阅[这里]({{< ref "docs/dev/datastream/project-configuration" >}})了解在集群上执行时何连接它们。
 
@@ -312,6 +312,12 @@ lookup cache 的主要目的是用于提高时态表关联 JDBC 连接器的性�
             <td>INSERT .. ON DUPLICATE KEY UPDATE ..</td>
         </tr>
         <tr>
+            <td>Oracle</td>
+            <td>MERGE INTO .. USING (..) ON (..) <br>
+                WHEN MATCHED THEN UPDATE SET (..) <br>
+                WHEN NOT MATCHED THEN INSERT (..) <br>
+                VALUES (..)</td>
+        <tr>
             <td>PostgreSQL</td>
             <td>INSERT .. ON CONFLICT .. DO UPDATE SET ..</td>
         </tr>
@@ -470,12 +476,13 @@ SELECT * FROM `custom_schema.test_table2`;
 
 数据类型映射
 ----------------
-Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、PostgreSQL、Derby 等。其中，Derby 通常是用于测试目的。下表列出了从关系数据库数据类型到 Flink SQL 数据类型的类型映射，映射表可以使得在 Flink 中定义 JDBC 表更加简单。
+Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、Oracle、PostgreSQL、Derby 等。其中，Derby 通常是用于测试目的。下表列出了从关系数据库数据类型到 Flink SQL 数据类型的类型映射，映射表可以使得在 Flink 中定义 JDBC 表更加简单。
 
 <table class="table table-bordered">
     <thead>
       <tr>
         <th class="text-left"><a href="https://dev.mysql.com/doc/refman/8.0/en/data-types.html">MySQL type</a></th>
+        <th class="text-left"><a href="https://docs.oracle.com/database/121/SQLRF/sql_elements001.htm#SQLRF30020">Oracle type</a></th>
         <th class="text-left"><a href="https://www.postgresql.org/docs/12/datatype.html">PostgreSQL type</a></th>
         <th class="text-left"><a href="{{< ref "docs/dev/table/types" >}}">Flink SQL type</a></th>
       </tr>
@@ -484,12 +491,14 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、P
     <tr>
       <td><code>TINYINT</code></td>
       <td></td>
+      <td></td>
       <td><code>TINYINT</code></td>
     </tr>
     <tr>
       <td>
         <code>SMALLINT</code><br>
         <code>TINYINT UNSIGNED</code></td>
+      <td></td>
       <td>
         <code>SMALLINT</code><br>
         <code>INT2</code><br>
@@ -502,6 +511,7 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、P
         <code>INT</code><br>
         <code>MEDIUMINT</code><br>
         <code>SMALLINT UNSIGNED</code></td>
+      <td></td>
       <td>
         <code>INTEGER</code><br>
         <code>SERIAL</code></td>
@@ -511,6 +521,7 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、P
       <td>
         <code>BIGINT</code><br>
         <code>INT UNSIGNED</code></td>
+      <td></td>
       <td>
         <code>BIGINT</code><br>
         <code>BIGSERIAL</code></td>
@@ -519,15 +530,19 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、P
    <tr>
       <td><code>BIGINT UNSIGNED</code></td>
       <td></td>
+      <td></td>
       <td><code>DECIMAL(20, 0)</code></td>
     </tr>
     <tr>
       <td><code>BIGINT</code></td>
+      <td></td>
       <td><code>BIGINT</code></td>
       <td><code>BIGINT</code></td>
     </tr>
     <tr>
       <td><code>FLOAT</code></td>
+      <td>
+        <code>BINARY_FLOAT</code></td>
       <td>
         <code>REAL</code><br>
         <code>FLOAT4</code></td>
@@ -537,6 +552,7 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、P
       <td>
         <code>DOUBLE</code><br>
         <code>DOUBLE PRECISION</code></td>
+      <td><code>BINARY_DOUBLE</code></td>
       <td>
         <code>FLOAT8</code><br>
         <code>DOUBLE PRECISION</code></td>
@@ -545,7 +561,13 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、P
     <tr>
       <td>
         <code>NUMERIC(p, s)</code><br>
-         <code>DECIMAL(p, s)</code></td>
+        <code>DECIMAL(p, s)</code></td>
+      <td>
+        <code>SMALLINT</code><br> 
+        <code>FLOAT(s)</code><br> 
+        <code>DOUBLE PRECISION</code><br> 
+        <code>REAL</code><br>
+        <code>NUMBER(p, s)</code></td>
       <td>
         <code>NUMERIC(p, s)</code><br>
         <code>DECIMAL(p, s)</code></td>
@@ -554,22 +576,26 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、P
     <tr>
       <td>
         <code>BOOLEAN</code><br>
-         <code>TINYINT(1)</code></td>
+        <code>TINYINT(1)</code></td>
+      <td></td>
       <td><code>BOOLEAN</code></td>
       <td><code>BOOLEAN</code></td>
     </tr>
     <tr>
+      <td><code>DATE</code></td>
       <td><code>DATE</code></td>
       <td><code>DATE</code></td>
       <td><code>DATE</code></td>
     </tr>
     <tr>
       <td><code>TIME [(p)]</code></td>
+      <td><code>DATE</code></td>
       <td><code>TIME [(p)] [WITHOUT TIMEZONE]</code></td>
       <td><code>TIME [(p)] [WITHOUT TIMEZONE]</code></td>
     </tr>
     <tr>
       <td><code>DATETIME [(p)]</code></td>
+      <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
     </tr>
@@ -578,6 +604,10 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、P
         <code>CHAR(n)</code><br>
         <code>VARCHAR(n)</code><br>
         <code>TEXT</code></td>
+      <td>
+        <code>CHAR(n)</code><br>
+        <code>VARCHAR(n)</code><br>
+        <code>CLOB</code></td>
       <td>
         <code>CHAR(n)</code><br>
         <code>CHARACTER(n)</code><br>
@@ -591,10 +621,14 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、P
         <code>BINARY</code><br>
         <code>VARBINARY</code><br>
         <code>BLOB</code></td>
+      <td>
+        <code>RAW(s)</code><br>
+        <code>BLOB</code></td>
       <td><code>BYTEA</code></td>
       <td><code>BYTES</code></td>
     </tr>
     <tr>
+      <td></td>
       <td></td>
       <td><code>ARRAY</code></td>
       <td><code>ARRAY</code></td>
