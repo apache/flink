@@ -301,6 +301,16 @@ public final class LogicalTypeMerging {
      * integral part of a result from being truncated.
      *
      * <p>https://docs.microsoft.com/en-us/sql/t-sql/data-types/precision-scale-and-length-transact-sql
+     *
+     * <p>The rules although inspired by SQL Server they are not followed 100%, instead the approach
+     * of Spark/Hive is followed for adjusting the precision.
+     *
+     * <p>http://www.openkb.info/2021/05/understand-decimal-precision-and-scale.html
+     *
+     * <p>For (38, 8) + (32, 8) -> (39, 8) (If precision is infinite) // integral part: 31
+     *
+     * <p>The rounding for SQL Server would be: (39, 8) -> (38, 8) // integral part: 30, but instead
+     * we follow the Hive/Spark approach which gives: (39, 8) -> (38, 7) // integral part: 31
      */
     private static DecimalType adjustPrecisionScale(int precision, int scale) {
         if (precision <= DecimalType.MAX_PRECISION) {
