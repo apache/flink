@@ -374,7 +374,7 @@ public class ContextClassLoadingSettingTest extends TestLogger {
     }
 
     /**
-     * An object that only allows deserialiation if it's favorite ContextClassLoader is doing it.
+     * An object that only allows deserialiation if its favorite ContextClassLoader is doing it.
      */
     private static class PickyObject implements Serializable {
         static Consumer<ClassLoader> classLoaderAssertion = null;
