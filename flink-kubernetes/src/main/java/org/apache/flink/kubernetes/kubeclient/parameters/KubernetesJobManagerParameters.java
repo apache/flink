@@ -28,7 +28,6 @@ import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
-import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
@@ -63,9 +62,13 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
                 flinkConfig
                         .getOptional(KubernetesConfigOptions.JOB_MANAGER_LABELS)
                         .orElse(Collections.emptyMap()));
-        labels.putAll(getCommonLabels());
-        labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
+        labels.putAll(getSelectors());
         return Collections.unmodifiableMap(labels);
+    }
+
+    @Override
+    public Map<String, String> getSelectors() {
+        return KubernetesUtils.getJobManagerSelectors(getClusterId());
     }
 
     @Override

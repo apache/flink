@@ -211,7 +211,8 @@ public class KubernetesResourceManagerDriver
 
     private void recoverWorkerNodesFromPreviousAttempts() throws ResourceManagerException {
         List<KubernetesPod> podList =
-                flinkKubeClient.getPodsWithLabels(KubernetesUtils.getTaskManagerLabels(clusterId));
+                flinkKubeClient.getPodsWithLabels(
+                        KubernetesUtils.getTaskManagerSelectors(clusterId));
         final List<KubernetesWorkerNode> recoveredWorkers = new ArrayList<>();
 
         for (KubernetesPod pod : podList) {
@@ -329,7 +330,7 @@ public class KubernetesResourceManagerDriver
     private Optional<KubernetesWatch> watchTaskManagerPods() throws Exception {
         return Optional.of(
                 flinkKubeClient.watchPodsAndDoCallback(
-                        KubernetesUtils.getTaskManagerLabels(clusterId),
+                        KubernetesUtils.getTaskManagerSelectors(clusterId),
                         new PodCallbackHandlerImpl()));
     }
 
