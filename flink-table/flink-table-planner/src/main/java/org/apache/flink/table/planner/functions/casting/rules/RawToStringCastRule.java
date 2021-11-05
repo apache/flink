@@ -26,7 +26,6 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import static org.apache.flink.table.codesplit.CodeSplitUtil.newName;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.methodCall;
 
 /** {@link LogicalTypeRoot#RAW} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
@@ -62,7 +61,7 @@ public class RawToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
                         thenWriter ->
                                 thenWriter.assignStmt(
                                         returnVariable,
-                                        functionCall(
+                                        CastRuleUtils.staticCall(
                                                 BINARY_STRING_DATA_FROM_STRING(),
                                                 methodCall(deserializedObjTerm, "toString"))),
                         elseWriter -> elseWriter.assignStmt(returnVariable, "null"))

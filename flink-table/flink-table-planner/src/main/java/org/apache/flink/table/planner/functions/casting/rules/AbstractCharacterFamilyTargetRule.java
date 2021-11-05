@@ -26,7 +26,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
 
 /**
  * Base class for cast rules converting to {@link LogicalTypeFamily#CHARACTER_STRING} with code
@@ -55,6 +54,6 @@ public abstract class AbstractCharacterFamilyTargetRule<IN>
         final String stringExpr =
                 generateStringExpression(context, inputTerm, inputLogicalType, targetLogicalType);
 
-        return functionCall(BINARY_STRING_DATA_FROM_STRING(), stringExpr);
+        return CastRuleUtils.staticCall(BINARY_STRING_DATA_FROM_STRING(), stringExpr);
     }
 }

@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 /**
  * Identity cast rule. For more details on when the rule is applied, check {@link
@@ -48,7 +49,7 @@ public class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Obje
         }
 
         // Identity cast applies if the two types are equals, except nullability
-        return inputLogicalType.copy(true).equals(targetLogicalType.copy(true));
+        return LogicalTypeCasts.supportsAvoidingCast(inputLogicalType, targetLogicalType);
     }
 
     @Override

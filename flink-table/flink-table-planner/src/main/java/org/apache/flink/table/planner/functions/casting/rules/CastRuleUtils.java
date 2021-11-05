@@ -22,8 +22,7 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
 import org.apache.flink.table.planner.functions.casting.CastRule;
 import org.apache.flink.table.types.logical.LogicalType;
-
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -40,15 +39,9 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveTypeT
 final class CastRuleUtils {
 
     static final String NULL_STR_LITERAL = strLiteral("NULL");
+    static final String EMPTY_STR_LITERAL = "\"\"";
 
-    static String functionCall(String functionName, Object... args) {
-        return functionName
-                + "("
-                + Arrays.stream(args).map(Object::toString).collect(Collectors.joining(", "))
-                + ")";
-    }
-
-    static String functionCall(Method staticMethod, Object... args) {
+    static String staticCall(Method staticMethod, Object... args) {
         return functionCall(CodeGenUtils.qualifyMethod(staticMethod), args);
     }
 
@@ -58,6 +51,13 @@ final class CastRuleUtils {
 
     static String methodCall(String instanceTerm, String methodName, Object... args) {
         return functionCall(instanceTerm + "." + methodName, args);
+    }
+
+    private static String functionCall(String functionName, Object... args) {
+        return functionName
+                + "("
+                + Arrays.stream(args).map(Object::toString).collect(Collectors.joining(", "))
+                + ")";
     }
 
     static String newArray(String innerType, String arraySize) {
@@ -76,12 +76,8 @@ final class CastRuleUtils {
         return "((" + condition + ") ? (" + ifTrue + ") : (" + ifFalse + "))";
     }
 
-    static String strLiteral() {
-        return "\"\"";
-    }
-
     static String strLiteral(String str) {
-        return "\"" + StringEscapeUtils.escapeJava(str) + "\"";
+        return "\"" + EncodingUtils.escapeJava(str) + "\"";
     }
 
     static final class CodeWriter {
@@ -178,7 +174,7 @@ final class CastRuleUtils {
             return this;
         }
 
-        public CodeWriter append(String codeBlock) {
+        public CodeWriter appendBlock(String codeBlock) {
             builder.append(codeBlock);
             return this;
         }

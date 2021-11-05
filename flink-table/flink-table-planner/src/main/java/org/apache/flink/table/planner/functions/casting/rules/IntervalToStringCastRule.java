@@ -28,7 +28,7 @@ import java.lang.reflect.Method;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.INTERVAL_DAY_TIME_TO_STRING;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.INTERVAL_YEAR_MONTH_TO_STRING;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
 
 /** {@link LogicalTypeFamily#INTERVAL} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
 public class IntervalToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> {
@@ -53,6 +53,6 @@ public class IntervalToStringCastRule extends AbstractCharacterFamilyTargetRule<
                 inputLogicalType.is(LogicalTypeRoot.INTERVAL_YEAR_MONTH)
                         ? INTERVAL_YEAR_MONTH_TO_STRING()
                         : INTERVAL_DAY_TIME_TO_STRING();
-        return functionCall(method, inputTerm);
+        return staticCall(method, inputTerm);
     }
 }

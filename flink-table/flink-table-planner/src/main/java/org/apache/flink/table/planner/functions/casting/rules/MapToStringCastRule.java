@@ -34,7 +34,6 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAc
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.NULL_STR_LITERAL;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.constructorCall;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.strLiteral;
 
@@ -220,7 +219,7 @@ public class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
                 // Assign the result value
                 .assignStmt(
                         returnVariable,
-                        functionCall(
+                        CastRuleUtils.staticCall(
                                 BINARY_STRING_DATA_FROM_STRING(),
                                 methodCall(builderTerm, "toString")))
                 .toString();

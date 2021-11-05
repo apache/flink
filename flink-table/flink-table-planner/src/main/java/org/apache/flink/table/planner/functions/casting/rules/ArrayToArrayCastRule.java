@@ -33,7 +33,6 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAccess;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.constructorCall;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.newArray;
 
@@ -97,7 +96,7 @@ public class ArrayToArrayCastRule
 
                             if (innerTargetType.isNullable()) {
                                 loopWriter.ifStmt(
-                                        "!" + functionCall(inputTerm + ".isNullAt", index),
+                                        "!" + methodCall(inputTerm, "isNullAt", index),
                                         thenWriter ->
                                                 thenWriter
                                                         .append(codeBlock)

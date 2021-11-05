@@ -37,7 +37,6 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAc
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.NULL_STR_LITERAL;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.constructorCall;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.strLiteral;
 
@@ -47,22 +46,16 @@ public class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
     public static final RowToStringCastRule INSTANCE = new RowToStringCastRule();
 
     private RowToStringCastRule() {
-        super(
-                CastRulePredicate.builder()
-                        .predicate(
-                                (input, target) ->
-                                        input.is(LogicalTypeRoot.ROW)
-                                                && target.is(LogicalTypeFamily.CHARACTER_STRING)
-                                                && ((RowType) input)
-                                                        .getFields().stream()
-                                                                .allMatch(
-                                                                        field ->
-                                                                                CastRuleProvider
-                                                                                        .exists(
-                                                                                                field
-                                                                                                        .getType(),
-                                                                                                target)))
-                        .build());
+        super(CastRulePredicate.builder().predicate(RowToStringCastRule::matches).build());
+    }
+
+    private static boolean matches(LogicalType input, LogicalType target) {
+        return input.is(LogicalTypeRoot.ROW)
+                && target.is(LogicalTypeFamily.CHARACTER_STRING)
+                && ((RowType) input)
+                        .getFields().stream()
+                                .allMatch(
+                                        field -> CastRuleProvider.exists(field.getType(), target));
     }
 
     /* Example generated code for ROW<`f0` INT, `f1` STRING>:
@@ -172,7 +165,7 @@ public class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
                 // Assign the result value
                 .assignStmt(
                         returnVariable,
-                        functionCall(
+                        CastRuleUtils.staticCall(
                                 BINARY_STRING_DATA_FROM_STRING(),
                                 methodCall(builderTerm, "toString")));
 

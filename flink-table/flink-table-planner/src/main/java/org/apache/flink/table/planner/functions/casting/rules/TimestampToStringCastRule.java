@@ -31,7 +31,7 @@ import org.apache.calcite.avatica.util.DateTimeUtils;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.accessStaticField;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
 
 /** {@link LogicalTypeFamily#TIMESTAMP} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
 @Internal
@@ -59,6 +59,6 @@ public class TimestampToStringCastRule extends AbstractCharacterFamilyTargetRule
                         : accessStaticField(DateTimeUtils.class, "UTC_ZONE");
         final int precision = LogicalTypeChecks.getPrecision(inputLogicalType);
 
-        return functionCall(TIMESTAMP_TO_STRING_TIME_ZONE(), inputTerm, zoneId, precision);
+        return staticCall(TIMESTAMP_TO_STRING_TIME_ZONE(), inputTerm, zoneId, precision);
     }
 }

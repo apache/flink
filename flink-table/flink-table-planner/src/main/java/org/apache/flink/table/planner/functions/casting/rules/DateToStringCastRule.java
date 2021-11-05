@@ -25,7 +25,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.UNIX_DATE_TO_STRING;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.functionCall;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
 
 /** {@link LogicalTypeRoot#DATE} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
 public class DateToStringCastRule extends AbstractCharacterFamilyTargetRule<Long> {
@@ -46,6 +46,6 @@ public class DateToStringCastRule extends AbstractCharacterFamilyTargetRule<Long
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return functionCall(UNIX_DATE_TO_STRING(), inputTerm);
+        return staticCall(UNIX_DATE_TO_STRING(), inputTerm);
     }
 }

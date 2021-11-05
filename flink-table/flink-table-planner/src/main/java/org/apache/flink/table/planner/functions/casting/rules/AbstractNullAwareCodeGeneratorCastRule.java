@@ -81,11 +81,11 @@ public abstract class AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
         if (isResultNullable) {
             writer.ifStmt(
                     "!" + nullTerm,
-                    thenWriter -> thenWriter.append(castCodeBlock),
+                    thenWriter -> thenWriter.appendBlock(castCodeBlock),
                     elseWriter ->
                             elseWriter.assignStmt(returnTerm, primitiveDefaultValue(targetType)));
         } else {
-            writer.append(castCodeBlock).append("\n");
+            writer.appendBlock(castCodeBlock);
         }
 
         return new CastCodeBlock(writer.toString(), returnTerm, nullTerm);

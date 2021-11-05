@@ -24,7 +24,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.strLiteral;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.EMPTY_STR_LITERAL;
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.stringConcat;
 
 /** {@link LogicalTypeRoot#BOOLEAN} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
@@ -46,6 +46,6 @@ public class BooleanToStringCastRule extends AbstractCharacterFamilyTargetRule<O
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return stringConcat(strLiteral(), inputTerm);
+        return stringConcat(EMPTY_STR_LITERAL, inputTerm);
     }
 }

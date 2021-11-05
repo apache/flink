@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.functions.casting.rules.DateToStringCastRu
 import org.apache.flink.table.planner.functions.casting.rules.IdentityCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.IntervalToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.MapToStringCastRule;
-import org.apache.flink.table.planner.functions.casting.rules.NumberToStringCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.NumericToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.RawToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.RowToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.TimeToStringCastRule;
@@ -58,7 +58,7 @@ public class CastRuleProvider {
                 // Numeric rules
                 .addRule(UpcastToBigIntCastRule.INSTANCE)
                 // To string rules
-                .addRule(NumberToStringCastRule.INSTANCE)
+                .addRule(NumericToStringCastRule.INSTANCE)
                 .addRule(BooleanToStringCastRule.INSTANCE)
                 .addRule(BinaryToStringCastRule.INSTANCE)
                 .addRule(TimestampToStringCastRule.INSTANCE)
