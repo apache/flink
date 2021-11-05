@@ -120,12 +120,6 @@ public class FileSystemTableSource extends AbstractFileSystemTable
             return InputFormatProvider.of(new CollectionInputFormat<>(new ArrayList<>(), null));
         }
 
-        // Compute produced data type
-        DataType producedDataType = this.producedDataType;
-        if (projectFields != null) {
-            producedDataType = DataType.projectFields(producedDataType, projectFields);
-        }
-
         // Physical type is computed from the full data type, filtering out partition and
         // metadata columns. This type is going to be used by formats to parse the input.
         List<DataTypes.Field> producedDataTypeFields = DataType.getFields(producedDataType);
@@ -138,13 +132,9 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                             0, producedDataTypeFields.size() - metadataKeys.size());
         }
         DataType physicalDataType =
-                DataTypes.ROW(
-                        producedDataTypeFields.stream()
-                                .filter(
-                                        f ->
-                                                partitionKeys == null
-                                                        || !partitionKeys.contains(f.getName()))
-                                .toArray(DataTypes.Field[]::new));
+                producedDataTypeFields.stream()
+                        .filter(f -> partitionKeys == null || !partitionKeys.contains(f.getName()))
+                        .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
 
         // Resolve metadata and make sure to filter out metadata not in the producedDataType
         List<String> metadataKeys =
@@ -412,6 +402,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     @Override
     public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.projectFields = projectedFields;
+        this.producedDataType = producedDataType;
     }
 
     @Override
@@ -419,11 +410,6 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         if (!metadataKeys.isEmpty()) {
             this.metadataKeys = metadataKeys;
             this.producedDataType = producedDataType;
-            // If a projection was pushed down, we need to clear it here so getScanRuntimeProvider()
-            // won't reapply the projection again.
-            if (projectFields != null) {
-                projectFields = null;
-            }
         }
     }
 

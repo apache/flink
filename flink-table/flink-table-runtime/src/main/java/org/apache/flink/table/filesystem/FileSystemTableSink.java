@@ -298,10 +298,9 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         // partition fields)
         final DataType producedDataType = getPhysicalDataType();
         final DataType physicalDataType =
-                DataTypes.ROW(
-                        DataType.getFields(producedDataType).stream()
-                                .filter(field -> !partitionKeys.contains(field.getName()))
-                                .toArray(DataTypes.Field[]::new));
+                DataType.getFields(producedDataType).stream()
+                        .filter(field -> !partitionKeys.contains(field.getName()))
+                        .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
 
         if (bulkReaderFormat != null) {
             final BulkFormat<RowData, FileSourceSplit> format =

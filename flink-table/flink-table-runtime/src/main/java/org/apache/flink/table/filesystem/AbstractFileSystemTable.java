@@ -29,6 +29,7 @@ import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.types.DataType;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.PARTITION_DEFAULT_NAME;
 import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.PATH;
@@ -66,9 +67,8 @@ abstract class AbstractFileSystemTable {
     }
 
     DataType getPhysicalDataTypeWithoutPartitionColumns() {
-        return DataTypes.ROW(
-                DataType.getFields(getPhysicalDataType()).stream()
-                        .filter(field -> !partitionKeys.contains(field.getName()))
-                        .toArray(DataTypes.Field[]::new));
+        return DataType.getFields(getPhysicalDataType()).stream()
+                .filter(field -> !partitionKeys.contains(field.getName()))
+                .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
     }
 }
