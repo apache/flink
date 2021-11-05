@@ -162,8 +162,13 @@ public final class DataTypeUtils {
         if (fields.size() == 0) {
             return dataType;
         }
-        return Stream.concat(DataType.getFields(dataType).stream(), fields.stream())
-                .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
+        DataType newRow =
+                Stream.concat(DataType.getFields(dataType).stream(), fields.stream())
+                        .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
+        if (!dataType.getLogicalType().isNullable()) {
+            newRow = newRow.notNull();
+        }
+        return newRow;
     }
 
     /**
