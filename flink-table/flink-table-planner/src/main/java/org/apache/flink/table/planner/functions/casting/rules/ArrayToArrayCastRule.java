@@ -70,8 +70,7 @@ public class ArrayToArrayCastRule
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         final LogicalType innerInputType = ((ArrayType) inputLogicalType).getElementType();
-        final LogicalType innerTargetType =
-                sanitizeTargetType((ArrayType) inputLogicalType, (ArrayType) targetLogicalType);
+        final LogicalType innerTargetType = ((ArrayType) targetLogicalType).getElementType();
 
         final String innerTargetTypeTerm = arrayElementType(innerTargetType);
         final String arraySize = methodCall(inputTerm, "size");
@@ -113,18 +112,6 @@ public class ArrayToArrayCastRule
                         })
                 .assignStmt(returnVariable, constructorCall(GenericArrayData.class, objArrayTerm))
                 .toString();
-    }
-
-    private static LogicalType sanitizeTargetType(
-            ArrayType inputArrayType, ArrayType targetArrayType) {
-        LogicalType innerTargetType = targetArrayType.getElementType();
-        // We need to sanitize the cast of ARRAY<NULLABLE> to ARRAY<NOT NULL>
-        // The result type will still be ARRAY<NOT NULL>, but the generated code will make sure
-        // null checks are in place
-        if (inputArrayType.getElementType().isNullable() && !innerTargetType.isNullable()) {
-            innerTargetType = innerTargetType.copy(true);
-        }
-        return innerTargetType;
     }
 
     private static String arrayElementType(LogicalType t) {
