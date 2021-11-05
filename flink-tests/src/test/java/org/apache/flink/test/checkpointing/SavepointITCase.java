@@ -55,6 +55,7 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServic
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
@@ -309,6 +310,56 @@ public class SavepointITCase extends TestLogger {
     }
 
     @Test
+    public void testTriggerSavepointAndResumeWithClaim() throws Exception {
+        final int numTaskManagers = 2;
+        final int numSlotsPerTaskManager = 2;
+        final int parallelism = numTaskManagers * numSlotsPerTaskManager;
+
+        final MiniClusterResourceFactory clusterFactory =
+                new MiniClusterResourceFactory(
+                        numTaskManagers, numSlotsPerTaskManager, getFileBasedCheckpointsConfig());
+
+        final String savepointPath = submitJobAndTakeSavepoint(clusterFactory, parallelism);
+        verifySavepoint(parallelism, savepointPath);
+        restoreJobAndVerifyState(
+                clusterFactory,
+                parallelism,
+                SavepointRestoreSettings.forPath(savepointPath, false, RestoreMode.CLAIM),
+                cluster -> {
+                    cluster.after();
+
+                    assertFalse(
+                            "Savepoint not properly cleaned up.",
+                            new File(new URI(savepointPath)).exists());
+                });
+    }
+
+    @Test
+    public void testTriggerSavepointAndResumeWithLegacyMode() throws Exception {
+        final int numTaskManagers = 2;
+        final int numSlotsPerTaskManager = 2;
+        final int parallelism = numTaskManagers * numSlotsPerTaskManager;
+
+        final MiniClusterResourceFactory clusterFactory =
+                new MiniClusterResourceFactory(
+                        numTaskManagers, numSlotsPerTaskManager, getFileBasedCheckpointsConfig());
+
+        final String savepointPath = submitJobAndTakeSavepoint(clusterFactory, parallelism);
+        verifySavepoint(parallelism, savepointPath);
+        restoreJobAndVerifyState(
+                clusterFactory,
+                parallelism,
+                SavepointRestoreSettings.forPath(savepointPath, false, RestoreMode.LEGACY),
+                cluster -> {
+                    cluster.after();
+
+                    assertTrue(
+                            "Savepoint unexpectedly cleaned up.",
+                            new File(new URI(savepointPath)).exists());
+                });
+    }
+
+    @Test
     public void testTriggerSavepointAndResumeWithFileBasedCheckpointsAndRelocateBasePath()
             throws Exception {
         final int numTaskManagers = 2;
@@ -345,7 +396,16 @@ public class SavepointITCase extends TestLogger {
         final String savepointPath = submitJobAndTakeSavepoint(clusterFactory, parallelism);
         assertThat(savepointDir, hasEntropyInFileStateHandlePaths());
 
-        restoreJobAndVerifyState(savepointPath, clusterFactory, parallelism);
+        restoreJobAndVerifyState(
+                clusterFactory,
+                parallelism,
+                SavepointRestoreSettings.forPath(savepointPath),
+                cluster -> {
+                    final URI localURI = new URI(savepointPath.replace("test-entropy:/", "file:/"));
+                    assertTrue("Savepoint has not been created", new File(localURI).exists());
+                    cluster.getClusterClient().disposeSavepoint(savepointPath).get();
+                    assertFalse("Savepoint not properly cleaned up.", new File(localURI).exists());
+                });
     }
 
     private Configuration getCheckpointingWithEntropyConfig() {
@@ -407,9 +467,31 @@ public class SavepointITCase extends TestLogger {
     private void restoreJobAndVerifyState(
             String savepointPath, MiniClusterResourceFactory clusterFactory, int parallelism)
             throws Exception {
+        restoreJobAndVerifyState(
+                clusterFactory,
+                parallelism,
+                SavepointRestoreSettings.forPath(savepointPath, false),
+                cluster -> {
+                    cluster.getClusterClient().disposeSavepoint(savepointPath).get();
+                    assertFalse(
+                            "Savepoint not properly cleaned up.",
+                            new File(new URI(savepointPath)).exists());
+                });
+    }
+
+    @FunctionalInterface
+    interface PostCancelChecker {
+        void check(MiniClusterWithClientResource cluster) throws Exception;
+    }
+
+    private void restoreJobAndVerifyState(
+            MiniClusterResourceFactory clusterFactory,
+            int parallelism,
+            SavepointRestoreSettings savepointRestoreSettings,
+            PostCancelChecker postCancelChecks)
+            throws Exception {
         final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000);
-        jobGraph.setSavepointRestoreSettings(
-                SavepointRestoreSettings.forPath(savepointPath, false));
+        jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
         final JobID jobId = jobGraph.getJobID();
         StatefulCounter.resetForTest(parallelism);
 
@@ -435,9 +517,7 @@ public class SavepointITCase extends TestLogger {
                     status -> status == JobStatus.CANCELED,
                     TestingUtils.defaultScheduledExecutor());
 
-            client.disposeSavepoint(savepointPath).get();
-
-            assertFalse("Savepoint not properly cleaned up.", new File(savepointPath).exists());
+            postCancelChecks.check(cluster);
         } finally {
             cluster.after();
             StatefulCounter.resetForTest(parallelism);
