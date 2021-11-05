@@ -118,8 +118,9 @@ public class ArrayToArrayCastRule
     private static LogicalType sanitizeTargetType(
             ArrayType inputArrayType, ArrayType targetArrayType) {
         LogicalType innerTargetType = targetArrayType.getElementType();
-        // TODO this seems rather a bug of the planner that generates/allows/doesn't sanitize
-        //  casting ARRAY<NULLABLE> to ARRAY<NOT NULL>
+        // We need to sanitize the cast of ARRAY<NULLABLE> to ARRAY<NOT NULL>
+        // The result type will still be ARRAY<NOT NULL>, but the generated code will make sure
+        // null checks are in place
         if (inputArrayType.getElementType().isNullable() && !innerTargetType.isNullable()) {
             innerTargetType = innerTargetType.copy(true);
         }
