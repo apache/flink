@@ -160,9 +160,6 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BYTES(), DEFAULT_BYTES, "\u0000\u0001\u0002\u0003\u0004")
                         .fromCase(DECIMAL(4, 3), 9.87, "9.870")
                         .fromCase(DECIMAL(10, 5), 1, "1.00000")
-                        // https://issues.apache.org/jira/browse/FLINK-24414 - Left zero padding
-                        // currently not working
-                        // .fromCase(DECIMAL(5, 3), 09.87, "09.870")
                         .fromCase(
                                 TINYINT(),
                                 DEFAULT_POSITIVE_TINY_INT,
