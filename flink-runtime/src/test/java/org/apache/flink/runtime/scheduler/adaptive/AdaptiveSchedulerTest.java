@@ -612,7 +612,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor)
                         .setJobStatusListener(
-                                (jobId, newJobStatus, timestamp, error) ->
+                                (jobId, newJobStatus, timestamp) ->
                                         jobStatusUpdate.set(newJobStatus))
                         .build();
 
