@@ -30,6 +30,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
@@ -1629,21 +1630,21 @@ public class CheckpointCoordinator {
     /**
      * Restore the state with given savepoint.
      *
-     * @param savepointPointer The pointer to the savepoint.
-     * @param allowNonRestored True if allowing checkpoint state that cannot be mapped to any job
-     *     vertex in tasks.
+     * @param restoreSettings Settings for a snapshot to restore from. Includes the path and
+     *     parameters for the restore process.
      * @param tasks Map of job vertices to restore. State for these vertices is restored via {@link
      *     Execution#setInitialState(JobManagerTaskRestore)}.
      * @param userClassLoader The class loader to resolve serialized classes in legacy savepoint
      *     versions.
      */
     public boolean restoreSavepoint(
-            String savepointPointer,
-            boolean allowNonRestored,
+            SavepointRestoreSettings restoreSettings,
             Map<JobVertexID, ExecutionJobVertex> tasks,
             ClassLoader userClassLoader)
             throws Exception {
 
+        final String savepointPointer = restoreSettings.getRestorePath();
+        final boolean allowNonRestored = restoreSettings.allowNonRestoredState();
         Preconditions.checkNotNull(savepointPointer, "The savepoint path cannot be null.");
 
         LOG.info(
@@ -1655,10 +1656,28 @@ public class CheckpointCoordinator {
         final CompletedCheckpointStorageLocation checkpointLocation =
                 checkpointStorageView.resolveCheckpoint(savepointPointer);
 
+        // convert to checkpoint so the system can fall back to it
+        final CheckpointProperties checkpointProperties;
+        switch (restoreSettings.getRestoreMode()) {
+            case CLAIM:
+                checkpointProperties = this.checkpointProperties;
+                break;
+            case LEGACY:
+                checkpointProperties = CheckpointProperties.forSavepoint(false);
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown snapshot restore mode");
+        }
+
         // Load the savepoint as a checkpoint into the system
         CompletedCheckpoint savepoint =
                 Checkpoints.loadAndValidateCheckpoint(
-                        job, tasks, checkpointLocation, userClassLoader, allowNonRestored);
+                        job,
+                        tasks,
+                        checkpointLocation,
+                        userClassLoader,
+                        allowNonRestored,
+                        checkpointProperties);
 
         completedCheckpointStore.addCheckpoint(
                 savepoint, checkpointsCleaner, this::scheduleTriggerRequest);
