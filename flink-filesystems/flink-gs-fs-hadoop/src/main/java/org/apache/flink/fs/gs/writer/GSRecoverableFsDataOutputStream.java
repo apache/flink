@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.gs.writer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
@@ -45,22 +46,22 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
             LoggerFactory.getLogger(GSRecoverableFsDataOutputStream.class);
 
     /** The underlying blob storage. */
-    private final GSBlobStorage storage;
+    @VisibleForTesting final GSBlobStorage storage;
 
     /** The GS file system options. */
-    private final GSFileSystemOptions options;
+    @VisibleForTesting final GSFileSystemOptions options;
 
     /** The blob id to which the recoverable write operation is writing. */
-    private final GSBlobIdentifier finalBlobIdentifier;
+    @VisibleForTesting GSBlobIdentifier finalBlobIdentifier;
 
     /** The write position, i.e. number of bytes that have been written so far. */
-    private long position;
+    @VisibleForTesting long position;
 
     /** Indicates if the write has been closed. */
-    private boolean closed;
+    @VisibleForTesting boolean closed;
 
     /** The object ids for the temporary objects that should be composed to form the final blob. */
-    private final ArrayList<UUID> componentObjectIds;
+    @VisibleForTesting ArrayList<UUID> componentObjectIds;
 
     /**
      * The current write channel, if one exists. A channel is created when one doesn't exist and
@@ -70,7 +71,7 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
      * be written, which will cause another channel to be created. So, multiple write channels may
      * be created and destroyed during the lifetime of the data output stream.
      */
-    @Nullable GSChecksumWriteChannel currentWriteChannel;
+    @VisibleForTesting @Nullable GSChecksumWriteChannel currentWriteChannel;
 
     /**
      * Constructs a new, initially empty output stream.
@@ -158,7 +159,7 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
         // WriteChannel; in any case, recoverable writers don't support partial writes, so if this
         // ever happens, we must fail the write.:
         // https://docs.oracle.com/javase/7/docs/api/java/nio/channels/WritableByteChannel.html#write(java.nio.ByteBuffer)
-        LOGGER.trace("Writing {} bytes to blob {}", length, currentWriteChannel.blobIdentifier);
+        LOGGER.trace("Writing {} bytes", length);
         int bytesWritten = currentWriteChannel.write(content, start, length);
         if (bytesWritten != length) {
             throw new IOException(
@@ -187,7 +188,7 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
     public RecoverableWriter.ResumeRecoverable persist() throws IOException {
         LOGGER.trace("Persisting write channel for blob {}", finalBlobIdentifier);
         closeWriteChannelIfExists();
-        return createRecoverable();
+        return createResumeRecoverable();
     }
 
     @Override
@@ -201,11 +202,15 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
     public Committer closeForCommit() throws IOException {
         LOGGER.trace("Closing write channel for commit for blob {}", finalBlobIdentifier);
         close();
-        return new GSRecoverableWriterCommitter(storage, options, createRecoverable());
+        return new GSRecoverableWriterCommitter(storage, options, createCommitRecoverable());
     }
 
-    private GSResumeRecoverable createRecoverable() {
-        return new GSResumeRecoverable(finalBlobIdentifier, position, closed, componentObjectIds);
+    private GSCommitRecoverable createCommitRecoverable() {
+        return new GSCommitRecoverable(finalBlobIdentifier, componentObjectIds);
+    }
+
+    private GSResumeRecoverable createResumeRecoverable() {
+        return new GSResumeRecoverable(finalBlobIdentifier, componentObjectIds, position, closed);
     }
 
     private GSChecksumWriteChannel createWriteChannel() {

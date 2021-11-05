@@ -24,14 +24,19 @@ import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.URI;
 import java.util.UUID;
 
 /** Utility functions related to blobs. */
 public class BlobUtils {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(BlobUtils.class);
+
     /** The temporary object prefix. */
-    public static final String TEMPORARY_OBJECT_PREFIX = ".inprogress/";
+    private static final String TEMPORARY_OBJECT_PREFIX = ".inprogress";
 
     /** The maximum number of blobs that can be composed in a single operation. */
     public static final int COMPOSE_MAX_BLOBS = 32;
@@ -86,13 +91,17 @@ public class BlobUtils {
      * @return The temporary object partial name
      */
     public static String getTemporaryObjectPartialName(GSBlobIdentifier finalBlobIdentifier) {
-        return String.format("%s%s/", TEMPORARY_OBJECT_PREFIX, finalBlobIdentifier.objectName);
+        return String.format(
+                "%s/%s/%s/",
+                TEMPORARY_OBJECT_PREFIX,
+                finalBlobIdentifier.bucketName,
+                finalBlobIdentifier.objectName);
     }
 
     /**
-     * Returns a temporary object name, formed by appending the compact string version of the
-     * temporary object id to the temporary object partial name, i.e.
-     * .inprogress/foo/bar/EjgelvANQ525hLUW2S6DBA for the final blob with object name "foo/bar".
+     * Returns a temporary object name, formed by appending the temporary object id to the temporary
+     * object partial name, i.e. .inprogress/foo/bar/abc for the final blob with object name
+     * "foo/bar" and temporary object id "abc".
      *
      * @param finalBlobIdentifier The final blob identifier
      * @param temporaryObjectId The temporary object id
@@ -120,18 +129,5 @@ public class BlobUtils {
         String temporaryObjectName =
                 BlobUtils.getTemporaryObjectName(finalBlobIdentifier, temporaryObjectId);
         return new GSBlobIdentifier(temporaryBucketName, temporaryObjectName);
-    }
-
-    /**
-     * Generates a new temporary blob identifier, with a random temporary object id.
-     *
-     * @param finalBlobIdentifier The final blob identifier
-     * @param options The file system options
-     * @return The blob identifier
-     */
-    public static GSBlobIdentifier generateTemporaryBlobIdentifier(
-            GSBlobIdentifier finalBlobIdentifier, GSFileSystemOptions options) {
-        UUID temporaryObjectId = UUID.randomUUID();
-        return getTemporaryBlobIdentifier(finalBlobIdentifier, temporaryObjectId, options);
     }
 }

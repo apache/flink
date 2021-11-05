@@ -19,27 +19,20 @@
 package org.apache.flink.fs.gs.writer;
 
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.fs.gs.GSFileSystemOptions;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
-import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /** A resumable state for a recoverable output stream. */
-class GSResumeRecoverable implements RecoverableWriter.ResumeRecoverable {
+class GSResumeRecoverable extends GSCommitRecoverable
+        implements RecoverableWriter.ResumeRecoverable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GSResumeRecoverable.class);
-
-    /** The blob id to which the recoverable write operation is writing. */
-    public final GSBlobIdentifier finalBlobIdentifier;
 
     /** The write position, i.e. number of bytes that have been written so far. */
     public final long position;
@@ -47,59 +40,21 @@ class GSResumeRecoverable implements RecoverableWriter.ResumeRecoverable {
     /** Indicates if the write has been closed. */
     public final boolean closed;
 
-    /**
-     * The object ids for the temporary objects that should be composed to form the final blob. This
-     * is an unmodifiable list.
-     */
-    public final List<UUID> componentObjectIds;
-
     GSResumeRecoverable(
             GSBlobIdentifier finalBlobIdentifier,
+            List<UUID> componentObjectIds,
             long position,
-            boolean closed,
-            List<UUID> componentObjectIds) {
+            boolean closed) {
+        super(finalBlobIdentifier, componentObjectIds);
         LOGGER.trace(
                 "Creating GSResumeRecoverable for blob {} with position={}, closed={}, and componentObjectIds={}",
                 finalBlobIdentifier,
                 position,
                 closed,
                 componentObjectIds);
-        this.finalBlobIdentifier = Preconditions.checkNotNull(finalBlobIdentifier);
         Preconditions.checkArgument(position >= 0);
         this.position = position;
         this.closed = closed;
-        this.componentObjectIds =
-                Collections.unmodifiableList(
-                        new ArrayList<>(Preconditions.checkNotNull(componentObjectIds)));
-    }
-
-    /**
-     * Returns the list of component blob ids, which have to be resolved from the temporary bucket
-     * name, prefix, and component ids. Resolving them this way vs. storing the blob ids directly
-     * allows us to move in-progress blobs by changing options to point to new in-progress
-     * locations.
-     *
-     * @param options The GS file system options
-     * @return The list of component blob ids
-     */
-    List<GSBlobIdentifier> getComponentBlobIds(GSFileSystemOptions options) {
-        String temporaryBucketName = BlobUtils.getTemporaryBucketName(finalBlobIdentifier, options);
-        List<GSBlobIdentifier> componentBlobIdentifiers =
-                componentObjectIds.stream()
-                        .map(
-                                temporaryObjectId ->
-                                        BlobUtils.getTemporaryObjectName(
-                                                finalBlobIdentifier, temporaryObjectId))
-                        .map(
-                                temporaryObjectName ->
-                                        new GSBlobIdentifier(
-                                                temporaryBucketName, temporaryObjectName))
-                        .collect(Collectors.toList());
-        LOGGER.trace(
-                "Resolved component blob identifiers for blob {}: {}",
-                finalBlobIdentifier,
-                componentBlobIdentifiers);
-        return componentBlobIdentifiers;
     }
 
     @Override
@@ -107,12 +62,12 @@ class GSResumeRecoverable implements RecoverableWriter.ResumeRecoverable {
         return "GSResumeRecoverable{"
                 + "finalBlobIdentifier="
                 + finalBlobIdentifier
+                + ", componentObjectIds="
+                + componentObjectIds
                 + ", position="
                 + position
                 + ", closed="
                 + closed
-                + ", componentObjectIds="
-                + componentObjectIds
                 + '}';
     }
 }

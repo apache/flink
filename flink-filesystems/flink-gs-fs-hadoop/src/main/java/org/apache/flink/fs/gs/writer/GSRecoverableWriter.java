@@ -105,7 +105,7 @@ public class GSRecoverableWriter implements RecoverableWriter {
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public SimpleVersionedSerializer<CommitRecoverable> getCommitRecoverableSerializer() {
-        return (SimpleVersionedSerializer) GSResumeRecoverableSerializer.INSTANCE;
+        return (SimpleVersionedSerializer) GSCommitRecoverableSerializer.INSTANCE;
     }
 
     @Override

@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /** The committer for the GS recoverable writer. */
 class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Committer {
@@ -46,10 +47,16 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
     private final GSFileSystemOptions options;
 
     /** The recoverable for the commit operation. */
-    private final GSResumeRecoverable recoverable;
+    private final GSCommitRecoverable recoverable;
+
+    /** The max number of blobs to compose in a single operation. */
+    private final int composeMaxBlobs;
 
     GSRecoverableWriterCommitter(
-            GSBlobStorage storage, GSFileSystemOptions options, GSResumeRecoverable recoverable) {
+            GSBlobStorage storage,
+            GSFileSystemOptions options,
+            GSCommitRecoverable recoverable,
+            int composeMaxBlobs) {
         LOGGER.trace(
                 "Creating GSRecoverableWriterCommitter with options {} for recoverable: {}",
                 options,
@@ -57,6 +64,13 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
         this.storage = Preconditions.checkNotNull(storage);
         this.options = Preconditions.checkNotNull(options);
         this.recoverable = Preconditions.checkNotNull(recoverable);
+        Preconditions.checkArgument(composeMaxBlobs > 0);
+        this.composeMaxBlobs = composeMaxBlobs;
+    }
+
+    GSRecoverableWriterCommitter(
+            GSBlobStorage storage, GSFileSystemOptions options, GSCommitRecoverable recoverable) {
+        this(storage, options, recoverable, BlobUtils.COMPOSE_MAX_BLOBS);
     }
 
     @Override
@@ -105,7 +119,7 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
 
     /**
      * Helper to compose an arbitrary number of blobs into a final blob, staying under the
-     * COMPOSE_MAX_BLOBS limit for any individual compose operation.
+     * composeMaxBlobs limit for any individual compose operation.
      *
      * @param sourceBlobIdentifiers The source blob ids to compose
      * @param targetBlobIdentifier The target blob id for the composed result
@@ -122,9 +136,8 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
         Preconditions.checkNotNull(targetBlobIdentifier);
 
         // split the source list into two parts; first, the ones we can compose in this operation
-        // (up to COMPOSE_MAX_BLOBS), and, second, whichever blobs are left over
-        final int composeToIndex =
-                Math.min(BlobUtils.COMPOSE_MAX_BLOBS, sourceBlobIdentifiers.size());
+        // (up to composeMaxBlobs), and, second, whichever blobs are left over
+        final int composeToIndex = Math.min(composeMaxBlobs, sourceBlobIdentifiers.size());
         List<GSBlobIdentifier> composeBlobIds = sourceBlobIdentifiers.subList(0, composeToIndex);
         List<GSBlobIdentifier> remainingBlobIds =
                 sourceBlobIdentifiers.subList(composeToIndex, sourceBlobIdentifiers.size());
@@ -133,11 +146,12 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
         // i.e. if there are no remaining blob ids, then the composed blob id is the originally
         // specified target blob id. otherwise, we must create an intermediate blob id to hold the
         // result of this compose operation
+        UUID temporaryObjectId = UUID.randomUUID();
         GSBlobIdentifier composedBlobId =
                 remainingBlobIds.isEmpty()
                         ? targetBlobIdentifier
-                        : BlobUtils.generateTemporaryBlobIdentifier(
-                                recoverable.finalBlobIdentifier, options);
+                        : BlobUtils.getTemporaryBlobIdentifier(
+                                recoverable.finalBlobIdentifier, temporaryObjectId, options);
 
         // compose the blobs
         storage.compose(composeBlobIds, composedBlobId);
@@ -150,40 +164,46 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
         }
     }
 
-    /**
-     * Writes the final blob by composing the temporary blobs and copying, if necessary.
-     *
-     * @throws IOException On underlying failure.
-     */
+    /** Writes the final blob by composing the temporary blobs and copying, if necessary. */
     private void writeFinalBlob() {
 
-        // compose all the component blob ids into the final blob id. if the component blob ids are
-        // in the same bucket as the final blob id, this can be done directly. otherwise, we must
-        // compose to a new temporary blob id in the same bucket as the component blob ids and
-        // then copy that blob to the final blob location
-        String temporaryBucketName =
-                BlobUtils.getTemporaryBucketName(recoverable.finalBlobIdentifier, options);
-        if (recoverable.finalBlobIdentifier.bucketName.equals(temporaryBucketName)) {
+        // do we have any component blobs?
+        List<GSBlobIdentifier> blobIdentifiers = recoverable.getComponentBlobIds(options);
+        if (blobIdentifiers.isEmpty()) {
 
-            // compose directly to final blob
-            composeBlobs(recoverable.getComponentBlobIds(options), recoverable.finalBlobIdentifier);
+            // we have no blob identifiers, so just create an empty target blob
+            storage.createBlob(recoverable.finalBlobIdentifier);
 
         } else {
 
-            // compose to the intermediate blob, then copy
-            GSBlobIdentifier intermediateBlobIdentifier =
-                    BlobUtils.generateTemporaryBlobIdentifier(
-                            recoverable.finalBlobIdentifier, options);
-            composeBlobs(recoverable.getComponentBlobIds(options), intermediateBlobIdentifier);
-            storage.copy(intermediateBlobIdentifier, recoverable.finalBlobIdentifier);
+            // yes, we have component blobs. compose them into the final blob id. if the component
+            // blob ids are in the same bucket as the final blob id, this can be done directly.
+            // otherwise, we must compose to a new temporary blob id in the same bucket as the
+            // component blob ids and then copy that blob to the final blob location
+            String temporaryBucketName =
+                    BlobUtils.getTemporaryBucketName(recoverable.finalBlobIdentifier, options);
+            if (recoverable.finalBlobIdentifier.bucketName.equals(temporaryBucketName)) {
+
+                // compose directly to final blob
+                composeBlobs(
+                        recoverable.getComponentBlobIds(options), recoverable.finalBlobIdentifier);
+
+            } else {
+
+                // compose to the intermediate blob, then copy
+                UUID temporaryObjectId = UUID.randomUUID();
+                GSBlobIdentifier intermediateBlobIdentifier =
+                        BlobUtils.getTemporaryBlobIdentifier(
+                                recoverable.finalBlobIdentifier, temporaryObjectId, options);
+                composeBlobs(recoverable.getComponentBlobIds(options), intermediateBlobIdentifier);
+                storage.copy(intermediateBlobIdentifier, recoverable.finalBlobIdentifier);
+            }
         }
     }
 
     /**
      * Clean up after a successful commit operation, by deleting any temporary blobs associated with
      * the final blob.
-     *
-     * @throws IOException On underlying storage failure
      */
     private void cleanupTemporaryBlobs() {
         LOGGER.trace(

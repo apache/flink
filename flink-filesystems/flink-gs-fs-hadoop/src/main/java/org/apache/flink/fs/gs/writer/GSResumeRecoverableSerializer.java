@@ -19,7 +19,6 @@
 package org.apache.flink.fs.gs.writer;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -30,8 +29,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.UUID;
 
 /** The serializer for the recoverable writer state. */
 class GSResumeRecoverableSerializer implements SimpleVersionedSerializer<GSResumeRecoverable> {
@@ -48,6 +45,12 @@ class GSResumeRecoverableSerializer implements SimpleVersionedSerializer<GSResum
 
     private GSResumeRecoverableSerializer() {}
 
+    /**
+     * The serializer version. Note that, if the version of {@link GSResumeRecoverableSerializer}
+     * changes, this version must also change, because this serializer depends on that serializer.
+     *
+     * @return The serializer version.
+     */
     @Override
     public int getVersion() {
         return SERIALIZER_VERSION;
@@ -62,22 +65,15 @@ class GSResumeRecoverableSerializer implements SimpleVersionedSerializer<GSResum
 
             try (DataOutputStream dataOutputStream = new DataOutputStream(outputStream)) {
 
-                // finalBlobIdentifier
-                dataOutputStream.writeUTF(recoverable.finalBlobIdentifier.bucketName);
-                dataOutputStream.writeUTF(recoverable.finalBlobIdentifier.objectName);
+                // start by serializing the commit recoverable part
+                GSCommitRecoverableSerializer.serializeCommitRecoverable(
+                        recoverable, dataOutputStream);
 
                 // position
                 dataOutputStream.writeLong(recoverable.position);
 
                 // closed
                 dataOutputStream.writeBoolean(recoverable.closed);
-
-                // componentObjectIds
-                dataOutputStream.writeInt(recoverable.componentObjectIds.size());
-                for (UUID componentObjectId : recoverable.componentObjectIds) {
-                    dataOutputStream.writeLong(componentObjectId.getMostSignificantBits());
-                    dataOutputStream.writeLong(componentObjectId.getLeastSignificantBits());
-                }
             }
 
             outputStream.flush();
@@ -98,40 +94,29 @@ class GSResumeRecoverableSerializer implements SimpleVersionedSerializer<GSResum
                             version, SERIALIZER_VERSION));
         }
 
-        GSBlobIdentifier finalBlobIdentifier;
-        long position;
-        boolean closed;
-        ArrayList<UUID> componentObjectIds = new ArrayList<>();
-
         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(serialized)) {
 
             try (DataInputStream dataInputStream = new DataInputStream(inputStream)) {
 
-                // finalBlobId
-                String finalBucketName = dataInputStream.readUTF();
-                String finalObjectName = dataInputStream.readUTF();
-                finalBlobIdentifier = new GSBlobIdentifier(finalBucketName, finalObjectName);
+                // deserialize the commit recoverable part
+                GSCommitRecoverable commitRecoverable =
+                        GSCommitRecoverableSerializer.deserializeCommitRecoverable(dataInputStream);
 
                 // position
-                position = dataInputStream.readLong();
+                long position = dataInputStream.readLong();
 
                 // closed
-                closed = dataInputStream.readBoolean();
+                boolean closed = dataInputStream.readBoolean();
 
-                // componentObjectIds
-                int count = dataInputStream.readInt();
-                for (int i = 0; i < count; i++) {
-                    long msbValue = dataInputStream.readLong();
-                    long lsbValue = dataInputStream.readLong();
-                    UUID componentObjectId = new UUID(msbValue, lsbValue);
-                    componentObjectIds.add(componentObjectId);
-                }
+                GSResumeRecoverable resumeRecoverable =
+                        new GSResumeRecoverable(
+                                commitRecoverable.finalBlobIdentifier,
+                                commitRecoverable.componentObjectIds,
+                                position,
+                                closed);
+                LOGGER.trace("Deserialized resume recoverable {}", resumeRecoverable);
+                return resumeRecoverable;
             }
         }
-
-        GSResumeRecoverable recoverable =
-                new GSResumeRecoverable(finalBlobIdentifier, position, closed, componentObjectIds);
-        LOGGER.trace("Deserialized recoverable {}", recoverable);
-        return recoverable;
     }
 }

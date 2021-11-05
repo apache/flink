@@ -82,6 +82,15 @@ public class GSBlobStorageImpl implements GSBlobStorage {
     }
 
     @Override
+    public void createBlob(GSBlobIdentifier blobIdentifier) {
+        LOGGER.trace("Creating empty blob {}", blobIdentifier);
+        Preconditions.checkNotNull(blobIdentifier);
+
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobIdentifier.getBlobId()).build();
+        storage.create(blobInfo);
+    }
+
+    @Override
     public Optional<GSBlobStorage.BlobMetadata> getMetadata(GSBlobIdentifier blobIdentifier) {
         LOGGER.trace("Getting metadata for blob {}", blobIdentifier);
         Preconditions.checkNotNull(blobIdentifier);

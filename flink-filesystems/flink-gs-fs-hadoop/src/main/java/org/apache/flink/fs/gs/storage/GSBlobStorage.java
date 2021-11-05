@@ -45,6 +45,13 @@ public interface GSBlobStorage {
     WriteChannel writeBlob(GSBlobIdentifier blobIdentifier, MemorySize chunkSize);
 
     /**
+     * Create an empty blob.
+     *
+     * @param blobIdentifier The blob to create
+     */
+    void createBlob(GSBlobIdentifier blobIdentifier);
+
+    /**
      * Gets blob metadata.
      *
      * @param blobIdentifier The blob identifier
