@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting.rules;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
@@ -41,6 +42,7 @@ import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUti
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.strLiteral;
 
 /** {@link LogicalTypeRoot#ROW} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+@Internal
 public class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
 
     public static final RowToStringCastRule INSTANCE = new RowToStringCastRule();

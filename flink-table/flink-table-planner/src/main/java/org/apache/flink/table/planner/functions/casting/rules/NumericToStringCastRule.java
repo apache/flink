@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting.rules;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -27,6 +28,7 @@ import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUti
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.stringConcat;
 
 /** {@link LogicalTypeFamily#NUMERIC} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+@Internal
 public class NumericToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> {
 
     public static final NumericToStringCastRule INSTANCE = new NumericToStringCastRule();

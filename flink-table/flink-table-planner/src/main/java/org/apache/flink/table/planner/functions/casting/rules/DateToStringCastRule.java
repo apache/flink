@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting.rules;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -28,6 +29,7 @@ import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.UNIX_D
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
 
 /** {@link LogicalTypeRoot#DATE} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+@Internal
 public class DateToStringCastRule extends AbstractCharacterFamilyTargetRule<Long> {
 
     public static final DateToStringCastRule INSTANCE = new DateToStringCastRule();

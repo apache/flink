@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting.rules;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -31,6 +32,7 @@ import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.UNIX_T
  * {@link LogicalTypeRoot#TIME_WITHOUT_TIME_ZONE} to {@link LogicalTypeFamily#CHARACTER_STRING} cast
  * rule.
  */
+@Internal
 public class TimeToStringCastRule extends AbstractCharacterFamilyTargetRule<Long> {
 
     public static final TimeToStringCastRule INSTANCE = new TimeToStringCastRule();

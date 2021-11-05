@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting.rules;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -31,6 +32,7 @@ import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.INTERV
 import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
 
 /** {@link LogicalTypeFamily#INTERVAL} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+@Internal
 public class IntervalToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> {
 
     public static final IntervalToStringCastRule INSTANCE = new IntervalToStringCastRule();
