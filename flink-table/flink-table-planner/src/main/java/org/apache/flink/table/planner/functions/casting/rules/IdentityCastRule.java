@@ -47,8 +47,6 @@ public class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Obje
                 && targetLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             return true;
         }
-
-        // Identity cast applies if the two types are equals, except nullability
         return LogicalTypeCasts.supportsAvoidingCast(inputLogicalType, targetLogicalType);
     }
 
