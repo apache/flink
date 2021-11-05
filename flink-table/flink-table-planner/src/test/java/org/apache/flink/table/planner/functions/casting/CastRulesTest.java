@@ -48,6 +48,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
@@ -79,6 +80,7 @@ import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * This class runs unit tests of {@link CastRule} implementations. For IT test cases, check out the
@@ -260,7 +262,16 @@ class CastRulesTest {
                         .fromCase(
                                 ARRAY(INT().notNull()),
                                 new GenericArrayData(new int[] {1, 2}),
-                                new GenericArrayData(new long[] {1L, 2L})));
+                                new GenericArrayData(new long[] {1L, 2L})),
+                CastTestSpecBuilder.testCastTo(ARRAY(ARRAY(BIGINT().notNull())))
+                        .fail(
+                                ARRAY(ARRAY(INT().nullable())),
+                                new GenericArrayData(
+                                        new GenericArrayData[] {
+                                            new GenericArrayData(new Integer[] {1, 2, null}),
+                                            new GenericArrayData(new Integer[] {3})
+                                        }),
+                                NullPointerException.class));
     }
 
     @TestFactory
@@ -287,27 +298,27 @@ class CastRulesTest {
         return new GenericMapData(map);
     }
 
+    @SuppressWarnings({"rawtypes"})
     private static class CastTestSpec {
         private final DataType inputType;
         private final DataType targetType;
-        private final Object inputData;
-        private final Object expectedData;
+        private final Consumer<CastExecutor> assertionExecutor;
+        private final String description;
         private final CastRule.Context castContext;
 
         public CastTestSpec(
                 DataType inputType,
                 DataType targetType,
-                Object inputData,
-                Object expectedData,
+                Consumer<CastExecutor> assertionExecutor,
+                String description,
                 CastRule.Context castContext) {
             this.inputType = inputType;
             this.targetType = targetType;
-            this.inputData = inputData;
-            this.expectedData = expectedData;
+            this.assertionExecutor = assertionExecutor;
+            this.description = description;
             this.castContext = castContext;
         }
 
-        @SuppressWarnings({"unchecked", "rawtypes"})
         public void run() throws Exception {
             CastExecutor executor =
                     CastRuleProvider.create(
@@ -321,26 +332,21 @@ class CastRulesTest {
                             + " and target "
                             + this.targetType);
 
-            assertEquals(this.expectedData, executor.cast(this.inputData));
-
-            // Run twice to make sure rules are reusable without causing issues
-            assertEquals(
-                    this.expectedData,
-                    executor.cast(this.inputData),
-                    "Error when reusing the rule. Perhaps there is some state that needs to be reset");
+            this.assertionExecutor.accept(executor);
         }
 
         @Override
         public String toString() {
-            return inputType + " => " + targetType + " {" + inputData + " => " + expectedData + '}';
+            return inputType + " => " + targetType + " " + description;
         }
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private static class CastTestSpecBuilder {
         private DataType targetType;
-        private final List<Object> inputData = new ArrayList<>();
         private final List<DataType> inputTypes = new ArrayList<>();
-        private final List<Object> expectedValues = new ArrayList<>();
+        private final List<Consumer<CastExecutor>> assertionExecutors = new ArrayList<>();
+        private final List<String> descriptions = new ArrayList<>();
         private final List<CastRule.Context> castContexts = new ArrayList<>();
 
         private static CastTestSpecBuilder testCastTo(DataType targetType) {
@@ -350,34 +356,63 @@ class CastRulesTest {
         }
 
         private CastTestSpecBuilder fromCase(DataType dataType, Object src, Object target) {
-            this.inputTypes.add(dataType);
-            this.inputData.add(src);
-            this.expectedValues.add(target);
-            this.castContexts.add(
+            return fromCase(
+                    dataType,
                     CastRule.Context.create(
-                            ZoneId.systemDefault(),
-                            Thread.currentThread().getContextClassLoader()));
-            return this;
+                            ZoneId.systemDefault(), Thread.currentThread().getContextClassLoader()),
+                    src,
+                    target);
         }
 
         private CastTestSpecBuilder fromCase(
                 DataType dataType, CastRule.Context castContext, Object src, Object target) {
             this.inputTypes.add(dataType);
-            this.inputData.add(src);
-            this.expectedValues.add(target);
+            this.assertionExecutors.add(
+                    executor -> {
+                        assertEquals(target, executor.cast(src));
+                        // Run twice to make sure rules are reusable without causing issues
+                        assertEquals(
+                                target,
+                                executor.cast(src),
+                                "Error when reusing the rule. Perhaps there is some state that needs to be reset");
+                    });
+            this.descriptions.add("{" + src + " => " + target + "}");
+            this.castContexts.add(castContext);
+            return this;
+        }
+
+        private CastTestSpecBuilder fail(
+                DataType dataType, Object src, Class<? extends Throwable> exception) {
+            return fail(
+                    dataType,
+                    CastRule.Context.create(
+                            ZoneId.systemDefault(), Thread.currentThread().getContextClassLoader()),
+                    src,
+                    exception);
+        }
+
+        private CastTestSpecBuilder fail(
+                DataType dataType,
+                CastRule.Context castContext,
+                Object src,
+                Class<? extends Throwable> exception) {
+            this.inputTypes.add(dataType);
+            this.assertionExecutors.add(
+                    executor -> assertThrows(exception, () -> executor.cast(src)));
+            this.descriptions.add("{" + src + " => " + exception.getName() + "}");
             this.castContexts.add(castContext);
             return this;
         }
 
         private Stream<CastTestSpec> toSpecs() {
-            CastTestSpec[] testSpecs = new CastTestSpec[inputData.size()];
-            for (int i = 0; i < inputData.size(); i++) {
+            CastTestSpec[] testSpecs = new CastTestSpec[assertionExecutors.size()];
+            for (int i = 0; i < assertionExecutors.size(); i++) {
                 testSpecs[i] =
                         new CastTestSpec(
                                 inputTypes.get(i),
                                 targetType,
-                                inputData.get(i),
-                                expectedValues.get(i),
+                                assertionExecutors.get(i),
+                                descriptions.get(i),
                                 castContexts.get(i));
             }
             return Arrays.stream(testSpecs);
