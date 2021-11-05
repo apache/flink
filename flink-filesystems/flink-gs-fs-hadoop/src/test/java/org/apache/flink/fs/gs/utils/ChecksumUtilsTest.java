@@ -22,7 +22,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/** Test checksum utilities. */
+/** Test {@link ChecksumUtils}. */
 public class ChecksumUtilsTest {
 
     @Test

@@ -44,7 +44,7 @@ public class MockBlobStorage implements GSBlobStorage {
 
         public final byte[] content;
 
-        BlobValue(byte[] content) {
+        public BlobValue(byte[] content) {
             this.content = content;
         }
     }
@@ -54,14 +54,21 @@ public class MockBlobStorage implements GSBlobStorage {
 
         private final BlobValue blobValue;
 
-        BlobMetadata(BlobValue blobValue) {
+        private final String forcedChecksum;
+
+        BlobMetadata(BlobValue blobValue, String forcedChecksum) {
             this.blobValue = blobValue;
+            this.forcedChecksum = forcedChecksum;
         }
 
         @Override
         public String getChecksum() {
-            int checksum = ChecksumUtils.CRC_HASH_FUNCTION.hashBytes(blobValue.content).asInt();
-            return ChecksumUtils.convertChecksumToString(checksum);
+            if (forcedChecksum != null) {
+                return forcedChecksum;
+            } else {
+                int checksum = ChecksumUtils.CRC_HASH_FUNCTION.hashBytes(blobValue.content).asInt();
+                return ChecksumUtils.convertChecksumToString(checksum);
+            }
         }
     }
 
@@ -88,8 +95,10 @@ public class MockBlobStorage implements GSBlobStorage {
             if (closed) {
                 throw new ClosedChannelException();
             }
-            stream.write(content, start, length);
-            return length;
+
+            int writeCount = Math.min(length, maxWriteCount);
+            stream.write(content, start, writeCount);
+            return writeCount;
         }
 
         @Override
@@ -102,7 +111,14 @@ public class MockBlobStorage implements GSBlobStorage {
         }
     }
 
+    /** The blobs in the mock storage. */
     public final Map<GSBlobIdentifier, BlobValue> blobs;
+
+    /** Set this to force a checksum value to be returned. */
+    public String forcedChecksum;
+
+    /** Set this to cause writes to be truncated at this length. */
+    public int maxWriteCount = Integer.MAX_VALUE;
 
     public MockBlobStorage() {
         this.blobs = new HashMap<>();
@@ -119,10 +135,15 @@ public class MockBlobStorage implements GSBlobStorage {
     }
 
     @Override
+    public void createBlob(GSBlobIdentifier blobIdentifier) {
+        blobs.put(blobIdentifier, new BlobValue(new byte[0]));
+    }
+
+    @Override
     public Optional<GSBlobStorage.BlobMetadata> getMetadata(GSBlobIdentifier blobIdentifier) {
         BlobValue blobValue = blobs.get(blobIdentifier);
         if (blobValue != null) {
-            return Optional.of(new BlobMetadata(blobValue));
+            return Optional.of(new BlobMetadata(blobValue, forcedChecksum));
         } else {
             return Optional.empty();
         }

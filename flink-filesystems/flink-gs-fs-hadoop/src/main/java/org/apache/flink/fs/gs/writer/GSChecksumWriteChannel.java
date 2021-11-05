@@ -18,7 +18,6 @@
 
 package org.apache.flink.fs.gs.writer;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.fs.gs.utils.ChecksumUtils;
@@ -41,10 +40,10 @@ class GSChecksumWriteChannel {
     private final GSBlobStorage storage;
 
     /** The write channel. */
-    @VisibleForTesting final GSBlobStorage.WriteChannel writeChannel;
+    private final GSBlobStorage.WriteChannel writeChannel;
 
     /** The blob identifier to write. */
-    final GSBlobIdentifier blobIdentifier;
+    private final GSBlobIdentifier blobIdentifier;
 
     /** The hasher used to compute the checksum. */
     private final Hasher hasher;
