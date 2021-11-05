@@ -41,8 +41,8 @@ Unlike other aggregations on continuous tables, window aggregation do not emit i
 ### Windowing TVFs
 
 Flink supports `TUMBLE`, `HOP` and `CUMULATE` types of window aggregations.
-For SQL queries on streaming tables, the time attribute field of window table function must be on either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). See [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) for more windowing functions information.
-For SQL on batch tables, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
+For SQL queries on streaming tables, the time attribute field of a window table-valued function must be on either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). See [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) for more windowing functions information.
+For SQL on batch tables, the time attribute field of a window table-valued function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
 
 Here are some examples for `TUMBLE`, `HOP` and `CUMULATE` window aggregations.
 

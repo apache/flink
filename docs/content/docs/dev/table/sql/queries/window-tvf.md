@@ -50,7 +50,7 @@ See more how to apply further computations based on windowing TVF:
 
 Apache Flink provides 3 built-in windowing TVFs: `TUMBLE`, `HOP` and `CUMULATE`. The return value of windowing TVF is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. 
 For SQL queries on streaming tables, the "window_time" field is a [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the window. 
-For SQL queries on streaming tables, the "window_time" field is an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ` based on input time field type. 
+For SQL on batch tables, the "window_time" field is an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ` based on input time field type. 
 The "window_time" field can be used in subsequent time-based operations, e.g. another windowing TVF, or <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>, <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>. The value of `window_time` always equal to `window_end - 1ms`.
 
 ### TUMBLE
