@@ -22,7 +22,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -54,33 +57,114 @@ public class ExecNodeUtil {
         }
     }
 
-    /** Create a {@link OneInputTransformation} with memoryBytes. */
-    public static <T> OneInputTransformation<T, T> createOneInputTransformation(
-            Transformation<T> input,
+    /** Create a {@link OneInputTransformation}. */
+    public static <I, O> OneInputTransformation<I, O> createOneInputTransformation(
+            Transformation<I> input,
             String name,
-            StreamOperatorFactory<T> operatorFactory,
-            TypeInformation<T> outputType,
+            String desc,
+            StreamOperator<O> operator,
+            TypeInformation<O> outputType,
+            int parallelism) {
+        return createOneInputTransformation(
+                input, name, desc, operator, outputType, parallelism, 0);
+    }
+
+    /** Create a {@link OneInputTransformation} with memoryBytes. */
+    public static <I, O> OneInputTransformation<I, O> createOneInputTransformation(
+            Transformation<I> input,
+            String name,
+            String desc,
+            StreamOperator<O> operator,
+            TypeInformation<O> outputType,
             int parallelism,
             long memoryBytes) {
-        OneInputTransformation<T, T> transformation =
+        return createOneInputTransformation(
+                input,
+                name,
+                desc,
+                SimpleOperatorFactory.of(operator),
+                outputType,
+                parallelism,
+                memoryBytes);
+    }
+
+    /** Create a {@link OneInputTransformation}. */
+    public static <I, O> OneInputTransformation<I, O> createOneInputTransformation(
+            Transformation<I> input,
+            String name,
+            String desc,
+            StreamOperatorFactory<O> operatorFactory,
+            TypeInformation<O> outputType,
+            int parallelism) {
+        return createOneInputTransformation(
+                input, name, desc, operatorFactory, outputType, parallelism, 0);
+    }
+
+    /** Create a {@link OneInputTransformation} with memoryBytes. */
+    public static <I, O> OneInputTransformation<I, O> createOneInputTransformation(
+            Transformation<I> input,
+            String name,
+            String desc,
+            StreamOperatorFactory<O> operatorFactory,
+            TypeInformation<O> outputType,
+            int parallelism,
+            long memoryBytes) {
+        OneInputTransformation<I, O> transformation =
                 new OneInputTransformation<>(input, name, operatorFactory, outputType, parallelism);
         setManagedMemoryWeight(transformation, memoryBytes);
+        transformation.setDescription(desc);
         return transformation;
     }
 
     /** Create a {@link TwoInputTransformation} with memoryBytes. */
-    public static <T> TwoInputTransformation<T, T, T> createTwoInputTransformation(
-            Transformation<T> input1,
-            Transformation<T> input2,
+    public static <IN1, IN2, O> TwoInputTransformation<IN1, IN2, O> createTwoInputTransformation(
+            Transformation<IN1> input1,
+            Transformation<IN2> input2,
             String name,
-            StreamOperatorFactory<T> operatorFactory,
-            TypeInformation<T> outputType,
+            String desc,
+            TwoInputStreamOperator<IN1, IN2, O> operator,
+            TypeInformation<O> outputType,
+            int parallelism) {
+        return createTwoInputTransformation(
+                input1, input2, name, desc, operator, outputType, parallelism, 0);
+    }
+
+    /** Create a {@link TwoInputTransformation} with memoryBytes. */
+    public static <IN1, IN2, O> TwoInputTransformation<IN1, IN2, O> createTwoInputTransformation(
+            Transformation<IN1> input1,
+            Transformation<IN2> input2,
+            String name,
+            String desc,
+            TwoInputStreamOperator<IN1, IN2, O> operator,
+            TypeInformation<O> outputType,
             int parallelism,
             long memoryBytes) {
-        TwoInputTransformation<T, T, T> transformation =
+        return createTwoInputTransformation(
+                input1,
+                input2,
+                name,
+                desc,
+                SimpleOperatorFactory.of(operator),
+                outputType,
+                parallelism,
+                memoryBytes);
+    }
+
+    /** Create a {@link TwoInputTransformation} with memoryBytes. */
+    public static <I1, I2, O> TwoInputTransformation<I1, I2, O> createTwoInputTransformation(
+            Transformation<I1> input1,
+            Transformation<I2> input2,
+            String name,
+            String desc,
+            StreamOperatorFactory<O> operatorFactory,
+            TypeInformation<O> outputType,
+            int parallelism,
+            long memoryBytes) {
+        TwoInputTransformation<I1, I2, O> transformation =
                 new TwoInputTransformation<>(
                         input1, input2, name, operatorFactory, outputType, parallelism);
         setManagedMemoryWeight(transformation, memoryBytes);
+        transformation.setDescription(desc);
         return transformation;
     }
 

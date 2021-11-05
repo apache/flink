@@ -57,6 +57,7 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.sinks.CollectRowTableSink
 import org.apache.flink.table.planner.utils.PlanKind.PlanKind
+import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
@@ -921,7 +922,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     def replace(result: String, explainDetail: ExplainDetail): String = {
       val replaced = explainDetail match {
         case ExplainDetail.ESTIMATED_COST => replaceEstimatedCost(result)
-        case ExplainDetail.JSON_EXECUTION_PLAN => TableTestUtil.replaceStreamNodeId(result)
+        case ExplainDetail.JSON_EXECUTION_PLAN =>
+            replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(result)))
         case _ => result
       }
       replaced
@@ -1718,5 +1720,13 @@ object TableTestUtil {
    */
   def replaceFlinkVersion(s: String): String = {
     s.replaceAll("\"flinkVersion\":\"[\\w.-]*\"", "\"flinkVersion\":\"\"")
+  }
+
+  /**
+   * Ignore exec node in operator name and description.
+   */
+  def replaceNodeIdInOperator(s: String): String = {
+    s.replaceAll("\"contents\" : \"\\[\\d+\\]:", "\"contents\" : \"[]:")
+      .replaceAll("(\"type\" : \".*?)\\[\\d+\\]", "$1[]")
   }
 }

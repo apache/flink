@@ -6,15 +6,15 @@ Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+    "type" : "Source: MyTable[1]",
     "pact" : "Data Source",
-    "contents" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+    "contents" : "[1]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
     "parallelism" : 1
   }, {
     "id" : ,
-    "type" : "Sink: Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])",
+    "type" : "Sink: MySink[2]",
     "pact" : "Data Sink",
-    "contents" : "Sink: Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])",
+    "contents" : "[2]:Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

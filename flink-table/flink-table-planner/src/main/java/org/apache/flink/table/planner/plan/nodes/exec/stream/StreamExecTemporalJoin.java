@@ -36,6 +36,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -165,10 +166,11 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                 (Transformation<RowData>) rightInputEdge.translateToPlan(planner);
 
         TwoInputTransformation<RowData, RowData, RowData> ret =
-                new TwoInputTransformation<>(
+                ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        getDescription(),
+                        getOperatorName(planner.getTableConfig()),
+                        getOperatorDescription(planner.getTableConfig()),
                         joinOperator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());
