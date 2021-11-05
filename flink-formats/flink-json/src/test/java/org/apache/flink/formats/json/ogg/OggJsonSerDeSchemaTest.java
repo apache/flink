@@ -92,25 +92,6 @@ public class OggJsonSerDeSchemaTest {
         assertTrue(collector.list.isEmpty());
     }
 
-    //    @Test
-    //    public void testDeserializationWithMetadata() throws Exception {
-    //        testDeserializationWithMetadata(
-    //                "ogg-data.txt",
-    //                row -> {
-    //                    assertThat(row.getInt(0), equalTo(101));
-    //                    assertThat(row.getString(1).toString(), equalTo("scooter"));
-    //                    assertThat(row.getString(2).toString(), equalTo("Small 2-wheel scooter"));
-    //                    assertThat(row.getFloat(3), equalTo(3.14f));
-    //                    assertThat(row.getTimestamp(5, 3).getMillisecond(),
-    // equalTo(1589355606100L));
-    //                    assertThat(row.getTimestamp(6, 3).getMillisecond(), equalTo(0L));
-    //                    assertThat(row.getString(7).toString(), equalTo("inventory"));
-    //                    assertThat(row.isNullAt(8), equalTo(true));
-    //                    assertThat(row.getString(9).toString(), equalTo("products"));
-    //                    assertThat(row.getMap(10).size(), equalTo(14));
-    //                });
-    //    }
-
     private void testSerializationDeserialization(String resourceFile) throws Exception {
         List<String> lines = readLines(resourceFile);
         OggJsonDeserializationSchema deserializationSchema =

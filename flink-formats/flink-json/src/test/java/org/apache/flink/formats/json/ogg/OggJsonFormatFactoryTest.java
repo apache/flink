@@ -18,18 +18,14 @@
 
 package org.apache.flink.formats.json.ogg;
 
-import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
-import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
@@ -37,14 +33,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_DATA_TYPE;
-import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_TYPE;
 import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
@@ -56,26 +50,7 @@ public class OggJsonFormatFactoryTest extends TestLogger {
 
     @Test
     public void testSeDeSchema() {
-        final OggJsonDeserializationSchema expectedDeser =
-                new OggJsonDeserializationSchema(
-                        PHYSICAL_DATA_TYPE,
-                        Collections.emptyList(),
-                        InternalTypeInfo.of(PHYSICAL_TYPE),
-                        false,
-                        TimestampFormat.ISO_8601);
-
         final Map<String, String> options = getAllOptions();
-
-        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
-        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
-        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
-                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
-
-        DeserializationSchema<RowData> actualDeser =
-                scanSourceMock.valueFormat.createRuntimeDecoder(
-                        ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
-
-        assertEquals(expectedDeser, actualDeser);
 
         final OggJsonSerializationSchema expectedSer =
                 new OggJsonSerializationSchema(
