@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sort.ProcTimeSortOperator;
@@ -128,9 +129,10 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
                     new ProcTimeSortOperator(InternalTypeInfo.of(inputType), rowComparator);
 
             OneInputTransformation<RowData, RowData> transform =
-                    new OneInputTransformation<>(
+                    ExecNodeUtil.createOneInputTransformation(
                             inputTransform,
-                            getDescription(),
+                            getOperatorName(tableConfig),
+                            getOperatorDescription(tableConfig),
                             sortOperator,
                             InternalTypeInfo.of(inputType),
                             inputTransform.getParallelism());
@@ -169,9 +171,10 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
                         rowComparator);
 
         OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
+                ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getDescription(),
+                        getOperatorName(tableConfig),
+                        getOperatorDescription(tableConfig),
                         sortOperator,
                         InternalTypeInfo.of(inputType),
                         inputTransform.getParallelism());

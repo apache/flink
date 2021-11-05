@@ -47,6 +47,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MatchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -192,9 +193,10 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
                         patternProcessFunction,
                         null);
         final OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
+                ExecNodeUtil.createOneInputTransformation(
                         timestampedInputTransform,
-                        getDescription(),
+                        getOperatorName(config),
+                        getOperatorDescription(config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         timestampedInputTransform.getParallelism());
@@ -256,8 +258,9 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
             // copy the rowtime field into the StreamRecord timestamp field
             int precision = getPrecision(timeOrderFieldType);
             Transformation<RowData> transform =
-                    new OneInputTransformation<>(
+                    ExecNodeUtil.createOneInputTransformation(
                             inputTransform,
+                            "StreamRecordTimestampInserter",
                             String.format(
                                     "StreamRecordTimestampInserter(rowtime field: %s)",
                                     timeOrderFieldIdx),

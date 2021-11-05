@@ -25,6 +25,7 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
+import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.utils.TestUserClassLoaderJar;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -304,7 +305,8 @@ public class CliClientITCase extends AbstractTestBase {
             out.append(sqlScript.comment).append(sqlScript.sql);
             if (i < results.size()) {
                 Result result = results.get(i);
-                String content = removeStreamNodeId(result.content);
+                String content =
+                        TableTestUtil.replaceNodeIdInOperator(removeExecNodeId(result.content));
                 out.append(content).append(result.highestTag.tag).append("\n");
             }
         }
@@ -312,7 +314,7 @@ public class CliClientITCase extends AbstractTestBase {
         return out.toString();
     }
 
-    private static String removeStreamNodeId(String s) {
+    private static String removeExecNodeId(String s) {
         return s.replaceAll("\"id\" : \\d+", "\"id\" : ");
     }
 

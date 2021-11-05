@@ -20,6 +20,9 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
@@ -162,5 +165,43 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                                                         .getRequiredDistribution()
                                                         .getType()
                                                 == InputProperty.DistributionType.SINGLETON);
+    }
+
+    public String getOperatorName(TableConfig config) {
+        return getOperatorName(config.getConfiguration());
+    }
+
+    public String getOperatorName(Configuration config) {
+        return getFormattedOperatorName(getDescription(), getSimplifiedName(), config);
+    }
+
+    @JsonIgnore
+    protected String getSimplifiedName() {
+        return getClass().getSimpleName().replace("StreamExec", "").replace("BatchExec", "");
+    }
+
+    protected String getOperatorDescription(TableConfig config) {
+        return getOperatorDescription(config.getConfiguration());
+    }
+
+    protected String getOperatorDescription(Configuration config) {
+        return getFormattedOperatorDescription(getDescription(), config);
+    }
+
+    protected String getFormattedOperatorDescription(String description, Configuration config) {
+        if (config.getBoolean(
+                OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+            return String.format("[%d]:%s", id, description);
+        }
+        return description;
+    }
+
+    protected String getFormattedOperatorName(
+            String detailName, String simplifiedName, Configuration config) {
+        if (config.getBoolean(
+                OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+            return String.format("%s[%d]", simplifiedName, id);
+        }
+        return detailName;
     }
 }

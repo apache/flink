@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.connectors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -30,6 +29,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.source.InputConversionOperator;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
@@ -104,9 +104,10 @@ final class ExternalDynamicSource<E>
         final Transformation<E> externalTransformation = dataStream.getTransformation();
 
         final Transformation<RowData> conversionTransformation =
-                new OneInputTransformation<>(
+                ExecNodeUtil.createOneInputTransformation(
                         externalTransformation,
                         generateOperatorName(),
+                        generateOperatorDesc(),
                         new InputConversionOperator<>(
                                 physicalConverter,
                                 !isTopLevelRecord,
@@ -120,6 +121,10 @@ final class ExternalDynamicSource<E>
     }
 
     private String generateOperatorName() {
+        return "DataSteamToTable";
+    }
+
+    private String generateOperatorDesc() {
         return String.format(
                 "DataSteamToTable(stream=%s, type=%s, rowtime=%s, watermark=%s)",
                 identifier.asSummaryString(),
