@@ -4371,9 +4371,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.update(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                assertNotNull("State not set", stateTable);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
@@ -4394,9 +4393,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.add(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                assertNotNull("State not set", stateTable);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
@@ -4426,9 +4424,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.add(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                assertNotNull("State not set", stateTable);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
