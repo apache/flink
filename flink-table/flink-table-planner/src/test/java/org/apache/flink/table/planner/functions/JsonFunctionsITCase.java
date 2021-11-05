@@ -339,7 +339,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_QUERY(f0, '$')",
                                 null,
                                 STRING(),
-                                VARCHAR(2000)),
+                                STRING()),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
                         .onFieldsWithData(jsonValue)
                         .andDataTypes(STRING())
@@ -351,37 +351,37 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_QUERY(f0, '$.a1' WITHOUT WRAPPER)",
                                 "[]",
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.a1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.a1' WITH CONDITIONAL WRAPPER)",
                                 "[]",
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.o1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.o1' WITH CONDITIONAL WRAPPER)",
                                 "[{}]",
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.a1", UNCONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.a1' WITH UNCONDITIONAL WRAPPER)",
                                 "[[]]",
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.n1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.n1' WITH CONDITIONAL WRAPPER)",
                                 "[1]",
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.s1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.s1' WITH CONDITIONAL WRAPPER)",
                                 "[\"Test\"]",
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
 
                         // Empty Behavior
 
@@ -390,19 +390,19 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_QUERY(f0, 'lax $.err1' NULL ON EMPTY)",
                                 null,
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("lax $.err2", WITHOUT_ARRAY, EMPTY_ARRAY, NULL),
                                 "JSON_QUERY(f0, 'lax $.err2' EMPTY ARRAY ON EMPTY)",
                                 "[]",
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("lax $.err3", WITHOUT_ARRAY, EMPTY_OBJECT, NULL),
                                 "JSON_QUERY(f0, 'lax $.err3' EMPTY OBJECT ON EMPTY)",
                                 "{}",
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testSqlRuntimeError(
                                 "JSON_QUERY(f0, 'lax $.err4' ERROR ON EMPTY)",
                                 "Empty result of JSON_QUERY function is not allowed")
@@ -417,21 +417,21 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_QUERY(f0, 'strict $.err6' NULL ON ERROR)",
                                 null,
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery(
                                                 "strict $.err7", WITHOUT_ARRAY, NULL, EMPTY_ARRAY),
                                 "JSON_QUERY(f0, 'strict $.err7' EMPTY ARRAY ON ERROR)",
                                 "[]",
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery(
                                                 "strict $.err8", WITHOUT_ARRAY, NULL, EMPTY_OBJECT),
                                 "JSON_QUERY(f0, 'strict $.err8' EMPTY OBJECT ON ERROR)",
                                 "{}",
                                 STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testSqlRuntimeError(
                                 "JSON_QUERY(f0, 'strict $.err9' ERROR ON ERROR)",
                                 "No results for path")
@@ -580,19 +580,19 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         "JSON_OBJECT()",
                                         "{}",
                                         STRING().notNull(),
-                                        VARCHAR(2000).notNull()),
+                                        STRING().notNull()),
                                 resultSpec(
                                         jsonObject(JsonOnNull.NULL, "K", nullOf(STRING())),
                                         "JSON_OBJECT(KEY 'K' VALUE CAST(NULL AS STRING) NULL ON NULL)",
                                         "{\"K\":null}",
                                         STRING().notNull(),
-                                        VARCHAR(2000).notNull()),
+                                        STRING().notNull()),
                                 resultSpec(
                                         jsonObject(JsonOnNull.ABSENT, "K", nullOf(STRING())),
                                         "JSON_OBJECT(KEY 'K' VALUE CAST(NULL AS STRING) ABSENT ON NULL)",
                                         "{}",
                                         STRING().notNull(),
-                                        VARCHAR(2000).notNull())),
+                                        STRING().notNull())),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECT)
                         .onFieldsWithData(
                                 "V",
@@ -700,7 +700,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "\"P\":[\"A\",{\"K\":\"V\"}]"
                                         + "}",
                                 STRING().notNull(),
-                                VARCHAR(2000).notNull()));
+                                STRING().notNull()));
     }
 
     private static List<TestSpec> jsonArraySpec() {
@@ -720,19 +720,19 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_ARRAY()",
                                 "[]",
                                 STRING().notNull(),
-                                VARCHAR(2000).notNull())
+                                STRING().notNull())
                         .testResult(
                                 jsonArray(JsonOnNull.NULL, nullOf(STRING())),
                                 "JSON_ARRAY(CAST(NULL AS STRING) NULL ON NULL)",
                                 "[null]",
                                 STRING().notNull(),
-                                VARCHAR(2000).notNull())
+                                STRING().notNull())
                         .testResult(
                                 jsonArray(JsonOnNull.ABSENT, nullOf(STRING())),
                                 "JSON_ARRAY(CAST(NULL AS STRING) ABSENT ON NULL)",
                                 "[]",
                                 STRING().notNull(),
-                                VARCHAR(2000).notNull()),
+                                STRING().notNull()),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAY)
                         .onFieldsWithData(
                                 "V",
@@ -824,7 +824,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "{\"K\":[\"V\"]}"
                                         + "]",
                                 STRING().notNull(),
-                                VARCHAR(2000).notNull()));
+                                STRING().notNull()));
     }
 
     // ---------------------------------------------------------------------------------------------

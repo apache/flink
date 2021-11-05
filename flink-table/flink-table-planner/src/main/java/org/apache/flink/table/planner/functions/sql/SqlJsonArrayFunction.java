@@ -18,10 +18,7 @@
 
 package org.apache.flink.table.planner.functions.sql;
 
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlJsonConstructorNullClause;
@@ -31,114 +28,74 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.InferTypes;
+import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
-import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidator;
 
 import java.util.Locale;
 
-import static org.apache.calcite.util.Static.RESOURCE;
-
-/**
- * This class has been copied from Calcite to backport the fix made during CALCITE-4394 and replace
- * the return type VARCHAR(2000) with STRING.
- */
-public class SqlJsonObjectFunction extends SqlFunction {
-    public SqlJsonObjectFunction() {
+/** This class has been copied from Calcite to replace the return type VARCHAR(2000) with STRING. */
+public class SqlJsonArrayFunction extends SqlFunction {
+    public SqlJsonArrayFunction() {
         super(
-                "JSON_OBJECT",
+                "JSON_ARRAY",
                 SqlKind.OTHER_FUNCTION,
                 ReturnTypes.cascade(
                         ReturnTypes.explicit(SqlTypeName.VARCHAR),
                         SqlTypeTransforms.TO_NOT_NULLABLE),
-                (callBinding, returnType, operandTypes) -> {
-                    RelDataTypeFactory typeFactory = callBinding.getTypeFactory();
-                    for (int i = 0; i < operandTypes.length; i++) {
-                        operandTypes[i] =
-                                i == 0
-                                        ? typeFactory.createSqlType(SqlTypeName.SYMBOL)
-                                        : i % 2 == 1
-                                                ? typeFactory.createSqlType(SqlTypeName.VARCHAR)
-                                                : typeFactory.createTypeWithNullability(
-                                                        typeFactory.createSqlType(SqlTypeName.ANY),
-                                                        true);
-                    }
-                },
-                null,
+                InferTypes.ANY_NULLABLE,
+                OperandTypes.VARIADIC,
                 SqlFunctionCategory.SYSTEM);
     }
 
-    @Override
     public SqlOperandCountRange getOperandCountRange() {
         return SqlOperandCountRanges.from(1);
     }
 
-    @Override
     protected void checkOperandCount(
             SqlValidator validator, SqlOperandTypeChecker argType, SqlCall call) {
-        assert call.operandCount() % 2 == 1;
+        assert call.operandCount() >= 1;
     }
 
-    @Override
-    public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-        final int count = callBinding.getOperandCount();
-        for (int i = 1; i < count; i += 2) {
-            RelDataType nameType = callBinding.getOperandType(i);
-            if (!SqlTypeUtil.inCharFamily(nameType)) {
-                if (throwOnFailure) {
-                    throw callBinding.newError(RESOURCE.expectedCharacter());
-                }
-                return false;
-            }
-            if (nameType.isNullable()) {
-                if (throwOnFailure) {
-                    throw callBinding.newError(
-                            RESOURCE.argumentMustNotBeNull(callBinding.operand(i).toString()));
-                }
-                return false;
-            }
-        }
-        return true;
-    }
-
-    @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
         if (operands[0] == null) {
-            operands[0] = SqlLiteral.createSymbol(SqlJsonConstructorNullClause.NULL_ON_NULL, pos);
+            operands[0] = SqlLiteral.createSymbol(SqlJsonConstructorNullClause.ABSENT_ON_NULL, pos);
         }
+
         return super.createCall(functionQualifier, pos, operands);
     }
 
-    @Override
     public String getSignatureTemplate(int operandsCount) {
-        assert operandsCount % 2 == 1;
+        assert operandsCount >= 1;
+
         StringBuilder sb = new StringBuilder();
         sb.append("{0}(");
-        for (int i = 1; i < operandsCount; i++) {
+
+        for (int i = 1; i < operandsCount; ++i) {
             sb.append(String.format(Locale.ROOT, "{%d} ", i + 1));
         }
+
         sb.append("{1})");
         return sb.toString();
     }
 
-    @Override
     public void unparse(SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
-        assert call.operandCount() % 2 == 1;
-        final SqlWriter.Frame frame = writer.startFunCall(getName());
-        SqlWriter.Frame listFrame = writer.startList("", "");
-        for (int i = 1; i < call.operandCount(); i += 2) {
-            writer.sep(",");
-            writer.keyword("KEY");
-            call.operand(i).unparse(writer, leftPrec, rightPrec);
-            writer.keyword("VALUE");
-            call.operand(i + 1).unparse(writer, leftPrec, rightPrec);
-        }
-        writer.endList(listFrame);
+        assert call.operandCount() >= 1;
 
+        SqlWriter.Frame frame = writer.startFunCall(getName());
+        SqlWriter.Frame listFrame = writer.startList("", "");
+
+        for (int i = 1; i < call.operandCount(); ++i) {
+            writer.sep(",");
+            call.operand(i).unparse(writer, leftPrec, rightPrec);
+        }
+
+        writer.endList(listFrame);
         SqlJsonConstructorNullClause nullClause = getEnumValue(call.operand(0));
         switch (nullClause) {
             case ABSENT_ON_NULL:
@@ -150,6 +107,7 @@ public class SqlJsonObjectFunction extends SqlFunction {
             default:
                 throw new IllegalStateException("unreachable code");
         }
+
         writer.endFunCall(frame);
     }
 

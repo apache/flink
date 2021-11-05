@@ -104,7 +104,7 @@
         "type" : {
           "typeName" : "VARCHAR",
           "nullable" : true,
-          "precision" : 2000
+          "precision" : 2147483647
         }
       } ],
       "type" : {
