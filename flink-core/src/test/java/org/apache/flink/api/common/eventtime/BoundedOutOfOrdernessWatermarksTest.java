@@ -25,7 +25,7 @@ import java.time.Duration;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/** Tests for the {@link AscendingTimestampsWatermarks} class. */
+/** Tests for the {@link BoundedOutOfOrdernessWatermarks} class. */
 public class BoundedOutOfOrdernessWatermarksTest {
 
     @Test
