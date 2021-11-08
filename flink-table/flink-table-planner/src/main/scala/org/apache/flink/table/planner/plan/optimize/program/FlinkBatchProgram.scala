@@ -126,6 +126,8 @@ object FlinkBatchProgram {
                 .build(), "other predicate rewrite")
             .setIterations(5).build(), "predicate rewrite")
         .addProgram(
+          // PUSH_PARTITION_DOWN_RULES should always be in front of PUSH_FILTER_DOWN_RULES
+          // to prevent PUSH_FILTER_DOWN_RULES from consuming the predicates in partitions
           FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
              .addProgram(
                FlinkHepRuleSetProgramBuilder.newBuilder

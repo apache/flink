@@ -1101,16 +1101,16 @@ public final class TestValuesTableFactory
                     remainingPartitions = (List<Map<String, String>>) Collections.emptyMap();
                 }
             }
-            // only keep the data in the remain partitions
-            this.data = pruneDataByRemainPartitions(remainingPartitions, this.data);
+            // only keep the data in the remaining partitions
+            this.data = pruneDataByRemainingPartitions(remainingPartitions, this.data);
         }
 
-        private static Map<Map<String, String>, Collection<Row>> pruneDataByRemainPartitions(
-                List<Map<String, String>> remainPartitions,
+        private Map<Map<String, String>, Collection<Row>> pruneDataByRemainingPartitions(
+                List<Map<String, String>> remainingPartitions,
                 Map<Map<String, String>, Collection<Row>> allData) {
             Map<Map<String, String>, Collection<Row>> result = new HashMap<>();
-            for (Map<String, String> remainPartition : remainPartitions) {
-                result.put(remainPartition, allData.get(remainPartition));
+            for (Map<String, String> remainingPartition : remainingPartitions) {
+                result.put(remainingPartition, allData.get(remainingPartition));
             }
             return result;
         }
