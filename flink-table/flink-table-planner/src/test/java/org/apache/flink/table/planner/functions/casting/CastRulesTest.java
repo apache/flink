@@ -69,6 +69,7 @@ import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.MONTH;
 import static org.apache.flink.table.api.DataTypes.RAW;
 import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.SECOND;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
@@ -92,6 +93,19 @@ class CastRulesTest {
             CastRule.Context.create(
                     ZoneId.of("CET"), Thread.currentThread().getContextClassLoader());
 
+    private static final byte DEFAULT_POSITIVE_TINY_INT = (byte) 5;
+    private static final byte DEFAULT_NEGATIVE_TINY_INT = (byte) -5;
+    private static final short DEFAULT_POSITIVE_SMALL_INT = (short) 12345;
+    private static final short DEFAULT_NEGATIVE_SMALL_INT = (short) -12345;
+    private static final int DEFAULT_POSITIVE_INT = 1234567;
+    private static final int DEFAULT_NEGATIVE_INT = -1234567;
+    private static final long DEFAULT_POSITIVE_BIGINT = 12345678901L;
+    private static final long DEFAULT_NEGATIVE_BIGINT = -12345678901L;
+    private static final float DEFAULT_POSITIVE_FLOAT = 123.456f;
+    private static final float DEFAULT_NEGATIVE_FLOAT = -123.456f;
+    private static final double DEFAULT_POSITIVE_DOUBLE = 123.456789d;
+    private static final double DEFAULT_NEGATIVE_DOUBLE = -123.456789d;
+
     private static final int DATE =
             DateTimeUtils.localDateToUnixDate(LocalDate.parse("2021-09-24"));
     private static final int TIME =
@@ -108,11 +122,232 @@ class CastRulesTest {
 
     Stream<CastTestSpecBuilder> testCases() {
         return Stream.of(
+                CastTestSpecBuilder.testCastTo(TINYINT())
+                        .fromCase(TINYINT(), null, null)
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                (byte) 9)
+                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
+                        // instead of overflow
+                        .fromCase(
+                                DECIMAL(10, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("9123.87"), 10, 3),
+                                (byte) -93)
+                        .fromCase(TINYINT(), DEFAULT_POSITIVE_TINY_INT, DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(SMALLINT(), (short) 32, (byte) 32)
+                        .fromCase(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT, (byte) 57)
+                        .fromCase(SMALLINT(), DEFAULT_NEGATIVE_SMALL_INT, (byte) -57)
+                        .fromCase(INT(), -12, (byte) -12)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (byte) -121)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (byte) 121)
+                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, (byte) 53)
+                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, (byte) -53)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, (byte) 123)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, (byte) -123)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, (byte) 123)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, (byte) -123),
+                CastTestSpecBuilder.testCastTo(SMALLINT())
+                        .fromCase(SMALLINT(), null, null)
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                (short) 9)
+                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
+                        // instead of overflow
+                        .fromCase(
+                                DECIMAL(10, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("91235.87"), 10, 3),
+                                (short) 25699)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_POSITIVE_TINY_INT,
+                                (short) DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_NEGATIVE_TINY_INT,
+                                (short) DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(
+                                SMALLINT(), DEFAULT_POSITIVE_SMALL_INT, DEFAULT_POSITIVE_SMALL_INT)
+                        .fromCase(
+                                SMALLINT(), DEFAULT_NEGATIVE_SMALL_INT, DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(SMALLINT(), (short) 32780, (short) -32756)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (short) -10617)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (short) 10617)
+                        .fromCase(INT(), -12, (short) -12)
+                        .fromCase(BIGINT(), 123L, (short) 123)
+                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, (short) 7221)
+                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, (short) -7221)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, (short) 123)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, (short) -123)
+                        .fromCase(FLOAT(), 123456.78f, (short) -7616)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, (short) 123)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, (short) -123)
+                        .fromCase(DOUBLE(), 123456.7890d, (short) -7616),
+                CastTestSpecBuilder.testCastTo(INT())
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                9)
+                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
+                        // instead of overflow
+                        .fromCase(
+                                DECIMAL(20, 3),
+                                DecimalData.fromBigDecimal(
+                                        new BigDecimal("3276913443134.87"), 20, 3),
+                                -146603714)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_POSITIVE_TINY_INT,
+                                (int) DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_NEGATIVE_TINY_INT,
+                                (int) DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_POSITIVE_SMALL_INT,
+                                (int) DEFAULT_POSITIVE_SMALL_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_NEGATIVE_SMALL_INT,
+                                (int) DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, DEFAULT_POSITIVE_INT)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, DEFAULT_NEGATIVE_INT)
+                        .fromCase(BIGINT(), 123L, 123)
+                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, -539222987)
+                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, 539222987)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123)
+                        .fromCase(FLOAT(), 9234567891.12f, 2147483647)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123)
+                        .fromCase(DOUBLE(), 9234567891.12345d, 2147483647)
+                        .fromCase(INTERVAL(YEAR(), MONTH()), 123, 123)
+                        .fromCase(INTERVAL(DAY(), SECOND()), 123L, 123),
                 CastTestSpecBuilder.testCastTo(BIGINT())
-                        .fromCase(BIGINT(), 10L, 10L)
-                        .fromCase(INT(), 10, 10L)
-                        .fromCase(SMALLINT(), (short) 10, 10L)
-                        .fromCase(TINYINT(), (byte) 10, 10L),
+                        .fromCase(BIGINT(), null, null)
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                9L)
+                        .fromCase(
+                                DECIMAL(20, 3),
+                                DecimalData.fromBigDecimal(
+                                        new BigDecimal("3276913443134.87"), 20, 3),
+                                3276913443134L)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_POSITIVE_TINY_INT,
+                                (long) DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_NEGATIVE_TINY_INT,
+                                (long) DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_POSITIVE_SMALL_INT,
+                                (long) DEFAULT_POSITIVE_SMALL_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_NEGATIVE_SMALL_INT,
+                                (long) DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (long) DEFAULT_POSITIVE_INT)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (long) DEFAULT_NEGATIVE_INT)
+                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, DEFAULT_POSITIVE_BIGINT)
+                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, DEFAULT_NEGATIVE_BIGINT)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123L)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123L)
+                        .fromCase(FLOAT(), 9234567891.12f, 9234568192L)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123L)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123L)
+                        .fromCase(DOUBLE(), 9234567891.12345d, 9234567891L),
+                CastTestSpecBuilder.testCastTo(FLOAT())
+                        .fromCase(FLOAT(), null, null)
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                9.87f)
+                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
+                        // instead of overflow
+                        .fromCase(
+                                DECIMAL(20, 3),
+                                DecimalData.fromBigDecimal(
+                                        new BigDecimal("3276913443134.87"), 20, 3),
+                                3.27691351E12f)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_POSITIVE_TINY_INT,
+                                (float) DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_NEGATIVE_TINY_INT,
+                                (float) DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_POSITIVE_SMALL_INT,
+                                (float) DEFAULT_POSITIVE_SMALL_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_NEGATIVE_SMALL_INT,
+                                (float) DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (float) DEFAULT_POSITIVE_INT)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (float) DEFAULT_NEGATIVE_INT)
+                        .fromCase(
+                                BIGINT(), DEFAULT_POSITIVE_BIGINT, (float) DEFAULT_POSITIVE_BIGINT)
+                        .fromCase(
+                                BIGINT(), DEFAULT_NEGATIVE_BIGINT, (float) DEFAULT_NEGATIVE_BIGINT)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, DEFAULT_POSITIVE_FLOAT)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, DEFAULT_NEGATIVE_FLOAT)
+                        .fromCase(FLOAT(), 9234567891.12f, 9234567891.12f)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123.456789f)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123.456789f)
+                        .fromCase(DOUBLE(), 1239234567891.1234567891234d, 1.23923451E12f),
+                CastTestSpecBuilder.testCastTo(DOUBLE())
+                        .fromCase(DOUBLE(), null, null)
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                9.87d)
+                        .fromCase(
+                                DECIMAL(20, 3),
+                                DecimalData.fromBigDecimal(
+                                        new BigDecimal("3276913443134.87"), 20, 3),
+                                3.27691344313487E12d)
+                        .fromCase(
+                                DECIMAL(30, 20),
+                                DecimalData.fromBigDecimal(
+                                        new BigDecimal("123456789.123456789123456789"), 30, 20),
+                                1.2345678912345679E8d)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_POSITIVE_TINY_INT,
+                                (double) DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_NEGATIVE_TINY_INT,
+                                (double) DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_POSITIVE_SMALL_INT,
+                                (double) DEFAULT_POSITIVE_SMALL_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_NEGATIVE_SMALL_INT,
+                                (double) DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (double) DEFAULT_POSITIVE_INT)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (double) DEFAULT_NEGATIVE_INT)
+                        .fromCase(
+                                BIGINT(), DEFAULT_POSITIVE_BIGINT, (double) DEFAULT_POSITIVE_BIGINT)
+                        .fromCase(
+                                BIGINT(), DEFAULT_NEGATIVE_BIGINT, (double) DEFAULT_NEGATIVE_BIGINT)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123.45600128173828d)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123.45600128173828)
+                        .fromCase(FLOAT(), 9234567891.12f, 9.234568192E9)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, DEFAULT_POSITIVE_DOUBLE)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, DEFAULT_NEGATIVE_DOUBLE)
+                        .fromCase(DOUBLE(), 1239234567891.1234567891234d, 1.2392345678911235E12d),
                 CastTestSpecBuilder.testCastTo(STRING())
                         .fromCase(STRING(), null, null)
                         .fromCase(
@@ -236,6 +471,35 @@ class CastRulesTest {
                                 RawValueData.fromObject(
                                         LocalDateTime.parse("2020-11-11T18:08:01.123")),
                                 StringData.fromString("2020-11-11T18:08:01.123")),
+                CastTestSpecBuilder.testCastTo(DECIMAL(5, 3))
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("9.870"), 5, 3))
+                        .fromCase(
+                                TINYINT(),
+                                (byte) -1,
+                                DecimalData.fromBigDecimal(new BigDecimal("-1.000"), 5, 3))
+                        .fromCase(
+                                SMALLINT(),
+                                (short) 3,
+                                DecimalData.fromBigDecimal(new BigDecimal("3.000"), 5, 3))
+                        .fromCase(
+                                INT(),
+                                42,
+                                DecimalData.fromBigDecimal(new BigDecimal("42.000"), 5, 3))
+                        .fromCase(
+                                BIGINT(),
+                                8L,
+                                DecimalData.fromBigDecimal(new BigDecimal("8.000"), 5, 3))
+                        .fromCase(
+                                FLOAT(),
+                                -12.345f,
+                                DecimalData.fromBigDecimal(new BigDecimal("-12.345"), 5, 3))
+                        .fromCase(
+                                DOUBLE(),
+                                12.678d,
+                                DecimalData.fromBigDecimal(new BigDecimal("12.678"), 5, 3)),
                 CastTestSpecBuilder.testCastTo(ARRAY(STRING().nullable()))
                         .fromCase(
                                 ARRAY(TIMESTAMP().nullable()),

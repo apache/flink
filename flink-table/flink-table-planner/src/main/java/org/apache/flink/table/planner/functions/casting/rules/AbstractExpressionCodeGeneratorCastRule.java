@@ -30,8 +30,8 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import java.util.Collections;
 
-import static org.apache.flink.table.planner.codegen.CodeGenUtils.box;
-import static org.apache.flink.table.planner.codegen.CodeGenUtils.unbox;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.box;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.unbox;
 
 /**
  * Base class for cast rules that supports code generation, requiring only an expression to perform

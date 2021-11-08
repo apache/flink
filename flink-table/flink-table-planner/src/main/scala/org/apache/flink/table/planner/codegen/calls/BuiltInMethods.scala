@@ -18,15 +18,14 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.data.{DecimalData, TimestampData}
+import org.apache.flink.table.data.{DecimalData, DecimalDataUtils, TimestampData}
 import org.apache.flink.table.runtime.functions._
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange
 
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
-import org.apache.calcite.sql.{SqlJsonConstructorNullClause, SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
-import org.apache.calcite.sql.{SqlJsonConstructorNullClause, SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
+import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
 import org.apache.flink.table.data.binary.BinaryStringData
 
 import java.lang.reflect.Method
@@ -547,5 +546,27 @@ object BuiltInMethods {
 
   val BINARY_STRING_DATA_FROM_STRING = Types.lookupMethod(classOf[BinaryStringData], "fromString",
     classOf[String])
+
+  // DecimalData functions
+
+  val DECIMAL_TO_DECIMAL = Types.lookupMethod(
+    classOf[DecimalDataUtils],
+    "castToDecimal", classOf[DecimalData], classOf[Int], classOf[Int])
+
+  val DECIMAL_TO_INTEGRAL = Types.lookupMethod(
+    classOf[DecimalDataUtils],
+    "castToIntegral", classOf[DecimalData])
+
+  val DECIMAL_TO_DOUBLE = Types.lookupMethod(
+    classOf[DecimalDataUtils],
+    "doubleValue", classOf[DecimalData])
+
+  val INTEGRAL_TO_DECIMAL = Types.lookupMethod(
+    classOf[DecimalDataUtils],
+    "castFrom", classOf[Long], classOf[Int], classOf[Int])
+
+  val DOUBLE_TO_DECIMAL = Types.lookupMethod(
+    classOf[DecimalDataUtils],
+    "castFrom", classOf[Long], classOf[Int], classOf[Int])
 
 }

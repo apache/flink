@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import static org.apache.flink.table.planner.codegen.CodeGenUtils.isPrimitiveNullable;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveDefaultValue;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveTypeTermForType;
 
@@ -59,8 +60,7 @@ public abstract class AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
             LogicalType targetType) {
         final CastRuleUtils.CodeWriter writer = new CastRuleUtils.CodeWriter();
 
-        // Result of a casting can be null only and only if the input is null
-        final boolean isResultNullable = inputType.isNullable();
+        final boolean isResultNullable = inputType.isNullable() || isPrimitiveNullable(targetType);
         String nullTerm;
         if (isResultNullable) {
             nullTerm = context.declareVariable("boolean", "isNull");
@@ -81,7 +81,15 @@ public abstract class AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
         if (isResultNullable) {
             writer.ifStmt(
                     "!" + nullTerm,
-                    thenWriter -> thenWriter.appendBlock(castCodeBlock),
+                    thenWriter -> {
+                        thenWriter.appendBlock(castCodeBlock);
+
+                        // If the result type is not primitive,
+                        // then perform another null check
+                        if (isPrimitiveNullable(targetType)) {
+                            thenWriter.assignStmt(nullTerm, returnTerm + " == null");
+                        }
+                    },
                     elseWriter ->
                             elseWriter.assignStmt(returnTerm, primitiveDefaultValue(targetType)));
         } else {

@@ -34,7 +34,8 @@ public interface ExpressionCodeGeneratorCastRule<IN, OUT> extends CodeGeneratorC
      * Generate a Java expression performing the casting. This expression can be wrapped in another
      * expression, or assigned to a variable or returned from a function.
      *
-     * <p>NOTE: the {@code inputTerm} is always either a primitive or a non-null object.
+     * <p>NOTE: the {@code inputTerm} is always either a primitive or a non-null object, while the
+     * expression result is either a primitive or a nullable object.
      */
     String generateExpression(
             CodeGeneratorCastRule.Context context,

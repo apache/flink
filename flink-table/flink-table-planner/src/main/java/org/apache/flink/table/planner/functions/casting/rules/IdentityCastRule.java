@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.planner.functions.casting.ExpressionCodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 /**
@@ -49,6 +50,23 @@ public class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Obje
                 && targetLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             return true;
         }
+
+        // INTERVAL_YEAR_MONTH and INTEGER uses the same primitive int type
+        if ((inputLogicalType.is(LogicalTypeRoot.INTERVAL_YEAR_MONTH)
+                        && targetLogicalType.is(LogicalTypeRoot.INTEGER))
+                || (inputLogicalType.is(LogicalTypeRoot.INTEGER)
+                        && targetLogicalType.is(LogicalTypeRoot.INTERVAL_YEAR_MONTH))) {
+            return true;
+        }
+
+        // INTERVAL_DAY_TIME and BIGINT uses the same primitive long type
+        if ((inputLogicalType.is(LogicalTypeRoot.INTERVAL_DAY_TIME)
+                        && targetLogicalType.is(LogicalTypeRoot.BIGINT))
+                || (inputLogicalType.is(LogicalTypeRoot.BIGINT)
+                        && targetLogicalType.is(LogicalTypeRoot.INTERVAL_DAY_TIME))) {
+            return true;
+        }
+
         return LogicalTypeCasts.supportsAvoidingCast(inputLogicalType, targetLogicalType);
     }
 

@@ -22,13 +22,14 @@ import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter
 import org.apache.flink.table.data.binary.BinaryArrayData
 import org.apache.flink.table.data.conversion.DataStructureConverters
-import org.apache.flink.table.planner.functions.casting.{CastRule, CastRuleProvider, CodeGeneratorCastRule}
+import org.apache.flink.table.planner.functions.casting.{CastRule, CastRuleProvider, CodeGeneratorCastRule, ExpressionCodeGeneratorCastRule}
 import org.apache.flink.table.data.util.{DataFormatConverters, MapDataUtil}
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull, binaryWriterWriteField, binaryWriterWriteNull, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGenUtils, CodeGeneratorContext, GenerateUtils, GeneratedExpression}
+import org.apache.flink.table.planner.functions.casting.rules.{AbstractExpressionCodeGeneratorCastRule, IdentityCastRule}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
@@ -81,19 +82,19 @@ object ScalarOperatorGens {
     val leftCasting = operator match {
       case "%" =>
         if (isInteroperable(left.resultType, right.resultType)) {
-          numericCasting(left.resultType, resultType)
+          numericCasting(ctx, left.resultType, resultType)
         } else {
           val castedType = if (isDecimal(left.resultType)) {
             new BigIntType()
           } else {
             left.resultType
           }
-          numericCasting(left.resultType, castedType)
+          numericCasting(ctx, left.resultType, castedType)
         }
-      case _ => numericCasting(left.resultType, resultType)
+      case _ => numericCasting(ctx, left.resultType, resultType)
     }
 
-    val rightCasting = numericCasting(right.resultType, resultType)
+    val rightCasting = numericCasting(ctx, right.resultType, resultType)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
 
     generateOperatorIfNotNull(ctx, resultType, left, right) {
@@ -117,7 +118,7 @@ object ScalarOperatorGens {
     // use it as is during calculation.
     def castToDec(t: LogicalType): String => String = t match {
       case _: DecimalType => (operandTerm: String) => s"$operandTerm"
-      case _ => numericCasting(t, resultType)
+      case _ => numericCasting(ctx, t, resultType)
     }
     val methods = Map(
       "+" -> "add",
@@ -358,7 +359,7 @@ object ScalarOperatorGens {
       // we need to normalize the values for the hash set
       val castNumeric = widerType match {
         case Some(t) => (value: GeneratedExpression) =>
-          numericCasting(value.resultType, t)(value.resultTerm)
+          numericCasting(ctx, value.resultType, t)(value.resultTerm)
         case None => (value: GeneratedExpression) => value.resultTerm
       }
 
@@ -951,19 +952,8 @@ object ScalarOperatorGens {
         }
 
         // Generate the code block
-        val castContext = new CodeGeneratorCastRule.Context {
-          override def getSessionTimeZoneTerm: String = ctx.addReusableSessionTimeZone()
-          override def declareVariable(ty: String, variablePrefix: String): String =
-            ctx.addReusableLocalVariable(ty, variablePrefix)
-          override def declareTypeSerializer(ty: LogicalType): String =
-            ctx.addReusableTypeSerializer(ty)
-          override def declareClassField(ty: String, field: String, init: String): String = {
-              ctx.addReusableMember(s"private $ty $field = $init;")
-              field
-            }
-        }
         val castCodeBlock = codeGeneratorCastRule.generateCodeBlock(
-          castContext,
+          toCastContext(ctx),
           operand.resultTerm,
           operand.nullTerm,
           inputType,
@@ -1202,13 +1192,6 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm => s"$operandTerm != 0"
       }
-
-      // between NUMERIC TYPE | Decimal
-      case (_, _) if isNumeric(operand.resultType) && isNumeric(targetType) =>
-        val operandCasting = numericCasting(operand.resultType, targetType)
-        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-          operandTerm => s"${operandCasting(operandTerm)}"
-        }
 
       // Date -> Timestamp
       case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
@@ -1795,6 +1778,7 @@ object ScalarOperatorGens {
    * returns NULL if any argument is NULL.
    */
   def generateGreatestLeast(
+      ctx: CodeGeneratorContext,
       resultType: LogicalType,
       elements: Seq[GeneratedExpression],
       greatest: Boolean = true)
@@ -1806,7 +1790,7 @@ object ScalarOperatorGens {
 
     def castIfNumeric(t: GeneratedExpression): String = {
       if (isNumeric(widerType.get)) {
-         s"${numericCasting(t.resultType, widerType.get).apply(t.resultTerm)}"
+         s"${numericCasting(ctx, t.resultType, widerType.get).apply(t.resultTerm)}"
       } else {
          s"${t.resultTerm}"
       }
@@ -2247,58 +2231,41 @@ object ScalarOperatorGens {
     expr.copy(resultType = targetType)
   }
 
+  /**
+   * @deprecated You should use [[generateCast()]]
+   */
+  @deprecated
   private def numericCasting(
+      ctx: CodeGeneratorContext,
       operandType: LogicalType,
       resultType: LogicalType): String => String = {
 
-    val resultTypeTerm = primitiveTypeTermForType(resultType)
+    // All numeric rules are assumed to be instance of AbstractExpressionCodeGeneratorCastRule
+    val rule = CastRuleProvider.resolve(operandType, resultType)
+    rule match {
+      case codeGeneratorCastRule: ExpressionCodeGeneratorCastRule[_, _] =>
+        operandTerm => codeGeneratorCastRule.generateExpression(
+          toCastContext(ctx),
+          operandTerm,
+          operandType,
+          resultType
+        )
+      case _ =>
+        throw new CodeGenException(s"Unsupported casting from $operandType to $resultType.")
+    }
+  }
 
-    def decToPrimMethod(targetType: LogicalType): String = targetType.getTypeRoot match {
-      case TINYINT => "castToByte"
-      case SMALLINT => "castToShort"
-      case INTEGER => "castToInt"
-      case BIGINT => "castToLong"
-      case FLOAT => "castToFloat"
-      case DOUBLE => "castToDouble"
-      case BOOLEAN => "castToBoolean"
-      case _ => throw new CodeGenException(s"Unsupported decimal casting type: '$targetType'")
-    }
-
-    // no casting necessary
-    if (isInteroperable(operandType, resultType)) {
-      operandTerm => s"$operandTerm"
-    }
-    // decimal to decimal, may have different precision/scale
-    else if (isDecimal(resultType) && isDecimal(operandType)) {
-      val dt = resultType.asInstanceOf[DecimalType]
-      operandTerm =>
-        s"$DECIMAL_UTIL.castToDecimal($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
-    }
-    // non_decimal_numeric to decimal
-    else if (isDecimal(resultType) && isNumeric(operandType)) {
-      val dt = resultType.asInstanceOf[DecimalType]
-      operandTerm =>
-        s"$DECIMAL_UTIL.castFrom($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
-    }
-    // decimal to non_decimal_numeric
-    else if (isNumeric(resultType) && isDecimal(operandType) ) {
-      operandTerm =>
-        s"$DECIMAL_UTIL.${decToPrimMethod(resultType)}($operandTerm)"
-    }
-    // numeric to numeric
-    // TODO: Create a wrapper layer that handles type conversion between numeric.
-    else if (isNumeric(operandType) && isNumeric(resultType)) {
-      val resultTypeValue = resultTypeTerm + "Value()"
-      val boxedTypeTerm = boxedTypeTermForType(operandType)
-      operandTerm =>
-        s"(new $boxedTypeTerm($operandTerm)).$resultTypeValue"
-    }
-    // result type is time interval and operand type is integer
-    else if (isTimeInterval(resultType) && isInteger(operandType)){
-      operandTerm => s"(($resultTypeTerm) $operandTerm)"
-    }
-    else {
-      throw new CodeGenException(s"Unsupported casting from $operandType to $resultType.")
+  def toCastContext(ctx: CodeGeneratorContext): CodeGeneratorCastRule.Context = {
+    new CodeGeneratorCastRule.Context {
+      override def getSessionTimeZoneTerm: String = ctx.addReusableSessionTimeZone()
+      override def declareVariable(ty: String, variablePrefix: String): String =
+        ctx.addReusableLocalVariable(ty, variablePrefix)
+      override def declareTypeSerializer(ty: LogicalType): String =
+        ctx.addReusableTypeSerializer(ty)
+      override def declareClassField(ty: String, field: String, init: String): String = {
+        ctx.addReusableMember(s"private $ty $field = $init;")
+        field
+      }
     }
   }
 
