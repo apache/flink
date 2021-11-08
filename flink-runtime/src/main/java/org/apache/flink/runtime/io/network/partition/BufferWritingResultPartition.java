@@ -118,7 +118,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         long totalNumberOfBytes = 0;
 
         for (ResultSubpartition subpartition : subpartitions) {
-            totalNumberOfBytes += Math.max(0, subpartition.getTotalNumberOfBytes());
+            totalNumberOfBytes += Math.max(0, subpartition.getTotalNumberOfBytesUnsafe());
         }
 
         return totalWrittenBytes - totalNumberOfBytes;
