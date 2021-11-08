@@ -44,12 +44,12 @@ to try the commands on your own machine.
 
 Submitting a job means uploading the job's JAR and related dependencies to the Flink cluster and 
 initiating the job execution. For the sake of this example, we select a long-running job like 
-`examples/streaming/StateMachineExample.jar`. Feel free to select any other JAR archive from the 
+`examples/datastream/StateMachineExample.jar`. Feel free to select any other JAR archive from the 
 `examples/` folder or deploy your own job.
 ```bash
 $ ./bin/flink run \
       --detached \
-      ./examples/streaming/StateMachineExample.jar
+      ./examples/datastream/StateMachineExample.jar
 ```
 Submitting the job using `--detached` will make the command return after the submission is done.
 The output contains (besides other things) the ID of the newly submitted job.
@@ -207,7 +207,7 @@ Starting a job from a savepoint can be achieved using the `run` (and `run-applic
 $ ./bin/flink run \
       --detached \ 
       --fromSavepoint /tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab \
-      ./examples/streaming/StateMachineExample.jar
+      ./examples/datastream/StateMachineExample.jar
 ```
 ```
 Usage with built-in data generator: StateMachineExample [--error-rate <probability-of-invalid-transition>] [--sleep <sleep-per-record-in-ms>]

@@ -44,7 +44,7 @@ under the License.
 可以通过执行以下命令来运行WordCount 示例:
 
 ```bash
-./bin/flink run ./examples/batch/WordCount.jar
+./bin/flink run ./examples/dataset/WordCount.jar
 ```
 
 其他的示例也可以通过类似的方式执行。
@@ -52,7 +52,7 @@ under the License.
 注意很多示例在不传递执行参数的情况下都会使用内置数据。如果需要利用 WordCount 程序计算真实数据，你需要传递存储数据的文件路径。
 
 ```bash
-./bin/flink run ./examples/batch/WordCount.jar --input /path/to/some/text/data --output /path/to/result
+./bin/flink run ./examples/dataset/WordCount.jar --input /path/to/some/text/data --output /path/to/result
 ```
 
 注意非本地文件系统需要一个对应前缀，例如 `hdfs://`。

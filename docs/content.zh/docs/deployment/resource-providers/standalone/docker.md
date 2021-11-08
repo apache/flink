@@ -79,7 +79,7 @@ The web interface is now available at [localhost:8081](http://localhost:8081).
 Submission of a job is now possible like this (assuming you have a local distribution of Flink available):
 
 ```sh
-$ ./bin/flink run ./examples/streaming/TopSpeedWindowing.jar
+$ ./bin/flink run ./examples/datastream/TopSpeedWindowing.jar
 ```
 
 To shut down the cluster, either terminate (e.g. with `CTRL-C`) the JobManager and TaskManager processes, or use `docker ps` to identify and `docker stop` to terminate the containers.
@@ -103,7 +103,7 @@ and deploys TaskManagers on demand so that you do not have to do it manually.
 
 The next chapters describe how to start a single Flink Docker container for various purposes.
 
-Once you've started Flink on Docker, you can access the Flink Webfrontend on [localhost:8081](http://localhost:8081/#/overview) or submit jobs like this `./bin/flink run ./examples/streaming/TopSpeedWindowing.jar`.
+Once you've started Flink on Docker, you can access the Flink Webfrontend on [localhost:8081](http://localhost:8081/#/overview) or submit jobs like this `./bin/flink run ./examples/datastream/TopSpeedWindowing.jar`.
 
 We recommend using [Docker Compose](#flink-with-docker-compose) or [Docker Swarm](#flink-with-docker-swarm) for deploying Flink in Session Mode to ease system configuration.
 

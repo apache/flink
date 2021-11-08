@@ -367,7 +367,7 @@ public class KubernetesUtils {
                                     throw new IllegalArgumentException(
                                             "Only \"local\" is supported as schema for application mode."
                                                     + " This assumes that the jar is located in the image, not the Flink client."
-                                                    + " An example of such path is: local:///opt/flink/examples/streaming/WindowJoin.jar");
+                                                    + " An example of such path is: local:///opt/flink/examples/datastream/WindowJoin.jar");
                                 }))
                 .collect(Collectors.toList());
     }

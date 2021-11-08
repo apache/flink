@@ -64,7 +64,7 @@ $ ./bin/start-cluster.sh
 # (2) You can now access the Flink Web Interface on http://localhost:8081
 
 # (3) Submit example job
-$ ./bin/flink run ./examples/streaming/TopSpeedWindowing.jar
+$ ./bin/flink run ./examples/datastream/TopSpeedWindowing.jar
 
 # (4) Stop the cluster again
 $ ./bin/stop-cluster.sh
@@ -83,7 +83,7 @@ We demonstrate this mode by locally starting the `TopSpeedWindowing.jar` example
 The application jar file needs to be available in the classpath. The easiest approach to achieve that is putting the jar into the `lib/` folder:
 
 ```bash
-$ cp ./examples/streaming/TopSpeedWindowing.jar lib/
+$ cp ./examples/datastream/TopSpeedWindowing.jar lib/
 ```
 
 Then, we can launch the JobManager:

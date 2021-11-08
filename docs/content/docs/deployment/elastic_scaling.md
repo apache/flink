@@ -50,7 +50,7 @@ If you just want to try out Reactive Mode, follow these instructions. They assum
 # these instructions assume you are in the root directory of a Flink distribution.
 
 # Put Job into lib/ directory
-cp ./examples/streaming/TopSpeedWindowing.jar lib/
+cp ./examples/datastream/TopSpeedWindowing.jar lib/
 # Submit Job in Reactive Mode
 ./bin/standalone-job.sh start -Dscheduler-mode=reactive -Dexecution.checkpointing.interval="10s" -j org.apache.flink.streaming.examples.windowing.TopSpeedWindowing
 # Start first TaskManager

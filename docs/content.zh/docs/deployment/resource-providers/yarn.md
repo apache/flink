@@ -70,7 +70,7 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 # the YARN ResourceManager web UI.
 
 # (3) Submit example job
-./bin/flink run ./examples/streaming/TopSpeedWindowing.jar
+./bin/flink run ./examples/datastream/TopSpeedWindowing.jar
 
 # (4) Stop YARN session (replace the application id based 
 # on the output of the yarn-session.sh command)
@@ -91,7 +91,7 @@ Application Mode will launch a Flink cluster on YARN, where the main() method of
 The cluster will shut down as soon as the application has finished. You can manually stop the cluster using `yarn application -kill <ApplicationId>` or by cancelling the Flink job.
 
 ```bash
-./bin/flink run-application -t yarn-application ./examples/streaming/TopSpeedWindowing.jar
+./bin/flink run-application -t yarn-application ./examples/datastream/TopSpeedWindowing.jar
 ```
 
 
@@ -127,7 +127,7 @@ The Per-job Cluster mode will launch a Flink cluster on YARN, then run the provi
 The YARN cluster will stop once the job has stopped.
 
 ```bash
-./bin/flink run -t yarn-per-job --detached ./examples/streaming/TopSpeedWindowing.jar
+./bin/flink run -t yarn-per-job --detached ./examples/datastream/TopSpeedWindowing.jar
 ```
 
 Once a Per-Job Cluster is deployed, you can interact with it for operations like cancelling or taking a savepoint.
@@ -157,7 +157,7 @@ You can also **manually specify the target YARN cluster** in the command line in
 ```bash 
 ./bin/flink run -t yarn-session \
   -Dyarn.application.id=application_XXXX_YY \
-  ./examples/streaming/TopSpeedWindowing.jar
+  ./examples/datastream/TopSpeedWindowing.jar
 ```
 
 You can **re-attach to a YARN session** using the following command:

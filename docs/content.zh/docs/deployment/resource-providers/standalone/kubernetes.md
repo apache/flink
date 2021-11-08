@@ -82,7 +82,7 @@ under the License.
 2. 在浏览器中导航到 [http://localhost:8081](http://localhost:8081) 页面。
 3. 此外，也可以使用如下命令向集群提交作业：
 ```bash
-$ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
+$ ./bin/flink run -m localhost:8081 ./examples/datastream/TopSpeedWindowing.jar
 ```
 
 可以使用以下命令停止运行 flink 集群：
@@ -172,7 +172,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
     2. 在浏览器中导航到 [http://localhost:8081](http://localhost:8081)。
     3. 此外，也可以使用如下命令向集群提交作业：
     ```bash
-    $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
+    $ ./bin/flink run -m localhost:8081 ./examples/datastream/TopSpeedWindowing.jar
     ```
 
 *  基于 jobmanager 的 rest 服务上创建 `NodePort` service：
@@ -182,7 +182,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
     4. 与 `port-forward` 方案类似，也可以使用如下命令向集群提交作业。
 
     ```bash
-    $ ./bin/flink run -m <public-node-ip>:<node-port> ./examples/streaming/TopSpeedWindowing.jar
+    $ ./bin/flink run -m <public-node-ip>:<node-port> ./examples/datastream/TopSpeedWindowing.jar
     ```
 
 

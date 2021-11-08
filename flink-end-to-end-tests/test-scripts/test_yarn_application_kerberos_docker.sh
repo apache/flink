@@ -60,7 +60,7 @@ if docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
    -Djobmanager.memory.process.size=1000m \
    -Dparallelism.default=3 \
    -Dtaskmanager.memory.jvm-metaspace.size=128m \
-   /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar $INPUT_ARGS --output $OUTPUT_PATH";
+   /home/hadoop-user/$FLINK_DIRNAME/examples/datastream/WordCount.jar $INPUT_ARGS --output $OUTPUT_PATH";
 then
     echo "Flink YARN Application submitted."
 else
@@ -93,7 +93,7 @@ docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     -Djobmanager.memory.process.size=1000m \
     -Dparallelism.default=3 \
     -Dtaskmanager.memory.jvm-metaspace.size=128m \
-    /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar --output $OUTPUT_PATH" > stderrAndstdoutFile 2>&1
+    /home/hadoop-user/$FLINK_DIRNAME/examples/datastream/WordCount.jar --output $OUTPUT_PATH" > stderrAndstdoutFile 2>&1
 OUTPUT=$(cat stderrAndstdoutFile)
 rm stderrAndstdoutFile
 echo "$OUTPUT"

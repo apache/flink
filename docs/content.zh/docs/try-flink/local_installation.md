@@ -75,7 +75,7 @@ Starting taskexecutor daemon on host.
 Flink 的 Releases 附带了许多的示例作业。你可以任意选择一个，快速部署到已运行的集群上。
 
 ```bash
-$ ./bin/flink run examples/streaming/WordCount.jar
+$ ./bin/flink run examples/datastream/WordCount.jar
 $ tail log/flink-*-taskexecutor-*.out
   (nymph,1)
   (in,3)

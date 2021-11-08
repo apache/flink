@@ -51,7 +51,7 @@ OUTPUT_PATH=hdfs:///user/hadoop-user/wc-out-$RANDOM
 if docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
    /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ys 1 -ytm 1000 -yjm 1000 -p 3 \
    -yD taskmanager.memory.jvm-metaspace.size=128m \
-   /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar $INPUT_ARGS --output $OUTPUT_PATH";
+   /home/hadoop-user/$FLINK_DIRNAME/examples/datastream/WordCount.jar $INPUT_ARGS --output $OUTPUT_PATH";
 then
     OUTPUT=$(get_output "$OUTPUT_PATH/*")
     echo "$OUTPUT"
@@ -74,7 +74,7 @@ docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     /home/hadoop-user/$FLINK_DIRNAME/bin/flink run \
     -m yarn-cluster -ys 1 -ytm 1000 -yjm 1000 -p 3 \
     -yD taskmanager.memory.jvm-metaspace.size=128m \
-    /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar --output $OUTPUT_PATH" > stderrAndstdoutFile 2>&1
+    /home/hadoop-user/$FLINK_DIRNAME/examples/datastream/WordCount.jar --output $OUTPUT_PATH" > stderrAndstdoutFile 2>&1
 OUTPUT=$(cat stderrAndstdoutFile)
 rm stderrAndstdoutFile
 echo "$OUTPUT"

@@ -61,7 +61,7 @@ mkdir -p "$LOCAL_LOGS_PATH"
     -Dhigh-availability.storageDir=file:///flink-ha \
     -Drestart-strategy=fixed-delay \
     -Drestart-strategy.fixed-delay.attempts=10 \
-    local:///opt/flink/examples/streaming/StateMachineExample.jar
+    local:///opt/flink/examples/datastream/StateMachineExample.jar
 
 kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')

@@ -72,7 +72,7 @@ function extract_task_manager_slot_request_count() {
 printf "\n==============================================================================\n"
 printf "Test default job launch with non-detach mode\n"
 printf "==============================================================================\n"
-RESULT=`$FLINK_DIR/bin/flink run $FLINK_DIR/examples/batch/WordCount.jar`
+RESULT=`$FLINK_DIR/bin/flink run $FLINK_DIR/examples/dataset/WordCount.jar`
 EXIT_CODE=$?
 echo "$RESULT"
 
@@ -87,7 +87,7 @@ if [ $EXIT_CODE == 0 ]; then
     printf "==============================================================================\n"
     eval "$FLINK_DIR/bin/flink run -m localhost:8081 -p 4 \
       -c org.apache.flink.examples.java.wordcount.WordCount \
-      $FLINK_DIR/examples/batch/WordCount.jar \
+      $FLINK_DIR/examples/dataset/WordCount.jar \
       --input file:///$FLINK_DIR/README.txt \
       --output file:///${TEST_DATA_DIR}/result1"
     EXIT_CODE=$?
@@ -116,7 +116,7 @@ printf "\n======================================================================
 printf "Test CLI information\n"
 printf "==============================================================================\n"
 if [ $EXIT_CODE == 0 ]; then
-    RETURN=`$FLINK_DIR/bin/flink info $FLINK_DIR/examples/batch/WordCount.jar`
+    RETURN=`$FLINK_DIR/bin/flink info $FLINK_DIR/examples/dataset/WordCount.jar`
     echo "$RETURN"
     PACT_MATCH=`extract_valid_pact_from_job_info_return "$RETURN"`
     if [[ $PACT_MATCH == -1 ]]; then # expect at least a Data Source and a Data Sink pact match

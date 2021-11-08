@@ -52,7 +52,7 @@ Reactive 模式是一个 MVP （minimum viable product，最小可行产品）�
 # 以下步骤假设你当前目录处于 Flink 发行版的根目录。
 
 # 将 Job 拷贝到 lib/ 目录下
-cp ./examples/streaming/TopSpeedWindowing.jar lib/
+cp ./examples/datastream/TopSpeedWindowing.jar lib/
 # 使用 Reactive 模式提交 Job
 ./bin/standalone-job.sh start -Dscheduler-mode=reactive -Dexecution.checkpointing.interval="10s" -j org.apache.flink.streaming.examples.windowing.TopSpeedWindowing
 # 启动第一个 TaskManager

@@ -62,7 +62,7 @@ $ ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=my-first-flink-cluster
 $ ./bin/flink run \
     --target kubernetes-session \
     -Dkubernetes.cluster-id=my-first-flink-cluster \
-    ./examples/streaming/TopSpeedWindowing.jar
+    ./examples/datastream/TopSpeedWindowing.jar
 
 # (3) Stop Kubernetes session by deleting cluster deployment
 $ kubectl delete deployment/my-first-flink-cluster

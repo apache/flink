@@ -109,7 +109,7 @@ Flink releases come with example jobs, which you can ﬁnd in the __examples/__ 
 To deploy the example word count job to the running cluster, issue the following command:
 
 ```bash
-$ ./bin/flink run examples/streaming/WordCount.jar
+$ ./bin/flink run examples/datastream/WordCount.jar
 ```
 
 You can verify the output by viewing the logs:

@@ -44,7 +44,7 @@ if ! retry_times $IMAGE_BUILD_RETRIES $IMAGE_BUILD_BACKOFF "build_image ${FLINK_
     exit 1
 fi
 
-export USER_LIB=${FLINK_DIR}/examples/batch
+export USER_LIB=${FLINK_DIR}/examples/dataset
 kubectl create -f ${CONTAINER_SCRIPTS}/job-cluster-service.yaml
 envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB} ${FLINK_JOB_PARALLELISM} ${FLINK_JOB_ARGUMENTS} ${USER_LIB}' < ${CONTAINER_SCRIPTS}/job-cluster-job.yaml.template | kubectl create -f -
 envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB_PARALLELISM} ${USER_LIB}' < ${CONTAINER_SCRIPTS}/task-manager-deployment.yaml.template | kubectl create -f -
