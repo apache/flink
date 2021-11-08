@@ -75,7 +75,7 @@ public class ArrayToStringCastRule
                 result$2 = org.apache.flink.table.data.binary.BinaryStringData.fromString("" + element$3);
                 builder$1.append(result$2);
             } else {
-                builder$1.append("NULL");
+                builder$1.append("null");
             }
         }
         builder$1.append("]");

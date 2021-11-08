@@ -73,7 +73,7 @@ public class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
             result$2 = org.apache.flink.table.data.binary.BinaryStringData.fromString("" + f0Value$2);
             builder$1.append(result$2);
         } else {
-            builder$1.append("NULL");
+            builder$1.append("null");
         }
         builder$1.append(",");
         org.apache.flink.table.data.binary.BinaryStringData f1Value$4 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
@@ -82,7 +82,7 @@ public class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
             f1Value$4 = ((org.apache.flink.table.data.binary.BinaryStringData) _myInput.getString(1));
             builder$1.append(f1Value$4);
         } else {
-            builder$1.append("NULL");
+            builder$1.append("null");
         }
         builder$1.append(")");
         result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(builder$1.toString());

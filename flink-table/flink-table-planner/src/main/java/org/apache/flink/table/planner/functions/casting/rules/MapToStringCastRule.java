@@ -78,7 +78,7 @@ public class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
                 key$5 = ((org.apache.flink.table.data.binary.BinaryStringData) keys$2.getString(i$4));
                 builder$1.append(key$5);
             } else {
-                builder$1.append("NULL");
+                builder$1.append("null");
             }
             builder$1.append("=");
             if (!valueIsNull$8) {
@@ -86,7 +86,7 @@ public class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<
                 result$2 = org.apache.flink.table.data.binary.BinaryStringData.fromString(org.apache.flink.table.utils.DateTimeUtils.intervalYearMonthToString(value$7));
                 builder$1.append(result$2);
             } else {
-                builder$1.append("NULL");
+                builder$1.append("null");
             }
         }
         builder$1.append("}");

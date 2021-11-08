@@ -199,7 +199,7 @@ class CastRulesTest {
                         .fromCase(
                                 ARRAY(INT().nullable()),
                                 new GenericArrayData(new Integer[] {null, 456}),
-                                StringData.fromString("[NULL, 456]"))
+                                StringData.fromString("[null, 456]"))
                         .fromCase(
                                 ARRAY(INT()),
                                 new GenericArrayData(new Integer[] {}),
@@ -213,11 +213,11 @@ class CastRulesTest {
                         .fromCase(
                                 MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
                                 mapData(entry(null, -123), entry(StringData.fromString("b"), null)),
-                                StringData.fromString("{NULL=-10-03, b=NULL}"))
+                                StringData.fromString("{null=-10-03, b=null}"))
                         .fromCase(
                                 MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
                                 mapData(entry(null, null)),
-                                StringData.fromString("{NULL=NULL}"))
+                                StringData.fromString("{null=null}"))
                         .fromCase(
                                 MAP(STRING(), INTERVAL(MONTH())),
                                 mapData(),
@@ -229,7 +229,7 @@ class CastRulesTest {
                         .fromCase(
                                 ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
                                 GenericRowData.of(null, StringData.fromString("abc")),
-                                StringData.fromString("(NULL,abc)"))
+                                StringData.fromString("(null,abc)"))
                         .fromCase(ROW(), GenericRowData.of(), StringData.fromString("()"))
                         .fromCase(
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
