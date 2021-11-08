@@ -51,7 +51,7 @@ LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, filem
       <![CDATA[
 Sink(table=[default_catalog.default_database.MySink], fields=[a, b, filemeta])
 +- Calc(select=[a, b, CAST(filepath) AS filemeta])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTableWithMeta, project=[a, b, filepath], metadata=[filepath]]], fields=[a, b, filepath])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTableWithMeta, project=[a, b], metadata=[filepath]]], fields=[a, b, filepath])
 ]]>
     </Resource>
   </TestCase>
