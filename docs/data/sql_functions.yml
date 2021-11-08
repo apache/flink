@@ -59,7 +59,7 @@ comparison:
     - sql: string1 NOT SIMILAR TO string2 [ ESCAPE char ]
       description: Returns TRUE if string1 does not match SQL regular expression string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
     - sql: value1 IN (value2 [, value3]* )
-      table: value1.in(valu2) 
+      table: value1.in(value2)
       description: Returns TRUE if value1 exists in the given list (value2, value3, ...). When (value2, value3, ...). contains NULL, returns TRUE if the element can be found and UNKNOWN otherwise. Always returns UNKNOWN if value1 is NULL. E.g., 4 IN (1, 2, 3) returns FALSE; 1 IN (1, 2, NULL) returns TRUE; 4 IN (1, 2, NULL) returns UNKNOWN.
     - sql: value1 NOT IN (value2 [, value3]* )
       description: Returns TRUE if value1 does not exist in the given list (value2, value3, ...). When (value2, value3, ...). contains NULL, returns FALSE if value1 can be found and UNKNOWN otherwise. Always returns UNKNOWN if value1 is NULL. E.g., 4 NOT IN (1, 2, 3) returns TRUE; 1 NOT IN (1, 2, NULL) returns FALSE; 4 NOT IN (1, 2, NULL) returns UNKNOWN.
@@ -115,7 +115,7 @@ arithmetic:
   - sql: numeric1 - numeric2
     table: NUMERIC1 + NUMERIC2
     description: Return NUMERIC1 minus NUMERIC2
-  - sql: numeric1 * numberic2
+  - sql: numeric1 * numeric2
     table: NUMERIC1 * NUMERIC2
     description: Returns NUMERIC1 multiplied by NUMERIC2
   - sql: numeric1 / numeric2
@@ -224,7 +224,7 @@ arithmetic:
     description: Returns a pseudorandom double value in the range [0.0, INT)
   - sql: RAND_INTEGER(INT1, INT2)
     table: randInteger(INT1, INT2)
-    description: Returns a pseudorandom double value in the range [0.0, INT2) with an initial seed INT1. Two RAND_INTGER functions will return idential sequences of numbers if they have the same initial seed and bound.
+    description: Returns a pseudorandom double value in the range [0.0, INT2) with an initial seed INT1. Two RAND_INTEGER functions will return identical sequences of numbers if they have the same initial seed and bound.
   - sql: UUID()
     table: uuid()
     description: Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.
@@ -270,21 +270,21 @@ string:
     description: Returns a string that removes leading and/or trailing characters STRING2 from STRING1. By default, whitespaces at both sides are removed.
   - sql: LTRIM(string)
     table: STRING.ltrim()
-    description: Returns a string that removes the left whitespaces from STRING. E.g., ' This is a test String.'.ltrim() returns "This is a test String.".
+    description: Returns a string that removes the left whitespaces from STRING. E.g., `' This is a test String.'.ltrim()` returns "This is a test String.".
   - sql: RTRIM(string)
     table: STRING.rtrim()
-    description: Returns a string that removes the right whitespaces from STRING. E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
+    description: Returns a string that removes the right whitespaces from STRING. E.g., `'This is a test String. '.rtrim()` returns "This is a test String.".
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
-    description: Returns a string that repeats the base string integer times. E.g., REPEAT('This is a test String.', 2) returns "This is a test String.This is a test String.".
+    description: Returns a string that repeats the base string integer times. E.g., `REPEAT('This is a test String.', 2)` returns "This is a test String.This is a test String.".
   - sql: REGEXP_REPLACE(string1, string2, string3)
     table: STRING1.regexpReplace(STRING2, STRING3)
-    description: Returns a string from STRING1 with all the substrings that match a regular expression STRING2 consecutively being replaced with STRING3. E.g., 'foobar'.regexpReplace('oo|ar', '') returns "fb".
+    description: Returns a string from STRING1 with all the substrings that match a regular expression STRING2 consecutively being replaced with STRING3. E.g., `'foobar'.regexpReplace('oo|ar', '')` returns "fb".
   - sql: OVERLAY(string1 PLACING string2 FROM integer1 [ FOR integer2 ])
     table: |
       STRING1.overlay(STRING2, INT1)
       STRING1.overlay(STRING2, INT1, INT2)
-    description: Returns a string that replaces INT2 (STRING2's length by default) characters of STRING1 with STRING2 from position INT1. E.g., 'xxxxxtest'.overlay('xxxx', 6) returns "xxxxxxxxx"; 'xxxxxtest'.overlay('xxxx', 6, 2) returns "xxxxxxxxxst".
+    description: Returns a string that replaces INT2 (STRING2's length by default) characters of STRING1 with STRING2 from position INT1. E.g., `'xxxxxtest'.overlay('xxxx', 6)` returns "xxxxxxxxx"; `'xxxxxtest'.overlay('xxxx', 6, 2)` returns "xxxxxxxxxst".
   - sql: SUBSTRING(string FROM integer1 [ FOR integer2 ])
     table: |
       STRING.substring(INT1)
@@ -292,7 +292,7 @@ string:
     description: Returns a substring of STRING starting from position INT1 with length INT2 (to the end by default).
   - sql: REPLACE(string1, string2, string3)
     table: STRING1.replace(STRING2, STRING3)
-    description: Returns a new string which replaces all the occurrences of STRING2 with STRING3 (non-overlapping) from STRING1. E.g., 'hello world'.replace('world', 'flink') returns 'hello flink'; 'ababab'.replace('abab', 'z') returns 'zab'.
+    description: Returns a new string which replaces all the occurrences of STRING2 with STRING3 (non-overlapping) from STRING1. E.g., `'hello world'.replace('world', 'flink')` returns 'hello flink'; `'ababab'.replace('abab', 'z')` returns 'zab'.
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
     table: STRING1.regexpExtract(STRING2[, INTEGER1])
     description: |
@@ -302,34 +302,83 @@ string:
       The regex match group index starts from 1 and 0 means matching
       the whole regex. In addition, the regex match group index should
       not exceed the number of the defined groups.
-
-      E.g. REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)" returns "bar".
+      ```sql
+      -- returns 'bar'
+      SELECT REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2);
+      ```
 
   - sql: INITCAP(string)
     table: STRING.initCap()
     description: Returns a new form of STRING with the first character of each word converted to uppercase and the rest characters to lowercase. Here a word means a sequences of alphanumeric characters.
   - sql: CONCAT(string1, string2,...)
     table: concat(STRING1, STRING2, ...)
-    description: Returns a string that concatenates string1, string2, .... Returns NULL if any argument is NULL. E.g., CONCAT('AA', 'BB', 'CC') returns "AABBCC".
+    description: |
+      Returns a string that concatenates string1, string2, ... Returns NULL if any argument is NULL.
+      ```sql
+      -- returns 'AABBCC'
+      SELECT CONCAT('AA', 'BB', 'CC');
+      ```
   - sql: CONCAT_WS(string1, string2, string3,...)
     table: concat_ws(STRING1, STRING2, STRING3, ...)
-    description: Returns a string that concatenates STRING2, STRING3, ... with a separator STRING1. The separator is added between the strings to be concatenated. Returns NULL If STRING1 is NULL. Compared with concat(), concat_ws() automatically skips NULL arguments. E.g., concat_ws('~', 'AA', Null(STRING), 'BB', '', 'CC') returns "AA~BB~~CC".
+    description: Returns a string that concatenates STRING2, STRING3, ... with a separator STRING1. The separator is added between the strings to be concatenated. Returns NULL If STRING1 is NULL. Compared with concat(), concat_ws() automatically skips NULL arguments. E.g., `concat_ws('~', 'AA', Null(STRING), 'BB', '', 'CC')` returns "AA~BB~~CC".
   - sql: LPAD(string1, integer, string2)
     table: STRING1.lpad(INT, STRING2)
-    description: Returns a new string from string1 left-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., LPAD('hi', 4, '??') returns "??hi"; LPAD('hi', 1, '??') returns "h".
+    description: |
+      Returns a new string from string1 left-padded with string2 to a length of integer characters.
+      If the length of string1 is shorter than integer, returns string1 shortened to integer characters.
+      ```sql
+      -- returns '??hi'
+      SELECT LPAD('hi', 4, '??');
+      -- returns 'h'
+      SELECT LPAD('hi', 1, '??');
+      ```
   - sql: RPAD(string1, integer, string2)
     table: STRING1.rpad(INT, STRING2)
-    description: Returns a new string from string1 right-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., RPAD('hi', 4, '??') returns "hi??", RPAD('hi', 1, '??') returns "h".
+    description: |
+      Returns a new string from string1 right-padded with string2 to a length of integer characters.
+      If the length of string1 is shorter than integer, returns string1 shortened to integer characters.
+      ```sql
+      --  returns 'hi??'
+      SELECT RPAD('hi', 4, '??');
+      -- returns 'h'
+      SELECT RPAD('hi', 1, '??');
+      ```
   - sql: FROM_BASE64(string)
     table: STRING.fromBase64()
-    description: Returns the base64-decoded result from string; returns NULL if string is NULL. E.g., FROM_BASE64('aGVsbG8gd29ybGQ=') returns "hello world".
+    description: |
+      Returns the base64-decoded result from string; returns NULL if string is NULL.
+      ```sql
+      --  returns 'hello world'
+      SELECT FROM_BASE64('aGVsbG8gd29ybGQ=');
+      ```
   - sql: TO_BASE64(string)
     table: STRING.toBase64()
-    description: Returns the base64-encoded result from string; returns NULL if string is NULL. E.g., TO_BASE64('hello world') returns "aGVsbG8gd29ybGQ=".
+    description: |
+      Returns the base64-encoded result from string; returns NULL if string is NULL.
+      ```sql
+      -- returns 'aGVsbG8gd29ybGQ='
+      SELECT TO_BASE64('hello world');
+      ```
   - sql: ASCII(string)
-    description: Returns the numeric value of the first character of string. Returns NULL if string is NULL. E.g., ascii('abc') returns 97, and ascii(CAST(NULL AS VARCHAR)) returns NULL.
+    description: |
+      Returns the numeric value of the first character of string. Returns NULL if string is NULL.
+      ```sql
+      -- returns 97
+      SELECT ASCII('abc');
+      -- returns NULL
+      SELECT ASCII(CAST(NULL AS VARCHAR));
+      ```
   - sql: CHR(integer)
-    description: Returns the ASCII character having the binary equivalent to integer. If integer is larger than 255, we will get the modulus of integer divided by 255 first, and returns CHR of the modulus. Returns NULL if integer is NULL. E.g., chr(97) returns a, chr(353) returns a, and ascii(CAST(NULL AS VARCHAR)) returns NULL.
+    description: |
+      Returns the ASCII character having the binary equivalent to integer. If integer is larger than 255, we will get the modulus of integer divided by 255 first, and returns CHR of the modulus. Returns NULL if integer is NULL.
+      ```sql
+      --  returns 'a'
+      SELECT CHR(97);
+      --  returns 'a'
+      SELECT CHR(353);
+      -- returns NULL
+      SELECT ASCII(CAST(NULL AS VARCHAR));
+      ```
   - sql: DECODE(binary, string)
     description: Decodes the first argument into a String using the provided character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.
   - sql: ENCODE(string1, string2)
@@ -344,13 +393,17 @@ string:
     description: Returns the position of the first occurrence of string1 in string2 after position integer. Returns 0 if not found. Returns NULL if any of arguments is NULL.
   - sql: PARSE_URL(string1, string2[, string3])
     description: |
-      Returns the specified part from the URL. Valid values for string2 include 'HOST', 'PATH', 'QUERY', 'REF', 'PROTOCOL', 'AUTHORITY', 'FILE', and 'USERINFO'. Returns NULL if any of arguments is NULL.
-
-      E.g., parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST'), returns 'facebook.com'.
-
-      Also a value of a particular key in QUERY can be extracted by providing the key as the third argument string3.
-
-      E.g., parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1') returns 'v1'. 
+      Returns the specified part from the URL. Valid values for string2 include
+      'HOST', 'PATH', 'QUERY', 'REF', 'PROTOCOL', 'AUTHORITY', 'FILE', and 'USERINFO'.
+      Returns NULL if any of arguments is NULL.
+      ```sql
+      -- returns 'fb.com'
+      SELECT PARSE_URL('http://fb.com/path/p.php?k1=v1&k2=v2#Ref', 'HOST');
+      -- Also a value of a particular key in QUERY can be extracted
+      -- by providing the key as the third argument string3.
+      -- Returns 'v1'.
+      SELECT PARSE_URL('http://fb.com/path/p.php?k1=v1&k2=v2#Ref', 'QUERY', 'k1');
+      ```
   - sql: REGEXP(string1, string2)
     description: Returns TRUE if any (possibly empty) substring of string1 matches the Java regular expression string2, otherwise FALSE. Returns NULL if any of arguments is NULL.
   - sql: REVERSE(string)
@@ -378,8 +431,14 @@ temporal:
     description: |
       Parses an interval string in the form "dd hh:mm:ss.fff" for SQL intervals of milliseconds or "yyyy-mm" for SQL intervals of months.
       An interval range might be DAY, MINUTE, DAY TO HOUR, or DAY TO SECOND for intervals of milliseconds; YEAR or YEAR TO MONTH for intervals of months.
-
-      E.g., INTERVAL '10 00:00:00.004' DAY TO SECOND, INTERVAL '10' DAY, or INTERVAL '2-10' YEAR TO MONTH return intervals.
+      ```sql
+      -- 864000004
+      SELECT INTERVAL '10 00:00:00.004' DAY TO SECOND;
+      -- 864000000
+      SELECT INTERVAL '10' DAY;
+      -- 34
+      SELECT INTERVAL '2-10' YEAR TO MONTH;
+      ```
   - sql: YEAR(date)
     table: |
       NUMERIC.year
@@ -438,34 +497,103 @@ temporal:
     description: Returns the current SQL timestamp in the local time zone, the return type is TIMESTAMP_LTZ(3). It is evaluated for each record no matter in batch or streaming mode.
   - sql: EXTRACT(timeinteravlunit FROM temporal)
     table: TEMPORAL.extract(TIMEINTERVALUNIT)
-    description: Returns a long value extracted from the timeintervalunit part of temporal. E.g., EXTRACT(DAY FROM DATE '2006-06-05') returns 5.
+    description: |
+      Returns a long value extracted from the timeintervalunit part of temporal.
+      ```sql
+      -- returns 5
+      SELECT EXTRACT(DAY FROM DATE '2006-06-05');
+      ```
   - sql: YEAR(date)
-    description: Returns the year from SQL date date. Equivalent to EXTRACT(YEAR FROM date). E.g., YEAR(DATE '1994-09-27') returns 1994.
+    description: |
+      Returns the year from SQL date date. Equivalent to `EXTRACT(YEAR FROM date)`.
+      ```sql
+      -- returns 1994
+      SELECT YEAR(DATE '1994-09-27');
+      ```
   - sql: QUARTER(date)
-    description: Returns the quarter of a year (an integer between 1 and 4) from SQL date date. Equivalent to EXTRACT(QUARTER FROM date). E.g., QUARTER(DATE '1994-09-27') returns 3.
+    description: |
+      Returns the quarter of a year (an integer between 1 and 4) from SQL date date. Equivalent to `EXTRACT(QUARTER FROM date)`.
+      ```sql
+      -- returns 3
+      SELECT QUARTER(DATE '1994-09-27');
+      ```
   - sql: MONTH(date)
-    description: Returns the month of a year (an integer between 1 and 12) from SQL date date. Equivalent to EXTRACT(MONTH FROM date). E.g., MONTH(DATE '1994-09-27') returns 9.
+    description: |
+      Returns the month of a year (an integer between 1 and 12) from SQL date date. Equivalent to `EXTRACT(MONTH FROM date)`.
+      ```sql
+      -- returns 9
+      SELECT MONTH(DATE '1994-09-27');
+      ```
   - sql: WEEK(date)
-    description: Returns the week of a year (an integer between 1 and 53) from SQL date date. Equivalent to EXTRACT(WEEK FROM date). E.g., WEEK(DATE '1994-09-27') returns 39.
+    description: |
+      Returns the week of a year (an integer between 1 and 53) from SQL date date. Equivalent to `EXTRACT(WEEK FROM date)`.
+      ```sql
+      -- returns 39
+      SELECT WEEK(DATE '1994-09-27');
+      ```
   - sql: DAYOFYEAR(date)
-    description:  Returns the day of a year (an integer between 1 and 366) from SQL date date. Equivalent to EXTRACT(DOY FROM date). E.g., DAYOFYEAR(DATE '1994-09-27') returns 270.
+    description: |
+      Returns the day of a year (an integer between 1 and 366) from SQL date date. Equivalent to `EXTRACT(DOY FROM date)`.
+      ```sql
+      -- returns 270
+      SELECT DAYOFYEAR(DATE '1994-09-27');
+      ```
   - sql: DAYOFMONTH
-    description: Returns the day of a month (an integer between 1 and 31) from SQL date date. Equivalent to EXTRACT(DAY FROM date). E.g., DAYOFWEEK(DATE '1994-09-27') returns 3.
+    description: |
+      Returns the day of a month (an integer between 1 and 31) from SQL date date. Equivalent to `EXTRACT(DAY FROM date)`.
+      ```sql
+      -- returns 3
+      SELECT DAYOFWEEK(DATE '1994-09-27');
+      ```
   - sql: HOUR(timestamp)
-    description: Returns the hour of a day (an integer between 0 and 23) from SQL timestamp timestamp. Equivalent to EXTRACT(HOUR FROM timestamp). E.g., MINUTE(TIMESTAMP '1994-09-27 13:14:15') returns 14.
+    description: |
+      Returns the hour of a day (an integer between 0 and 23) from SQL timestamp timestamp. Equivalent to `EXTRACT(HOUR FROM timestamp)`.
+      ```sql
+      -- returns 14
+      SELECT MINUTE(TIMESTAMP '1994-09-27 13:14:15');
+      ```
   - sql: MINUTE(timestamp)
-    description: Returns the minute of an hour (an integer between 0 and 59) from SQL timestamp timestamp. Equivalent to EXTRACT(MINUTE FROM timestamp). E.g., MINUTE(TIMESTAMP '1994-09-27 13:14:15') returns 14.
+    description: |
+      Returns the minute of an hour (an integer between 0 and 59) from SQL timestamp timestamp. Equivalent to `EXTRACT(MINUTE FROM timestamp)`.
+      ```sql
+      -- returns 14
+      SELECT MINUTE(TIMESTAMP '1994-09-27 13:14:15');
+      ```
   - sql: SECOND(timestamp)
-    description: Returns the second of a minute (an integer between 0 and 59) from SQL timestamp. Equivalent to EXTRACT(SECOND FROM timestamp). E.g., SECOND(TIMESTAMP '1994-09-27 13:14:15') returns 15.
-  - sql: FLOOR(timepoint TO timeintervalunit) 
+    description: |
+      Returns the second of a minute (an integer between 0 and 59) from SQL timestamp. Equivalent to `EXTRACT(SECOND FROM timestamp)`.
+      ```sql
+      --  returns 15
+      SELECT SECOND(TIMESTAMP '1994-09-27 13:14:15');
+      ```
+  - sql: FLOOR(timepoint TO timeintervalunit)
     table: TIMEPOINT.floor(TIMEINTERVALUNIT)
-    description: Returns a value that rounds timepoint down to the time unit timeintervalunit. E.g., FLOOR(TIME '12:44:31' TO MINUTE) returns 12:44:00.
+    description: |
+      Returns a value that rounds timepoint down to the time unit timeintervalunit.
+      ```sql
+      --  returns 12:44:00
+      SELECT FLOOR(TIME '12:44:31' TO MINUTE);
+      ```
   - sql: CEIL(timepoint TO timeintervaluntit)
     table: TIMEPOINT.ceil(TIMEINTERVALUNIT)
-    description: Returns a value that rounds timepoint up to the time unit timeintervalunit. E.g., CEIL(TIME '12:44:31' TO MINUTE) returns 12:45:00.
+    description: |
+      Returns a value that rounds timepoint up to the time unit timeintervalunit.
+      ```sql
+      -- returns 12:45:00
+      SELECT CEIL(TIME '12:44:31' TO MINUTE);
+      ```
   - sql: (timepoint1, temporal1) OVERLAPS (timepoint2, temporal2)
     table: temporalOverlaps(TIMEPOINT1, TEMPORAL1, TIMEPOINT2, TEMPORAL2)
-    description: Returns TRUE if two time intervals defined by (timepoint1, temporal1) and (timepoint2, temporal2) overlap. The temporal values could be either a time point or a time interval. E.g., (TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR) returns TRUE; (TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR) returns FALSE.
+    description: |
+      Returns TRUE if two time intervals defined by (timepoint1, temporal1) and (timepoint2, temporal2) overlap. The temporal values could be either a time point or a time interval.
+      ```sql
+      -- returns TRUE
+      SELECT (TIME '2:55:00', INTERVAL '1' HOUR)
+             OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR);
+      -- returns FALSE
+      SELECT (TIME '9:00:00', TIME '10:00:00')
+             OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR);
+      ```
   - sql: DATE_FORMAT(timestamp, string)
     description: Converts timestamp to a value of string in the format specified by the date format string. The format string is compatible with Java's SimpleDateFormat.
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
@@ -473,15 +601,27 @@ temporal:
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
     description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.'
   - sql: CONVERT_TZ(string1, string2, string3)
-    description: Converts a datetime string1 (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone string2 to time zone string3. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00". E.g., CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
+    description: |
+      Converts a datetime string1 (with default ISO timestamp format `'yyyy-MM-dd HH:mm:ss'`) from time zone string2 to time zone string3. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00".
+      ```sql
+      -- returns '1969-12-31 16:00:00'
+      SELECT
+         CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles');
+      ```
   - sql: FROM_UNIXTIME(numeric[, string])
-    description: Returns a representation of the numeric argument as a value in string format (default is 'yyyy-MM-dd HH:mm:ss'). numeric is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig). E.g., FROM_UNIXTIME(44) returns '1970-01-01 00:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.
+    description: |
+      Returns a representation of the numeric argument as a value in string format (default is `'yyyy-MM-dd HH:mm:ss'`). numeric is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig).
+      ```sql
+      -- returns '1970-01-01 00:00:44' if in UTC time zone,
+      -- but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.
+      SELECT FROM_UNIXTIME(44);
+      ```
   - sql: UNIX_TIMESTAMP()
     description: Gets current Unix timestamp in seconds. This function is not deterministic which means the value would be recalculated for each record.
   - sql: UNIX_TIMESTAMP(string1[, string2])
     description: 'Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.'
   - sql: TO_DATE(string1[, string2])
-    description: Converts a date string string1 with format string2 (by default 'yyyy-MM-dd') to a date.
+    description: Converts a date string string1 with format string2 (by default `'yyyy-MM-dd'`) to a date.
   - sql: TO_TIMESTAMP_LTZ(numeric, precision)
     table: toTimestampLtz(NUMERIC, PRECISION)
     description: "Converts a epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ, the valid precision is 0 or 3, the 0 represents TO_TIMESTAMP_LTZ(epochSeconds, 0), the 3 represents TO_TIMESTAMP_LTZ(epochMilliseconds, 3)."
@@ -494,7 +634,7 @@ temporal:
 
       Note that this function can return `NULL`, and you may have to consider this case. For example, if you want to filter out late data you can use:
 
-      ```
+      ```sql
       WHERE
         CURRENT_WATERMARK(ts) IS NULL
         OR ts > CURRENT_WATERMARK(ts)
@@ -525,7 +665,7 @@ conditional:
       If all arguments are NULL, it returns NULL as well. The return type is the least restrictive, common type of all of its arguments.
       The return type is nullable if all arguments are nullable as well.
 
-      ```
+      ```sql
       -- Returns 'default'
       COALESCE(NULL, 'default')
 
@@ -552,7 +692,7 @@ conditional:
   - sql: IS_DIGIT(string)
     description: Returns true if all characters in string are digit, otherwise false.
   - table: BOOLEAN.?(VALUE1, VALUE2)
-    description: Returns VALUE1 if BOOLEAN evaluates to TRUE; returns VALUE2 otherwise. E.g., (42 > 5).?('A', 'B') returns "A".
+    description: Returns VALUE1 if BOOLEAN evaluates to TRUE; returns VALUE2 otherwise. E.g., `(42 > 5).?('A', 'B')` returns "A".
   - sql: GREATEST(value1[, value2]*)
     description: Returns the greatest value of the list of arguments. Returns NULL if any argument is NULL.
   - sql: LEAST(value1[, value2]*)
@@ -561,10 +701,10 @@ conditional:
 conversion:
   - sql: CAST(value AS type)
     table: ANY.cast(TYPE)
-    description: Returns a new value being cast to type type. A CAST error throws an exception and fails the job. When performing a cast operation that may fail, like STRING to INT, one should rather use TRY_CAST, in order to handle errors. If "table.exec.legacy-cast-behaviour" is enabled, CAST behaves like TRY_CAST. E.g., CAST('42' AS INT) returns 42; CAST(NULL AS STRING) returns NULL of type STRING; CAST('non-number' AS INT) throws an exception and fails the job.
+    description: Returns a new value being cast to type type. A CAST error throws an exception and fails the job. When performing a cast operation that may fail, like STRING to INT, one should rather use TRY_CAST, in order to handle errors. If "table.exec.legacy-cast-behaviour" is enabled, CAST behaves like TRY_CAST. E.g., `CAST('42' AS INT)` returns 42; `CAST(NULL AS STRING)` returns NULL of type STRING; `CAST('non-number' AS INT)` throws an exception and fails the job.
   - sql: TRY_CAST(value AS type)
     table: ANY.tryCast(TYPE)
-    description: Like CAST, but in case of error, returns NULL rather than failing the job. E.g., TRY_CAST('42' AS INT) returns 42; TRY_CAST(NULL AS STRING) returns NULL of type STRING; TRY_CAST('non-number' AS INT) returns NULL of type INT; COALESCE(TRY_CAST('non-number' AS INT), 0) returns 0 of type INT.
+    description: Like CAST, but in case of error, returns NULL rather than failing the job. E.g., `TRY_CAST('42' AS INT)` returns 42; `TRY_CAST(NULL AS STRING)` returns NULL of type STRING; `TRY_CAST('non-number' AS INT)` returns NULL of type INT; `COALESCE(TRY_CAST('non-number' AS INT), 0)` returns 0 of type INT.
   - sql: |
      TYPEOF(input)
      TYPEOF(input, force_serializable)
@@ -586,7 +726,7 @@ collection:
   - sql: CARDINALITY(map)
     table: MAP.cardinality()
     description: Returns the number of entries in map.
-  - sql: map ‘[’ value ‘]’
+  - sql: map '[' value ']'
     table: MAP.at(ANY)
     description: Returns the value specified by key value in map.
 
@@ -600,7 +740,7 @@ json:
       allowed. If the string is valid JSON, but not that type, `false` is returned. The default is
       `VALUE`.
 
-      ```
+      ```sql
       -- TRUE
       '1' IS JSON
       '[]' IS JSON
@@ -633,7 +773,7 @@ json:
 
       If the error behavior is omitted, `FALSE ON ERROR` is assumed as the default.
 
-      ```
+      ```sql
       -- TRUE
       SELECT JSON_EXISTS('{"a": true}', '$.a');
       -- FALSE
@@ -657,7 +797,7 @@ json:
       This function returns a JSON string containing the serialized value. If the value is `NULL`,
       the function returns `NULL`.
 
-      ```
+      ```sql
       -- NULL
       JSON_STRING(CAST(NULL AS INT))
 
@@ -691,7 +831,7 @@ json:
       expression. If the default value itself raises an error, it falls through to the error
       behavior for `ON EMPTY`, and raises an error for `ON ERROR`.
 
-      ```
+      ```sql
       -- "true"
       JSON_VALUE('{"a": true}', '$.a')
 
@@ -724,7 +864,7 @@ json:
       case an error was raised, respectively. By default, in both cases `null` is returned. Other
       choices are to use an empty array, an empty object, or to raise an error.
 
-      ```
+      ```sql
       -- '{ "b": 1 }'
       JSON_QUERY('{ "a": { "b": 1 } }', '$.a')
       -- '[1, 2]'
@@ -769,7 +909,7 @@ json:
       `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
       structures.
 
-      ```
+      ```sql
       -- '{}'
       JSON_OBJECT()
 
@@ -805,7 +945,7 @@ json:
 
       This function is currently not supported in `OVER` windows.
 
-      ```
+      ```sql
       -- '{"Apple":2,"Banana":17,"Orange":0}'
       SELECT
         JSON_OBJECTAGG(KEY product VALUE cnt)
@@ -824,7 +964,7 @@ json:
       `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
       structures.
 
-      ```
+      ```sql
       -- '[]'
       JSON_ARRAY()
       -- '[1,"2"]'
@@ -851,7 +991,7 @@ json:
       This function is currently not supported in `OVER` windows, unbounded session windows, or hop
       windows.
 
-      ```
+      ```sql
       -- '["Apple","Banana","Orange"]'
       SELECT
         JSON_ARRAYAGG(product)
@@ -917,7 +1057,7 @@ hashfunctions:
     table: STRING.sha2(INT)
     description: Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument string is the string to be hashed and the second argument hashLength is the bit length of the result (224, 256, 384, or 512). Returns NULL if string or hashLength is NULL. 
 
-auxilary:
+auxiliary:
   - table: callSql(STRING)
     description: |
       A call to a SQL expression.
@@ -926,7 +1066,7 @@ auxilary:
 
       Currently, calls are limited to simple scalar expressions. Calls to aggregate or table-valued functions are not supported. Sub-queries are also not allowed.
 
-      E.g. table.select(callSql("UPPER(myColumn)").substring(3))
+      E.g. `table.select(callSql("UPPER(myColumn)").substring(3))`
 
   - table: ANY.as(NAME1, NAME2, ...)
     description: Specifies a name for ANY (a field). Additional names can be specified if the expression expands to multiple fields.
