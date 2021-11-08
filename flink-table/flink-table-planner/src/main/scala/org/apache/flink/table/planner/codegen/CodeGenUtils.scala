@@ -344,69 +344,6 @@ object CodeGenUtils {
       throw new IllegalArgumentException("Illegal type: " + t)
   }
 
-  // ----------------------------------------------------------------------------------------------
-
-  // Cast numeric type to another numeric type with larger range.
-  // This function must be in sync with [[NumericOrDefaultReturnTypeInference]].
-  def getNumericCastedResultTerm(expr: GeneratedExpression, targetType: LogicalType): String = {
-    (expr.resultType.getTypeRoot, targetType.getTypeRoot) match {
-      case _ if isInteroperable(expr.resultType, targetType) => expr.resultTerm
-
-      // byte -> other numeric types
-      case (TINYINT, SMALLINT) => s"(short) ${expr.resultTerm}"
-      case (TINYINT, INTEGER) => s"(int) ${expr.resultTerm}"
-      case (TINYINT, BIGINT) => s"(long) ${expr.resultTerm}"
-      case (TINYINT, DECIMAL) =>
-        val dt = targetType.asInstanceOf[DecimalType]
-        s"$DECIMAL_UTIL.castFrom(" +
-          s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
-      case (TINYINT, FLOAT) => s"(float) ${expr.resultTerm}"
-      case (TINYINT, DOUBLE) => s"(double) ${expr.resultTerm}"
-
-      // short -> other numeric types
-      case (SMALLINT, INTEGER) => s"(int) ${expr.resultTerm}"
-      case (SMALLINT, BIGINT) => s"(long) ${expr.resultTerm}"
-      case (SMALLINT, DECIMAL) =>
-        val dt = targetType.asInstanceOf[DecimalType]
-        s"$DECIMAL_UTIL.castFrom(" +
-          s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
-      case (SMALLINT, FLOAT) => s"(float) ${expr.resultTerm}"
-      case (SMALLINT, DOUBLE) => s"(double) ${expr.resultTerm}"
-
-      // int -> other numeric types
-      case (INTEGER, BIGINT) => s"(long) ${expr.resultTerm}"
-      case (INTEGER, DECIMAL) =>
-        val dt = targetType.asInstanceOf[DecimalType]
-        s"$DECIMAL_UTIL.castFrom(" +
-          s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
-      case (INTEGER, FLOAT) => s"(float) ${expr.resultTerm}"
-      case (INTEGER, DOUBLE) => s"(double) ${expr.resultTerm}"
-
-      // long -> other numeric types
-      case (BIGINT, DECIMAL) =>
-        val dt = targetType.asInstanceOf[DecimalType]
-        s"$DECIMAL_UTIL.castFrom(" +
-          s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
-      case (BIGINT, FLOAT) => s"(float) ${expr.resultTerm}"
-      case (BIGINT, DOUBLE) => s"(double) ${expr.resultTerm}"
-
-      // decimal -> other numeric types
-      case (DECIMAL, DECIMAL) =>
-        val dt = targetType.asInstanceOf[DecimalType]
-        s"$DECIMAL_UTIL.castToDecimal(" +
-          s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
-      case (DECIMAL, FLOAT) =>
-        s"$DECIMAL_UTIL.castToFloat(${expr.resultTerm})"
-      case (DECIMAL, DOUBLE) =>
-        s"$DECIMAL_UTIL.castToDouble(${expr.resultTerm})"
-
-      // float -> other numeric types
-      case (FLOAT, DOUBLE) => s"(double) ${expr.resultTerm}"
-
-      case _ => null
-    }
-  }
-
   // -------------------------- Method & Enum ---------------------------------------
 
   def qualifyMethod(method: Method): String =
