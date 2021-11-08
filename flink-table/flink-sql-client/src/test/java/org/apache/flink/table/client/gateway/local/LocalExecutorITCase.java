@@ -34,12 +34,13 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
-import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
+import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
 import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions.TableUDF;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.utils.TestUserClassLoaderJar;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
@@ -103,7 +104,10 @@ public class LocalExecutorITCase extends TestLogger {
         clusterClient = MINI_CLUSTER_RESOURCE.getClusterClient();
         File udfJar =
                 TestUserClassLoaderJar.createJarFile(
-                        tempFolder.newFolder("test-jar"), "test-classloader-udf.jar");
+                        tempFolder.newFolder("test-jar"),
+                        "test-classloader-udf.jar",
+                        UserDefinedFunctions.GENERATED_UDF_CLASS,
+                        UserDefinedFunctions.GENERATED_UDF_CODE);
         udfDependency = udfJar.toURI().toURL();
     }
 
