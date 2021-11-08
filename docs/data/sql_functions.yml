@@ -41,7 +41,7 @@ comparison:
       table: value.isNotNull
       description: Returns TRUE if value is not NULL.
     - sql: value1 IS DISTINCT FROM value2
-      description: Returns TRUE if two values are different. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns TRUE; NULL IS NOT DISTINCT FROM NULL returns FALSE.
+      description: Returns TRUE if two values are different. NULL values are treated as identical here. E.g., 1 IS DISTINCT FROM NULL returns TRUE; NULL IS DISTINCT FROM NULL returns FALSE.
     - sql: value1 IS NOT DISTINCT FROM value2
       description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
     - sql: value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
