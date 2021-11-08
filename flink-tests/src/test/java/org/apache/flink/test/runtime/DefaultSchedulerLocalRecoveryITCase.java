@@ -40,9 +40,11 @@ import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.WaitingCancelableInvokable;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -61,11 +63,13 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
     private static final long TIMEOUT = 10_000L;
 
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21450
     public void testLocalRecoveryFull() throws Exception {
         testLocalRecoveryInternal("full");
     }
 
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21450
     public void testLocalRecoveryRegion() throws Exception {
         testLocalRecoveryInternal("region");
     }
