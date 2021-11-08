@@ -30,10 +30,15 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import java.util.Collections;
 
+import static org.apache.flink.table.planner.codegen.CodeGenUtils.box;
+import static org.apache.flink.table.planner.codegen.CodeGenUtils.unbox;
+
 /**
  * Base class for cast rules that supports code generation, requiring only an expression to perform
  * the cast. If the casting logic requires to generate several statements, look at {@link
  * AbstractNullAwareCodeGeneratorCastRule}.
+ *
+ * <p>NOTE: the {@code inputTerm} is always either a primitive or a non-null object.
  */
 @Internal
 public abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
@@ -63,11 +68,19 @@ public abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
         final String inputArgumentName = "inputValue";
 
         final String expression =
-                generateExpression(
-                        createCodeGeneratorCastRuleContext(context),
-                        inputArgumentName,
-                        inputLogicalType,
-                        targetLogicalType);
+                // We need to wrap the expression in a null check
+                CastRuleUtils.ternaryOperator(
+                        inputArgumentName + " == null",
+                        "null",
+                        // Values are always boxed when passed to ExpressionEvaluator and no auto
+                        // boxing/unboxing is provided, so we need to take care of it manually
+                        box(
+                                generateExpression(
+                                        createCodeGeneratorCastRuleContext(context),
+                                        unbox(inputArgumentName, inputLogicalType),
+                                        inputLogicalType,
+                                        targetLogicalType),
+                                targetLogicalType));
 
         return new CodeGeneratedExpressionCastExecutor<>(
                 CompileUtils.compileExpression(
