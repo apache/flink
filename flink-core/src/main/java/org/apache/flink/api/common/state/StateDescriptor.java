@@ -100,7 +100,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
     /** Name for queries against state created from this StateDescriptor. */
     @Nullable private String queryableStateName;
 
-    /** Name for queries against state created from this StateDescriptor. */
+    /** The configuration of state time-to-live(TTL), it is disabled by default. */
     @Nonnull private StateTtlConfig ttlConfig = StateTtlConfig.DISABLED;
 
     /** The default value returned by the state when no other value is bound to a key. */
