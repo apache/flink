@@ -35,6 +35,7 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
+import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
 import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions.TableUDF;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -109,8 +110,8 @@ public class LocalExecutorITCase extends TestLogger {
                 TestUserClassLoaderJar.createJarFile(
                         tempFolder.newFolder("test-jar"),
                         "test-classloader-udf.jar",
-                        TestUserClassLoaderJar.GENERATED_UDF_CLASS,
-                        TestUserClassLoaderJar.GENERATED_UDF_CODE);
+                        UserDefinedFunctions.GENERATED_UDF_CLASS,
+                        UserDefinedFunctions.GENERATED_UDF_CODE);
         udfDependency = udfJar.toURI().toURL();
     }
 

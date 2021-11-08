@@ -37,18 +37,6 @@ import java.util.jar.JarOutputStream;
 /** Mainly used for testing classloading. */
 public class TestUserClassLoaderJar {
 
-    /** Legacy code. */
-    public static final String GENERATED_UDF_CLASS = "LowerUDF";
-
-    public static final String GENERATED_UDF_CODE =
-            "public class "
-                    + GENERATED_UDF_CLASS
-                    + " extends org.apache.flink.table.functions.ScalarFunction {\n"
-                    + "  public String eval(String str) {\n"
-                    + "    return str.toLowerCase();\n"
-                    + "  }\n"
-                    + "}\n";
-
     /** Pack the generated UDF class into a JAR and return the path of the JAR. */
     public static File createJarFile(File tmpDir, String jarName, String className, String javaCode)
             throws IOException {

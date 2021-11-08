@@ -20,6 +20,7 @@ package org.apache.flink.table.client.gateway.context;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
 import org.apache.flink.table.utils.TestUserClassLoaderJar;
 
 import org.junit.Before;
@@ -63,8 +64,8 @@ public class SessionContextTest {
                 TestUserClassLoaderJar.createJarFile(
                         tempFolder.newFolder("test-jar"),
                         "test-classloader-udf.jar",
-                        TestUserClassLoaderJar.GENERATED_UDF_CLASS,
-                        TestUserClassLoaderJar.GENERATED_UDF_CODE);
+                        UserDefinedFunctions.GENERATED_UDF_CLASS,
+                        UserDefinedFunctions.GENERATED_UDF_CODE);
     }
 
     @Before
