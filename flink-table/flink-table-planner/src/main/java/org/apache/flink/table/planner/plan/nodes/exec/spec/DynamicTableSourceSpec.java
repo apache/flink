@@ -27,7 +27,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.module.Module;
-import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.types.logical.RowType;
@@ -70,11 +70,11 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
     }
 
     @JsonIgnore
-    private DynamicTableSource getTableSource(PlannerBase planner) {
+    private DynamicTableSource getTableSource(FlinkContext flinkContext) {
         checkNotNull(configuration);
         if (tableSource == null) {
             final DynamicTableSourceFactory factory =
-                    planner.getFlinkContext()
+                    flinkContext
                             .getModuleManager()
                             .getFactory(Module::getTableSourceFactory)
                             .orElse(null);
@@ -99,7 +99,7 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
                                         .getLogicalType();
                 for (SourceAbilitySpec spec : sourceAbilitySpecs) {
                     SourceAbilityContext context =
-                            new SourceAbilityContext(planner.getFlinkContext(), newProducedType);
+                            new SourceAbilityContext(flinkContext, newProducedType);
                     spec.apply(tableSource, context);
                     if (spec.getProducedType().isPresent()) {
                         newProducedType = spec.getProducedType().get();
@@ -111,8 +111,8 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
     }
 
     @JsonIgnore
-    public ScanTableSource getScanTableSource(PlannerBase planner) {
-        DynamicTableSource tableSource = getTableSource(planner);
+    public ScanTableSource getScanTableSource(FlinkContext flinkContext) {
+        DynamicTableSource tableSource = getTableSource(flinkContext);
         if (tableSource instanceof ScanTableSource) {
             return (ScanTableSource) tableSource;
         } else {
@@ -124,8 +124,8 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
     }
 
     @JsonIgnore
-    public LookupTableSource getLookupTableSource(PlannerBase planner) {
-        DynamicTableSource tableSource = getTableSource(planner);
+    public LookupTableSource getLookupTableSource(FlinkContext flinkContext) {
+        DynamicTableSource tableSource = getTableSource(flinkContext);
         if (tableSource instanceof LookupTableSource) {
             return (LookupTableSource) tableSource;
         } else {

@@ -114,7 +114,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             Transformation<RowData> inputTransform,
             int rowtimeFieldIndex,
             boolean upsertMaterialize) {
-        final DynamicTableSink tableSink = tableSinkSpec.getTableSink(planner);
+        final DynamicTableSink tableSink = tableSinkSpec.getTableSink(planner.getFlinkContext());
         final ChangelogMode changelogMode = tableSink.getChangelogMode(inputChangelogMode);
         final ResolvedSchema schema = tableSinkSpec.getCatalogTable().getResolvedSchema();
 

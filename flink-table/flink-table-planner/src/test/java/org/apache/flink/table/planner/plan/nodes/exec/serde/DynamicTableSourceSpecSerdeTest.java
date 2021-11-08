@@ -121,7 +121,8 @@ public class DynamicTableSourceSpecSerdeTest {
         TableEnvironmentImpl tableEnv =
                 (TableEnvironmentImpl)
                         TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        assertNotNull(actual.getScanTableSource((PlannerBase) tableEnv.getPlanner()));
+        assertNotNull(
+                actual.getScanTableSource(((PlannerBase) tableEnv.getPlanner()).getFlinkContext()));
     }
 
     @Parameterized.Parameters(name = "{0}")
