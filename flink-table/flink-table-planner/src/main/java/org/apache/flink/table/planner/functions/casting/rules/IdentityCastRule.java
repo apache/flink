@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
+import org.apache.flink.table.planner.functions.casting.ExpressionCodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
@@ -31,7 +32,8 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
  * #isIdentityCast(LogicalType, LogicalType)}
  */
 @Internal
-public class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Object> {
+public class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Object>
+        implements ExpressionCodeGeneratorCastRule<Object, Object> {
 
     public static final IdentityCastRule INSTANCE = new IdentityCastRule();
 
@@ -48,6 +50,15 @@ public class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Obje
             return true;
         }
         return LogicalTypeCasts.supportsAvoidingCast(inputLogicalType, targetLogicalType);
+    }
+
+    @Override
+    public String generateExpression(
+            CodeGeneratorCastRule.Context context,
+            String inputTerm,
+            LogicalType inputLogicalType,
+            LogicalType targetLogicalType) {
+        return inputTerm;
     }
 
     @Override

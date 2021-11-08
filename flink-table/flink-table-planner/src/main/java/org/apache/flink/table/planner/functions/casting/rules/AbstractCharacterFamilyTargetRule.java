@@ -46,7 +46,7 @@ public abstract class AbstractCharacterFamilyTargetRule<IN>
             LogicalType targetLogicalType);
 
     @Override
-    String generateExpression(
+    public String generateExpression(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
