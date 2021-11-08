@@ -772,8 +772,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val sinkDefinedPks = sink.catalogTable.getResolvedSchema.getPrimaryKeyIndexes
 
         if (sinkDefinedPks.nonEmpty) {
-          val sinkColumns = sink.catalogTable.getResolvedSchema.getColumnNames
-          val sinkPks = ImmutableBitSet.of(sinkDefinedPks.map(sinkColumns.indexOf): _*)
+          val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
           val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
           val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
           // if input is UA only, primary key != upsert key (upsert key can be null) we should
@@ -815,8 +814,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           val inputInsertOnly = inputChangelogMode.containsOnly(RowKind.INSERT)
 
           if (!sinkAcceptInsertOnly && !inputInsertOnly && primaryKeys.nonEmpty) {
-            val columnNames = catalogTable.getResolvedSchema.getColumnNames
-            val pks = ImmutableBitSet.of(primaryKeys.map(columnNames.indexOf): _*)
+            val pks = ImmutableBitSet.of(primaryKeys: _*)
             val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
             val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
             // if input has update and primary key != upsert key (upsert key can be null) we should
