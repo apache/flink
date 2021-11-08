@@ -631,7 +631,7 @@ public class ResultPartitionTest {
                 bufferWritingResultPartition.getAllDataProcessedFuture();
         assertFalse(allRecordsProcessedFuture.isDone());
         for (ResultSubpartition resultSubpartition : bufferWritingResultPartition.subpartitions) {
-            assertEquals(1, resultSubpartition.getTotalNumberOfBuffers());
+            assertEquals(1, resultSubpartition.getTotalNumberOfBuffersUnsafe());
             Buffer nextBuffer = ((PipelinedSubpartition) resultSubpartition).pollBuffer().buffer();
             assertFalse(nextBuffer.isBuffer());
             assertEquals(
