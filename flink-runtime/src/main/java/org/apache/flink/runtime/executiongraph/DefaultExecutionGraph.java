@@ -79,7 +79,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.OptionalFailure;
-import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.FutureUtils.ConjunctFuture;
@@ -234,6 +233,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     // ------ Fields that are relevant to the execution and need to be cleared before archiving
     // -------
+
+    @Nullable private CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration;
 
     /** The coordinator for checkpoints, if snapshot checkpoints are enabled. */
     @Nullable private CheckpointCoordinator checkpointCoordinator;
@@ -405,6 +406,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 buildOpCoordinatorCheckpointContexts();
 
         checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
+        checkpointCoordinatorConfiguration =
+                checkNotNull(chkConfig, "CheckpointCoordinatorConfiguration");
 
         CheckpointFailureManager failureManager =
                 new CheckpointFailureManager(
@@ -494,8 +497,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public CheckpointCoordinatorConfiguration getCheckpointCoordinatorConfiguration() {
-        if (checkpointStatsTracker != null) {
-            return checkpointStatsTracker.getJobCheckpointingConfiguration();
+        if (checkpointCoordinatorConfiguration != null) {
+            return checkpointCoordinatorConfiguration;
         } else {
             return null;
         }
@@ -1043,7 +1046,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                     error);
 
             stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
-            notifyJobStatusChange(newState, error);
+            notifyJobStatusChange(newState);
             return true;
         } else {
             return false;
@@ -1435,14 +1438,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
     }
 
-    private void notifyJobStatusChange(JobStatus newState, Throwable error) {
+    private void notifyJobStatusChange(JobStatus newState) {
         if (jobStatusListeners.size() > 0) {
             final long timestamp = System.currentTimeMillis();
-            final Throwable serializedError = error == null ? null : new SerializedThrowable(error);
 
             for (JobStatusListener listener : jobStatusListeners) {
                 try {
-                    listener.jobStatusChanges(getJobID(), newState, timestamp, serializedError);
+                    listener.jobStatusChanges(getJobID(), newState, timestamp);
                 } catch (Throwable t) {
                     LOG.warn("Error while notifying JobStatusListener", t);
                 }

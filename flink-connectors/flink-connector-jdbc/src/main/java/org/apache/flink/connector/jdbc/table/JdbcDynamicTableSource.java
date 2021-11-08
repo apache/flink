@@ -142,7 +142,7 @@ public class JdbcDynamicTableSource
     }
 
     @Override
-    public void applyProjection(int[][] projectedFields) {
+    public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.physicalRowDataType = DataType.projectFields(physicalRowDataType, projectedFields);
     }
 

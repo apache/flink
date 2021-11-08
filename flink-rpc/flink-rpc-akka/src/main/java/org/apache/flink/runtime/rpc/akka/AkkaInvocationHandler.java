@@ -237,7 +237,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
             final Throwable callStackCapture = captureAskCallStack ? new Throwable() : null;
 
             // execute an asynchronous call
-            final CompletableFuture<?> resultFuture = ask(rpcInvocation, futureTimeout);
+            final CompletableFuture<?> resultFuture =
+                    ask(rpcInvocation, futureTimeout)
+                            .thenApply(
+                                    resultValue ->
+                                            deserializeValueIfNeeded(
+                                                    resultValue, method, flinkClassLoader));
 
             final CompletableFuture<Object> completableFuture = new CompletableFuture<>();
             resultFuture.whenComplete(
@@ -245,10 +250,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
                         if (failure != null) {
                             completableFuture.completeExceptionally(
                                     resolveTimeoutException(
-                                            failure, callStackCapture, address, rpcInvocation));
+                                            ExceptionUtils.stripCompletionException(failure),
+                                            callStackCapture,
+                                            address,
+                                            rpcInvocation));
                         } else {
-                            completableFuture.complete(
-                                    deserializeValueIfNeeded(resultValue, method));
+                            completableFuture.complete(resultValue);
                         }
                     });
 
@@ -409,11 +416,11 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
         return terminationFuture;
     }
 
-    static Object deserializeValueIfNeeded(Object o, Method method) {
+    private static Object deserializeValueIfNeeded(
+            Object o, Method method, ClassLoader flinkClassLoader) {
         if (o instanceof AkkaRpcSerializedValue) {
             try {
-                return ((AkkaRpcSerializedValue) o)
-                        .deserializeValue(AkkaInvocationHandler.class.getClassLoader());
+                return ((AkkaRpcSerializedValue) o).deserializeValue(flinkClassLoader);
             } catch (IOException | ClassNotFoundException e) {
                 throw new CompletionException(
                         new RpcException(

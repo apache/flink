@@ -33,8 +33,6 @@
             "a" : "BIGINT"
           }, {
             "b" : "INT"
-          }, {
-            "m" : "VARCHAR(2147483647)"
           } ]
         }
       }, {
@@ -65,7 +63,7 @@
         "m" : "VARCHAR(2147483647)"
       } ]
     },
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, m], metadata=[m]]], fields=[a, b, m])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b], metadata=[m]]], fields=[a, b, m])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",

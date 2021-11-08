@@ -65,12 +65,11 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
-import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
-import org.apache.flink.runtime.state.heap.NestedStateMap;
 import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -113,7 +112,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -4374,9 +4372,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.update(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
@@ -4397,9 +4394,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.add(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
@@ -4429,9 +4425,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.add(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
@@ -4455,27 +4450,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
                 StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
                 assertNotNull("State not set", stateTable.get(keyGroupIndex));
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
             }
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
-        }
-    }
-
-    private void checkConcurrentStateTable(StateTable<?, ?, ?> stateTable, int numberOfKeyGroups) {
-        assertNotNull("State not set", stateTable);
-        if (stateTable instanceof NestedMapsStateTable) {
-            int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-            NestedMapsStateTable<?, ?, ?> nestedMapsStateTable =
-                    (NestedMapsStateTable<?, ?, ?>) stateTable;
-            NestedStateMap<?, ?, ?>[] nestedStateMaps =
-                    (NestedStateMap<?, ?, ?>[]) nestedMapsStateTable.getState();
-            assertTrue(
-                    nestedStateMaps[keyGroupIndex].getNamespaceMap() instanceof ConcurrentHashMap);
-            assertTrue(
-                    nestedStateMaps[keyGroupIndex].getNamespaceMap().get(VoidNamespace.INSTANCE)
-                            instanceof ConcurrentHashMap);
         }
     }
 
@@ -5077,6 +5055,50 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 }
 
                 assertFalse(actualIterator.hasNext());
+            }
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
+    }
+
+    @Test
+    public void testMapStateGetKeysAndNamespaces() throws Exception {
+        final int elementsNum = 1000;
+        String fieldName = "get-keys-test";
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
+        try {
+            InternalMapState<Integer, String, String, Integer> internalState =
+                    backend.createInternalState(
+                            StringSerializer.INSTANCE,
+                            new MapStateDescriptor<>(
+                                    fieldName, StringSerializer.INSTANCE, IntSerializer.INSTANCE));
+            String[] namespaces = new String[] {"ns1", "ns2"};
+
+            for (int key = 0; key < elementsNum; key++) {
+                backend.setCurrentKey(key);
+                for (String ns : namespaces) {
+                    internalState.setCurrentNamespace(ns);
+                    internalState.put("hello", key);
+                    internalState.put("world", key);
+                }
+            }
+
+            try (Stream<Tuple2<Integer, String>> stream = backend.getKeysAndNamespaces(fieldName)) {
+                final Map<String, Set<Integer>> keysByNamespace = new HashMap<>();
+                stream.forEach(
+                        entry -> {
+                            assertThat("Unexpected namespace", entry.f1, isOneOf(namespaces));
+                            assertThat(
+                                    "Unexpected key",
+                                    entry.f0,
+                                    is(both(greaterThanOrEqualTo(0)).and(lessThan(elementsNum))));
+
+                            Set<Integer> keys =
+                                    keysByNamespace.computeIfAbsent(entry.f1, k -> new HashSet<>());
+                            assertTrue("Duplicate key for namespace", keys.add(entry.f0));
+                        });
             }
         } finally {
             IOUtils.closeQuietly(backend);

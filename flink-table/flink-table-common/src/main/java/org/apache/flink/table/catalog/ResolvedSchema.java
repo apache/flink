@@ -25,7 +25,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -41,7 +40,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
-import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.types.utils.DataTypeUtils.removeTimeAttribute;
 
 /**
@@ -257,14 +255,13 @@ public final class ResolvedSchema {
 
     // --------------------------------------------------------------------------------------------
 
-    private FieldsDataType toRowDataType(Predicate<Column> columnPredicate) {
-        final DataTypes.Field[] fields =
-                columns.stream()
-                        .filter(columnPredicate)
-                        .map(ResolvedSchema::columnToField)
-                        .toArray(DataTypes.Field[]::new);
-        // the row should never be null
-        return (FieldsDataType) ROW(fields).notNull();
+    private DataType toRowDataType(Predicate<Column> columnPredicate) {
+        return columns.stream()
+                .filter(columnPredicate)
+                .map(ResolvedSchema::columnToField)
+                .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW))
+                // the row should never be null
+                .notNull();
     }
 
     private static DataTypes.Field columnToField(Column column) {

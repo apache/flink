@@ -1277,7 +1277,7 @@
           "type" : "integer"
         },
         "checkpoints_after_tasks_finish" : {
-           "type" : "boolean"
+          "type" : "boolean"
         }
       }
     }
@@ -1874,6 +1874,9 @@
         },
         "cancel-job" : {
           "type" : "boolean"
+        },
+        "triggerId" : {
+          "type" : "any"
         }
       }
     },
@@ -1946,6 +1949,9 @@
         },
         "drain" : {
           "type" : "boolean"
+        },
+        "triggerId" : {
+          "type" : "any"
         }
       }
     },

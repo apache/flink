@@ -325,6 +325,7 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     private void notifyNewBufferSize(int newBufferSize) throws IOException {
+        checkState(!isReleased.get(), "Channel released.");
         checkPartitionRequestQueueInitialized();
 
         partitionRequestClient.notifyNewBufferSize(this, newBufferSize);

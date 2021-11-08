@@ -54,6 +54,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -130,8 +131,11 @@ public class SavepointHandlers {
 
         protected AsynchronousJobOperationKey createOperationKey(final HandlerRequest<B> request) {
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-            return AsynchronousJobOperationKey.of(new TriggerId(), jobId);
+            return AsynchronousJobOperationKey.of(
+                    extractTriggerId(request.getRequestBody()).orElseGet(TriggerId::new), jobId);
         }
+
+        protected abstract Optional<TriggerId> extractTriggerId(B request);
 
         public CompletableFuture<TriggerResponse> handleRequest(
                 @Nonnull HandlerRequest<B> request, @Nonnull RestfulGateway gateway)
@@ -165,14 +169,20 @@ public class SavepointHandlers {
         }
 
         @Override
+        protected Optional<TriggerId> extractTriggerId(StopWithSavepointRequestBody request) {
+            return request.getTriggerId();
+        }
+
+        @Override
         protected CompletableFuture<Acknowledge> triggerOperation(
                 final HandlerRequest<StopWithSavepointRequestBody> request,
                 AsynchronousJobOperationKey operationKey,
                 final RestfulGateway gateway)
                 throws RestHandlerException {
-            final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+            final Optional<String> requestedTargetDirectory =
+                    request.getRequestBody().getTargetDirectory();
 
-            if (requestedTargetDirectory == null && defaultSavepointDir == null) {
+            if (!requestedTargetDirectory.isPresent() && defaultSavepointDir == null) {
                 throw new RestHandlerException(
                         String.format(
                                 "Config key [%s] is not set. Property [%s] must be provided.",
@@ -185,10 +195,7 @@ public class SavepointHandlers {
                     request.getRequestBody().shouldDrain()
                             ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
                             : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT;
-            final String targetDirectory =
-                    requestedTargetDirectory != null
-                            ? requestedTargetDirectory
-                            : defaultSavepointDir;
+            final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
             return gateway.stopWithSavepoint(
                     operationKey, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }
@@ -205,14 +212,20 @@ public class SavepointHandlers {
         }
 
         @Override
+        protected Optional<TriggerId> extractTriggerId(SavepointTriggerRequestBody request) {
+            return request.getTriggerId();
+        }
+
+        @Override
         protected CompletableFuture<Acknowledge> triggerOperation(
                 HandlerRequest<SavepointTriggerRequestBody> request,
                 AsynchronousJobOperationKey operationKey,
                 RestfulGateway gateway)
                 throws RestHandlerException {
-            final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+            final Optional<String> requestedTargetDirectory =
+                    request.getRequestBody().getTargetDirectory();
 
-            if (requestedTargetDirectory == null && defaultSavepointDir == null) {
+            if (!requestedTargetDirectory.isPresent() && defaultSavepointDir == null) {
                 throw new RestHandlerException(
                         String.format(
                                 "Config key [%s] is not set. Property [%s] must be provided.",
@@ -225,10 +238,7 @@ public class SavepointHandlers {
                     request.getRequestBody().isCancelJob()
                             ? TriggerSavepointMode.CANCEL_WITH_SAVEPOINT
                             : TriggerSavepointMode.SAVEPOINT;
-            final String targetDirectory =
-                    requestedTargetDirectory != null
-                            ? requestedTargetDirectory
-                            : defaultSavepointDir;
+            final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
             return gateway.triggerSavepoint(
                     operationKey, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }

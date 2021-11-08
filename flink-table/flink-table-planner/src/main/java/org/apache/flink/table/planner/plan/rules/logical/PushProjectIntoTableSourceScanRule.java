@@ -292,16 +292,22 @@ public class PushProjectIntoTableSourceScanRule
             metaColumn.setIndexOfLeafInNewSchema(newIndex++);
         }
 
+        if (supportsProjectionPushDown(source.tableSource())) {
+            final RowType projectedPhysicalType =
+                    (RowType)
+                            DataTypeUtils.projectRow(
+                                            TypeConversions.fromLogicalToDataType(producedType),
+                                            physicalProjections)
+                                    .getLogicalType();
+            abilitySpecs.add(new ProjectPushDownSpec(physicalProjections, projectedPhysicalType));
+        }
+
         final RowType newProducedType =
                 (RowType)
                         DataTypeUtils.projectRow(
                                         TypeConversions.fromLogicalToDataType(producedType),
                                         projectedFields)
                                 .getLogicalType();
-
-        if (supportsProjectionPushDown(source.tableSource())) {
-            abilitySpecs.add(new ProjectPushDownSpec(physicalProjections, newProducedType));
-        }
 
         if (supportsMetadata(source.tableSource())) {
             final List<String> projectedMetadataKeys =
