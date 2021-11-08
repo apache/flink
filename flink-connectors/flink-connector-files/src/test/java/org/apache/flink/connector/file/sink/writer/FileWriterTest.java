@@ -50,6 +50,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -219,7 +220,9 @@ public class FileWriterTest {
                 createWriter(
                         path,
                         new FileSinkTestUtils.StringIdentityBucketAssigner(),
-                        DefaultRollingPolicy.builder().withRolloverInterval(10).build(),
+                        DefaultRollingPolicy.builder()
+                                .withRolloverInterval(Duration.ofMillis(10))
+                                .build(),
                         new OutputFileConfig("part-", ""),
                         processingTimeService,
                         5);
@@ -311,7 +314,9 @@ public class FileWriterTest {
                 createWriter(
                         path,
                         new VerifyingBucketAssigner(timestamp, watermark, processingTime),
-                        DefaultRollingPolicy.builder().withRolloverInterval(10).build(),
+                        DefaultRollingPolicy.builder()
+                                .withRolloverInterval(Duration.ofMillis(10))
+                                .build(),
                         new OutputFileConfig("part-", ""),
                         processingTimeService,
                         5);
