@@ -221,7 +221,8 @@ abstract class PlannerBase(
           input,
           collectModifyOperation,
           getTableConfig.getConfiguration,
-          getClassLoader
+          getClassLoader,
+          getTableConfig.getLocalTimeZone
         )
 
       case catalogSink: CatalogSinkModifyOperation =>

@@ -25,6 +25,8 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.utils.print.PrintStyle;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -62,6 +64,23 @@ class StaticResultProvider implements ResultProvider {
     @Override
     public CloseableIterator<Row> toExternalIterator() {
         return CloseableIterator.adapterForIterator(this.rows.iterator());
+    }
+
+    @Override
+    public RowDataToStringConverter getRowDataStringConverter() {
+        return rowData -> {
+            // This cast is safe because the values from the toInternalIterator are always going to
+            // be instanced as GenericRowData (look rowToInternalRow below).
+            GenericRowData genericRowData = (GenericRowData) rowData;
+            String[] results = new String[rowData.getArity()];
+            for (int i = 0; i < results.length; i++) {
+                results[i] =
+                        genericRowData.isNullAt(i)
+                                ? PrintStyle.NULL_VALUE
+                                : "" + genericRowData.getField(i);
+            }
+            return results;
+        };
     }
 
     @Override

@@ -23,6 +23,8 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.utils.print.PrintStyle;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -58,6 +60,17 @@ class InsertResultProvider implements ResultProvider {
     @Override
     public CloseableIterator<Row> toExternalIterator() {
         return new Iterator<>(() -> Row.of(((Object[]) affectedRowCountsRow)));
+    }
+
+    @Override
+    public RowDataToStringConverter getRowDataStringConverter() {
+        return rowData -> {
+            String[] results = new String[rowData.getArity()];
+            for (int i = 0; i < results.length; i++) {
+                results[i] = rowData.isNullAt(i) ? PrintStyle.NULL_VALUE : "" + rowData.getLong(i);
+            }
+            return results;
+        };
     }
 
     @Override

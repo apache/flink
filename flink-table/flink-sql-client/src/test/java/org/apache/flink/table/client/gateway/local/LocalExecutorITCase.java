@@ -29,7 +29,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -42,8 +41,8 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.table.utils.TestUserClassLoaderJar;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.StringUtils;
@@ -59,7 +58,6 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -179,7 +177,10 @@ public class LocalExecutorITCase extends TestLogger {
 
             final List<String> actualResults =
                     retrieveChangelogResult(
-                            executor, sessionId, desc.getResultId(), desc.getResultSchema());
+                            executor,
+                            sessionId,
+                            desc.getResultId(),
+                            desc.getRowDataStringConverter());
 
             final List<String> expectedResults = new ArrayList<>();
             expectedResults.add("[47, Hello World, ABC]");
@@ -232,7 +233,10 @@ public class LocalExecutorITCase extends TestLogger {
 
                 final List<String> actualResults =
                         retrieveChangelogResult(
-                                executor, sessionId, desc.getResultId(), desc.getResultSchema());
+                                executor,
+                                sessionId,
+                                desc.getResultId(),
+                                desc.getRowDataStringConverter());
 
                 TestBaseUtils.compareResultCollections(
                         expectedResults, actualResults, Comparator.naturalOrder());
@@ -340,7 +344,10 @@ public class LocalExecutorITCase extends TestLogger {
 
             final List<String> actualResults =
                     retrieveTableResult(
-                            executor, sessionId, desc.getResultId(), desc.getResultSchema());
+                            executor,
+                            sessionId,
+                            desc.getResultId(),
+                            desc.getRowDataStringConverter());
 
             final List<String> expectedResults = new ArrayList<>();
             expectedResults.add("[47, ABC]");
@@ -392,7 +399,10 @@ public class LocalExecutorITCase extends TestLogger {
 
                 final List<String> actualResults =
                         retrieveTableResult(
-                                executor, sessionId, desc.getResultId(), desc.getResultSchema());
+                                executor,
+                                sessionId,
+                                desc.getResultId(),
+                                desc.getRowDataStringConverter());
 
                 TestBaseUtils.compareResultCollections(
                         expectedResults, actualResults, Comparator.naturalOrder());
@@ -458,7 +468,10 @@ public class LocalExecutorITCase extends TestLogger {
 
             final List<String> actualResults =
                     retrieveTableResult(
-                            executor, sessionId, desc.getResultId(), desc.getResultSchema());
+                            executor,
+                            sessionId,
+                            desc.getResultId(),
+                            desc.getRowDataStringConverter());
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
@@ -468,7 +481,10 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     private List<String> retrieveTableResult(
-            Executor executor, String sessionId, String resultID, ResolvedSchema resultSchema)
+            Executor executor,
+            String sessionId,
+            String resultID,
+            RowDataToStringConverter rowDataToStringConverter)
             throws InterruptedException {
 
         final List<String> actualResults = new ArrayList<>();
@@ -484,10 +500,7 @@ public class LocalExecutorITCase extends TestLogger {
                                             executor.retrieveResultPage(resultID, page)) {
                                         actualResults.add(
                                                 StringUtils.arrayAwareToString(
-                                                        PrintUtils.rowToString(
-                                                                row,
-                                                                resultSchema,
-                                                                ZoneId.systemDefault())));
+                                                        rowDataToStringConverter.toString(row)));
                                     }
                                 });
             } else if (result.getType() == TypedResult.ResultType.EOS) {
@@ -499,7 +512,10 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     private List<String> retrieveChangelogResult(
-            Executor executor, String sessionId, String resultID, ResolvedSchema resultSchema)
+            Executor executor,
+            String sessionId,
+            String resultID,
+            RowDataToStringConverter rowDataToStringConverter)
             throws InterruptedException {
 
         final List<String> actualResults = new ArrayList<>();
@@ -510,9 +526,7 @@ public class LocalExecutorITCase extends TestLogger {
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
                 for (RowData row : result.getPayload()) {
                     actualResults.add(
-                            StringUtils.arrayAwareToString(
-                                    PrintUtils.rowToString(
-                                            row, resultSchema, ZoneId.systemDefault())));
+                            StringUtils.arrayAwareToString(rowDataToStringConverter.toString(row)));
                 }
             } else if (result.getType() == TypedResult.ResultType.EOS) {
                 break;

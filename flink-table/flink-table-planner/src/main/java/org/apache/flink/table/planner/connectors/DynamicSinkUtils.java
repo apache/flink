@@ -62,6 +62,7 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -88,7 +89,8 @@ public final class DynamicSinkUtils {
             RelNode input,
             CollectModifyOperation collectModifyOperation,
             Configuration configuration,
-            ClassLoader classLoader) {
+            ClassLoader classLoader,
+            ZoneId zoneId) {
         final DataTypeFactory dataTypeFactory =
                 unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
         final ResolvedSchema childSchema = collectModifyOperation.getChild().getResolvedSchema();
@@ -106,8 +108,10 @@ public final class DynamicSinkUtils {
                         consumedDataType,
                         configuration.get(CollectSinkOperatorFactory.MAX_BATCH_SIZE),
                         configuration.get(CollectSinkOperatorFactory.SOCKET_TIMEOUT),
-                        classLoader);
+                        classLoader,
+                        zoneId);
         collectModifyOperation.setSelectResultProvider(tableSink.getSelectResultProvider());
+        collectModifyOperation.setConsumedDataType(consumedDataType);
         return convertSinkToRel(
                 relBuilder,
                 input,

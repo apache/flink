@@ -23,7 +23,7 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.utils.PrintUtils;
+import org.apache.flink.table.utils.print.PrintStyle;
 
 import org.jline.keymap.KeyMap;
 import org.jline.utils.AttributedString;
@@ -32,7 +32,6 @@ import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp.Capability;
 
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,7 +43,6 @@ import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
 import static org.apache.flink.table.client.cli.CliUtils.formatTwoLineHelpOptions;
 import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 import static org.apache.flink.table.client.cli.CliUtils.repeatChar;
-import static org.apache.flink.table.utils.PrintUtils.NULL_COLUMN;
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
@@ -58,7 +56,6 @@ public class CliChangelogResultView
     private static final int DEFAULT_REFRESH_INTERVAL_PLAIN = 3; // every 1s
     private static final int MIN_REFRESH_INTERVAL = 0; // every 100ms
 
-    private final ZoneId sessionTimeZone;
     private LocalTime lastRetrieval;
     private int scrolling;
 
@@ -66,11 +63,12 @@ public class CliChangelogResultView
         super(
                 client,
                 resultDescriptor,
-                PrintUtils.columnWidthsByType(
-                        resultDescriptor.getResultSchema().getColumns(),
+                PrintStyle.tableauWithTypeInferredColumnWidths(
+                        resultDescriptor.getResultSchema(),
+                        resultDescriptor.getRowDataStringConverter(),
                         resultDescriptor.maxColumnWidth(),
-                        PrintUtils.NULL_COLUMN,
-                        PrintUtils.ROW_KIND_COLUMN));
+                        false,
+                        true));
 
         if (client.isPlainTerminal()) {
             refreshInterval = DEFAULT_REFRESH_INTERVAL_PLAIN;
@@ -80,10 +78,6 @@ public class CliChangelogResultView
         previousResults = null;
         // rows are always appended at the tail and deleted from the head of the list
         results = new LinkedList<>();
-
-        this.sessionTimeZone =
-                CliUtils.getSessionTimeZone(
-                        client.getExecutor().getSessionConfig(client.getSessionId()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -133,13 +127,7 @@ public class CliChangelogResultView
 
                 for (RowData change : changes) {
                     // convert row
-                    final String[] row =
-                            PrintUtils.rowToString(
-                                    change,
-                                    NULL_COLUMN,
-                                    true,
-                                    resultDescriptor.getResultSchema(),
-                                    sessionTimeZone);
+                    final String[] row = tableauStyle.rowFieldsToString(change);
 
                     // update results
 
