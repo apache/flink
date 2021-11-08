@@ -1870,15 +1870,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-dependency-plugin</artifactId>
-					<version>3.1.1</version>
-					<dependencies>
-						<dependency>
-							<!-- Required for Java 11 support until 3.1.2 is released -->
-							<groupId>org.apache.maven.shared</groupId>
-							<artifactId>maven-dependency-analyzer</artifactId>
-							<version>1.11.1</version>
-						</dependency>
-					</dependencies>
+					<version>3.2.0</version>
 					<configuration>
 						<ignoredUsedUndeclaredDependencies combine.children="append">
 							<!-- allow using transitive Flink dependencies for brevity -->
