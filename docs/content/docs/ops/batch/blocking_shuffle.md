@@ -31,7 +31,7 @@ under the License.
 
 Flink supports a batch execution mode in both [DataStream API]({{< ref "docs/dev/datastream/execution_mode" >}}) and [Table / SQL]({{< ref "/docs/dev/table/overview" >}}) for jobs executing across bounded input. In this mode, network exchanges occur via a blocking shuffle. Unlike the pipeline shuffle used for streaming applications, blocking exchanges persists data to some storage. Downstream tasks then fetch these values via the network. Such an exchange reduces the resources required to execute the job as it does not need the upstream and downstream tasks to run simultaneously.
 
-As a whole, Flink provides two different types of blocking shuffles; `Hash shuffle` and `Sort shuffle`.
+As a whole, Flink provides two different types of blocking shuffles: `Hash shuffle` and `Sort shuffle`.
 
 They will be detailed in the following sections.
 

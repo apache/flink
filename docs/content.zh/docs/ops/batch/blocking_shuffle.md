@@ -31,7 +31,7 @@ under the License.
 
 Flink [DataStream API]({{< ref "docs/dev/datastream/execution_mode" >}}) 和 [Table / SQL]({{< ref "/docs/dev/table/overview" >}}) 都支持通过批处理执行模式处理有界输入。此模式是通过 blocking shuffle 进行网络传输。与流式应用使用管道 shuffle 阻塞交换的数据并存储，然后下游任务通过网络获取这些值的方式不同。这种交换减少了执行作业所需的资源，因为它不需要同时运行上游和下游任务。 
 
-总的来说，Flink 提供了两种不同类型的 blocking shuffles ; `Hash shuffle` 和 `Sort shuffle`。
+总的来说，Flink 提供了两种不同类型的 blocking shuffles : `Hash shuffle` 和 `Sort shuffle`。
 
 在下面章节会详细说明它们。
 
@@ -82,7 +82,7 @@ Flink [DataStream API]({{< ref "docs/dev/datastream/execution_mode" >}}) 和 [Ta
 
 ## 如何选择 Blocking Shuffle
 
-总结，
+总的来说，
 
 - 对于在固态硬盘上运行的小规模任务而言，两者都可以。
 - 对于在机械硬盘上运行的大规模任务而言，`sort shuffle` 更为合适。
