@@ -916,10 +916,15 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="18">Task</th>
-      <td rowspan="4">Shuffle.Netty.Input.Buffers</td>
+      <th rowspan="20">Task</th>
+      <td rowspan="5">Shuffle.Netty.Input.Buffers</td>
       <td>inputQueueLength</td>
       <td>The number of queued input buffers.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>inputQueueSize</td>
+      <td>The real size of queued input buffers in bytes. The size for local input channels is always `0` since the local channel takes records directly from the output queue.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -938,9 +943,14 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <td rowspan="2">Shuffle.Netty.Output.Buffers</td>
+      <td rowspan="3">Shuffle.Netty.Output.Buffers</td>
       <td>outputQueueLength</td>
       <td>The number of queued output buffers.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>outputQueueSize</td>
+      <td>The real size of queued output buffers in bytes.</td>
       <td>Gauge</td>
     </tr>
     <tr>
