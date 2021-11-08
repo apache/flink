@@ -359,7 +359,8 @@ class CastRulesTest {
             return fromCase(
                     dataType,
                     CastRule.Context.create(
-                            ZoneId.systemDefault(), Thread.currentThread().getContextClassLoader()),
+                            DateTimeUtils.UTC_ZONE.toZoneId(),
+                            Thread.currentThread().getContextClassLoader()),
                     src,
                     target);
         }
@@ -386,7 +387,8 @@ class CastRulesTest {
             return fail(
                     dataType,
                     CastRule.Context.create(
-                            ZoneId.systemDefault(), Thread.currentThread().getContextClassLoader()),
+                            DateTimeUtils.UTC_ZONE.toZoneId(),
+                            Thread.currentThread().getContextClassLoader()),
                     src,
                     exception);
         }
