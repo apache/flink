@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -245,7 +246,6 @@ public class KafkaSourceITCase {
     /** Integration test based on connector testing framework. */
     @Nested
     class IntegrationTests extends SourceTestSuiteBase<String> {
-        private static final String KAFKA_IMAGE_NAME = "confluentinc/cp-kafka:5.5.2";
 
         // Defines test environment on Flink MiniCluster
         @SuppressWarnings("unused")
@@ -256,7 +256,9 @@ public class KafkaSourceITCase {
         @ExternalSystem
         DefaultContainerizedExternalSystem<KafkaContainer> kafka =
                 DefaultContainerizedExternalSystem.builder()
-                        .fromContainer(new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE_NAME)))
+                        .fromContainer(
+                                new KafkaContainer(
+                                        DockerImageName.parse(DockerImageVersions.KAFKA)))
                         .build();
 
         // Defines 2 External context Factories, so test cases will be invoked twice using these two
