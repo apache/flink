@@ -73,7 +73,7 @@ val streamSource = env.addSource(new TwitterSource(props))
 
 `TwitterSource` 会发出包含了JSON object的字符串，这样的字符串表示一个Tweet.
 
-`flink-examples-streaming` 中的 `TwitterExample` 类是使用 `TwitterSource` 的完整示范。
+`flink-examples-datastream` 中的 `TwitterExample` 类是使用 `TwitterSource` 的完整示范。
 
 `TwitterSource` 默认使用 `StatusesSampleEndpoint`。`StatusesSampleEndpoint` 会返回一个 Tweets 的随机抽样。用户可以通过实现 `TwitterSource.EndpointInitializer` 接口来自定义 endpoint。
 

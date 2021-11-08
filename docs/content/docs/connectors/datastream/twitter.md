@@ -76,7 +76,7 @@ val streamSource = env.addSource(new TwitterSource(props))
 
 The `TwitterSource` emits strings containing a JSON object, representing a Tweet.
 
-The `TwitterExample` class in the `flink-examples-streaming` package shows a full example how to use the `TwitterSource`.
+The `TwitterExample` class in the `flink-examples-datastream` package shows a full example how to use the `TwitterSource`.
 
 By default, the `TwitterSource` uses the `StatusesSampleEndpoint`. This endpoint returns a random sample of Tweets.
 There is a `TwitterSource.EndpointInitializer` interface allowing users to provide a custom endpoint.

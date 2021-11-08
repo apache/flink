@@ -220,14 +220,14 @@ under the License.
 
 		<!-- copy jar files of the streaming examples -->
 		<fileSet>
-			<directory>../flink-examples/flink-examples-streaming/target</directory>
+			<directory>../flink-examples/flink-examples-datastream/target</directory>
 			<outputDirectory>examples/streaming</outputDirectory>
 			<fileMode>0644</fileMode>
 			<includes>
 				<include>*.jar</include>
 			</includes>
 			<excludes>
-				<exclude>flink-examples-streaming*.jar</exclude>
+				<exclude>flink-examples-datastream*.jar</exclude>
 				<exclude>original-*.jar</exclude>
 				<exclude>MatrixVectorMul.jar</exclude>
 			</excludes>
@@ -235,7 +235,7 @@ under the License.
 
 		<!-- copy jar files of the streaming examples -->
 		<fileSet>
-			<directory>../flink-examples/flink-examples-build-helper/flink-examples-streaming-twitter/target</directory>
+			<directory>../flink-examples/flink-examples-build-helper/flink-examples-datastream-twitter/target</directory>
 			<outputDirectory>examples/streaming</outputDirectory>
 			<fileMode>0644</fileMode>
 			<includes>
@@ -246,7 +246,7 @@ under the License.
 			</excludes>
 		</fileSet>
 		<fileSet>
-			<directory>../flink-examples/flink-examples-build-helper/flink-examples-streaming-state-machine/target</directory>
+			<directory>../flink-examples/flink-examples-build-helper/flink-examples-datastream-state-machine/target</directory>
 			<outputDirectory>examples/streaming</outputDirectory>
 			<fileMode>0644</fileMode>
 			<includes>

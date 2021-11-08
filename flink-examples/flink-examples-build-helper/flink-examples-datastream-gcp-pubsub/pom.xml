@@ -28,7 +28,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-examples-streaming-gcp-pubsub_${scala.binary.version}</artifactId>
+	<artifactId>flink-examples-datastream-gcp-pubsub_${scala.binary.version}</artifactId>
 	<name>Flink : Examples : Build Helper : Streaming Google PubSub</name>
 	<packaging>jar</packaging>
 
@@ -40,7 +40,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
+			<artifactId>flink-examples-datastream_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -93,7 +93,7 @@ under the License.
 
 							<filters>
 								<filter>
-									<artifact>org.apache.flink:flink-examples-streaming_*</artifact>
+									<artifact>org.apache.flink:flink-examples-datastream_*</artifact>
 									<includes>
 										<include>org/apache/flink/streaming/examples/gcp/pubsub/**</include>
 									</includes>
