@@ -80,6 +80,14 @@ final class CastRuleUtils {
         return "\"" + EncodingUtils.escapeJava(str) + "\"";
     }
 
+    static String cast(String target, String expression) {
+        return "((" + target + ")(" + expression + "))";
+    }
+
+    static String castToPrimitive(LogicalType target, String expression) {
+        return cast(primitiveTypeTermForType(target), expression);
+    }
+
     static final class CodeWriter {
         StringBuilder builder = new StringBuilder();
 

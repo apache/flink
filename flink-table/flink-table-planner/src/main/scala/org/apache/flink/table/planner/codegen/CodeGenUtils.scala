@@ -254,6 +254,22 @@ object CodeGenUtils {
   }
 
   /**
+   * Returns true if [[primitiveDefaultValue()]] returns a nullable Java type, that is,
+   * a non primitive type.
+   */
+  @tailrec
+  def isPrimitiveNullable(t: LogicalType): Boolean = t.getTypeRoot match {
+    // ordered by type root definition
+    case BOOLEAN | TINYINT | SMALLINT | INTEGER |
+         DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH |
+         BIGINT | INTERVAL_DAY_TIME | FLOAT | DOUBLE => false
+
+    case DISTINCT_TYPE => isPrimitiveNullable(t.asInstanceOf[DistinctType].getSourceType)
+
+    case _ => true
+  }
+
+  /**
     * Gets the default value for a primitive type, and null for generic types
     */
   @tailrec

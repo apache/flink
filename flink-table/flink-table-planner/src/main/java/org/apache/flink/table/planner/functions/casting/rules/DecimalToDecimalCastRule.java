@@ -19,24 +19,28 @@
 package org.apache.flink.table.planner.functions.casting.rules;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-/** Upcasting to long for smaller types. */
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
+
+/** {@link LogicalTypeRoot#DECIMAL} to {@link LogicalTypeRoot#DECIMAL} cast rule. */
 @Internal
-public class UpcastToBigIntCastRule extends AbstractExpressionCodeGeneratorCastRule<Object, Long> {
+public class DecimalToDecimalCastRule
+        extends AbstractExpressionCodeGeneratorCastRule<DecimalData, DecimalData> {
 
-    public static final UpcastToBigIntCastRule INSTANCE = new UpcastToBigIntCastRule();
+    public static final DecimalToDecimalCastRule INSTANCE = new DecimalToDecimalCastRule();
 
-    private UpcastToBigIntCastRule() {
+    private DecimalToDecimalCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .input(LogicalTypeRoot.TINYINT)
-                        .input(LogicalTypeRoot.SMALLINT)
-                        .input(LogicalTypeRoot.INTEGER)
-                        .target(LogicalTypeRoot.BIGINT)
+                        .input(LogicalTypeRoot.DECIMAL)
+                        .target(LogicalTypeRoot.DECIMAL)
                         .build());
     }
 
@@ -46,6 +50,11 @@ public class UpcastToBigIntCastRule extends AbstractExpressionCodeGeneratorCastR
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return "((long)(" + inputTerm + "))";
+        final DecimalType targetDecimalType = (DecimalType) targetLogicalType;
+        return staticCall(
+                BuiltInMethods.DECIMAL_TO_DECIMAL(),
+                inputTerm,
+                targetDecimalType.getPrecision(),
+                targetDecimalType.getScale());
     }
 }

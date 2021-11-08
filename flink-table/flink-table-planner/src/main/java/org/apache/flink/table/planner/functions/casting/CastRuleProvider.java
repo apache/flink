@@ -25,15 +25,18 @@ import org.apache.flink.table.planner.functions.casting.rules.ArrayToStringCastR
 import org.apache.flink.table.planner.functions.casting.rules.BinaryToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.BooleanToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.DateToStringCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.DecimalToDecimalCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.DecimalToNumericPrimitiveCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.IdentityCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.IntervalToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.MapToStringCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.NumericPrimitiveCastRule;
+import org.apache.flink.table.planner.functions.casting.rules.NumericPrimitiveToDecimalCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.NumericToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.RawToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.RowToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.TimeToStringCastRule;
 import org.apache.flink.table.planner.functions.casting.rules.TimestampToStringCastRule;
-import org.apache.flink.table.planner.functions.casting.rules.UpcastToBigIntCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -56,7 +59,10 @@ public class CastRuleProvider {
     static {
         INSTANCE
                 // Numeric rules
-                .addRule(UpcastToBigIntCastRule.INSTANCE)
+                .addRule(DecimalToDecimalCastRule.INSTANCE)
+                .addRule(NumericPrimitiveToDecimalCastRule.INSTANCE)
+                .addRule(DecimalToNumericPrimitiveCastRule.INSTANCE)
+                .addRule(NumericPrimitiveCastRule.INSTANCE)
                 // To string rules
                 .addRule(NumericToStringCastRule.INSTANCE)
                 .addRule(BooleanToStringCastRule.INSTANCE)
