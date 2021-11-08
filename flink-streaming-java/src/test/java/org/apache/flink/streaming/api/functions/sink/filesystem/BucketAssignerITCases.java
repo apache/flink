@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
@@ -43,7 +44,7 @@ public class BucketAssignerITCases {
         final long time = 1000L;
 
         final RollingPolicy<String, String> rollingPolicy =
-                DefaultRollingPolicy.builder().withMaxPartSize(7L).build();
+                DefaultRollingPolicy.builder().withMaxPartSize(new MemorySize(7L)).build();
 
         final Buckets<String, String> buckets =
                 new Buckets<>(

@@ -76,7 +76,7 @@ that is used for serializing individual rows to the `OutputStream` of the in-pro
 In addition to the bucket assigner, the RowFormatBuilder allows the user to specify:
 
  - Custom RollingPolicy : Rolling policy to override the DefaultRollingPolicy
- - bucketCheckInterval (default = 1 min) : Millisecond interval for checking time based rolling policies
+ - bucketCheckInterval (default = 1 min) : Interval for checking time based rolling policies
 
 Basic usage for writing String elements thus looks like this:
 
@@ -86,8 +86,11 @@ Basic usage for writing String elements thus looks like this:
 ```java
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
+
+import java.time.Duration;
 
 DataStream<String> input = ...;
 
@@ -95,9 +98,9 @@ final FileSink<String> sink = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder<String>("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(TimeUnit.MINUTES.toMillis(15))
-            .withInactivityInterval(TimeUnit.MINUTES.toMillis(5))
-            .withMaxPartSize(1024 * 1024 * 1024)
+            .withRolloverInterval(Duration.ofSeconds(10))
+            .withInactivityInterval(Duration.ofSeconds(10))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1))
             .build())
 	.build();
 
@@ -109,8 +112,11 @@ input.sinkTo(sink);
 ```scala
 import org.apache.flink.api.common.serialization.SimpleStringEncoder
 import org.apache.flink.core.fs.Path
+import org.apache.flink.configuration.MemorySize
 import org.apache.flink.connector.file.sink.FileSink
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy
+
+import java.time.Duration
 
 val input: DataStream[String] = ...
 
@@ -118,9 +124,9 @@ val sink: FileSink[String] = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(TimeUnit.MINUTES.toMillis(15))
-            .withInactivityInterval(TimeUnit.MINUTES.toMillis(5))
-            .withMaxPartSize(1024 * 1024 * 1024)
+            .withRolloverInterval(Duration.ofSeconds(10))
+            .withInactivityInterval(Duration.ofSeconds(10))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1))
             .build())
     .build()
 
