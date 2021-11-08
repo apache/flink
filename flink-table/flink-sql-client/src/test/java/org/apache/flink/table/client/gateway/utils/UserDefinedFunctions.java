@@ -29,6 +29,17 @@ import org.apache.flink.types.Row;
 /** A bunch of UDFs for testing the SQL Client. */
 public class UserDefinedFunctions {
 
+    public static final String GENERATED_UDF_CLASS = "LowerUDF";
+
+    public static final String GENERATED_UDF_CODE =
+            "public class "
+                    + GENERATED_UDF_CLASS
+                    + " extends org.apache.flink.table.functions.ScalarFunction {\n"
+                    + "  public String eval(String str) {\n"
+                    + "    return str.toLowerCase();\n"
+                    + "  }\n"
+                    + "}\n";
+
     /** The scalar function for SQL Client test. */
     public static class ScalarUDF extends ScalarFunction {
         public String eval(Integer i, Integer offset) {
