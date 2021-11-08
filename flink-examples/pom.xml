@@ -33,7 +33,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>flink-examples-batch</module>
+		<module>flink-examples-dataset</module>
 		<module>flink-examples-streaming</module>
 		<module>flink-examples-table</module>
 		<module>flink-examples-build-helper</module>

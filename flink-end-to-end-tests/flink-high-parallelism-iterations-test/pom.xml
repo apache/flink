@@ -48,7 +48,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
+			<artifactId>flink-examples-dataset_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -69,7 +69,7 @@ under the License.
 							<finalName>HighParallelismIterationsTestProgram</finalName>
 							<filters>
 								<filter>
-									<artifact>org.apache.flink:flink-examples-batch*</artifact>
+									<artifact>org.apache.flink:flink-examples-dataset*</artifact>
 									<includes>
 										<include>org/apache/flink/examples/java/graph/ConnectedComponents*</include>
 										<include>org/apache/flink/examples/java/graph/util/ConnectedComponentsData*</include>

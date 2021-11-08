@@ -28,7 +28,7 @@ under the License.
 
 以下示例展示了 Flink 从简单的WordCount到图算法的应用。示例代码展示了 [Flink's DataSet API]({{< ref "docs/dev/dataset/overview" >}}) 的使用。
 
-完整的源代码可以在 Flink 源代码库的 {{< gh_link file="flink-examples/flink-examples-batch" name="flink-examples-batch" >}} 模块找到。
+完整的源代码可以在 Flink 源代码库的 {{< gh_link file="flink-examples/flink-examples-dataset" name="flink-examples-dataset" >}} 模块找到。
 
 
 
@@ -96,7 +96,7 @@ public static class Tokenizer implements FlatMapFunction<String, Tuple2<String, 
 }
 ```
 
-{{< gh_link file="/flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java"  name="WordCount 示例" >}}增加如下执行参数: `--input <path> --output <path>`即可实现上述算法。 任何文本文件都可作为测试数据使用。
+{{< gh_link file="/flink-examples/flink-examples-dataset/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java"  name="WordCount 示例" >}}增加如下执行参数: `--input <path> --output <path>`即可实现上述算法。 任何文本文件都可作为测试数据使用。
 
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -115,7 +115,7 @@ val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
 counts.writeAsCsv(outputPath, "\n", " ")
 ```
 
-{{< gh_link file="/flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala" name="WordCount 示例" >}}增加如下执行参数: `--input <path> --output <path>`即可实现上述算法。 任何文本文件都可作为测试数据使用。
+{{< gh_link file="/flink-examples/flink-examples-dataset/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala" name="WordCount 示例" >}}增加如下执行参数: `--input <path> --output <path>`即可实现上述算法。 任何文本文件都可作为测试数据使用。
 
 
 {{< /tab >}}
@@ -203,7 +203,7 @@ public static final class EpsilonFilter
 }
 ```
 
-{{< gh_link file="/flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/PageRank.java" name="PageRank代码" >}}实现了以上示例。
+{{< gh_link file="/flink-examples/flink-examples-dataset/src/main/java/org/apache/flink/examples/java/graph/PageRank.java" name="PageRank代码" >}}实现了以上示例。
 他需要以下参数来运行: `--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>`。
 
 {{< /tab >}}
@@ -270,7 +270,7 @@ val result = finalRanks
 result.writeAsCsv(outputPath, "\n", " ")
 ```
 
-{{< gh_link file="/flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala" name="PageRank代码" >}} 实现了以上示例。
+{{< gh_link file="/flink-examples/flink-examples-dataset/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala" name="PageRank代码" >}} 实现了以上示例。
 他需要以下参数来执行： `--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>`。
 {{< /tab >}}
 {{< /tabs >}}
@@ -367,7 +367,7 @@ public static final class ComponentIdFilter
 }
 ```
 
-{{< gh_link file="/flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/ConnectedComponents.java" file="ConnectedComponents代码" >}} 实现了以上示例。他需要以下参数来运行: `--vertices <path> --edges <path> --output <path> --iterations <n>`。
+{{< gh_link file="/flink-examples/flink-examples-dataset/src/main/java/org/apache/flink/examples/java/graph/ConnectedComponents.java" file="ConnectedComponents代码" >}} 实现了以上示例。他需要以下参数来运行: `--vertices <path> --edges <path> --output <path> --iterations <n>`。
 
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -409,7 +409,7 @@ verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
 
 ```
 
-{{< gh_link file="/flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala" name="ConnectedComponents代码" >}} 实现了以上示例。他需要以下参数来运行: `--vertices <path> --edges <path> --output <path> --iterations <n>`。
+{{< gh_link file="/flink-examples/flink-examples-dataset/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala" name="ConnectedComponents代码" >}} 实现了以上示例。他需要以下参数来运行: `--vertices <path> --edges <path> --output <path> --iterations <n>`。
 {{< /tab >}}
 {{< /tabs >}}
 

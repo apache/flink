@@ -206,15 +206,15 @@ under the License.
 
 		<!-- copy jar files of the batch examples -->
 		<fileSet>
-			<directory>../flink-examples/flink-examples-batch/target</directory>
+			<directory>../flink-examples/flink-examples-dataset/target</directory>
 			<outputDirectory>examples/batch</outputDirectory>
 			<fileMode>0644</fileMode>
 			<includes>
 				<include>*.jar</include>
 			</includes>
 			<excludes>
-				<exclude>flink-examples-batch*.jar</exclude>
-				<exclude>original-flink-examples-batch*.jar</exclude>
+				<exclude>flink-examples-dataset*.jar</exclude>
+				<exclude>original-flink-examples-dataset*.jar</exclude>
 			</excludes>
 		</fileSet>
 

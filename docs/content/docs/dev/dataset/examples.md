@@ -30,7 +30,7 @@ The following example programs showcase different applications of Flink
 from simple word counting to graph algorithms. The code samples illustrate the
 use of [Flink's DataSet API]({{< ref "docs/dev/dataset/overview" >}}).
 
-The full source code of the following and more examples can be found in the {{< gh_link file="flink-examples/flink-examples-batch" name="flink-examples-batch" >}} module of the Flink source repository.
+The full source code of the following and more examples can be found in the {{< gh_link file="flink-examples/flink-examples-dataset" name="flink-examples-dataset" >}} module of the Flink source repository.
 
 ## Running an example
 
@@ -95,7 +95,7 @@ public static class Tokenizer implements FlatMapFunction<String, Tuple2<String, 
 }
 ```
 
-The {{< gh_link file="/flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java" name="WordCount example" >}} implements the above described algorithm with input parameters: `--input <path> --output <path>`. As test data, any text file will do.
+The {{< gh_link file="/flink-examples/flink-examples-dataset/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java" name="WordCount example" >}} implements the above described algorithm with input parameters: `--input <path> --output <path>`. As test data, any text file will do.
 
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -114,7 +114,7 @@ val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
 counts.writeAsCsv(outputPath, "\n", " ")
 ```
 
-The {{< gh_link file="/flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala"  name="WordCount example" >}} implements the above described algorithm with input parameters: `--input <path> --output <path>`. As test data, any text file will do.
+The {{< gh_link file="/flink-examples/flink-examples-dataset/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala"  name="WordCount example" >}} implements the above described algorithm with input parameters: `--input <path> --output <path>`. As test data, any text file will do.
 
 
 {{< /tab >}}
@@ -202,7 +202,7 @@ public static final class EpsilonFilter
 }
 ```
 
-The {{< gh_link file="/flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/PageRank.java" name="PageRank program" >}} implements the above example.
+The {{< gh_link file="/flink-examples/flink-examples-dataset/src/main/java/org/apache/flink/examples/java/graph/PageRank.java" name="PageRank program" >}} implements the above example.
 It requires the following parameters to run: `--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>`.
 
 {{< /tab >}}
@@ -269,7 +269,7 @@ val result = finalRanks
 result.writeAsCsv(outputPath, "\n", " ")
 ```
 
-The {{< gh_link file="/flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala" name="PageRank program" >}} implements the above example.
+The {{< gh_link file="/flink-examples/flink-examples-dataset/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala" name="PageRank program" >}} implements the above example.
 It requires the following parameters to run: `--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>`.
 {{< /tab >}}
 {{< /tabs >}}
@@ -365,7 +365,7 @@ public static final class ComponentIdFilter
 }
 ```
 
-The {{< gh_link file="/flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/ConnectedComponents.java" name="ConnectedComponents program" >}} implements the above example. It requires the following parameters to run: `--vertices <path> --edges <path> --output <path> --iterations <n>`.
+The {{< gh_link file="/flink-examples/flink-examples-dataset/src/main/java/org/apache/flink/examples/java/graph/ConnectedComponents.java" name="ConnectedComponents program" >}} implements the above example. It requires the following parameters to run: `--vertices <path> --edges <path> --output <path> --iterations <n>`.
 
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -408,7 +408,7 @@ verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
 
 ```
 
-The {{< gh_link file="/flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala" name="ConnectedComponents program" >}} implements the above example. It requires the following parameters to run: `--vertices <path> --edges <path> --output <path> --iterations <n>`.
+The {{< gh_link file="/flink-examples/flink-examples-dataset/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala" name="ConnectedComponents program" >}} implements the above example. It requires the following parameters to run: `--vertices <path> --edges <path> --output <path> --iterations <n>`.
 {{< /tab >}}
 {{< /tabs >}}
 
