@@ -126,7 +126,6 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         checkpointsCleaner,
                         checkpointIdCounter,
                         rpcTimeout,
-                        jobManagerJobMetricGroup,
                         blobWriter,
                         log,
                         shuffleMaster,
