@@ -142,8 +142,9 @@ import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.utils.PrintUtils;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -815,12 +816,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     .schema(operation.getResolvedSchema())
                     .resultProvider(resultProvider)
                     .setPrintStyle(
-                            TableResultImpl.PrintStyle.tableau(
-                                    PrintUtils.MAX_COLUMN_WIDTH,
-                                    PrintUtils.NULL_COLUMN,
-                                    true,
+                            PrintStyle.tableauWithTypeInferredColumnWidths(
+                                    // sinkOperation.getConsumedDataType() handles legacy types
+                                    DataTypeUtils.expandCompositeTypeToSchema(
+                                            sinkOperation.getConsumedDataType()),
+                                    resultProvider.getRowDataStringConverter(),
+                                    PrintStyle.DEFAULT_MAX_COLUMN_WIDTH,
+                                    false,
                                     isStreamingMode))
-                    .setSessionTimeZone(getConfig().getLocalTimeZone())
                     .build();
         } catch (Exception e) {
             throw new TableException("Failed to execute sql", e);
@@ -1162,7 +1165,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                         showCreateTableOperation
                                                                 .getTableIdentifier(),
                                                         result.get().isTemporary()))))
-                        .setPrintStyle(TableResultImpl.PrintStyle.rawContent())
                         .build();
             } else {
                 throw new ValidationException(
@@ -1196,7 +1198,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                     result.getResolvedTable(),
                                                     showCreateViewOperation.getViewIdentifier(),
                                                     result.isTemporary()))))
-                    .setPrintStyle(TableResultImpl.PrintStyle.rawContent())
                     .build();
         } else if (operation instanceof ShowCurrentCatalogOperation) {
             return buildShowResult(
@@ -1292,8 +1293,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
                     .data(Collections.singletonList(Row.of(explanation)))
-                    .setPrintStyle(TableResultImpl.PrintStyle.rawContent())
-                    .setSessionTimeZone(getConfig().getLocalTimeZone())
                     .build();
         } else if (operation instanceof DescribeTableOperation) {
             DescribeTableOperation describeTableOperation = (DescribeTableOperation) operation;
@@ -1472,13 +1471,21 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private TableResultInternal buildResult(String[] headers, DataType[] types, Object[][] rows) {
+        ResolvedSchema schema = ResolvedSchema.physical(headers, types);
+        ResultProvider provider =
+                new StaticResultProvider(
+                        Arrays.stream(rows).map(Row::of).collect(Collectors.toList()));
         return TableResultImpl.builder()
                 .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                 .schema(ResolvedSchema.physical(headers, types))
-                .data(Arrays.stream(rows).map(Row::of).collect(Collectors.toList()))
+                .resultProvider(provider)
                 .setPrintStyle(
-                        TableResultImpl.PrintStyle.tableau(Integer.MAX_VALUE, "", false, false))
-                .setSessionTimeZone(getConfig().getLocalTimeZone())
+                        PrintStyle.tableauWithDataInferredColumnWidths(
+                                schema,
+                                provider.getRowDataStringConverter(),
+                                Integer.MAX_VALUE,
+                                true,
+                                false))
                 .build();
     }
 

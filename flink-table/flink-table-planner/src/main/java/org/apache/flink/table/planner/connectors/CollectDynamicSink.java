@@ -36,12 +36,15 @@ import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.function.Function;
 
 /** Table sink for {@link TableResult#collect()}. */
@@ -53,6 +56,7 @@ final class CollectDynamicSink implements DynamicTableSink {
     private final MemorySize maxBatchSize;
     private final Duration socketTimeout;
     private final ClassLoader classLoader;
+    private final ZoneId sessionZoneId;
 
     // mutable attributes
     private CollectResultIterator<RowData> iterator;
@@ -63,16 +67,19 @@ final class CollectDynamicSink implements DynamicTableSink {
             DataType consumedDataType,
             MemorySize maxBatchSize,
             Duration socketTimeout,
-            ClassLoader classLoader) {
+            ClassLoader classLoader,
+            ZoneId sessionZoneId) {
         this.tableIdentifier = tableIdentifier;
         this.consumedDataType = consumedDataType;
         this.maxBatchSize = maxBatchSize;
         this.socketTimeout = socketTimeout;
         this.classLoader = classLoader;
+        this.sessionZoneId = sessionZoneId;
     }
 
     public ResultProvider getSelectResultProvider() {
-        return new CollectResultProvider();
+        return new CollectResultProvider(
+                new RowDataToStringConverterImpl(consumedDataType, sessionZoneId, classLoader));
     }
 
     @Override
@@ -120,7 +127,12 @@ final class CollectDynamicSink implements DynamicTableSink {
     @Override
     public DynamicTableSink copy() {
         return new CollectDynamicSink(
-                tableIdentifier, consumedDataType, maxBatchSize, socketTimeout, classLoader);
+                tableIdentifier,
+                consumedDataType,
+                maxBatchSize,
+                socketTimeout,
+                classLoader,
+                sessionZoneId);
     }
 
     @Override
@@ -130,8 +142,14 @@ final class CollectDynamicSink implements DynamicTableSink {
 
     private final class CollectResultProvider implements ResultProvider {
 
+        private final RowDataToStringConverter rowDataToStringConverter;
+
         private CloseableRowIteratorWrapper<RowData> rowDataIterator;
         private CloseableRowIteratorWrapper<Row> rowIterator;
+
+        private CollectResultProvider(RowDataToStringConverter rowDataToStringConverter) {
+            this.rowDataToStringConverter = rowDataToStringConverter;
+        }
 
         @Override
         public ResultProvider setJobClient(JobClient jobClient) {
@@ -156,6 +174,11 @@ final class CollectDynamicSink implements DynamicTableSink {
                                 iterator, r -> (Row) converter.toExternal(r));
             }
             return this.rowIterator;
+        }
+
+        @Override
+        public RowDataToStringConverter getRowDataStringConverter() {
+            return rowDataToStringConverter;
         }
 
         @Override

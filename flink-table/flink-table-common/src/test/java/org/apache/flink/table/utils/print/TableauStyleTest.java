@@ -16,18 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.utils;
+package org.apache.flink.table.utils.print;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.GenericArrayData;
-import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -37,163 +36,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
-/** Tests for {@link PrintUtils}. */
-public class PrintUtilsTest {
+/** Tests for {@link TableauStyle}. */
+public class TableauStyleTest {
     private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
-
-    @Test
-    public void testArrayToString() {
-        RowData row =
-                GenericRowData.of(
-                        new GenericArrayData(new int[] {1, 2}),
-                        new GenericArrayData(new int[] {3, 4}),
-                        new GenericArrayData(
-                                new Object[] {
-                                    new GenericArrayData(new int[] {5, 6}),
-                                    new GenericArrayData(new int[] {7, 8})
-                                }),
-                        new GenericArrayData(
-                                new Object[] {
-                                    new GenericArrayData(new int[] {9, 10}),
-                                    new GenericArrayData(new int[] {11, 12})
-                                }),
-                        new GenericArrayData(
-                                new Object[] {
-                                    TimestampData.fromLocalDateTime(
-                                            LocalDateTime.parse("2021-04-18T18:00:00.123456")),
-                                    TimestampData.fromLocalDateTime(
-                                            LocalDateTime.parse("2021-04-18T18:00:00.000001"))
-                                }),
-                        new GenericArrayData(
-                                new Object[] {
-                                    new GenericArrayData(
-                                            new Object[] {
-                                                TimestampData.fromInstant(Instant.ofEpochMilli(1)),
-                                                TimestampData.fromInstant(Instant.ofEpochMilli(10))
-                                            }),
-                                    new GenericArrayData(
-                                            new Object[] {
-                                                TimestampData.fromInstant(Instant.ofEpochSecond(1)),
-                                                TimestampData.fromInstant(Instant.ofEpochSecond(10))
-                                            })
-                                }),
-                        new GenericArrayData(new int[] {1123, 2123}));
-
-        ResolvedSchema resolvedSchema =
-                ResolvedSchema.of(
-                        Arrays.asList(
-                                Column.physical("f0", DataTypes.ARRAY(DataTypes.INT())),
-                                Column.physical("f1", DataTypes.ARRAY(DataTypes.INT())),
-                                Column.physical(
-                                        "f2", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()))),
-                                Column.physical(
-                                        "f3", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()))),
-                                Column.physical("f4", DataTypes.ARRAY(DataTypes.TIMESTAMP(6))),
-                                Column.physical(
-                                        "f5",
-                                        DataTypes.ARRAY(
-                                                DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(3)))),
-                                Column.physical("f6", DataTypes.ARRAY(DataTypes.TIME()))));
-        assertEquals(
-                "[[1, 2], [3, 4], [[5, 6], [7, 8]], [[9, 10], [11, 12]],"
-                        + " [2021-04-18 18:00:00.123456, 2021-04-18 18:00:00.000001],"
-                        + " [[1970-01-01 00:00:00.001, 1970-01-01 00:00:00.010],"
-                        + " [1970-01-01 00:00:01.000, 1970-01-01 00:00:10.000]],"
-                        + " [00:00:01, 00:00:02]]",
-                Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
-    }
-
-    @Test
-    public void testNestedRowToString() {
-        RowData row =
-                GenericRowData.of(
-                        new GenericArrayData(new int[] {1, 2}),
-                        GenericRowData.of(
-                                StringData.fromString("hello"),
-                                new GenericArrayData(new boolean[] {true, false}),
-                                new GenericArrayData(
-                                        new Object[] {
-                                            TimestampData.fromTimestamp(
-                                                    Timestamp.valueOf(
-                                                            "2021-04-18 18:00:00.123456")),
-                                            TimestampData.fromTimestamp(
-                                                    Timestamp.valueOf("2021-04-18 18:00:00.000001"))
-                                        }),
-                                new GenericArrayData(
-                                        new Object[] {
-                                            TimestampData.fromEpochMillis(100L),
-                                            TimestampData.fromEpochMillis(200L)
-                                        })),
-                        new GenericArrayData(
-                                new Object[] {
-                                    new GenericArrayData(new int[] {1, 10}),
-                                    new GenericArrayData(new int[] {2, 20})
-                                }),
-                        new GenericArrayData(new int[] {3000, 4000}));
-
-        ResolvedSchema resolvedSchema =
-                ResolvedSchema.of(
-                        Arrays.asList(
-                                Column.physical("f0", DataTypes.ARRAY(DataTypes.INT())),
-                                Column.physical(
-                                        "f1",
-                                        DataTypes.ROW(
-                                                DataTypes.STRING(),
-                                                DataTypes.ARRAY(DataTypes.BOOLEAN()),
-                                                DataTypes.ARRAY(DataTypes.TIMESTAMP(6)),
-                                                DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(6)))),
-                                Column.physical(
-                                        "f2", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()))),
-                                Column.physical("f3", DataTypes.ARRAY(DataTypes.TIME()))));
-        assertEquals(
-                "[[1, 2], +I[hello, [true, false],"
-                        + " [2021-04-18 18:00:00.123456, 2021-04-18 18:00:00.000001],"
-                        + " [1970-01-01 00:00:00.100000, 1970-01-01 00:00:00.200000]], [[1, 10], [2, 20]],"
-                        + " [00:00:03, 00:00:04]]",
-                Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
-    }
-
-    @Test
-    public void testNestedMapToString() {
-        Map<TimestampData, TimestampData> map = new HashMap<>();
-        map.put(TimestampData.fromEpochMillis(1000), TimestampData.fromEpochMillis(2000));
-        map.put(TimestampData.fromEpochMillis(2000), TimestampData.fromEpochMillis(4000));
-
-        RowData row =
-                GenericRowData.of(
-                        new GenericArrayData(new int[] {1, 2}),
-                        GenericRowData.of(StringData.fromString("hello"), new GenericMapData(map)));
-
-        ResolvedSchema resolvedSchema =
-                ResolvedSchema.of(
-                        Arrays.asList(
-                                Column.physical("f0", DataTypes.ARRAY(DataTypes.INT())),
-                                Column.physical(
-                                        "f1",
-                                        DataTypes.ROW(
-                                                DataTypes.STRING(),
-                                                DataTypes.MAP(
-                                                        DataTypes.TIMESTAMP_LTZ(3),
-                                                        DataTypes.TIMESTAMP_LTZ(3))))));
-        assertEquals(
-                "[[1, 2], +I[hello,"
-                        + " {1970-01-01 00:00:01.000=1970-01-01 00:00:02.000, 1970-01-01 00:00:02.000=1970-01-01 00:00:04.000}]]",
-                Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
-    }
 
     @Test
     public void testCharFullWidth() {
@@ -201,7 +54,7 @@ public class PrintUtilsTest {
         boolean[] expected = new boolean[] {false, false, false, true, true, true};
 
         for (int i = 0; i < chars.length; i++) {
-            assertEquals(expected[i], PrintUtils.isFullWidth(Character.codePointAt(chars, i)));
+            assertEquals(expected[i], TableauStyle.isFullWidth(Character.codePointAt(chars, i)));
         }
     }
 
@@ -216,52 +69,48 @@ public class PrintUtilsTest {
         int[] expected = new int[] {17, 37, 12, 36};
 
         for (int i = 0; i < data.size(); i++) {
-            assertEquals(expected[i], PrintUtils.getStringDisplayWidth(data.get(i)));
+            assertEquals(expected[i], TableauStyle.getStringDisplayWidth(data.get(i)));
         }
     }
 
     @Test
     public void testPrintWithEmptyResult() {
-        PrintUtils.printAsTableauForm(
-                getSchema(), Collections.emptyIterator(), new PrintWriter(outContent), UTC_ZONE_ID);
+        PrintStyle.tableauWithDataInferredColumnWidths(getSchema(), getConverter())
+                .print(Collections.emptyIterator(), new PrintWriter(outContent));
 
         assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
 
     @Test
     public void testPrintWithEmptyResultAndRowKind() {
-        PrintUtils.printAsTableauForm(
-                getSchema(),
-                Collections.emptyIterator(),
-                new PrintWriter(outContent),
-                PrintUtils.MAX_COLUMN_WIDTH,
-                "",
-                true, // derive column width by type
-                true,
-                UTC_ZONE_ID);
+        PrintStyle.tableauWithTypeInferredColumnWidths(
+                        getSchema(),
+                        getConverter(),
+                        PrintStyle.DEFAULT_MAX_COLUMN_WIDTH,
+                        true,
+                        true)
+                .print(Collections.emptyIterator(), new PrintWriter(outContent));
 
         assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
 
     @Test
     public void testPrintWithEmptyResultAndDeriveColumnWidthByContent() {
-        PrintUtils.printAsTableauForm(
-                getSchema(),
-                Collections.emptyIterator(),
-                new PrintWriter(outContent),
-                PrintUtils.MAX_COLUMN_WIDTH,
-                "",
-                false, // derive column width by content
-                false,
-                UTC_ZONE_ID);
+        PrintStyle.tableauWithTypeInferredColumnWidths(
+                        getSchema(),
+                        getConverter(),
+                        PrintStyle.DEFAULT_MAX_COLUMN_WIDTH,
+                        true,
+                        false)
+                .print(Collections.emptyIterator(), new PrintWriter(outContent));
 
         assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
 
     @Test
     public void testPrintWithMultipleRows() {
-        PrintUtils.printAsTableauForm(
-                getSchema(), getData().iterator(), new PrintWriter(outContent), UTC_ZONE_ID);
+        PrintStyle.tableauWithDataInferredColumnWidths(getSchema(), getConverter())
+                .print(getData().iterator(), new PrintWriter(outContent));
 
         // note: the expected result may look irregular because every CJK(Chinese/Japanese/Korean)
         // character's
@@ -278,21 +127,21 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "|  (NULL) |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
+                        + "|  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "|   false |      (NULL) |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
+                        + "|   false |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
                         + System.lineSeparator()
-                        + "|    true |  2147483647 |               (NULL) |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
+                        + "|    true |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
                         + System.lineSeparator()
-                        + "|   false | -2147483648 |  9223372036854775807 |                         (NULL) |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                        + "|   false | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
                         + System.lineSeparator()
-                        + "|    true |         100 | -9223372036854775808 |                     abcdefg111 |         (NULL) | 2020-03-01 18:39:14.123456 |"
+                        + "|    true |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |"
                         + System.lineSeparator()
-                        + "|  (NULL) |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                     (NULL) |"
+                        + "|  <NULL> |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                     <NULL> |"
                         + System.lineSeparator()
-                        + "|  (NULL) |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
+                        + "|  <NULL> |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
                         + System.lineSeparator()
-                        + "|  (NULL) |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
+                        + "|  <NULL> |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
                         + System.lineSeparator()
                         + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
@@ -303,15 +152,13 @@ public class PrintUtilsTest {
 
     @Test
     public void testPrintWithMultipleRowsAndRowKind() {
-        PrintUtils.printAsTableauForm(
-                getSchema(),
-                getData().iterator(),
-                new PrintWriter(outContent),
-                PrintUtils.MAX_COLUMN_WIDTH,
-                "",
-                true, // derive column width by type
-                true,
-                UTC_ZONE_ID);
+        PrintStyle.tableauWithTypeInferredColumnWidths(
+                        getSchema(),
+                        getConverter(),
+                        PrintStyle.DEFAULT_MAX_COLUMN_WIDTH,
+                        true,
+                        true)
+                .print(getData().iterator(), new PrintWriter(outContent));
 
         // note: the expected result may look irregular because every CJK(Chinese/Japanese/Korean)
         // character's
@@ -353,15 +200,13 @@ public class PrintUtilsTest {
 
     @Test
     public void testPrintWithMultipleRowsAndDeriveColumnWidthByContent() {
-        PrintUtils.printAsTableauForm(
-                getSchema(),
-                getData().subList(0, 3).iterator(),
-                new PrintWriter(outContent),
-                PrintUtils.MAX_COLUMN_WIDTH,
-                "",
-                false, // derive column width by content
-                true,
-                UTC_ZONE_ID);
+        PrintStyle.tableauWithDataInferredColumnWidths(
+                        getSchema(),
+                        getConverter(),
+                        PrintStyle.DEFAULT_MAX_COLUMN_WIDTH,
+                        true,
+                        true)
+                .print(getData().subList(0, 3).iterator(), new PrintWriter(outContent));
 
         assertEquals(
                 "+----+---------+------------+--------+---------+----------------+----------------------------+"
@@ -391,6 +236,29 @@ public class PrintUtilsTest {
                 Column.physical("varchar", DataTypes.STRING()),
                 Column.physical("decimal(10, 5)", DataTypes.DECIMAL(10, 5)),
                 Column.physical("timestamp", DataTypes.TIMESTAMP(6)));
+    }
+
+    private RowDataToStringConverter getConverter() {
+        return rowData -> {
+            final String[] results = new String[rowData.getArity()];
+
+            results[0] = rowData.isNullAt(0) ? PrintStyle.NULL_VALUE : "" + rowData.getBoolean(0);
+            results[1] = rowData.isNullAt(1) ? PrintStyle.NULL_VALUE : "" + rowData.getInt(1);
+            results[2] = rowData.isNullAt(2) ? PrintStyle.NULL_VALUE : "" + rowData.getLong(2);
+            results[3] =
+                    rowData.isNullAt(3) ? PrintStyle.NULL_VALUE : rowData.getString(3).toString();
+            results[4] =
+                    rowData.isNullAt(4)
+                            ? PrintStyle.NULL_VALUE
+                            : rowData.getDecimal(4, 10, 5).toString();
+            results[5] =
+                    rowData.isNullAt(5)
+                            ? PrintStyle.NULL_VALUE
+                            : DateTimeUtils.timestampToString(
+                                    rowData.getTimestamp(5, 6), DateTimeUtils.UTC_ZONE, 6);
+
+            return results;
+        };
     }
 
     private List<RowData> getData() {

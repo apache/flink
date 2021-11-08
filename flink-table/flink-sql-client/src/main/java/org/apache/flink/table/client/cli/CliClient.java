@@ -51,7 +51,7 @@ import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
 import org.apache.flink.table.utils.EncodingUtils;
-import org.apache.flink.table.utils.PrintUtils;
+import org.apache.flink.table.utils.print.PrintStyle;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.jline.reader.EndOfFileException;
@@ -637,16 +637,13 @@ public class CliClient implements AutoCloseable {
             printInfo(MESSAGE_EXECUTE_STATEMENT);
         } else {
             // print tableau if result has content
-            PrintUtils.printAsTableauForm(
-                    result.getResolvedSchema(),
-                    result.collectInternal(),
-                    terminal.writer(),
-                    Integer.MAX_VALUE,
-                    "",
-                    false,
-                    false,
-                    CliUtils.getSessionTimeZone(executor.getSessionConfig(sessionId)));
-            terminal.flush();
+            PrintStyle.tableauWithDataInferredColumnWidths(
+                            result.getResolvedSchema(),
+                            result.getRowDataToStringConverter(),
+                            Integer.MAX_VALUE,
+                            true,
+                            false)
+                    .print(result.collectInternal(), terminal.writer());
         }
     }
 
