@@ -23,6 +23,7 @@ import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.functions.casting.CastRule;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
+import org.apache.flink.table.planner.functions.casting.ExpressionCodeGeneratorCastRule;
 import org.apache.flink.table.runtime.generated.CompileUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
@@ -36,17 +37,12 @@ import java.util.Collections;
  */
 @Internal
 public abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
-        extends AbstractNullAwareCodeGeneratorCastRule<IN, OUT> {
+        extends AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
+        implements ExpressionCodeGeneratorCastRule<IN, OUT> {
 
     protected AbstractExpressionCodeGeneratorCastRule(CastRulePredicate predicate) {
         super(predicate);
     }
-
-    abstract String generateExpression(
-            CodeGeneratorCastRule.Context context,
-            String inputTerm,
-            LogicalType inputLogicalType,
-            LogicalType targetLogicalType);
 
     @Override
     protected String generateCodeBlockInternal(
@@ -58,7 +54,7 @@ public abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
         return returnVariable
                 + " = "
                 + generateExpression(context, inputTerm, inputLogicalType, targetLogicalType)
-                + ";";
+                + ";\n";
     }
 
     @Override
