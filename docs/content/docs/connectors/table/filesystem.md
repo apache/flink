@@ -122,7 +122,7 @@ The following connector metadata can be accessed as metadata columns in a table 
     </thead>
     <tbody>
     <tr>
-      <td><code>filename</code></td>
+      <td><code>filepath</code></td>
       <td><code>STRING NOT NULL</code></td>
       <td>Full path of the input file.</td>
     </tr>
@@ -132,10 +132,10 @@ The following connector metadata can be accessed as metadata columns in a table 
 The extended `CREATE TABLE` example demonstrates the syntax for exposing these metadata fields:
 
 ```sql
-CREATE TABLE MyUserTableWithFilename (
+CREATE TABLE MyUserTableWithFilepath (
   column_name1 INT,
   column_name2 STRING,
-  filename STRING NOT NULL METADATA
+  filepath STRING NOT NULL METADATA
 ) WITH (
   'connector' = 'filesystem',
   'path' = 'file:///path/to/whatever',
