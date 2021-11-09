@@ -18,15 +18,23 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import java.util
-
+import org.apache.flink.client.ClientUtils
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, ObjectPath}
 import org.apache.flink.table.planner.factories.{TestValuesCatalog, TestValuesTableFactory}
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.utils.TestUserClassLoaderJar
+import org.apache.flink.util.TemporaryClassLoaderContext
+
 import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import java.io.File
+import java.net.URL
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -119,6 +127,35 @@ class PartitionableSourceITCase(
         row(3, "Jack", "A", 2, 3)
       )
     )
+  }
+
+  @Test
+  def testPartitionPrunerCompileClassLoader(): Unit = {
+    val udfJavaCode =
+      s"""
+         |public class TrimUDF extends org.apache.flink.table.functions.ScalarFunction {
+         |   public String eval(String str) {
+         |     return str.trim();
+         |   }
+         |}
+         |""".stripMargin
+    val tmpDir: File = TEMPORARY_FOLDER.newFolder()
+    val udfJarFile: File = TestUserClassLoaderJar.createJarFile(
+      tmpDir, "flink-test-udf.jar", "TrimUDF", udfJavaCode)
+    val jars: util.List[URL] = util.Collections.singletonList(udfJarFile.toURI.toURL)
+    val cl = ClientUtils.buildUserCodeClassLoader(jars, util.Collections.emptyList(),
+      getClass.getClassLoader, new Configuration())
+    val ctx = TemporaryClassLoaderContext.of(cl)
+    try {
+      tEnv.executeSql("create temporary function trimUDF as 'TrimUDF'")
+      checkResult("select * from MyTable where trimUDF(part1) = 'A' and part2 > 1",
+        Seq(
+          row(3, "Jack", "A", 2, 3)
+        )
+      )
+    } finally {
+      ctx.close()
+    }
   }
 }
 
