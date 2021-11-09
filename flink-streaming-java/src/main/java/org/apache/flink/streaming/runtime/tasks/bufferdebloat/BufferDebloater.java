@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks.bufferdebloat;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
@@ -39,7 +40,7 @@ public class BufferDebloater {
     private final IndexedInputGate[] inputGates;
     private final long maxBufferSize;
     private final long minBufferSize;
-    private final int bufferDebloatThresholdPercentages;
+    private final double bufferDebloatThresholdFactor;
 
     private int lastBufferSize;
     private Duration lastEstimatedTimeToConsumeBuffers = Duration.ZERO;
@@ -50,8 +51,8 @@ public class BufferDebloater {
         this.maxBufferSize = taskConfig.get(TaskManagerOptions.MEMORY_SEGMENT_SIZE).getBytes();
         this.minBufferSize = taskConfig.get(TaskManagerOptions.MIN_MEMORY_SEGMENT_SIZE).getBytes();
 
-        this.bufferDebloatThresholdPercentages =
-                taskConfig.getInteger(BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES);
+        this.bufferDebloatThresholdFactor =
+                taskConfig.getInteger(BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES) / 100.0;
 
         this.lastBufferSize = (int) maxBufferSize;
 
@@ -83,11 +84,7 @@ public class BufferDebloater {
                 Duration.ofMillis(
                         newSize * totalNumber * MILLIS_IN_SECOND / Math.max(1, currentThroughput));
 
-        boolean skipUpdate =
-                newSize == lastBufferSize
-                        || (newSize > minBufferSize && newSize < maxBufferSize)
-                                && Math.abs(1 - ((double) lastBufferSize) / newSize) * 100
-                                        < bufferDebloatThresholdPercentages;
+        boolean skipUpdate = skipUpdate(newSize);
 
         // Skip update if the new value pretty close to the old one.
         if (skipUpdate) {
@@ -100,6 +97,23 @@ public class BufferDebloater {
                 inputGate.announceBufferSize(newSize);
             }
         }
+    }
+
+    @VisibleForTesting
+    boolean skipUpdate(int newSize) {
+        if (newSize == lastBufferSize) {
+            return true;
+        }
+
+        // According to logic of this class newSize can not be less than min or greater than max
+        // buffer size but if considering this method independently the behaviour for the small or
+        // big value should be the same as for min and max buffer size correspondingly.
+        if (newSize <= minBufferSize || newSize >= maxBufferSize) {
+            return false;
+        }
+
+        int delta = (int) (lastBufferSize * bufferDebloatThresholdFactor);
+        return Math.abs(newSize - lastBufferSize) < delta;
     }
 
     public int getLastBufferSize() {
