@@ -123,7 +123,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         // Physical type is computed from the full data type, filtering out partition and
         // metadata columns. This type is going to be used by formats to parse the input.
         List<DataTypes.Field> producedDataTypeFields = DataType.getFields(producedDataType);
-        if (metadataKeys != null) {
+        if (metadataKeys != null && !metadataKeys.isEmpty()) {
             // If metadata keys are present, then by SupportsReadingMetadata contract all the
             // metadata columns will be at the end of the producedDataType, so we can just remove
             // from the list the last metadataKeys.size() fields.
@@ -407,10 +407,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
     @Override
     public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
-        if (!metadataKeys.isEmpty()) {
-            this.metadataKeys = metadataKeys;
-            this.producedDataType = producedDataType;
-        }
+        this.metadataKeys = metadataKeys;
+        this.producedDataType = producedDataType;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -467,13 +465,13 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         }
 
         public static ReadableFileInfo resolve(String key) {
-            switch (key) {
-                case "filepath":
-                    return ReadableFileInfo.FILEPATH;
-                default:
-                    throw new IllegalArgumentException(
-                            "Cannot resolve the provided ReadableMetadata key");
-            }
+            return Arrays.stream(ReadableFileInfo.values())
+                    .filter(readableFileInfo -> readableFileInfo.getKey().equals(key))
+                    .findFirst()
+                    .orElseThrow(
+                            () ->
+                                    new IllegalArgumentException(
+                                            "Cannot resolve the provided ReadableMetadata key"));
         }
     }
 }
