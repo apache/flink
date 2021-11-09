@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -44,6 +43,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -303,19 +304,25 @@ public class TestBaseUtils extends TestLogger {
         assertTrue("Result file was not written", result.exists());
 
         if (result.isDirectory()) {
-            return result.listFiles(
-                    new FilenameFilter() {
+            try {
+                return Files.walk(result.toPath())
+                        .filter(Files::isRegularFile)
+                        .filter(
+                                path -> {
+                                    for (String prefix : excludePrefixes) {
+                                        if (path.getFileName().startsWith(prefix)) {
+                                            return false;
+                                        }
+                                    }
 
-                        @Override
-                        public boolean accept(File dir, String name) {
-                            for (String p : excludePrefixes) {
-                                if (name.startsWith(p)) {
-                                    return false;
-                                }
-                            }
-                            return true;
-                        }
-                    });
+                                    return true;
+                                })
+                        .map(Path::toFile)
+                        .filter(file -> !file.isHidden())
+                        .toArray(File[]::new);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to retrieve result files");
+            }
         } else {
             return new File[] {result};
         }
