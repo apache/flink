@@ -35,7 +35,7 @@ public class DockerImageVersions {
 
     public static final String KAFKA = "confluentinc/cp-kafka:5.5.2";
 
-    public static final String RABBITMQ = "rabbitmq:3.7.25-management-alpine";
+    public static final String RABBITMQ = "rabbitmq:3.9.8-management-alpine";
 
     public static final String KINESALITE = "instructure/kinesalite:latest";
 
