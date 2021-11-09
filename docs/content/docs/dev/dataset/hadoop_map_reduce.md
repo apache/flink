@@ -42,19 +42,10 @@ This document shows how to use existing Hadoop MapReduce code with Flink. Please
 
 ## Project Configuration
 
-Support for Hadoop input/output formats is part of the `flink-java` and
-`flink-scala` Maven modules that are always required when writing Flink jobs.
-The code is located in `org.apache.flink.api.java.hadoop` and
-`org.apache.flink.api.scala.hadoop` in an additional sub-package for the
-`mapred` and `mapreduce` API.
-
-Support for Hadoop Mappers and Reducers is contained in the `flink-hadoop-compatibility`
+Support for Hadoop is contained in the `flink-hadoop-compatibility`
 Maven module.
-This code resides in the `org.apache.flink.hadoopcompatibility`
-package.
 
-Add the following dependency to your `pom.xml` if you want to reuse Mappers
-and Reducers.
+Add the following dependency to your `pom.xml` to use hadoop
 
 ```xml
 <dependency>
