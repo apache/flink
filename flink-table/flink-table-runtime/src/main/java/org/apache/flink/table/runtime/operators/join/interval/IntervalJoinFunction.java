@@ -82,6 +82,10 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
         }
     }
 
+    public JoinCondition getJoinCondition() {
+        return joinCondition;
+    }
+
     @Override
     public TypeInformation<RowData> getProducedType() {
         return returnTypeInfo;

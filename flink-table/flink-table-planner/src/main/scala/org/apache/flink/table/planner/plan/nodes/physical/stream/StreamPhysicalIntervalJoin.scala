@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
+import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, JoinUtil}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core.{Join, JoinRelType}
@@ -83,7 +84,7 @@ class StreamPhysicalIntervalJoin(
       .item("windowBounds", windowBoundsDesc)
       .item("where", getExpressionString(
         originalCondition,
-        getRowType.getFieldNames.toList,
+        JoinUtil.getAllRowType(this).getFieldNames.toList,
         None,
         preferExpressionFormat(pw),
         pw.getDetailLevel))

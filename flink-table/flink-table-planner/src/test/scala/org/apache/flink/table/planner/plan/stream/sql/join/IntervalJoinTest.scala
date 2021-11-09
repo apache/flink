@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil
+import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, JoinUtil}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
@@ -63,6 +63,9 @@ class IntervalJoinTest extends TableTestBase {
        |)
        """.stripMargin)
 
+  util.addDataStream[(Int, String, Long)](
+    "MyTable7", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+
   /** There should exist exactly two time conditions **/
   @Test
   def testInteravlJoinSingleTimeCondition(): Unit = {
@@ -87,6 +90,153 @@ class IntervalJoinTest extends TableTestBase {
     util.verifyExecPlan(sql)
   }
 
+  @Test
+  def testProcTimeSemiIntervalJoinWithIn(): Unit = {
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1 WHERE t1.a IN (
+        | SELECT t2.a FROM MyTable2 t2
+        |   WHERE t1.proctime between t2.proctime and t2.proctime + INTERVAL '5' MINUTE)
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testRowTimeSemiIntervalJoinWithIn(): Unit = {
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1 WHERE t1.a IN (
+        | SELECT t2.a FROM MyTable2 t2
+        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testAntiIntervalJoinWithIn(): Unit = {
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1 WHERE t1.a NOT IN (
+        | SELECT t2.a FROM MyTable2 t2
+        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testSemiIntervalJoinWithExists(): Unit = {
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1 WHERE EXISTS (
+        | SELECT * FROM MyTable2 t2
+        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testAntiIntervalJoinWithExists(): Unit = {
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1 WHERE NOT EXISTS (
+        | SELECT * FROM MyTable2 t2
+        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testSemiIntervalJoinWithSimpleCondition(): Unit = {
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1 WHERE EXISTS (
+        | SELECT * FROM MyTable2 t2
+        |   WHERE t1.b = t2.b AND t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testSemiIntervalJoinWithMultiConditions(): Unit = {
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1 WHERE t1.c > 2 AND NOT(t1.b like 'abc' OR t1.a NOT IN (
+        | SELECT t2.a FROM MyTable2 t2
+        |   WHERE t1.b = t2.b AND t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE))
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testNestedSemiIntervalJoin(): Unit = {
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1 WHERE EXISTS(
+        | SELECT t2.a FROM MyTable2 t2
+        |   WHERE t1.b = t2.b AND t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE
+        |   AND t2.a IN(
+        |     SELECT t3.a FROM MyTable2 t3
+        |       WHERE t2.b = t3.b AND t2.rowtime between t3.rowtime and t3.rowtime + INTERVAL '5' MINUTE))
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testNestedSemiAntiIntervalJoin(): Unit = {
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1 WHERE EXISTS(
+        | SELECT t2.a FROM MyTable2 t2
+        |   WHERE t1.b = t2.b AND t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE
+        |   AND t2.a NOT IN(
+        |     SELECT t3.a FROM MyTable7 t3
+        |       WHERE t2.b = t3.b AND t2.rowtime between t3.rowtime and t3.rowtime + INTERVAL '5' MINUTE))
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testSemiIntervalJoinWithMultiFields(): Unit = {
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1 WHERE (t1.a, SUBSTRING(t1.b, 1 ,5)) IN (
+        | SELECT t2.a, SUBSTRING(t2.b, 1, 5) FROM MyTable2 t2
+        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testMultiSemiIntervalJoin(): Unit = {
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1
+        |WHERE t1.a IN (
+        | SELECT t2.a FROM MyTable2 t2
+        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+        |AND t1.c IN(
+        | SELECT t3.c FROM MyTable7 t3
+        |   WHERE t1.rowtime between t3.rowtime + INTERVAL '1' MINUTE and t3.rowtime + INTERVAL '4' MINUTE)
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testUnsupportedSemiIntervalJoinWithUnion(): Unit = {
+    thrown.expect(classOf[TableException])
+
+    val sql =
+      """
+        |SELECT t1.a FROM MyTable t1
+        |WHERE t1.a IN (
+        | SELECT t2.a FROM MyTable2 t2
+        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE
+        | UNION
+        | SELECT t3.a FROM MyTable7 t3
+        |   WHERE t1.rowtime between t3.rowtime + INTERVAL '1' MINUTE and t3.rowtime + INTERVAL '4' MINUTE)
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
 
   /** Both rowtime types in a join condition must be of the same type **/
   @Test
@@ -524,10 +674,11 @@ class IntervalJoinTest extends TableTestBase {
     val relNode = TableTestUtil.toRelNode(table)
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val rexNode = joinNode.getCondition
+    val rowType = JoinUtil.getAllRowType(joinNode)
     val (windowBounds, _) = IntervalJoinUtil.extractWindowBoundsFromPredicate(
       rexNode,
       joinNode.getLeft.getRowType.getFieldCount,
-      joinNode.getRowType,
+      rowType,
       joinNode.getCluster.getRexBuilder,
       util.tableEnv.getConfig)
 
@@ -546,11 +697,12 @@ class IntervalJoinTest extends TableTestBase {
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val joinInfo = joinNode.analyzeCondition
     val rexNode = joinInfo.getRemaining(joinNode.getCluster.getRexBuilder)
+    val rowType = JoinUtil.getAllRowType(joinNode)
     val (_, remainCondition) =
       IntervalJoinUtil.extractWindowBoundsFromPredicate(
         rexNode,
         joinNode.getLeft.getRowType.getFieldCount,
-        joinNode.getRowType,
+        rowType,
         joinNode.getCluster.getRexBuilder,
         util.tableEnv.getConfig)
     val actual: String = remainCondition.getOrElse("").toString

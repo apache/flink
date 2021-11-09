@@ -122,6 +122,8 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
             case LEFT:
             case RIGHT:
             case FULL:
+            case SEMI:
+            case ANTI:
                 long relativeWindowSize =
                         windowBounds.getLeftUpperBound() - windowBounds.getLeftLowerBound();
                 if (relativeWindowSize < 0) {
@@ -276,6 +278,12 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         Lists.newArrayList(filterAllLeftStream, padRightStream));
             case FULL:
                 return new UnionTransformation<>(Lists.newArrayList(padLeftStream, padRightStream));
+            case SEMI:
+                // If the window size is negative, all elements in left should not be output.
+                return filterAllLeftStream;
+            case ANTI:
+                // Opposite to SEMI
+                return leftInputTransform;
             default:
                 throw new TableException("should no reach here");
         }

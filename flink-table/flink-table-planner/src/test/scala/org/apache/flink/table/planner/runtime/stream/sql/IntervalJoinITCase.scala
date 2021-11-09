@@ -26,10 +26,11 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.Test
 
 import scala.collection.mutable
 
@@ -1080,6 +1081,733 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "D,R-8,null"
     )
     assertEquals(expected.toList.sorted, sink.getAppendResults.sorted)
+  }
+
+  val dataLeft = new mutable.MutableList[(String, String, Long)]
+  // for boundary test
+  dataLeft.+=(("A", "L-1", 1000L))
+  dataLeft.+=(("A", "L-2", 2000L))
+  dataLeft.+=(("B", "L-4", 4000L))
+  dataLeft.+=(("B", "L-5", 5000L))
+  dataLeft.+=(("A", "L-6", 6000L))
+  dataLeft.+=(("C", "L-7", 7000L))
+  dataLeft.+=(("A", "L-10", 10000L))
+  dataLeft.+=(("A", "L-12", 12000L))
+  dataLeft.+=(("A", "L-20", 20000L))
+
+  val dataRight = new mutable.MutableList[(String, String, Long)]
+  dataRight.+=(("A", "R-5", 5000L))
+  dataRight.+=(("A", "R-6", 6000L))
+  dataRight.+=(("B", "R-7", 7000L))
+  dataRight.+=(("D", "R-8", 8000L))
+
+  @Test
+  def testProcTimeSemiJoinWithExistsAndIn: Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE EXISTS(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.proctime BETWEEN t2.proctime - INTERVAL '2' SECOND AND
+        | t2.proctime + INTERVAL '2' SECOND
+        |)
+        |UNION ALL
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE t1.key IN(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.proctime BETWEEN t2.proctime - INTERVAL '2' SECOND AND
+        | t2.proctime + INTERVAL '2' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime, 'proctime.proctime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime, 'proctime.proctime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink()
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+  }
+
+  @Test
+  def testProcTimeAntiJoinWithExistsAndIn: Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE NOT EXISTS(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.proctime BETWEEN t2.proctime - INTERVAL '2' SECOND AND
+        | t2.proctime + INTERVAL '2' SECOND
+        |)
+        |UNION ALL
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE t1.key NOT IN(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.proctime BETWEEN t2.proctime - INTERVAL '2' SECOND AND
+        | t2.proctime + INTERVAL '2' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime, 'proctime.proctime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime, 'proctime.proctime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink()
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+  }
+
+  @Test
+  def testRowTimeSemiJoinWithExists: Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE EXISTS(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.rowtime BETWEEN t2.rowtime - INTERVAL '2' SECOND AND
+        | t2.rowtime + INTERVAL '2' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink()
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "B,L-4",
+      "B,L-5",
+      "A,L-6",
+      "C,L-7",
+      "A,L-10"
+    )
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeAntiJoinWithExists: Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE NOT EXISTS(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.rowtime BETWEEN t2.rowtime - INTERVAL '2' SECOND AND
+        | t2.rowtime + INTERVAL '2' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink()
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,L-1",
+      "A,L-2",
+      "A,L-12",
+      "A,L-20"
+    )
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeSemiJoinWithExistsAndExtraCondition(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE EXISTS(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.key = t2.key AND
+        | t1.rowtime BETWEEN t2.rowtime - INTERVAL '5' SECOND AND
+        | t2.rowtime + INTERVAL '6' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink()
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,L-1",
+      "A,L-2",
+      "A,L-6",
+      "A,L-10",
+      "A,L-12",
+      "B,L-4",
+      "B,L-5"
+    )
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeAntiJoinWithExistsAndExtraCondition(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE NOT EXISTS(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.key = t2.key AND
+        | t1.rowtime BETWEEN t2.rowtime - INTERVAL '5' SECOND AND
+        | t2.rowtime + INTERVAL '6' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,L-20",
+      "C,L-7"
+    )
+
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeSemiJoinWithIn: Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE t1.key in(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.rowtime BETWEEN t2.rowtime - INTERVAL '2' SECOND AND
+        | t2.rowtime + INTERVAL '2' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink()
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,L-6",
+      "B,L-5"
+    )
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeAntiJoinWithIn: Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE t1.key not in(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.rowtime BETWEEN t2.rowtime - INTERVAL '2' SECOND AND
+        | t2.rowtime + INTERVAL '2' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink()
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,L-1",
+      "A,L-2",
+      "A,L-10",
+      "A,L-12",
+      "A,L-20",
+      "B,L-4",
+      "C,L-7"
+    )
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeSemiJoinWithInAndExtraCondition(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE t1.key in(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t2.key = 'B' AND
+        | t1.rowtime BETWEEN t2.rowtime - INTERVAL '2' SECOND AND
+        | t2.rowtime + INTERVAL '2' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink()
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "B,L-5"
+    )
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeAntiJoinWithInAndExtraCondition(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE t1.key not in(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t2.key = 'B' AND
+        | t1.rowtime BETWEEN t2.rowtime - INTERVAL '2' SECOND AND
+        | t2.rowtime + INTERVAL '2' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,L-1",
+      "A,L-2",
+      "A,L-6",
+      "A,L-10",
+      "A,L-12",
+      "A,L-20",
+      "B,L-4",
+      "C,L-7"
+    )
+
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeSemiJoinWithNegativeIntervalSize(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE EXISTS(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.rowtime BETWEEN t2.rowtime + INTERVAL '4' SECOND AND
+        | t2.rowtime + INTERVAL '2' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String]()
+
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeAntiJoinWithNegativeIntervalSize(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE NOT EXISTS(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.rowtime BETWEEN t2.rowtime + INTERVAL '4' SECOND AND
+        | t2.rowtime + INTERVAL '2' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeft)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRight)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,L-1",
+      "A,L-2",
+      "A,L-6",
+      "A,L-10",
+      "A,L-12",
+      "A,L-20",
+      "B,L-4",
+      "B,L-5",
+      "C,L-7"
+    )
+
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  val dataLeftContainsNull = new mutable.MutableList[(String, String, Long)]
+  dataLeftContainsNull.+=((null.asInstanceOf[String], "L-1", 1000L))
+  dataLeftContainsNull.+=(("A", "L-2", 2000L))
+  dataLeftContainsNull.+=(("B", "L-4", 4000L))
+  dataLeftContainsNull.+=(("B", "L-5", 5000L))
+  dataLeftContainsNull.+=(("A", "L-6", 6000L))
+  dataLeftContainsNull.+=(("C", "L-7", 7000L))
+  dataLeftContainsNull.+=(("A", "L-10", 10000L))
+  dataLeftContainsNull.+=(("A", "L-12", 12000L))
+  dataLeftContainsNull.+=(("A", "L-20", 20000L))
+
+  val dataRightContainsNull = new mutable.MutableList[(String, String, Long)]
+  dataRightContainsNull.+=((null.asInstanceOf[String], "R-2", 2000L))
+  dataRightContainsNull.+=(("A", "R-6", 6000L))
+  dataRightContainsNull.+=(("B", "R-7", 7000L))
+  dataRightContainsNull.+=(("D", "R-8", 8000L))
+  dataRightContainsNull.+=(("A", "R-9", 9000L))
+
+  @Test
+  def testRowTimeSemiJoinContainNullWithExists(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE EXISTS(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.rowtime BETWEEN t2.rowtime + INTERVAL '1' SECOND AND
+        | t2.rowtime + INTERVAL '3' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeftContainsNull)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRightContainsNull)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,L-10",
+      "A,L-12",
+      "B,L-4",
+      "B,L-5",
+      "C,L-7"
+    )
+
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeAntiJoinContainNullWithExists(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE NOT EXISTS(
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.rowtime BETWEEN t2.rowtime + INTERVAL '1' SECOND AND
+        | t2.rowtime + INTERVAL '3' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeftContainsNull)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRightContainsNull)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,L-2",
+      "A,L-20",
+      "A,L-6",
+      "null,L-1"
+    )
+
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeSemiJoinContainNullWithIn(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE t1.key IN (
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.rowtime BETWEEN t2.rowtime + INTERVAL '1' SECOND AND
+        | t2.rowtime + INTERVAL '3' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeftContainsNull)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRightContainsNull)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,L-10",
+      "A,L-12"
+    )
+
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeAntiJoinContainNullWithIn(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id
+        |FROM T1 AS t1 WHERE t1.key NOT IN (
+        | SELECT t2.key FROM T2 as t2 WHERE
+        | t1.rowtime BETWEEN t2.rowtime + INTERVAL '1' SECOND AND
+        | t2.rowtime + INTERVAL '3' SECOND
+        |)
+      """.stripMargin
+
+    val t1 = env.fromCollection(dataLeftContainsNull)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(dataRightContainsNull)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,L-2",
+      "A,L-6",
+      "A,L-20",
+      "C,L-7",
+      "null,L-1"
+    )
+
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  val data1 = new mutable.MutableList[(String, String, Long)]
+  data1.+=(("A", "T1-2", 2000L))
+  data1.+=(("B", "T1-4", 4000L))
+  data1.+=(("B", "T1-5", 5000L))
+  data1.+=(("A", "T1-6", 6000L))
+  data1.+=(("C", "T1-10", 10000L))
+  data1.+=(("D", "T1-13", 13000L))
+
+  val data2 = new mutable.MutableList[(String, String, Long)]
+  data2.+=(("A", "T2-6", 6000L))
+  data2.+=(("B", "T2-7", 7000L))
+  data2.+=(("D", "T2-8", 8000L))
+  data2.+=(("A", "T2-9", 9000L))
+
+
+  val data3 = new mutable.MutableList[(String, String, Long)]
+  data3.+=(("A", "T3-2", 2000L))
+  data3.+=(("B", "T3-4", 4000L))
+  data3.+=(("D", "T3-6", 6000L))
+  data3.+=(("A", "T3-8", 8000L))
+  data3.+=(("B", "T3-20", 20000L))
+
+  @Test
+  def testRowTimeNestedSemiJoin(): Unit = {
+    val sqlQuery =
+      """
+        | SELECT t1.key, t1.id FROM T1 AS t1 WHERE t1.key IN(
+        | SELECT t2.key FROM T2 as t2
+        |   WHERE t1.rowtime between t2.rowtime - INTERVAL '3' SECOND AND t2.rowtime - INTERVAL '2' SECOND
+        |   AND t2.key IN(
+        |     SELECT t3.key FROM T3 as t3
+        |       WHERE t2.rowtime between t3.rowtime + INTERVAL '2' SECOND AND t3.rowtime + INTERVAL '3' SECOND))
+      """.stripMargin
+
+    val t1 = env.fromCollection(data1)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(data2)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t3 = env.fromCollection(data3)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+    tEnv.registerTable("T3", t3)
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "B,T1-4",
+      "B,T1-5"
+    )
+
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testRowTimeMultiSemiJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.key, t1.id FROM T1 AS t1
+        |WHERE t1.key IN(
+        | SELECT t2.key FROM T2 as t2
+        | WHERE t1.rowtime between t2.rowtime AND t2.rowtime + INTERVAL '5' SECOND)
+        |AND t1.key IN(
+        | SELECT t3.key FROM T3 as t3
+        | WHERE t1.rowtime between t3.rowtime + INTERVAL '1' SECOND AND t3.rowtime + INTERVAL '8' SECOND)
+      """.stripMargin
+
+    val t1 = env.fromCollection(data1)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(data2)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t3 = env.fromCollection(data3)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+    tEnv.registerTable("T3", t3)
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList[String](
+      "A,T1-6",
+      "D,T1-13"
+    )
+
+    assertEquals(expected.toList.sorted, sink.getRetractResults.sorted)
   }
 }
 

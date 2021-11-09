@@ -29,15 +29,15 @@ import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.satisfyTempora
 import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.satisfyWindowJoin
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.core.{Join, JoinInfo, JoinRelType}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexUtil}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.rel.core.{Join, JoinInfo, JoinRelType}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexUtil}
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.util.ImmutableIntList
 
@@ -258,6 +258,24 @@ object JoinUtil {
       false
     } else {
       true
+    }
+  }
+
+  /**
+   * Get all row type fields.
+   * When the join type is semi or anti,
+   * the result is rowType of the left node plus rowType of the right node.
+   */
+  def getAllRowType(join: Join): RelDataType ={
+    if(join.getJoinType == JoinRelType.SEMI || join.getJoinType == JoinRelType.ANTI){
+      SqlValidatorUtil.createJoinType(
+        join.getCluster.getTypeFactory,
+        join.getLeft.getRowType,
+        join.getRight.getRowType,
+        null,
+        join.getSystemFieldList)
+    }else{
+      join.getRowType
     }
   }
 }
