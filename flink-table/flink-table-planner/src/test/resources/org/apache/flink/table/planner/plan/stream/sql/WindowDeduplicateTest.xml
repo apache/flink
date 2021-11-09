@@ -16,6 +16,80 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testFallbackToWindowTopNForUnmatchedCondition">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
+    ORDER BY rowtime DESC) as rownum
+FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+)
+WHERE rownum < 3
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[$10])
++- LogicalFilter(condition=[<($10, 3)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $5 DESC NULLS LAST)])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE($6, DESCRIPTOR($5), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, w0$o0])
++- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[a], orderBy=[rowtime DESC], select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time, w0$o0])
+   +- Exchange(distribution=[hash[a]])
+      +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+            +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFallbackToWindowTopNForUnmatchedOrderKey">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
+    ORDER BY b DESC) as rownum
+FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+)
+WHERE rownum <= 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[$10])
++- LogicalFilter(condition=[<=($10, 1)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE($6, DESCRIPTOR($5), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1:BIGINT AS w0$o0])
++- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time])
+   +- Exchange(distribution=[hash[a]])
+      +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+            +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTimeAttributePropagateForWindowDeduplicate">
     <Resource name="sql">
       <![CDATA[
@@ -100,43 +174,6 @@ Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime,
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testOnWindowTVFKeepFirstRow">
-    <Resource name="sql">
-      <![CDATA[
-SELECT *
-FROM (
-SELECT *,
-   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
-   ORDER BY rowtime ASC) as rownum
-FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
-)
-WHERE rownum <= 1
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[$10])
-+- LogicalFilter(condition=[<=($10, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $5 NULLS FIRST)])
-      +- LogicalTableFunctionScan(invocation=[TUMBLE($6, DESCRIPTOR($5), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
-            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1:BIGINT AS w0$o0])
-+- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[FirstRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
-   +- Exchange(distribution=[hash[a]])
-      +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
-         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-            +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testOnWindowTVFWithCalc">
     <Resource name="sql">
       <![CDATA[
@@ -172,6 +209,80 @@ Calc(select=[window_start, window_end, window_time, a, b, c, d, e])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
                +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
                   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnWindowTVFWithValidCondition">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
+    ORDER BY rowtime DESC) as rownum
+FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+)
+WHERE rownum < 2
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[$10])
++- LogicalFilter(condition=[<($10, 2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $5 DESC NULLS LAST)])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE($6, DESCRIPTOR($5), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1:BIGINT AS w0$o0])
++- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
+   +- Exchange(distribution=[hash[a]])
+      +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+            +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnWindowTVFKeepFirstRow">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+SELECT *,
+   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
+   ORDER BY rowtime ASC) as rownum
+FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+)
+WHERE rownum <= 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[$10])
++- LogicalFilter(condition=[<=($10, 1)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $5 NULLS FIRST)])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE($6, DESCRIPTOR($5), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, e, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, window_start, window_end, window_time, 1:BIGINT AS w0$o0])
++- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[FirstRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
+   +- Exchange(distribution=[hash[a]])
+      +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+            +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>

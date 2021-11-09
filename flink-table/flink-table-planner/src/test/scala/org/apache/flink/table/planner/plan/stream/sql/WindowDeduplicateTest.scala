@@ -84,6 +84,58 @@ class WindowDeduplicateTest extends TableTestBase {
   }
 
   @Test
+  def testOnWindowTVFWithValidCondition(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
+        |    ORDER BY rowtime DESC) as rownum
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |)
+        |WHERE rownum < 2
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testFallbackToWindowTopNForUnmatchedCondition(): Unit = {
+    // the query would be translated to window topN instead of window deduplicate because of
+    // unmatched filter condition
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
+        |    ORDER BY rowtime DESC) as rownum
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |)
+        |WHERE rownum < 3
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testFallbackToWindowTopNForUnmatchedOrderKey(): Unit = {
+    // the query would be translated to window topN instead of window deduplicate because of
+    // unmatched order key
+    val sql =
+    """
+      |SELECT *
+      |FROM (
+      |  SELECT *,
+      |    ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
+      |    ORDER BY b DESC) as rownum
+      |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+      |)
+      |WHERE rownum <= 1
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
   def testOnWindowTVFKeepFirstRow(): Unit = {
     val sql =
       """
