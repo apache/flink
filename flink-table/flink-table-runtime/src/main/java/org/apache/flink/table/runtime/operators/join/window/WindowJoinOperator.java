@@ -299,10 +299,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
                 boolean matches = false;
                 for (RowData rightRecord : rightRecords) {
                     if (joinCondition.apply(leftRecord, rightRecord)) {
-                        if (joinCondition.apply(leftRecord, rightRecord)) {
-                            matches = true;
-                            break;
-                        }
+                        matches = true;
+                        break;
                     }
                 }
                 if (matches) {

@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes}
 import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
@@ -424,10 +425,14 @@ object TemporalJoinUtil {
    *         else false.
    */
   def satisfyTemporalJoin(join: FlinkLogicalJoin): Boolean = {
+    satisfyTemporalJoin(join, join.getLeft, join.getRight)
+  }
+
+  def satisfyTemporalJoin(join: FlinkLogicalJoin, newLeft: RelNode, newRight: RelNode): Boolean = {
     if (!containsTemporalJoinCondition(join.getCondition)) {
       return false
     }
-    val joinInfo = JoinInfo.of(join.getLeft, join.getRight, join.getCondition)
+    val joinInfo = JoinInfo.of(newLeft, newRight, join.getCondition)
     if (isTemporalFunctionJoin(join.getCluster.getRexBuilder, joinInfo)) {
       // Temporal table function join currently only support INNER JOIN
       join.getJoinType match {
