@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.utils;
+package org.apache.flink.table.utils;
 
 import org.apache.flink.util.FileUtils;
 
@@ -34,27 +34,17 @@ import java.util.Collections;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
-/** Mainly used for testing classloading of UDF dependencies. */
+/** Mainly used for testing classloading. */
 public class TestUserClassLoaderJar {
 
-    private static final String GENERATED_UDF_CLASS = "LowerUDF";
-
-    private static final String GENERATED_UDF_CODE =
-            "public class "
-                    + GENERATED_UDF_CLASS
-                    + " extends org.apache.flink.table.functions.ScalarFunction {\n"
-                    + "  public String eval(String str) {\n"
-                    + "    return str.toLowerCase();\n"
-                    + "  }\n"
-                    + "}\n";
-
     /** Pack the generated UDF class into a JAR and return the path of the JAR. */
-    public static File createJarFile(File tmpDir, String jarName) throws IOException {
+    public static File createJarFile(File tmpDir, String jarName, String className, String javaCode)
+            throws IOException {
         // write class source code to file
-        File javaFile = Paths.get(tmpDir.toString(), GENERATED_UDF_CLASS + ".java").toFile();
+        File javaFile = Paths.get(tmpDir.toString(), className + ".java").toFile();
         //noinspection ResultOfMethodCallIgnored
         javaFile.createNewFile();
-        FileUtils.writeFileUtf8(javaFile, GENERATED_UDF_CODE);
+        FileUtils.writeFileUtf8(javaFile, javaCode);
 
         // compile class source code
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
@@ -74,10 +64,10 @@ public class TestUserClassLoaderJar {
         task.call();
 
         // pack class file to jar
-        File classFile = Paths.get(tmpDir.toString(), GENERATED_UDF_CLASS + ".class").toFile();
+        File classFile = Paths.get(tmpDir.toString(), className + ".class").toFile();
         File jarFile = Paths.get(tmpDir.toString(), jarName).toFile();
         JarOutputStream jos = new JarOutputStream(new FileOutputStream(jarFile));
-        JarEntry jarEntry = new JarEntry(GENERATED_UDF_CLASS + ".class");
+        JarEntry jarEntry = new JarEntry(className + ".class");
         jos.putNextEntry(jarEntry);
         byte[] classBytes = FileUtils.readAllBytes(classFile.toPath());
         jos.write(classBytes);
