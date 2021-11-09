@@ -34,11 +34,14 @@ import static java.util.Collections.singletonList;
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.BYTES;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_TARGET;
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES;
 import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_SEGMENT_SIZE;
 import static org.apache.flink.configuration.TaskManagerOptions.MIN_MEMORY_SEGMENT_SIZE;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** Test for {@link BufferDebloater}. */
 public class BufferDebloaterTest extends TestLogger {
@@ -212,6 +215,51 @@ public class BufferDebloaterTest extends TestLogger {
         bufferDebloater.recalculateBufferSize(40);
     }
 
+    @Test
+    public void testSkipUpdate() {
+        int maxBufferSize = 32768;
+        int minBufferSize = 256;
+        double threshold = 0.3;
+        int currentBufferSize = maxBufferSize / 2;
+        BufferDebloater bufferDebloater =
+                testBufferDebloater()
+                        .withDebloatTarget(1000)
+                        .withBufferSize(minBufferSize, maxBufferSize)
+                        // 30 % Threshold.
+                        .withThresholdPercentages((int) (threshold * 100))
+                        .withThroughput(currentBufferSize)
+                        .withNumberOfBuffersInUse(singletonList(1))
+                        .expectBufferSize(currentBufferSize);
+
+        // It is true because less than threshold.
+        assertTrue(bufferDebloater.skipUpdate(currentBufferSize));
+        assertTrue(bufferDebloater.skipUpdate(currentBufferSize - 1));
+        assertTrue(bufferDebloater.skipUpdate(currentBufferSize + 1));
+
+        assertTrue(
+                bufferDebloater.skipUpdate(
+                        currentBufferSize - (int) (currentBufferSize * threshold) + 1));
+        assertTrue(
+                bufferDebloater.skipUpdate(
+                        currentBufferSize + (int) (currentBufferSize * threshold) - 1));
+
+        // It is false because it reaches threshold.
+        assertFalse(
+                bufferDebloater.skipUpdate(
+                        currentBufferSize - (int) (currentBufferSize * threshold)));
+        assertFalse(
+                bufferDebloater.skipUpdate(
+                        currentBufferSize + (int) (currentBufferSize * threshold)));
+        assertFalse(bufferDebloater.skipUpdate(minBufferSize + 1));
+        assertFalse(bufferDebloater.skipUpdate(minBufferSize));
+        assertFalse(bufferDebloater.skipUpdate(maxBufferSize - 1));
+        assertFalse(bufferDebloater.skipUpdate(maxBufferSize));
+
+        // Beyond the min and max size is always false.
+        assertFalse(bufferDebloater.skipUpdate(maxBufferSize + 1));
+        assertFalse(bufferDebloater.skipUpdate(minBufferSize - 1));
+    }
+
     private static class TestBufferSizeInputGate extends MockInputGate {
         private int lastBufferSize = -1;
         private final int bufferInUseCount;
@@ -245,6 +293,7 @@ public class BufferDebloaterTest extends TestLogger {
         private long minBufferSize;
         private long maxBufferSize;
         private int debloatTarget;
+        private int thresholdPercentages = BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES.defaultValue();
 
         public BufferDebloaterTestBuilder withNumberOfBuffersInUse(
                 List<Integer> numberOfBuffersInUse) {
@@ -268,6 +317,11 @@ public class BufferDebloaterTest extends TestLogger {
             return this;
         }
 
+        public BufferDebloaterTestBuilder withThresholdPercentages(int thresholdPercentages) {
+            this.thresholdPercentages = thresholdPercentages;
+            return this;
+        }
+
         public BufferDebloater expectBufferSize(int expectedBufferSize) {
             int numberOfGates = numberOfBuffersInUse.size();
             TestBufferSizeInputGate[] inputGates = new TestBufferSizeInputGate[numberOfGates];
@@ -280,6 +334,7 @@ public class BufferDebloaterTest extends TestLogger {
                             new Configuration()
                                     .set(BUFFER_DEBLOAT_ENABLED, true)
                                     .set(BUFFER_DEBLOAT_TARGET, Duration.ofMillis(debloatTarget))
+                                    .set(BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES, thresholdPercentages)
                                     .set(
                                             MEMORY_SEGMENT_SIZE,
                                             MemorySize.parse("" + maxBufferSize, BYTES))
