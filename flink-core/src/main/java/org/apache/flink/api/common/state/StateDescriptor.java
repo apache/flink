@@ -101,7 +101,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
     @Nullable private String queryableStateName;
 
     /**
-     * The state time-to-live(TTL). If the setting is not displayed, the ttl will not be turned no.
+     * The configuration of state time-to-live(TTL), it is disabled by default.
      */
     @Nonnull private StateTtlConfig ttlConfig = StateTtlConfig.DISABLED;
 
