@@ -30,7 +30,6 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
-import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.TableConfig;
@@ -55,7 +54,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.match.PatternProcessFunctionRunner;
 import org.apache.flink.table.runtime.operators.match.RowDataEventComparator;
-import org.apache.flink.table.runtime.operators.match.RowtimeProcessFunction;
+import org.apache.flink.table.runtime.operators.sink.StreamRecordTimestampInserter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -259,12 +258,10 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
             Transformation<RowData> transform =
                     new OneInputTransformation<>(
                             inputTransform,
-                            String.format("rowtime field: (%s)", timeOrderFieldIdx),
-                            new ProcessOperator<>(
-                                    new RowtimeProcessFunction(
-                                            timeOrderFieldIdx,
-                                            inputTransform.getOutputType(),
-                                            precision)),
+                            String.format(
+                                    "StreamRecordTimestampInserter(rowtime field: %s)",
+                                    timeOrderFieldIdx),
+                            new StreamRecordTimestampInserter(timeOrderFieldIdx, precision),
                             inputTransform.getOutputType(),
                             inputTransform.getParallelism());
             if (inputsContainSingleton()) {
