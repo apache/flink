@@ -568,7 +568,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testComplexUnifiedPipelineBatch() throws Exception {
+    public void testComplexUnifiedPipelineBatch() {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         final Table resultTable = getComplexUnifiedPipeline(env);
@@ -577,7 +577,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testComplexUnifiedPipelineStreaming() throws Exception {
+    public void testComplexUnifiedPipelineStreaming() {
         final Table resultTable = getComplexUnifiedPipeline(env);
 
         // more rows than in batch mode due to incremental computations
