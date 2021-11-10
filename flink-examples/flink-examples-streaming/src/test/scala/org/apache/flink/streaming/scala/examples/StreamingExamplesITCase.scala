@@ -136,11 +136,12 @@ class StreamingExamplesITCase extends AbstractTestBase {
 
     WordCount.main(Array(
       "--input", textPath,
-      "--output", resultPath
+      "--output", resultPath,
+      "--execution-mode", "automatic"
     ))
 
     TestBaseUtils.compareResultsByLinesInMemory(
-      WordCountData.STREAMING_COUNTS_AS_TUPLES,
+      WordCountData.COUNTS_AS_TUPLES,
       resultPath)
   }
 }
