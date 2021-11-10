@@ -23,14 +23,17 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalCorrelateRule;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
+import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
@@ -112,10 +115,41 @@ public class PythonCorrelateSplitRule extends RelOptRule {
         for (int i = 0; i < primitiveFieldCount; i++) {
             calcProjects.add(RexInputRef.of(i, rowType));
         }
+        // change RexCorrelVariable to RexInputRef.
+        RexDefaultVisitor<RexNode> visitor =
+                new RexDefaultVisitor<RexNode>() {
+                    @Override
+                    public RexNode visitFieldAccess(RexFieldAccess fieldAccess) {
+                        RexNode expr = fieldAccess.getReferenceExpr();
+                        if (expr instanceof RexCorrelVariable) {
+                            RelDataTypeField field = fieldAccess.getField();
+                            return new RexInputRef(field.getIndex(), field.getType());
+                        } else {
+                            return rexBuilder.makeFieldAccess(
+                                    expr.accept(this), fieldAccess.getField().getIndex());
+                        }
+                    }
+
+                    @Override
+                    public RexNode visitNode(RexNode rexNode) {
+                        return rexNode;
+                    }
+                };
         // add the fields of the extracted rex calls.
         Iterator<RexNode> iterator = extractedRexNodes.iterator();
         while (iterator.hasNext()) {
-            calcProjects.add(iterator.next());
+            RexNode rexNode = iterator.next();
+            if (rexNode instanceof RexCall) {
+                RexCall rexCall = (RexCall) rexNode;
+                List<RexNode> newProjects =
+                        rexCall.getOperands().stream()
+                                .map(x -> x.accept(visitor))
+                                .collect(Collectors.toList());
+                RexCall newRexCall = rexCall.clone(rexCall.getType(), newProjects);
+                calcProjects.add(newRexCall);
+            } else {
+                calcProjects.add(rexNode);
+            }
         }
 
         List<String> nameList = new LinkedList<>();
@@ -252,18 +286,31 @@ public class PythonCorrelateSplitRule extends RelOptRule {
                     mergedCalc.copy(mergedCalc.getTraitSet(), newScan, mergedCalc.getProgram());
         }
 
-        FlinkLogicalCalc leftCalc =
-                createNewLeftCalc(left, rexBuilder, extractedRexNodes, correlate);
+        FlinkLogicalCorrelate newCorrelate;
+        if (extractedRexNodes.size() > 0) {
+            FlinkLogicalCalc leftCalc =
+                    createNewLeftCalc(left, rexBuilder, extractedRexNodes, correlate);
 
-        FlinkLogicalCorrelate newCorrelate =
-                new FlinkLogicalCorrelate(
-                        correlate.getCluster(),
-                        correlate.getTraitSet(),
-                        leftCalc,
-                        rightNewInput,
-                        correlate.getCorrelationId(),
-                        correlate.getRequiredColumns(),
-                        correlate.getJoinType());
+            newCorrelate =
+                    new FlinkLogicalCorrelate(
+                            correlate.getCluster(),
+                            correlate.getTraitSet(),
+                            leftCalc,
+                            rightNewInput,
+                            correlate.getCorrelationId(),
+                            correlate.getRequiredColumns(),
+                            correlate.getJoinType());
+        } else {
+            newCorrelate =
+                    new FlinkLogicalCorrelate(
+                            correlate.getCluster(),
+                            correlate.getTraitSet(),
+                            left,
+                            rightNewInput,
+                            correlate.getCorrelationId(),
+                            correlate.getRequiredColumns(),
+                            correlate.getJoinType());
+        }
 
         FlinkLogicalCalc newTopCalc =
                 createTopCalc(
