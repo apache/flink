@@ -60,6 +60,7 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sink.SinkNotNullEnforcer;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
 import org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializer;
+import org.apache.flink.table.runtime.operators.sink.StreamRecordTimestampInserter;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
@@ -289,7 +290,9 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             int rowtimeFieldIndex,
             int sinkParallelism) {
         if (runtimeProvider instanceof DataStreamSinkProvider) {
-            final DataStream<RowData> dataStream = new DataStream<>(env, inputTransform);
+            Transformation<RowData> sinkTransformation =
+                    applyRowtimeTransformation(inputTransform, rowtimeFieldIndex, sinkParallelism);
+            final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
             final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
             return provider.consumeDataStream(dataStream).getTransformation();
         } else if (runtimeProvider instanceof TransformationSinkProvider) {
@@ -310,7 +313,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     sinkFunction, env, inputTransform, rowtimeFieldIndex, sinkParallelism);
         } else if (runtimeProvider instanceof SinkProvider) {
             return new SinkTransformation<>(
-                    inputTransform,
+                    applyRowtimeTransformation(inputTransform, rowtimeFieldIndex, sinkParallelism),
                     ((SinkProvider) runtimeProvider).createSink(),
                     getDescription(),
                     sinkParallelism);
@@ -336,6 +339,21 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 inputTransformation,
                 getDescription(),
                 SimpleOperatorFactory.of(operator),
+                sinkParallelism);
+    }
+
+    private Transformation<RowData> applyRowtimeTransformation(
+            Transformation<RowData> inputTransform, int rowtimeFieldIndex, int sinkParallelism) {
+        // Don't apply the transformation/operator if there is no rowtimeFieldIndex
+        if (rowtimeFieldIndex == -1) {
+            return inputTransform;
+        }
+        return new OneInputTransformation<>(
+                inputTransform,
+                String.format(
+                        "StreamRecordTimestampInserter(rowtime field: %s)", rowtimeFieldIndex),
+                new StreamRecordTimestampInserter(rowtimeFieldIndex),
+                inputTransform.getOutputType(),
                 sinkParallelism);
     }
 
