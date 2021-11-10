@@ -58,6 +58,8 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                 new SpecifiedException("throw exception while multi thread restore.");
         StreamStateHandle stateHandle =
                 new StreamStateHandle() {
+                    private static final long serialVersionUID = 1L;
+
                     @Override
                     public FSDataInputStream openInputStream() throws IOException {
                         throw expectedException;

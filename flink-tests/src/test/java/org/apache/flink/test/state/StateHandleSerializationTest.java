@@ -27,7 +27,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 /**
@@ -58,11 +57,6 @@ public class StateHandleSerializationTest {
     private static void validataSerialVersionUID(Class<?> clazz) {
         // all non-interface types must have a serial version UID
         if (!clazz.isInterface()) {
-            assertFalse(
-                    "Anonymous state handle classes have problematic serialization behavior: "
-                            + clazz,
-                    clazz.isAnonymousClass());
-
             try {
                 Field versionUidField = clazz.getDeclaredField("serialVersionUID");
 
