@@ -31,17 +31,16 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.sql.type.SqlTypeTransforms;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidator;
 
 import java.util.Locale;
 
 import static org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_NOT_NULLABLE;
 
 /**
  * This class has been copied from Calcite to backport the fix made during CALCITE-4394 and replace
@@ -52,9 +51,7 @@ public class SqlJsonObjectFunction extends SqlFunction {
         super(
                 "JSON_OBJECT",
                 SqlKind.OTHER_FUNCTION,
-                ReturnTypes.cascade(
-                        ReturnTypes.explicit(SqlTypeName.VARCHAR),
-                        SqlTypeTransforms.TO_NOT_NULLABLE),
+                VARCHAR_NOT_NULLABLE,
                 (callBinding, returnType, operandTypes) -> {
                     RelDataTypeFactory typeFactory = callBinding.getTypeFactory();
                     for (int i = 0; i < operandTypes.length; i++) {
