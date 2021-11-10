@@ -75,8 +75,8 @@ public class FallbackAkkaRpcSystemLoader implements RpcSystemLoader {
                         downloadDependencies(
                                 akkaRpcModuleDirectory, akkaRpcModuleDependenciesDirectory);
                 if (exitCode != 0) {
-                    throw new RuntimeException(
-                            "Can not download dependencies, please see the output log for reason.");
+                    throw new RpcLoaderException(
+                            "Could not download dependencies of flink-rpc-akka, please see the log output for details.");
                 }
             } else {
                 LOG.debug(

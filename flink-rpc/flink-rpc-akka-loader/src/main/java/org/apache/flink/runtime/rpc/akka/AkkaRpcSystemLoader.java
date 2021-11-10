@@ -43,13 +43,10 @@ import java.util.UUID;
  */
 public class AkkaRpcSystemLoader implements RpcSystemLoader {
 
-    /**
-     * The name of the akka dependency jar, which should be correspond to the artifact output copied
-     * to flink-runtime module.
-     */
+    /** The name of the akka dependency jar, bundled with flink-rpc-akka-loader module artifact. */
     private static final String FLINK_RPC_AKKA_FAT_JAR = "flink-rpc-akka.jar";
 
-    protected static final String HINT_USAGE =
+    static final String HINT_USAGE =
             "mvn package -pl flink-rpc/flink-rpc-akka,flink-rpc/flink-rpc-akka-loader";
 
     @Override
