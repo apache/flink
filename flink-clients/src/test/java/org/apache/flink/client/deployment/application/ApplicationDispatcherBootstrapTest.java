@@ -49,8 +49,10 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -67,12 +69,12 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link ApplicationDispatcherBootstrap}. */
 public class ApplicationDispatcherBootstrapTest extends TestLogger {
@@ -84,7 +86,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
     final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
 
-    @After
+    @AfterEach
     public void cleanup() {
         ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
     }
@@ -779,23 +781,11 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         assertFalse(maybeDuplicate.get().isGloballyTerminated());
     }
 
-    @Test
-    public void testShutdownDisabledWithSuccessfulApplication() throws Exception {
-        testShutdownDisabled(JobStatus.FINISHED, ApplicationStatus.SUCCEEDED);
-    }
-
-    @Test
-    public void testShutdownDisabledWithCanceledApplication() throws Exception {
-        testShutdownDisabled(JobStatus.CANCELED, ApplicationStatus.CANCELED);
-    }
-
-    @Test
-    public void testShutdownDisabledWithFailedApplication() throws Exception {
-        testShutdownDisabled(JobStatus.FAILED, ApplicationStatus.FAILED);
-    }
-
-    private void testShutdownDisabled(JobStatus jobStatus, ApplicationStatus applicationStatus)
-            throws Exception {
+    @ParameterizedTest
+    @EnumSource(
+            value = JobStatus.class,
+            names = {"FINISHED", "CANCELED", "FAILED"})
+    public void testShutdownDisabled(JobStatus jobStatus) throws Exception {
         final Configuration configurationUnderTest = getConfiguration();
         configurationUnderTest.set(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH, false);
 
@@ -808,7 +798,10 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                         .setRequestJobResultFunction(
                                 jobId ->
                                         CompletableFuture.completedFuture(
-                                                createJobResult(jobId, applicationStatus)))
+                                                createJobResult(
+                                                        jobId,
+                                                        ApplicationStatus.fromJobStatus(
+                                                                jobStatus))))
                         .setClusterShutdownFunction(
                                 (status) -> {
                                     fail("Cluster shutdown should not be called");
