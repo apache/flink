@@ -22,4 +22,5 @@ import org.apache.flink.connector.elasticsearch.sink.ElasticsearchSinkBuilderBas
 
 import java.util.function.Supplier;
 
-interface ElasticsearchSinkBuilderSupplier<T> extends Supplier<ElasticsearchSinkBuilderBase<T>> {}
+interface ElasticsearchSinkBuilderSupplier<T>
+        extends Supplier<ElasticsearchSinkBuilderBase<T, ? extends ElasticsearchSinkBuilderBase>> {}

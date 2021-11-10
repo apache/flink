@@ -20,15 +20,16 @@ package org.apache.flink.connector.elasticsearch.sink;
 import org.apache.http.HttpHost;
 
 /** Tests for {@link Elasticsearch7SinkBuilder}. */
-class Elasticsearch7SinkBuilderTest extends ElasticsearchSinkBuilderBaseTest {
+class Elasticsearch7SinkBuilderTest
+        extends ElasticsearchSinkBuilderBaseTest<Elasticsearch7SinkBuilder<Object>> {
 
     @Override
-    ElasticsearchSinkBuilderBase<?> createEmptyBuilder() {
+    Elasticsearch7SinkBuilder<Object> createEmptyBuilder() {
         return new Elasticsearch7SinkBuilder<>();
     }
 
     @Override
-    ElasticsearchSinkBuilderBase<?> createMinimalBuilder() {
+    Elasticsearch7SinkBuilder<Object> createMinimalBuilder() {
         return new Elasticsearch7SinkBuilder<>()
                 .setEmitter((element, indexer, context) -> {})
                 .setHosts(new HttpHost("localhost:3000"));
