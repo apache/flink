@@ -122,7 +122,7 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     private transient long lastTriggeredProcessingTime;
 
     /** The operator state to store watermark. */
-    private ListState<Long> watermarkState;
+    private transient ListState<Long> watermarkState;
 
     // ------------------------------------------------------------------------
     // Metrics

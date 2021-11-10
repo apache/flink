@@ -46,8 +46,8 @@ import java.util.Map;
 
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
-/** An window rank processor. */
-public final class RowTimeWindowRankProcessor implements SlicingWindowProcessor<Long> {
+/** A rowtime window rank processor. */
+public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     private static final long serialVersionUID = 1L;
 
     private final GeneratedRecordComparator generatedSortKeyComparator;
@@ -81,7 +81,7 @@ public final class RowTimeWindowRankProcessor implements SlicingWindowProcessor<
     private transient JoinedRowData reuseOutput;
     private transient GenericRowData reuseRankRow;
 
-    public RowTimeWindowRankProcessor(
+    public WindowRankProcessor(
             TypeSerializer<RowData> inputSerializer,
             GeneratedRecordComparator genSortKeyComparator,
             TypeSerializer<RowData> sortKeySerializer,
