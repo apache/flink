@@ -324,11 +324,12 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                 createApplicationDispatcherBootstrap(
                         3, dispatcherBuilder.build(), scheduledExecutor);
 
-        final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
+        final CompletableFuture<Acknowledge> completionFuture =
+                bootstrap.getBootstrapCompletionFuture();
 
         // wait until the bootstrap "thinks" it's done, also makes sure that we don't
         // fail the future exceptionally with a JobCancelledException
-        shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        completionFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         assertThat(
                 clusterShutdownStatus.get(TIMEOUT_SECONDS, TimeUnit.SECONDS),
@@ -352,12 +353,13 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                 createApplicationDispatcherBootstrap(
                         3, dispatcherBuilder.build(), scheduledExecutor);
 
-        final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
+        final CompletableFuture<Acknowledge> completionFuture =
+                bootstrap.getBootstrapCompletionFuture();
 
         ScheduledFuture<?> applicationExecutionFuture = bootstrap.getApplicationExecutionFuture();
 
         // wait until the bootstrap "thinks" it's done
-        shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        completionFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         // make sure the task finishes
         applicationExecutionFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -382,7 +384,8 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                         scheduledExecutor,
                         errorHandlerFuture::completeExceptionally);
 
-        final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
+        final CompletableFuture<Acknowledge> completionFuture =
+                bootstrap.getBootstrapCompletionFuture();
 
         ScheduledFuture<?> applicationExecutionFuture = bootstrap.getApplicationExecutionFuture();
 
@@ -392,7 +395,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         assertException(errorHandlerFuture, CancellationException.class);
 
         // we return a future that is completed exceptionally
-        assertException(shutdownFuture, CancellationException.class);
+        assertException(completionFuture, CancellationException.class);
 
         // verify that the application task is being cancelled
         assertThat(applicationExecutionFuture.isCancelled(), is(true));
@@ -417,7 +420,8 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                         scheduledExecutor,
                         errorHandlerFuture::completeExceptionally);
 
-        final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
+        final CompletableFuture<Acknowledge> completionFuture =
+                bootstrap.getBootstrapCompletionFuture();
 
         bootstrap.stop();
 
@@ -425,7 +429,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         assertException(errorHandlerFuture, CancellationException.class);
 
         // we return a future that is completed exceptionally
-        assertException(shutdownFuture, CancellationException.class);
+        assertException(completionFuture, CancellationException.class);
     }
 
     @Test
@@ -453,13 +457,14 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                         scheduledExecutor,
                         errorHandlerFuture::completeExceptionally);
 
-        final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
+        final CompletableFuture<Acknowledge> completionFuture =
+                bootstrap.getBootstrapCompletionFuture();
 
         // we call the error handler
         assertException(errorHandlerFuture, ApplicationExecutionException.class);
 
         // we return a future that is completed exceptionally
-        assertException(shutdownFuture, ApplicationExecutionException.class);
+        assertException(completionFuture, ApplicationExecutionException.class);
     }
 
     @Test
@@ -540,10 +545,11 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                 createApplicationDispatcherBootstrap(
                         3, dispatcherBuilder.build(), scheduledExecutor);
 
-        final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
+        final CompletableFuture<Acknowledge> completionFuture =
+                bootstrap.getBootstrapCompletionFuture();
 
         // wait until the bootstrap "thinks" it's done
-        shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        completionFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         // verify that the dispatcher is actually being shut down
         assertThat(
@@ -578,10 +584,11 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                 createApplicationDispatcherBootstrap(
                         3, dispatcherBuilder.build(), scheduledExecutor);
 
-        final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
+        final CompletableFuture<Acknowledge> completionFuture =
+                bootstrap.getBootstrapCompletionFuture();
 
         // wait until the bootstrap "thinks" it's done
-        shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        completionFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         // verify that the dispatcher is actually being shut down
         assertThat(
@@ -616,10 +623,11 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                 createApplicationDispatcherBootstrap(
                         3, dispatcherBuilder.build(), scheduledExecutor);
 
-        final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
+        final CompletableFuture<Acknowledge> completionFuture =
+                bootstrap.getBootstrapCompletionFuture();
 
         // wait until the bootstrap "thinks" it's done
-        shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        completionFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         // verify that the dispatcher is actually being shut down
         assertThat(
@@ -652,7 +660,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                 createApplicationDispatcherBootstrap(3, dispatcherGateway, scheduledExecutor);
 
         final CompletableFuture<Acknowledge> applicationFuture =
-                bootstrap.getClusterShutdownFuture();
+                bootstrap.getBootstrapCompletionFuture();
 
         final UnsuccessfulExecutionException exception =
                 assertException(applicationFuture, UnsuccessfulExecutionException.class);
@@ -814,7 +822,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                         configurationUnderTest, dispatcherGateway, scheduledExecutor);
 
         // Wait until bootstrap is finished to make sure cluster shutdown isn't called
-        bootstrap.getClusterShutdownFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        bootstrap.getBootstrapCompletionFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     private CompletableFuture<Void> runApplication(
