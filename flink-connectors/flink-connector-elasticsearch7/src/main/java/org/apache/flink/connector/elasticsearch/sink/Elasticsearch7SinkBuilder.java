@@ -19,7 +19,11 @@ package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
 
 /**
  * Builder to construct an Elasticsearch 7 compatible {@link ElasticsearchSink}.
@@ -44,15 +48,35 @@ import org.elasticsearch.client.RequestOptions;
  * @param <IN> type of the records converted to Elasticsearch actions
  */
 @PublicEvolving
-public class Elasticsearch7SinkBuilder<IN> extends ElasticsearchSinkBuilderBase<IN> {
+public class Elasticsearch7SinkBuilder<IN>
+        extends ElasticsearchSinkBuilderBase<IN, Elasticsearch7SinkBuilder<IN>> {
 
     public Elasticsearch7SinkBuilder() {}
 
     @Override
-    public BulkRequestConsumerFactory getBulkRequestConsumer() {
-        return (client) ->
-                (bulkRequest, bulkResponseActionListener) ->
+    public <T extends IN> Elasticsearch7SinkBuilder<T> setEmitter(
+            ElasticsearchEmitter<? super T> emitter) {
+        super.<T>setEmitter(emitter);
+        return self();
+    }
+
+    @Override
+    protected BulkRequestConsumerFactory getBulkRequestConsumer() {
+        return new BulkRequestConsumerFactory() { // This cannot be inlined as a lambda because the
+            // deserialization fails then
+            @Override
+            public BulkRequestFactory create(RestHighLevelClient client) {
+                return new BulkRequestFactory() { // This cannot be inlined as a lambda because the
+                    // deserialization fails then
+                    @Override
+                    public void accept(
+                            BulkRequest bulkRequest,
+                            ActionListener<BulkResponse> bulkResponseActionListener) {
                         client.bulkAsync(
                                 bulkRequest, RequestOptions.DEFAULT, bulkResponseActionListener);
+                    }
+                };
+            }
+        };
     }
 }

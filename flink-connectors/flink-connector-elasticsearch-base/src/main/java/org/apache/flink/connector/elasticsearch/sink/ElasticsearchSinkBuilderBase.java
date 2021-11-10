@@ -19,6 +19,8 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -37,7 +39,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <IN> type of the records converted to Elasticsearch actions
  */
 @PublicEvolving
-public abstract class ElasticsearchSinkBuilderBase<IN> {
+public abstract class ElasticsearchSinkBuilderBase<
+        IN, B extends ElasticsearchSinkBuilderBase<IN, B>> {
 
     private int bulkFlushMaxActions = 1000;
     private int bulkFlushMaxMb = -1;
@@ -47,7 +50,7 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
     private long bulkFlushBackOffDelay = -1;
     private DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.NONE;
     private List<HttpHost> hosts;
-    private ElasticsearchEmitter<? super IN> emitter;
+    protected ElasticsearchEmitter<? super IN> emitter;
     private String username;
     private String password;
     private String connectionPathPrefix;
@@ -55,20 +58,8 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
     protected ElasticsearchSinkBuilderBase() {}
 
     @SuppressWarnings("unchecked")
-    private <T extends IN> ElasticsearchSinkBuilderBase<T> self() {
-        return (ElasticsearchSinkBuilderBase<T>) this;
-    }
-
-    /**
-     * Sets the hosts where the Elasticsearch cluster nodes are reachable.
-     *
-     * @param hosts http addresses describing the node locations
-     */
-    public ElasticsearchSinkBuilderBase<IN> setHosts(HttpHost... hosts) {
-        checkNotNull(hosts);
-        checkState(hosts.length > 0, "Hosts cannot be empty.");
-        this.hosts = Arrays.asList(hosts);
-        return this;
+    protected <S extends ElasticsearchSinkBuilderBase<?, ?>> S self() {
+        return (S) this;
     }
 
     /**
@@ -77,16 +68,29 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
      * @param emitter to process records into Elasticsearch actions.
      * @return this builder
      */
-    public <T extends IN> ElasticsearchSinkBuilderBase<T> setEmitter(
+    public <T extends IN> ElasticsearchSinkBuilderBase<T, ?> setEmitter(
             ElasticsearchEmitter<? super T> emitter) {
         checkNotNull(emitter);
         checkState(
                 InstantiationUtil.isSerializable(emitter),
                 "The elasticsearch emitter must be serializable.");
 
-        final ElasticsearchSinkBuilderBase<T> self = self();
+        final ElasticsearchSinkBuilderBase<T, ?> self = self();
         self.emitter = emitter;
         return self;
+    }
+
+    /**
+     * Sets the hosts where the Elasticsearch cluster nodes are reachable.
+     *
+     * @param hosts http addresses describing the node locations
+     * @return this builder
+     */
+    public B setHosts(HttpHost... hosts) {
+        checkNotNull(hosts);
+        checkState(hosts.length > 0, "Hosts cannot be empty.");
+        this.hosts = Arrays.asList(hosts);
+        return self();
     }
 
     /**
@@ -96,13 +100,12 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
      * @param deliveryGuarantee which describes the record emission behaviour
      * @return this builder
      */
-    public ElasticsearchSinkBuilderBase<IN> setDeliveryGuarantee(
-            DeliveryGuarantee deliveryGuarantee) {
+    public B setDeliveryGuarantee(DeliveryGuarantee deliveryGuarantee) {
         checkState(
                 deliveryGuarantee != DeliveryGuarantee.EXACTLY_ONCE,
                 "Elasticsearch sink does not support the EXACTLY_ONCE guarantee.");
         this.deliveryGuarantee = checkNotNull(deliveryGuarantee);
-        return this;
+        return self();
     }
 
     /**
@@ -112,12 +115,12 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
      * @param numMaxActions the maximum number of actions to buffer per bulk request.
      * @return this builder
      */
-    public ElasticsearchSinkBuilderBase<IN> setBulkFlushMaxActions(int numMaxActions) {
+    public B setBulkFlushMaxActions(int numMaxActions) {
         checkState(
                 numMaxActions == -1 || numMaxActions > 0,
                 "Max number of buffered actions must be larger than 0.");
         this.bulkFlushMaxActions = numMaxActions;
-        return this;
+        return self();
     }
 
     /**
@@ -127,12 +130,12 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
      * @param maxSizeMb the maximum size of buffered actions, in mb.
      * @return this builder
      */
-    public ElasticsearchSinkBuilderBase<IN> setBulkFlushMaxSizeMb(int maxSizeMb) {
+    public B setBulkFlushMaxSizeMb(int maxSizeMb) {
         checkState(
                 maxSizeMb == -1 || maxSizeMb > 0,
                 "Max size of buffered actions must be larger than 0.");
         this.bulkFlushMaxMb = maxSizeMb;
-        return this;
+        return self();
     }
 
     /**
@@ -141,13 +144,13 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
      * @param intervalMillis the bulk flush interval, in milliseconds.
      * @return this builder
      */
-    public ElasticsearchSinkBuilderBase<IN> setBulkFlushInterval(long intervalMillis) {
+    public B setBulkFlushInterval(long intervalMillis) {
         checkState(
                 intervalMillis == -1 || intervalMillis >= 0,
                 "Interval (in milliseconds) between each flush must be larger than "
                         + "or equal to 0.");
         this.bulkFlushInterval = intervalMillis;
-        return this;
+        return self();
     }
 
     /**
@@ -162,7 +165,7 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
      * @param flushBackoffType the backoff type to use.
      * @return this builder
      */
-    public ElasticsearchSinkBuilderBase<IN> setBulkFlushBackoffStrategy(
+    public B setBulkFlushBackoffStrategy(
             FlushBackoffType flushBackoffType, int maxRetries, long delayMillis) {
         this.bulkFlushBackoffType = checkNotNull(flushBackoffType);
         checkState(
@@ -175,7 +178,7 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
                 "Delay (in milliseconds) between each backoff attempt must be larger "
                         + "than or equal to 0.");
         this.bulkFlushBackOffDelay = delayMillis;
-        return this;
+        return self();
     }
 
     /**
@@ -184,10 +187,10 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
      * @param username of the Elasticsearch cluster user
      * @return this builder
      */
-    public ElasticsearchSinkBuilderBase<IN> setConnectionUsername(String username) {
+    public B setConnectionUsername(String username) {
         checkNotNull(username);
         this.username = username;
-        return this;
+        return self();
     }
 
     /**
@@ -196,10 +199,10 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
      * @param password of the Elasticsearch cluster user
      * @return this builder
      */
-    public ElasticsearchSinkBuilderBase<IN> setConnectionPassword(String password) {
+    public B setConnectionPassword(String password) {
         checkNotNull(password);
         this.password = password;
-        return this;
+        return self();
     }
 
     /**
@@ -208,13 +211,13 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
      * @param prefix for the communication
      * @return this builder
      */
-    public ElasticsearchSinkBuilderBase<IN> setConnectionPathPrefix(String prefix) {
+    public B setConnectionPathPrefix(String prefix) {
         checkNotNull(prefix);
         this.connectionPathPrefix = prefix;
-        return this;
+        return self();
     }
 
-    abstract BulkRequestConsumerFactory getBulkRequestConsumer();
+    protected abstract BulkRequestConsumerFactory getBulkRequestConsumer();
 
     /**
      * Constructs the {@link ElasticsearchSink} with the properties configured this builder.
@@ -240,6 +243,8 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
 
     private BulkProcessorConfig buildBulkProcessorConfig() {
         BulkRequestConsumerFactory bulkRequestConsumer = getBulkRequestConsumer();
+        ClosureCleaner.clean(
+                bulkRequestConsumer, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
         checkNotNull(bulkRequestConsumer);
 
         return new BulkProcessorConfig(
@@ -250,5 +255,38 @@ public abstract class ElasticsearchSinkBuilderBase<IN> {
                 bulkFlushBackoffRetries,
                 bulkFlushBackOffDelay,
                 bulkRequestConsumer);
+    }
+
+    @Override
+    public String toString() {
+        return "ElasticsearchSinkBuilder{"
+                + "bulkFlushMaxActions="
+                + bulkFlushMaxActions
+                + ", bulkFlushMaxMb="
+                + bulkFlushMaxMb
+                + ", bulkFlushInterval="
+                + bulkFlushInterval
+                + ", bulkFlushBackoffType="
+                + bulkFlushBackoffType
+                + ", bulkFlushBackoffRetries="
+                + bulkFlushBackoffRetries
+                + ", bulkFlushBackOffDelay="
+                + bulkFlushBackOffDelay
+                + ", deliveryGuarantee="
+                + deliveryGuarantee
+                + ", hosts="
+                + hosts
+                + ", emitter="
+                + emitter
+                + ", username='"
+                + username
+                + '\''
+                + ", password='"
+                + password
+                + '\''
+                + ", connectionPathPrefix='"
+                + connectionPathPrefix
+                + '\''
+                + '}';
     }
 }

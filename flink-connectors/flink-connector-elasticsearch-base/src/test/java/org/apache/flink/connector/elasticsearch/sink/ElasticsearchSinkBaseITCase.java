@@ -75,7 +75,9 @@ abstract class ElasticsearchSinkBaseITCase {
 
     abstract TestClientBase createTestClient(RestHighLevelClient client);
 
-    abstract ElasticsearchSinkBuilderBase<Tuple2<Integer, String>> getSinkBuilder();
+    abstract ElasticsearchSinkBuilderBase<
+                    Tuple2<Integer, String>, ? extends ElasticsearchSinkBuilderBase>
+            getSinkBuilder();
 
     private RestHighLevelClient createRestHighLevelClient() {
         final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();

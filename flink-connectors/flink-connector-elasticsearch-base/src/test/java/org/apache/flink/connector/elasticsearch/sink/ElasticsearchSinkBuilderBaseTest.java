@@ -20,28 +20,40 @@ package org.apache.flink.connector.elasticsearch.sink;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
-
 import org.apache.http.HttpHost;
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.List;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for {@link ElasticsearchSinkBuilderBase}. */
 @ExtendWith(TestLoggerExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-abstract class ElasticsearchSinkBuilderBaseTest {
+abstract class ElasticsearchSinkBuilderBaseTest<B extends ElasticsearchSinkBuilderBase<Object, B>> {
 
-    @ParameterizedTest
-    @MethodSource("validBuilders")
-    void testBuildElasticsearchSink(ElasticsearchSinkBuilderBase<?> builder) {
-        builder.build();
+    @TestFactory
+    Stream<DynamicTest> testValidBuilders() {
+        Stream<B> validBuilders =
+                Stream.of(
+                        createMinimalBuilder(),
+                        createMinimalBuilder()
+                                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE),
+                        createMinimalBuilder()
+                                .setBulkFlushBackoffStrategy(FlushBackoffType.CONSTANT, 1, 1),
+                        createMinimalBuilder()
+                                .setConnectionUsername("username")
+                                .setConnectionPassword("password"));
+
+        return DynamicTest.stream(
+                validBuilders,
+                ElasticsearchSinkBuilderBase::toString,
+                builder -> assertDoesNotThrow(builder::build));
     }
 
     @Test
@@ -65,17 +77,7 @@ abstract class ElasticsearchSinkBuilderBaseTest {
                 () -> createEmptyBuilder().setHosts(new HttpHost("localhost:3000")).build());
     }
 
-    private List<ElasticsearchSinkBuilderBase<?>> validBuilders() {
-        return Lists.newArrayList(
-                createMinimalBuilder(),
-                createMinimalBuilder().setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE),
-                createMinimalBuilder().setBulkFlushBackoffStrategy(FlushBackoffType.CONSTANT, 1, 1),
-                createMinimalBuilder()
-                        .setConnectionUsername("username")
-                        .setConnectionPassword("password"));
-    }
+    abstract B createEmptyBuilder();
 
-    abstract ElasticsearchSinkBuilderBase<?> createEmptyBuilder();
-
-    abstract ElasticsearchSinkBuilderBase<?> createMinimalBuilder();
+    abstract B createMinimalBuilder();
 }

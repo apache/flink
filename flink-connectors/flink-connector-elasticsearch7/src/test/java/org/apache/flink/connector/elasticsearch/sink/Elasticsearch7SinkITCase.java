@@ -49,7 +49,8 @@ class Elasticsearch7SinkITCase extends ElasticsearchSinkBaseITCase {
     }
 
     @Override
-    ElasticsearchSinkBuilderBase<Tuple2<Integer, String>> getSinkBuilder() {
+    ElasticsearchSinkBuilderBase<Tuple2<Integer, String>, ? extends ElasticsearchSinkBuilderBase>
+            getSinkBuilder() {
         return new Elasticsearch7SinkBuilder<>();
     }
 }
