@@ -26,7 +26,8 @@ import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_FORCE_NULLABLE;
 
 /**
- * This class is a wrapper class for the {@link SqlJsonQueryFunction} with the return type STRING.
+ * This class is a wrapper class for the {@link SqlJsonQueryFunction} but using the {@code
+ * VARCHAR_FORCE_NULLABLE} return type inference.
  */
 public class SqlJsonQueryFunctionWrapper extends SqlJsonQueryFunction {
 

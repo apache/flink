@@ -23,16 +23,17 @@ import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.fun.SqlJsonArrayFunction;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
-import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_NOT_NULLABLE;
+import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_NOT_NULL;
 
 /**
- * This class is a wrapper class for the {@link SqlJsonArrayFunction} with the return type STRING.
+ * This class is a wrapper class for the {@link SqlJsonArrayFunction} but using the {@code
+ * VARCHAR_NOT_NULL} return type inference.
  */
 public class SqlJsonArrayFunctionWrapper extends SqlJsonArrayFunction {
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-        RelDataType returnType = VARCHAR_NOT_NULLABLE.inferReturnType(opBinding);
+        RelDataType returnType = VARCHAR_NOT_NULL.inferReturnType(opBinding);
         if (returnType == null) {
             throw new IllegalArgumentException(
                     "Cannot infer return type for "
@@ -46,6 +47,6 @@ public class SqlJsonArrayFunctionWrapper extends SqlJsonArrayFunction {
 
     @Override
     public SqlReturnTypeInference getReturnTypeInference() {
-        return VARCHAR_NOT_NULLABLE;
+        return VARCHAR_NOT_NULL;
     }
 }

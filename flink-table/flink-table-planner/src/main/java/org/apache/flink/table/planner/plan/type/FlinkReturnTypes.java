@@ -108,7 +108,7 @@ public class FlinkReturnTypes {
             ReturnTypes.cascade(
                     ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.FORCE_NULLABLE);
 
-    public static final SqlReturnTypeInference VARCHAR_NOT_NULLABLE =
+    public static final SqlReturnTypeInference VARCHAR_NOT_NULL =
             ReturnTypes.cascade(
                     ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NOT_NULLABLE);
 
