@@ -89,8 +89,8 @@ public class HiveCompactReaderFactory implements CompactReader.Factory<RowData> 
     @Override
     public CompactReader<RowData> create(CompactContext context) throws IOException {
         HiveSourceSplit split = createSplit(context.getPath(), context.getFileSystem());
-        HiveBulkFormatAdapter format =
-                new HiveBulkFormatAdapter(
+        HiveInputFormat format =
+                new HiveInputFormat(
                         jobConfWrapper,
                         partitionKeys,
                         fieldNames,
