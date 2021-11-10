@@ -336,7 +336,7 @@ Time extractors define extracting time from partition values.
         <td><h5>partition.time-extractor.kind</h5></td>
         <td style="word-wrap: break-word;">default</td>
         <td>String</td>
-        <td>Time extractor to extract time from partition values. Support default and custom. For default, can configure timestamp pattern. For custom, should configure extractor class.</td>
+        <td>Time extractor to extract time from partition values. Support default and custom. For default, can configure timestamp pattern\formatter. For custom, should configure extractor class.</td>
     </tr>
     <tr>
         <td><h5>partition.time-extractor.class</h5></td>
@@ -349,6 +349,14 @@ Time extractors define extracting time from partition values.
         <td style="word-wrap: break-word;">(none)</td>
         <td>String</td>
         <td>The 'default' construction way allows users to use partition fields to get a legal timestamp pattern. Default support 'yyyy-MM-dd hh:mm:ss' from first field. If timestamp should be extracted from a single partition field 'dt', can configure: '$dt'. If timestamp should be extracted from multiple partition fields, say 'year', 'month', 'day' and 'hour', can configure: '$year-$month-$day $hour:00:00'. If timestamp should be extracted from two partition fields 'dt' and 'hour', can configure: '$dt $hour:00:00'.</td>
+    </tr>
+    <tr>
+        <td><h5>partition.time-extractor.timestamp-formatter</h5></td>
+        <td style="word-wrap: break-word;">yyyy-MM-dd&nbsp;HH:mm:ss</td>
+        <td>String</td>
+        <td>The formatter that formats the partition timestamp string value to timestamp, the partition timestamp string value is expressed by 'partition.time-extractor.timestamp-pattern'. For example, the partition timestamp is extracted from multiple partition fields, say 'year', 'month' and 'day', you can configure 'partition.time-extractor.timestamp-pattern' to '$year$month$day', and configure `partition.time-extractor.timestamp-formatter` to 'yyyyMMdd'. By default the formatter is 'yyyy-MM-dd HH:mm:ss'.
+            <br>The timestamp-formatter is compatible with Java's <a href="https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html">DateTimeFormatter</a>
+ 				</td>
     </tr>
   </tbody>
 </table>

@@ -156,6 +156,22 @@ public class FileSystemConnectorOptions {
                     .withDescription(
                             "The extractor class for implement PartitionTimeExtractor interface.");
 
+    public static final ConfigOption<String> PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER =
+            key("partition.time-extractor.timestamp-formatter")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "It can combine with 'partition.time-extractor.timestamp-patter', "
+                                                    + "creates a formatter using the specified value. "
+                                                    + "Supports multiple partition fields like '$year-$month-$day $hour:00:00'.")
+                                    .list(
+                                            text(
+                                                    "The timestamp-formatter is compatible with "
+                                                            + "Java's DateTimeFormatter."))
+                                    .build());
+
     public static final ConfigOption<String> PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN =
             key("partition.time-extractor.timestamp-pattern")
                     .stringType()
@@ -164,7 +180,8 @@ public class FileSystemConnectorOptions {
                             Description.builder()
                                     .text(
                                             "When 'partition.time-extractor.kind' is set to 'default', "
-                                                    + "you can specify a pattern to get a timestamp from partitions.")
+                                                    + "you can specify a pattern to get a timestamp from partitions. "
+                                                    + "the formatter pattern is defined by 'partition.time-extractor.timestamp-formatter'.")
                                     .list(
                                             text(
                                                     "By default, a format of 'yyyy-MM-dd hh:mm:ss' is read from the first field."),
@@ -173,7 +190,12 @@ public class FileSystemConnectorOptions {
                                             text(
                                                     "If it is spread across multiple fields for year, month, day, and hour, you can use '$year-$month-$day $hour:00:00'."),
                                             text(
-                                                    "If the timestamp is in fields dt and hour, you can use '$dt $hour:00:00'."))
+                                                    "If the timestamp is in fields dt and hour, you can use '$dt "
+                                                            + "$hour:00:00'."),
+                                            text(
+                                                    "By basicDate, a format of 'yyyyMMdd' is read from the first field."),
+                                            text(
+                                                    "If the timestamp in the partition is a single field called 'dt', you can use '$dt'."))
                                     .build());
 
     public static final ConfigOption<Duration> LOOKUP_JOIN_CACHE_TTL =

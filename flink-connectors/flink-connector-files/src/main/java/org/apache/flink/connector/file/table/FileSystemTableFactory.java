@@ -107,6 +107,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         options.add(FileSystemConnectorOptions.SINK_SHUFFLE_BY_PARTITION);
         options.add(FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_KIND);
         options.add(FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_CLASS);
+        options.add(FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER);
         options.add(FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN);
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_TRIGGER);
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_DELAY);

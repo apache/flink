@@ -29,6 +29,7 @@ import java.util.List;
 
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_CLASS;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_KIND;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_DELAY;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE;
@@ -56,6 +57,7 @@ public class PartitionTimeCommitPredicate implements PartitionCommitPredicate {
                         cl,
                         conf.get(PARTITION_TIME_EXTRACTOR_KIND),
                         conf.get(PARTITION_TIME_EXTRACTOR_CLASS),
+                        conf.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER),
                         conf.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN));
         this.watermarkTimeZone =
                 ZoneId.of(conf.getString(SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE));
