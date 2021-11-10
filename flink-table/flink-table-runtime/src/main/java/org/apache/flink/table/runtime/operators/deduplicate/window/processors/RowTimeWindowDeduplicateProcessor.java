@@ -94,6 +94,11 @@ public final class RowTimeWindowDeduplicateProcessor implements SlicingWindowPro
     }
 
     @Override
+    public void initializeWatermark(long watermark) {
+        currentProgress = watermark;
+    }
+
+    @Override
     public boolean processElement(RowData key, RowData element) throws Exception {
         long sliceEnd = element.getLong(windowEndIndex);
         if (isWindowFired(sliceEnd, currentProgress, shiftTimeZone)) {
