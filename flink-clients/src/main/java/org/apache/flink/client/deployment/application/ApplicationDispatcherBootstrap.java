@@ -28,6 +28,7 @@ import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutorServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
@@ -112,7 +113,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
         this.applicationCompletionFuture =
                 fixJobIdAndRunApplicationAsync(dispatcherGateway, scheduledExecutor);
 
-        this.clusterShutdownFuture = runApplicationAndShutdownClusterAsync(dispatcherGateway);
+        this.clusterShutdownFuture = shutDownClusterAsync(dispatcherGateway);
     }
 
     @Override
@@ -142,18 +143,22 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
     }
 
     /**
-     * Runs the user program entrypoint and shuts down the given dispatcherGateway when the
-     * application completes (either successfully or in case of failure).
+     * Shuts down the given dispatcherGateway when the application completes (either successfully or
+     * in case of failure).
      */
-    private CompletableFuture<Acknowledge> runApplicationAndShutdownClusterAsync(
+    private CompletableFuture<Acknowledge> shutDownClusterAsync(
             final DispatcherGateway dispatcherGateway) {
+        boolean shouldShutDownOnFinish =
+                configuration.getBoolean(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH);
         return applicationCompletionFuture
                 .handle(
                         (ignored, t) -> {
                             if (t == null) {
                                 LOG.info("Application completed SUCCESSFULLY");
-                                return dispatcherGateway.shutDownCluster(
-                                        ApplicationStatus.SUCCEEDED);
+                                return shouldShutDownOnFinish
+                                        ? dispatcherGateway.shutDownCluster(
+                                                ApplicationStatus.SUCCEEDED)
+                                        : CompletableFuture.completedFuture(Acknowledge.get());
                             }
 
                             final Optional<UnsuccessfulExecutionException> maybeException =
@@ -165,11 +170,16 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
                                 if (applicationStatus == ApplicationStatus.CANCELED
                                         || applicationStatus == ApplicationStatus.FAILED) {
                                     LOG.info("Application {}: ", applicationStatus, t);
-                                    return dispatcherGateway.shutDownCluster(applicationStatus);
+                                    return shouldShutDownOnFinish
+                                            ? dispatcherGateway.shutDownCluster(applicationStatus)
+                                            : CompletableFuture.completedFuture(Acknowledge.get());
                                 }
                             }
 
                             LOG.warn("Application failed unexpectedly: ", t);
+                            // errorHandler triggers a cluster shutdown. We never prevent shutdown
+                            // in this case as the job likely failed on startup and never reached a
+                            // running state.
                             this.errorHandler.onFatalError(
                                     new FlinkException("Application failed unexpectedly.", t));
 

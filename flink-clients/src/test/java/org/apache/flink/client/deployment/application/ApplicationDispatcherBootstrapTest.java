@@ -779,6 +779,51 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         assertFalse(maybeDuplicate.get().isGloballyTerminated());
     }
 
+    @Test
+    public void testShutdownDisabledWithSuccessfulApplication() throws Exception {
+        testShutdownDisabled(JobStatus.FINISHED, ApplicationStatus.SUCCEEDED);
+    }
+
+    @Test
+    public void testShutdownDisabledWithCanceledApplication() throws Exception {
+        testShutdownDisabled(JobStatus.CANCELED, ApplicationStatus.CANCELED);
+    }
+
+    @Test
+    public void testShutdownDisabledWithFailedApplication() throws Exception {
+        testShutdownDisabled(JobStatus.FAILED, ApplicationStatus.FAILED);
+    }
+
+    private void testShutdownDisabled(JobStatus jobStatus, ApplicationStatus applicationStatus)
+            throws Exception {
+        final Configuration configurationUnderTest = getConfiguration();
+        configurationUnderTest.set(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH, false);
+
+        final TestingDispatcherGateway dispatcherGateway =
+                new TestingDispatcherGateway.Builder()
+                        .setSubmitFunction(
+                                jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+                        .setRequestJobStatusFunction(
+                                jobId -> CompletableFuture.completedFuture(jobStatus))
+                        .setRequestJobResultFunction(
+                                jobId ->
+                                        CompletableFuture.completedFuture(
+                                                createJobResult(jobId, applicationStatus)))
+                        .setClusterShutdownFunction(
+                                (status) -> {
+                                    fail("Cluster shutdown should not be called");
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .build();
+
+        ApplicationDispatcherBootstrap bootstrap =
+                createApplicationDispatcherBootstrap(
+                        configurationUnderTest, dispatcherGateway, scheduledExecutor);
+
+        // Wait until bootstrap is finished to make sure cluster shutdown isn't called
+        bootstrap.getClusterShutdownFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    }
+
     private CompletableFuture<Void> runApplication(
             TestingDispatcherGateway.Builder dispatcherBuilder, int noOfJobs)
             throws FlinkException {
@@ -838,11 +883,31 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
             final ScheduledExecutor scheduledExecutor,
             final FatalErrorHandler errorHandler)
             throws FlinkException {
+        return createApplicationDispatcherBootstrap(
+                noOfJobs, getConfiguration(), dispatcherGateway, scheduledExecutor, errorHandler);
+    }
+
+    private ApplicationDispatcherBootstrap createApplicationDispatcherBootstrap(
+            final Configuration configuration,
+            final DispatcherGateway dispatcherGateway,
+            final ScheduledExecutor scheduledExecutor)
+            throws FlinkException {
+        return createApplicationDispatcherBootstrap(
+                1, configuration, dispatcherGateway, scheduledExecutor, exception -> {});
+    }
+
+    private ApplicationDispatcherBootstrap createApplicationDispatcherBootstrap(
+            final int noOfJobs,
+            final Configuration configuration,
+            final DispatcherGateway dispatcherGateway,
+            final ScheduledExecutor scheduledExecutor,
+            final FatalErrorHandler errorHandler)
+            throws FlinkException {
         final PackagedProgram program = getProgram(noOfJobs);
         return new ApplicationDispatcherBootstrap(
                 program,
                 Collections.emptyList(),
-                getConfiguration(),
+                configuration,
                 dispatcherGateway,
                 scheduledExecutor,
                 errorHandler);
@@ -865,42 +930,37 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     }
 
     private static JobResult createUnknownJobResult(final JobID jobId) {
-        return new JobResult.Builder()
-                .jobId(jobId)
-                .netRuntime(2L)
-                .applicationStatus(ApplicationStatus.UNKNOWN)
-                .serializedThrowable(
-                        new SerializedThrowable(
-                                new JobExecutionException(jobId, "unknown bla bla bla")))
-                .build();
+        return createJobResult(jobId, ApplicationStatus.UNKNOWN);
     }
 
     private static JobResult createFailedJobResult(final JobID jobId) {
-        return new JobResult.Builder()
-                .jobId(jobId)
-                .netRuntime(2L)
-                .applicationStatus(ApplicationStatus.FAILED)
-                .serializedThrowable(
-                        new SerializedThrowable(new JobExecutionException(jobId, "bla bla bla")))
-                .build();
+        return createJobResult(jobId, ApplicationStatus.FAILED);
     }
 
     private static JobResult createSuccessfulJobResult(final JobID jobId) {
-        return new JobResult.Builder()
-                .jobId(jobId)
-                .netRuntime(2L)
-                .applicationStatus(ApplicationStatus.SUCCEEDED)
-                .build();
+        return createJobResult(jobId, ApplicationStatus.SUCCEEDED);
     }
 
     private static JobResult createCancelledJobResult(final JobID jobId) {
-        return new JobResult.Builder()
-                .jobId(jobId)
-                .netRuntime(2L)
-                .serializedThrowable(
-                        new SerializedThrowable(new JobCancellationException(jobId, "Hello", null)))
-                .applicationStatus(ApplicationStatus.CANCELED)
-                .build();
+        return createJobResult(jobId, ApplicationStatus.CANCELED);
+    }
+
+    private static JobResult createJobResult(
+            final JobID jobID, final ApplicationStatus applicationStatus) {
+        JobResult.Builder builder =
+                new JobResult.Builder()
+                        .jobId(jobID)
+                        .netRuntime(2L)
+                        .applicationStatus(applicationStatus);
+        if (applicationStatus == ApplicationStatus.CANCELED) {
+            builder.serializedThrowable(
+                    new SerializedThrowable(new JobCancellationException(jobID, "Hello", null)));
+        } else if (applicationStatus == ApplicationStatus.FAILED
+                || applicationStatus == ApplicationStatus.UNKNOWN) {
+            builder.serializedThrowable(
+                    new SerializedThrowable(new JobExecutionException(jobID, "bla bla bla")));
+        }
+        return builder.build();
     }
 
     private static <T, E extends Throwable> E assertException(
