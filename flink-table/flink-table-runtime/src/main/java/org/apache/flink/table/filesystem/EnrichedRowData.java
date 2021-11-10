@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.data.utils;
+package org.apache.flink.table.filesystem;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.MapData;
@@ -36,7 +36,7 @@ import java.util.Objects;
  * index mapping, One of the rows is fixed, while the other can be swapped for performant changes in
  * hot code paths. The {@link RowKind} is inherited from the mutable row.
  */
-@PublicEvolving
+@Internal
 public class EnrichedRowData implements RowData {
 
     private final RowData fixedRow;
