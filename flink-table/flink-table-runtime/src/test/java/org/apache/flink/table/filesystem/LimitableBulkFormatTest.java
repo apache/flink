@@ -27,7 +27,7 @@ import org.apache.flink.connector.file.src.impl.StreamFormatAdapter;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
-import org.apache.flink.connector.file.src.reader.TextLineFormat;
+import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.connector.file.src.util.Utils;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
@@ -67,7 +67,8 @@ public class LimitableBulkFormatTest {
     public void test() throws IOException {
         // read
         BulkFormat<String, FileSourceSplit> format =
-                LimitableBulkFormat.create(new StreamFormatAdapter<>(new TextLineFormat()), 22L);
+                LimitableBulkFormat.create(
+                        new StreamFormatAdapter<>(new TextLineInputFormat()), 22L);
 
         BulkFormat.Reader<String> reader =
                 format.createReader(
@@ -96,7 +97,8 @@ public class LimitableBulkFormatTest {
 
         // read
         BulkFormat<String, FileSourceSplit> format =
-                LimitableBulkFormat.create(new StreamFormatAdapter<>(new TextLineFormat()), limit);
+                LimitableBulkFormat.create(
+                        new StreamFormatAdapter<>(new TextLineInputFormat()), limit);
 
         BulkFormat.Reader<String> reader =
                 format.createReader(

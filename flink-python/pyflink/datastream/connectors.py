@@ -760,7 +760,7 @@ class StreamFormat(object):
         :param charset_name: The charset to decode the byte stream.
         """
         j_stream_format = get_gateway().jvm.org.apache.flink.connector.file.src.reader. \
-            TextLineFormat(charset_name)
+            TextLineInputFormat(charset_name)
         return StreamFormat(j_stream_format)
 
 

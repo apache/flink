@@ -146,7 +146,7 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
             Configuration conf = new Configuration();
             properties.forEach((k, v) -> conf.set(k.toString(), v.toString()));
 
-            return OrcColumnarRowFileInputFormat.createPartitionedFormat(
+            return OrcColumnarRowInputFormat.createPartitionedFormat(
                     OrcShim.defaultShim(),
                     conf,
                     (RowType) producedDataType.getLogicalType(),
