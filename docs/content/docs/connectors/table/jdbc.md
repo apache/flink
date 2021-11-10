@@ -208,6 +208,13 @@ Connector Options
       Lookup cache is disabled by default. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
     </tr>
     <tr>
+      <td><h5>lookup.cache.caching-missing-key</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">3</td>
+      <td>Boolean</td>
+      <td>Flag to cache missing key, true by default</td>
+    </tr>
+    <tr>
       <td><h5>lookup.max-retries</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">3</td>
