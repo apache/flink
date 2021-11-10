@@ -50,15 +50,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
-/** Tests for {@link WindowWTFWithRowSemanticsOperator}. */
+/** Tests for {@link WindowTableFunctionOperator}. */
 @RunWith(Parameterized.class)
-public class WindowWTFWithRowSemanticsOperatorTest {
+public class WindowTableFunctionOperatorTest {
 
     private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
     private static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");
     private final ZoneId shiftTimeZone;
 
-    public WindowWTFWithRowSemanticsOperatorTest(ZoneId shiftTimeZone) {
+    public WindowTableFunctionOperatorTest(ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
     }
 
@@ -305,9 +305,8 @@ public class WindowWTFWithRowSemanticsOperatorTest {
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
             WindowAssigner<TimeWindow> windowAssigner, ZoneId shiftTimeZone) throws Exception {
-        WindowWTFWithRowSemanticsOperator operator =
-                new WindowWTFWithRowSemanticsOperator(
-                        windowAssigner, ROW_TIME_INDEX, shiftTimeZone);
+        WindowTableFunctionOperator operator =
+                new WindowTableFunctionOperator(windowAssigner, ROW_TIME_INDEX, shiftTimeZone);
         return new OneInputStreamOperatorTestHarness<>(operator, INPUT_ROW_SER);
     }
 

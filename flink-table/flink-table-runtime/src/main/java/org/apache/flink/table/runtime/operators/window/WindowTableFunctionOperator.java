@@ -37,16 +37,16 @@ import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampM
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * The WTFWithRowSemanticsOperator acts as a table-valued function to assign windows for input row.
- * Output row includes the original columns as well additional 3 columns named {@code window_start},
- * {@code window_end}, {@code window_time} to indicate the assigned window.
+ * The operator acts as a table-valued function to assign windows for input row. Output row includes
+ * the original columns as well additional 3 columns named {@code window_start}, {@code window_end},
+ * {@code window_time} to indicate the assigned window.
  *
  * <p>Note: The operator only applies for Window TVF with row semantics (e.g TUMBLE/HOP/CUMULATE)
  * instead of set semantics (e.g Session).
  *
  * <p>The operator emits result per record instead of at the end of window.
  */
-public class WindowWTFWithRowSemanticsOperator extends TableStreamOperator<RowData>
+public class WindowTableFunctionOperator extends TableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData> {
 
     private static final long serialVersionUID = 1L;
@@ -67,7 +67,7 @@ public class WindowWTFWithRowSemanticsOperator extends TableStreamOperator<RowDa
     private transient JoinedRowData outRow;
     private transient GenericRowData windowProperties;
 
-    public WindowWTFWithRowSemanticsOperator(
+    public WindowTableFunctionOperator(
             WindowAssigner<TimeWindow> windowAssigner, int rowtimeIndex, ZoneId shiftTimeZone) {
         checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
         this.windowAssigner = windowAssigner;
