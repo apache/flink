@@ -150,10 +150,11 @@ public class StreamingExamplesITCase extends AbstractTestBase {
         org.apache.flink.streaming.examples.wordcount.WordCount.main(
                 new String[] {
                     "--input", textPath,
-                    "--output", resultPath
+                    "--output", resultPath,
+                    "--execution-mode", "automatic"
                 });
 
-        compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
+        compareResultsByLinesInMemory(WordCountData.COUNTS_AS_TUPLES, resultPath);
     }
 
     /**
