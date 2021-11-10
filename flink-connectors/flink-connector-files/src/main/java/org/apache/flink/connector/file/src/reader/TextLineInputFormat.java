@@ -42,7 +42,7 @@ import java.io.InputStreamReader;
  * with their internal buffering of stream input and charset decoder state.
  */
 @PublicEvolving
-public class TextLineFormat extends SimpleStreamFormat<String> {
+public class TextLineInputFormat extends SimpleStreamFormat<String> {
 
     private static final long serialVersionUID = 1L;
 
@@ -50,11 +50,11 @@ public class TextLineFormat extends SimpleStreamFormat<String> {
 
     private final String charsetName;
 
-    public TextLineFormat() {
+    public TextLineInputFormat() {
         this(DEFAULT_CHARSET_NAME);
     }
 
-    public TextLineFormat(String charsetName) {
+    public TextLineInputFormat(String charsetName) {
         this.charsetName = charsetName;
     }
 
@@ -72,7 +72,7 @@ public class TextLineFormat extends SimpleStreamFormat<String> {
 
     // ------------------------------------------------------------------------
 
-    /** The actual reader for the {@code TextLineFormat}. */
+    /** The actual reader for the {@code TextLineInputFormat}. */
     public static final class Reader implements StreamFormat.Reader<String> {
 
         private final BufferedReader reader;

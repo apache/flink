@@ -62,8 +62,8 @@ import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionP
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/** Test for {@link OrcColumnarRowFileInputFormat}. */
-public class OrcColumnarRowFileInputFormatTest {
+/** Test for {@link OrcColumnarRowInputFormat}. */
+public class OrcColumnarRowInputFormatTest {
 
     /** Small batch size for test more boundary conditions. */
     protected static final int BATCH_SIZE = 9;
@@ -97,7 +97,7 @@ public class OrcColumnarRowFileInputFormatTest {
 
     @Test
     public void testReadFileInSplits() throws IOException {
-        OrcColumnarRowFileInputFormat<?, FileSourceSplit> format =
+        OrcColumnarRowInputFormat<?, FileSourceSplit> format =
                 createFormat(FLAT_FILE_TYPE, new int[] {0, 1});
 
         AtomicInteger cnt = new AtomicInteger(0);
@@ -124,7 +124,7 @@ public class OrcColumnarRowFileInputFormatTest {
 
     @Test
     public void testReadFileWithSelectFields() throws IOException {
-        OrcColumnarRowFileInputFormat<?, FileSourceSplit> format =
+        OrcColumnarRowInputFormat<?, FileSourceSplit> format =
                 createFormat(FLAT_FILE_TYPE, new int[] {2, 0, 1});
 
         AtomicInteger cnt = new AtomicInteger(0);
@@ -153,7 +153,7 @@ public class OrcColumnarRowFileInputFormatTest {
 
     @Test
     public void testReadDecimalTypeFile() throws IOException {
-        OrcColumnarRowFileInputFormat<?, FileSourceSplit> format =
+        OrcColumnarRowInputFormat<?, FileSourceSplit> format =
                 createFormat(DECIMAL_FILE_TYPE, new int[] {0});
 
         AtomicInteger cnt = new AtomicInteger(0);
@@ -217,7 +217,7 @@ public class OrcColumnarRowFileInputFormatTest {
 
         int[] projectedFields = {8, 1, 3, 0, 5, 2};
 
-        OrcColumnarRowFileInputFormat<?, FileSourceSplit> format =
+        OrcColumnarRowInputFormat<?, FileSourceSplit> format =
                 createPartitionFormat(
                         tableType, new ArrayList<>(partSpec.keySet()), projectedFields);
 
@@ -257,7 +257,7 @@ public class OrcColumnarRowFileInputFormatTest {
 
     @Test
     public void testReadFileAndRestore() throws IOException {
-        OrcColumnarRowFileInputFormat<?, FileSourceSplit> format =
+        OrcColumnarRowInputFormat<?, FileSourceSplit> format =
                 createFormat(FLAT_FILE_TYPE, new int[] {0, 1});
 
         // pick a middle split
@@ -276,7 +276,7 @@ public class OrcColumnarRowFileInputFormatTest {
                                 new Between("_col0", PredicateLeaf.Type.LONG, 0L, 975000L),
                                 new Equals("_col0", PredicateLeaf.Type.LONG, 980001L),
                                 new Between("_col0", PredicateLeaf.Type.LONG, 990000L, 1800000L)));
-        OrcColumnarRowFileInputFormat<?, FileSourceSplit> format =
+        OrcColumnarRowInputFormat<?, FileSourceSplit> format =
                 createFormat(FLAT_FILE_TYPE, new int[] {0, 1}, filter);
 
         // pick a middle split
@@ -290,7 +290,7 @@ public class OrcColumnarRowFileInputFormatTest {
     }
 
     private void innerTestRestore(
-            OrcColumnarRowFileInputFormat<?, FileSourceSplit> format,
+            OrcColumnarRowInputFormat<?, FileSourceSplit> format,
             FileSourceSplit split,
             int breakCnt,
             int expectedCnt,
@@ -338,14 +338,14 @@ public class OrcColumnarRowFileInputFormatTest {
         assertEquals(expectedTotalF0, totalF0.get());
     }
 
-    protected OrcColumnarRowFileInputFormat<?, FileSourceSplit> createFormat(
+    protected OrcColumnarRowInputFormat<?, FileSourceSplit> createFormat(
             RowType formatType, int[] selectedFields) {
         return createFormat(formatType, selectedFields, new ArrayList<>());
     }
 
-    protected OrcColumnarRowFileInputFormat<?, FileSourceSplit> createFormat(
+    protected OrcColumnarRowInputFormat<?, FileSourceSplit> createFormat(
             RowType formatType, int[] selectedFields, List<Predicate> conjunctPredicates) {
-        return OrcColumnarRowFileInputFormat.createPartitionedFormat(
+        return OrcColumnarRowInputFormat.createPartitionedFormat(
                 OrcShim.defaultShim(),
                 new Configuration(),
                 formatType,
@@ -356,9 +356,9 @@ public class OrcColumnarRowFileInputFormatTest {
                 BATCH_SIZE);
     }
 
-    protected OrcColumnarRowFileInputFormat<?, FileSourceSplit> createPartitionFormat(
+    protected OrcColumnarRowInputFormat<?, FileSourceSplit> createPartitionFormat(
             RowType tableType, List<String> partitionKeys, int[] selectedFields) {
-        return OrcColumnarRowFileInputFormat.createPartitionedFormat(
+        return OrcColumnarRowInputFormat.createPartitionedFormat(
                 OrcShim.defaultShim(),
                 new Configuration(),
                 tableType,
@@ -370,13 +370,13 @@ public class OrcColumnarRowFileInputFormatTest {
     }
 
     private BulkFormat.Reader<RowData> createReader(
-            OrcColumnarRowFileInputFormat<?, FileSourceSplit> format, FileSourceSplit split)
+            OrcColumnarRowInputFormat<?, FileSourceSplit> format, FileSourceSplit split)
             throws IOException {
         return format.createReader(new org.apache.flink.configuration.Configuration(), split);
     }
 
     private BulkFormat.Reader<RowData> restoreReader(
-            OrcColumnarRowFileInputFormat<?, FileSourceSplit> format,
+            OrcColumnarRowInputFormat<?, FileSourceSplit> format,
             FileSourceSplit split,
             long offset,
             long recordSkipCount)
@@ -389,7 +389,7 @@ public class OrcColumnarRowFileInputFormatTest {
     }
 
     private void forEach(
-            OrcColumnarRowFileInputFormat<?, FileSourceSplit> format,
+            OrcColumnarRowInputFormat<?, FileSourceSplit> format,
             FileSourceSplit split,
             Consumer<RowData> action)
             throws IOException {
