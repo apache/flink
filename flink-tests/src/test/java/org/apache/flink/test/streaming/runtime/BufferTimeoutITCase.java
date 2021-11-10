@@ -28,6 +28,7 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -46,6 +47,8 @@ public class BufferTimeoutITCase extends AbstractTestBase {
      * which should not fill an entire buffer, thus it should not never reach the sink. We check the
      * sink has not seen any records after 2 times the default buffer timeout.
      */
+    // TODO: should be fixed in FLINK-24800.
+    @Ignore
     @Test
     public void testDisablingBufferTimeout() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
