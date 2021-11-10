@@ -121,10 +121,13 @@ then some consumer subtasks will simply be idle and wait until it gets assigned
 new shards (i.e., when the streams are resharded to increase the
 number of shards for higher provisioned Kinesis service throughput).
 
-Also note that the assignment of shards to subtasks may not be optimal when
-shard IDs are not consecutive (as result of dynamic re-sharding in Kinesis).
-For cases where skew in the assignment leads to significant imbalanced consumption,
-a custom implementation of `KinesisShardAssigner` can be set on the consumer.
+Also note that the default assignment of shards to subtasks is based on the hashes of the shard and stream names,
+which will more-or-less balance the shards across the subtasks.
+However, assuming the default Kinesis shard management is used on the stream (UpdateShardCount with `UNIFORM_SCALING`),
+setting `UniformShardAssigner` as the shard assigner on the consumer will much more evenly distribute shards to subtasks.
+Assuming the incoming Kinesis records are assigned random Kinesis `PartitionKey` or `ExplicitHashKey` values,
+the result is consistent subtask loading.
+If neither the default assigner nor the `UniformShardAssigner` suffice, a custom implementation of `KinesisShardAssigner` can be set.
 
 ### The `DeserializationSchema`
 
