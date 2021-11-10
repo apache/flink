@@ -20,12 +20,16 @@ package org.apache.flink.runtime.rest.handler.job.savepoints;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.dispatcher.OperationAlreadyFailedException;
+import org.apache.flink.runtime.dispatcher.UnknownOperationKeyException;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.rest.RestMatchers;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
+import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
@@ -40,6 +44,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -249,6 +254,48 @@ public class SavepointHandlersTest extends TestLogger {
         assertThat(
                 savepointResponseBody.resource().getLocation(),
                 equalTo(COMPLETED_SAVEPOINT_EXTERNAL_POINTER));
+    }
+
+    @Test
+    public void testRepeatedTriggerIdForFailedOperationReturnsError()
+            throws HandlerRequestException, RestHandlerException {
+        final OperationResult<String> successfulResult =
+                OperationResult.success(COMPLETED_SAVEPOINT_EXTERNAL_POINTER);
+        AtomicReference<AsynchronousJobOperationKey> keyReference = new AtomicReference<>();
+        final TestingRestfulGateway testingRestfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setTriggerSavepointFunction(
+                                (key, ignored) ->
+                                        FutureUtils.completedExceptionally(
+                                                new OperationAlreadyFailedException(
+                                                        new Exception("test exception"))))
+                        .build();
+
+        final CompletableFuture<TriggerResponse> triggerFuture =
+                savepointTriggerHandler.handleRequest(
+                        triggerSavepointRequest(
+                                DEFAULT_REQUESTED_SAVEPOINT_TARGET_DIRECTORY, new TriggerId()),
+                        testingRestfulGateway);
+
+        assertThat(triggerFuture, RestMatchers.respondsWithError(HttpResponseStatus.CONFLICT));
+    }
+
+    @Test
+    public void testQueryStatusOfUnknownOperationReturnsError()
+            throws HandlerRequestException, RestHandlerException {
+        final TestingRestfulGateway testingRestfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setGetSavepointStatusFunction(
+                                key ->
+                                        FutureUtils.completedExceptionally(
+                                                new UnknownOperationKeyException(key)))
+                        .build();
+
+        final CompletableFuture<AsynchronousOperationResult<SavepointInfo>> statusFuture =
+                savepointStatusHandler.handleRequest(
+                        savepointStatusRequest(new TriggerId()), testingRestfulGateway);
+
+        assertThat(statusFuture, RestMatchers.respondsWithError(HttpResponseStatus.NOT_FOUND));
     }
 
     private static HandlerRequest<SavepointTriggerRequestBody> triggerSavepointRequest()
