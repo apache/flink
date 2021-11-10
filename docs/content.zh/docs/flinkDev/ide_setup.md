@@ -169,9 +169,7 @@ IntelliJ 使用 Checkstyle-IDEA 插件在 IDE 中支持 checkstyle。
 
 - 编译失败 `程序包sun.misc不存在`
 
-这意味着 IntelliJ 正在为该项目使用 JDK 11, 产出字节码为 JDK8，并且在运行测试用例时使用了 `--release` 作为编译选项。可以通过关闭 `--release` [JEP-247](https://openjdk.java.net/jeps/247) 的编译选项来解决。操作方法: 
-
-进入 "Preferences" → "Build, Execution, Deployment" → "Compiler" → "Java Compiler", 取消选中 "Use '--release' option for cross-compilation (Java 9 and later)".
+这意味着 IntelliJ 正在为该项目使用 JDK 11, 但使用了 `--release` 编译选项来编译 JDK8 字节码，这个编译选项和Flink当前的build方式不兼容。解决办法： 进入 "Preferences" → "Build, Execution, Deployment" → "Compiler" → "Java Compiler", 取消选中 "Use '--release' option for cross-compilation (Java 9 and later)".
 
 - 运行 Flink Examples 且 Flink 出现关于 `NoClassDefFoundError` 错误信息
 

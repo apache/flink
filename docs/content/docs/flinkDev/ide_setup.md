@@ -230,9 +230,8 @@ When switching back to newer Flink versions you may have to revert this change a
 
 #### Compilation fails with `package sun.misc does not exist`  
 
-This happens if you are using JDK 11 as project SDK and compiling with `--release` option target 8 when running test in IDE.
-Which can be solved by disable the `--release` compiler option [JEP-247](https://openjdk.java.net/jeps/247). Go to 
-"Preferences" → "Build, Execution, Deployment" → "Compiler" → "Java Compiler" and uncheck the "Use '--release' option for cross-compilation (Java 9 and later)".
+This happens if you are using JDK 11 and compile to Java 8 with the `--release` option. This option is currently incompatible with our build setup.
+Go to "Settings" → "Build, Execution, Deployment" → "Compiler" → "Java Compiler" and uncheck the "Use '--release' option for cross-compilation (Java 9 and later)".
 
 #### Examples fail with a `NoClassDefFoundError` for Flink classes.
 
