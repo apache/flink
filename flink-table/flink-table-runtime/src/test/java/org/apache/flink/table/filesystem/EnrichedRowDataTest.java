@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.data.utils;
+package org.apache.flink.table.filesystem;
 
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class EnrichedRowDataTest {
 
     @Test
-    public void testJoinedRows() {
+    public void testEnrichedRow() {
         final List<String> completeRowFields =
                 Arrays.asList(
                         "fixedRow1",
