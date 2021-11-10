@@ -40,10 +40,13 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -114,6 +117,9 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
             try {
                 Duration timeout = deadline.timeLeftIfAny();
                 Message<byte[]> message = pollMessage(timeout);
+                if (message == null) {
+                    break;
+                }
 
                 // Deserialize message.
                 collector.setMessage(message);
@@ -189,8 +195,9 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
         }
     }
 
+    @Nullable
     protected abstract Message<byte[]> pollMessage(Duration timeout)
-            throws ExecutionException, InterruptedException, TimeoutException;
+            throws ExecutionException, InterruptedException, PulsarClientException;
 
     protected abstract void finishedPollMessage(Message<byte[]> message);
 
