@@ -27,7 +27,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -43,31 +43,34 @@ import java.util.Map;
  * @param <T> Type for potential meta data associated with the registering closeables
  */
 @Internal
-public abstract class AbstractCloseableRegistry<C extends Closeable, T> implements Closeable {
+public abstract class AbstractAutoCloseableRegistry<
+                R extends AutoCloseable, C extends R, T, E extends Exception>
+        implements AutoCloseable {
 
     /** Lock that guards state of this registry. * */
     private final Object lock;
 
     /** Map from tracked Closeables to some associated meta data. */
     @GuardedBy("lock")
-    protected final Map<Closeable, T> closeableToRef;
+    protected final Map<R, T> closeableToRef;
 
     /** Indicates if this registry is closed. */
     @GuardedBy("lock")
     private boolean closed;
 
-    public AbstractCloseableRegistry(@Nonnull Map<Closeable, T> closeableToRef) {
+    public AbstractAutoCloseableRegistry(@Nonnull Map<R, T> closeableToRef) {
         this.lock = new Object();
         this.closeableToRef = Preconditions.checkNotNull(closeableToRef);
         this.closed = false;
     }
 
     /**
-     * Registers a {@link Closeable} with the registry. In case the registry is already closed, this
-     * method throws an {@link IllegalStateException} and closes the passed {@link Closeable}.
+     * Registers a {@link AutoCloseable} with the registry. In case the registry is already closed,
+     * this method throws an {@link IllegalStateException} and closes the passed {@link
+     * AutoCloseable}.
      *
-     * @param closeable Closeable tor register
-     * @throws IOException exception when the registry was closed before
+     * @param closeable Closeable to register.
+     * @throws IOException exception when the registry was closed before.
      */
     public final void registerCloseable(C closeable) throws IOException {
 
@@ -106,8 +109,8 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
     }
 
     @Override
-    public void close() throws IOException {
-        Collection<Closeable> toCloseCopy;
+    public void close() throws E {
+        List<R> toCloseCopy;
 
         synchronized (getSynchronizationLock()) {
             if (closed) {
@@ -116,13 +119,15 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 
             closed = true;
 
-            toCloseCopy = getReferencesToClose();
+            toCloseCopy = new ArrayList<>(closeableToRef.keySet());
 
             closeableToRef.clear();
         }
 
-        IOUtils.closeAllQuietly(toCloseCopy);
+        doClose(toCloseCopy);
     }
+
+    protected abstract void doClose(List<R> toClose) throws E;
 
     public boolean isClosed() {
         synchronized (getSynchronizationLock()) {
@@ -130,24 +135,18 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
         }
     }
 
-    protected Collection<Closeable> getReferencesToClose() {
-        return new ArrayList<>(closeableToRef.keySet());
-    }
-
     /**
      * Does the actual registration of the closeable with the registry map. This should not do any
      * long running or potentially blocking operations as is is executed under the registry's lock.
      */
-    protected abstract void doRegister(
-            @Nonnull C closeable, @Nonnull Map<Closeable, T> closeableMap);
+    protected abstract void doRegister(@Nonnull C closeable, @Nonnull Map<R, T> closeableMap);
 
     /**
      * Does the actual un-registration of the closeable from the registry map. This should not do
      * any long running or potentially blocking operations as is is executed under the registry's
      * lock.
      */
-    protected abstract boolean doUnRegister(
-            @Nonnull C closeable, @Nonnull Map<Closeable, T> closeableMap);
+    protected abstract boolean doUnRegister(@Nonnull C closeable, @Nonnull Map<R, T> closeableMap);
 
     /**
      * Returns the lock on which manipulations to members closeableToRef and closeable must be
@@ -158,14 +157,14 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
     }
 
     /** Adds a mapping to the registry map, respecting locking. */
-    protected final void addCloseableInternal(Closeable closeable, T metaData) {
+    protected final void addCloseableInternal(R closeable, T metaData) {
         synchronized (getSynchronizationLock()) {
             closeableToRef.put(closeable, metaData);
         }
     }
 
     /** Removes a mapping from the registry map, respecting locking. */
-    protected final boolean removeCloseableInternal(Closeable closeable) {
+    protected final boolean removeCloseableInternal(R closeable) {
         synchronized (getSynchronizationLock()) {
             return closeableToRef.remove(closeable) != null;
         }
@@ -179,7 +178,7 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
     }
 
     @VisibleForTesting
-    public final boolean isCloseableRegistered(Closeable c) {
+    public final boolean isCloseableRegistered(R c) {
         synchronized (getSynchronizationLock()) {
             return closeableToRef.containsKey(c);
         }

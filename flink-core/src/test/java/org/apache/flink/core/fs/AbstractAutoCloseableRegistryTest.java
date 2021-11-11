@@ -18,7 +18,7 @@
 
 package org.apache.flink.core.fs;
 
-import org.apache.flink.util.AbstractCloseableRegistry;
+import org.apache.flink.util.AbstractAutoCloseableRegistry;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -34,21 +34,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/** Tests for the {@link AbstractCloseableRegistry}. */
-public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
+/** Tests for the {@link AbstractAutoCloseableRegistry}. */
+public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E extends C, T> {
 
     private static final int TEST_TIMEOUT_SECONDS = 10;
 
     protected ProducerThread[] streamOpenThreads;
-    protected AbstractCloseableRegistry<C, T> closeableRegistry;
+    protected AbstractAutoCloseableRegistry<C, E, T, IOException> closeableRegistry;
     protected AtomicInteger unclosedCounter;
 
     protected abstract void registerCloseable(Closeable closeable) throws IOException;
 
-    protected abstract AbstractCloseableRegistry<C, T> createRegistry();
+    protected abstract AbstractAutoCloseableRegistry<C, E, T, IOException> createRegistry();
 
-    protected abstract ProducerThread<C, T> createProducerThread(
-            AbstractCloseableRegistry<C, T> registry,
+    protected abstract ProducerThread<C, E, T> createProducerThread(
+            AbstractAutoCloseableRegistry<C, E, T, IOException> registry,
             AtomicInteger unclosedCounter,
             int maxStreams);
 
@@ -141,15 +141,18 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
     }
 
     /** A testing producer. */
-    protected abstract static class ProducerThread<C extends Closeable, T> extends Thread {
+    protected abstract static class ProducerThread<C extends Closeable, E extends C, T>
+            extends Thread {
 
-        protected final AbstractCloseableRegistry<C, T> registry;
+        protected final AbstractAutoCloseableRegistry<C, E, T, IOException> registry;
         protected final AtomicInteger refCount;
         protected final int maxStreams;
         protected int numStreams;
 
         public ProducerThread(
-                AbstractCloseableRegistry<C, T> registry, AtomicInteger refCount, int maxStreams) {
+                AbstractAutoCloseableRegistry<C, E, T, IOException> registry,
+                AtomicInteger refCount,
+                int maxStreams) {
             this.registry = registry;
             this.refCount = refCount;
             this.maxStreams = maxStreams;
