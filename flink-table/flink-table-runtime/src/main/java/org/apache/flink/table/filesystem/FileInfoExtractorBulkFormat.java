@@ -30,8 +30,6 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
@@ -163,37 +161,11 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
         final EnrichedRowData producedRowData =
                 new EnrichedRowData(fileInfoRowData, this.extendedRowIndexMapping);
 
-        return new ReaderWrapper(superReader, producedRowData);
-    }
-
-    private static final class ReaderWrapper implements Reader<RowData> {
-
-        private final Reader<RowData> wrappedReader;
-        private final EnrichedRowData producedRowData;
-
-        private ReaderWrapper(Reader<RowData> wrappedReader, EnrichedRowData producedRowData) {
-            this.wrappedReader = wrappedReader;
-            this.producedRowData = producedRowData;
-        }
-
-        @Nullable
-        @Override
-        public RecordIterator<RowData> readBatch() throws IOException {
-            RecordIterator<RowData> iterator = wrappedReader.readBatch();
-            if (iterator == null) {
-                return null;
-            }
-            return new RecordMapperWrapperRecordIterator<>(
-                    iterator,
-                    physicalRowData -> {
-                        producedRowData.replaceMutableRow(physicalRowData);
-                        return producedRowData;
-                    });
-        }
-
-        @Override
-        public void close() throws IOException {
-            this.wrappedReader.close();
-        }
+        return RecordMapperWrapperRecordIterator.wrapReader(
+                superReader,
+                physicalRowData -> {
+                    producedRowData.replaceMutableRow(physicalRowData);
+                    return producedRowData;
+                });
     }
 }

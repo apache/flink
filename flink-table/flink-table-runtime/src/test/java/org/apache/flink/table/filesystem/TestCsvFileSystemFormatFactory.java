@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
@@ -43,9 +44,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITER;
@@ -120,24 +119,16 @@ public class TestCsvFileSystemFormatFactory
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-        List<String> schemaFields =
-                DataType.getFieldNames(context.getPhysicalRowDataType()).stream()
-                        .filter(
-                                field ->
-                                        !context.getCatalogTable()
-                                                .getPartitionKeys()
-                                                .contains(field))
-                        .collect(Collectors.toList());
-        return new DecodingFormat<DeserializationSchema<RowData>>() {
+        return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
             @Override
             public DeserializationSchema<RowData> createRuntimeDecoder(
-                    DynamicTableSource.Context context, DataType physicalDataType) {
-                // TestCsvDeserializationSchema has no knowledge of the field names, and the
-                // implicit assumption done by tests is that the csv rows are composed by only the
-                // physical fields (excluding partition fields) in the same order as defined in the
-                // table declaration. This is why TestCsvDeserializationSchema needs
-                // schemaFields.
-                return new TestCsvDeserializationSchema(physicalDataType, schemaFields);
+                    DynamicTableSource.Context context,
+                    DataType physicalDataType,
+                    int[][] projections) {
+                DataType projectedPhysicalDataType =
+                        DataType.projectFields(physicalDataType, projections);
+                return new TestCsvDeserializationSchema(
+                        projectedPhysicalDataType, DataType.getFieldNames(physicalDataType));
             }
 
             @Override

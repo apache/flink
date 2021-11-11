@@ -25,6 +25,7 @@ import org.apache.flink.formats.json.debezium.DebeziumJsonDeserializationSchema.
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
@@ -43,7 +44,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** {@link DecodingFormat} for Debezium using JSON encoding. */
-public class DebeziumJsonDecodingFormat implements DecodingFormat<DeserializationSchema<RowData>> {
+public class DebeziumJsonDecodingFormat
+        implements ProjectableDecodingFormat<DeserializationSchema<RowData>> {
 
     // --------------------------------------------------------------------------------------------
     // Mutable attributes
@@ -71,7 +73,8 @@ public class DebeziumJsonDecodingFormat implements DecodingFormat<Deserializatio
 
     @Override
     public DeserializationSchema<RowData> createRuntimeDecoder(
-            DynamicTableSource.Context context, DataType physicalDataType) {
+            DynamicTableSource.Context context, DataType physicalDataType, int[][] projections) {
+        physicalDataType = DataType.projectFields(physicalDataType, projections);
 
         final List<ReadableMetadata> readableMetadata =
                 metadataKeys.stream()

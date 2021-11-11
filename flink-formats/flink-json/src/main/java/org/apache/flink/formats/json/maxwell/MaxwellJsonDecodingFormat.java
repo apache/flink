@@ -25,6 +25,7 @@ import org.apache.flink.formats.json.maxwell.MaxwellJsonDeserializationSchema.Me
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -41,7 +42,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** {@link DecodingFormat} for Maxwell using JSON encoding. */
-public class MaxwellJsonDecodingFormat implements DecodingFormat<DeserializationSchema<RowData>> {
+public class MaxwellJsonDecodingFormat
+        implements ProjectableDecodingFormat<DeserializationSchema<RowData>> {
 
     // --------------------------------------------------------------------------------------------
     // Mutable attributes
@@ -62,7 +64,9 @@ public class MaxwellJsonDecodingFormat implements DecodingFormat<Deserialization
 
     @Override
     public DeserializationSchema<RowData> createRuntimeDecoder(
-            DynamicTableSource.Context context, DataType physicalDataType) {
+            DynamicTableSource.Context context, DataType physicalDataType, int[][] projections) {
+        physicalDataType = DataType.projectFields(physicalDataType, projections);
+
         final List<ReadableMetadata> readableMetadata =
                 metadataKeys.stream()
                         .map(
