@@ -23,57 +23,54 @@ import org.apache.flink.util.AbstractAutoCloseableRegistry;
 import org.apache.flink.util.IOUtils;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
- * This class allows to register instances of {@link Closeable}, which are all closed if this
+ * This class allows to register instances of {@link AutoCloseable}, which are all closed if this
  * registry is closed.
  *
  * <p>Registering to an already closed registry will throw an exception and close the provided
- * {@link Closeable}
+ * {@link AutoCloseable}.
  *
- * <p>All methods in this class are thread-safe.
+ * <p>Unlike {@link CloseableRegistry} this class can throw an exception during the close.
  *
  * <p>This class closes all registered {@link Closeable}s in the reverse registration order.
  */
+@ThreadSafe
 @Internal
-public class CloseableRegistry
-        extends AbstractAutoCloseableRegistry<Closeable, Closeable, Object, IOException>
-        implements Closeable {
+public class AutoCloseableRegistry
+        extends AbstractAutoCloseableRegistry<AutoCloseable, AutoCloseable, Object, Exception> {
 
     private static final Object DUMMY = new Object();
 
-    public CloseableRegistry() {
+    public AutoCloseableRegistry() {
         super(new LinkedHashMap<>());
     }
 
     @Override
     protected void doRegister(
-            @Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
+            @Nonnull AutoCloseable closeable, @Nonnull Map<AutoCloseable, Object> closeableMap) {
         closeableMap.put(closeable, DUMMY);
     }
 
     @Override
     protected boolean doUnRegister(
-            @Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
+            @Nonnull AutoCloseable closeable, @Nonnull Map<AutoCloseable, Object> closeableMap) {
         return closeableMap.remove(closeable) != null;
     }
 
-    /**
-     * This implementation doesn't imply any exception during closing due to backward compatibility.
-     */
+    /** This implementation implies that any exception is possible during closing. */
     @Override
-    public void doClose(Collection<Closeable> toClose) throws IOException {
-        List<AutoCloseable> reversed = new ArrayList<>(toClose);
+    protected void doClose(Collection<AutoCloseable> toClose) throws Exception {
+        ArrayList<AutoCloseable> reversed = new ArrayList<>(toClose);
         Collections.reverse(reversed);
-        IOUtils.closeAllQuietly(reversed);
+        IOUtils.closeAll(reversed);
     }
 }
