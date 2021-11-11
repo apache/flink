@@ -62,7 +62,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
     @Test
     public void testSharedStateDeRegistration() throws Exception {
 
-        SharedStateRegistry registry = spy(new SharedStateRegistry());
+        SharedStateRegistry registry = spy(new SharedStateRegistryImpl());
 
         // Create two state handles with overlapping shared state
         IncrementalRemoteKeyedStateHandle stateHandle1 = create(new Random(42));
@@ -191,7 +191,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
     @Test
     public void testSharedStateReRegistration() throws Exception {
 
-        SharedStateRegistry stateRegistryA = spy(new SharedStateRegistry());
+        SharedStateRegistry stateRegistryA = spy(new SharedStateRegistryImpl());
 
         IncrementalRemoteKeyedStateHandle stateHandleX = create(new Random(1));
         IncrementalRemoteKeyedStateHandle stateHandleY = create(new Random(2));
@@ -240,7 +240,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
         }
 
         // We re-register the handle with a new registry
-        SharedStateRegistry sharedStateRegistryB = spy(new SharedStateRegistry());
+        SharedStateRegistry sharedStateRegistryB = spy(new SharedStateRegistryImpl());
         stateHandleX.registerSharedStates(sharedStateRegistryB);
         stateHandleX.discardState();
 

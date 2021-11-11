@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
@@ -65,7 +66,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     /** Tests adding and getting a checkpoint. */
     @Test
     public void testAddAndGetLatestCheckpoint() throws Exception {
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(4);
 
         // Empty state
@@ -96,7 +97,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
      */
     @Test
     public void testAddCheckpointMoreThanMaxRetained() throws Exception {
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(1);
 
         TestCompletedCheckpoint[] expected =
@@ -144,7 +145,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     /** Tests that all added checkpoints are returned. */
     @Test
     public void testGetAllCheckpoints() throws Exception {
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(4);
 
         TestCompletedCheckpoint[] expected =
@@ -172,7 +173,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     /** Tests that all checkpoints are discarded (using the correct class loader). */
     @Test
     public void testDiscardAllCheckpoints() throws Exception {
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(4);
 
         TestCompletedCheckpoint[] expected =
@@ -205,7 +206,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 
     @Test
     public void testAcquireLatestCompletedCheckpointId() throws Exception {
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(1);
         assertEquals(0, checkpoints.getLatestCheckpointId());
 

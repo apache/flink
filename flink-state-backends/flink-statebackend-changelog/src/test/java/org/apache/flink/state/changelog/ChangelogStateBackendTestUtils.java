@@ -44,6 +44,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.TestTaskStateManager;
@@ -140,7 +141,7 @@ public class ChangelogStateBackendTestUtils {
     public static void testMaterializedRestore(
             StateBackend stateBackend, Environment env, CheckpointStreamFactory streamFactory)
             throws Exception {
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         TypeInformation<StateBackendTestBase.TestPojo> pojoType =
                 new GenericTypeInfo<>(StateBackendTestBase.TestPojo.class);
@@ -232,7 +233,7 @@ public class ChangelogStateBackendTestUtils {
     public static void testMaterializedRestoreForPriorityQueue(
             StateBackend stateBackend, Environment env, CheckpointStreamFactory streamFactory)
             throws Exception {
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         String fieldName = "key-grouped-priority-queue";
         ChangelogKeyedStateBackend<Integer> keyedBackend =
                 (ChangelogKeyedStateBackend<Integer>) createKeyedBackend(stateBackend, env);
