@@ -35,9 +35,12 @@ import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzCollapseModule } from 'ng-zorro-antd/collapse';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 
 @NgModule({
@@ -53,7 +56,10 @@ import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
     NzDividerModule,
     NzCollapseModule,
     NzEmptyModule,
+    NzIconModule,
+    NzSelectModule,
     NzSkeletonModule,
+    NzToolTipModule,
     NzAlertModule,
     NzPopconfirmModule
   ],

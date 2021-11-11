@@ -45,7 +45,7 @@
             <td class="select-td">
               <nz-select class="exception-select" [nzDisabled]="item.exceptions.length == 1" nzShowSearch [(ngModel)]="item.selected">
                 <nz-option *ngFor="let ex of item.exceptions;" nzCustomContent [nzLabel]="ex.taskName" [nzValue]="ex">
-                  <span nz-tooltip [nzTitle]="ex.taskName" nzMouseEnterDelay="0.5" nzPlacement="left">{{ ex.taskName  }}</span>
+                  <span nz-tooltip nzTooltipTitle="ex.taskName" nzTooltipMouseEnterDelay="0.5" nzTooltipPlacement="left">{{ ex.taskName  }}</span>
                 </nz-option>
               </nz-select>
             </td>
