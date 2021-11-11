@@ -185,3 +185,4 @@ jobs:
     e2e_pool_definition: ${{parameters.e2e_pool_definition}}
     environment: ${{parameters.environment}}
     jdk: ${{parameters.jdk}}
+    group: 1

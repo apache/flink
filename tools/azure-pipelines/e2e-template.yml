@@ -19,9 +19,10 @@ parameters:
   environment: # defines environment variables for downstream scripts
   run_end_to_end: # if set to 'true', the end to end tests will be executed
   jdk: # the jdk version to use
+  group: # the group of tests that should run
 
 jobs:
-- job: e2e_${{parameters.stage_name}}
+- job: e2e_${{parameters.group}}_${{parameters.stage_name}}
   # uncomment below condition to run the e2e tests only on request.
   #condition: or(eq(variables['MODE'], 'e2e'), eq(${{parameters.run_end_to_end}}, 'true'))
   # We are running this in a separate pool
@@ -53,22 +54,22 @@ jobs:
       condition: not(eq(variables['SKIP'], '1'))
     - task: Cache@2
       inputs:
-        key: e2e-cache | flink-end-to-end-tests/**/*.java, !**/avro/**
+        key: e2e-cache-${{parameters.group}} | flink-end-to-end-tests/**/*.java, !**/avro/**
         path: $(E2E_CACHE_FOLDER)
       displayName: Cache E2E files
       continueOnError: true
       condition: not(eq(variables['SKIP'], '1'))
     - task: Cache@2
       inputs:
-        key: e2e-artifact-cache | flink-end-to-end-tests/**/*.sh
-        restoreKeys: e2e-artifact-cache
+        key: e2e-artifact-cache-${{parameters.group}} | flink-end-to-end-tests/**/*.sh
+        restoreKeys: e2e-artifact-cache-${{parameters.group}}
         path: $(E2E_TARBALL_CACHE)
       displayName: Cache E2E artifacts
       continueOnError: true
       condition: not(eq(variables['SKIP'], '1'))
     - task: Cache@2
       inputs:
-        key: 'e2e | $(DOCKER_IMAGES_CACHE_KEY)'
+        key: 'e2e-${{parameters.group}} | $(DOCKER_IMAGES_CACHE_KEY)'
         path: $(DOCKER_IMAGES_CACHE_FOLDER)
         cacheHitVar: DOCKER_IMAGES_CACHE_HIT
       continueOnError: true
@@ -100,7 +101,7 @@ jobs:
     - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh e2e
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh ${{parameters.group}}
       displayName: Run e2e tests
       env:
         IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
