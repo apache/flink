@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.util.Preconditions;
 
 /**
  * This registry manages state that is shared across (incremental) checkpoints, and is responsible
@@ -43,11 +42,8 @@ public interface SharedStateRegistry extends AutoCloseable {
             };
 
     /**
-     * Register a reference to the given shared state in the registry. This does the following: We
-     * check if the state handle is actually new by the registrationKey. If it is new, we register
-     * it with a reference count of 1. If there is already a state handle registered under the given
-     * key, we dispose the given "new" state handle, uptick the reference count of the previously
-     * existing state handle and return it as a replacement with the result.
+     * Register a reference to the given shared state in the registry. If there is already a state
+     * handle registered under the given key, the "new" state handle is disposed .
      *
      * <p>IMPORTANT: caller should check the state handle returned by the result, because the
      * registry is performing de-duplication and could potentially return a handle that is supposed
@@ -58,19 +54,14 @@ public interface SharedStateRegistry extends AutoCloseable {
      * @return the result of this registration request, consisting of the state handle that is
      *     registered under the key by the end of the operation and its current reference count.
      */
-    Result registerReference(
+    StreamStateHandle registerReference(
             SharedStateRegistryKey registrationKey, StreamStateHandle state, long checkpointID);
-
     /**
-     * Releases one reference to the given shared state in the registry. This decreases the
-     * reference count by one. Once the count reaches zero, the shared state is deleted.
+     * Unregister state that is not referenced by the given checkpoint ID or any newer.
      *
-     * @param registrationKey the shared state for which we release a reference.
-     * @return the result of the request, consisting of the reference count after this operation and
-     *     the state handle, or null if the state handle was deleted through this request. Returns
-     *     null if the registry was previously closed.
+     * @param lowestCheckpointID which is still valid
      */
-    SharedStateRegistry.Result unregisterReference(SharedStateRegistryKey registrationKey);
+    void unregisterUnusedState(long lowestCheckpointID);
 
     /**
      * Register given shared states in the registry.
@@ -79,80 +70,4 @@ public interface SharedStateRegistry extends AutoCloseable {
      * @param checkpointID which uses the states.
      */
     void registerAll(Iterable<? extends CompositeStateHandle> stateHandles, long checkpointID);
-
-    /** An entry in the registry, tracking the handle and the corresponding reference count. */
-    class SharedStateEntry {
-
-        /** The shared state handle */
-        public final StreamStateHandle stateHandle;
-
-        /** The current reference count of the state handle */
-        private int referenceCount;
-
-        public SharedStateEntry(StreamStateHandle value) {
-            this.stateHandle = value;
-            this.referenceCount = 1;
-        }
-
-        public StreamStateHandle getStateHandle() {
-            return stateHandle;
-        }
-
-        public int getReferenceCount() {
-            return referenceCount;
-        }
-
-        public void increaseReferenceCount() {
-            ++referenceCount;
-        }
-
-        public void decreaseReferenceCount() {
-            --referenceCount;
-        }
-
-        @Override
-        public String toString() {
-            return "SharedStateEntry{"
-                    + "stateHandle="
-                    + stateHandle
-                    + ", referenceCount="
-                    + referenceCount
-                    + '}';
-        }
-    }
-
-    /** The result of an attempt to (un)/reference state */
-    class Result {
-
-        /** The (un)registered state handle from the request */
-        private final StreamStateHandle reference;
-
-        /** The reference count to the state handle after the request to (un)register */
-        private final int referenceCount;
-
-        public Result(SharedStateEntry sharedStateEntry) {
-            this.reference = sharedStateEntry.getStateHandle();
-            this.referenceCount = sharedStateEntry.getReferenceCount();
-        }
-
-        public Result(StreamStateHandle reference, int referenceCount) {
-            Preconditions.checkArgument(referenceCount >= 0);
-
-            this.reference = reference;
-            this.referenceCount = referenceCount;
-        }
-
-        public StreamStateHandle getReference() {
-            return reference;
-        }
-
-        public int getReferenceCount() {
-            return referenceCount;
-        }
-
-        @Override
-        public String toString() {
-            return "Result{" + "reference=" + reference + '}';
-        }
-    }
 }

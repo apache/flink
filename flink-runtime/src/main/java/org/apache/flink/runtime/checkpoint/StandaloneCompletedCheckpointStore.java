@@ -97,11 +97,16 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
 
         checkpoints.addLast(checkpoint);
 
-        return CheckpointSubsumeHelper.subsume(
-                        checkpoints,
-                        maxNumberOfCheckpointsToRetain,
-                        CompletedCheckpoint::discardOnSubsume)
-                .orElse(null);
+        CompletedCheckpoint completedCheckpoint =
+                CheckpointSubsumeHelper.subsume(
+                                checkpoints,
+                                maxNumberOfCheckpointsToRetain,
+                                CompletedCheckpoint::discardOnSubsume)
+                        .orElse(null);
+
+        unregisterUnusedState(checkpoints);
+
+        return completedCheckpoint;
     }
 
     @Override

@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.util.Optional;
 
 import static junit.framework.TestCase.assertFalse;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class SharedStateRegistryTest {
@@ -39,11 +38,10 @@ public class SharedStateRegistryTest {
 
         // register one state
         TestSharedState firstState = new TestSharedState("first");
-        SharedStateRegistry.Result result =
+        StreamStateHandle result =
                 sharedStateRegistry.registerReference(
                         firstState.getRegistrationKey(), firstState, 0L);
-        assertEquals(1, result.getReferenceCount());
-        assertTrue(firstState == result.getReference());
+        assertTrue(firstState == result);
         assertFalse(firstState.isDiscarded());
 
         // register another state
@@ -51,8 +49,7 @@ public class SharedStateRegistryTest {
         result =
                 sharedStateRegistry.registerReference(
                         secondState.getRegistrationKey(), secondState, 0L);
-        assertEquals(1, result.getReferenceCount());
-        assertTrue(secondState == result.getReference());
+        assertTrue(secondState == result);
         assertFalse(firstState.isDiscarded());
         assertFalse(secondState.isDiscarded());
 
@@ -62,9 +59,8 @@ public class SharedStateRegistryTest {
         result =
                 sharedStateRegistry.registerReference(
                         firstState.getRegistrationKey(), firstStatePrime, 0L);
-        assertEquals(2, result.getReferenceCount());
-        assertFalse(firstStatePrime == result.getReference());
-        assertTrue(firstState == result.getReference());
+        assertFalse(firstStatePrime == result);
+        assertTrue(firstState == result);
         assertTrue(firstStatePrime.isDiscarded());
         assertFalse(firstState.isDiscarded());
 
@@ -72,28 +68,20 @@ public class SharedStateRegistryTest {
         result =
                 sharedStateRegistry.registerReference(
                         firstState.getRegistrationKey(), firstState, 0L);
-        assertEquals(3, result.getReferenceCount());
-        assertTrue(firstState == result.getReference());
+        assertTrue(firstState == result);
         assertFalse(firstState.isDiscarded());
 
-        // unregister the second state
-        result = sharedStateRegistry.unregisterReference(secondState.getRegistrationKey());
-        assertEquals(0, result.getReferenceCount());
-        assertTrue(result.getReference() == null);
+        sharedStateRegistry.unregisterUnusedState(1L);
         assertTrue(secondState.isDiscarded());
-
-        // unregister the first state
-        result = sharedStateRegistry.unregisterReference(firstState.getRegistrationKey());
-        assertEquals(2, result.getReferenceCount());
-        assertTrue(firstState == result.getReference());
-        assertFalse(firstState.isDiscarded());
+        assertTrue(firstState.isDiscarded());
     }
 
-    /** Validate that unregister a nonexistent key will throw exception */
-    @Test(expected = IllegalStateException.class)
+    /** Validate that unregister a nonexistent checkpoint will not throw exception */
+    @Test
     public void testUnregisterWithUnexistedKey() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
-        sharedStateRegistry.unregisterReference(new SharedStateRegistryKey("non-existent"));
+        sharedStateRegistry.unregisterUnusedState(-1);
+        sharedStateRegistry.unregisterUnusedState(Long.MAX_VALUE);
     }
 
     private static class TestSharedState implements StreamStateHandle {

@@ -147,6 +147,7 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
                                         completedCheckpoint.shouldBeDiscardedOnSubsume(),
                                         checkpointsCleaner,
                                         postCleanup));
+        unregisterUnusedState(completedCheckpoints);
 
         if (subsume.isPresent()) {
             LOG.debug("Added {} to {} without any older checkpoint to subsume.", checkpoint, path);

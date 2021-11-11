@@ -58,6 +58,7 @@ import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -111,6 +112,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION;
@@ -131,6 +133,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -142,6 +145,49 @@ import static org.mockito.Mockito.when;
 
 /** Tests for the checkpoint coordinator. */
 public class CheckpointCoordinatorTest extends TestLogger {
+
+    @Test
+    public void testSharedStateNotDiscaredOnAbort() throws Exception {
+        JobVertexID v1 = new JobVertexID(), v2 = new JobVertexID();
+
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(v1)
+                        .addJobVertex(v2)
+                        .build();
+
+        CheckpointCoordinator coordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setExecutionGraph(graph)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build();
+        coordinator.startCheckpointScheduler();
+
+        CompletableFuture<CompletedCheckpoint> cpFuture = coordinator.triggerCheckpoint(true);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        cpFuture.getNow(null);
+
+        TestingStreamStateHandle metaState = handle();
+        TestingStreamStateHandle privateState = handle();
+        TestingStreamStateHandle sharedState = handle();
+
+        ackCheckpoint(1L, coordinator, v1, graph, metaState, privateState, sharedState);
+        declineCheckpoint(1L, coordinator, v2, graph);
+
+        assertTrue(privateState.isDisposed());
+        assertTrue(metaState.isDisposed());
+        assertFalse(sharedState.isDisposed());
+
+        cpFuture = coordinator.triggerCheckpoint(true);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        cpFuture.getNow(null);
+
+        ackCheckpoint(2L, coordinator, v1, graph, handle(), handle(), handle());
+        ackCheckpoint(2L, coordinator, v2, graph, handle(), handle(), handle());
+
+        cpFuture.get();
+        assertTrue(sharedState.isDisposed());
+    }
 
     @Test
     public void testAbortedCheckpointStatsUpdatedAfterFailure() throws Exception {
@@ -2934,27 +2980,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // we expect that all shared state from CP0 is no longer referenced and discarded. CP2 is
         // still live and also
         // references the state from CP1, so we expect they are not discarded.
-        for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
-            for (Map.Entry<StateHandleID, StreamStateHandle> entry : cpList.entrySet()) {
-                String key = entry.getKey().getKeyString();
-                int belongToCP = Integer.parseInt(String.valueOf(key.charAt(key.length() - 1)));
-                if (belongToCP == 0) {
-                    verify(entry.getValue(), times(1)).discardState();
-                } else {
-                    verify(entry.getValue(), never()).discardState();
-                }
-            }
-        }
+        verifyDiscard(sharedHandlesByCheckpoint, cpId -> cpId == 0 ? times(1) : never());
 
         // discard CP2
         secondStore.removeOldestCheckpoint();
 
-        // we expect all shared state was discarded now, because all CPs are
-        for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
-            for (StreamStateHandle streamStateHandle : cpList.values()) {
-                verify(streamStateHandle, times(1)).discardState();
-            }
-        }
+        // still expect shared state not to be discarded because it may be used in later checkpoints
+        verifyDiscard(sharedHandlesByCheckpoint, cpId -> cpId == 1 ? never() : atLeast(0));
     }
 
     @Test
@@ -3864,5 +3896,77 @@ public class CheckpointCoordinatorTest extends TestLogger {
         public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
             throw new UnsupportedOperationException();
         }
+    }
+
+    private static void verifyDiscard(
+            List<Map<StateHandleID, StreamStateHandle>> sharedHandlesByCheckpoint1,
+            Function<Integer, VerificationMode> checkpointVerify)
+            throws Exception {
+        for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint1) {
+            for (Map.Entry<StateHandleID, StreamStateHandle> entry : cpList.entrySet()) {
+                String key = entry.getKey().getKeyString();
+                int checkpointID = Integer.parseInt(String.valueOf(key.charAt(key.length() - 1)));
+                VerificationMode verificationMode = checkpointVerify.apply(checkpointID);
+                verify(entry.getValue(), verificationMode).discardState();
+            }
+        }
+    }
+
+    private TestingStreamStateHandle handle() {
+        return new TestingStreamStateHandle();
+    }
+
+    private void declineCheckpoint(
+            long checkpointId,
+            CheckpointCoordinator coordinator,
+            JobVertexID nackVertexID,
+            ExecutionGraph graph) {
+        coordinator.receiveDeclineMessage(
+                new DeclineCheckpoint(
+                        graph.getJobID(),
+                        graph.getJobVertex(nackVertexID)
+                                .getTaskVertices()[0]
+                                .getCurrentExecutionAttempt()
+                                .getAttemptId(),
+                        checkpointId,
+                        new CheckpointException(CHECKPOINT_DECLINED)),
+                "test");
+    }
+
+    private void ackCheckpoint(
+            long checkpointId,
+            CheckpointCoordinator coordinator,
+            JobVertexID ackVertexID,
+            ExecutionGraph graph,
+            TestingStreamStateHandle metaState,
+            TestingStreamStateHandle privateState,
+            TestingStreamStateHandle sharedState)
+            throws CheckpointException {
+        Map<StateHandleID, StreamStateHandle> sharedStateMap =
+                new HashMap<>(singletonMap(new StateHandleID("shared-state-key"), sharedState));
+        Map<StateHandleID, StreamStateHandle> privateStateMap =
+                new HashMap<>(singletonMap(new StateHandleID("private-state-key"), privateState));
+        ExecutionJobVertex jobVertex = graph.getJobVertex(ackVertexID);
+        OperatorID operatorID = jobVertex.getOperatorIDs().get(0).getGeneratedOperatorID();
+        coordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(
+                        graph.getJobID(),
+                        jobVertex.getTaskVertices()[0].getCurrentExecutionAttempt().getAttemptId(),
+                        checkpointId,
+                        new CheckpointMetrics(),
+                        new TaskStateSnapshot(
+                                singletonMap(
+                                        operatorID,
+                                        OperatorSubtaskState.builder()
+                                                .setManagedKeyedState(
+                                                        new IncrementalRemoteKeyedStateHandle(
+                                                                UUID.randomUUID(),
+                                                                KeyGroupRange.of(0, 9),
+                                                                checkpointId,
+                                                                sharedStateMap,
+                                                                privateStateMap,
+                                                                metaState))
+                                                .build()))),
+                "test");
     }
 }
