@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.StateHandleID;
@@ -558,7 +559,7 @@ public class EmbeddedRocksDBStateBackendTest
                                 VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
                 Queue<IncrementalRemoteKeyedStateHandle> previousStateHandles = new LinkedList<>();
-                SharedStateRegistry sharedStateRegistry = spy(new SharedStateRegistry());
+                SharedStateRegistry sharedStateRegistry = spy(new SharedStateRegistryImpl());
                 for (int checkpointId = 0; checkpointId < 3; ++checkpointId) {
 
                     reset(sharedStateRegistry);

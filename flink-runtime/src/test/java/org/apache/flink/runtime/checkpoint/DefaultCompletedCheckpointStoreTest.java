@@ -27,6 +27,7 @@ import org.apache.flink.runtime.persistence.TestingRetrievableStateStorageHelper
 import org.apache.flink.runtime.persistence.TestingStateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -200,7 +201,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
 
         final long ckpId = 100L;
         final CompletedCheckpoint ckp =
-                CompletedCheckpointStoreTest.createCheckpoint(ckpId, new SharedStateRegistry());
+                CompletedCheckpointStoreTest.createCheckpoint(ckpId, new SharedStateRegistryImpl());
         completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 ckp, new CheckpointsCleaner(), () -> {});
 
@@ -233,7 +234,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
 
         final long ckpId = 100L;
         final CompletedCheckpoint ckp =
-                CompletedCheckpointStoreTest.createCheckpoint(ckpId, new SharedStateRegistry());
+                CompletedCheckpointStoreTest.createCheckpoint(ckpId, new SharedStateRegistryImpl());
 
         try {
             completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
@@ -319,7 +320,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                     () ->
                             completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                                     CompletedCheckpointStoreTest.createCheckpoint(
-                                            0L, new SharedStateRegistry()),
+                                            0L, new SharedStateRegistryImpl()),
                                     checkpointsCleaner,
                                     () -> {
                                         // No-op.
@@ -333,7 +334,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                 new ArrayList<>();
         for (int i = 1; i <= num; i++) {
             final CompletedCheckpointStoreTest.TestCompletedCheckpoint completedCheckpoint =
-                    CompletedCheckpointStoreTest.createCheckpoint(i, new SharedStateRegistry());
+                    CompletedCheckpointStoreTest.createCheckpoint(i, new SharedStateRegistryImpl());
             final RetrievableStateHandle<CompletedCheckpoint> checkpointStateHandle =
                     checkpointStorageHelper.store(completedCheckpoint);
             stateHandles.add(new Tuple2<>(checkpointStateHandle, String.valueOf(i)));
