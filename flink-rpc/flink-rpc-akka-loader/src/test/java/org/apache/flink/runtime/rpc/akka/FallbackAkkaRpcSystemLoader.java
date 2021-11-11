@@ -21,6 +21,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.classloading.SubmoduleClassLoader;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcSystemLoader;
+import org.apache.flink.runtime.rpc.exceptions.RpcLoaderException;
 import org.apache.flink.util.OperatingSystem;
 
 import org.slf4j.Logger;
@@ -46,6 +47,9 @@ import java.util.stream.Stream;
 public class FallbackAkkaRpcSystemLoader implements RpcSystemLoader {
     private static final Logger LOG = LoggerFactory.getLogger(FallbackAkkaRpcSystemLoader.class);
 
+    private static final String MODULE_FLINK_RPC = "flink-rpc";
+    private static final String MODULE_FLINK_RPC_AKKA = "flink-rpc-akka";
+
     @Override
     public RpcSystem loadRpcSystem(Configuration config) {
         try {
@@ -67,7 +71,13 @@ public class FallbackAkkaRpcSystemLoader implements RpcSystemLoader {
                     akkaRpcModuleDirectory.resolve(Paths.get("target", "dependencies"));
 
             if (!Files.exists(akkaRpcModuleDependenciesDirectory)) {
-                downloadDependencies(akkaRpcModuleDirectory, akkaRpcModuleDependenciesDirectory);
+                int exitCode =
+                        downloadDependencies(
+                                akkaRpcModuleDirectory, akkaRpcModuleDependenciesDirectory);
+                if (exitCode != 0) {
+                    throw new RpcLoaderException(
+                            "Could not download dependencies of flink-rpc-akka, please see the log output for details.");
+                }
             } else {
                 LOG.debug(
                         "Re-using previously downloaded flink-rpc-akka dependencies. If you are experiencing strange issues, try clearing '{}'.",
@@ -95,8 +105,10 @@ public class FallbackAkkaRpcSystemLoader implements RpcSystemLoader {
                     submoduleClassLoader,
                     null);
         } catch (Exception e) {
-            throw new RuntimeException(
-                    "Could not initialize RPC system. Run 'mvn package -pl flink-rpc/flink-rpc-akka,flink-rpc/flink-rpc-akka-loader' on the command-line.",
+            throw new RpcLoaderException(
+                    String.format(
+                            "Could not initialize RPC system. Run '%s' on the command-line instead.",
+                            AkkaRpcSystemLoader.HINT_USAGE),
                     e);
         }
     }
@@ -109,18 +121,18 @@ public class FallbackAkkaRpcSystemLoader implements RpcSystemLoader {
         try (Stream<Path> directoryContents = Files.list(currentParentCandidate)) {
             final Optional<Path> flinkRpcModuleDirectory =
                     directoryContents
-                            .filter(path -> path.getFileName().toString().equals("flink-rpc"))
+                            .filter(path -> path.getFileName().toString().equals(MODULE_FLINK_RPC))
                             .findFirst();
             if (flinkRpcModuleDirectory.isPresent()) {
                 return flinkRpcModuleDirectory
-                        .map(path -> path.resolve(Paths.get("flink-rpc-akka")))
+                        .map(path -> path.resolve(Paths.get(MODULE_FLINK_RPC_AKKA)))
                         .get();
             }
         }
         return findAkkaRpcModuleDirectory(currentParentCandidate.getParent());
     }
 
-    private static void downloadDependencies(Path workingDirectory, Path targetDirectory)
+    private static int downloadDependencies(Path workingDirectory, Path targetDirectory)
             throws IOException, InterruptedException {
 
         final String mvnExecutable = OperatingSystem.isWindows() ? "mvn.bat" : "mvn";
@@ -134,6 +146,6 @@ public class FallbackAkkaRpcSystemLoader implements RpcSystemLoader {
                                 "-DincludeScope=runtime", // excludes provided/test dependencies
                                 "-DoutputDirectory=" + targetDirectory)
                         .redirectOutput(ProcessBuilder.Redirect.INHERIT);
-        mvn.start().waitFor();
+        return mvn.start().waitFor();
     }
 }

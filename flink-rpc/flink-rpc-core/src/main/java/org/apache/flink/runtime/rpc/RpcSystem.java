@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.rpc.exceptions.RpcLoaderException;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
@@ -102,7 +103,7 @@ public interface RpcSystem extends RpcSystemUtils, AutoCloseable {
                 loadError = ExceptionUtils.firstOrSuppressed(e, loadError);
             }
         }
-        throw new RuntimeException("Could not load RpcSystem.", loadError);
+        throw new RpcLoaderException("Could not load RpcSystem.", loadError);
     }
 
     /** Descriptor for creating a fork-join thread-pool. */
