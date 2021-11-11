@@ -126,6 +126,21 @@ The following connector metadata can be accessed as metadata columns in a table 
       <td><code>STRING NOT NULL</code></td>
       <td>Full path of the input file.</td>
     </tr>
+    <tr>
+      <td><code>filename</code></td>
+      <td><code>STRING NOT NULL</code></td>
+      <td>Name of the file, that is the farthest element from the root of the filepath.</td>
+    </tr>
+    <tr>
+      <td><code>size</code></td>
+      <td><code>BIGINT NOT NULL</code></td>
+      <td>Size of the file.</td>
+    </tr>
+    <tr>
+      <td><code>modification_time</code></td>
+      <td><code>TIMESTAMP_LTZ(3) NOT NULL</code></td>
+      <td>Modification time of the file.</td>
+    </tr>
     </tbody>
 </table>
 
