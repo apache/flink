@@ -127,7 +127,8 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
         return producedType;
     }
 
-    private Reader<RowData> wrapReader(Reader<RowData> superReader, FileSourceSplit split) {
+    private Reader<RowData> wrapReader(Reader<RowData> superReader, FileSourceSplit split)
+            throws IOException {
         // Fill the metadata + partition columns row
         final GenericRowData fileInfoRowData =
                 new GenericRowData(metadataColumnsFunctions.size() + partitionColumnTypes.size());

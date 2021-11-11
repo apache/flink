@@ -46,18 +46,24 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -426,7 +432,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
          * Access the information from the {@link org.apache.flink.core.fs.FileInputSplit}. The
          * return value type must be an internal type.
          */
-        Object getValue(FileSourceSplit split);
+        Object getValue(FileSourceSplit split) throws IOException;
     }
 
     enum ReadableFileInfo implements Serializable {
@@ -439,6 +445,48 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     @Override
                     public Object getValue(FileSourceSplit split) {
                         return StringData.fromString(split.path().getPath());
+                    }
+                }),
+        FILENAME(
+                "filename",
+                DataTypes.STRING().notNull(),
+                new FileInfoAccessor() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public Object getValue(FileSourceSplit split) {
+                        return StringData.fromString(
+                                Paths.get(split.path().getPath()).getFileName().toString());
+                    }
+                }),
+        SIZE(
+                "size",
+                DataTypes.BIGINT().notNull(),
+                new FileInfoAccessor() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public Object getValue(FileSourceSplit split) throws IOException {
+                        return split.path().getFileSystem().getFileStatus(split.path()).getLen();
+                    }
+                }),
+        MODIFICATION_TIME(
+                "modification_time",
+                DataTypes.TIMESTAMP_LTZ(3).notNull(),
+                new FileInfoAccessor() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public Object getValue(FileSourceSplit split) throws IOException {
+                        long nanos =
+                                split.path()
+                                        .getFileSystem()
+                                        .getFileStatus(split.path())
+                                        .getModificationTime();
+                        return TimestampData.fromLocalDateTime(
+                                LocalDateTime.ofInstant(
+                                        Instant.ofEpochMilli(nanos),
+                                        DateTimeUtils.UTC_ZONE.toZoneId()));
                     }
                 });
 
