@@ -38,6 +38,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -223,11 +224,16 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 
     public static TestCompletedCheckpoint createCheckpoint(
             long id, SharedStateRegistry sharedStateRegistry) {
+        return createCheckpoint(
+                id,
+                sharedStateRegistry,
+                CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION));
+    }
+
+    public static TestCompletedCheckpoint createCheckpoint(
+            long id, SharedStateRegistry sharedStateRegistry, CheckpointProperties props) {
 
         int numberOfStates = 4;
-        CheckpointProperties props =
-                CheckpointProperties.forCheckpoint(
-                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION);
 
         OperatorID operatorID = new OperatorID();
 
