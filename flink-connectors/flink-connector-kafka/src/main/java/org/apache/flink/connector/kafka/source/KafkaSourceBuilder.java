@@ -28,6 +28,7 @@ import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscr
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
@@ -103,7 +105,6 @@ public class KafkaSourceBuilder<OUT> {
 
     KafkaSourceBuilder() {
         this.subscriber = null;
-        this.startingOffsetsInitializer = OffsetsInitializer.earliest();
         this.stoppingOffsetsInitializer = new NoStoppingOffsetsInitializer();
         this.boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
         this.deserializationSchema = null;
@@ -353,9 +354,6 @@ public class KafkaSourceBuilder<OUT> {
      * <ul>
      *   <li><code>key.deserializer</code> is always set to {@link ByteArrayDeserializer}.
      *   <li><code>value.deserializer</code> is always set to {@link ByteArrayDeserializer}.
-     *   <li><code>auto.offset.reset.strategy</code> is overridden by {@link
-     *       OffsetsInitializer#getAutoOffsetResetStrategy()} for the starting offsets, which is by
-     *       default {@link OffsetsInitializer#earliest()}.
      *   <li><code>partition.discovery.interval.ms</code> is overridden to -1 when {@link
      *       #setBounded(OffsetsInitializer)} has been invoked.
      * </ul>
@@ -379,9 +377,6 @@ public class KafkaSourceBuilder<OUT> {
      * <ul>
      *   <li><code>key.deserializer</code> is always set to {@link ByteArrayDeserializer}.
      *   <li><code>value.deserializer</code> is always set to {@link ByteArrayDeserializer}.
-     *   <li><code>auto.offset.reset.strategy</code> is overridden by {@link
-     *       OffsetsInitializer#getAutoOffsetResetStrategy()} for the starting offsets, which is by
-     *       default {@link OffsetsInitializer#earliest()}.
      *   <li><code>partition.discovery.interval.ms</code> is overridden to -1 when {@link
      *       #setBounded(OffsetsInitializer)} has been invoked.
      *   <li><code>client.id</code> is overridden to the "client.id.prefix-RANDOM_LONG", or
@@ -393,6 +388,30 @@ public class KafkaSourceBuilder<OUT> {
      */
     public KafkaSourceBuilder<OUT> setProperties(Properties props) {
         this.props.putAll(props);
+        return this;
+    }
+
+    /**
+     * Set arbitrary properties for the KafkaSource and KafkaConsumer. The valid keys can be found
+     * in {@link ConsumerConfig} and {@link KafkaSourceOptions}.
+     *
+     * <p>Note that the following keys will be overridden by the builder when the KafkaSource is
+     * created.
+     *
+     * <ul>
+     *   <li><code>key.deserializer</code> is always set to {@link ByteArrayDeserializer}.
+     *   <li><code>value.deserializer</code> is always set to {@link ByteArrayDeserializer}.
+     *   <li><code>partition.discovery.interval.ms</code> is overridden to -1 when {@link
+     *       #setBounded(OffsetsInitializer)} has been invoked.
+     *   <li><code>client.id</code> is overridden to the "client.id.prefix-RANDOM_LONG", or
+     *       "group.id-RANDOM_LONG" if the client id prefix is not set.
+     * </ul>
+     *
+     * @param settings the properties to set for the KafkaSource.
+     * @return this KafkaSourceBuilder.
+     */
+    public KafkaSourceBuilder<OUT> setProperties(Map<String, String> settings) {
+        this.props.putAll(settings);
         return this;
     }
 
@@ -440,9 +459,13 @@ public class KafkaSourceBuilder<OUT> {
             maybeOverride(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT.key(), "false", false);
         }
         maybeOverride(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false", false);
+
         maybeOverride(
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
-                startingOffsetsInitializer.getAutoOffsetResetStrategy().name().toLowerCase(),
+                startingOffsetsInitializer
+                        .getAutoOffsetResetStrategy()
+                        .name()
+                        .toLowerCase(Locale.ROOT),
                 true);
 
         // If the source is bounded, do not run periodic partition discovery.
@@ -465,7 +488,7 @@ public class KafkaSourceBuilder<OUT> {
         boolean overridden = false;
         String userValue = props.getProperty(key);
         if (userValue != null) {
-            if (override) {
+            if (override && !userValue.equals(value)) {
                 LOG.warn(
                         String.format(
                                 "Property %s is provided but will be overridden from %s to %s",
@@ -499,6 +522,29 @@ public class KafkaSourceBuilder<OUT> {
                         "Property %s is required when offset commit is enabled",
                         ConsumerConfig.GROUP_ID_CONFIG));
         // Check offsets initializers
+        if (startingOffsetsInitializer == null) {
+            if (props.get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG) != null) {
+                startingOffsetsInitializer =
+                        OffsetsInitializer.committedOffsets(
+                                OffsetResetStrategy.valueOf(
+                                        ((String)
+                                                        props.get(
+                                                                ConsumerConfig
+                                                                        .AUTO_OFFSET_RESET_CONFIG))
+                                                .toUpperCase(Locale.ROOT)));
+            } else {
+                // The default behavior of auto.offset.reset in kafkaConsumer is latest,
+                // FYI:https://kafka.apache.org/documentation/#consumerconfigs_auto.offset.reset
+                LOG.warn(
+                        String.format(
+                                "Property %s is not provided, will use %s by default!",
+                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                                OffsetResetStrategy.LATEST.name().toUpperCase(Locale.ROOT)));
+
+                startingOffsetsInitializer = OffsetsInitializer.latest();
+            }
+        }
+
         if (startingOffsetsInitializer instanceof OffsetsInitializerValidator) {
             ((OffsetsInitializerValidator) startingOffsetsInitializer).validate(props);
         }
