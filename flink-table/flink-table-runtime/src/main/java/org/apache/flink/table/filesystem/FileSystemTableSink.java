@@ -34,6 +34,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
@@ -235,6 +236,18 @@ public class FileSystemTableSink extends AbstractFileSystemTable
 
         DataStream<PartitionCommitInfo> writerStream;
         if (autoCompaction) {
+
+            if (dataStream
+                    .getExecutionEnvironment()
+                    .getCheckpointConfig()
+                    .getCheckpointingMode()
+                    .equals(CheckpointingMode.AT_LEAST_ONCE)) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Currently, filesystem sink doesn't support %s mode",
+                                CheckpointingMode.AT_LEAST_ONCE.name()));
+            }
+
             long compactionSize =
                     tableOptions
                             .getOptional(FileSystemConnectorOptions.COMPACTION_FILE_SIZE)
