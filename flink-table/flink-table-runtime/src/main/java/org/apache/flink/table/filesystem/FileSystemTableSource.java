@@ -59,7 +59,6 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.Paths;
 import java.time.Instant;
@@ -432,7 +431,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
          * Access the information from the {@link org.apache.flink.core.fs.FileInputSplit}. The
          * return value type must be an internal type.
          */
-        Object getValue(FileSourceSplit split) throws IOException;
+        Object getValue(FileSourceSplit split);
     }
 
     enum ReadableFileInfo implements Serializable {
@@ -466,8 +465,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     private static final long serialVersionUID = 1L;
 
                     @Override
-                    public Object getValue(FileSourceSplit split) throws IOException {
-                        return split.path().getFileSystem().getFileStatus(split.path()).getLen();
+                    public Object getValue(FileSourceSplit split) {
+                        return split.fileSize();
                     }
                 }),
         MODIFICATION_TIME(
@@ -477,12 +476,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     private static final long serialVersionUID = 1L;
 
                     @Override
-                    public Object getValue(FileSourceSplit split) throws IOException {
-                        long nanos =
-                                split.path()
-                                        .getFileSystem()
-                                        .getFileStatus(split.path())
-                                        .getModificationTime();
+                    public Object getValue(FileSourceSplit split) {
+                        long nanos = split.modificationTime();
                         return TimestampData.fromLocalDateTime(
                                 LocalDateTime.ofInstant(
                                         Instant.ofEpochMilli(nanos),
