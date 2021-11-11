@@ -112,6 +112,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
@@ -1113,14 +1114,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         OperatorID opID1 = vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
         OperatorID opID2 = vertex2.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
-        TaskStateSnapshot taskOperatorSubtaskStates1 = mock(TaskStateSnapshot.class);
-        TaskStateSnapshot taskOperatorSubtaskStates2 = mock(TaskStateSnapshot.class);
         OperatorSubtaskState subtaskState1 = mock(OperatorSubtaskState.class);
         OperatorSubtaskState subtaskState2 = mock(OperatorSubtaskState.class);
-        when(taskOperatorSubtaskStates1.getSubtaskStateByOperatorID(opID1))
-                .thenReturn(subtaskState1);
-        when(taskOperatorSubtaskStates2.getSubtaskStateByOperatorID(opID2))
-                .thenReturn(subtaskState2);
+        TaskStateSnapshot taskOperatorSubtaskStates1 =
+                new TaskStateSnapshot(singletonMap(opID1, subtaskState1));
+        TaskStateSnapshot taskOperatorSubtaskStates2 =
+                new TaskStateSnapshot(singletonMap(opID2, subtaskState2));
 
         // acknowledge from one of the tasks
         AcknowledgeCheckpoint acknowledgeCheckpoint1 =
@@ -1136,7 +1135,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         assertEquals(1, checkpoint.getNumberOfNonAcknowledgedTasks());
         assertFalse(checkpoint.isDisposed());
         assertFalse(checkpoint.areTasksFullyAcknowledged());
-        verify(taskOperatorSubtaskStates2, never())
+        verify(subtaskState2, times(1))
                 .registerSharedStates(any(SharedStateRegistry.class), eq(checkpointId));
 
         // acknowledge the same task again (should not matter)
@@ -1144,7 +1143,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 acknowledgeCheckpoint1, TASK_MANAGER_LOCATION_INFO);
         assertFalse(checkpoint.isDisposed());
         assertFalse(checkpoint.areTasksFullyAcknowledged());
-        verify(subtaskState2, never())
+        verify(subtaskState2, times(2))
                 .registerSharedStates(any(SharedStateRegistry.class), eq(checkpointId));
 
         // acknowledge the other task.
@@ -1172,7 +1171,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         {
             verify(subtaskState1, times(1))
                     .registerSharedStates(any(SharedStateRegistry.class), eq(checkpointId));
-            verify(subtaskState2, times(1))
+            verify(subtaskState2, times(2))
                     .registerSharedStates(any(SharedStateRegistry.class), eq(checkpointId));
         }
 
@@ -1974,14 +1973,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         OperatorID opID1 = OperatorID.fromJobVertexID(vertex1.getJobvertexId());
         OperatorID opID2 = OperatorID.fromJobVertexID(vertex2.getJobvertexId());
-        TaskStateSnapshot taskOperatorSubtaskStates1 = mock(TaskStateSnapshot.class);
-        TaskStateSnapshot taskOperatorSubtaskStates2 = mock(TaskStateSnapshot.class);
         OperatorSubtaskState subtaskState1 = mock(OperatorSubtaskState.class);
         OperatorSubtaskState subtaskState2 = mock(OperatorSubtaskState.class);
-        when(taskOperatorSubtaskStates1.getSubtaskStateByOperatorID(opID1))
-                .thenReturn(subtaskState1);
-        when(taskOperatorSubtaskStates2.getSubtaskStateByOperatorID(opID2))
-                .thenReturn(subtaskState2);
+        TaskStateSnapshot taskOperatorSubtaskStates1 =
+                new TaskStateSnapshot(singletonMap(opID1, subtaskState1));
+        TaskStateSnapshot taskOperatorSubtaskStates2 =
+                new TaskStateSnapshot(singletonMap(opID2, subtaskState2));
 
         // acknowledge from one of the tasks
         AcknowledgeCheckpoint acknowledgeCheckpoint2 =
