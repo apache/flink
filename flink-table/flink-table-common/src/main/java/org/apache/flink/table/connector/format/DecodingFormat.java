@@ -19,8 +19,13 @@
 package org.apache.flink.table.connector.format;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.ProjectedRowData;
+import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Collections;
@@ -30,6 +35,55 @@ import java.util.Map;
 /**
  * A {@link Format} for a {@link DynamicTableSource} for reading rows.
  *
+ * <h1>Implementing a {@link DecodingFormat}</h1>
+ *
+ * {@link DecodingFormat#createRuntimeDecoder(DynamicTableSource.Context, DataType)} provides the
+ * {@code physicalDataType}, which is the {@link DataType} derived from {@link ResolvedSchema},
+ * excluding partition columns and metadata columns, with fields ordered as of the original schema.
+ * The {@code physicalDataType} should describe exactly the full serialized record, that is for
+ * every field in the serialized record there is a corresponding field in the same position in the
+ * {@code physicalDataType}. Some implementations may decide to be more lenient and allow users to
+ * omit in the table schema some fields available in the serialized record but not in the {@code
+ * physicalDataType}, depending on the format characteristics. For example a CSV format
+ * implementation might allow the user to define the schema only for the 5 of the 10 total columns
+ * available in each row.
+ *
+ * <p>If the format supports projections, that is it can exclude certain fields from being parsed
+ * <b>independently of the fields defined in the schema</b> and <b>can reorder fields</b> in the
+ * produced {@link RowData}, then it should implement {@link ProjectableDecodingFormat}. {@link
+ * ProjectableDecodingFormat#createRuntimeDecoder(DynamicTableSource.Context, DataType, int[][])}
+ * provides the {@code physicalDataType} as described above and provides {@code projections} to
+ * compute the type to produce using {@code DataType.projectFields(physicalDataType, projections)}.
+ * For example, a JSON format implementation may match the fields based on the JSON object keys,
+ * hence it can easily produce {@link RowData} excluding unused object values and set values inside
+ * the {@link RowData} using the index provided by the {@code projections} array.
+ *
+ * <p>Whenever is possible, it's highly recommended implementing {@link ProjectableDecodingFormat},
+ * as it might help to reduce memory allocations when users are reading large records but are using
+ * only a small subset of its fields.
+ *
+ * <h1>Using a {@link DecodingFormat}</h1>
+ *
+ * {@link DynamicTableSource} that doesn't implement {@link SupportsProjectionPushDown} should
+ * invoke {@link DecodingFormat#createRuntimeDecoder(DynamicTableSource.Context, DataType)}
+ * providing the {@code physicalDataType} from {@link
+ * DynamicTableFactory.Context#getPhysicalRowDataType()}, stripped of any eventual partition fields
+ * or, in general, of fields not available in the serialized record.
+ *
+ * <p>{@link DynamicTableSource} implementing {@link SupportsProjectionPushDown} should check
+ * whether the {@link DecodingFormat} is instance of {@link ProjectableDecodingFormat}:
+ *
+ * <ul>
+ *   <li>If yes, then the connector can invoke {@link
+ *       ProjectableDecodingFormat#createRuntimeDecoder(DynamicTableSource.Context, DataType,
+ *       int[][])} providing a non null {@code projections} array excluding metadata and partition
+ *       fields. The built runtime implementation will take care of projections, producing records
+ *       of type {@code DataType.projectFields(physicalDataType, projections)}.
+ *   <li>If no, then the connector must take care of performing the projection, for example using
+ *       {@link ProjectedRowData} to project physical {@link RowData} emitted from the decoder
+ *       runtime implementation.
+ * </ul>
+ *
  * @param <I> runtime interface needed by the table source
  */
 @PublicEvolving
@@ -38,6 +92,11 @@ public interface DecodingFormat<I> extends Format {
     /**
      * Creates runtime decoder implementation that is configured to produce data of the given data
      * type.
+     *
+     * @param context the context provides several utilities required to instantiate the runtime
+     *     decoder implementation of the format
+     * @param physicalDataType For more details check {@link DecodingFormat}
+     * @see DecodingFormat
      */
     I createRuntimeDecoder(DynamicTableSource.Context context, DataType physicalDataType);
 
