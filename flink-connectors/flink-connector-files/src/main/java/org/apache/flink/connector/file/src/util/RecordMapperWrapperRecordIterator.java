@@ -20,9 +20,14 @@ package org.apache.flink.connector.file.src.util;
 
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 
+import javax.annotation.Nullable;
+
+import java.io.IOException;
+
 /**
  * Implementation of {@link org.apache.flink.connector.file.src.reader.BulkFormat.RecordIterator}
- * that wraps another iterator and performs the mapping of the records.
+ * that wraps another iterator and performs the mapping of the records. You can use {@link
+ * #wrapReader(BulkFormat.Reader, RecordMapper)} to wrap a whole reader.
  *
  * @param <I> Input type
  * @param <O> Mapped output type
@@ -60,5 +65,31 @@ public class RecordMapperWrapperRecordIterator<I, O> implements BulkFormat.Recor
     @Override
     public void releaseBatch() {
         this.wrapped.releaseBatch();
+    }
+
+    /**
+     * Wrap a {@link BulkFormat.Reader} applying a {@link RecordMapper} on the returned iterator.
+     *
+     * @param <I> Input type
+     * @param <O> Mapped output type
+     */
+    public static <I, O> BulkFormat.Reader<O> wrapReader(
+            BulkFormat.Reader<I> wrappedReader, RecordMapper<I, O> recordMapper) {
+        return new BulkFormat.Reader<O>() {
+            @Nullable
+            @Override
+            public BulkFormat.RecordIterator<O> readBatch() throws IOException {
+                BulkFormat.RecordIterator<I> iterator = wrappedReader.readBatch();
+                if (iterator == null) {
+                    return null;
+                }
+                return new RecordMapperWrapperRecordIterator<>(iterator, recordMapper);
+            }
+
+            @Override
+            public void close() throws IOException {
+                wrappedReader.close();
+            }
+        };
     }
 }

@@ -27,6 +27,7 @@ import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.BulkDecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
@@ -34,13 +35,12 @@ import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 import org.apache.flink.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
-import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
-import org.apache.flink.table.filesystem.PartitionFieldExtractor;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.hadoop.conf.Configuration;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
@@ -64,32 +64,7 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
     @Override
     public BulkDecodingFormat<RowData> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-        return new BulkDecodingFormat<RowData>() {
-            @Override
-            public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
-                    DynamicTableSource.Context sourceContext, DataType producedDataType) {
-                String defaultPartName =
-                        context.getCatalogTable()
-                                .getOptions()
-                                .getOrDefault(
-                                        FileSystemConnectorOptions.PARTITION_DEFAULT_NAME.key(),
-                                        FileSystemConnectorOptions.PARTITION_DEFAULT_NAME
-                                                .defaultValue());
-                return ParquetColumnarRowInputFormat.createPartitionedFormat(
-                        getParquetConfiguration(formatOptions),
-                        (RowType) producedDataType.getLogicalType(),
-                        context.getCatalogTable().getPartitionKeys(),
-                        PartitionFieldExtractor.forFileSystem(defaultPartName),
-                        VectorizedColumnBatch.DEFAULT_SIZE,
-                        formatOptions.get(UTC_TIMEZONE),
-                        true);
-            }
-
-            @Override
-            public ChangelogMode getChangelogMode() {
-                return ChangelogMode.insertOnly();
-            }
-        };
+        return new ParquetBulkDecodingFormat(formatOptions);
     }
 
     @Override
@@ -133,5 +108,38 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         return new HashSet<>();
+    }
+
+    private static class ParquetBulkDecodingFormat
+            implements ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>>,
+                    BulkDecodingFormat<RowData> {
+
+        private final ReadableConfig formatOptions;
+
+        public ParquetBulkDecodingFormat(ReadableConfig formatOptions) {
+            this.formatOptions = formatOptions;
+        }
+
+        @Override
+        public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
+                DynamicTableSource.Context sourceContext,
+                DataType producedDataType,
+                int[][] projections) {
+
+            return ParquetColumnarRowInputFormat.createPartitionedFormat(
+                    getParquetConfiguration(formatOptions),
+                    (RowType)
+                            DataType.projectFields(producedDataType, projections).getLogicalType(),
+                    Collections.emptyList(),
+                    null,
+                    VectorizedColumnBatch.DEFAULT_SIZE,
+                    formatOptions.get(UTC_TIMEZONE),
+                    true);
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return ChangelogMode.insertOnly();
+        }
     }
 }

@@ -33,8 +33,10 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.BulkDecodingFormat;
 import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
@@ -120,37 +122,36 @@ public class FileSystemTableSource extends AbstractFileSystemTable
             return InputFormatProvider.of(new CollectionInputFormat<>(new ArrayList<>(), null));
         }
 
-        // Physical type is computed from the full data type, filtering out partition and
-        // metadata columns. This type is going to be used by formats to parse the input.
-        List<DataTypes.Field> producedDataTypeFields = DataType.getFields(producedDataType);
-        if (metadataKeys != null && !metadataKeys.isEmpty()) {
-            // If metadata keys are present, then by SupportsReadingMetadata contract all the
-            // metadata columns will be at the end of the producedDataType, so we can just remove
-            // from the list the last metadataKeys.size() fields.
-            producedDataTypeFields =
-                    producedDataTypeFields.subList(
-                            0, producedDataTypeFields.size() - metadataKeys.size());
-        }
-        DataType physicalDataType =
-                producedDataTypeFields.stream()
-                        .filter(f -> partitionKeys == null || !partitionKeys.contains(f.getName()))
-                        .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
-
         // Resolve metadata and make sure to filter out metadata not in the producedDataType
-        List<String> metadataKeys =
-                (this.metadataKeys == null) ? Collections.emptyList() : this.metadataKeys;
-        metadataKeys =
+        final List<String> metadataKeys =
                 DataType.getFieldNames(producedDataType).stream()
-                        .filter(metadataKeys::contains)
+                        .filter(
+                                ((this.metadataKeys == null)
+                                                ? Collections.emptyList()
+                                                : this.metadataKeys)
+                                        ::contains)
                         .collect(Collectors.toList());
-        List<ReadableFileInfo> metadataToExtract =
+        final List<ReadableFileInfo> metadataToExtract =
                 metadataKeys.stream().map(ReadableFileInfo::resolve).collect(Collectors.toList());
 
         // Filter out partition columns not in producedDataType
-        List<String> partitionKeysToExtract =
+        final List<String> partitionKeysToExtract =
                 DataType.getFieldNames(producedDataType).stream()
                         .filter(this.partitionKeys::contains)
                         .collect(Collectors.toList());
+
+        // Compute the physical projection and the physical data type, that is
+        // the type without partition columns and metadata in the same order of the schema
+        DataType physicalDataType = this.schema.toPhysicalRowDataType();
+        final Projection partitionKeysProjections =
+                Projection.fromFieldNames(physicalDataType, partitionKeysToExtract);
+        final Projection physicalProjections =
+                (projectFields != null
+                                ? Projection.of(projectFields)
+                                : Projection.all(physicalDataType))
+                        .difference(partitionKeysProjections);
+        physicalDataType =
+                partitionKeysProjections.complement(physicalDataType).project(physicalDataType);
 
         // TODO FLINK-19845 old format factory, to be removed soon. The old factory doesn't support
         //  metadata.
@@ -176,23 +177,56 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     && filters.size() > 0) {
                 ((BulkDecodingFormat<RowData>) bulkReaderFormat).applyFilters(filters);
             }
-            BulkFormat<RowData, FileSourceSplit> bulkFormat =
+
+            BulkFormat<RowData, FileSourceSplit> format;
+            if (bulkReaderFormat instanceof ProjectableDecodingFormat) {
+                format =
+                        ((ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>>)
+                                        bulkReaderFormat)
+                                .createRuntimeDecoder(
+                                        scanContext,
+                                        physicalDataType,
+                                        physicalProjections.toNestedIndexes());
+            } else {
+                format =
+                        new ProjectingBulkFormat(
+                                bulkReaderFormat.createRuntimeDecoder(
+                                        scanContext, physicalDataType),
+                                physicalProjections.toTopLevelIndexes(),
+                                scanContext.createTypeInformation(
+                                        physicalProjections.project(physicalDataType)));
+            }
+
+            format =
                     wrapBulkFormat(
-                            bulkReaderFormat.createRuntimeDecoder(scanContext, physicalDataType),
-                            producedDataType,
-                            metadataToExtract,
-                            partitionKeysToExtract);
-            return createSourceProvider(bulkFormat);
+                            format, producedDataType, metadataToExtract, partitionKeysToExtract);
+            return createSourceProvider(format);
         } else if (deserializationFormat != null) {
-            DeserializationSchema<RowData> decoder =
-                    deserializationFormat.createRuntimeDecoder(scanContext, physicalDataType);
-            BulkFormat<RowData, FileSourceSplit> bulkFormat =
+            BulkFormat<RowData, FileSourceSplit> format;
+            if (deserializationFormat instanceof ProjectableDecodingFormat) {
+                format =
+                        new DeserializationSchemaAdapter(
+                                ((ProjectableDecodingFormat<DeserializationSchema<RowData>>)
+                                                deserializationFormat)
+                                        .createRuntimeDecoder(
+                                                scanContext,
+                                                physicalDataType,
+                                                physicalProjections.toNestedIndexes()));
+            } else {
+                format =
+                        new ProjectingBulkFormat(
+                                new DeserializationSchemaAdapter(
+                                        deserializationFormat.createRuntimeDecoder(
+                                                scanContext, physicalDataType)),
+                                physicalProjections.toTopLevelIndexes(),
+                                scanContext.createTypeInformation(
+                                        physicalProjections.project(physicalDataType)));
+            }
+
+            format =
                     wrapBulkFormat(
-                            new DeserializationSchemaAdapter(decoder),
-                            producedDataType,
-                            metadataToExtract,
-                            partitionKeysToExtract);
-            return createSourceProvider(bulkFormat);
+                            format, producedDataType, metadataToExtract, partitionKeysToExtract);
+            return createSourceProvider(format);
         } else {
             throw new TableException("Can not find format factory.");
         }

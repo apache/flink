@@ -21,7 +21,9 @@ package org.apache.flink.table.connector.source.abilities;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.types.DataType;
 
 /**
@@ -45,6 +47,9 @@ import org.apache.flink.table.types.DataType;
  * different field order). It does not contain any computation. A projection can either be performed
  * on the fields of the top-level row only or consider nested fields as well (see {@link
  * #supportsNestedProjection()}).
+ *
+ * @see Projection
+ * @see ProjectedRowData
  */
 @PublicEvolving
 public interface SupportsProjectionPushDown {
