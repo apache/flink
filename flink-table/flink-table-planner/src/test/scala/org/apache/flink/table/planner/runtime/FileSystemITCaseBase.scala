@@ -26,12 +26,16 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase._
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.types.Row
 import org.junit.Assert.{assertEquals, assertNotNull, assertTrue}
 import org.junit.rules.TemporaryFolder
 import org.junit.{Rule, Test}
 
 import java.io.File
+import java.net.URI
+import java.nio.file.Paths
+import java.time.Instant
 import scala.collection.{JavaConverters, Seq}
 
 /**
@@ -92,7 +96,7 @@ trait FileSystemITCaseBase {
            |  a int,
            |  b bigint,
            |  c as b + 1,
-           |  f string metadata from 'filepath'
+           |  f string metadata from 'file.path'
            |) partitioned by (a, b) with (
            |  'connector' = 'filesystem',
            |  'path' = '$resultPath',
@@ -122,7 +126,7 @@ trait FileSystemITCaseBase {
            |  x string,
            |  y int,
            |  a int,
-           |  f string metadata from 'filepath',
+           |  f string metadata from 'file.path',
            |  b bigint
            |) with (
            |  'connector' = 'filesystem',
@@ -366,6 +370,61 @@ trait FileSystemITCaseBase {
           row.getFieldAs[String](1).contains(fileTmpFolder.getRoot.getPath))
       }
     )
+  }
+
+  @Test
+  def testReadAllMetadata(): Unit = {
+    if (!supportsReadingMetadata) {
+      return
+    }
+
+    tableEnv.executeSql(
+      s"""
+         |CREATE TABLE metadataTable (
+         |  x STRING,
+         |  `file.path` STRING METADATA,
+         |  `file.name` STRING METADATA,
+         |  `file.size` BIGINT METADATA,
+         |  `file.modification-time` TIMESTAMP_LTZ(3) METADATA
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+         """.stripMargin
+    )
+
+    tableEnv.executeSql(
+      "INSERT INTO nonPartitionedTable (x) SELECT x FROM originalT LIMIT 1").await()
+
+    checkPredicate(
+      "SELECT * FROM metadataTable",
+      row => {
+        assertEquals(5, row.getArity)
+
+        // Only one file, because we don't have partitions
+        val file = new File(URI.create(resultPath).getPath).listFiles()(0)
+        val filename = Paths.get(file.toURI).getFileName.toString
+
+        assertTrue(
+          row.getFieldAs[String](1).contains(filename)
+        )
+        assertEquals(
+          filename,
+          row.getFieldAs[String](2)
+        )
+        assertEquals(
+          file.length(),
+          row.getFieldAs[Long](3)
+        )
+        assertEquals(
+          // Note: It's TIMESTAMP_LTZ
+          Instant.ofEpochMilli(file.lastModified()),
+          row.getFieldAs[Instant](4)
+        )
+      }
+    )
+
   }
 
   @Test

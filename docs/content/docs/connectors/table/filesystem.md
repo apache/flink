@@ -122,9 +122,24 @@ The following connector metadata can be accessed as metadata columns in a table 
     </thead>
     <tbody>
     <tr>
-      <td><code>filepath</code></td>
+      <td><code>file.path</code></td>
       <td><code>STRING NOT NULL</code></td>
       <td>Full path of the input file.</td>
+    </tr>
+    <tr>
+      <td><code>file.name</code></td>
+      <td><code>STRING NOT NULL</code></td>
+      <td>Name of the file, that is the farthest element from the root of the filepath.</td>
+    </tr>
+    <tr>
+      <td><code>file.size</code></td>
+      <td><code>BIGINT NOT NULL</code></td>
+      <td>Byte count of the file.</td>
+    </tr>
+    <tr>
+      <td><code>file.modification-time</code></td>
+      <td><code>TIMESTAMP_LTZ(3) NOT NULL</code></td>
+      <td>Modification time of the file.</td>
     </tr>
     </tbody>
 </table>
@@ -135,7 +150,7 @@ The extended `CREATE TABLE` example demonstrates the syntax for exposing these m
 CREATE TABLE MyUserTableWithFilepath (
   column_name1 INT,
   column_name2 STRING,
-  filepath STRING NOT NULL METADATA
+  `file.path` STRING NOT NULL METADATA
 ) WITH (
   'connector' = 'filesystem',
   'path' = 'file:///path/to/whatever',

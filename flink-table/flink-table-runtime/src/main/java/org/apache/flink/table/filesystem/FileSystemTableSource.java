@@ -48,6 +48,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -60,6 +61,7 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -465,7 +467,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
     enum ReadableFileInfo implements Serializable {
         FILEPATH(
-                "filepath",
+                "file.path",
                 DataTypes.STRING().notNull(),
                 new FileInfoAccessor() {
                     private static final long serialVersionUID = 1L;
@@ -473,6 +475,40 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     @Override
                     public Object getValue(FileSourceSplit split) {
                         return StringData.fromString(split.path().getPath());
+                    }
+                }),
+        FILENAME(
+                "file.name",
+                DataTypes.STRING().notNull(),
+                new FileInfoAccessor() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public Object getValue(FileSourceSplit split) {
+                        return StringData.fromString(
+                                Paths.get(split.path().getPath()).getFileName().toString());
+                    }
+                }),
+        SIZE(
+                "file.size",
+                DataTypes.BIGINT().notNull(),
+                new FileInfoAccessor() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public Object getValue(FileSourceSplit split) {
+                        return split.fileSize();
+                    }
+                }),
+        MODIFICATION_TIME(
+                "file.modification-time",
+                DataTypes.TIMESTAMP_LTZ(3).notNull(),
+                new FileInfoAccessor() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public Object getValue(FileSourceSplit split) {
+                        return TimestampData.fromEpochMillis(split.fileModificationTime());
                     }
                 });
 

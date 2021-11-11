@@ -26,13 +26,18 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.types.DataType;
 
 import org.junit.Test;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -225,5 +230,25 @@ public class FileSystemTableFactoryTest {
         } catch (Exception e) {
             assertThat(e.getCause().getCause(), containsCause(expected));
         }
+    }
+
+    @Test
+    public void testSupportsMetadata() {
+        Map<String, String> descriptor = new HashMap<>();
+        descriptor.put(FactoryUtil.CONNECTOR.key(), "filesystem");
+        descriptor.put("path", "/tmp");
+        descriptor.put("format", "testcsv");
+        descriptor.put("testcsv.my_option", "my_value");
+
+        DynamicTableSource source = createTableSource(SCHEMA, descriptor);
+        assertTrue(source instanceof FileSystemTableSource);
+
+        Map<String, DataType> readableMetadata = new HashMap<>();
+        readableMetadata.put("file.path", DataTypes.STRING().notNull());
+        readableMetadata.put("file.name", DataTypes.STRING().notNull());
+        readableMetadata.put("file.size", DataTypes.BIGINT().notNull());
+        readableMetadata.put("file.modification-time", DataTypes.TIMESTAMP_LTZ(3).notNull());
+
+        assertEquals(readableMetadata, ((FileSystemTableSource) source).listReadableMetadata());
     }
 }
