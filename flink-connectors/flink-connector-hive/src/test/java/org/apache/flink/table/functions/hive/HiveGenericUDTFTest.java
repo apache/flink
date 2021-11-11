@@ -35,6 +35,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFStack;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.objectinspector.StandardStructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.junit.Test;
@@ -154,7 +155,10 @@ public class HiveGenericUDTFTest {
 
         ObjectInspector[] argumentInspectors =
                 HiveInspectors.toInspectors(hiveShim, constantArgs, argTypes);
-        ObjectInspector returnInspector = wrapper.createFunction().initialize(argumentInspectors);
+        StandardStructObjectInspector standardStructObjectInspector =
+                HiveGenericUDTF.getStandardStructObjectInspector(argumentInspectors);
+        ObjectInspector returnInspector =
+                wrapper.createFunction().initialize(standardStructObjectInspector);
 
         udf.open(null);
 
@@ -220,6 +224,30 @@ public class HiveGenericUDTFTest {
 
         @Override
         public StructObjectInspector initialize(ObjectInspector[] argOIs)
+                throws UDFArgumentException {
+            return ObjectInspectorFactory.getStandardStructObjectInspector(
+                    Collections.singletonList("col1"),
+                    Collections.singletonList(
+                            PrimitiveObjectInspectorFactory.javaStringObjectInspector));
+        }
+
+        @Override
+        public void process(Object[] args) throws HiveException {
+            String str = (String) args[0];
+            for (String s : str.split(",")) {
+                forward(s);
+            }
+        }
+
+        @Override
+        public void close() {}
+    }
+
+    /** Test split udtf initialize with StructObjectInspector. */
+    public static class TestSplitUDTFInitializeWithStructObjectInspector extends GenericUDTF {
+
+        @Override
+        public StructObjectInspector initialize(StructObjectInspector argOIs)
                 throws UDFArgumentException {
             return ObjectInspectorFactory.getStandardStructObjectInspector(
                     Collections.singletonList("col1"),

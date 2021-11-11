@@ -641,7 +641,8 @@ public final class FunctionCatalog {
 
             FunctionDefinition definition = ((InlineCatalogFunction) function).getDefinition();
             UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
-        } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
+        } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA
+                && !(function instanceof InlineCatalogFunction)) {
             ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
             UserDefinedFunctionHelper.validateClass(
                     (Class<? extends UserDefinedFunction>)
