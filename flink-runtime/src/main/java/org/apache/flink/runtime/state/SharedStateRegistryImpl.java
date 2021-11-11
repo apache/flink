@@ -24,7 +24,10 @@ import org.apache.flink.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -59,8 +62,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
         this.open = true;
     }
 
-    @Override
-    public Result registerReference(
+    public StreamStateHandle registerReference(
             SharedStateRegistryKey registrationKey, StreamStateHandle state, long checkpointID) {
 
         checkNotNull(state);
@@ -81,11 +83,14 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                         !isPlaceholder(state),
                         "Attempt to reference unknown state: " + registrationKey);
 
-                entry = new SharedStateEntry(state);
+                entry = new SharedStateEntry(state, checkpointID);
                 registeredStates.put(registrationKey, entry);
 
             } else {
-                // delete if this is a real duplicate
+                // Delete if this is a real duplicate.
+                // Note that task (backend) is not required to re-upload state
+                // if the confirmation notification was missing.
+                // However, it's also not required to use exactly the same handle or placeholder
                 if (!Objects.equals(state, entry.stateHandle)) {
                     scheduledStateDeletion = state;
                     LOG.trace(
@@ -95,48 +100,40 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                             state,
                             entry.stateHandle);
                 }
-                entry.increaseReferenceCount();
+                entry.advanceLastUsingCheckpointID(checkpointID);
             }
         }
 
         scheduleAsyncDelete(scheduledStateDeletion);
         LOG.trace("Registered shared state {} under key {}.", entry, registrationKey);
-        return new Result(entry);
+        return entry.stateHandle;
     }
 
     @Override
-    public Result unregisterReference(SharedStateRegistryKey registrationKey) {
-
-        checkNotNull(registrationKey);
-
-        final Result result;
-        final StreamStateHandle scheduledStateDeletion;
-        SharedStateEntry entry;
-
+    public void unregisterUnusedState(long lowestCheckpointID) {
+        LOG.debug(
+                "Discard state created before checkpoint {} and not used afterwards",
+                lowestCheckpointID);
+        List<StreamStateHandle> subsumed = new ArrayList<>();
+        // Iterate over all the registered state handles.
+        // Using a simple loop and NOT index by checkpointID because:
+        // 1. Maintaining index leads to the same time complexity and worse memory complexity
+        // 2. Most of the entries are expected to be carried to the next checkpoint
         synchronized (registeredStates) {
-            entry = registeredStates.get(registrationKey);
-
-            checkState(
-                    entry != null,
-                    "Cannot unregister a state that is not registered: %s",
-                    registrationKey);
-
-            entry.decreaseReferenceCount();
-
-            // Remove the state from the registry when it's not referenced any more.
-            if (entry.getReferenceCount() <= 0) {
-                registeredStates.remove(registrationKey);
-                scheduledStateDeletion = entry.getStateHandle();
-                result = new Result(null, 0);
-            } else {
-                scheduledStateDeletion = null;
-                result = new Result(entry);
+            Iterator<SharedStateEntry> it = registeredStates.values().iterator();
+            while (it.hasNext()) {
+                SharedStateEntry entry = it.next();
+                if (entry.lastUsedCheckpointID < lowestCheckpointID) {
+                    subsumed.add(entry.stateHandle);
+                    it.remove();
+                }
             }
         }
 
-        LOG.trace("Unregistered shared state {} under key {}.", entry, registrationKey);
-        scheduleAsyncDelete(scheduledStateDeletion);
-        return result;
+        LOG.trace("Discard {} state asynchronously", subsumed.size());
+        for (StreamStateHandle handle : subsumed) {
+            scheduleAsyncDelete(handle);
+        }
     }
 
     @Override
@@ -214,6 +211,33 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                         toDispose,
                         e);
             }
+        }
+    }
+    /** An entry in the registry, tracking the handle and the corresponding reference count. */
+    private static final class SharedStateEntry {
+
+        /** The shared state handle */
+        final StreamStateHandle stateHandle;
+
+        private long lastUsedCheckpointID;
+
+        SharedStateEntry(StreamStateHandle value, long checkpointID) {
+            this.stateHandle = value;
+            this.lastUsedCheckpointID = checkpointID;
+        }
+
+        @Override
+        public String toString() {
+            return "SharedStateEntry{"
+                    + "stateHandle="
+                    + stateHandle
+                    + ", lastUsedCheckpointID="
+                    + lastUsedCheckpointID
+                    + '}';
+        }
+
+        private void advanceLastUsingCheckpointID(long checkpointID) {
+            lastUsedCheckpointID = Math.max(checkpointID, lastUsedCheckpointID);
         }
     }
 }

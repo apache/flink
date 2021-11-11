@@ -179,19 +179,8 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
             LOG.warn("Could not properly discard misc file states.", e);
         }
 
-        // If this was not registered, we can delete the shared state. We can simply apply this
-        // to all handles, because all handles that have not been created for the first time for
-        // this
-        // are only placeholders at this point (disposing them is a NOP).
-        if (isRegistered) {
-            // If this was registered, we only unregister all our referenced shared states
-            // from the registry.
-            for (StateHandleID stateHandleID : sharedState.keySet()) {
-                registry.unregisterReference(
-                        createSharedStateRegistryKeyFromFileName(stateHandleID));
-            }
-        } else {
-            // Otherwise, we assume to own those handles and dispose them directly.
+        // discard only on TM; on JM, shared state is removed on subsumption
+        if (!isRegistered) {
             try {
                 StateUtil.bestEffortDiscardAllStateObjects(sharedState.values());
             } catch (Exception e) {
@@ -244,7 +233,7 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
             SharedStateRegistryKey registryKey =
                     createSharedStateRegistryKeyFromFileName(sharedStateHandle.getKey());
 
-            SharedStateRegistry.Result result =
+            StreamStateHandle reference =
                     stateRegistry.registerReference(
                             registryKey, sharedStateHandle.getValue(), checkpointID);
 
@@ -260,7 +249,7 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
             // following checkpoint (n + x) wants to reference the same state before the backend got
             // notified that checkpoint n completed. In this case, the shared registry did
             // deduplication and returns the previous reference.
-            sharedStateHandle.setValue(result.getReference());
+            sharedStateHandle.setValue(reference);
         }
     }
 
