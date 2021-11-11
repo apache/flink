@@ -227,7 +227,7 @@ public class CompletedCheckpointTest {
 
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
-        verify(state, times(1)).registerSharedStates(sharedStateRegistry);
+        verify(state, times(1)).registerSharedStates(sharedStateRegistry, 0L);
     }
 
     /** Tests that the garbage collection properties are respected when subsuming checkpoints. */
@@ -258,7 +258,7 @@ public class CompletedCheckpointTest {
 
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
-        verify(state, times(1)).registerSharedStates(sharedStateRegistry);
+        verify(state, times(1)).registerSharedStates(sharedStateRegistry, 0L);
 
         // Subsume
         checkpoint.discardOnSubsume();

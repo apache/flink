@@ -28,9 +28,9 @@ package org.apache.flink.runtime.state;
  * checkpoint is discarded.
  *
  * <p>The {@link SharedStateRegistry} is responsible for the discarding of registered shared states.
- * Before their first registration through {@link #registerSharedStates(SharedStateRegistry)}, newly
- * created shared state is still owned by this handle and considered as private state until it is
- * registered for the first time. Registration transfers ownership to the {@link
+ * Before their first registration through {@link #registerSharedStates(SharedStateRegistry, long)},
+ * newly created shared state is still owned by this handle and considered as private state until it
+ * is registered for the first time. Registration transfers ownership to the {@link
  * SharedStateRegistry}. The composite state handle should only delete all private states in the
  * {@link StateObject#discardState()} method, the {@link SharedStateRegistry} is responsible for
  * deleting shared states after they were registered.
@@ -49,5 +49,5 @@ public interface CompositeStateHandle extends StateObject {
      *
      * @param stateRegistry The registry where shared states are registered.
      */
-    void registerSharedStates(SharedStateRegistry stateRegistry);
+    void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID);
 }

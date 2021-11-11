@@ -5289,7 +5289,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         SnapshotResult<KeyedStateHandle> snapshotResult = snapshotRunnableFuture.get();
         KeyedStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
         if (jobManagerOwnedSnapshot != null) {
-            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry);
+            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry, 0L);
         }
         return jobManagerOwnedSnapshot;
     }

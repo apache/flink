@@ -204,7 +204,7 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
      * @param sharedStateRegistry The registry where shared states are registered
      */
     public void registerSharedStatesAfterRestored(SharedStateRegistry sharedStateRegistry) {
-        sharedStateRegistry.registerAll(operatorStates.values());
+        sharedStateRegistry.registerAll(operatorStates.values(), checkpointID);
     }
 
     // ------------------------------------------------------------------------

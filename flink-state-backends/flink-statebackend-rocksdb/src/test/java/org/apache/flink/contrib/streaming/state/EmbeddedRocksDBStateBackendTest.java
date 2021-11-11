@@ -585,14 +585,15 @@ public class EmbeddedRocksDBStateBackendTest
                     Map<StateHandleID, StreamStateHandle> sharedState =
                             new HashMap<>(stateHandle.getSharedState());
 
-                    stateHandle.registerSharedStates(sharedStateRegistry);
+                    stateHandle.registerSharedStates(sharedStateRegistry, checkpointId);
 
                     for (Map.Entry<StateHandleID, StreamStateHandle> e : sharedState.entrySet()) {
                         verify(sharedStateRegistry)
                                 .registerReference(
                                         stateHandle.createSharedStateRegistryKeyFromFileName(
                                                 e.getKey()),
-                                        e.getValue());
+                                        e.getValue(),
+                                        checkpointId);
                     }
 
                     previousStateHandles.add(stateHandle);

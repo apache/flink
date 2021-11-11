@@ -216,7 +216,7 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
 
         // This is a quick check to avoid that we register twice with the same registry. However,
         // the code allows to
@@ -245,7 +245,8 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
                     createSharedStateRegistryKeyFromFileName(sharedStateHandle.getKey());
 
             SharedStateRegistry.Result result =
-                    stateRegistry.registerReference(registryKey, sharedStateHandle.getValue());
+                    stateRegistry.registerReference(
+                            registryKey, sharedStateHandle.getValue(), checkpointID);
 
             // This step consolidates our shared handles with the registry, which does two things:
             //

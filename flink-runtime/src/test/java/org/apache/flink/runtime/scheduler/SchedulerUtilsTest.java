@@ -112,7 +112,7 @@ public class SchedulerUtilsTest extends TestLogger {
 
         IncrementalRemoteKeyedStateHandle newHandle =
                 buildIncrementalHandle(key, new PlaceholderStreamStateHandle(), backendId);
-        newHandle.registerSharedStates(sharedStateRegistry);
+        newHandle.registerSharedStates(sharedStateRegistry, 1L);
 
         assertSame(handle, newHandle.getSharedState().get(key));
     }

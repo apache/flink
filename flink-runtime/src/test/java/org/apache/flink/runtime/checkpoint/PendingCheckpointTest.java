@@ -74,6 +74,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -223,7 +224,7 @@ public class PendingCheckpointTest {
         QueueExecutor executor = new QueueExecutor();
 
         OperatorState state = mock(OperatorState.class);
-        doNothing().when(state).registerSharedStates(any(SharedStateRegistry.class));
+        doNothing().when(state).registerSharedStates(any(SharedStateRegistry.class), eq(0L));
 
         // Abort declined
         PendingCheckpoint pending = createPendingCheckpoint(props, executor);

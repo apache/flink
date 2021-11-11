@@ -150,7 +150,7 @@ public abstract class StateBackendTestContext {
         SnapshotResult<KeyedStateHandle> snapshotResult = triggerSnapshot().get();
         KeyedStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
         if (jobManagerOwnedSnapshot != null) {
-            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry);
+            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry, 0L);
         }
         return jobManagerOwnedSnapshot;
     }
