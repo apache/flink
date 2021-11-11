@@ -53,7 +53,7 @@ WHERE (rownum = 1 | rownum <=1 | rownum < 2) [AND conditions]
 - `ROW_NUMBER()`: Assigns an unique, sequential number to each row, starting with one.
 - `PARTITION BY window_start, window_end [, col_key1...]`: Specifies the partition columns which contain `window_start`, `window_end` and other partition keys.
 - `ORDER BY time_attr [asc|desc]`: Specifies the ordering column, it must be a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}). Currently Flink supports [processing time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time) and [event time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time). Ordering by ASC means keeping the first row, ordering by DESC means keeping the last row.
-- `WHERE (rownum = 1 | rownum <=1 | rownum < 2)`: The `rownum = 1 | rownum <=1 | rownum < 2` is required for Flink to recognize this query is Window Deduplication.
+- `WHERE (rownum = 1 | rownum <=1 | rownum < 2)`: The `rownum = 1 | rownum <=1 | rownum < 2` is required for the optimizer to recognize the query could be translated to Window Deduplication.
 
 {{< hint info >}}
 Note: the above pattern must be followed exactly, otherwise the optimizer won’t translate the query to Window Deduplication.
@@ -65,7 +65,7 @@ The following example shows how to keep last record for every 10 minutes tumblin
 
 ```sql
 -- tables must have time attribute, e.g. `bidtime` in this table
-Flink SQL> desc Bid;
+Flink SQL> DESC Bid;
 +-------------+------------------------+------+-----+--------+---------------------------------+
 |        name |                   type | null | key | extras |                       watermark |
 +-------------+------------------------+------+-----+--------+---------------------------------+
@@ -89,7 +89,7 @@ Flink SQL> SELECT * FROM Bid;
 Flink SQL> SELECT *
   FROM (
     SELECT bidtime, price, item, supplier_id, window_start, window_end, 
-      ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY bidtime DESC) as rownum
+      ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY bidtime DESC) AS rownum
     FROM TABLE(
                TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
   ) WHERE rownum <= 1;
