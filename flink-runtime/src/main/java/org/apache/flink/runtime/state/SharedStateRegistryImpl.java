@@ -85,6 +85,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
                 entry = new SharedStateEntry(state, checkpointID);
                 registeredStates.put(registrationKey, entry);
+                LOG.trace("Registered new shared state {} under key {}.", entry, registrationKey);
 
             } else {
                 // Delete if this is a real duplicate.
@@ -100,12 +101,16 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                             state,
                             entry.stateHandle);
                 }
+                LOG.trace(
+                        "Updating last checkpoint for {} from {} to {}",
+                        registrationKey,
+                        entry.lastUsedCheckpointID,
+                        checkpointID);
                 entry.advanceLastUsingCheckpointID(checkpointID);
             }
         }
 
         scheduleAsyncDelete(scheduledStateDeletion);
-        LOG.trace("Registered shared state {} under key {}.", entry, registrationKey);
         return entry.stateHandle;
     }
 
