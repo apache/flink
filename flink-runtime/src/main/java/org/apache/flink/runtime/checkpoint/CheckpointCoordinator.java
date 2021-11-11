@@ -1257,7 +1257,8 @@ public class CheckpointCoordinator {
     private void registerSharedStates(PendingCheckpoint pendingCheckpoint) {
         Map<OperatorID, OperatorState> operatorStates = pendingCheckpoint.getOperatorStates();
         SharedStateRegistry sharedStateRegistry = completedCheckpointStore.getSharedStateRegistry();
-        sharedStateRegistry.registerAll(operatorStates.values());
+        sharedStateRegistry.registerAll(
+                operatorStates.values(), pendingCheckpoint.getCheckpointID());
     }
 
     private void logCheckpointInfo(CompletedCheckpoint completedCheckpoint) {

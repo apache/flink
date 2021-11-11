@@ -55,12 +55,12 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         this.stateRegistry = stateRegistry;
         handlesAndOffsets.forEach(
                 handleAndOffset ->
                         stateRegistry.registerReference(
-                                getKey(handleAndOffset.f0), handleAndOffset.f0));
+                                getKey(handleAndOffset.f0), handleAndOffset.f0, checkpointID));
     }
 
     @Override

@@ -61,7 +61,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
     @Override
     public Result registerReference(
-            SharedStateRegistryKey registrationKey, StreamStateHandle state) {
+            SharedStateRegistryKey registrationKey, StreamStateHandle state, long checkpointID) {
 
         checkNotNull(state);
 
@@ -140,7 +140,8 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
     }
 
     @Override
-    public void registerAll(Iterable<? extends CompositeStateHandle> stateHandles) {
+    public void registerAll(
+            Iterable<? extends CompositeStateHandle> stateHandles, long checkpointID) {
 
         if (stateHandles == null) {
             return;
@@ -148,7 +149,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
         synchronized (registeredStates) {
             for (CompositeStateHandle stateHandle : stateHandles) {
-                stateHandle.registerSharedStates(this);
+                stateHandle.registerSharedStates(this, checkpointID);
             }
         }
     }

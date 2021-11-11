@@ -90,8 +90,8 @@ public class IncrementalRemoteKeyedStateHandleTest {
         }
 
         // Now we register both ...
-        stateHandle1.registerSharedStates(registry);
-        stateHandle2.registerSharedStates(registry);
+        stateHandle1.registerSharedStates(registry, 0L);
+        stateHandle2.registerSharedStates(registry, 0L);
 
         for (Map.Entry<StateHandleID, StreamStateHandle> stateHandleEntry :
                 stateHandle1.getSharedState().entrySet()) {
@@ -100,7 +100,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
                     stateHandle1.createSharedStateRegistryKeyFromFileName(
                             stateHandleEntry.getKey());
 
-            verify(registry).registerReference(registryKey, stateHandleEntry.getValue());
+            verify(registry).registerReference(registryKey, stateHandleEntry.getValue(), 0L);
         }
 
         for (Map.Entry<StateHandleID, StreamStateHandle> stateHandleEntry :
@@ -110,7 +110,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
                     stateHandle1.createSharedStateRegistryKeyFromFileName(
                             stateHandleEntry.getKey());
 
-            verify(registry).registerReference(registryKey, stateHandleEntry.getValue());
+            verify(registry).registerReference(registryKey, stateHandleEntry.getValue(), 0L);
         }
 
         // We discard the first
@@ -198,13 +198,13 @@ public class IncrementalRemoteKeyedStateHandleTest {
         IncrementalRemoteKeyedStateHandle stateHandleZ = create(new Random(3));
 
         // Now we register first time ...
-        stateHandleX.registerSharedStates(stateRegistryA);
-        stateHandleY.registerSharedStates(stateRegistryA);
-        stateHandleZ.registerSharedStates(stateRegistryA);
+        stateHandleX.registerSharedStates(stateRegistryA, 0L);
+        stateHandleY.registerSharedStates(stateRegistryA, 0L);
+        stateHandleZ.registerSharedStates(stateRegistryA, 0L);
 
         try {
             // Second attempt should fail
-            stateHandleX.registerSharedStates(stateRegistryA);
+            stateHandleX.registerSharedStates(stateRegistryA, 0L);
             fail("Should not be able to register twice with the same registry.");
         } catch (IllegalStateException ignore) {
         }
@@ -221,7 +221,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
 
         // Attempt to register to closed registry should trigger exception
         try {
-            create(new Random(4)).registerSharedStates(stateRegistryA);
+            create(new Random(4)).registerSharedStates(stateRegistryA, 0L);
             fail("Should not be able to register new state to closed registry.");
         } catch (IllegalStateException ignore) {
         }
@@ -241,7 +241,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
 
         // We re-register the handle with a new registry
         SharedStateRegistry sharedStateRegistryB = spy(new SharedStateRegistryImpl());
-        stateHandleX.registerSharedStates(sharedStateRegistryB);
+        stateHandleX.registerSharedStates(sharedStateRegistryB, 0L);
         stateHandleX.discardState();
 
         // Should be completely discarded because it is tracked through the new registry

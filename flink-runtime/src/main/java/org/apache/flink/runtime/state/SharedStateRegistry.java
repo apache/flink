@@ -37,7 +37,7 @@ public interface SharedStateRegistry extends AutoCloseable {
                 SharedStateRegistry sharedStateRegistry =
                         new SharedStateRegistryImpl(deleteExecutor);
                 for (CompletedCheckpoint checkpoint : checkpoints) {
-                    sharedStateRegistry.registerAll(checkpoint.getOperatorStates().values());
+                    checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
                 }
                 return sharedStateRegistry;
             };
@@ -54,10 +54,12 @@ public interface SharedStateRegistry extends AutoCloseable {
      * to replace the one from the registration request.
      *
      * @param state the shared state for which we register a reference.
+     * @param checkpointID which uses the state
      * @return the result of this registration request, consisting of the state handle that is
      *     registered under the key by the end of the operation and its current reference count.
      */
-    Result registerReference(SharedStateRegistryKey registrationKey, StreamStateHandle state);
+    Result registerReference(
+            SharedStateRegistryKey registrationKey, StreamStateHandle state, long checkpointID);
 
     /**
      * Releases one reference to the given shared state in the registry. This decreases the
@@ -74,8 +76,9 @@ public interface SharedStateRegistry extends AutoCloseable {
      * Register given shared states in the registry.
      *
      * @param stateHandles The shared states to register.
+     * @param checkpointID which uses the states.
      */
-    void registerAll(Iterable<? extends CompositeStateHandle> stateHandles);
+    void registerAll(Iterable<? extends CompositeStateHandle> stateHandles, long checkpointID);
 
     /** An entry in the registry, tracking the handle and the corresponding reference count. */
     class SharedStateEntry {

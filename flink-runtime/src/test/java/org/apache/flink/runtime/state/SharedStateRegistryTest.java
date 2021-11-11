@@ -40,7 +40,8 @@ public class SharedStateRegistryTest {
         // register one state
         TestSharedState firstState = new TestSharedState("first");
         SharedStateRegistry.Result result =
-                sharedStateRegistry.registerReference(firstState.getRegistrationKey(), firstState);
+                sharedStateRegistry.registerReference(
+                        firstState.getRegistrationKey(), firstState, 0L);
         assertEquals(1, result.getReferenceCount());
         assertTrue(firstState == result.getReference());
         assertFalse(firstState.isDiscarded());
@@ -49,7 +50,7 @@ public class SharedStateRegistryTest {
         TestSharedState secondState = new TestSharedState("second");
         result =
                 sharedStateRegistry.registerReference(
-                        secondState.getRegistrationKey(), secondState);
+                        secondState.getRegistrationKey(), secondState, 0L);
         assertEquals(1, result.getReferenceCount());
         assertTrue(secondState == result.getReference());
         assertFalse(firstState.isDiscarded());
@@ -60,7 +61,7 @@ public class SharedStateRegistryTest {
                 new TestSharedState(firstState.getRegistrationKey().getKeyString());
         result =
                 sharedStateRegistry.registerReference(
-                        firstState.getRegistrationKey(), firstStatePrime);
+                        firstState.getRegistrationKey(), firstStatePrime, 0L);
         assertEquals(2, result.getReferenceCount());
         assertFalse(firstStatePrime == result.getReference());
         assertTrue(firstState == result.getReference());
@@ -68,7 +69,9 @@ public class SharedStateRegistryTest {
         assertFalse(firstState.isDiscarded());
 
         // reference the first state again
-        result = sharedStateRegistry.registerReference(firstState.getRegistrationKey(), firstState);
+        result =
+                sharedStateRegistry.registerReference(
+                        firstState.getRegistrationKey(), firstState, 0L);
         assertEquals(3, result.getReferenceCount());
         assertTrue(firstState == result.getReference());
         assertFalse(firstState.isDiscarded());

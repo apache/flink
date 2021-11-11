@@ -205,16 +205,18 @@ public class OperatorSubtaskState implements CompositeStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
-        registerSharedState(sharedStateRegistry, managedKeyedState);
-        registerSharedState(sharedStateRegistry, rawKeyedState);
+    public void registerSharedStates(SharedStateRegistry sharedStateRegistry, long checkpointID) {
+        registerSharedState(sharedStateRegistry, managedKeyedState, checkpointID);
+        registerSharedState(sharedStateRegistry, rawKeyedState, checkpointID);
     }
 
     private static void registerSharedState(
-            SharedStateRegistry sharedStateRegistry, Iterable<KeyedStateHandle> stateHandles) {
+            SharedStateRegistry sharedStateRegistry,
+            Iterable<KeyedStateHandle> stateHandles,
+            long checkpointID) {
         for (KeyedStateHandle stateHandle : stateHandles) {
             if (stateHandle != null) {
-                stateHandle.registerSharedStates(sharedStateRegistry);
+                stateHandle.registerSharedStates(sharedStateRegistry, checkpointID);
             }
         }
     }

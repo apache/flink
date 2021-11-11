@@ -241,7 +241,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
             operatorState.putState(i, subtaskState);
         }
 
-        operatorState.registerSharedStates(sharedStateRegistry);
+        operatorState.registerSharedStates(sharedStateRegistry, id);
 
         return new TestCompletedCheckpoint(new JobID(), id, 0, operatorGroupState, props);
     }
@@ -392,8 +392,9 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
         }
 
         @Override
-        public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
-            super.registerSharedStates(sharedStateRegistry);
+        public void registerSharedStates(
+                SharedStateRegistry sharedStateRegistry, long checkpointID) {
+            super.registerSharedStates(sharedStateRegistry, checkpointID);
             Assert.assertFalse(discarded);
             registered = true;
         }
