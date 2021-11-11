@@ -21,6 +21,7 @@ package org.apache.flink.connector.file.src;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.StringUtils;
 
@@ -67,6 +68,12 @@ public class FileSourceSplit implements SourceSplit, Serializable {
     /** The number of bytes in the file to process. */
     private final long length;
 
+    /** The modification time of the file, from {@link FileStatus#getModificationTime()}. */
+    private final long modificationTime;
+
+    /** The modification time of the file, from {@link FileStatus#getLen()}. */
+    private final long fileSize;
+
     /**
      * The names of the hosts storing this range of the file. Empty, if no host information is
      * available.
@@ -91,22 +98,17 @@ public class FileSourceSplit implements SourceSplit, Serializable {
      * @param filePath The path to the file.
      * @param offset The start (inclusive) of the split's rage in the file.
      * @param length The number of bytes in the split (starting from the offset)
-     */
-    public FileSourceSplit(String id, Path filePath, long offset, long length) {
-        this(id, filePath, offset, length, NO_HOSTS);
-    }
-
-    /**
-     * Constructs a split with host information.
-     *
-     * @param filePath The path to the file.
-     * @param offset The start (inclusive) of the split's rage in the file.
-     * @param length The number of bytes in the split (starting from the offset)
-     * @param hostnames The hostnames of the nodes storing the split's file range.
+     * @param modificationTime The modification time of the file
+     * @param fileSize The size of the full file
      */
     public FileSourceSplit(
-            String id, Path filePath, long offset, long length, String... hostnames) {
-        this(id, filePath, offset, length, hostnames, null, null);
+            String id,
+            Path filePath,
+            long offset,
+            long length,
+            long modificationTime,
+            long fileSize) {
+        this(id, filePath, offset, length, modificationTime, fileSize, NO_HOSTS);
     }
 
     /**
@@ -115,6 +117,8 @@ public class FileSourceSplit implements SourceSplit, Serializable {
      * @param filePath The path to the file.
      * @param offset The start (inclusive) of the split's rage in the file.
      * @param length The number of bytes in the split (starting from the offset)
+     * @param modificationTime The modification time of the file
+     * @param fileSize The size of the full file
      * @param hostnames The hostnames of the nodes storing the split's file range.
      */
     public FileSourceSplit(
@@ -122,9 +126,41 @@ public class FileSourceSplit implements SourceSplit, Serializable {
             Path filePath,
             long offset,
             long length,
+            long modificationTime,
+            long fileSize,
+            String... hostnames) {
+        this(id, filePath, offset, length, modificationTime, fileSize, hostnames, null, null);
+    }
+
+    /**
+     * Constructs a split with host information.
+     *
+     * @param filePath The path to the file.
+     * @param offset The start (inclusive) of the split's rage in the file.
+     * @param length The number of bytes in the split (starting from the offset)
+     * @param modificationTime The modification time of the file
+     * @param fileSize The size of the full file
+     * @param hostnames The hostnames of the nodes storing the split's file range.
+     */
+    public FileSourceSplit(
+            String id,
+            Path filePath,
+            long offset,
+            long length,
+            long modificationTime,
+            long fileSize,
             String[] hostnames,
             @Nullable CheckpointedPosition readerPosition) {
-        this(id, filePath, offset, length, hostnames, readerPosition, null);
+        this(
+                id,
+                filePath,
+                offset,
+                length,
+                modificationTime,
+                fileSize,
+                hostnames,
+                readerPosition,
+                null);
     }
 
     /**
@@ -135,9 +171,13 @@ public class FileSourceSplit implements SourceSplit, Serializable {
             Path filePath,
             long offset,
             long length,
+            long modificationTime,
+            long fileSize,
             String[] hostnames,
             @Nullable CheckpointedPosition readerPosition,
             @Nullable byte[] serializedForm) {
+        this.modificationTime = modificationTime;
+        this.fileSize = fileSize;
 
         checkArgument(offset >= 0, "offset must be >= 0");
         checkArgument(length >= 0, "length must be >= 0");
@@ -179,6 +219,16 @@ public class FileSourceSplit implements SourceSplit, Serializable {
         return length;
     }
 
+    /** Returns the modification time of the file, from {@link FileStatus#getModificationTime()}. */
+    public long modificationTime() {
+        return modificationTime;
+    }
+
+    /** Returns the full file size, from {@link FileStatus#getLen()}. */
+    public long fileSize() {
+        return fileSize;
+    }
+
     /**
      * Gets the hostnames of the nodes storing the file range described by this split. The returned
      * array is empty, if no host information is available.
@@ -208,7 +258,8 @@ public class FileSourceSplit implements SourceSplit, Serializable {
      * class, because it leads to very ugly and verbose use of generics.
      */
     public FileSourceSplit updateWithCheckpointedPosition(@Nullable CheckpointedPosition position) {
-        return new FileSourceSplit(id, filePath, offset, length, hostnames, position);
+        return new FileSourceSplit(
+                id, filePath, offset, length, modificationTime, fileSize, hostnames, position);
     }
 
     // ------------------------------------------------------------------------

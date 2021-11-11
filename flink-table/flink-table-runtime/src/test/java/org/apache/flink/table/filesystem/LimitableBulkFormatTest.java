@@ -61,7 +61,13 @@ public class LimitableBulkFormatTest {
         BulkFormat.Reader<String> reader =
                 format.createReader(
                         new Configuration(),
-                        new FileSourceSplit("id", new Path(file.toURI()), 0, file.length()));
+                        new FileSourceSplit(
+                                "id",
+                                new Path(file.toURI()),
+                                0,
+                                file.length(),
+                                file.lastModified(),
+                                file.length()));
 
         AtomicInteger i = new AtomicInteger(0);
         Utils.forEachRemaining(reader, s -> i.incrementAndGet());
@@ -92,7 +98,14 @@ public class LimitableBulkFormatTest {
 
         BulkFormat.Reader<String> reader =
                 format.createReader(
-                        conf, new FileSourceSplit("id", new Path(file.toURI()), 0, file.length()));
+                        conf,
+                        new FileSourceSplit(
+                                "id",
+                                new Path(file.toURI()),
+                                0,
+                                file.length(),
+                                file.lastModified(),
+                                file.length()));
 
         // check
         AtomicInteger i = new AtomicInteger(0);

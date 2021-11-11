@@ -21,6 +21,7 @@ package org.apache.flink.formats.parquet;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.RowData;
@@ -243,7 +244,8 @@ public class ParquetColumnarRowInputFormatTest {
         AtomicInteger cnt = new AtomicInteger(0);
         forEachRemaining(
                 format.createReader(
-                        EMPTY_CONF, new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE)),
+                        EMPTY_CONF,
+                        new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE, 0, Long.MAX_VALUE)),
                 row -> {
                     int i = cnt.get();
                     assertEquals(i, row.getDouble(0), 0);
@@ -283,7 +285,8 @@ public class ParquetColumnarRowInputFormatTest {
         AtomicInteger cnt = new AtomicInteger(0);
         forEachRemaining(
                 format.createReader(
-                        EMPTY_CONF, new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE)),
+                        EMPTY_CONF,
+                        new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE, 0, Long.MAX_VALUE)),
                 row -> {
                     int i = cnt.get();
                     assertEquals(i, row.getDouble(0), 0);
@@ -423,6 +426,8 @@ public class ParquetColumnarRowInputFormatTest {
             throw new IOException(e);
         }
 
+        FileStatus fileStatus = path.getFileSystem().getFileStatus(path);
+
         BulkFormat.Reader<RowData> reader =
                 format.restoreReader(
                         EMPTY_CONF,
@@ -431,6 +436,8 @@ public class ParquetColumnarRowInputFormatTest {
                                 path,
                                 splitStart,
                                 splitLength,
+                                fileStatus.getModificationTime(),
+                                fileStatus.getLen(),
                                 new String[0],
                                 new CheckpointedPosition(
                                         CheckpointedPosition.NO_OFFSET, seekToRow)));
@@ -577,10 +584,19 @@ public class ParquetColumnarRowInputFormatTest {
                         false,
                         true);
 
+        FileStatus fileStatus = testPath.getFileSystem().getFileStatus(testPath);
+
         AtomicInteger cnt = new AtomicInteger(0);
         forEachRemaining(
                 format.createReader(
-                        EMPTY_CONF, new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE)),
+                        EMPTY_CONF,
+                        new FileSourceSplit(
+                                "id",
+                                testPath,
+                                0,
+                                Long.MAX_VALUE,
+                                fileStatus.getModificationTime(),
+                                fileStatus.getLen())),
                 row -> {
                     int i = cnt.get();
                     // common values

@@ -74,7 +74,8 @@ public class FileSourceHeavyThroughputTest {
     public void testHeavyThroughput() throws Exception {
         final Path path = new Path("testfs:///testpath");
         final long fileSize = 20L << 30; // 20 GB
-        final FileSourceSplit split = new FileSourceSplit("testsplitId", path, 0, fileSize);
+        final FileSourceSplit split =
+                new FileSourceSplit("testsplitId", path, 0, fileSize, 0, fileSize);
 
         testFs =
                 TestingFileSystem.createForFileStatus(

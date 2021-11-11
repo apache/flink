@@ -68,6 +68,7 @@ public class FileSourceReaderTest {
     }
 
     private static FileSourceSplit createTestFileSplit() throws IOException {
-        return new FileSourceSplit("test-id", Path.fromLocalFile(TMP_DIR.newFile()), 0L, 0L);
+        return new FileSourceSplit(
+                "test-id", Path.fromLocalFile(TMP_DIR.newFile()), 0L, 0L, 0L, 0L);
     }
 }

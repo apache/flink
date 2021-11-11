@@ -21,6 +21,7 @@ package org.apache.flink.table.filesystem.stream.compact;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
+import org.apache.flink.core.fs.FileStatus;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -75,11 +76,17 @@ public class CompactBulkReader<T> implements CompactReader<T> {
         @Override
         public CompactReader<T> create(CompactContext context) throws IOException {
             final String splitId = UUID.randomUUID().toString();
-            final long len = context.getFileSystem().getFileStatus(context.getPath()).getLen();
+            final FileStatus fileStatus = context.getFileSystem().getFileStatus(context.getPath());
             return new CompactBulkReader<>(
                     format.createReader(
                             context.getConfig(),
-                            new FileSourceSplit(splitId, context.getPath(), 0, len)));
+                            new FileSourceSplit(
+                                    splitId,
+                                    context.getPath(),
+                                    0,
+                                    fileStatus.getLen(),
+                                    fileStatus.getModificationTime(),
+                                    fileStatus.getLen())));
         }
     }
 }

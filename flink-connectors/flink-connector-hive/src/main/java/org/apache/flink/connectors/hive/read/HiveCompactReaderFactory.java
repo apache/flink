@@ -23,6 +23,7 @@ import org.apache.flink.connectors.hive.CachedSerializedValue;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.JobConfWrapper;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -102,8 +103,17 @@ public class HiveCompactReaderFactory implements CompactReader.Factory<RowData> 
     }
 
     private HiveSourceSplit createSplit(Path path, FileSystem fs) throws IOException {
-        long len = fs.getFileStatus(path).getLen();
-        return new HiveSourceSplit("id", path, 0, len, new String[0], null, createPartition(path));
+        FileStatus fileStatus = fs.getFileStatus(path);
+        return new HiveSourceSplit(
+                "id",
+                path,
+                0,
+                fileStatus.getLen(),
+                fileStatus.getModificationTime(),
+                fileStatus.getLen(),
+                new String[0],
+                null,
+                createPartition(path));
     }
 
     private HiveTablePartition createPartition(Path path) {

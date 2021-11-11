@@ -23,6 +23,7 @@ import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
 import org.apache.flink.connector.file.src.util.Utils;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcFilters.Between;
 import org.apache.flink.orc.OrcFilters.Equals;
@@ -432,14 +433,22 @@ public class OrcColumnarRowFileInputFormatTest {
 
     private static List<FileSourceSplit> createSplits(Path path, int minNumSplits)
             throws IOException {
-        List<FileSourceSplit> splits = new ArrayList<>(minNumSplits);
-        long len = path.getFileSystem().getFileStatus(path).getLen();
-        long preferSplitSize = len / minNumSplits + (len % minNumSplits == 0 ? 0 : 1);
+        final List<FileSourceSplit> splits = new ArrayList<>(minNumSplits);
+        final FileStatus fileStatus = path.getFileSystem().getFileStatus(path);
+        final long len = fileStatus.getLen();
+        final long preferSplitSize = len / minNumSplits + (len % minNumSplits == 0 ? 0 : 1);
         int splitNum = 0;
         long position = 0;
         while (position < len) {
             long splitLen = Math.min(preferSplitSize, len - position);
-            splits.add(new FileSourceSplit(String.valueOf(splitNum++), path, position, splitLen));
+            splits.add(
+                    new FileSourceSplit(
+                            String.valueOf(splitNum++),
+                            path,
+                            position,
+                            splitLen,
+                            fileStatus.getModificationTime(),
+                            len));
             position += splitLen;
         }
         return splits;
