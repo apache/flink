@@ -19,12 +19,13 @@
 package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
@@ -88,9 +89,8 @@ public final class DynamicSinkUtils {
             FlinkRelBuilder relBuilder,
             RelNode input,
             CollectModifyOperation collectModifyOperation,
-            Configuration configuration,
-            ClassLoader classLoader,
-            ZoneId zoneId) {
+            ReadableConfig configuration,
+            ClassLoader classLoader) {
         final DataTypeFactory dataTypeFactory =
                 unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
         final ResolvedSchema childSchema = collectModifyOperation.getChild().getResolvedSchema();
@@ -101,6 +101,12 @@ public final class DynamicSinkUtils {
         final ResolvedCatalogTable catalogTable = new ResolvedCatalogTable(unresolvedTable, schema);
 
         final DataType consumedDataType = fixCollectDataType(dataTypeFactory, schema);
+
+        final String zone = configuration.get(TableConfigOptions.LOCAL_TIME_ZONE);
+        final ZoneId zoneId =
+                TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
+                        ? ZoneId.systemDefault()
+                        : ZoneId.of(zone);
 
         final CollectDynamicSink tableSink =
                 new CollectDynamicSink(

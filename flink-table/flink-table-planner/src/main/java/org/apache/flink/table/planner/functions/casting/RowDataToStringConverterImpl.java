@@ -38,7 +38,7 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 /** {@link RowData} to {@link String} converter using {@link CastRule}. */
 public final class RowDataToStringConverterImpl implements RowDataToStringConverter {
 
-    private final Function<RowData, String>[] converters;
+    private final Function<RowData, String>[] columnConverters;
 
     @VisibleForTesting
     public RowDataToStringConverterImpl(DataType dataType) {
@@ -51,7 +51,7 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
     @SuppressWarnings("unchecked")
     public RowDataToStringConverterImpl(DataType dataType, ZoneId zoneId, ClassLoader classLoader) {
         List<DataType> rowDataTypes = DataType.getFieldDataTypes(dataType);
-        this.converters = new Function[rowDataTypes.size()];
+        this.columnConverters = new Function[rowDataTypes.size()];
 
         for (int i = 0; i < rowDataTypes.size(); i++) {
             final int index = i;
@@ -65,7 +65,7 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
                                     STRING().getLogicalType());
             if (castExecutor == null) {
                 // Fallback in case no casting rule is defined
-                this.converters[index] =
+                this.columnConverters[index] =
                         row -> {
                             if (row.isNullAt(index)) {
                                 return PrintStyle.NULL_VALUE;
@@ -73,7 +73,7 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
                             return Objects.toString(getter.getFieldOrNull(row));
                         };
             } else {
-                this.converters[index] =
+                this.columnConverters[index] =
                         row -> {
                             if (row.isNullAt(index)) {
                                 return PrintStyle.NULL_VALUE;
@@ -85,10 +85,10 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
     }
 
     @Override
-    public String[] toString(RowData rowData) {
+    public String[] convert(RowData rowData) {
         String[] result = new String[rowData.getArity()];
         for (int i = 0; i < result.length; i++) {
-            result[i] = this.converters[i].apply(rowData);
+            result[i] = this.columnConverters[i].apply(rowData);
         }
         return result;
     }

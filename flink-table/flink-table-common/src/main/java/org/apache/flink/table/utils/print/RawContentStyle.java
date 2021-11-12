@@ -37,7 +37,7 @@ public final class RawContentStyle implements PrintStyle {
     @Override
     public void print(Iterator<RowData> it, PrintWriter printWriter) {
         while (it.hasNext()) {
-            printWriter.println(String.join(", ", converter.toString(it.next())));
+            printWriter.println(String.join(", ", converter.convert(it.next())));
         }
         printWriter.flush();
     }

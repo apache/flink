@@ -305,7 +305,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
         // convert page
         final List<String[]> stringRows =
                 rows.stream()
-                        .map(resultDescriptor.getRowDataStringConverter()::toString)
+                        .map(resultDescriptor.getRowDataStringConverter()::convert)
                         .collect(Collectors.toList());
 
         // update results

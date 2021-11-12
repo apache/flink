@@ -164,7 +164,7 @@ public final class TableauStyle implements PrintStyle {
         final String[] result = new String[len];
 
         final int offset = printRowKind ? 1 : 0;
-        final String[] conversionResult = converter.toString(row);
+        final String[] conversionResult = converter.convert(row);
 
         if (printRowKind) {
             result[0] = row.getRowKind().shortString();
@@ -191,7 +191,7 @@ public final class TableauStyle implements PrintStyle {
                             this.columnNames, Collections.singletonList(cols), maxColumnWidth);
         }
 
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         sb.append("|");
         int idx = 0;
         for (String col : cols) {
@@ -320,26 +320,15 @@ public final class TableauStyle implements PrintStyle {
         return colWidths;
     }
 
-    /**
-     * Here we consider two popular class for timestamp: LocalDateTime and java.sql.Timestamp.
-     *
-     * <p>According to LocalDateTime's comment, the string output will be one of the following
-     * ISO-8601 formats:
-     * <li>{@code uuuu-MM-dd'T'HH:mm:ss}
-     * <li>{@code uuuu-MM-dd'T'HH:mm:ss.SSS}
-     * <li>{@code uuuu-MM-dd'T'HH:mm:ss.SSSSSS}
-     * <li>{@code uuuu-MM-dd'T'HH:mm:ss.SSSSSSSSS}
-     *
-     *     <p>And for java.sql.Timestamp, the number of digits after point will be precision except
-     *     when precision is 0. In that case, the format would be 'uuuu-MM-dd HH:mm:ss.0'
-     */
     private static int timestampTypeColumnWidth(int precision) {
         int base = 19; // length of uuuu-MM-dd HH:mm:ss
         if (precision == 0) {
             return base;
         } else if (precision <= 3) {
+            // uuuu-MM-dd HH:mm:ss.sss
             return base + 4;
         } else if (precision <= 6) {
+            // uuuu-MM-dd HH:mm:ss.sssssss
             return base + 7;
         } else {
             return base + 10;

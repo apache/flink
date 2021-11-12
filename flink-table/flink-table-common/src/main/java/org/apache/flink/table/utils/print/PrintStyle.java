@@ -26,7 +26,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.PrintWriter;
 import java.util.Iterator;
 
-/** Root interface for all print styles. */
+/** A {@link PrintStyle} defines style and formatting to print a collection of {@link RowData}. */
 @Internal
 public interface PrintStyle {
 
@@ -38,9 +38,6 @@ public interface PrintStyle {
 
     /**
      * Displays the result.
-     *
-     * <p><b>NOTE:</b> please make sure the data to print is small enough to be stored in java heap
-     * memory if the column width is derived from content (`deriveColumnWidthByType` is false).
      *
      * @param it The iterator for the data to print
      * @param printWriter The writer to write to

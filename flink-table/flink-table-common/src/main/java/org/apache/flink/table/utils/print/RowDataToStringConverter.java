@@ -21,11 +21,8 @@ package org.apache.flink.table.utils.print;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.RowData;
 
-/**
- * Interface to convert {@link org.apache.flink.table.data.RowData} to {@link String} using the SQL
- * casting rules.
- */
+/** Interface to convert {@link RowData} to {@link String} using the SQL casting rules. */
 @Internal
 public interface RowDataToStringConverter {
-    String[] toString(RowData rowData);
+    String[] convert(RowData rowData);
 }

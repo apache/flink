@@ -500,7 +500,7 @@ public class LocalExecutorITCase extends TestLogger {
                                             executor.retrieveResultPage(resultID, page)) {
                                         actualResults.add(
                                                 StringUtils.arrayAwareToString(
-                                                        rowDataToStringConverter.toString(row)));
+                                                        rowDataToStringConverter.convert(row)));
                                     }
                                 });
             } else if (result.getType() == TypedResult.ResultType.EOS) {
@@ -526,7 +526,7 @@ public class LocalExecutorITCase extends TestLogger {
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
                 for (RowData row : result.getPayload()) {
                     actualResults.add(
-                            StringUtils.arrayAwareToString(rowDataToStringConverter.toString(row)));
+                            StringUtils.arrayAwareToString(rowDataToStringConverter.convert(row)));
                 }
             } else if (result.getType() == TypedResult.ResultType.EOS) {
                 break;
