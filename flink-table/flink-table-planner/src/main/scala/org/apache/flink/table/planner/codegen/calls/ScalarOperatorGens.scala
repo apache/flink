@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.data.binary.BinaryArrayData
-import org.apache.flink.table.planner.functions.casting.{CastRule, CastRuleProvider, CodeGeneratorCastRule, ExpressionCodeGeneratorCastRule}
 import org.apache.flink.table.data.util.MapDataUtil
 import org.apache.flink.table.data.utils.CastExecutor
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull, binaryWriterWriteField, binaryWriterWriteNull, _}
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.functions.casting.{CastRule, CastRuleProvider, CodeGeneratorCastRule, ExpressionCodeGeneratorCastRule}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
@@ -40,11 +40,12 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExpli
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.table.utils.DateTimeUtils
-import org.apache.flink.util.Preconditions.checkArgument
 import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
+import org.apache.flink.util.Preconditions.checkArgument
 
 import java.time.ZoneId
 import java.util.Arrays.asList
+
 import scala.collection.JavaConversions._
 
 /**
@@ -422,7 +423,7 @@ object ScalarOperatorGens {
     // but flink has not yet supported now
     if ((isNumeric(left.resultType) && isCharacterString(right.resultType))
       || (isNumeric(right.resultType) && isCharacterString(left.resultType))) {
-      throw new CodeGenException(
+      throw new ValidationException(
         "implicit type conversion between " +
           s"${left.resultType.getTypeRoot}" +
           s" and " +
