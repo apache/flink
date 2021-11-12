@@ -157,6 +157,12 @@ public class CompletedOperationCache<K extends OperationKey, R> implements AutoC
         return terminationFuture == null;
     }
 
+    /** Returns whether this cache contains an operation under the given operation key. */
+    public boolean containsOperation(final K operationKey) {
+        return registeredOperationTriggers.containsKey(operationKey)
+                || completedOperations.getIfPresent(operationKey) != null;
+    }
+
     /**
      * Returns an optional containing the {@link OperationResult} for the specified key, or an empty
      * optional if no operation is registered under the key.

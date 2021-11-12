@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.util.ManualTicker;
 import org.apache.flink.util.TestLogger;
@@ -154,5 +155,34 @@ public class CompletedOperationCacheTest extends TestLogger {
         manualTicker.advanceTime(baseTimeout.multipliedBy(2).getSeconds(), TimeUnit.SECONDS);
 
         assertTrue(completedOperationCache.get(TEST_OPERATION_KEY).isPresent());
+    }
+
+    @Test
+    public void containsReturnsFalseForUnknownOperation() {
+        assertThat(completedOperationCache.containsOperation(TEST_OPERATION_KEY), is(false));
+    }
+
+    @Test
+    public void containsChecksOnoingOperations() {
+        completedOperationCache.registerOngoingOperation(
+                TEST_OPERATION_KEY, new CompletableFuture<>());
+        assertThat(completedOperationCache.containsOperation(TEST_OPERATION_KEY), is(true));
+    }
+
+    @Test
+    public void containsChecksCompletedOperations() {
+        completedOperationCache.registerOngoingOperation(
+                TEST_OPERATION_KEY, CompletableFuture.completedFuture(null));
+        assertThat(completedOperationCache.containsOperation(TEST_OPERATION_KEY), is(true));
+    }
+
+    @Test
+    public void containsDoesNotMarkResultAsAccessed() {
+        completedOperationCache.registerOngoingOperation(
+                TEST_OPERATION_KEY, CompletableFuture.completedFuture(null));
+        assertThat(completedOperationCache.containsOperation(TEST_OPERATION_KEY), is(true));
+        assertThat(
+                completedOperationCache.closeAsync(),
+                FlinkMatchers.willNotComplete(Duration.ofMillis(10)));
     }
 }
