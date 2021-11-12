@@ -376,13 +376,14 @@ public class RpcEndpointTest extends TestLogger {
             throws InterruptedException, ExecutionException, TimeoutException {
         final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
         final Time timeout = Time.milliseconds(100);
+        CountDownLatch latch = new CountDownLatch(1);
         try {
             endpoint.start();
             final CompletableFuture<Throwable> throwableFuture =
                     endpoint.callAsync(
                                     () -> {
                                         endpoint.validateRunsInMainThread();
-                                        TimeUnit.MILLISECONDS.sleep(timeout.toMilliseconds() * 2);
+                                        latch.await();
                                         return 12345;
                                     },
                                     timeout)
@@ -392,6 +393,7 @@ public class RpcEndpointTest extends TestLogger {
             assertNotNull(throwable);
             assertThat(throwable, instanceOf(TimeoutException.class));
         } finally {
+            latch.countDown();
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
         }
     }
