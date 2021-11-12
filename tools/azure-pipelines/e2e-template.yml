@@ -44,6 +44,14 @@ jobs:
           echo "##vso[task.setvariable variable=skip;]0"
         fi
       displayName: Check if Docs only PR
+    # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
+    # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
+    - bash: |
+        mkdir -p $(MAVEN_CACHE_FOLDER)
+        mkdir -p $(E2E_CACHE_FOLDER)
+        mkdir -p $(E2E_TARBALL_CACHE)
+        mkdir -p $(DOCKER_IMAGES_CACHE_FOLDER)
+      displayName: Create cache directories
     - task: Cache@2
       inputs:
         key: $(CACHE_KEY)
