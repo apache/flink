@@ -64,7 +64,9 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
                                     fieldType,
                                     STRING().getLogicalType());
             if (castExecutor == null) {
-                // Fallback in case no casting rule is defined
+                // Fallback in case no casting rule is defined, for example for MULTISET and
+                // STRUCTURED
+                // Links to https://issues.apache.org/jira/browse/FLINK-24403
                 this.columnConverters[index] =
                         row -> {
                             if (row.isNullAt(index)) {
