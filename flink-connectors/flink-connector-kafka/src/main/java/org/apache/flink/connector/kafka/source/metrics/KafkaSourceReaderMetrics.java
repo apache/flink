@@ -289,6 +289,8 @@ public class KafkaSourceReaderMetrics {
     private @Nullable Metric getRecordsLagMetric(
             Map<MetricName, ? extends Metric> metrics, TopicPartition tp) {
         try {
+            final String resolvedTopic = tp.topic().replace('.', '_');
+            final String resolvedPartition = String.valueOf(tp.partition());
             Predicate<Map.Entry<MetricName, ? extends Metric>> filter =
                     entry -> {
                         final MetricName metricName = entry.getKey();
@@ -297,9 +299,9 @@ public class KafkaSourceReaderMetrics {
                         return metricName.group().equals(CONSUMER_FETCH_MANAGER_GROUP)
                                 && metricName.name().equals(RECORDS_LAG)
                                 && tags.containsKey("topic")
-                                && tags.get("topic").equals(tp.topic())
+                                && tags.get("topic").equals(resolvedTopic)
                                 && tags.containsKey("partition")
-                                && tags.get("partition").equals(String.valueOf(tp.partition()));
+                                && tags.get("partition").equals(resolvedPartition);
                     };
             return MetricUtil.getKafkaMetric(metrics, filter);
         } catch (IllegalStateException e) {
