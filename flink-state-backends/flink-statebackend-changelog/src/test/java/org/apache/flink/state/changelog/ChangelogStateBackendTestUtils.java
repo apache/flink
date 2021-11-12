@@ -173,8 +173,6 @@ public class ChangelogStateBackendTestUtils {
             keyedBackend.setCurrentKey(3);
             state.update(new StateBackendTestBase.TestPojo("u3", 3));
 
-            awaitMaterialization(keyedBackend, env.getMainMailboxExecutor());
-
             KeyedStateHandle snapshot =
                     runSnapshot(
                             keyedBackend.snapshot(
@@ -184,9 +182,9 @@ public class ChangelogStateBackendTestUtils {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            periodicMaterializationManager.close();
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
-            periodicMaterializationManager.close();
 
             // make sure the asycn phase completes successfully
             if (asyncComplete.isCompletedExceptionally()) {

@@ -92,6 +92,7 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableList;
 import static org.apache.flink.state.changelog.PeriodicMaterializationManager.MaterializationRunnable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link KeyedStateBackend} that keeps state on the underlying delegated keyed state backend as
@@ -587,7 +588,7 @@ public class ChangelogKeyedStateBackend<K>
 
             LOG.info("Starting materialization from {} : {}", lastMaterializedTo, upTo);
 
-            return Optional.of(
+            MaterializationRunnable materializationRunnable =
                     new MaterializationRunnable(
                             keyedStateBackend.snapshot(
                                     // This ID is not needed for materialization;
@@ -600,8 +601,20 @@ public class ChangelogKeyedStateBackend<K>
                                     System.currentTimeMillis(),
                                     streamFactory,
                                     CHECKPOINT_OPTIONS),
-                            // TODO: add metadata to log FLINK-23170.
-                            upTo));
+                            upTo);
+
+            // log metadata after materialization is triggered
+            for (InternalKvState<K, ?, ?> changelogState : keyValueStatesByName.values()) {
+                checkState(changelogState instanceof ChangelogState);
+                ((ChangelogState) changelogState).resetWritingMetaFlag();
+            }
+
+            for (ChangelogKeyGroupedPriorityQueue<?> priorityQueueState :
+                    priorityQueueStatesByName.values()) {
+                priorityQueueState.resetWritingMetaFlag();
+            }
+
+            return Optional.of(materializationRunnable);
         } else {
             LOG.debug(
                     "Skip materialization, last materialized to {} : last log to {}",
