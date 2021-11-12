@@ -25,7 +25,6 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.Expression;
@@ -48,6 +47,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -193,7 +193,6 @@ public abstract class BuiltInFunctionTestBase {
         } catch (AssertionError e) {
             throw e;
         } catch (Throwable t) {
-            assertTrue(t instanceof ValidationException);
             assertThat(t.getMessage(), containsString(testItem.errorMessage));
         }
     }
@@ -342,9 +341,19 @@ public abstract class BuiltInFunctionTestBase {
                 List<Object> result,
                 List<AbstractDataType<?>> tableApiDataType,
                 List<AbstractDataType<?>> sqlDataType) {
-            testItems.add(new TableApiResultTestItem(expression, result, tableApiDataType));
-            testItems.add(
-                    new SqlResultTestItem(String.join(",", sqlExpression), result, sqlDataType));
+
+            expression = expression.stream().filter(Objects::nonNull).collect(Collectors.toList());
+            sqlExpression =
+                    sqlExpression.stream().filter(Objects::nonNull).collect(Collectors.toList());
+
+            if (expression.size() != 0) {
+                testItems.add(new TableApiResultTestItem(expression, result, tableApiDataType));
+            }
+            if (sqlExpression.size() != 0) {
+                testItems.add(
+                        new SqlResultTestItem(
+                                String.join(",", sqlExpression), result, sqlDataType));
+            }
             return this;
         }
 
@@ -498,6 +507,11 @@ public abstract class BuiltInFunctionTestBase {
             Object result,
             AbstractDataType<?> dataType) {
         return resultSpec(tableApiExpression, sqlExpression, result, dataType, dataType);
+    }
+
+    public static ResultSpec resultSpecOnlyContainsSqlExpression(
+            String sqlExpression, Object result, AbstractDataType<?> dataType) {
+        return resultSpec(null, sqlExpression, result, dataType, dataType);
     }
 
     public static ResultSpec resultSpec(
