@@ -195,38 +195,6 @@ object CodeGenUtils {
     case _ => boxedTypeTermForType(t)
   }
 
-  /**
-   * Execute primitive unboxing.
-   */
-  def unbox(term: String, ty: LogicalType): String = ty.getTypeRoot match {
-    // ordered by type root definition
-    case BOOLEAN => s"$term.booleanValue()"
-    case TINYINT => s"$term.byteValue()"
-    case SMALLINT => s"$term.shortValue()"
-    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => s"$term.intValue()"
-    case BIGINT | INTERVAL_DAY_TIME => s"$term.longValue()"
-    case FLOAT => s"$term.floatValue()"
-    case DOUBLE => s"$term.doubleValue()"
-    case DISTINCT_TYPE => unbox(term, ty.asInstanceOf[DistinctType].getSourceType)
-    case _ => term
-  }
-
-  /**
-   * Execute primitive unboxing.
-   */
-  def box(term: String, ty: LogicalType): String = ty.getTypeRoot match {
-    // ordered by type root definition
-    case BOOLEAN => s"Boolean.valueOf($term)"
-    case TINYINT => s"Byte.valueOf($term)"
-    case SMALLINT => s"Short.valueOf($term)"
-    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => s"Integer.valueOf($term)"
-    case BIGINT | INTERVAL_DAY_TIME => s"Long.valueOf($term)"
-    case FLOAT => s"Float.valueOf($term)"
-    case DOUBLE => s"Double.valueOf($term)"
-    case DISTINCT_TYPE => unbox(term, ty.asInstanceOf[DistinctType].getSourceType)
-    case _ => term
-  }
-
   @tailrec
   def boxedTypeTermForType(t: LogicalType): String = t.getTypeRoot match {
     // ordered by type root definition

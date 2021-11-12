@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions.casting.rules;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
 import org.apache.flink.table.planner.functions.casting.CastRule;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.EncodingUtils;
 
@@ -40,6 +41,10 @@ final class CastRuleUtils {
 
     static final String NULL_STR_LITERAL = strLiteral("null");
     static final String EMPTY_STR_LITERAL = "\"\"";
+
+    static String staticCall(Class<?> clazz, String methodName, Object... args) {
+        return methodCall(className(clazz), methodName, args);
+    }
 
     static String staticCall(Method staticMethod, Object... args) {
         return functionCall(CodeGenUtils.qualifyMethod(staticMethod), args);
@@ -86,6 +91,59 @@ final class CastRuleUtils {
 
     static String castToPrimitive(LogicalType target, String expression) {
         return cast(primitiveTypeTermForType(target), expression);
+    }
+
+    static String unbox(String term, LogicalType type) {
+        switch (type.getTypeRoot()) {
+            case BOOLEAN:
+                return methodCall(term, "booleanValue");
+            case TINYINT:
+                return methodCall(term, "byteValue");
+            case SMALLINT:
+                return methodCall(term, "shortValue");
+            case INTEGER:
+            case DATE:
+            case TIME_WITHOUT_TIME_ZONE:
+            case INTERVAL_YEAR_MONTH:
+                return methodCall(term, "intValue");
+            case BIGINT:
+            case INTERVAL_DAY_TIME:
+                return methodCall(term, "longValue");
+            case FLOAT:
+                return methodCall(term, "floatValue");
+            case DOUBLE:
+                return methodCall(term, "doubleValue");
+            case DISTINCT_TYPE:
+                return unbox(term, ((DistinctType) type).getSourceType());
+        }
+        return term;
+    }
+
+    static String box(String term, LogicalType type) {
+        switch (type.getTypeRoot()) {
+                // ordered by type root definition
+            case BOOLEAN:
+                return staticCall(Boolean.class, "valueOf", term);
+            case TINYINT:
+                return staticCall(Byte.class, "valueOf", term);
+            case SMALLINT:
+                return staticCall(Short.class, "valueOf", term);
+            case INTEGER:
+            case DATE:
+            case TIME_WITHOUT_TIME_ZONE:
+            case INTERVAL_YEAR_MONTH:
+                return staticCall(Integer.class, "valueOf", term);
+            case BIGINT:
+            case INTERVAL_DAY_TIME:
+                return staticCall(Long.class, "valueOf", term);
+            case FLOAT:
+                return staticCall(Float.class, "valueOf", term);
+            case DOUBLE:
+                return staticCall(Double.class, "valueOf", term);
+            case DISTINCT_TYPE:
+                box(term, ((DistinctType) type).getSourceType());
+        }
+        return term;
     }
 
     static final class CodeWriter {

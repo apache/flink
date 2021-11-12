@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.functions.casting.rules;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
 import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -28,8 +27,10 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.methodCall;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.DOUBLE_TO_DECIMAL;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.INTEGRAL_TO_DECIMAL;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.cast;
+import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
 
 /**
  * {@link LogicalTypeFamily#INTEGER_NUMERIC} and {@link LogicalTypeFamily#APPROXIMATE_NUMERIC} to
@@ -58,10 +59,16 @@ public class NumericPrimitiveToDecimalCastRule
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         final DecimalType targetDecimalType = (DecimalType) targetLogicalType;
-        return methodCall(
-                className(DecimalDataUtils.class),
-                "castFrom",
-                inputTerm,
+        if (inputLogicalType.is(LogicalTypeFamily.INTEGER_NUMERIC)) {
+            return staticCall(
+                    INTEGRAL_TO_DECIMAL(),
+                    cast("long", inputTerm),
+                    targetDecimalType.getPrecision(),
+                    targetDecimalType.getScale());
+        }
+        return staticCall(
+                DOUBLE_TO_DECIMAL(),
+                cast("double", inputTerm),
                 targetDecimalType.getPrecision(),
                 targetDecimalType.getScale());
     }

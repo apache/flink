@@ -45,27 +45,27 @@ public class NumericPrimitiveCastRule
         super(CastRulePredicate.builder().predicate(NumericPrimitiveCastRule::matches).build());
     }
 
-    private static boolean matches(LogicalType x, LogicalType y) {
+    private static boolean matches(LogicalType input, LogicalType target) {
         // Exclude identity casting
-        if (x.is(y.getTypeRoot())) {
+        if (input.is(target.getTypeRoot())) {
             return false;
         }
 
         // Conversions between primitive numerics
-        if ((x.is(INTEGER_NUMERIC) || x.is(APPROXIMATE_NUMERIC))
-                && (y.is(INTEGER_NUMERIC) || y.is(APPROXIMATE_NUMERIC))) {
+        if ((input.is(INTEGER_NUMERIC) || input.is(APPROXIMATE_NUMERIC))
+                && (target.is(INTEGER_NUMERIC) || target.is(APPROXIMATE_NUMERIC))) {
             return true;
         }
 
         // Conversions between Interval year month (int) and bigint (long)
-        if ((x.is(INTERVAL_YEAR_MONTH) && y.is(BIGINT))
-                || (x.is(BIGINT) && y.is(INTERVAL_YEAR_MONTH))) {
+        if ((input.is(INTERVAL_YEAR_MONTH) && target.is(BIGINT))
+                || (input.is(BIGINT) && target.is(INTERVAL_YEAR_MONTH))) {
             return true;
         }
 
         // Conversions between Interval day time (long) and integer (int)
-        return (x.is(INTERVAL_DAY_TIME) && y.is(INTEGER))
-                || (x.is(INTEGER) && y.is(INTERVAL_DAY_TIME));
+        return (input.is(INTERVAL_DAY_TIME) && target.is(INTEGER))
+                || (input.is(INTEGER) && target.is(INTERVAL_DAY_TIME));
     }
 
     @Override

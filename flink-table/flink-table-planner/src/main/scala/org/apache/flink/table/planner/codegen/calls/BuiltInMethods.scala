@@ -561,4 +561,12 @@ object BuiltInMethods {
     classOf[DecimalDataUtils],
     "doubleValue", classOf[DecimalData])
 
+  val INTEGRAL_TO_DECIMAL = Types.lookupMethod(
+    classOf[DecimalDataUtils],
+    "castFrom", classOf[Long], classOf[Int], classOf[Int])
+
+  val DOUBLE_TO_DECIMAL = Types.lookupMethod(
+    classOf[DecimalDataUtils],
+    "castFrom", classOf[Long], classOf[Int], classOf[Int])
+
 }

@@ -60,7 +60,6 @@ public abstract class AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
             LogicalType targetType) {
         final CastRuleUtils.CodeWriter writer = new CastRuleUtils.CodeWriter();
 
-        // Result of a casting is null if the input is null or the output primitive type is nullable
         final boolean isResultNullable = inputType.isNullable() || isPrimitiveNullable(targetType);
         String nullTerm;
         if (isResultNullable) {
