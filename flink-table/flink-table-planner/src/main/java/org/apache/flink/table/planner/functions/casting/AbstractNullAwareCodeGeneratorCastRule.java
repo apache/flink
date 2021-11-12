@@ -16,12 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.isPrimitiveNullable;
@@ -32,8 +28,7 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveTypeT
  * Base class for cast rules supporting code generation. This class inherits from {@link
  * AbstractCodeGeneratorCastRule} and takes care of nullability checks.
  */
-@Internal
-public abstract class AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
+abstract class AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
         extends AbstractCodeGeneratorCastRule<IN, OUT> {
 
     protected AbstractNullAwareCodeGeneratorCastRule(CastRulePredicate predicate) {

@@ -16,14 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CastRuleProvider;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -33,17 +28,15 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAccess;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.NULL_STR_LITERAL;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.constructorCall;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.methodCall;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.strLiteral;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.NULL_STR_LITERAL;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 
 /** {@link LogicalTypeRoot#ARRAY} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
-@Internal
-public class ArrayToStringCastRule
-        extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
+class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
 
-    public static final ArrayToStringCastRule INSTANCE = new ArrayToStringCastRule();
+    static final ArrayToStringCastRule INSTANCE = new ArrayToStringCastRule();
 
     private ArrayToStringCastRule() {
         super(

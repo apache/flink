@@ -16,12 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -30,18 +27,17 @@ import java.lang.reflect.Method;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.DECIMAL_TO_DOUBLE;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.DECIMAL_TO_INTEGRAL;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.castToPrimitive;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.castToPrimitive;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
 /**
  * {@link LogicalTypeRoot#DECIMAL} to {@link LogicalTypeFamily#INTEGER_NUMERIC} and {@link
  * LogicalTypeFamily#APPROXIMATE_NUMERIC} cast rule.
  */
-@Internal
-public class DecimalToNumericPrimitiveCastRule
+class DecimalToNumericPrimitiveCastRule
         extends AbstractExpressionCodeGeneratorCastRule<DecimalData, Number> {
 
-    public static final DecimalToNumericPrimitiveCastRule INSTANCE =
+    static final DecimalToNumericPrimitiveCastRule INSTANCE =
             new DecimalToNumericPrimitiveCastRule();
 
     private DecimalToNumericPrimitiveCastRule() {

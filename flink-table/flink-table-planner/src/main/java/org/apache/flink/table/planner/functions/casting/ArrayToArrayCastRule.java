@@ -16,15 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
-import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CastRuleProvider;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -32,16 +27,14 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAccess;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.constructorCall;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.methodCall;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.newArray;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.newArray;
 
 /** {@link LogicalTypeRoot#ARRAY} to {@link LogicalTypeRoot#ARRAY} cast rule. */
-@Internal
-public class ArrayToArrayCastRule
-        extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, ArrayData> {
+class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, ArrayData> {
 
-    public static final ArrayToArrayCastRule INSTANCE = new ArrayToArrayCastRule();
+    static final ArrayToArrayCastRule INSTANCE = new ArrayToArrayCastRule();
 
     private ArrayToArrayCastRule() {
         super(

@@ -16,22 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.utils.CastExecutor;
-import org.apache.flink.table.planner.functions.casting.CastRule;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
-import org.apache.flink.table.planner.functions.casting.ExpressionCodeGeneratorCastRule;
 import org.apache.flink.table.runtime.generated.CompileUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import java.util.Collections;
 
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.box;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.unbox;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.box;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.unbox;
 
 /**
  * Base class for cast rules that supports code generation, requiring only an expression to perform
@@ -40,8 +35,7 @@ import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUti
  *
  * <p>NOTE: the {@code inputTerm} is always either a primitive or a non-null object.
  */
-@Internal
-public abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
+abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
         extends AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
         implements ExpressionCodeGeneratorCastRule<IN, OUT> {
 

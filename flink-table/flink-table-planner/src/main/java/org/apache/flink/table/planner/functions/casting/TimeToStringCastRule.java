@@ -16,31 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import java.nio.charset.StandardCharsets;
-
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.accessStaticField;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.constructorCall;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.UNIX_TIME_TO_STRING;
 
 /**
- * {@link LogicalTypeFamily#BINARY_STRING} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule.
+ * {@link LogicalTypeRoot#TIME_WITHOUT_TIME_ZONE} to {@link LogicalTypeFamily#CHARACTER_STRING} cast
+ * rule.
  */
-@Internal
-public class BinaryToStringCastRule extends AbstractCharacterFamilyTargetRule<byte[]> {
+class TimeToStringCastRule extends AbstractCharacterFamilyTargetRule<Long> {
 
-    public static final BinaryToStringCastRule INSTANCE = new BinaryToStringCastRule();
+    static final TimeToStringCastRule INSTANCE = new TimeToStringCastRule();
 
-    private BinaryToStringCastRule() {
+    private TimeToStringCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .input(LogicalTypeFamily.BINARY_STRING)
+                        .input(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE)
                         .target(LogicalTypeFamily.CHARACTER_STRING)
                         .build());
     }
@@ -51,7 +47,7 @@ public class BinaryToStringCastRule extends AbstractCharacterFamilyTargetRule<by
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return constructorCall(
-                String.class, inputTerm, accessStaticField(StandardCharsets.class, "UTF_8"));
+        return CastRuleUtils.staticCall(
+                UNIX_TIME_TO_STRING(), inputTerm, LogicalTypeChecks.getPrecision(inputLogicalType));
     }
 }

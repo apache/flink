@@ -16,31 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import java.lang.reflect.Method;
+import org.apache.calcite.avatica.util.DateTimeUtils;
 
-import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.INTERVAL_DAY_TIME_TO_STRING;
-import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.INTERVAL_YEAR_MONTH_TO_STRING;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.accessStaticField;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
-/** {@link LogicalTypeFamily#INTERVAL} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
-@Internal
-public class IntervalToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> {
+/** {@link LogicalTypeFamily#TIMESTAMP} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+class TimestampToStringCastRule extends AbstractCharacterFamilyTargetRule<TimestampData> {
 
-    public static final IntervalToStringCastRule INSTANCE = new IntervalToStringCastRule();
+    static final TimestampToStringCastRule INSTANCE = new TimestampToStringCastRule();
 
-    private IntervalToStringCastRule() {
+    private TimestampToStringCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .input(LogicalTypeFamily.INTERVAL)
+                        .input(LogicalTypeFamily.TIMESTAMP)
                         .target(LogicalTypeFamily.CHARACTER_STRING)
                         .build());
     }
@@ -51,10 +49,12 @@ public class IntervalToStringCastRule extends AbstractCharacterFamilyTargetRule<
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final Method method =
-                inputLogicalType.is(LogicalTypeRoot.INTERVAL_YEAR_MONTH)
-                        ? INTERVAL_YEAR_MONTH_TO_STRING()
-                        : INTERVAL_DAY_TIME_TO_STRING();
-        return staticCall(method, inputTerm);
+        final String zoneId =
+                (inputLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE))
+                        ? context.getSessionTimeZoneTerm()
+                        : accessStaticField(DateTimeUtils.class, "UTC_ZONE");
+        final int precision = LogicalTypeChecks.getPrecision(inputLogicalType);
+
+        return staticCall(TIMESTAMP_TO_STRING_TIME_ZONE(), inputTerm, zoneId, precision);
     }
 }

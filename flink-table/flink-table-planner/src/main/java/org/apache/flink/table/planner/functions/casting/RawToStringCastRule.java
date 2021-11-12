@@ -16,26 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import static org.apache.flink.table.codesplit.CodeSplitUtil.newName;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.methodCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 
 /** {@link LogicalTypeRoot#RAW} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
-@Internal
-public class RawToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object, String> {
+class RawToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object, String> {
 
-    public static final RawToStringCastRule INSTANCE = new RawToStringCastRule();
+    static final RawToStringCastRule INSTANCE = new RawToStringCastRule();
 
-    protected RawToStringCastRule() {
+    private RawToStringCastRule() {
         super(
                 CastRulePredicate.builder()
                         .input(LogicalTypeRoot.RAW)

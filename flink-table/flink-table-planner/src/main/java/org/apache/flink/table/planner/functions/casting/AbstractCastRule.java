@@ -16,15 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastRule;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
+package org.apache.flink.table.planner.functions.casting;
 
 /** Base class for all cast rules. */
-@Internal
-public abstract class AbstractCastRule<IN, OUT> implements CastRule<IN, OUT> {
+abstract class AbstractCastRule<IN, OUT> implements CastRule<IN, OUT> {
 
     private final CastRulePredicate predicate;
 

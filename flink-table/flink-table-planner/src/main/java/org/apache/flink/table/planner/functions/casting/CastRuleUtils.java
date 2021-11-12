@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
-import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
-import org.apache.flink.table.planner.functions.casting.CastRule;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.EncodingUtils;

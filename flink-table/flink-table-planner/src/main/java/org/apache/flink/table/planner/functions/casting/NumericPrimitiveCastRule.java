@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
@@ -35,11 +32,9 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_YEAR
  * Cast rule for {@link LogicalTypeFamily#INTEGER_NUMERIC} and {@link
  * LogicalTypeFamily#APPROXIMATE_NUMERIC} and {@link LogicalTypeFamily#INTERVAL} conversions.
  */
-@Internal
-public class NumericPrimitiveCastRule
-        extends AbstractExpressionCodeGeneratorCastRule<Number, Number> {
+class NumericPrimitiveCastRule extends AbstractExpressionCodeGeneratorCastRule<Number, Number> {
 
-    public static final NumericPrimitiveCastRule INSTANCE = new NumericPrimitiveCastRule();
+    static final NumericPrimitiveCastRule INSTANCE = new NumericPrimitiveCastRule();
 
     private NumericPrimitiveCastRule() {
         super(CastRulePredicate.builder().predicate(NumericPrimitiveCastRule::matches).build());

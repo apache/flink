@@ -16,13 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
-import org.apache.flink.table.planner.functions.casting.ExpressionCodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -32,11 +27,10 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
  * Identity cast rule. For more details on when the rule is applied, check {@link
  * #isIdentityCast(LogicalType, LogicalType)}
  */
-@Internal
-public class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Object>
+class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Object>
         implements ExpressionCodeGeneratorCastRule<Object, Object> {
 
-    public static final IdentityCastRule INSTANCE = new IdentityCastRule();
+    static final IdentityCastRule INSTANCE = new IdentityCastRule();
 
     private IdentityCastRule() {
         super(CastRulePredicate.builder().predicate(IdentityCastRule::isIdentityCast).build());
