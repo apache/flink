@@ -426,7 +426,7 @@ object ScalarOperatorGens {
     // but flink has not yet supported now
     if ((isNumeric(left.resultType) && isCharacterString(right.resultType))
       || (isNumeric(right.resultType) && isCharacterString(left.resultType))) {
-      throw new CodeGenException(
+      throw new ValidationException(
         "implicit type conversion between " +
           s"${left.resultType.getTypeRoot}" +
           s" and " +
