@@ -177,6 +177,7 @@ file sink 支持文件合并，以允许应用程序可以使用较小的检查�
 - 只有检查点内部的文件才会被合并，也就是说，至少会生成跟检查点个数一样多的文件。
 - 合并前文件是可见的，所以文件的可见性是：检查点间隔 + 合并时长。
 - 如果合并花费的时间很长，会对作业产生反压，延长检查点所需时间。
+- 不支持at-least-once mode
 
 ### 分区提交 
 <a id="分区提交"></a>
@@ -395,7 +396,7 @@ public class AnalysisCommitPolicy implements PartitionCommitPolicy {
         <td>Integer</td>
         <td> 向外部文件系统写文件时的并行度。必须大于 0，否则会抛出异常.</td>
     </tr>
-    
+
   </tbody>
 </table>
 
