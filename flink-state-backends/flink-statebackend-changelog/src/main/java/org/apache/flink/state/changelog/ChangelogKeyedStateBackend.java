@@ -625,12 +625,6 @@ public class ChangelogKeyedStateBackend<K>
         }
     }
 
-    /** Not thread safe. */
-    @VisibleForTesting
-    boolean hasNonMaterializedChanges() {
-        return getLastAppendedTo().compareTo(changelogSnapshotState.lastMaterializedTo()) > 0;
-    }
-
     // TODO: Remove after fix FLINK-24436
     //  FsStateChangelogWriter#lastAppendedSequenceNumber returns different seq number
     //  the first time called vs called after the first time.

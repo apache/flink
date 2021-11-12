@@ -19,7 +19,6 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -33,6 +32,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.concurrent.Executors;
 
 import javax.annotation.Nullable;
 
@@ -59,7 +60,6 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.state.StateBackendTestBase.runSnapshot;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 
 /** Test Utilities for Changelog StateBackend. */
@@ -144,15 +144,13 @@ public class ChangelogStateBackendTestUtils {
         CompletableFuture<Void> asyncComplete = new CompletableFuture<>();
         PeriodicMaterializationManager periodicMaterializationManager =
                 new PeriodicMaterializationManager(
-                        checkNotNull(env.getMainMailboxExecutor()),
-                        checkNotNull(env.getAsyncOperationsThreadPool()),
+                        new SyncMailboxExecutor(),
+                        Executors.newDirectExecutorService(),
                         env.getTaskInfo().getTaskNameWithSubtasks(),
                         (message, exception) -> asyncComplete.completeExceptionally(exception),
                         keyedBackend,
                         10,
                         1);
-
-        periodicMaterializationManager.start();
 
         try {
             ValueState<StateBackendTestBase.TestPojo> state =
@@ -165,13 +163,25 @@ public class ChangelogStateBackendTestUtils {
             keyedBackend.setCurrentKey(2);
             state.update(new StateBackendTestBase.TestPojo("u2", 2));
 
-            awaitMaterialization(keyedBackend, env.getMainMailboxExecutor());
+            // In this test, every materialization is triggered explicitly by calling
+            // triggerMaterialization.
+            // Automatic/periodic triggering is disabled by NOT starting the
+            // periodicMaterializationManager
+            periodicMaterializationManager.triggerMaterialization();
 
             keyedBackend.setCurrentKey(2);
             state.update(new StateBackendTestBase.TestPojo("u2", 22));
 
             keyedBackend.setCurrentKey(3);
             state.update(new StateBackendTestBase.TestPojo("u3", 3));
+
+            periodicMaterializationManager.triggerMaterialization();
+
+            keyedBackend.setCurrentKey(4);
+            state.update(new StateBackendTestBase.TestPojo("u4", 4));
+
+            keyedBackend.setCurrentKey(2);
+            state.update(new StateBackendTestBase.TestPojo("u2", 222));
 
             KeyedStateHandle snapshot =
                     runSnapshot(
@@ -182,7 +192,6 @@ public class ChangelogStateBackendTestUtils {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
-            periodicMaterializationManager.close();
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
 
@@ -205,26 +214,16 @@ public class ChangelogStateBackendTestUtils {
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
             keyedBackend.setCurrentKey(1);
-            assertEquals(state.value(), new StateBackendTestBase.TestPojo("u1", 1));
+            assertEquals(new StateBackendTestBase.TestPojo("u1", 1), state.value());
 
             keyedBackend.setCurrentKey(2);
-            assertEquals(state.value(), new StateBackendTestBase.TestPojo("u2", 22));
+            assertEquals(new StateBackendTestBase.TestPojo("u2", 222), state.value());
 
             keyedBackend.setCurrentKey(3);
-            assertEquals(state.value(), new StateBackendTestBase.TestPojo("u3", 3));
+            assertEquals(new StateBackendTestBase.TestPojo("u3", 3), state.value());
         } finally {
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
-        }
-    }
-
-    private static void awaitMaterialization(
-            ChangelogKeyedStateBackend<Integer> keyedStateBackend, MailboxExecutor mailboxExecutor)
-            throws Exception {
-        while (mailboxExecutor
-                .submit(keyedStateBackend::hasNonMaterializedChanges, "for test")
-                .get()) {
-            Thread.sleep(10);
         }
     }
 
