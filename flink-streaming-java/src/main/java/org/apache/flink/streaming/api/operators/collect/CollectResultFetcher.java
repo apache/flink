@@ -87,9 +87,12 @@ public class CollectResultFetcher<T> {
     }
 
     public void setJobClient(JobClient jobClient) {
-        Preconditions.checkArgument(
-                jobClient instanceof CoordinationRequestGateway,
-                "Job client must be a CoordinationRequestGateway. This is a bug.");
+        if (!(jobClient instanceof CoordinationRequestGateway)) {
+            throw new IllegalArgumentException(
+                    "Job client must be a CoordinationRequestGateway. "
+                            + "Result collecting is not supported when submitting job through web UI.\n"
+                            + "See also Java docs of DataStream#executeAndCollect or TableResult#collect.");
+        }
         this.jobClient = jobClient;
         this.gateway = (CoordinationRequestGateway) jobClient;
     }
