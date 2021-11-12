@@ -16,30 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.DOUBLE_TO_DECIMAL;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.INTEGRAL_TO_DECIMAL;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.cast;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
-/** {@link LogicalTypeRoot#DECIMAL} to {@link LogicalTypeRoot#DECIMAL} cast rule. */
-@Internal
-public class DecimalToDecimalCastRule
-        extends AbstractExpressionCodeGeneratorCastRule<DecimalData, DecimalData> {
+/**
+ * {@link LogicalTypeFamily#INTEGER_NUMERIC} and {@link LogicalTypeFamily#APPROXIMATE_NUMERIC} to
+ * {@link LogicalTypeRoot#DECIMAL} cast rule.
+ */
+class NumericPrimitiveToDecimalCastRule
+        extends AbstractExpressionCodeGeneratorCastRule<Number, DecimalData> {
 
-    public static final DecimalToDecimalCastRule INSTANCE = new DecimalToDecimalCastRule();
+    static final NumericPrimitiveToDecimalCastRule INSTANCE =
+            new NumericPrimitiveToDecimalCastRule();
 
-    private DecimalToDecimalCastRule() {
+    private NumericPrimitiveToDecimalCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .input(LogicalTypeRoot.DECIMAL)
+                        .input(LogicalTypeFamily.INTEGER_NUMERIC)
+                        .input(LogicalTypeFamily.APPROXIMATE_NUMERIC)
                         .target(LogicalTypeRoot.DECIMAL)
                         .build());
     }
@@ -51,9 +55,16 @@ public class DecimalToDecimalCastRule
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         final DecimalType targetDecimalType = (DecimalType) targetLogicalType;
+        if (inputLogicalType.is(LogicalTypeFamily.INTEGER_NUMERIC)) {
+            return staticCall(
+                    INTEGRAL_TO_DECIMAL(),
+                    cast("long", inputTerm),
+                    targetDecimalType.getPrecision(),
+                    targetDecimalType.getScale());
+        }
         return staticCall(
-                BuiltInMethods.DECIMAL_TO_DECIMAL(),
-                inputTerm,
+                DOUBLE_TO_DECIMAL(),
+                cast("double", inputTerm),
                 targetDecimalType.getPrecision(),
                 targetDecimalType.getScale());
     }

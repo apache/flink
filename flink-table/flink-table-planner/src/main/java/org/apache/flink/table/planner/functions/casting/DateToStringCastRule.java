@@ -16,31 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.UNIX_TIME_TO_STRING;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.UNIX_DATE_TO_STRING;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
-/**
- * {@link LogicalTypeRoot#TIME_WITHOUT_TIME_ZONE} to {@link LogicalTypeFamily#CHARACTER_STRING} cast
- * rule.
- */
-@Internal
-public class TimeToStringCastRule extends AbstractCharacterFamilyTargetRule<Long> {
+/** {@link LogicalTypeRoot#DATE} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+class DateToStringCastRule extends AbstractCharacterFamilyTargetRule<Long> {
 
-    public static final TimeToStringCastRule INSTANCE = new TimeToStringCastRule();
+    static final DateToStringCastRule INSTANCE = new DateToStringCastRule();
 
-    private TimeToStringCastRule() {
+    private DateToStringCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .input(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE)
+                        .input(LogicalTypeRoot.DATE)
                         .target(LogicalTypeFamily.CHARACTER_STRING)
                         .build());
     }
@@ -51,7 +44,6 @@ public class TimeToStringCastRule extends AbstractCharacterFamilyTargetRule<Long
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return CastRuleUtils.staticCall(
-                UNIX_TIME_TO_STRING(), inputTerm, LogicalTypeChecks.getPrecision(inputLogicalType));
+        return staticCall(UNIX_DATE_TO_STRING(), inputTerm);
     }
 }

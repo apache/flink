@@ -16,27 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.EMPTY_STR_LITERAL;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.stringConcat;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.EMPTY_STR_LITERAL;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.stringConcat;
 
-/** {@link LogicalTypeFamily#NUMERIC} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
-@Internal
-public class NumericToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> {
+/** {@link LogicalTypeRoot#BOOLEAN} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+class BooleanToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> {
 
-    public static final NumericToStringCastRule INSTANCE = new NumericToStringCastRule();
+    static final BooleanToStringCastRule INSTANCE = new BooleanToStringCastRule();
 
-    private NumericToStringCastRule() {
+    private BooleanToStringCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .input(LogicalTypeFamily.NUMERIC)
+                        .input(LogicalTypeRoot.BOOLEAN)
                         .target(LogicalTypeFamily.CHARACTER_STRING)
                         .build());
     }

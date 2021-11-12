@@ -16,28 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.UNIX_DATE_TO_STRING;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.staticCall;
+import java.lang.reflect.Method;
 
-/** {@link LogicalTypeRoot#DATE} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
-@Internal
-public class DateToStringCastRule extends AbstractCharacterFamilyTargetRule<Long> {
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.INTERVAL_DAY_TIME_TO_STRING;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.INTERVAL_YEAR_MONTH_TO_STRING;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
-    public static final DateToStringCastRule INSTANCE = new DateToStringCastRule();
+/** {@link LogicalTypeFamily#INTERVAL} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+class IntervalToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> {
 
-    private DateToStringCastRule() {
+    static final IntervalToStringCastRule INSTANCE = new IntervalToStringCastRule();
+
+    private IntervalToStringCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .input(LogicalTypeRoot.DATE)
+                        .input(LogicalTypeFamily.INTERVAL)
                         .target(LogicalTypeFamily.CHARACTER_STRING)
                         .build());
     }
@@ -48,6 +47,10 @@ public class DateToStringCastRule extends AbstractCharacterFamilyTargetRule<Long
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return staticCall(UNIX_DATE_TO_STRING(), inputTerm);
+        final Method method =
+                inputLogicalType.is(LogicalTypeRoot.INTERVAL_YEAR_MONTH)
+                        ? INTERVAL_YEAR_MONTH_TO_STRING()
+                        : INTERVAL_DAY_TIME_TO_STRING();
+        return staticCall(method, inputTerm);
     }
 }

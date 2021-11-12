@@ -16,17 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
-import org.apache.flink.table.planner.functions.casting.CastCodeBlock;
-import org.apache.flink.table.planner.functions.casting.CastRule;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.runtime.generated.CompileUtils;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -51,8 +46,7 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
  * AbstractNullAwareCodeGeneratorCastRule}, which provides nullability checks, or from {@link
  * AbstractExpressionCodeGeneratorCastRule} to generate simple expression casts.
  */
-@Internal
-public abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<IN, OUT>
+abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<IN, OUT>
         implements CodeGeneratorCastRule<IN, OUT> {
 
     protected AbstractCodeGeneratorCastRule(CastRulePredicate predicate) {

@@ -16,12 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
@@ -31,8 +28,7 @@ import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY
  * Base class for cast rules converting to {@link LogicalTypeFamily#CHARACTER_STRING} with code
  * generation.
  */
-@Internal
-public abstract class AbstractCharacterFamilyTargetRule<IN>
+abstract class AbstractCharacterFamilyTargetRule<IN>
         extends AbstractExpressionCodeGeneratorCastRule<IN, StringData> {
 
     protected AbstractCharacterFamilyTargetRule(CastRulePredicate predicate) {

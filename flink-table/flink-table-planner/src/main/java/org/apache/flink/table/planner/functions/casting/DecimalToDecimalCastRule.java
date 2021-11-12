@@ -16,38 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.casting.rules;
+package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastRulePredicate;
-import org.apache.flink.table.planner.functions.casting.CodeGeneratorCastRule;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.EMPTY_STR_LITERAL;
-import static org.apache.flink.table.planner.functions.casting.rules.CastRuleUtils.stringConcat;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
-/** {@link LogicalTypeRoot#BOOLEAN} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
-@Internal
-public class BooleanToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> {
+/** {@link LogicalTypeRoot#DECIMAL} to {@link LogicalTypeRoot#DECIMAL} cast rule. */
+class DecimalToDecimalCastRule
+        extends AbstractExpressionCodeGeneratorCastRule<DecimalData, DecimalData> {
 
-    public static final BooleanToStringCastRule INSTANCE = new BooleanToStringCastRule();
+    static final DecimalToDecimalCastRule INSTANCE = new DecimalToDecimalCastRule();
 
-    private BooleanToStringCastRule() {
+    private DecimalToDecimalCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .input(LogicalTypeRoot.BOOLEAN)
-                        .target(LogicalTypeFamily.CHARACTER_STRING)
+                        .input(LogicalTypeRoot.DECIMAL)
+                        .target(LogicalTypeRoot.DECIMAL)
                         .build());
     }
 
     @Override
-    public String generateStringExpression(
+    public String generateExpression(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return stringConcat(EMPTY_STR_LITERAL, inputTerm);
+        final DecimalType targetDecimalType = (DecimalType) targetLogicalType;
+        return staticCall(
+                BuiltInMethods.DECIMAL_TO_DECIMAL(),
+                inputTerm,
+                targetDecimalType.getPrecision(),
+                targetDecimalType.getScale());
     }
 }
