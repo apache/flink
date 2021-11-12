@@ -22,7 +22,7 @@ import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.data.binary.BinaryArrayData
 import org.apache.flink.table.data.util.{DataFormatConverters, MapDataUtil}
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull, binaryWriterWriteField, binaryWriterWriteNull, _}
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
@@ -426,7 +426,7 @@ object ScalarOperatorGens {
     // but flink has not yet supported now
     if ((isNumeric(left.resultType) && isCharacterString(right.resultType))
       || (isNumeric(right.resultType) && isCharacterString(left.resultType))) {
-      throw new CodeGenException(
+      throw new ValidationException(
         "implicit type conversion between " +
           s"${left.resultType.getTypeRoot}" +
           s" and " +
