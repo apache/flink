@@ -35,10 +35,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the RpcEndpoint, its self gateways and MainThreadExecutor scheduling command. */
@@ -371,9 +372,10 @@ public class RpcEndpointTest extends TestLogger {
                                     },
                                     timeout)
                             .handle((ignore, throwable) -> throwable);
-            final Throwable throwable =
-                    throwableFuture.get(timeout.getSize() * 2, timeout.getUnit());
-            assertTrue(throwable instanceof TimeoutException);
+            final Throwable throwable = throwableFuture.get();
+
+            assertNotNull(throwable);
+            assertThat(throwable, instanceOf(TimeoutException.class));
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
         }
