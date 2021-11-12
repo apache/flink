@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
@@ -32,6 +33,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -126,19 +128,19 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
     }
 
     @Test
-    public void returnsFailedFutureIfOperationFails()
+    public void retryingCompletedOperationDoesNotMarkCacheEntryAsAccessed()
             throws ExecutionException, InterruptedException {
-        CompletableFuture<Acknowledge> acknowledgeRegisteredOperation =
-                handler.triggerSavepoint(
-                        operationKey, targetDirectory, TriggerSavepointMode.SAVEPOINT, TIMEOUT);
-        savepointLocationFuture.completeExceptionally(new RuntimeException("Expected failure"));
-        CompletableFuture<Acknowledge> failedAcknowledgeFuture =
-                handler.triggerSavepoint(
-                        operationKey, targetDirectory, TriggerSavepointMode.SAVEPOINT, TIMEOUT);
+        handler.triggerSavepoint(
+                        operationKey, targetDirectory, TriggerSavepointMode.SAVEPOINT, TIMEOUT)
+                .get();
+        savepointLocationFuture.complete("");
 
-        assertThat(acknowledgeRegisteredOperation.get(), is(Acknowledge.get()));
-        assertThat(
-                failedAcknowledgeFuture, futureFailedWith(OperationAlreadyFailedException.class));
+        handler.triggerSavepoint(
+                        operationKey, targetDirectory, TriggerSavepointMode.SAVEPOINT, TIMEOUT)
+                .get();
+
+        // should not complete because we wait for the result to be accessed
+        assertThat(cache.closeAsync(), FlinkMatchers.willNotComplete(Duration.ofMillis(10)));
     }
 
     @Test
