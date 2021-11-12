@@ -154,4 +154,40 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val expected = List("+I[jason, 4]")
     assertEquals(expected.sorted, result.sorted)
   }
+
+  @Test
+  def testInsertPartColumn(): Unit = {
+    tEnv.executeSql(
+      """
+        |CREATE TABLE zm_test (
+        |  `person` String,
+        |  `votes` BIGINT,
+        |  `m1` MAP<STRING, BIGINT>,
+        |  `m2` MAP<STRING NOT NULL, BIGINT>,
+        |  `m3` MAP<STRING, BIGINT NOT NULL>,
+        |  `m4` MAP<STRING NOT NULL, BIGINT NOT NULL>
+        |) WITH (
+        |  'connector' = 'values',
+        |  'sink-insert-only' = 'true'
+        |)
+        |""".stripMargin)
+
+    tEnv.executeSql(
+      """
+        |insert into zm_test(`person`, `votes`)
+        |  select
+        |    `person`,
+        |    `votes`
+        |  from
+        |    src
+        |""".stripMargin).await()
+
+    val result = TestValuesTableFactory.getResults("zm_test")
+    val expected = List(
+      "+I[jason, 1, null, null, null, null]",
+      "+I[jason, 1, null, null, null, null]",
+      "+I[jason, 1, null, null, null, null]",
+      "+I[jason, 1, null, null, null, null]")
+    assertEquals(expected.sorted, result.sorted)
+  }
 }
