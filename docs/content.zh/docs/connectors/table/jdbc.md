@@ -667,16 +667,6 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、P
       <td><code>ARRAY</code></td>
       <td><code>ARRAY</code></td>
     </tr>
-    <tr>
-      <td><code>GEOMETRY</code></td>
-      <td><code></code></td>
-      <td><code>BYTES</code></td>
-    </tr>
-    <tr>
-      <td><code>YEAR</code>，只在从表中读数据时支持此类型转换。</td>
-      <td><code></code></td>
-      <td><code>DATE</code></td>
-    </tr>
     </tbody>
 </table>
 

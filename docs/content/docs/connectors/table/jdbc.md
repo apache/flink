@@ -636,16 +636,6 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
       <td><code>ARRAY</code></td>
       <td><code>ARRAY</code></td>
     </tr>
-    <tr>
-      <td><code>GEOMETRY</code></td>
-      <td><code></code></td>
-      <td><code>BYTES</code></td>
-    </tr>
-    <tr>
-      <td><code>YEAR</code>, This type conversion is only supported when reading data from a table.</td>
-      <td><code></code></td>
-      <td><code>DATE</code></td>
-    </tr>
     </tbody>
 </table>
 
