@@ -31,6 +31,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -40,21 +41,19 @@ import org.apache.calcite.sql.validate.SqlValidator;
 import java.util.Locale;
 
 import static org.apache.calcite.util.Static.RESOURCE;
-import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_NOT_NULL;
 
 /**
  * This class has been copied from Calcite to backport the fix made during CALCITE-4394.
  *
- * <p>TODO Remove this class with Calcite 1.27 and create a wrapper class for the {@link
- * SqlJsonObjectFunction} but using the {@code VARCHAR_NOT_NULL} return type inference like {@link
- * SqlJsonArrayFunctionWrapper}.
+ * <p>TODO Remove this class with Calcite 1.27 and replace the {@link SqlJsonObjectFunction} in the
+ * {@link SqlJsonObjectFunctionWrapper} using the {@code VARCHAR_NOT_NULL} return type inference.
  */
 public class SqlJsonObjectFunction extends SqlFunction {
     public SqlJsonObjectFunction() {
         super(
                 "JSON_OBJECT",
                 SqlKind.OTHER_FUNCTION,
-                VARCHAR_NOT_NULL,
+                ReturnTypes.VARCHAR_2000,
                 (callBinding, returnType, operandTypes) -> {
                     RelDataTypeFactory typeFactory = callBinding.getTypeFactory();
                     for (int i = 0; i < operandTypes.length; i++) {
