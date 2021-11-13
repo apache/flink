@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.rules.physical.stream
+package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowTableFunction
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalWindowTableFunction
 import org.apache.flink.table.planner.plan.utils.WindowUtil
-import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, validateTimeFieldWithTimeAttribute}
+import org.apache.flink.table.planner.plan.utils.WindowUtil.convertToWindowingStrategy
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -31,13 +31,13 @@ import org.apache.calcite.rex.RexCall
 
 /**
  * Rule to convert a [[FlinkLogicalTableFunctionScan]] with window table function call
- * into a [[StreamPhysicalWindowTableFunction]].
+ * into a [[BatchPhysicalWindowTableFunction]].
  */
-class StreamPhysicalWindowTableFunctionRule  extends ConverterRule(
+class BatchPhysicalWindowTableFunctionRule  extends ConverterRule(
   classOf[FlinkLogicalTableFunctionScan],
   FlinkConventions.LOGICAL,
-  FlinkConventions.STREAM_PHYSICAL,
-  "StreamPhysicalWindowTableFunctionRule") {
+  FlinkConventions.BATCH_PHYSICAL,
+  "BatchPhysicalWindowTableFunctionRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalTableFunctionScan = call.rel(0)
@@ -46,24 +46,19 @@ class StreamPhysicalWindowTableFunctionRule  extends ConverterRule(
 
   def convert(rel: RelNode): RelNode = {
     val scan: FlinkLogicalTableFunctionScan = rel.asInstanceOf[FlinkLogicalTableFunctionScan]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val newInput = RelOptRule.convert(scan.getInput(0), FlinkConventions.STREAM_PHYSICAL)
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+    val newInput = RelOptRule.convert(scan.getInput(0), FlinkConventions.BATCH_PHYSICAL)
 
-    val windowTableFunction = scan.getCall.asInstanceOf[RexCall]
-    val inputRowType = newInput.getRowType
-    // Time field of window table function in streaming mode should be with time attribute
-    validateTimeFieldWithTimeAttribute(windowTableFunction, inputRowType)
-    new StreamPhysicalWindowTableFunction(
+    new BatchPhysicalWindowTableFunction(
       scan.getCluster,
       traitSet,
       newInput,
       scan.getRowType,
-      convertToWindowingStrategy(windowTableFunction, inputRowType),
-      false
+      convertToWindowingStrategy(scan.getCall.asInstanceOf[RexCall], newInput.getRowType)
     )
   }
 }
 
-object StreamPhysicalWindowTableFunctionRule {
-  val INSTANCE = new StreamPhysicalWindowTableFunctionRule
+object BatchPhysicalWindowTableFunctionRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalWindowTableFunctionRule
 }
