@@ -118,14 +118,9 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
                 conf.set(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true);
             }
-        } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(
-                STATE_CHANGE_LOG_CONFIG_RAND)) {
+        } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {
             if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
-                randomize(
-                        conf,
-                        CheckpointingOptions.ENABLE_STATE_CHANGE_LOG,
-                        true,
-                        false);
+                randomize(conf, CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true, false);
             }
         }
     }
