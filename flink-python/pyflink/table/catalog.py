@@ -124,6 +124,22 @@ class Catalog(object):
         """
         self._j_catalog.alterDatabase(name, new_database._j_catalog_database, ignore_if_not_exists)
 
+    def rename_database(self, database_name: str, new_database_name: str,
+                        ignore_if_not_exists: bool):
+        """
+        Rename a existing database.
+
+        :param database_name: Name of the database to be renamed.
+        :param ignore_if_not_exists: Flag to specify behavior when the database does not exist:
+                                     if set to false, throw an exception,
+                                     if set to true, do nothing.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseNotExistException if the given database does not exist.
+                DatabaseAlreadyExistException if the given database already exists and
+                ignore_if_not_exists is false.
+        """
+        self._j_catalog.renameDatabase(database_name, new_database_name, ignore_if_not_exists)
+
     def list_tables(self, database_name: str) -> List[str]:
         """
         Get names of all tables and views under this database. An empty list is returned if none
