@@ -650,6 +650,37 @@ class CatalogTestBase(PyFlinkTestCase):
         self.catalog.drop_function(self.non_exist_object_path, True)
         self.catalog.drop_database(self.db1, False)
 
+    def test_rename_function_function_not_exist_exception(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+
+        with self.assertRaises(FunctionNotExistException):
+            self.catalog.rename_function(self.path1, self.t2, False)
+
+    def test_rename_function_function_not_exist_exception_ignored(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+        self.catalog.rename_function(self.path1, self.t2, True)
+
+    def test_rename_function_function_already_exist_exception(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+        self.catalog.create_function(self.path1, self.create_function(), False)
+        self.catalog.create_function(self.path3, self.create_another_function(), False)
+
+        with self.assertRaises(FunctionAlreadyExistException):
+            self.catalog.rename_function(self.path1, self.t2, False)
+
+    def test_rename_function(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+        function = self.create_function()
+        self.catalog.create_function(self.path1, function, False)
+
+        self.check_catalog_function_equals(function, self.catalog.get_function(self.path1))
+
+        self.catalog.rename_function(self.path1, self.t2, False)
+
+        self.check_catalog_function_equals(function, self.catalog.get_function(self.path3))
+        self.assertFalse(self.catalog.function_exists(self.path1))
+        self.assertTrue(self.catalog.function_exists(self.path3))
+
     def test_create_partition(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.create_table(self.path1, self.create_partitioned_table(), False)
