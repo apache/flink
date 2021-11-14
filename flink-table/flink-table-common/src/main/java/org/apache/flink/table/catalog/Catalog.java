@@ -206,6 +206,20 @@ public interface Catalog {
     void alterDatabase(String name, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
             throws DatabaseNotExistException, CatalogException;
 
+    /**
+     * Rename an existing database.
+     *
+     * @param name name of the database to be renamed
+     * @param newDatabaseName new name of the database
+     * @param ignoreIfNotExists flag to specify behavior when database does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing
+     * @throws DatabaseNotExistException if the database does not exist
+     * @throws DatabaseAlreadyExistException if the database with newDatabaseName already exists
+     * @throws CatalogException in case of any runtime exception
+     */
+    void renameDatabase(String name, String newDatabaseName, boolean ignoreIfNotExists)
+            throws DatabaseNotExistException, DatabaseAlreadyExistException, CatalogException;
+
     // ------ tables and views ------
 
     /**

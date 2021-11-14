@@ -399,6 +399,30 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @Override
+    public void renameDatabase(
+            String databaseName, String newDatabaseName, boolean ignoreIfNotExists)
+            throws DatabaseNotExistException, DatabaseAlreadyExistException, CatalogException {
+        checkArgument(
+                !isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
+        checkArgument(
+                !isNullOrWhitespaceOnly(newDatabaseName),
+                "newDatabaseName cannot be null or empty");
+
+        try {
+            if (databaseExists(databaseName)) {
+                throw new DatabaseAlreadyExistException(getName(), databaseName);
+            } else {
+                Database database = getHiveDatabase(databaseName);
+                database.setName(newDatabaseName);
+                client.alterDatabase(databaseName, database);
+            }
+        } catch (TException e) {
+            throw new CatalogException(
+                    String.format("Failed to rename database %s", databaseName), e);
+        }
+    }
+
+    @Override
     public List<String> listDatabases() throws CatalogException {
         try {
             return client.getAllDatabases();

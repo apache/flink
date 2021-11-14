@@ -271,6 +271,9 @@ catalog.dropDatabase("mydb", false);
 // alter database
 catalog.alterDatabase("mydb", new CatalogDatabaseImpl(...), false);
 
+// rename database
+catalog.renameDatabase("mydb", "my_new_db", false);
+
 // get database
 catalog.getDatabase("mydb");
 

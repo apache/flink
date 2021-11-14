@@ -188,6 +188,12 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public void renameDatabase(String name, String newDatabaseName, boolean ignoreIfNotExists)
+            throws DatabaseNotExistException, DatabaseAlreadyExistException, CatalogException {
+        throw new UnsupportedOperationException();
+    }
+
     // ------ tables and views ------
 
     @Override
