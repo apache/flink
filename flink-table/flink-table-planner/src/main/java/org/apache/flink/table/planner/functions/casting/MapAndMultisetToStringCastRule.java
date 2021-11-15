@@ -44,24 +44,19 @@ class MapAndMultisetToStringCastRule
     private MapAndMultisetToStringCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .predicate(
-                                (input, target) ->
-                                        target.is(LogicalTypeFamily.CHARACTER_STRING)
-                                                && ((input.is(LogicalTypeRoot.MAP)
-                                                                && CastRuleProvider.exists(
-                                                                        ((MapType) input)
-                                                                                .getKeyType(),
-                                                                        target)
-                                                                && CastRuleProvider.exists(
-                                                                        ((MapType) input)
-                                                                                .getValueType(),
-                                                                        target))
-                                                        || (input.is(LogicalTypeRoot.MULTISET)
-                                                                && CastRuleProvider.exists(
-                                                                        ((MultisetType) input)
-                                                                                .getElementType(),
-                                                                        target))))
+                        .predicate(MapAndMultisetToStringCastRule::isMapOrMultiset)
                         .build());
+    }
+
+    private static boolean isMapOrMultiset(LogicalType input, LogicalType target) {
+        return target.is(LogicalTypeFamily.CHARACTER_STRING)
+                && ((input.is(LogicalTypeRoot.MAP)
+                                && CastRuleProvider.exists(((MapType) input).getKeyType(), target)
+                                && CastRuleProvider.exists(
+                                        ((MapType) input).getValueType(), target))
+                        || (input.is(LogicalTypeRoot.MULTISET)
+                                && CastRuleProvider.exists(
+                                        ((MultisetType) input).getElementType(), target)));
     }
 
     /* Example generated code for MAP<STRING, INTERVAL MONTH>:
@@ -109,16 +104,14 @@ class MapAndMultisetToStringCastRule
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        boolean isMap = inputLogicalType instanceof MapType;
-        final LogicalType keyType;
-        final LogicalType valueType;
-        if (isMap) {
-            keyType = ((MapType) inputLogicalType).getKeyType();
-            valueType = ((MapType) inputLogicalType).getValueType();
-        } else {
-            keyType = ((MultisetType) inputLogicalType).getElementType();
-            valueType = INT().getLogicalType();
-        }
+        final LogicalType keyType =
+                inputLogicalType.is(LogicalTypeFamily.COLLECTION)
+                        ? ((MultisetType) inputLogicalType).getElementType()
+                        : ((MapType) inputLogicalType).getKeyType();
+        final LogicalType valueType =
+                inputLogicalType.is(LogicalTypeFamily.COLLECTION)
+                        ? INT().getLogicalType()
+                        : ((MapType) inputLogicalType).getValueType();
 
         final String builderTerm = newName("builder");
         context.declareClassField(
