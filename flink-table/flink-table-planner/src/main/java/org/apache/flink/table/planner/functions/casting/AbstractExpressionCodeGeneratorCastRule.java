@@ -25,7 +25,9 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import java.util.Collections;
 
+import static org.apache.flink.table.planner.codegen.CodeGenUtils.boxedTypeTermForType;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.box;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.cast;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.unbox;
 
 /**
