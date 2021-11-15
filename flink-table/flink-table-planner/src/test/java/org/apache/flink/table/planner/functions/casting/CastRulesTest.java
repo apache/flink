@@ -67,6 +67,7 @@ import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.MONTH;
+import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.RAW;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SECOND;
@@ -445,6 +446,12 @@ class CastRulesTest {
                                         entry(StringData.fromString("a"), -123),
                                         entry(StringData.fromString("b"), 123)),
                                 StringData.fromString("{a=-10-03, b=+10-03}"))
+                        .fromCase(
+                                MULTISET(STRING()),
+                                mapData(
+                                        entry(StringData.fromString("a"), 1),
+                                        entry(StringData.fromString("b"), 1)),
+                                StringData.fromString("{a=1, b=1}"))
                         .fromCase(
                                 MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
                                 mapData(entry(null, -123), entry(StringData.fromString("b"), null)),

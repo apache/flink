@@ -56,6 +56,7 @@ public class CastRuleProvider {
                 .addRule(IntervalToStringCastRule.INSTANCE)
                 .addRule(ArrayToStringCastRule.INSTANCE)
                 .addRule(MapToStringCastRule.INSTANCE)
+                .addRule(MultisetToStringCastRule.INSTANCE)
                 .addRule(RowToStringCastRule.INSTANCE)
                 .addRule(RawToStringCastRule.INSTANCE)
                 // Collection rules

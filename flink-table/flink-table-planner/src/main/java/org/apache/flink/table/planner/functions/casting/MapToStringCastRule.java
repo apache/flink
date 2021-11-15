@@ -38,6 +38,10 @@ class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
 
     static final MapToStringCastRule INSTANCE = new MapToStringCastRule();
 
+    protected MapToStringCastRule(CastRulePredicate predicate) {
+        super(predicate);
+    }
+
     private MapToStringCastRule() {
         super(
                 CastRulePredicate.builder()
@@ -107,6 +111,28 @@ class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
         final String keyArrayTerm = newName("keys");
         final String valueArrayTerm = newName("values");
 
+        return generateMapToString(
+                context,
+                inputTerm,
+                returnVariable,
+                targetLogicalType,
+                keyType,
+                valueType,
+                builderTerm,
+                keyArrayTerm,
+                valueArrayTerm);
+    }
+
+    protected String generateMapToString(
+            CodeGeneratorCastRule.Context context,
+            String inputTerm,
+            String returnVariable,
+            LogicalType targetLogicalType,
+            LogicalType keyType,
+            LogicalType valueType,
+            String builderTerm,
+            String keyArrayTerm,
+            String valueArrayTerm) {
         return new CastRuleUtils.CodeWriter()
                 .declStmt(ArrayData.class, keyArrayTerm, methodCall(inputTerm, "keyArray"))
                 .declStmt(ArrayData.class, valueArrayTerm, methodCall(inputTerm, "valueArray"))
