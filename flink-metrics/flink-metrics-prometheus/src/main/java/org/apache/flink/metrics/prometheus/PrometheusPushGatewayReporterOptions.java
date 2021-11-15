@@ -93,4 +93,15 @@ public class PrometheusPushGatewayReporterOptions {
                                                     "https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels",
                                                     "Prometheus requirements"))
                                     .build());
+
+    public static final ConfigOption<String> FILTER_LABEL_KEYS =
+            ConfigOptions.key("filterLabelKeys")
+                    .defaultValue("")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Specifies whether to filter label keys."
+                                                    + "The label keys are separated by ';', e.g., %s.",
+                                            TextElement.code("k1;k2"))
+                                    .build());
 }

@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.FILTER_LABEL_KEYS;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.FILTER_LABEL_VALUE_CHARACTER;
 
 /** base prometheus reporter for prometheus metrics. */
@@ -80,6 +81,8 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     private CharacterFilter labelValueCharactersFilter = CHARACTER_FILTER;
 
+    private static final List<String> filterLabelKeys = new ArrayList<>();
+
     @Override
     public void open(MetricConfig config) {
         boolean filterLabelValueCharacters =
@@ -90,6 +93,9 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
         if (!filterLabelValueCharacters) {
             labelValueCharactersFilter = input -> input;
         }
+
+        filterLabelKeys.addAll(parseFilterLabelKeys(config.getString(
+                FILTER_LABEL_KEYS.key(), FILTER_LABEL_KEYS.defaultValue())));
     }
 
     @Override
@@ -105,8 +111,11 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
         List<String> dimensionValues = new LinkedList<>();
         for (final Map.Entry<String, String> dimension : group.getAllVariables().entrySet()) {
             final String key = dimension.getKey();
-            dimensionKeys.add(
-                    CHARACTER_FILTER.filterCharacters(key.substring(1, key.length() - 1)));
+            String newKey = CHARACTER_FILTER.filterCharacters(key.substring(1, key.length() - 1));
+            if (filterLabelKeys.size() > 0 && filterLabelKeys.contains(newKey)) {
+                continue;
+            }
+            dimensionKeys.add(newKey);
             dimensionValues.add(labelValueCharactersFilter.filterCharacters(dimension.getValue()));
         }
 
@@ -378,5 +387,15 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     private static String[] toArray(List<String> list) {
         return list.toArray(new String[list.size()]);
+    }
+
+    @VisibleForTesting
+    static List<String> parseFilterLabelKeys(final String filterLabelKeysConfig) {
+        if (!filterLabelKeysConfig.isEmpty()) {
+            String[] values = filterLabelKeysConfig.split(";");
+            return Arrays.asList(values);
+        }
+
+        return Collections.emptyList();
     }
 }

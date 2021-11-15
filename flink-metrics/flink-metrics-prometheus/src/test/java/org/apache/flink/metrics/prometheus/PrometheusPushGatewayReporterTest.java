@@ -23,6 +23,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Map;
 
 /** Test for {@link PrometheusPushGatewayReporter}. */
@@ -48,5 +49,14 @@ public class PrometheusPushGatewayReporterTest extends TestLogger {
 
         groupingKey = PrometheusPushGatewayReporterFactory.parseGroupingKey("k1");
         Assert.assertTrue(groupingKey.isEmpty());
+    }
+
+    @Test
+    public void testParseFilterLabelKeys() {
+        List<String> filterLabelKey =
+                AbstractPrometheusReporter.parseFilterLabelKeys("k1;k2");
+        Assert.assertNotNull(filterLabelKey);
+        Assert.assertEquals("k1", filterLabelKey.get(0));
+        Assert.assertEquals("k2", filterLabelKey.get(1));
     }
 }
