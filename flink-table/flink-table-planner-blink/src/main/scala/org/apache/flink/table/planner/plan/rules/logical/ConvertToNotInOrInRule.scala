@@ -191,7 +191,9 @@ class ConvertToNotInOrInRule
 
 
   /**
-   * Convert the conditions into the [[IN]] and fix the bug in [[RexBuilder#makeIn]].
+   * Convert the conditions into the [[IN]] and fix [CALCITE-4888]: Unexpected [[RexNode]]
+   * when call [[RelBuilder#in]] to create an [[IN]] predicate with a list of varchar
+   * literals which have different length in [[RexBuilder#makeIn]].
    *
    * The reason why don't use [[RexBuilder#makeIn]] is when make the [[SEARCH]] operator,
    * it uses the type of the first element in the SEARCH argument as the type of the other

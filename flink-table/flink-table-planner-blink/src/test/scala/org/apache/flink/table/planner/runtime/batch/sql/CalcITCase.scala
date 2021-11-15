@@ -1457,6 +1457,36 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testSearchWithNull(): Unit = {
+    runQueryWithIn(
+      """
+        |'CTNBSmokeSensor',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N',
+        | null""".stripMargin
+    )
+  }
+
+  @Test
+  def testSearchWithNull2(): Unit = {
+    runQueryWithIn(
+      """
+        | null,
+        |'CTNBSmokeSensor',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N'
+        |""".stripMargin
+    )
+  }
+
+  private def runQueryWithIn(inParameter: String): Unit = {
     val myTableDataId = TestValuesTableFactory.registerData(
       Seq(row("HC809"), row(null)))
     val ddl =
@@ -1471,16 +1501,9 @@ class CalcITCase extends BatchTestBase {
          |""".stripMargin
     tEnv.executeSql(ddl)
     val sql =
-      """
+      s"""
         |SELECT content from SimpleTable where content in (
-        |'CTNBSmokeSensor',
-        |'H389N     ',
-        |'GHL-IRD',
-        |'JY-BF-20YN',
-        |'HC809',
-        |'DH-9908N-AEP',
-        |'DH-9908N',
-        | null
+        | $inParameter
         |)
         |""".stripMargin
     checkResult(

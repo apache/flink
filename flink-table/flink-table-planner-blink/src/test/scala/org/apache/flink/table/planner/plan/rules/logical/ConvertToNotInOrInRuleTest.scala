@@ -171,7 +171,7 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
   }
 
   @Test
-  def testConvertToSearch(): Unit = {
+  def testConvertToSearchString(): Unit = {
     util.verifyRelPlan(
       """
         |SELECT * from MyTable where e in (
@@ -189,12 +189,35 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
   }
 
   @Test
-  def testConvertToSearch2(): Unit = {
+  def testConvertToSearchString2(): Unit = {
     util.verifyRelPlan(
       "SELECT * FROM MyTable WHERE " +
         "e = 'a' or e = 'b' or e = 'c' or e = 'd' or e = 'e' or e = 'f' or e = NULL or e = " +
         "'HELLO " +
         "WORLD!'"
+    )
+  }
+
+  @Test
+  def testConvertToSearchDouble(): Unit = {
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE d = 1.0 OR d = 2.0 OR d = 3.0 OR d = 4.0 OR d = 5.0" +
+        " OR d = 7.0 OR d = 8.0 OR d = 9.0"
+    )
+  }
+
+  @Test
+  def testConvertToSearchInt(): Unit = {
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR a = 5" +
+        " OR a = 7 OR a = 8 OR a = 9"
+    )
+  }
+
+  @Test
+  def testConvertToSearchBigint(): Unit = {
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE b in (1, 2, 3, 4, 5, 6, 7, 8, 9)"
     )
   }
 }
