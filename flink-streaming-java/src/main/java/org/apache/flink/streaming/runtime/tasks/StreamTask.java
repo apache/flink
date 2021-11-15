@@ -824,9 +824,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                     // make sure no new timers can come
                     timerService.quiesce().get();
                     systemTimerService.quiesce().get();
-
-                    // let mailbox execution reject all new letters from this point
-                    mailboxProcessor.prepareClose();
                 });
 
         // processes the remaining mails; no new mails can be enqueued
@@ -836,6 +833,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // the queued checkpoint requirements could be triggered normally.
         actionExecutor.runThrowing(
                 () -> {
+                    // let mailbox execution reject all new letters from this point
+                    mailboxProcessor.prepareClose();
                     // only set the StreamTask to not running after all operators have been
                     // finished!
                     // See FLINK-7430

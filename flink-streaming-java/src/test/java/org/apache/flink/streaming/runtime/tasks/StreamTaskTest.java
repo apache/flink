@@ -183,6 +183,7 @@ import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleto
 import static org.apache.flink.runtime.io.network.api.writer.RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
+import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MIN_PRIORITY;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.CoreMatchers.containsString;
@@ -1716,6 +1717,34 @@ public class StreamTaskTest extends TestLogger {
             assertThat(
                     getCurrentBufferSize(inputGates[1]),
                     equalTo((int) throughputGate2 / inputChannelsGate2));
+        }
+    }
+
+    @Test
+    public void testDrainRecursiveMailsAfterInvoke() throws Exception {
+        // given: Mail with two recursive calls.
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator())
+                        .build()) {
+            MailboxExecutor mailboxExecutor = harness.getExecutor(MIN_PRIORITY);
+            AtomicBoolean lastMailProcessed = new AtomicBoolean();
+            mailboxExecutor.execute(
+                    () ->
+                            mailboxExecutor.execute(
+                                    () ->
+                                            mailboxExecutor.execute(
+                                                    () -> lastMailProcessed.set(true),
+                                                    "last execution"),
+                                    "second execution"),
+                    "first execution");
+
+            // when: Call the afterInvoke.
+            harness.streamTask.afterInvoke();
+
+            // then: All mail should be processed including the created by recursive calls.
+            assertTrue(lastMailProcessed.get());
         }
     }
 
