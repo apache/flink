@@ -109,6 +109,14 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- Connectors -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- Test dependencies -->
 
 		<dependency>
