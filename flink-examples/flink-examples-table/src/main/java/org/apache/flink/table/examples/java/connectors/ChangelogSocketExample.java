@@ -26,7 +26,6 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.types.Row;
 
 /**
  * Example for implementing a custom {@link DynamicTableSource} and a {@link DecodingFormat}.
@@ -96,7 +95,7 @@ public final class ChangelogSocketExample {
         final Table result = tEnv.sqlQuery("SELECT name, SUM(score) FROM UserScores GROUP BY name");
 
         // print the result to the console
-        tEnv.toRetractStream(result, Row.class).print();
+        tEnv.toChangelogStream(result).print();
 
         env.execute();
     }
