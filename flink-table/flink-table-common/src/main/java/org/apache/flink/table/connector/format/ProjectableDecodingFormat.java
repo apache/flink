@@ -24,7 +24,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.projection.Projection;
 
 /**
- * For more details on usage and differences between {@link DecodingFormat} and {@link
+ * Extension of {@link DecodingFormat} which is able to produce projected rows.
+ *
+ * <p>For more details on usage and differences between {@link DecodingFormat} and {@link
  * ProjectableDecodingFormat}, check the documentation of {@link DecodingFormat}.
  */
 @PublicEvolving
@@ -43,8 +45,12 @@ public interface ProjectableDecodingFormat<I> extends DecodingFormat<I> {
      * @param context the context provides several utilities required to instantiate the runtime
      *     decoder implementation of the format
      * @param physicalDataType For more details check {@link DecodingFormat}
-     * @param projections the projections array. The projections can be nested only if {@link
-     *     #supportsNestedProjection()} returns {@code true}.
+     * @param projections the projections array. The array represents the mapping of the fields of
+     *     the original {@link DataType}, including nested rows. For example, {@code [[0, 2, 1],
+     *     ...]} specifies to include the 2nd field of the 3rd field of the 1st field in the
+     *     top-level row. It's guaranteed that this array won't contain nested projections if {@link
+     *     #supportsNestedProjection()} returns {@code true}. For more details, check {@link
+     *     Projection} as well.
      * @return the runtime decoder
      * @see DecodingFormat
      */

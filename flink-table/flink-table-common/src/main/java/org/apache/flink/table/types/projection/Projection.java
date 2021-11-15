@@ -112,6 +112,9 @@ public interface Projection {
      * @see #toTopLevelIndexes()
      */
     static Projection of(int[] indexes) {
+        if (indexes.length == 0) {
+            return empty();
+        }
         return new TopLevelProjection(indexes);
     }
 
@@ -121,6 +124,9 @@ public interface Projection {
      * @see #toNestedIndexes()
      */
     static Projection of(int[][] indexes) {
+        if (indexes.length == 0) {
+            return empty();
+        }
         return new NestedProjection(indexes);
     }
 
