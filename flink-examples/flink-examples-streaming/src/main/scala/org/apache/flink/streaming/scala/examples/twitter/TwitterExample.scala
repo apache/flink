@@ -19,16 +19,21 @@
 package org.apache.flink.streaming.scala.examples.twitter
 
 import java.util.StringTokenizer
-
 import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.common.serialization.SimpleStringEncoder
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.MemorySize
+import org.apache.flink.connector.file.sink.FileSink
+import org.apache.flink.core.fs.Path
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.connectors.twitter.TwitterSource
 import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData
 import org.apache.flink.util.Collector
 
+import java.time.Duration
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -74,8 +79,6 @@ object TwitterExample {
     // make parameters available in the web interface
     env.getConfig.setGlobalJobParameters(params)
 
-    env.setParallelism(params.getInt("parallelism", 1))
-
     // get input data
     val streamSource: DataStream[String] =
     if (params.has(TwitterSource.CONSUMER_KEY) &&
@@ -102,7 +105,15 @@ object TwitterExample {
 
     // emit result
     if (params.has("output")) {
-      tweets.writeAsText(params.get("output"))
+      tweets.sinkTo(FileSink.forRowFormat[(String, Int)](
+          new Path(params.get("output")),
+          new SimpleStringEncoder())
+        .withRollingPolicy(DefaultRollingPolicy.builder()
+          .withMaxPartSize(MemorySize.ofMebiBytes(1))
+          .withRolloverInterval(Duration.ofSeconds(10))
+          .build())
+        .build())
+        .name("file-sink")
     } else {
       println("Printing result to stdout. Use --output to specify output path.")
       tweets.print()

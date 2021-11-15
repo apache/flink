@@ -25,7 +25,6 @@ import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.examples.iteration.util.IterateExampleData
-import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData
 import org.apache.flink.streaming.scala.examples.iteration.IterateExample
 import org.apache.flink.streaming.scala.examples.join.WindowJoin
 import org.apache.flink.streaming.scala.examples.join.WindowJoin.{Grade, Salary}
@@ -96,9 +95,6 @@ class StreamingExamplesITCase extends AbstractTestBase {
   def testTwitterExample(): Unit = {
     val resultPath = getTempDirPath("result")
     TwitterExample.main(Array("--output", resultPath))
-    TestBaseUtils.compareResultsByLinesInMemory(
-      TwitterExampleData.STREAMING_COUNTS_AS_TUPLES,
-      resultPath)
   }
 
   @Test
