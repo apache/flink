@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.functions.casting;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.utils.CastExecutor;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.codehaus.janino.ExpressionEvaluator;
 

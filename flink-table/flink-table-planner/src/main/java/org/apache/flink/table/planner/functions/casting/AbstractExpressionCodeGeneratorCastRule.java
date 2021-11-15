@@ -73,7 +73,14 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
                         box(
                                 generateExpression(
                                         createCodeGeneratorCastRuleContext(context),
-                                        unbox(inputArgumentName, inputLogicalType),
+                                        unbox(
+                                                // We need the casting because the rules uses the
+                                                // concrete classes (e.g. StringData and
+                                                // BinaryStringData)
+                                                cast(
+                                                        boxedTypeTermForType(inputLogicalType),
+                                                        inputArgumentName),
+                                                inputLogicalType),
                                         inputLogicalType,
                                         targetLogicalType),
                                 targetLogicalType));
