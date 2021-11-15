@@ -880,17 +880,17 @@ under the License.
 								<dependency>
 									<groupId>javax.xml.bind</groupId>
 									<artifactId>jaxb-api</artifactId>
-									<version>${jaxb.api.version}</version>
+									<version>2.3.0</version>
 								</dependency>
 								<dependency>
 									<groupId>com.sun.xml.bind</groupId>
 									<artifactId>jaxb-impl</artifactId>
-									<version>3.0.2</version>
+									<version>2.3.0</version>
 								</dependency>
 								<dependency>
 									<groupId>com.sun.xml.bind</groupId>
 									<artifactId>jaxb-core</artifactId>
-									<version>3.0.2</version>
+									<version>2.3.0</version>
 								</dependency>
 								<dependency>
 									<groupId>javax.activation</groupId>
