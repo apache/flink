@@ -45,6 +45,8 @@ public interface CastRule<IN, OUT> {
     CastExecutor<IN, OUT> create(
             Context context, LogicalType inputLogicalType, LogicalType targetLogicalType);
 
+    boolean canFail();
+
     /** Casting context. */
     interface Context {
         ZoneId getSessionZoneId();

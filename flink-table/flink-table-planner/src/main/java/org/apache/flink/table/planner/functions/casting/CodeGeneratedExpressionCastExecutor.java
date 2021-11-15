@@ -53,7 +53,12 @@ class CodeGeneratedExpressionCastExecutor<IN, OUT> implements CastExecutor<IN, O
             inputArray[0] = value;
             return (OUT) expressionEvaluator.evaluate(inputArray);
         } catch (InvocationTargetException e) {
-            throw new FlinkRuntimeException("Cannot execute the compiled expression", e);
+            if (e.getCause() instanceof TableException) {
+                // Expected exception created by the rule, so no need to wrap it
+                throw (TableException) e.getCause();
+            }
+            throw new TableException(
+                    "Cannot execute the compiled expression for an unknown cause", e);
         }
     }
 }
