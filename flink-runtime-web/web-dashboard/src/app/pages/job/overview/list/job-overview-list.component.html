@@ -42,7 +42,7 @@
   </thead>
   <tbody>
     <tr
-      *ngFor="let node of table.data; trackBy: trackJobBy"
+      *ngFor="let node of table.data; trackBy: trackById"
       class="clickable"
       (click)="clickNode(node)"
       [class.selected]="selectedNode?.id === node.id"
