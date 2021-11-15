@@ -178,42 +178,51 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 ((BulkDecodingFormat<RowData>) bulkReaderFormat).applyFilters(filters);
             }
 
-            BulkFormat<RowData, FileSourceSplit> format =
-                    bulkReaderFormat instanceof ProjectableDecodingFormat
-                            ? ((ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>>)
-                                            bulkReaderFormat)
-                                    .createRuntimeDecoder(
-                                            scanContext,
-                                            physicalDataType,
-                                            physicalProjections.toNestedIndexes())
-                            : new ProjectingBulkFormat(
-                                    bulkReaderFormat.createRuntimeDecoder(
-                                            scanContext, physicalDataType),
-                                    physicalProjections.toTopLevelIndexes(),
-                                    scanContext.createTypeInformation(
-                                            physicalProjections.project(physicalDataType)));
+            BulkFormat<RowData, FileSourceSplit> format;
+            if (bulkReaderFormat instanceof ProjectableDecodingFormat) {
+                format =
+                        ((ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>>)
+                                        bulkReaderFormat)
+                                .createRuntimeDecoder(
+                                        scanContext,
+                                        physicalDataType,
+                                        physicalProjections.toNestedIndexes());
+            } else {
+                format =
+                        new ProjectingBulkFormat(
+                                bulkReaderFormat.createRuntimeDecoder(
+                                        scanContext, physicalDataType),
+                                physicalProjections.toTopLevelIndexes(),
+                                scanContext.createTypeInformation(
+                                        physicalProjections.project(physicalDataType)));
+            }
 
             format =
                     wrapBulkFormat(
                             format, producedDataType, metadataToExtract, partitionKeysToExtract);
             return createSourceProvider(format);
         } else if (deserializationFormat != null) {
-            BulkFormat<RowData, FileSourceSplit> format =
-                    deserializationFormat instanceof ProjectableDecodingFormat
-                            ? new DeserializationSchemaAdapter(
-                                    ((ProjectableDecodingFormat<DeserializationSchema<RowData>>)
-                                                    deserializationFormat)
-                                            .createRuntimeDecoder(
-                                                    scanContext,
-                                                    physicalDataType,
-                                                    physicalProjections.toNestedIndexes()))
-                            : new ProjectingBulkFormat(
-                                    new DeserializationSchemaAdapter(
-                                            deserializationFormat.createRuntimeDecoder(
-                                                    scanContext, physicalDataType)),
-                                    physicalProjections.toTopLevelIndexes(),
-                                    scanContext.createTypeInformation(
-                                            physicalProjections.project(physicalDataType)));
+            BulkFormat<RowData, FileSourceSplit> format;
+            if (deserializationFormat instanceof ProjectableDecodingFormat) {
+                format =
+                        new DeserializationSchemaAdapter(
+                                ((ProjectableDecodingFormat<DeserializationSchema<RowData>>)
+                                                deserializationFormat)
+                                        .createRuntimeDecoder(
+                                                scanContext,
+                                                physicalDataType,
+                                                physicalProjections.toNestedIndexes()));
+            } else {
+                format =
+                        new ProjectingBulkFormat(
+                                new DeserializationSchemaAdapter(
+                                        deserializationFormat.createRuntimeDecoder(
+                                                scanContext, physicalDataType)),
+                                physicalProjections.toTopLevelIndexes(),
+                                scanContext.createTypeInformation(
+                                        physicalProjections.project(physicalDataType)));
+            }
+
             format =
                     wrapBulkFormat(
                             format, producedDataType, metadataToExtract, partitionKeysToExtract);
