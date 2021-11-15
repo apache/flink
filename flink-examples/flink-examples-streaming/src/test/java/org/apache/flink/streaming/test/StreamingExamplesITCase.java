@@ -30,7 +30,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.examples.iteration.util.IterateExampleData;
-import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData;
 import org.apache.flink.streaming.test.examples.join.WindowJoinData;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -109,7 +108,6 @@ public class StreamingExamplesITCase extends AbstractTestBase {
         final String resultPath = getTempDirPath("result");
         org.apache.flink.streaming.examples.twitter.TwitterExample.main(
                 new String[] {"--output", resultPath});
-        compareResultsByLinesInMemory(TwitterExampleData.STREAMING_COUNTS_AS_TUPLES, resultPath);
     }
 
     @Test
