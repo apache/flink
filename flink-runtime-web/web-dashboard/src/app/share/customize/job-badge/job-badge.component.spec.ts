@@ -16,39 +16,18 @@
  * limitations under the License.
  */
 
-export const BASE_URL = '.';
+import { render, screen } from '@testing-library/angular';
 
-export type ColorKey =
-  | 'TOTAL'
-  | 'RUNNING'
-  | 'FAILED'
-  | 'FINISHED'
-  | 'CANCELED'
-  | 'CANCELING'
-  | 'CREATED'
-  | 'DEPLOYING'
-  | 'RECONCILING'
-  | 'IN_PROGRESS'
-  | 'SCHEDULED'
-  | 'COMPLETED'
-  | 'RESTARTING'
-  | 'INITIALIZING';
+import { JobBadgeComponent } from './job-badge.component';
 
-export const COLOR_MAP: Record<ColorKey, string> = {
-  TOTAL: '#112641',
-  RUNNING: '#52c41a',
-  FAILED: '#f5222d',
-  FINISHED: '#1890ff',
-  CANCELED: '#fa8c16',
-  CANCELING: '#faad14',
-  CREATED: '#2f54eb',
-  DEPLOYING: '#13c2c2',
-  RECONCILING: '#eb2f96',
-  IN_PROGRESS: '#faad14',
-  SCHEDULED: '#722ed1',
-  COMPLETED: '#1890ff',
-  RESTARTING: '#13c2c2',
-  INITIALIZING: '#738df8'
-};
+describe('A job badge', () => {
+  it('displays the state', async () => {
+    await render(JobBadgeComponent, {
+      componentProperties: {
+        state: 'RUNNING'
+      }
+    });
 
-export const LONG_MIN_VALUE = -9223372036854776000;
+    expect(screen.getByText('RUNNING'));
+  });
+});
