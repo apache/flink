@@ -27,6 +27,8 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_YEAR_MONTH;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.SMALLINT;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TINYINT;
 
 /**
  * Cast rule for {@link LogicalTypeFamily#INTEGER_NUMERIC} and {@link
@@ -59,8 +61,18 @@ class NumericPrimitiveCastRule extends AbstractExpressionCodeGeneratorCastRule<N
         }
 
         // Conversions between Interval day time (long) and integer (int)
-        return (input.is(INTERVAL_DAY_TIME) && target.is(INTEGER))
-                || (input.is(INTEGER) && target.is(INTERVAL_DAY_TIME));
+        if ((input.is(INTERVAL_DAY_TIME) && target.is(INTEGER))
+                || (input.is(INTEGER) && target.is(INTERVAL_DAY_TIME))) {
+            return true;
+        }
+
+        // Conversions from tinyint/smallint to Interval day time
+        if ((input.is(TINYINT) || input.is(SMALLINT)) && target.is(INTERVAL_DAY_TIME)) {
+            return true;
+        }
+
+        // Conversions from tinyint/smallint to Interval year month
+        return (input.is(TINYINT) || input.is(SMALLINT)) && target.is(INTERVAL_YEAR_MONTH);
     }
 
     @Override
