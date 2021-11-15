@@ -554,4 +554,36 @@ class LegacyTableSinkITCase extends AbstractTestBase {
 
     TestBaseUtils.compareResultAsText(results, expected)
   }
+
+  @Test
+  def testSinkConversionWithNullRowTime(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+
+    val source = env.fromCollection(Seq(
+      Tuple2("a", java.time.Instant.ofEpochMilli(1L)),
+      Tuple2("b", null),
+      Tuple2("c", java.time.Instant.ofEpochMilli(3L))
+    ))
+    val table = tEnv.fromDataStream(
+      source,
+      Schema.newBuilder()
+        .column("_1", "STRING")
+        .column("_2", "TIMESTAMP_LTZ(3)")
+        .watermark("_2", "SOURCE_WATERMARK()")
+        .build())
+    tEnv.createTemporaryView("SourceWithNullRowTime", table)
+
+    val actual = tEnv.toAppendStream[Row](
+      tEnv.sqlQuery("SELECT * FROM SourceWithNullRowTime")
+    ).executeAndCollect().toSeq
+    assertEquals(
+      Seq(
+        Row.of("a", java.time.Instant.ofEpochMilli(1L)),
+        Row.of("b", null),
+        Row.of("c", java.time.Instant.ofEpochMilli(3L))
+      ),
+      actual
+    )
+  }
 }

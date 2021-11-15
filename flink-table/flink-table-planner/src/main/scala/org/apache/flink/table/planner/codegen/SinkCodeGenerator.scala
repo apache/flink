@@ -26,7 +26,7 @@ import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.createTuple2TypeInformation
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.util.RowDataUtil
-import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.data.{GenericRowData, RowData, TimestampData}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternalConverterWithLegacy
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{generateCollect, generateCollectWithTimestamp}
@@ -168,9 +168,9 @@ object SinkCodeGenerator {
     if (modifiedRowtimeIndex >= 0) {
       val rowtimeTerm = CodeGenUtils.newName("rowtime")
       s"""
-         | Long $rowtimeTerm =
-         | $afterIndexModify.getTimestamp($modifiedRowtimeIndex, 3).getMillisecond();
-         | ${generateCollectWithTimestamp(resultTerm, rowtimeTerm)}
+         |${classOf[TimestampData].getCanonicalName} $rowtimeTerm =
+         |  $afterIndexModify.getTimestamp($modifiedRowtimeIndex, 3);
+         |${generateCollectWithTimestamp(resultTerm, rowtimeTerm)}
           """.stripMargin
     } else {
       generateCollect(resultTerm)

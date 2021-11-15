@@ -27,7 +27,9 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullData4, smallTupleData3, tupleData2, tupleData3, tupleData5}
 import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.types.Row
 import org.apache.flink.util.ExceptionUtils
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.{Rule, Test}
 import org.junit.rules.ExpectedException
@@ -36,6 +38,7 @@ import java.io.File
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.util.concurrent.atomic.AtomicInteger
+
 import scala.collection.JavaConversions._
 import scala.collection.{Seq, mutable}
 import scala.io.Source
@@ -1418,5 +1421,34 @@ class TableSinkITCase extends StreamingTestBase {
       tEnv.from("T3")
     ).execute().await()
     assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResults.toList)
+  }
+
+  @Test
+  def testOutputConversionWithNullRowTime(): Unit = {
+    val source = env.fromCollection(Seq(
+      Tuple2("a", java.time.Instant.ofEpochMilli(1L)),
+      Tuple2("b", null),
+      Tuple2("c", java.time.Instant.ofEpochMilli(3L))
+    ))
+    val table = tEnv.fromDataStream(
+      source,
+      Schema.newBuilder()
+        .column("_1", "STRING")
+        .column("_2", "TIMESTAMP_LTZ(3)")
+        .watermark("_2", "SOURCE_WATERMARK()")
+        .build())
+    tEnv.createTemporaryView("SourceWithNullRowTime", table)
+
+    val actual = tEnv.toChangelogStream(
+      tEnv.sqlQuery("SELECT * FROM SourceWithNullRowTime")
+    ).executeAndCollect().toSeq
+    assertEquals(
+      Seq(
+        Row.of("a", java.time.Instant.ofEpochMilli(1L)),
+        Row.of("b", null),
+        Row.of("c", java.time.Instant.ofEpochMilli(3L))
+      ),
+      actual
+    )
   }
 }
