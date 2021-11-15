@@ -187,6 +187,36 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testConvertToSearchString">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * from MyTable where e in (
+'CTNBSmokeSensor',
+'H388N',
+'H389N     ',
+'GHL-IRD',
+'JY-BF-20YN',
+'HC809',
+'DH-9908N-AEP',
+'DH-9908N'
+)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($4, _UTF-16LE'CTNBSmokeSensor'), =($4, _UTF-16LE'H388N'), =($4, _UTF-16LE'H389N     '), =($4, _UTF-16LE'GHL-IRD'), =($4, _UTF-16LE'JY-BF-20YN'), =($4, _UTF-16LE'HC809'), =($4, _UTF-16LE'DH-9908N-AEP'), =($4, _UTF-16LE'DH-9908N'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[SEARCH($4, Sarg[_UTF-16LE'CTNBSmokeSensor':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'DH-9908N':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'DH-9908N-AEP':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'GHL-IRD':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'H388N':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'H389N     ':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'HC809':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'JY-BF-20YN':VARCHAR(15) CHARACTER SET "UTF-16LE"]:VARCHAR(15) CHARACTER SET "UTF-16LE")])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testConvertToInAndNotIn1">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR b = 1 OR (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4)]]>
@@ -434,89 +464,21 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testConvertToSearchBigint">
+  <TestCase name="testConvertToSearchWithMixedType">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable WHERE b in (1, 2, 3, 4, 5, 6, 7, 8, 9)]]>
+      <![CDATA[SELECT * FROM MyTable WHERE a is null or a = 1 OR a = 2 OR a = 3.0 OR a = 4.0 OR a = 5 OR a = 7 OR a = CAST(8 AS BIGINT)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(=($1, 1), =($1, 2), =($1, 3), =($1, 4), =($1, 5), =($1, 6), =($1, 7), =($1, 8), =($1, 9))])
++- LogicalFilter(condition=[OR(IS NULL($0), =($0, 1), =($0, 2), =(CAST($0):DECIMAL(11, 1), 3.0), =(CAST($0):DECIMAL(11, 1), 4.0), =($0, 5), =($0, 7), =(CAST($0):BIGINT, 8))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[SEARCH($1, Sarg[1L:BIGINT, 2L:BIGINT, 3L:BIGINT, 4L:BIGINT, 5L:BIGINT, 6L:BIGINT, 7L:BIGINT, 8L:BIGINT, 9L:BIGINT]:BIGINT)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testConvertToSearchDouble">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable WHERE d = 1.0 OR d = 2.0 OR d = 3.0 OR d = 4.0 OR d = 5.0 OR d = 7.0 OR d = 8.0 OR d = 9.0]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(=($3, 1.0), =($3, 2.0), =($3, 3.0), =($3, 4.0), =($3, 5.0), =($3, 7.0), =($3, 8.0), =($3, 9.0))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(=($3, 1.0), =($3, 2.0), =($3, 3.0), =($3, 4.0), =($3, 5.0), =($3, 7.0), =($3, 8.0), =($3, 9.0))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testConvertToSearchInt">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR a = 5 OR a = 7 OR a = 8 OR a = 9]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), =($0, 4), =($0, 5), =($0, 7), =($0, 8), =($0, 9))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[SEARCH($0, Sarg[1, 2, 3, 4, 5, 7, 8, 9])])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testConvertToSearchString">
-    <Resource name="sql">
-      <![CDATA[
-SELECT * from MyTable where e in (
-'CTNBSmokeSensor',
-'H388N',
-'H389N     ',
-'GHL-IRD',
-'JY-BF-20YN',
-'HC809',
-'DH-9908N-AEP',
-'DH-9908N'
-)
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(=($4, _UTF-16LE'CTNBSmokeSensor'), =($4, _UTF-16LE'H388N'), =($4, _UTF-16LE'H389N     '), =($4, _UTF-16LE'GHL-IRD'), =($4, _UTF-16LE'JY-BF-20YN'), =($4, _UTF-16LE'HC809'), =($4, _UTF-16LE'DH-9908N-AEP'), =($4, _UTF-16LE'DH-9908N'))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[SEARCH($4, Sarg[_UTF-16LE'CTNBSmokeSensor':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'DH-9908N':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'DH-9908N-AEP':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'GHL-IRD':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'H388N':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'H389N     ':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'HC809':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'JY-BF-20YN':VARCHAR(15) CHARACTER SET "UTF-16LE"]:VARCHAR(15) CHARACTER SET "UTF-16LE")])
++- LogicalFilter(condition=[OR(IS NULL($0), =(CAST($0):DECIMAL(11, 1), 3.0), =(CAST($0):DECIMAL(11, 1), 4.0), =(CAST($0):BIGINT, 8), SEARCH($0, Sarg[1, 2, 5, 7]))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
