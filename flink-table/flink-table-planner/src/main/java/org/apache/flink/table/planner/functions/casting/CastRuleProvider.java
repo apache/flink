@@ -55,7 +55,7 @@ public class CastRuleProvider {
                 .addRule(DateToStringCastRule.INSTANCE)
                 .addRule(IntervalToStringCastRule.INSTANCE)
                 .addRule(ArrayToStringCastRule.INSTANCE)
-                .addRule(MapToStringCastRule.INSTANCE)
+                .addRule(MapAndMultisetToStringCastRule.INSTANCE)
                 .addRule(RowToStringCastRule.INSTANCE)
                 .addRule(RawToStringCastRule.INSTANCE)
                 // Collection rules

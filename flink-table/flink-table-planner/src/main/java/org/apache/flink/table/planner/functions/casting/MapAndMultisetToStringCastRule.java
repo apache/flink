@@ -19,10 +19,14 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
+
+import java.util.function.Consumer;
 
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
@@ -33,23 +37,31 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.con
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 
-/** {@link LogicalTypeRoot#MAP} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
-class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
+/**
+ * {@link LogicalTypeRoot#MAP} and {@link LogicalTypeRoot#MULTISET} to {@link
+ * LogicalTypeFamily#CHARACTER_STRING} cast rule.
+ */
+class MapAndMultisetToStringCastRule
+        extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
 
-    static final MapToStringCastRule INSTANCE = new MapToStringCastRule();
+    static final MapAndMultisetToStringCastRule INSTANCE = new MapAndMultisetToStringCastRule();
 
-    private MapToStringCastRule() {
+    private MapAndMultisetToStringCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .predicate(
-                                (input, target) ->
-                                        input.is(LogicalTypeRoot.MAP)
-                                                && target.is(LogicalTypeFamily.CHARACTER_STRING)
-                                                && CastRuleProvider.exists(
-                                                        ((MapType) input).getKeyType(), target)
-                                                && CastRuleProvider.exists(
-                                                        ((MapType) input).getValueType(), target))
+                        .predicate(MapAndMultisetToStringCastRule::isMapOrMultiset)
                         .build());
+    }
+
+    private static boolean isMapOrMultiset(LogicalType input, LogicalType target) {
+        return target.is(LogicalTypeFamily.CHARACTER_STRING)
+                && ((input.is(LogicalTypeRoot.MAP)
+                                && CastRuleProvider.exists(((MapType) input).getKeyType(), target)
+                                && CastRuleProvider.exists(
+                                        ((MapType) input).getValueType(), target))
+                        || (input.is(LogicalTypeRoot.MULTISET)
+                                && CastRuleProvider.exists(
+                                        ((MultisetType) input).getElementType(), target)));
     }
 
     /* Example generated code for MAP<STRING, INTERVAL MONTH>:
@@ -97,8 +109,14 @@ class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final LogicalType keyType = ((MapType) inputLogicalType).getKeyType();
-        final LogicalType valueType = ((MapType) inputLogicalType).getValueType();
+        final LogicalType keyType =
+                inputLogicalType.is(LogicalTypeRoot.MULTISET)
+                        ? ((MultisetType) inputLogicalType).getElementType()
+                        : ((MapType) inputLogicalType).getKeyType();
+        final LogicalType valueType =
+                inputLogicalType.is(LogicalTypeRoot.MULTISET)
+                        ? new IntType(false)
+                        : ((MapType) inputLogicalType).getValueType();
 
         final String builderTerm = newName("builder");
         context.declareClassField(
@@ -137,6 +155,23 @@ class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
                                             valueType.copy(false),
                                             targetLogicalType);
 
+                            Consumer<CastRuleUtils.CodeWriter> appendNonNullValue =
+                                    bodyWriter ->
+                                            bodyWriter
+                                                    // If value not null, extract it and
+                                                    // execute the cast
+                                                    .assignStmt(
+                                                            valueTerm,
+                                                            rowFieldReadAccess(
+                                                                    indexTerm,
+                                                                    valueArrayTerm,
+                                                                    valueType))
+                                                    .append(valueCast)
+                                                    .stmt(
+                                                            methodCall(
+                                                                    builderTerm,
+                                                                    "append",
+                                                                    valueCast.getReturnTerm()));
                             loopBodyWriter
                                     // Write the comma
                                     .ifStmt(
@@ -184,32 +219,20 @@ class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
                                                                     builderTerm,
                                                                     "append",
                                                                     NULL_STR_LITERAL)))
-                                    .stmt(methodCall(builderTerm, "append", strLiteral("=")))
-                                    .ifStmt(
-                                            "!" + valueIsNullTerm,
-                                            thenBodyWriter ->
-                                                    thenBodyWriter
-                                                            // If value not null, extract it and
-                                                            // execute the cast
-                                                            .assignStmt(
-                                                                    valueTerm,
-                                                                    rowFieldReadAccess(
-                                                                            indexTerm,
-                                                                            valueArrayTerm,
-                                                                            valueType))
-                                                            .append(valueCast)
-                                                            .stmt(
-                                                                    methodCall(
-                                                                            builderTerm,
-                                                                            "append",
-                                                                            valueCast
-                                                                                    .getReturnTerm())),
-                                            elseBodyWriter ->
-                                                    elseBodyWriter.stmt(
-                                                            methodCall(
-                                                                    builderTerm,
-                                                                    "append",
-                                                                    NULL_STR_LITERAL)));
+                                    .stmt(methodCall(builderTerm, "append", strLiteral("=")));
+                            if (inputLogicalType.is(LogicalTypeRoot.MULTISET)) {
+                                appendNonNullValue.accept(loopBodyWriter);
+                            } else {
+                                loopBodyWriter.ifStmt(
+                                        "!" + valueIsNullTerm,
+                                        appendNonNullValue,
+                                        elseBodyWriter ->
+                                                elseBodyWriter.stmt(
+                                                        methodCall(
+                                                                builderTerm,
+                                                                "append",
+                                                                NULL_STR_LITERAL)));
+                            }
                         })
                 .stmt(methodCall(builderTerm, "append", strLiteral("}")))
                 // Assign the result value
