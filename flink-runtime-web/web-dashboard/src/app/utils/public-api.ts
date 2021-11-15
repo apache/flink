@@ -17,4 +17,4 @@
  */
 
 export * from './deepFind';
-export * from './isNil';
+export * from './is-nil';
