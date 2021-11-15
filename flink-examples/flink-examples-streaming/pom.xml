@@ -130,6 +130,24 @@ under the License.
 
 	<build>
 		<plugins>
+			<!-- Fail compilation on deprecation warnings to prevent from showing users outdated examples. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>compile</id>
+						<phase>process-sources</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<compilerArgument>-Xlint:deprecation</compilerArgument>
+							<failOnWarning>true</failOnWarning>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 
 			<!-- Scala Code Style, most of the configuration done via plugin management -->
 			<plugin>
@@ -139,7 +157,7 @@ under the License.
 					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
 				</configuration>
 			</plugin>
-			
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
@@ -413,6 +431,11 @@ under the License.
 						<goals>
 							<goal>compile</goal>
 						</goals>
+						<configuration>
+							<args>
+								<arg>-Xfatal-warnings</arg>
+							</args>
+						</configuration>
 					</execution>
  
 					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
