@@ -61,7 +61,7 @@ public class ContinuousFileReaderOperatorTest {
                     new StreamRecord<>(
                             new TimestampedFileInputSplit(
                                     0L, 1, new Path(), 0L, 0L, new String[] {})));
-            for (Mail m : harness.getTaskMailbox().drain()) {
+            for (Mail m : harness.getTaskMailbox().close()) {
                 m.run();
             }
             fail("should throw from processElement");

@@ -361,7 +361,7 @@ public class TaskMailboxImplTest {
         Assert.assertTrue(taskMailbox.createBatch());
         taskMailbox.put(mailB);
 
-        assertEquals(Arrays.asList(mailA, mailB), taskMailbox.drain());
+        assertEquals(Arrays.asList(mailA, mailB), taskMailbox.close());
     }
 
     @Test

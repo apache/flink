@@ -99,8 +99,10 @@ public class MailboxExecutorImplTest {
         executor.execute(() -> {}, "");
         assertFalse(executor.isIdle());
 
-        processor.mailbox.drain();
         processor.mailbox.quiesce();
+        assertFalse(executor.isIdle());
+
+        processor.mailbox.close();
         assertFalse(executor.isIdle());
     }
 

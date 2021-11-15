@@ -78,7 +78,7 @@ public class StreamTaskExecutionDecorationTest {
                         new CheckpointStorageLocationReference(new byte[] {1})));
         Assert.assertTrue("mailbox is empty", mailbox.hasMail());
         Assert.assertFalse("execution decorator was called preliminary", decorator.wasCalled());
-        mailbox.drain()
+        mailbox.close()
                 .forEach(
                         m -> {
                             try {

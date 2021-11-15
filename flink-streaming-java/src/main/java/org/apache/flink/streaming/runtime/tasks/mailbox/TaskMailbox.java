@@ -197,13 +197,6 @@ public interface TaskMailbox {
     }
 
     /**
-     * Drains the mailbox and returns all mails that were still enqueued.
-     *
-     * @return list with all mails that where enqueued in the mailbox.
-     */
-    List<Mail> drain();
-
-    /**
      * Quiesce the mailbox. In this state, the mailbox supports only take operations and all pending
      * and future put operations will throw {@link MailboxClosedException}.
      */
