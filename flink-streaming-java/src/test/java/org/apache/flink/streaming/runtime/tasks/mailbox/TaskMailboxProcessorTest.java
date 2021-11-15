@@ -398,6 +398,31 @@ public class TaskMailboxProcessorTest {
         assertTrue(start.get());
     }
 
+    @Test
+    public void testDrainRecursiveMails() throws Exception {
+        // given: Mail with recursive runnable.
+        MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {});
+
+        AtomicBoolean recursiveMailExecuted = new AtomicBoolean();
+        mailboxProcessor.mailbox.put(
+                new Mail(
+                        () ->
+                                mailboxProcessor.mailbox.put(
+                                        new Mail(
+                                                () -> recursiveMailExecuted.set(true),
+                                                TaskMailbox.MIN_PRIORITY,
+                                                "recursive mail")),
+                        TaskMailbox.MIN_PRIORITY,
+                        "first mail"));
+
+        // when: Drain all mails.
+        mailboxProcessor.drain();
+
+        // then: Should be executed not only current the mail in queue but recursive produced mail
+        // as well.
+        assertTrue(recursiveMailExecuted.get());
+    }
+
     static class MailboxThread extends Thread implements MailboxDefaultAction {
 
         MailboxProcessor mailboxProcessor;

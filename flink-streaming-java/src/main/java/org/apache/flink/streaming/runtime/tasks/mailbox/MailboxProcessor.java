@@ -173,9 +173,13 @@ public class MailboxProcessor implements Closeable {
      * mailbox must be empty after this method.
      */
     public void drain() throws Exception {
-        for (final Mail mail : mailbox.drain()) {
-            mail.run();
-        }
+        Optional<Mail> mail;
+        do {
+            mail = mailbox.tryTake(MIN_PRIORITY);
+            if (mail.isPresent()) {
+                mail.get().run();
+            }
+        } while (mail.isPresent());
     }
 
     /**
