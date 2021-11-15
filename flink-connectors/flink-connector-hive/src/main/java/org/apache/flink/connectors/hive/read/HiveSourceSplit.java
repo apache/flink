@@ -60,6 +60,22 @@ public class HiveSourceSplit extends FileSourceSplit {
                 hiveTablePartition);
     }
 
+    /**
+     * @deprecated You should use {@link #HiveSourceSplit(String, Path, long, long, long, long,
+     *     String[], CheckpointedPosition, HiveTablePartition)}
+     */
+    @Deprecated
+    public HiveSourceSplit(
+            String id,
+            Path filePath,
+            long offset,
+            long length,
+            String[] hostnames,
+            @Nullable CheckpointedPosition readerPosition,
+            HiveTablePartition hiveTablePartition) {
+        this(id, filePath, offset, length, 0, 0, hostnames, readerPosition, hiveTablePartition);
+    }
+
     public HiveSourceSplit(
             String id,
             Path filePath,
