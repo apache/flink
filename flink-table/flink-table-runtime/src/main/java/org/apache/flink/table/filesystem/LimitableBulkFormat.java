@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.filesystem;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.FileSourceSplit;
@@ -59,6 +60,11 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
     public Reader<T> restoreReader(Configuration config, SplitT split) throws IOException {
         Reader<T> reader = reachLimit() ? null : format.restoreReader(config, split);
         return wrapReader(reader);
+    }
+
+    @VisibleForTesting
+    AtomicLong globalNumberRead() {
+        return globalNumberRead;
     }
 
     private synchronized Reader<T> wrapReader(Reader<T> reader) {
@@ -105,8 +111,16 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
                 return null;
             }
 
-            RecordIterator<T> batch = reader.readBatch();
-            return batch == null ? null : new LimitableIterator(batch);
+            try {
+                RecordIterator<T> batch = reader.readBatch();
+                return batch == null ? null : new LimitableIterator(batch);
+            } catch (Exception e) {
+                if (reachLimit()) {
+                    return null;
+                } else {
+                    throw e;
+                }
+            }
         }
 
         @Override
