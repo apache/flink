@@ -18,18 +18,22 @@
 
 package org.apache.flink.table.types.projection;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.ListIterator;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
  * {@link Projection} represents a list of (possibly nested) indexes that can be used to project
- * data types.
+ * data types. A row projection includes both reducing the accessible fields and reordering them.
  */
-@Internal
+@PublicEvolving
 public interface Projection {
 
     /** Project the provided {@link DataType} using this {@link Projection}. */
@@ -72,27 +76,50 @@ public interface Projection {
      */
     Projection complement(int fieldsNumber);
 
+    /** Like {@link #complement(int)}, using the {@code dataType} fields count. */
+    default Projection complement(DataType dataType) {
+        return complement(DataType.getFieldCount(dataType));
+    }
+
     /**
-     * Convert this instance to a projection of top level indexes.
+     * Convert this instance to a projection of top level indexes. The array represents the mapping
+     * of the fields of the original {@link DataType}. For example, {@code [0, 2, 1]} specifies to
+     * include in the following order the 1st field, the 3rd field and the 2nd field of the row.
      *
      * @throws IllegalStateException if this projection is nested.
      */
     int[] toTopLevelIndexes();
 
-    /** Convert this instance to a nested projection. */
+    /**
+     * Convert this instance to a nested projection index paths. The array represents the mapping of
+     * the fields of the original {@link DataType}, including nested rows. For example, {@code [[0,
+     * 2, 1], ...]} specifies to include the 2nd field of the 3rd field of the 1st field in the
+     * top-level row.
+     */
     int[][] toNestedIndexes();
 
-    /** Create an empty {@link Projection}. */
+    /**
+     * Create an empty {@link Projection}, that is a projection that projects no fields, returning
+     * an empty {@link DataType}.
+     */
     static Projection empty() {
         return EmptyProjection.INSTANCE;
     }
 
-    /** Create a {@link Projection} of the provided {@code indexes}. */
+    /**
+     * Create a {@link Projection} of the provided {@code indexes}.
+     *
+     * @see #toTopLevelIndexes()
+     */
     static Projection of(int[] indexes) {
         return new TopLevelProjection(indexes);
     }
 
-    /** Create a {@link Projection} of the provided {@code indexes}. */
+    /**
+     * Create a {@link Projection} of the provided {@code indexes}.
+     *
+     * @see #toNestedIndexes()
+     */
     static Projection of(int[][] indexes) {
         return new NestedProjection(indexes);
     }
@@ -111,5 +138,246 @@ public interface Projection {
     static Projection all(DataType dataType) {
         return new TopLevelProjection(
                 IntStream.range(0, DataType.getFieldCount(dataType)).toArray());
+    }
+
+    abstract class AbstractProjection implements Projection {
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Projection)) {
+                return false;
+            }
+            Projection other = (Projection) o;
+            if (!this.isNested() && !other.isNested()) {
+                return Arrays.equals(this.toTopLevelIndexes(), other.toTopLevelIndexes());
+            }
+            return Arrays.deepEquals(this.toNestedIndexes(), other.toNestedIndexes());
+        }
+
+        @Override
+        public int hashCode() {
+            if (isNested()) {
+                return Arrays.deepHashCode(toNestedIndexes());
+            }
+            return Arrays.hashCode(toTopLevelIndexes());
+        }
+
+        @Override
+        public String toString() {
+            if (isNested()) {
+                return "Nested projection = " + Arrays.deepToString(toNestedIndexes());
+            }
+            return "Top level projection = " + Arrays.toString(toTopLevelIndexes());
+        }
+    }
+
+    class EmptyProjection extends AbstractProjection {
+
+        static final EmptyProjection INSTANCE = new EmptyProjection();
+
+        private EmptyProjection() {}
+
+        @Override
+        public DataType project(DataType dataType) {
+            return DataType.projectFields(dataType, toTopLevelIndexes());
+        }
+
+        @Override
+        public boolean isNested() {
+            return false;
+        }
+
+        @Override
+        public Projection difference(Projection projection) {
+            return this;
+        }
+
+        @Override
+        public Projection complement(int fieldsNumber) {
+            return new TopLevelProjection(IntStream.range(0, fieldsNumber).toArray());
+        }
+
+        @Override
+        public int[] toTopLevelIndexes() {
+            return new int[0];
+        }
+
+        @Override
+        public int[][] toNestedIndexes() {
+            return new int[0][];
+        }
+    }
+
+    class NestedProjection extends AbstractProjection {
+
+        final int[][] projection;
+        final boolean nested;
+
+        NestedProjection(int[][] projection) {
+            this.projection = projection;
+            this.nested = Arrays.stream(projection).anyMatch(arr -> arr.length > 1);
+        }
+
+        @Override
+        public DataType project(DataType dataType) {
+            return DataType.projectFields(dataType, projection);
+        }
+
+        @Override
+        public boolean isNested() {
+            return nested;
+        }
+
+        @Override
+        public Projection difference(Projection other) {
+            if (other.isNested()) {
+                throw new IllegalArgumentException(
+                        "Cannot perform difference between nested projection and nested projection");
+            }
+            if (other instanceof EmptyProjection) {
+                return this;
+            }
+            if (!this.isNested()) {
+                return new TopLevelProjection(toTopLevelIndexes()).difference(other);
+            }
+
+            // Extract the indexes to exclude and sort them
+            int[] indexesToExclude = other.toTopLevelIndexes();
+            indexesToExclude = Arrays.copyOf(indexesToExclude, indexesToExclude.length);
+            Arrays.sort(indexesToExclude);
+
+            List<int[]> resultProjection =
+                    Arrays.stream(projection).collect(Collectors.toCollection(ArrayList::new));
+
+            ListIterator<int[]> resultProjectionIterator = resultProjection.listIterator();
+            while (resultProjectionIterator.hasNext()) {
+                int[] indexArr = resultProjectionIterator.next();
+
+                // Let's check if the index is inside the indexesToExclude array
+                int searchResult = Arrays.binarySearch(indexesToExclude, indexArr[0]);
+                if (searchResult >= 0) {
+                    // Found, we need to remove it
+                    resultProjectionIterator.remove();
+                } else {
+                    // Not found, let's compute the offset.
+                    // Offset is the index where the projection index should be inserted in the
+                    // indexesToExclude array
+                    int offset = (-(searchResult) - 1);
+                    if (offset != 0) {
+                        indexArr[0] = indexArr[0] - offset;
+                    }
+                }
+            }
+
+            return new NestedProjection(resultProjection.toArray(new int[0][]));
+        }
+
+        @Override
+        public Projection complement(int fieldsNumber) {
+            if (isNested()) {
+                throw new IllegalStateException("Cannot perform complement of a nested projection");
+            }
+            return new TopLevelProjection(toTopLevelIndexes()).complement(fieldsNumber);
+        }
+
+        @Override
+        public int[] toTopLevelIndexes() {
+            if (isNested()) {
+                throw new IllegalStateException(
+                        "Cannot convert a nested projection to a top level projection");
+            }
+            return Arrays.stream(projection).mapToInt(arr -> arr[0]).toArray();
+        }
+
+        @Override
+        public int[][] toNestedIndexes() {
+            return projection;
+        }
+    }
+
+    class TopLevelProjection extends AbstractProjection {
+
+        final int[] projection;
+
+        TopLevelProjection(int[] projection) {
+            this.projection = projection;
+        }
+
+        @Override
+        public DataType project(DataType dataType) {
+            return DataType.projectFields(dataType, this.projection);
+        }
+
+        @Override
+        public boolean isNested() {
+            return false;
+        }
+
+        @Override
+        public Projection difference(Projection other) {
+            if (other.isNested()) {
+                throw new IllegalArgumentException(
+                        "Cannot perform difference between top level projection and nested projection");
+            }
+            if (other instanceof EmptyProjection) {
+                return this;
+            }
+
+            // Extract the indexes to exclude and sort them
+            int[] indexesToExclude = other.toTopLevelIndexes();
+            indexesToExclude = Arrays.copyOf(indexesToExclude, indexesToExclude.length);
+            Arrays.sort(indexesToExclude);
+
+            List<Integer> resultProjection =
+                    Arrays.stream(projection)
+                            .boxed()
+                            .collect(Collectors.toCollection(ArrayList::new));
+
+            ListIterator<Integer> resultProjectionIterator = resultProjection.listIterator();
+            while (resultProjectionIterator.hasNext()) {
+                int index = resultProjectionIterator.next();
+
+                // Let's check if the index is inside the indexesToExclude array
+                int searchResult = Arrays.binarySearch(indexesToExclude, index);
+                if (searchResult >= 0) {
+                    // Found, we need to remove it
+                    resultProjectionIterator.remove();
+                } else {
+                    // Not found, let's compute the offset.
+                    // Offset is the index where the projection index should be inserted in the
+                    // indexesToExclude array
+                    int offset = (-(searchResult) - 1);
+                    if (offset != 0) {
+                        resultProjectionIterator.set(index - offset);
+                    }
+                }
+            }
+
+            return new TopLevelProjection(resultProjection.stream().mapToInt(i -> i).toArray());
+        }
+
+        @Override
+        public Projection complement(int fieldsNumber) {
+            int[] indexesToExclude = Arrays.copyOf(projection, projection.length);
+            Arrays.sort(indexesToExclude);
+
+            return new TopLevelProjection(
+                    IntStream.range(0, fieldsNumber)
+                            .filter(i -> Arrays.binarySearch(indexesToExclude, i) < 0)
+                            .toArray());
+        }
+
+        @Override
+        public int[] toTopLevelIndexes() {
+            return projection;
+        }
+
+        @Override
+        public int[][] toNestedIndexes() {
+            return Arrays.stream(projection).mapToObj(i -> new int[] {i}).toArray(int[][]::new);
+        }
     }
 }

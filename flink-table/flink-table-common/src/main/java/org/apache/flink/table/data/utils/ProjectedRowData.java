@@ -27,14 +27,18 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.projection.Projection;
 import org.apache.flink.types.RowKind;
 
 import java.util.Arrays;
-import java.util.Objects;
 
 /**
  * An implementation of {@link RowData} which provides a projected view of the underlying {@link
  * RowData}.
+ *
+ * <p>Projection includes both reducing the accessible fields and reordering them.
+ *
+ * <p>Note: This class supports only top-level projections, not nested projections.
  */
 @PublicEvolving
 public class ProjectedRowData implements RowData {
@@ -157,19 +161,12 @@ public class ProjectedRowData implements RowData {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        ProjectedRowData that = (ProjectedRowData) o;
-        return Arrays.equals(indexMapping, that.indexMapping) && Objects.equals(row, that.row);
+        throw new UnsupportedOperationException("Projected row data cannot be compared");
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(Arrays.hashCode(indexMapping), row);
+        throw new UnsupportedOperationException("Projected row data cannot be hashed");
     }
 
     @Override
@@ -187,8 +184,15 @@ public class ProjectedRowData implements RowData {
      * Like {@link #from(int[])}, but throws {@link IllegalArgumentException} if the provided {@code
      * projection} array contains nested projections, which are not supported by {@link
      * ProjectedRowData}.
+     *
+     * <p>The array represents the mapping of the fields of the original {@link DataType}, including
+     * nested rows. For example, {@code [[0, 2, 1], ...]} specifies to include the 2nd field of the
+     * 3rd field of the 1st field in the top-level row.
+     *
+     * @see Projection
+     * @see ProjectedRowData
      */
-    public static ProjectedRowData from(int[][] projection) {
+    public static ProjectedRowData from(int[][] projection) throws IllegalArgumentException {
         return new ProjectedRowData(
                 Arrays.stream(projection)
                         .mapToInt(
@@ -203,10 +207,29 @@ public class ProjectedRowData implements RowData {
     }
 
     /**
-     * Create an empty {@link ProjectedRowData} starting from a {@code projection} array. For more
-     * details about projections, check out {@link DataType#projectFields(DataType, int[][])}.
+     * Create an empty {@link ProjectedRowData} starting from a {@code projection} array.
+     *
+     * <p>The array represents the mapping of the fields of the original {@link DataType}. For
+     * example, {@code [0, 2, 1]} specifies to include in the following order the 1st field, the 3rd
+     * field and the 2nd field of the row.
+     *
+     * @see Projection
+     * @see ProjectedRowData
      */
     public static ProjectedRowData from(int[] projection) {
         return new ProjectedRowData(projection);
+    }
+
+    /**
+     * Create an empty {@link ProjectedRowData} starting from a {@link Projection}.
+     *
+     * <p>Throws {@link IllegalStateException} if the provided {@code projection} array contains
+     * nested projections, which are not supported by {@link ProjectedRowData}.
+     *
+     * @see Projection
+     * @see ProjectedRowData
+     */
+    public static ProjectedRowData from(Projection projection) {
+        return new ProjectedRowData(projection.toTopLevelIndexes());
     }
 }

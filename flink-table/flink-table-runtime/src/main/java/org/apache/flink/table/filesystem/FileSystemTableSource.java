@@ -151,9 +151,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                                 : Projection.all(physicalDataType))
                         .difference(partitionKeysProjections);
         physicalDataType =
-                partitionKeysProjections
-                        .complement(DataType.getFieldCount(physicalDataType))
-                        .project(physicalDataType);
+                partitionKeysProjections.complement(physicalDataType).project(physicalDataType);
 
         // TODO FLINK-19845 old format factory, to be removed soon. The old factory doesn't support
         //  metadata.
