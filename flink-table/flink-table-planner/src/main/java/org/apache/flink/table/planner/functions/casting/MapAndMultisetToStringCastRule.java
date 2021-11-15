@@ -23,7 +23,9 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 
+import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAccess;
@@ -34,25 +36,31 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.met
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 
 /** {@link LogicalTypeRoot#MAP} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
-class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
+class MapAndMultisetToStringCastRule
+        extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
 
-    static final MapToStringCastRule INSTANCE = new MapToStringCastRule();
+    static final MapAndMultisetToStringCastRule INSTANCE = new MapAndMultisetToStringCastRule();
 
-    protected MapToStringCastRule(CastRulePredicate predicate) {
-        super(predicate);
-    }
-
-    private MapToStringCastRule() {
+    private MapAndMultisetToStringCastRule() {
         super(
                 CastRulePredicate.builder()
                         .predicate(
                                 (input, target) ->
-                                        input.is(LogicalTypeRoot.MAP)
-                                                && target.is(LogicalTypeFamily.CHARACTER_STRING)
-                                                && CastRuleProvider.exists(
-                                                        ((MapType) input).getKeyType(), target)
-                                                && CastRuleProvider.exists(
-                                                        ((MapType) input).getValueType(), target))
+                                        target.is(LogicalTypeFamily.CHARACTER_STRING)
+                                                && ((input.is(LogicalTypeRoot.MAP)
+                                                                && CastRuleProvider.exists(
+                                                                        ((MapType) input)
+                                                                                .getKeyType(),
+                                                                        target)
+                                                                && CastRuleProvider.exists(
+                                                                        ((MapType) input)
+                                                                                .getValueType(),
+                                                                        target))
+                                                        || (input.is(LogicalTypeRoot.MULTISET)
+                                                                && CastRuleProvider.exists(
+                                                                        ((MultisetType) input)
+                                                                                .getElementType(),
+                                                                        target))))
                         .build());
     }
 
@@ -101,8 +109,16 @@ class MapToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final LogicalType keyType = ((MapType) inputLogicalType).getKeyType();
-        final LogicalType valueType = ((MapType) inputLogicalType).getValueType();
+        boolean isMap = inputLogicalType instanceof MapType;
+        final LogicalType keyType;
+        final LogicalType valueType;
+        if (isMap) {
+            keyType = ((MapType) inputLogicalType).getKeyType();
+            valueType = ((MapType) inputLogicalType).getValueType();
+        } else {
+            keyType = ((MultisetType) inputLogicalType).getElementType();
+            valueType = INT().getLogicalType();
+        }
 
         final String builderTerm = newName("builder");
         context.declareClassField(
