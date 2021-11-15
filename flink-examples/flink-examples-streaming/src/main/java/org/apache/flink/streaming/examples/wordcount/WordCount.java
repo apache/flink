@@ -38,13 +38,13 @@ import java.time.Duration;
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text
  * files. This Job can be executed in both streaming and batch execution modes.
  *
- * <p>The input is a plain text file with lines separated by newline characters.
+ * <p>The input is a [list of] plain text file[s] with lines separated by a newline character.
  *
  * <p>Usage:
  *
  * <ul>
  *   <li><code>--input &lt;path&gt;</code>A list of input files and / or directories to read. If no
- *       inputs are provided, the program is run with default data from {@link WordCountData}.
+ *       input is provided, the program is run with default data from {@link WordCountData}.
  *   <li><code>--discovery-interval &lt;duration&gt;</code>Turns the file reader into a continuous
  *       source that will monitor the provided input directories every interval and read any new
  *       files.
@@ -80,7 +80,7 @@ public class WordCount {
         // application executed over bounded input will produce the same final results regardless
         // of the configured execution mode. It is important to note what final means here: a job
         // executing in STREAMING mode might produce incremental updates (think upserts in
-        // a database) while a BATCH job would only produce one final result at the end. The final
+        // a database) while in BATCH mode, it would only produce one final result at the end. The final
         // result will be the same if interpreted correctly, but getting there can be different.
         //
         // The “classic” execution behavior of the DataStream API is called STREAMING execution
@@ -92,7 +92,7 @@ public class WordCount {
         // join/aggregation strategies can be used, in addition to a different shuffle
         // implementation that allows more efficient task scheduling and failure recovery behavior.
         //
-        // By setting the runtime mode to AUTOMATIC, Flink will choose BATCH  if all sources
+        // By setting the runtime mode to AUTOMATIC, Flink will choose BATCH if all sources
         // are bounded and otherwise STREAMING.
         env.setRuntimeMode(params.getExecutionMode());
 
@@ -120,7 +120,7 @@ public class WordCount {
         DataStream<Tuple2<String, Integer>> counts =
                 // The text lines read from the source are split into words
                 // using a user-defined function. The tokenizer, implemented below,
-                // will output each words as a (2-tuple) containing (word, 1)
+                // will output each word as a (2-tuple) containing (word, 1)
                 text.flatMap(new Tokenizer())
                         .name("tokenizer")
                         // keyBy groups tuples based on the "0" field, the word.
@@ -129,7 +129,7 @@ public class WordCount {
                         // This is similar to a GROUP BY clause in a SQL query.
                         .keyBy(value -> value.f0)
                         // For each key, we perform a simple sum of the "1" field, the count.
-                        // If the input data set is bounded, sum will output a final count for
+                        // If the input data stream is bounded, sum will output a final count for
                         // each word. If it is unbounded, it will continuously output updates
                         // each time it sees a new instance of each word in the stream.
                         .sum(1)

@@ -51,7 +51,7 @@ public class CLI extends ExecutionConfig.GlobalJobParameters {
                             .map(Path::new)
                             .toArray(Path[]::new);
         } else {
-            System.out.println("Executing example with default input data set.");
+            System.out.println("Executing example with default input data.");
             System.out.println("Use --input to specify file input.");
         }
 
