@@ -141,6 +141,7 @@ public class TestingJobGraphStore implements JobGraphStore {
         return new Builder();
     }
 
+    /** {@code Builder} for creating {@code TestingJobGraphStore} instances. */
     public static class Builder {
         private ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer =
                 ignored -> {};
