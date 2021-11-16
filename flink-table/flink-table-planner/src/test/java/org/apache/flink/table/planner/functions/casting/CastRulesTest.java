@@ -600,11 +600,16 @@ class CastRulesTest {
                         .fromCase(
                                 ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
                                 GenericRowData.of(123, StringData.fromString("abc")),
-                                StringData.fromString("(123,abc)"))
+                                StringData.fromString("(123, abc)"))
+                        .fromCase(
+                                ROW(FIELD("f0", STRING()), FIELD("f1", STRING())),
+                                GenericRowData.of(
+                                        StringData.fromString("abc"), StringData.fromString("def")),
+                                StringData.fromString("(abc, def)"))
                         .fromCase(
                                 ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
                                 GenericRowData.of(null, StringData.fromString("abc")),
-                                StringData.fromString("(null,abc)"))
+                                StringData.fromString("(null, abc)"))
                         .fromCase(ROW(), GenericRowData.of(), StringData.fromString("()"))
                         .fromCase(
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
