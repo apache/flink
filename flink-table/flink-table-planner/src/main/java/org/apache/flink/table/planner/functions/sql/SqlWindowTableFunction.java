@@ -286,8 +286,8 @@ public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunct
                             ValidationException exception =
                                     new ValidationException(
                                             String.format(
-                                                    "The window function %s requires the timecol is a time attribute type.\n"
-                                                            + "The supported time indicator type are TIMESTAMP and TIMESTAMP_LTZ, but is %s.",
+                                                    "The window function %s requires the timecol to be TIMESTAMP or TIMESTAMP_LTZ, but is %s.\n"
+                                                            + "Besides, the timecol must be a time attribute type in streaming mode.",
                                                     callBinding
                                                             .getOperator()
                                                             .getAllowedSignatures(),

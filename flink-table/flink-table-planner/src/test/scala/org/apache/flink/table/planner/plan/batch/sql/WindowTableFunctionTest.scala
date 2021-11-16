@@ -47,6 +47,21 @@ class WindowTableFunctionTest extends TableTestBase {
   }
 
   @Test
+  def testInvalidTimeColType(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(b), INTERVAL '15' MINUTE))
+        |""".stripMargin
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "The window function TUMBLE(TABLE table_name, DESCRIPTOR(timecol), datetime interval"
+        + "[, datetime interval]) requires the timecol to be TIMESTAMP or TIMESTAMP_LTZ, "
+        + "but is BIGINT.")
+    util.verifyExplain(sql)
+  }
+
+  @Test
   def testTumbleTVF(): Unit = {
     val sql =
       """
