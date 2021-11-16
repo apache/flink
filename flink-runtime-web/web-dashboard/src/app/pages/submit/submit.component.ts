@@ -25,7 +25,7 @@ import { flatMap, takeUntil } from 'rxjs/operators';
 
 import { DagreComponent } from 'share/common/dagre/dagre.component';
 
-import { JarFilesItemInterface } from 'interfaces';
+import { JarFilesItem } from 'interfaces';
 import { JarService, StatusService } from 'services';
 
 @Component({
@@ -39,7 +39,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
   expandedMap = new Map();
   isLoading = true;
   destroy$ = new Subject();
-  listOfJar: JarFilesItemInterface[] = [];
+  listOfJar: JarFilesItem[] = [];
   address: string;
   isYarn = false;
   noAccess = false;
@@ -76,7 +76,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
    *
    * @param jar
    */
-  deleteJar(jar: JarFilesItemInterface): void {
+  deleteJar(jar: JarFilesItem): void {
     this.jarService.deleteJar(jar.id).subscribe(() => {
       this.statusService.forceRefresh();
       this.expandedMap.set(jar.id, false);
@@ -88,7 +88,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
    *
    * @param jar
    */
-  expandJar(jar: JarFilesItemInterface): void {
+  expandJar(jar: JarFilesItem): void {
     if (this.expandedMap.get(jar.id)) {
       this.expandedMap.set(jar.id, false);
     } else {
@@ -110,7 +110,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
    *
    * @param jar
    */
-  showPlan(jar: JarFilesItemInterface): void {
+  showPlan(jar: JarFilesItem): void {
     this.jarService
       .getPlan(
         jar.id,
@@ -136,7 +136,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
    *
    * @param jar
    */
-  submitJob(jar: JarFilesItemInterface): void {
+  submitJob(jar: JarFilesItem): void {
     this.jarService
       .runJob(
         jar.id,
@@ -157,7 +157,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
    * @param _
    * @param node
    */
-  trackJarBy(_: number, node: JarFilesItemInterface): string {
+  trackJarBy(_: number, node: JarFilesItem): string {
     return node.id;
   }
 

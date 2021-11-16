@@ -24,7 +24,7 @@ import { format } from 'd3-format';
 import { select } from 'd3-selection';
 import _d3Tip from 'd3-tip';
 
-import { JobFlameGraphNodeInterface } from 'interfaces';
+import { JobFlameGraphNode } from 'interfaces';
 
 @Component({
   selector: 'flink-flame-graph',
@@ -34,7 +34,7 @@ import { JobFlameGraphNodeInterface } from 'interfaces';
 })
 export class FlameGraphComponent {
   @ViewChild('flameGraphContainer', { static: true }) flameGraphContainer: ElementRef<Element>;
-  @Input() data: JobFlameGraphNodeInterface;
+  @Input() data: JobFlameGraphNode;
   @Input() graphType: string;
 
   draw(): void {

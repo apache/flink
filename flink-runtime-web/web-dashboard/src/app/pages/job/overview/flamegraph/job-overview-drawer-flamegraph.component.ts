@@ -20,7 +20,7 @@ import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRe
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil, tap } from 'rxjs/operators';
 
-import { JobFlameGraphInterface, NodesItemCorrectInterface } from 'interfaces';
+import { JobFlameGraph, NodesItemCorrect } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -33,8 +33,8 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
   destroy$ = new Subject();
   isLoading = true;
   now = Date.now();
-  selectedVertex: NodesItemCorrectInterface | null;
-  flameGraph = {} as JobFlameGraphInterface;
+  selectedVertex: NodesItemCorrect | null;
+  flameGraph = {} as JobFlameGraph;
 
   graphType = 'on_cpu';
 
@@ -72,7 +72,7 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.destroy$ = new Subject();
-    this.flameGraph = {} as JobFlameGraphInterface;
+    this.flameGraph = {} as JobFlameGraph;
     this.requestFlameGraph();
   }
 

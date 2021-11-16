@@ -21,11 +21,11 @@ import { forkJoin } from 'rxjs';
 import { first } from 'rxjs/operators';
 
 import {
-  CheckPointCompletedStatisticsInterface,
-  CheckPointDetailInterface,
-  JobDetailCorrectInterface,
-  VerticesItemInterface,
-  CheckPointConfigInterface
+  CheckPointCompletedStatistics,
+  CheckPointDetail,
+  JobDetailCorrect,
+  VerticesItem,
+  CheckPointConfig
 } from 'interfaces';
 import { JobService } from 'services';
 
@@ -36,8 +36,8 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsDetailComponent implements OnInit {
-  innerCheckPoint: CheckPointCompletedStatisticsInterface;
-  jobDetail: JobDetailCorrectInterface;
+  innerCheckPoint: CheckPointCompletedStatistics;
+  jobDetail: JobDetailCorrect;
   checkPointType: string;
 
   @Input()
@@ -46,16 +46,16 @@ export class JobCheckpointsDetailComponent implements OnInit {
     this.refresh();
   }
 
-  get checkPoint(): CheckPointCompletedStatisticsInterface {
+  get checkPoint(): CheckPointCompletedStatistics {
     return this.innerCheckPoint;
   }
 
-  checkPointDetail: CheckPointDetailInterface;
-  checkPointConfig: CheckPointConfigInterface;
-  listOfVertex: VerticesItemInterface[] = [];
+  checkPointDetail: CheckPointDetail;
+  checkPointConfig: CheckPointConfig;
+  listOfVertex: VerticesItem[] = [];
   isLoading = true;
 
-  trackVertexBy(_: number, node: VerticesItemInterface): string {
+  trackVertexBy(_: number, node: VerticesItem): string {
     return node.id;
   }
 

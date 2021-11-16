@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
 
-import { OverviewInterface } from 'interfaces';
+import { Overview } from 'interfaces';
 import { OverviewService, StatusService } from 'services';
 
 @Component({
@@ -30,7 +30,7 @@ import { OverviewService, StatusService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OverviewStatisticComponent implements OnInit, OnDestroy {
-  statistic: OverviewInterface | null;
+  statistic: Overview | null;
   destroy$ = new Subject();
 
   constructor(

@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerDetail } from 'interfaces';
 import { TaskManagerService } from 'services';
 
 @Component({
@@ -38,7 +38,7 @@ export class TaskManagerStatusComponent implements OnInit, OnDestroy {
     { path: 'log-list', title: 'Log List' },
     { path: 'thread-dump', title: 'Thread Dump' }
   ];
-  taskManagerDetail: TaskManagerDetailInterface;
+  taskManagerDetail: TaskManagerDetail;
   private destroy$ = new Subject();
 
   constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}

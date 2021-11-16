@@ -19,12 +19,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { distinctUntilChanged } from 'rxjs/operators';
 
-import {
-  CheckPointConfigInterface,
-  CheckPointHistoryInterface,
-  CheckPointInterface,
-  JobDetailCorrectInterface
-} from 'interfaces';
+import { CheckPointConfig, CheckPointHistory, CheckPoint, JobDetailCorrect } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -34,13 +29,13 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsComponent implements OnInit {
-  checkPointStats: CheckPointInterface;
-  checkPointConfig: CheckPointConfigInterface;
-  jobDetail: JobDetailCorrectInterface;
+  checkPointStats: CheckPoint;
+  checkPointConfig: CheckPointConfig;
+  jobDetail: JobDetailCorrect;
 
   moreDetailsPanel = { active: false, disabled: false };
 
-  trackHistoryBy(_: number, node: CheckPointHistoryInterface): number {
+  trackHistoryBy(_: number, node: CheckPointHistory): number {
     return node.id;
   }
 

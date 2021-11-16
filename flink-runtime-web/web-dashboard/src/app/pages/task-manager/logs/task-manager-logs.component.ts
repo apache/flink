@@ -17,7 +17,7 @@
  */
 
 import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
-import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerDetail } from 'interfaces';
 import { first, takeUntil } from 'rxjs/operators';
 import { TaskManagerService } from 'services';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
@@ -34,7 +34,7 @@ export class TaskManagerLogsComponent implements OnInit, OnDestroy {
   logs = '';
   loading = true;
   editorOptions: EditorOptions = flinkEditorOptions;
-  taskManagerDetail: TaskManagerDetailInterface;
+  taskManagerDetail: TaskManagerDetail;
   private destroy$ = new Subject<void>();
 
   reload() {

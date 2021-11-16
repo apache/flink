@@ -17,7 +17,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { first, flatMap } from 'rxjs/operators';
 
-import { TaskManagerLogItemInterface } from 'interfaces';
+import { TaskManagerLogItem } from 'interfaces';
 import { TaskManagerService } from 'services';
 
 import { typeDefinition } from '../../../utils/strong-type';
@@ -28,15 +28,14 @@ import { typeDefinition } from '../../../utils/strong-type';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerLogListComponent implements OnInit {
-  listOfLog: TaskManagerLogItemInterface[] = [];
+  listOfLog: TaskManagerLogItem[] = [];
   isLoading = true;
 
-  trackByName = (_: number, log: TaskManagerLogItemInterface): string => log.name;
-  readonly narrowLogData = typeDefinition<TaskManagerLogItemInterface>();
+  trackByName = (_: number, log: TaskManagerLogItem): string => log.name;
+  readonly narrowLogData = typeDefinition<TaskManagerLogItem>();
 
-  sortLastModifiedTimeFn = (pre: TaskManagerLogItemInterface, next: TaskManagerLogItemInterface): number =>
-    pre.mtime - next.mtime;
-  sortSizeFn = (pre: TaskManagerLogItemInterface, next: TaskManagerLogItemInterface): number => pre.size - next.size;
+  sortLastModifiedTimeFn = (pre: TaskManagerLogItem, next: TaskManagerLogItem): number => pre.mtime - next.mtime;
+  sortSizeFn = (pre: TaskManagerLogItem, next: TaskManagerLogItem): number => pre.size - next.size;
 
   constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
 

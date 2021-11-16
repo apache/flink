@@ -20,11 +20,11 @@ import { curveLinear, line } from 'd3';
 import * as dagre from 'dagre';
 import { GraphEdge, graphlib } from 'dagre';
 
-import { NodesItemCorrectInterface, NodesItemLinkInterface, SafeAny } from 'interfaces';
+import { NodesItemCorrect, NodesItemLink, SafeAny } from 'interfaces';
 
 import Graph = graphlib.Graph;
 
-export interface LayoutNode extends NodesItemCorrectInterface {
+export interface LayoutNode extends NodesItemCorrect {
   x: number;
   y: number;
   width: number;
@@ -40,7 +40,7 @@ export interface LayoutNodeOptions {
   focused: boolean;
 }
 
-export interface LayoutLink extends NodesItemLinkInterface {
+export interface LayoutLink extends NodesItemLink {
   [key: string]: SafeAny;
 
   detail: SafeAny;
@@ -105,7 +105,7 @@ export class NzGraph {
    *
    * @param nodes
    */
-  setNodes(nodes: NodesItemCorrectInterface[]): void {
+  setNodes(nodes: NodesItemCorrect[]): void {
     nodes.forEach(n => {
       n.width = n.width || 48;
       n.height = n.height || 48;
@@ -118,7 +118,7 @@ export class NzGraph {
    *
    * @param links
    */
-  setEdge(links: NodesItemLinkInterface[]): void {
+  setEdge(links: NodesItemLink[]): void {
     links.forEach(l => {
       let length = 0;
       if (l.local_strategy) {

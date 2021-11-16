@@ -22,10 +22,10 @@ import { mergeMap, takeUntil } from 'rxjs/operators';
 
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
-import { JobSubTaskInterface } from 'interfaces';
+import { JobSubTask } from 'interfaces';
 import { JobService } from 'services';
 
-function createSortFn(selector: (item: JobSubTaskInterface) => number | string): NzTableSortFn<JobSubTaskInterface> {
+function createSortFn(selector: (item: JobSubTask) => number | string): NzTableSortFn<JobSubTask> {
   return (pre, next) => (selector(pre) > selector(next) ? 1 : -1);
 }
 
@@ -36,7 +36,7 @@ function createSortFn(selector: (item: JobSubTaskInterface) => number | string):
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
-  public readonly trackBySubtask = (_: number, node: JobSubTaskInterface): number => node.subtask;
+  public readonly trackBySubtask = (_: number, node: JobSubTask): number => node.subtask;
 
   public readonly sortReadBytesFn = createSortFn(item => item.metrics?.['read-bytes']);
   public readonly sortReadRecordsFn = createSortFn(item => item.metrics?.['read-records']);
@@ -49,7 +49,7 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   public readonly sortEndTimeFn = createSortFn(item => item['end-time']);
   public readonly sortStatusFn = createSortFn(item => item.status);
 
-  public listOfTask: JobSubTaskInterface[] = [];
+  public listOfTask: JobSubTask[] = [];
   public sortName: string;
   public sortValue: string;
   public isLoading = true;

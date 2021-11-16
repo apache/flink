@@ -23,24 +23,24 @@ import { catchError, map } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
 import {
-  TaskManagerListInterface,
-  TaskManagerDetailInterface,
-  TaskManagerLogItemInterface,
-  TaskManagerThreadDumpInterface,
-  TaskmanagersItemInterface
+  TaskManagerList,
+  TaskManagerDetail,
+  TaskManagerLogItem,
+  TaskManagerThreadDump,
+  TaskmanagersItem
 } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TaskManagerService {
-  taskManagerDetail$ = new ReplaySubject<TaskManagerDetailInterface>(1);
+  taskManagerDetail$ = new ReplaySubject<TaskManagerDetail>(1);
 
   /**
    * Load TM list
    */
-  loadManagers(): Observable<TaskmanagersItemInterface[]> {
-    return this.httpClient.get<TaskManagerListInterface>(`${BASE_URL}/taskmanagers`).pipe(
+  loadManagers(): Observable<TaskmanagersItem[]> {
+    return this.httpClient.get<TaskManagerList>(`${BASE_URL}/taskmanagers`).pipe(
       map(data => data.taskmanagers || []),
       catchError(() => of([]))
     );
@@ -51,9 +51,9 @@ export class TaskManagerService {
    *
    * @param taskManagerId
    */
-  loadManager(taskManagerId: string): Observable<TaskManagerDetailInterface> {
+  loadManager(taskManagerId: string): Observable<TaskManagerDetail> {
     return this.httpClient
-      .get<TaskManagerDetailInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}`)
+      .get<TaskManagerDetail>(`${BASE_URL}/taskmanagers/${taskManagerId}`)
       .pipe(catchError(() => EMPTY));
   }
 
@@ -62,9 +62,9 @@ export class TaskManagerService {
    *
    * @param taskManagerId
    */
-  loadLogList(taskManagerId: string): Observable<TaskManagerLogItemInterface[]> {
+  loadLogList(taskManagerId: string): Observable<TaskManagerLogItem[]> {
     return this.httpClient
-      .get<{ logs: TaskManagerLogItemInterface[] }>(`${BASE_URL}/taskmanagers/${taskManagerId}/logs`)
+      .get<{ logs: TaskManagerLogItem[] }>(`${BASE_URL}/taskmanagers/${taskManagerId}/logs`)
       .pipe(map(data => data.logs));
   }
 
@@ -92,13 +92,11 @@ export class TaskManagerService {
    * Load TM thread dump
    */
   loadThreadDump(taskManagerId: string): Observable<string> {
-    return this.httpClient
-      .get<TaskManagerThreadDumpInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`)
-      .pipe(
-        map(taskManagerThreadDump => {
-          return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
-        })
-      );
+    return this.httpClient.get<TaskManagerThreadDump>(`${BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`).pipe(
+      map(taskManagerThreadDump => {
+        return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
+      })
+    );
   }
 
   /**

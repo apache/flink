@@ -22,12 +22,12 @@ import { mergeMap, takeUntil } from 'rxjs/operators';
 
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
-import { VertexTaskManagerDetailInterface } from 'interfaces';
+import { VertexTaskManagerDetail } from 'interfaces';
 import { JobService } from 'services';
 
 function createSortFn(
-  selector: (item: VertexTaskManagerDetailInterface) => number | string
-): NzTableSortFn<VertexTaskManagerDetailInterface> {
+  selector: (item: VertexTaskManagerDetail) => number | string
+): NzTableSortFn<VertexTaskManagerDetail> {
   return (pre, next) => (selector(pre) > selector(next) ? 1 : -1);
 }
 
@@ -37,7 +37,7 @@ function createSortFn(
   styleUrls: ['./job-overview-drawer-taskmanagers.component.less']
 })
 export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy {
-  public readonly trackByHost = (_: number, node: VertexTaskManagerDetailInterface): string => node.host;
+  public readonly trackByHost = (_: number, node: VertexTaskManagerDetail): string => node.host;
 
   public readonly sortReadBytesFn = createSortFn(item => item.metrics?.['read-bytes']);
   public readonly sortReadRecordsFn = createSortFn(item => item.metrics?.['read-records']);
@@ -49,7 +49,7 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
   public readonly sortEndTimeFn = createSortFn(item => item['end-time']);
   public readonly sortStatusFn = createSortFn(item => item.status);
 
-  public listOfTaskManager: VertexTaskManagerDetailInterface[] = [];
+  public listOfTaskManager: VertexTaskManagerDetail[] = [];
   public sortName: string;
   public sortValue: string;
   public isLoading = true;

@@ -22,7 +22,7 @@ import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
-import { JarListInterface, NodesItemCorrectInterface, PlanInterface, SafeAny, VerticesLinkInterface } from 'interfaces';
+import { JarList, NodesItemCorrect, Plan, SafeAny, VerticesLink } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -31,8 +31,8 @@ export class JarService {
   /**
    * Get uploaded jar list
    */
-  loadJarList(): Observable<JarListInterface> {
-    return this.httpClient.get<JarListInterface>(`${BASE_URL}/jars`).pipe(
+  loadJarList(): Observable<JarList> {
+    return this.httpClient.get<JarList>(`${BASE_URL}/jars`).pipe(
       catchError(() => {
         return of({
           address: '',
@@ -117,7 +117,7 @@ export class JarService {
     entryClass: string,
     parallelism: string,
     programArgs: string
-  ): Observable<{ nodes: NodesItemCorrectInterface[]; links: VerticesLinkInterface[] }> {
+  ): Observable<{ nodes: NodesItemCorrect[]; links: VerticesLink[] }> {
     let params = new HttpParams();
     if (entryClass) {
       params = params.append('entry-class', entryClass);
@@ -129,11 +129,11 @@ export class JarService {
       params = params.append('program-args', programArgs);
     }
     return this.httpClient
-      .get<PlanInterface>(`${BASE_URL}/jars/${jarId}/plan`, { params })
+      .get<Plan>(`${BASE_URL}/jars/${jarId}/plan`, { params })
       .pipe(
         map(data => {
-          const links: VerticesLinkInterface[] = [];
-          let nodes: NodesItemCorrectInterface[] = [];
+          const links: VerticesLink[] = [];
+          let nodes: NodesItemCorrect[] = [];
           if (data.plan.nodes.length) {
             nodes = data.plan.nodes.map(node => {
               return {

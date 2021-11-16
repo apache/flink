@@ -23,7 +23,7 @@ import { EMPTY, fromEvent, interval, merge, Subject } from 'rxjs';
 import { debounceTime, filter, map, mapTo, share, startWith, switchMap, tap } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
-import { ConfigurationInterface } from 'interfaces';
+import { Configuration } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -36,7 +36,7 @@ export class StatusService {
   /**
    * Flink configuration from backend
    */
-  configuration: ConfigurationInterface;
+  configuration: Configuration;
   /**
    * Refresh stream generated from the configuration
    */
@@ -63,9 +63,9 @@ export class StatusService {
    *
    * @param router
    */
-  boot(router: Router): Promise<ConfigurationInterface> {
+  boot(router: Router): Promise<Configuration> {
     return this.httpClient
-      .get<ConfigurationInterface>(`${BASE_URL}/config`)
+      .get<Configuration>(`${BASE_URL}/config`)
       .pipe(
         tap(data => {
           this.configuration = data;

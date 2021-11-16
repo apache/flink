@@ -19,7 +19,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { flatMap } from 'rxjs/operators';
 
-import { JobConfigInterface } from 'interfaces';
+import { JobConfig } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -29,7 +29,7 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobConfigurationComponent implements OnInit {
-  config: JobConfigInterface;
+  config: JobConfig;
   listOfUserConfig: Array<{ key: string; value: string }> = [];
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}

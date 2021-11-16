@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/
 import { Observable, Subject } from 'rxjs';
 import { flatMap, share, takeUntil } from 'rxjs/operators';
 
-import { JobsItemInterface } from 'interfaces';
+import { JobsItem } from 'interfaces';
 import { StatusService, JobService } from 'services';
 
 @Component({
@@ -30,7 +30,7 @@ import { StatusService, JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OverviewComponent implements OnInit, OnDestroy {
-  jobData$: Observable<JobsItemInterface[]>;
+  jobData$: Observable<JobsItem[]>;
   destroy$ = new Subject();
 
   constructor(private statusService: StatusService, private jobService: JobService) {}
