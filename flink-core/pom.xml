@@ -93,6 +93,13 @@ under the License.
 			<artifactId>flink-shaded-guava</artifactId>
 		</dependency>
 
+
+		<!-- YAML parsing for the global config -->
+		<dependency>
+			<groupId>org.yaml</groupId>
+			<artifactId>snakeyaml</artifactId>
+		</dependency>
+
 		<!-- ================== test dependencies ================== -->
 
 		<dependency>

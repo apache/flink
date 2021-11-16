@@ -23,14 +23,18 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
+import org.yaml.snakeyaml.error.YAMLException;
 
 import javax.annotation.Nullable;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Global configuration object for Flink. Similar to Java properties configuration objects it
@@ -49,6 +53,11 @@ public final class GlobalConfiguration {
 
     // the hidden content to be displayed
     public static final String HIDDEN_CONTENT = "******";
+
+    // key separator character
+    private static final String KEY_SEPARATOR = ".";
+
+    private static final Yaml yaml = new Yaml(new SafeConstructor());
 
     // --------------------------------------------------------------------------------------------
 
@@ -142,12 +151,60 @@ public final class GlobalConfiguration {
     }
 
     /**
+     * Flattens a nested configuration map to be only one level deep.
+     *
+     * <p>Nested keys are concatinated using the {@code KEY_SEPARATOR} character. So that:
+     *
+     * <pre>
+     * keyA:
+     *   keyB:
+     *     keyC: "hello"
+     *     keyD: "world"
+     * </pre>
+     *
+     * <p>becomes:
+     *
+     * <pre>
+     * keyA.keyB.keyC: "hello"
+     * keyA.keyB.keyD: "world"
+     * </pre>
+     *
+     * @param config an arbitrarily nested config map
+     * @param keyPrefix The string to prefix the keys in the current config level
+     * @return A flattened, 1 level deep map
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> flatten(Map<String, Object> config, String keyPrefix) {
+        final Map<String, String> flattenedMap = new HashMap<>();
+
+        if (config == null) {
+            return flattenedMap;
+        }
+
+        config.forEach(
+                (key, value) -> {
+                    String flattenedKey = keyPrefix + key;
+                    if (value instanceof Map) {
+                        Map<String, Object> e = (Map<String, Object>) value;
+                        flattenedMap.putAll(flatten(e, flattenedKey + KEY_SEPARATOR));
+                    } else {
+                        flattenedMap.put(flattenedKey, value == null ? "" : value.toString());
+                    }
+                });
+
+        return flattenedMap;
+    }
+
+    private static Map<String, String> flatten(Map<String, Object> config) {
+        // Since we start flattening from the root, keys should not be prefixed with anything.
+        return flatten(config, "");
+    }
+
+    /**
      * Loads a YAML-file of key-value pairs.
      *
-     * <p>Colon and whitespace ": " separate key and value (one per line). The hash tag "#" starts a
-     * single-line comment.
-     *
-     * <p>Example:
+     * <p>Keys can be expressed either as nested keys or as {@literal KEY_SEPARATOR} seperated keys.
+     * For example, the following configurations are equivalent:
      *
      * <pre>
      * jobmanager.rpc.address: localhost # network address for communication with the job manager
@@ -155,10 +212,15 @@ public final class GlobalConfiguration {
      * taskmanager.rpc.port  : 6122      # network port the task manager expects incoming IPC connections
      * </pre>
      *
-     * <p>This does not span the whole YAML specification, but only the *syntax* of simple YAML
-     * key-value pairs (see issue #113 on GitHub). If at any point in time, there is a need to go
-     * beyond simple key-value pairs syntax compatibility will allow to introduce a YAML parser
-     * library.
+     * <pre>
+     * jobmanager:
+     *     rpc:
+     *         address: localhost # network address for communication with the job manager
+     *         port: 6123         # network port to connect to for communication with the job manager
+     * taskmanager:
+     *     rpc:
+     *         port: 6122         # network port the task manager expects incoming IPC connections
+     * </pre>
      *
      * @param file the YAML file to read from
      * @see <a href="http://www.yaml.org/spec/1.2/spec.html">YAML 1.2 specification</a>
@@ -166,62 +228,24 @@ public final class GlobalConfiguration {
     private static Configuration loadYAMLResource(File file) {
         final Configuration config = new Configuration();
 
-        try (BufferedReader reader =
-                new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
+        try (FileInputStream inputStream = new FileInputStream((file))) {
+            Map<String, String> configDocument = flatten(yaml.load(inputStream));
 
-            String line;
-            int lineNo = 0;
-            while ((line = reader.readLine()) != null) {
-                lineNo++;
-                // 1. check for comments
-                String[] comments = line.split("#", 2);
-                String conf = comments[0].trim();
+            configDocument.forEach(
+                    (key, value) -> {
+                        LOG.info(
+                                "Loading configuration property: {}, {}",
+                                key,
+                                isSensitive(key) ? HIDDEN_CONTENT : value);
+                        config.setString(key, value);
+                    });
 
-                // 2. get key and value
-                if (conf.length() > 0) {
-                    String[] kv = conf.split(": ", 2);
-
-                    // skip line with no valid key-value pair
-                    if (kv.length == 1) {
-                        LOG.warn(
-                                "Error while trying to split key and value in configuration file "
-                                        + file
-                                        + ":"
-                                        + lineNo
-                                        + ": \""
-                                        + line
-                                        + "\"");
-                        continue;
-                    }
-
-                    String key = kv[0].trim();
-                    String value = kv[1].trim();
-
-                    // sanity check
-                    if (key.length() == 0 || value.length() == 0) {
-                        LOG.warn(
-                                "Error after splitting key and value in configuration file "
-                                        + file
-                                        + ":"
-                                        + lineNo
-                                        + ": \""
-                                        + line
-                                        + "\"");
-                        continue;
-                    }
-
-                    LOG.info(
-                            "Loading configuration property: {}, {}",
-                            key,
-                            isSensitive(key) ? HIDDEN_CONTENT : value);
-                    config.setString(key, value);
-                }
-            }
-        } catch (IOException e) {
+            return config;
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException("Error finding YAML configuration file.", e);
+        } catch (IOException | YAMLException | ClassCastException e) {
             throw new RuntimeException("Error parsing YAML configuration.", e);
         }
-
-        return config;
     }
 
     /**

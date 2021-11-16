@@ -34,13 +34,14 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -61,6 +62,8 @@ public class BootstrapTools {
     private static final Escaper WINDOWS_DOUBLE_QUOTE_ESCAPER =
             Escapers.builder().addEscape('"', "\\\"").addEscape('^', "\"^^\"").build();
 
+    private static final Yaml yaml = new Yaml(new SafeConstructor());
+
     /**
      * Writes a Flink YAML config file from a Flink Configuration object.
      *
@@ -69,13 +72,8 @@ public class BootstrapTools {
      * @throws IOException
      */
     public static void writeConfiguration(Configuration cfg, File file) throws IOException {
-        try (FileWriter fwrt = new FileWriter(file);
-                PrintWriter out = new PrintWriter(fwrt)) {
-            for (Map.Entry<String, String> entry : cfg.toMap().entrySet()) {
-                out.print(entry.getKey());
-                out.print(": ");
-                out.println(entry.getValue());
-            }
+        try (FileWriter fwrt = new FileWriter(file)) {
+            yaml.dump(cfg.toMap(), fwrt);
         }
     }
 

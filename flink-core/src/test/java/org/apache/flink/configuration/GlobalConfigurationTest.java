@@ -32,7 +32,6 @@ import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -56,19 +55,15 @@ public class GlobalConfigurationTest extends TestLogger {
                 pw.println("###########################"); // should be skipped
                 pw.println("mykey1: myvalue1"); // OK, simple correct case
                 pw.println("mykey2       : myvalue2"); // OK, whitespace before colon is correct
-                pw.println("mykey3:myvalue3"); // SKIP, missing white space after colon
-                pw.println(" some nonsense without colon and whitespace separator"); // SKIP
-                pw.println(" :  "); // SKIP
-                pw.println("   "); // SKIP (silently)
-                pw.println(" "); // SKIP (silently)
-                pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
-                pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
-                pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator
-                pw.println("mykey7: "); // SKIP, no value provided
-                pw.println(": myvalue8"); // SKIP, no key provided
-
-                pw.println("mykey9: myvalue9"); // OK
-                pw.println("mykey9: myvalue10"); // OK, overwrite last value
+                pw.println(
+                        "mykey3: myvalue3 # my commented value"); // OK, but the comment should not
+                // be present
+                pw.println("mykey4: myvalue4"); // OK
+                pw.println("mykey4: myvalue5"); // OK, overwrite last value
+                pw.println("mykey5.mykey5b: myvalue6"); // OK
+                pw.println("mykey5:");
+                pw.println("    mykey5b: myvalue7"); // OK, overwrite last value
+                pw.println("mykey6: myvalue8#myvalue9"); // OK, # should still be part of string
 
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
@@ -79,16 +74,52 @@ public class GlobalConfigurationTest extends TestLogger {
             // all distinct keys from confFile1 + confFile2 key
             assertEquals(6, conf.keySet().size());
 
-            // keys 1, 2, 4, 5, 6, 7, 8 should be OK and match the expected values
             assertEquals("myvalue1", conf.getString("mykey1", null));
             assertEquals("myvalue2", conf.getString("mykey2", null));
-            assertEquals("null", conf.getString("mykey3", "null"));
-            assertEquals("myvalue4", conf.getString("mykey4", null));
-            assertEquals("myvalue5", conf.getString("mykey5", null));
-            assertEquals("my: value6", conf.getString("mykey6", null));
-            assertEquals("null", conf.getString("mykey7", "null"));
-            assertEquals("null", conf.getString("mykey8", "null"));
-            assertEquals("myvalue10", conf.getString("mykey9", null));
+            assertEquals("myvalue3", conf.getString("mykey3", null));
+            assertEquals("myvalue5", conf.getString("mykey4", null));
+            assertEquals("myvalue7", conf.getString("mykey5.mykey5b", null));
+            assertEquals("myvalue8#myvalue9", conf.getString("mykey6", null));
+
+        } finally {
+            confFile.delete();
+            tmpDir.delete();
+        }
+    }
+
+    @Test
+    public void testNestedYAMLEquivalent() {
+        File tmpDir = tempFolder.getRoot();
+        File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+        try {
+            try (final PrintWriter pw = new PrintWriter(confFile)) {
+                pw.println("jobmanager.rpc.address: localhost # job manager network address");
+                pw.println("jobmanager.rpc.port: 6123         # job manager communication port");
+                pw.println("taskmanager.rpc.port: 6122        # task manager communication port");
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            Configuration unnestedConfig =
+                    GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
+
+            try (final PrintWriter pw = new PrintWriter(confFile)) {
+                pw.println("jobmanager:");
+                pw.println("    rpc:");
+                pw.println("        address: localhost # job manager network address");
+                pw.println("        port: 6123         # job manager communication port");
+                pw.println("taskmanager:");
+                pw.println("    rpc:");
+                pw.println("        port: 6122         # task manager communication port");
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            Configuration nestedConfig =
+                    GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
+
+            assertEquals(unnestedConfig, nestedConfig);
+
         } finally {
             confFile.delete();
             tmpDir.delete();
@@ -110,17 +141,15 @@ public class GlobalConfigurationTest extends TestLogger {
         GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath());
     }
 
-    @Test
-    // We allow malformed YAML files
+    @Test(expected = RuntimeException.class)
     public void testInvalidYamlFile() throws IOException {
         final File confFile = tempFolder.newFile(GlobalConfiguration.FLINK_CONF_FILENAME);
 
         try (PrintWriter pw = new PrintWriter(confFile)) {
-            pw.append("invalid");
+            pw.append("a: b: c");
         }
 
-        assertNotNull(
-                GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath()));
+        GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath());
     }
 
     @Test
