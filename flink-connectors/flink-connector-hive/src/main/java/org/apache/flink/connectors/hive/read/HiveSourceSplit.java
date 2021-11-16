@@ -60,6 +60,21 @@ public class HiveSourceSplit extends FileSourceSplit {
                 hiveTablePartition);
     }
 
+    public HiveSourceSplit(
+            String id,
+            Path filePath,
+            long offset,
+            long length,
+            long modificationTime,
+            long fileSize,
+            String[] hostnames,
+            @Nullable CheckpointedPosition readerPosition,
+            HiveTablePartition hiveTablePartition) {
+        super(id, filePath, offset, length, modificationTime, fileSize, hostnames, readerPosition);
+        this.hiveTablePartition =
+                checkNotNull(hiveTablePartition, "hiveTablePartition can not be null");
+    }
+
     /**
      * @deprecated You should use {@link #HiveSourceSplit(String, Path, long, long, long, long,
      *     String[], CheckpointedPosition, HiveTablePartition)}
@@ -74,21 +89,6 @@ public class HiveSourceSplit extends FileSourceSplit {
             @Nullable CheckpointedPosition readerPosition,
             HiveTablePartition hiveTablePartition) {
         this(id, filePath, offset, length, 0, 0, hostnames, readerPosition, hiveTablePartition);
-    }
-
-    public HiveSourceSplit(
-            String id,
-            Path filePath,
-            long offset,
-            long length,
-            long modificationTime,
-            long fileSize,
-            String[] hostnames,
-            @Nullable CheckpointedPosition readerPosition,
-            HiveTablePartition hiveTablePartition) {
-        super(id, filePath, offset, length, modificationTime, fileSize, hostnames, readerPosition);
-        this.hiveTablePartition =
-                checkNotNull(hiveTablePartition, "hiveTablePartition can not be null");
     }
 
     public HiveTablePartition getHiveTablePartition() {

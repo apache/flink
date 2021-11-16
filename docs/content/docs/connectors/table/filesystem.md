@@ -134,7 +134,7 @@ The following connector metadata can be accessed as metadata columns in a table 
     <tr>
       <td><code>size</code></td>
       <td><code>BIGINT NOT NULL</code></td>
-      <td>Size of the file.</td>
+      <td>Byte count of the file.</td>
     </tr>
     <tr>
       <td><code>modification_time</code></td>

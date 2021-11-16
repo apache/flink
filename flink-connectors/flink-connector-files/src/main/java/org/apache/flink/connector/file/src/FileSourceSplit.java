@@ -91,36 +91,6 @@ public class FileSourceSplit implements SourceSplit, Serializable {
 
     // --------------------------------------------------------------------------------------------
 
-    /** @deprecated You should use {@link #FileSourceSplit(String, Path, long, long, long, long)} */
-    public FileSourceSplit(String id, Path filePath, long offset, long length) {
-        this(id, filePath, offset, length, 0, 0, NO_HOSTS);
-    }
-
-    /**
-     * @deprecated You should use {@link #FileSourceSplit(String, Path, long, long, long, long,
-     *     String...)}
-     */
-    @Deprecated
-    public FileSourceSplit(
-            String id, Path filePath, long offset, long length, String... hostnames) {
-        this(id, filePath, offset, length, 0, 0, hostnames, null, null);
-    }
-
-    /**
-     * @deprecated You should use {@link #FileSourceSplit(String, Path, long, long, long, long,
-     *     String[], CheckpointedPosition)}
-     */
-    @Deprecated
-    public FileSourceSplit(
-            String id,
-            Path filePath,
-            long offset,
-            long length,
-            String[] hostnames,
-            @Nullable CheckpointedPosition readerPosition) {
-        this(id, filePath, offset, length, 0, 0, hostnames, readerPosition, null);
-    }
-
     /**
      * Constructs a split with host information.
      *
@@ -191,6 +161,37 @@ public class FileSourceSplit implements SourceSplit, Serializable {
                 hostnames,
                 readerPosition,
                 null);
+    }
+
+    /** @deprecated You should use {@link #FileSourceSplit(String, Path, long, long, long, long)} */
+    @Deprecated
+    public FileSourceSplit(String id, Path filePath, long offset, long length) {
+        this(id, filePath, offset, length, 0, 0, NO_HOSTS);
+    }
+
+    /**
+     * @deprecated You should use {@link #FileSourceSplit(String, Path, long, long, long, long,
+     *     String...)}
+     */
+    @Deprecated
+    public FileSourceSplit(
+            String id, Path filePath, long offset, long length, String... hostnames) {
+        this(id, filePath, offset, length, 0, 0, hostnames, null, null);
+    }
+
+    /**
+     * @deprecated You should use {@link #FileSourceSplit(String, Path, long, long, long, long,
+     *     String[], CheckpointedPosition)}
+     */
+    @Deprecated
+    public FileSourceSplit(
+            String id,
+            Path filePath,
+            long offset,
+            long length,
+            String[] hostnames,
+            @Nullable CheckpointedPosition readerPosition) {
+        this(id, filePath, offset, length, 0, 0, hostnames, readerPosition, null);
     }
 
     /**
