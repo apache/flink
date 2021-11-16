@@ -1455,6 +1455,98 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testSearch(): Unit = {
+    val myTableDataId = TestValuesTableFactory.registerData(
+      Seq(row("HC809"), row("H389N     "))
+    )
+    val ddl =
+      s"""
+         |CREATE TABLE SimpleTable (
+         |  content STRING
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+    val sql =
+      """
+        |SELECT UPPER(content) from SimpleTable where UPPER(content) in (
+        |'CTNBSmokeSensor',
+        |'H388N',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N'
+        |)
+        |""".stripMargin
+    checkResult(
+      sql,
+      Seq(row("HC809"), row("H389N     "))
+    )
+  }
+
+  @Test
+  def testSearchWithNull(): Unit = {
+    runQueryWithIn(
+      """
+        |'CTNBSmokeSensor',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N',
+        | null""".stripMargin
+    )
+  }
+
+  @Test
+  def testSearchWithNull2(): Unit = {
+    runQueryWithIn(
+      """
+        | null,
+        |'CTNBSmokeSensor',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N'
+        |""".stripMargin
+    )
+  }
+
+  private def runQueryWithIn(inParameter: String): Unit = {
+    val myTableDataId = TestValuesTableFactory.registerData(
+      Seq(row("HC809"), row(null)))
+    val ddl =
+      s"""
+         |CREATE TABLE SimpleTable (
+         |  content String
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+    val sql =
+      s"""
+         |SELECT content from SimpleTable where UPPER(content) in (
+         | $inParameter
+         |)
+         |""".stripMargin
+    checkResult(
+      sql,
+      Seq(row("HC809"))
+    )
+  }
+
+  @Test
   def testFilterPushDownWithInterval(): Unit = {
     val schema = TableSchema
       .builder()
