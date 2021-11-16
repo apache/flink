@@ -46,7 +46,7 @@ import scala.collection.Seq
 abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
 
   @Rule
-  def timeoutPerTest: Timeout = Timeout.seconds(20)
+  def timeoutPerTest: Timeout = Timeout.seconds(240)
 
   protected var resultPath: String = _
 
