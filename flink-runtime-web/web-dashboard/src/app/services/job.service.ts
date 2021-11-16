@@ -23,10 +23,10 @@ import { catchError, filter, map, mergeMap, tap } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
 import {
-  CheckPoint,
-  CheckPointConfig,
-  CheckPointDetail,
-  CheckPointSubTask,
+  Checkpoint,
+  CheckpointConfig,
+  CheckpointDetail,
+  CheckpointSubTask,
   JobBackpressure,
   JobConfig,
   JobDetail,
@@ -159,24 +159,24 @@ export class JobService {
     return this.httpClient.get<JobVertexTaskManager>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/taskmanagers`);
   }
 
-  public loadCheckpointStats(jobId: string): Observable<CheckPoint> {
-    return this.httpClient.get<CheckPoint>(`${BASE_URL}/jobs/${jobId}/checkpoints`);
+  public loadCheckpointStats(jobId: string): Observable<Checkpoint> {
+    return this.httpClient.get<Checkpoint>(`${BASE_URL}/jobs/${jobId}/checkpoints`);
   }
 
-  public loadCheckpointConfig(jobId: string): Observable<CheckPointConfig> {
-    return this.httpClient.get<CheckPointConfig>(`${BASE_URL}/jobs/${jobId}/checkpoints/config`);
+  public loadCheckpointConfig(jobId: string): Observable<CheckpointConfig> {
+    return this.httpClient.get<CheckpointConfig>(`${BASE_URL}/jobs/${jobId}/checkpoints/config`);
   }
 
-  public loadCheckpointDetails(jobId: string, checkPointId: number): Observable<CheckPointDetail> {
-    return this.httpClient.get<CheckPointDetail>(`${BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}`);
+  public loadCheckpointDetails(jobId: string, checkPointId: number): Observable<CheckpointDetail> {
+    return this.httpClient.get<CheckpointDetail>(`${BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}`);
   }
 
   public loadCheckpointSubtaskDetails(
     jobId: string,
     checkPointId: number,
     vertexId: string
-  ): Observable<CheckPointSubTask> {
-    return this.httpClient.get<CheckPointSubTask>(
+  ): Observable<CheckpointSubTask> {
+    return this.httpClient.get<CheckpointSubTask>(
       `${BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}/subtasks/${vertexId}`
     );
   }
