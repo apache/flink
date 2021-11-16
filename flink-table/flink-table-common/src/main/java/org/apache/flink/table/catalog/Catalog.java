@@ -217,8 +217,10 @@ public interface Catalog {
      * @throws DatabaseAlreadyExistException if the database with newDatabaseName already exists
      * @throws CatalogException in case of any runtime exception
      */
-    void renameDatabase(String name, String newDatabaseName, boolean ignoreIfNotExists)
-            throws DatabaseNotExistException, DatabaseAlreadyExistException, CatalogException;
+    default void renameDatabase(String name, String newDatabaseName, boolean ignoreIfNotExists)
+            throws DatabaseNotExistException, DatabaseAlreadyExistException, CatalogException {
+        throw new UnsupportedOperationException("this operation is not supported");
+    }
 
     // ------ tables and views ------
 

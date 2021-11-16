@@ -148,12 +148,6 @@ public class TestCatalogFactory implements CatalogFactory {
         }
 
         @Override
-        public void renameDatabase(String name, String newDatabaseName, boolean ignoreIfNotExists)
-                throws DatabaseNotExistException, DatabaseAlreadyExistException, CatalogException {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
         public List<String> listTables(String databaseName)
                 throws DatabaseNotExistException, CatalogException {
             throw new UnsupportedOperationException();
