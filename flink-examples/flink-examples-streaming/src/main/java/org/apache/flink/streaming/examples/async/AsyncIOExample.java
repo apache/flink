@@ -101,6 +101,6 @@ public class AsyncIOExample {
         result.print();
 
         // execute the program
-        env.execute("Async IO Example");
+        env.execute("Async IO Example: " + mode);
     }
 }
