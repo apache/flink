@@ -28,10 +28,9 @@ import { JarList, NodesItemCorrect, Plan, SafeAny, VerticesLink } from 'interfac
   providedIn: 'root'
 })
 export class JarService {
-  /**
-   * Get uploaded jar list
-   */
-  loadJarList(): Observable<JarList> {
+  constructor(private readonly httpClient: HttpClient) {}
+
+  public loadJarList(): Observable<JarList> {
     return this.httpClient.get<JarList>(`${BASE_URL}/jars`).pipe(
       catchError(() => {
         return of({
@@ -43,12 +42,7 @@ export class JarService {
     );
   }
 
-  /**
-   * Upload jar
-   *
-   * @param fd
-   */
-  uploadJar(fd: File): Observable<SafeAny> {
+  public uploadJar(fd: File): Observable<SafeAny> {
     const formData = new FormData();
     formData.append('jarfile', fd, fd.name);
     const req = new HttpRequest('POST', `${BASE_URL}/jars/upload`, formData, {
@@ -57,26 +51,11 @@ export class JarService {
     return this.httpClient.request(req);
   }
 
-  /**
-   * Delete jar
-   *
-   * @param jarId
-   */
-  deleteJar(jarId: string): Observable<SafeAny> {
+  public deleteJar(jarId: string): Observable<SafeAny> {
     return this.httpClient.delete(`${BASE_URL}/jars/${jarId}`);
   }
 
-  /**
-   * Run job
-   *
-   * @param jarId
-   * @param entryClass
-   * @param parallelism
-   * @param programArgs
-   * @param savepointPath
-   * @param allowNonRestoredState
-   */
-  runJob(
+  public runJob(
     jarId: string,
     entryClass: string,
     parallelism: string,
@@ -104,15 +83,7 @@ export class JarService {
     return this.httpClient.post<{ jobid: string }>(`${BASE_URL}/jars/${jarId}/run`, requestParam, { params });
   }
 
-  /**
-   * Get plan json from jar
-   *
-   * @param jarId
-   * @param entryClass
-   * @param parallelism
-   * @param programArgs
-   */
-  getPlan(
+  public getPlan(
     jarId: string,
     entryClass: string,
     parallelism: string,
@@ -153,6 +124,4 @@ export class JarService {
         })
       );
   }
-
-  constructor(private httpClient: HttpClient) {}
 }

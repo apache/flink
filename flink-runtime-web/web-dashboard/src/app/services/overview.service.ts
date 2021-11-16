@@ -28,12 +28,9 @@ import { Overview } from 'interfaces';
   providedIn: 'root'
 })
 export class OverviewService {
-  constructor(private httpClient: HttpClient) {}
+  constructor(private readonly httpClient: HttpClient) {}
 
-  /**
-   * Get cluster overview status
-   */
-  loadOverview(): Observable<Overview> {
+  public loadOverview(): Observable<Overview> {
     return this.httpClient.get<Overview>(`${BASE_URL}/overview`).pipe(catchError(() => EMPTY));
   }
 }

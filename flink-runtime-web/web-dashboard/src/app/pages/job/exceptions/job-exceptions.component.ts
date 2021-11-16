@@ -63,19 +63,30 @@ const markGlobalFailure = function(exception: ExceptionInfo): ExceptionInfo {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobExceptionsComponent implements OnInit, OnDestroy {
-  rootException = '';
-  exceptionHistory: ExceptionHistoryItem[] = [];
-  truncated = false;
-  isLoading = false;
-  maxExceptions = 0;
-  total = 0;
-  editorOptions: EditorOptions = flinkEditorOptions;
-  private destroy$ = new Subject<void>();
+  public readonly trackByTimestamp = (_: number, node: ExceptionInfo): number => node.timestamp;
 
-  trackExceptionBy(_: number, node: ExceptionInfo): number {
-    return node.timestamp;
+  public rootException = '';
+  public exceptionHistory: ExceptionHistoryItem[] = [];
+  public truncated = false;
+  public isLoading = false;
+  public maxExceptions = 0;
+  public total = 0;
+  public editorOptions: EditorOptions = flinkEditorOptions;
+
+  private readonly destroy$ = new Subject<void>();
+
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
+    this.loadMore();
   }
-  loadMore(): void {
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public loadMore(): void {
     this.isLoading = true;
     this.maxExceptions += 10;
     this.jobService.jobDetail$
@@ -109,16 +120,5 @@ export class JobExceptionsComponent implements OnInit, OnDestroy {
           };
         });
       });
-  }
-
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit(): void {
-    this.loadMore();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

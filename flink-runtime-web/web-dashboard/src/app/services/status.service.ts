@@ -19,7 +19,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { EMPTY, fromEvent, interval, merge, Subject } from 'rxjs';
+import { EMPTY, fromEvent, interval, merge, Observable, Subject } from 'rxjs';
 import { debounceTime, filter, map, mapTo, share, startWith, switchMap, tap } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
@@ -29,31 +29,19 @@ import { Configuration } from 'interfaces';
   providedIn: 'root'
 })
 export class StatusService {
-  /**
-   * Error server response message cache list
-   */
-  listOfErrorMessage: string[] = [];
-  /**
-   * Flink configuration from backend
-   */
-  configuration: Configuration;
-  /**
-   * Refresh stream generated from the configuration
-   */
-  refresh$ = new Subject<boolean>().asObservable();
-  /**
-   * Force refresh stream trigger manually
-   */
-  private forceRefresh$ = new Subject<boolean>();
-  /**
-   * Document visibility stream
-   */
-  private visibility$ = fromEvent(window, 'visibilitychange').pipe(map(e => !(e.target as Document).hidden));
+  constructor(private readonly httpClient: HttpClient) {}
 
-  /**
-   * Trigger force refresh
-   */
-  forceRefresh(): void {
+  /** Error server response message cache list. */
+  public listOfErrorMessage: string[] = [];
+
+  /** Flink configuration from backend. */
+  public configuration: Configuration;
+
+  public refresh$: Observable<boolean>;
+  private readonly forceRefresh$ = new Subject<boolean>();
+  private readonly visibility$ = fromEvent(window, 'visibilitychange').pipe(map(e => !(e.target as Document).hidden));
+
+  public forceRefresh(): void {
     this.forceRefresh$.next(true);
   }
 
@@ -63,7 +51,7 @@ export class StatusService {
    *
    * @param router
    */
-  boot(router: Router): Promise<Configuration> {
+  public boot(router: Router): Promise<Configuration> {
     return this.httpClient
       .get<Configuration>(`${BASE_URL}/config`)
       .pipe(
@@ -84,6 +72,4 @@ export class StatusService {
       )
       .toPromise();
   }
-
-  constructor(private httpClient: HttpClient) {}
 }

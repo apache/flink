@@ -44,18 +44,62 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobTimelineComponent implements AfterViewInit, OnDestroy {
-  destroy$ = new Subject();
-  listOfVertex: VerticesItemRange[] = [];
-  listOfSubTaskTimeLine: Array<{ name: string; status: string; range: [number, number] }> = [];
-  mainChartInstance: Chart;
-  subTaskChartInstance: Chart;
-  jobDetail: JobDetailCorrect;
-  selectedName: string;
-  isShowSubTaskTimeLine = false;
-  @ViewChild('mainTimeLine', { static: true }) mainTimeLine: ElementRef;
-  @ViewChild('subTaskTimeLine', { static: true }) subTaskTimeLine: ElementRef;
+  public listOfVertex: VerticesItemRange[] = [];
+  public listOfSubTaskTimeLine: Array<{ name: string; status: string; range: [number, number] }> = [];
+  public mainChartInstance: Chart;
+  public subTaskChartInstance: Chart;
+  public jobDetail: JobDetailCorrect;
+  public selectedName: string;
+  public isShowSubTaskTimeLine = false;
 
-  updateSubTaskChart(vertexId: string): void {
+  @ViewChild('mainTimeLine', { static: true }) private readonly mainTimeLine: ElementRef;
+  @ViewChild('subTaskTimeLine', { static: true }) private readonly subTaskTimeLine: ElementRef;
+
+  private readonly destroy$ = new Subject<void>();
+
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngAfterViewInit(): void {
+    this.setUpMainChart();
+    this.setUpSubTaskChart();
+    this.jobService.jobDetail$
+      .pipe(
+        filter(() => !!this.mainChartInstance),
+        distinctUntilChanged((pre, next) => pre.jid === next.jid),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        this.jobDetail = data;
+        this.listOfVertex = data.vertices
+          .filter(v => v['start-time'] > -1)
+          .map(vertex => {
+            const endTime = vertex['end-time'] > -1 ? vertex['end-time'] : vertex['start-time'] + vertex.duration;
+            return {
+              ...vertex,
+              range: [vertex['start-time'], endTime]
+            };
+          });
+        this.listOfVertex = this.listOfVertex.sort((a, b) => a.range[0] - b.range[0]);
+        this.mainChartInstance.changeHeight(Math.max(this.listOfVertex.length * 50 + 100, 150));
+        this.mainChartInstance.source(this.listOfVertex, {
+          range: {
+            alias: 'Time',
+            type: 'time',
+            mask: 'HH:mm:ss',
+            nice: false
+          }
+        });
+        this.mainChartInstance.render();
+        this.cdr.markForCheck();
+      });
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public updateSubTaskChart(vertexId: string): void {
     this.listOfSubTaskTimeLine = [];
     this.jobService.loadSubTaskTimes(this.jobDetail.jid, vertexId).subscribe(data => {
       data.subtasks.forEach(task => {
@@ -107,7 +151,7 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  setUpMainChart(): void {
+  public setUpMainChart(): void {
     this.mainChartInstance = new G2.Chart({
       container: this.mainTimeLine.nativeElement,
       forceFit: true,
@@ -152,7 +196,7 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  setUpSubTaskChart(): void {
+  public setUpSubTaskChart(): void {
     this.subTaskChartInstance = new G2.Chart({
       container: this.subTaskTimeLine.nativeElement,
       forceFit: true,
@@ -169,47 +213,5 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
       .position('name*range')
       // @ts-ignore
       .color('status', (type: SafeAny) => COLOR_MAP[type]);
-  }
-
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-
-  ngAfterViewInit(): void {
-    this.setUpMainChart();
-    this.setUpSubTaskChart();
-    this.jobService.jobDetail$
-      .pipe(
-        filter(() => !!this.mainChartInstance),
-        distinctUntilChanged((pre, next) => pre.jid === next.jid),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(data => {
-        this.jobDetail = data;
-        this.listOfVertex = data.vertices
-          .filter(v => v['start-time'] > -1)
-          .map(vertex => {
-            const endTime = vertex['end-time'] > -1 ? vertex['end-time'] : vertex['start-time'] + vertex.duration;
-            return {
-              ...vertex,
-              range: [vertex['start-time'], endTime]
-            };
-          });
-        this.listOfVertex = this.listOfVertex.sort((a, b) => a.range[0] - b.range[0]);
-        this.mainChartInstance.changeHeight(Math.max(this.listOfVertex.length * 50 + 100, 150));
-        this.mainChartInstance.source(this.listOfVertex, {
-          range: {
-            alias: 'Time',
-            type: 'time',
-            mask: 'HH:mm:ss',
-            nice: false
-          }
-        });
-        this.mainChartInstance.render();
-        this.cdr.markForCheck();
-      });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

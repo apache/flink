@@ -30,12 +30,25 @@ import { takeUntil } from 'rxjs/operators';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerLogsComponent implements OnInit, OnDestroy {
-  logs = '';
-  loading = true;
-  editorOptions: EditorOptions = flinkEditorOptions;
-  private destroy$ = new Subject<void>();
+  public readonly editorOptions: EditorOptions = flinkEditorOptions;
 
-  reload() {
+  public logs = '';
+  public loading = true;
+
+  private readonly destroy$ = new Subject<void>();
+
+  constructor(private readonly jobManagerService: JobManagerService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit() {
+    this.reload();
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public reload() {
     this.loading = true;
     this.cdr.markForCheck();
     this.jobManagerService
@@ -46,16 +59,5 @@ export class JobManagerLogsComponent implements OnInit, OnDestroy {
         this.logs = data;
         this.cdr.markForCheck();
       });
-  }
-
-  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit() {
-    this.reload();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

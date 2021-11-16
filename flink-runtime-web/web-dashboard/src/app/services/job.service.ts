@@ -19,18 +19,18 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { combineLatest, EMPTY, Observable, ReplaySubject } from 'rxjs';
-import { catchError, filter, flatMap, map, tap } from 'rxjs/operators';
+import { catchError, filter, map, mergeMap, tap } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
 import {
+  CheckPoint,
   CheckPointConfig,
   CheckPointDetail,
-  CheckPoint,
   CheckPointSubTask,
   JobBackpressure,
   JobConfig,
-  JobDetailCorrect,
   JobDetail,
+  JobDetailCorrect,
   JobException,
   JobFlameGraph,
   JobOverview,
@@ -39,7 +39,6 @@ import {
   JobSubTaskTime,
   JobVertexTaskManager,
   NodesItemCorrect,
-  SafeAny,
   SubTaskAccumulators,
   TaskStatus,
   UserAccumulators,
@@ -50,45 +49,35 @@ import {
   providedIn: 'root'
 })
 export class JobService {
-  /**
-   * Current activated job
-   */
-  jobDetail$ = new ReplaySubject<JobDetailCorrect>(1);
-  /**
-   * Current activated vertex
-   */
-  selectedVertex$ = new ReplaySubject<NodesItemCorrect | null>(1);
-  /**
-   * Current activated job with vertex
-   */
-  jobWithVertex$ = combineLatest([this.jobDetail$, this.selectedVertex$]).pipe(
+  /** Current activated job. */
+  public readonly jobDetail$ = new ReplaySubject<JobDetailCorrect>(1);
+
+  /** Current activated vertex. */
+  public readonly selectedVertex$ = new ReplaySubject<NodesItemCorrect | null>(1);
+
+  /** Current activated job with vertex. */
+  public readonly jobWithVertex$ = combineLatest([this.jobDetail$, this.selectedVertex$]).pipe(
     map(data => {
       const [job, vertex] = data;
       return { job, vertex };
     }),
     filter(data => !!data.vertex)
   );
-  /**
-   * Selected Metric Cache
-   */
-  metricsCacheMap = new Map();
 
-  constructor(private httpClient: HttpClient) {}
+  /** Selected Metric Cache. */
+  public readonly metricsCacheMap = new Map<string, string[]>();
+
+  constructor(private readonly httpClient: HttpClient) {}
 
   /**
    * Uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
    * proper BASE_URL + "jobs/" + jobid + "?mode=cancel"
-   *
-   * @param jobId
    */
-  cancelJob(jobId: string): Observable<SafeAny> {
-    return this.httpClient.get(`${BASE_URL}/jobs/${jobId}/yarn-cancel`);
+  public cancelJob(jobId: string): Observable<void> {
+    return this.httpClient.get<void>(`${BASE_URL}/jobs/${jobId}/yarn-cancel`);
   }
 
-  /**
-   * Get job list
-   */
-  loadJobs(): Observable<JobsItem[]> {
+  public loadJobs(): Observable<JobsItem[]> {
     return this.httpClient.get<JobOverview>(`${BASE_URL}/jobs/overview`).pipe(
       map(data => {
         data.jobs.forEach(job => {
@@ -105,21 +94,11 @@ export class JobService {
     );
   }
 
-  /**
-   * Load job config
-   *
-   * @param jobId
-   */
-  loadJobConfig(jobId: string): Observable<JobConfig> {
+  public loadJobConfig(jobId: string): Observable<JobConfig> {
     return this.httpClient.get<JobConfig>(`${BASE_URL}/jobs/${jobId}/config`);
   }
 
-  /**
-   * Load single job detail
-   *
-   * @param jobId
-   */
-  loadJob(jobId: string): Observable<JobDetailCorrect> {
+  public loadJob(jobId: string): Observable<JobDetailCorrect> {
     return this.httpClient.get<JobDetail>(`${BASE_URL}/jobs/${jobId}`).pipe(
       map(job => this.convertJob(job)),
       tap(job => {
@@ -128,20 +107,14 @@ export class JobService {
     );
   }
 
-  /**
-   * Get vertex & subtask accumulators
-   *
-   * @param jobId
-   * @param vertexId
-   */
-  loadAccumulators(
+  public loadAccumulators(
     jobId: string,
     vertexId: string
   ): Observable<{ main: UserAccumulators[]; subtasks: SubTaskAccumulators[] }> {
     return this.httpClient
       .get<{ 'user-accumulators': UserAccumulators[] }>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/accumulators`)
       .pipe(
-        flatMap(data => {
+        mergeMap(data => {
           const accumulators = data['user-accumulators'];
           return this.httpClient
             .get<{ subtasks: SubTaskAccumulators[] }>(
@@ -160,115 +133,55 @@ export class JobService {
       );
   }
 
-  /**
-   * Get job exception
-   *
-   * @param jobId
-   * @param maxExceptions
-   */
-  loadExceptions(jobId: string, maxExceptions: number): Observable<JobException> {
+  public loadExceptions(jobId: string, maxExceptions: number): Observable<JobException> {
     return this.httpClient.get<JobException>(`${BASE_URL}/jobs/${jobId}/exceptions?maxExceptions=${maxExceptions}`);
   }
 
-  /**
-   * Get vertex back pressure
-   *
-   * @param jobId
-   * @param vertexId
-   */
-  loadOperatorBackPressure(jobId: string, vertexId: string): Observable<JobBackpressure> {
+  public loadOperatorBackPressure(jobId: string, vertexId: string): Observable<JobBackpressure> {
     return this.httpClient.get<JobBackpressure>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/backpressure`);
   }
 
-  /**
-   * Get vertex flame graph
-   *
-   * @param jobId
-   * @param vertexId
-   * @param type
-   */
-  loadOperatorFlameGraph(jobId: string, vertexId: string, type: string): Observable<JobFlameGraph> {
+  public loadOperatorFlameGraph(jobId: string, vertexId: string, type: string): Observable<JobFlameGraph> {
     return this.httpClient.get<JobFlameGraph>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/flamegraph?type=${type}`);
   }
 
-  /**
-   * Get vertex subtask
-   *
-   * @param jobId
-   * @param vertexId
-   */
-  loadSubTasks(jobId: string, vertexId: string): Observable<JobSubTask[]> {
+  public loadSubTasks(jobId: string, vertexId: string): Observable<JobSubTask[]> {
     return this.httpClient
       .get<{ subtasks: JobSubTask[] }>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}`)
       .pipe(map(data => (data && data.subtasks) || []));
   }
 
-  /**
-   * Get subtask timeline
-   *
-   * @param jobId
-   * @param vertexId
-   */
-  loadSubTaskTimes(jobId: string, vertexId: string): Observable<JobSubTaskTime> {
+  public loadSubTaskTimes(jobId: string, vertexId: string): Observable<JobSubTaskTime> {
     return this.httpClient.get<JobSubTaskTime>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasktimes`);
   }
 
-  /**
-   * Get vertex task manager list
-   *
-   * @param jobId
-   * @param vertexId
-   */
-  loadTaskManagers(jobId: string, vertexId: string): Observable<JobVertexTaskManager> {
+  public loadTaskManagers(jobId: string, vertexId: string): Observable<JobVertexTaskManager> {
     return this.httpClient.get<JobVertexTaskManager>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/taskmanagers`);
   }
 
-  /**
-   * Get check point status
-   *
-   * @param jobId
-   */
-  loadCheckpointStats(jobId: string): Observable<CheckPoint> {
+  public loadCheckpointStats(jobId: string): Observable<CheckPoint> {
     return this.httpClient.get<CheckPoint>(`${BASE_URL}/jobs/${jobId}/checkpoints`);
   }
 
-  /**
-   * Get check point configuration
-   *
-   * @param jobId
-   */
-  loadCheckpointConfig(jobId: string): Observable<CheckPointConfig> {
+  public loadCheckpointConfig(jobId: string): Observable<CheckPointConfig> {
     return this.httpClient.get<CheckPointConfig>(`${BASE_URL}/jobs/${jobId}/checkpoints/config`);
   }
 
-  /**
-   * get check point detail
-   *
-   * @param jobId
-   * @param checkPointId
-   */
-  loadCheckpointDetails(jobId: string, checkPointId: number): Observable<CheckPointDetail> {
+  public loadCheckpointDetails(jobId: string, checkPointId: number): Observable<CheckPointDetail> {
     return this.httpClient.get<CheckPointDetail>(`${BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}`);
   }
 
-  /**
-   * get subtask check point detail
-   *
-   * @param jobId
-   * @param checkPointId
-   * @param vertexId
-   */
-  loadCheckpointSubtaskDetails(jobId: string, checkPointId: number, vertexId: string): Observable<CheckPointSubTask> {
+  public loadCheckpointSubtaskDetails(
+    jobId: string,
+    checkPointId: number,
+    vertexId: string
+  ): Observable<CheckPointSubTask> {
     return this.httpClient.get<CheckPointSubTask>(
       `${BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}/subtasks/${vertexId}`
     );
   }
 
-  /**
-   * nodes to nodes links in order to generate graph
-   *
-   * @param job
-   */
+  /** nodes to nodes links in order to generate graph */
   private convertJob(job: JobDetail): JobDetailCorrect {
     const links: VerticesLink[] = [];
     let nodes: NodesItemCorrect[] = [];

@@ -55,7 +55,7 @@
       </tr>
     </thead>
     <tbody *ngIf="checkPointDetail">
-      <ng-container *ngFor="let vertex of listOfVertex; trackBy: trackVertexBy">
+      <ng-container *ngFor="let vertex of listOfVertex; trackBy: trackById">
         <tr>
           <td nzShowExpand [(nzExpand)]="vertex.expand"></td>
           <td>
