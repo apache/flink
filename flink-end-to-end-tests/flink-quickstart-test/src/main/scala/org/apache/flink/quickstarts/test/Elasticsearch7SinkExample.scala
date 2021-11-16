@@ -17,21 +17,19 @@
 
 package org.apache.flink.quickstarts.test
 
-import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.connector.sink.SinkWriter
 import org.apache.flink.api.java.utils.ParameterTool
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.connectors.elasticsearch.{ElasticsearchSinkFunction, RequestIndexer}
-import org.apache.flink.streaming.connectors.elasticsearch5.ElasticsearchSink
+import org.apache.flink.connector.elasticsearch.sink.{Elasticsearch7SinkBuilder, RequestIndexer}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.http.HttpHost
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.client.Requests
 
 import scala.collection.JavaConversions.mapAsJavaMap
 
-import java.net.{InetAddress, InetSocketAddress}
-import java.util
 
-
-object Elasticsearch5SinkExample {
+object Elasticsearch7SinkExample {
   def main(args: Array[String]) {
 
     val parameterTool = ParameterTool.fromArgs(args)
@@ -44,33 +42,29 @@ object Elasticsearch5SinkExample {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.enableCheckpointing(5000)
 
-    val source: DataStream[(String)] = env.generateSequence(0, 20 - 1)
+    val source: DataStream[(String)] = env.fromSequence(0, 20 - 1)
       .map(v =>  "message #" + v.toString)
 
-    val config = new util.HashMap[String, String]
-    config.put("bulk.flush.max.actions", "1")
-    config.put("cluster.name", "elasticsearch") //default cluster name: elasticsearch
+    source.sinkTo(
+      new Elasticsearch7SinkBuilder[String]
+        // This instructs the sink to emit after every element, otherwise they would
+        // be buffered
+        .setBulkFlushMaxActions(1)
+        .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+        .setEmitter((element: String, context: SinkWriter.Context, indexer: RequestIndexer) =>
+          indexer.add(createIndexRequest(element, parameterTool)))
+        .build())
 
-    val transports = new util.ArrayList[InetSocketAddress]
-    transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300))
+    env.execute("Elasticsearch7.x end to end sink test example")
+  }
 
-    source.addSink(new ElasticsearchSink(config, transports,
-      new ElasticsearchSinkFunction[(String)] {
-      def createIndexRequest(element: (String)): IndexRequest = {
+  def createIndexRequest(element: (String), parameterTool: (ParameterTool)): IndexRequest = {
 
-        val json2 = Map(
-          "data" -> element.asInstanceOf[AnyRef]
-        )
+    val json2 = Map(
+      "data" -> element.asInstanceOf[AnyRef]
+    )
 
-        Requests.indexRequest.index(parameterTool.getRequired("index"))
-          .`type`(parameterTool.getRequired("type")).source(mapAsJavaMap(json2))
-      }
-
-      override def process(element: (String), ctx: RuntimeContext, indexer: RequestIndexer) {
-        indexer.add(createIndexRequest(element))
-      }
-    }))
-
-    env.execute("Elasticsearch5.x end to end sink test example")
+    Requests.indexRequest.index(parameterTool.getRequired("index"))
+      .`type`(parameterTool.getRequired("type")).source(mapAsJavaMap(json2))
   }
 }

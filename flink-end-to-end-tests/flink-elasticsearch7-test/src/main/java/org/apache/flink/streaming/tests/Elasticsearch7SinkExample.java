@@ -127,11 +127,8 @@ public class Elasticsearch7SinkExample {
         json.put("data", element);
 
         String index;
-        String type;
-
         if (element.startsWith("message #15")) {
             index = ":intentional invalid index:";
-            type = ":intentional invalid type:";
         } else {
             index = parameterTool.getRequired("index");
         }
@@ -144,10 +141,7 @@ public class Elasticsearch7SinkExample {
         Map<String, Object> json = new HashMap<>();
         json.put("data", element.f1);
 
-        return new UpdateRequest(
-                        parameterTool.getRequired("index"),
-                        parameterTool.getRequired("type"),
-                        element.f0)
+        return new UpdateRequest(parameterTool.getRequired("index"), element.f0)
                 .doc(json)
                 .upsert(json);
     }
