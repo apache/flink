@@ -29,7 +29,6 @@ import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUti
 
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
-import java.time.ZoneId
 import java.util.TimeZone
 
 object BuiltInMethods {

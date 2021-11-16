@@ -142,22 +142,6 @@ object GenerateUtils {
 
 
   /**
-    * Generates a string result call with auxiliary statements and result expression.
-    * This will convert the String result to BinaryStringData.
-    */
-  def generateStringResultCallWithStmtIfArgsNotNull(
-      ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression],
-      returnType: LogicalType)
-      (call: Seq[String] => (String, String)): GeneratedExpression = {
-    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands) {
-      args =>
-        val (stmt, result) = call(args)
-        (stmt, s"$BINARY_STRING.fromString($result)")
-    }
-  }
-
-  /**
     * Generates a call with the nullable args.
     */
   def generateCallIfArgsNullable(

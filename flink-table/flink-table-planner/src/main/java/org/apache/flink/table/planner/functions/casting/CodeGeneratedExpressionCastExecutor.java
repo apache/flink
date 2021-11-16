@@ -57,7 +57,8 @@ class CodeGeneratedExpressionCastExecutor<IN, OUT> implements CastExecutor<IN, O
                 throw (TableException) e.getCause();
             }
             throw new TableException(
-                    "Cannot execute the compiled expression for an unknown cause", e);
+                    "Cannot execute the compiled expression for an unknown cause. " + e.getCause(),
+                    e);
         }
     }
 }
