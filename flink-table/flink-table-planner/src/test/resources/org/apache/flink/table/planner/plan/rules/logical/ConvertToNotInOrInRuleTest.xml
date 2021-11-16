@@ -187,6 +187,36 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testConvertToSearchString">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * from MyTable where e in (
+'CTNBSmokeSensor',
+'H388N',
+'H389N     ',
+'GHL-IRD',
+'JY-BF-20YN',
+'HC809',
+'DH-9908N-AEP',
+'DH-9908N'
+)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($4, _UTF-16LE'CTNBSmokeSensor'), =($4, _UTF-16LE'H388N'), =($4, _UTF-16LE'H389N     '), =($4, _UTF-16LE'GHL-IRD'), =($4, _UTF-16LE'JY-BF-20YN'), =($4, _UTF-16LE'HC809'), =($4, _UTF-16LE'DH-9908N-AEP'), =($4, _UTF-16LE'DH-9908N'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[SEARCH($4, Sarg[_UTF-16LE'CTNBSmokeSensor':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'DH-9908N':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'DH-9908N-AEP':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'GHL-IRD':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'H388N':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'H389N     ':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'HC809':VARCHAR(15) CHARACTER SET "UTF-16LE", _UTF-16LE'JY-BF-20YN':VARCHAR(15) CHARACTER SET "UTF-16LE"]:VARCHAR(15) CHARACTER SET "UTF-16LE")])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testConvertToInAndNotIn1">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR b = 1 OR (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4)]]>
@@ -377,25 +407,6 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testConvertToNotIn_WithOr1">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable WHERE (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4) OR b = 1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)), =($1, 1))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(NOT IN($0, 1, 2, 3, 4), =($1, 1))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testConvertToNotIn_WithOr2">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 OR b = 1]]>
@@ -430,6 +441,63 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToSearchWithMixedType">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a is null or a = 1 OR a = 2 OR a = 3.0 OR a = 4.0 OR a = 5 OR a = 7 OR a = CAST(8 AS BIGINT)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(IS NULL($0), =($0, 1), =($0, 2), =(CAST($0):DECIMAL(11, 1), 3.0), =(CAST($0):DECIMAL(11, 1), 4.0), =($0, 5), =($0, 7), =(CAST($0):BIGINT, 8))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(IS NULL($0), =(CAST($0):DECIMAL(11, 1), 3.0), =(CAST($0):DECIMAL(11, 1), 4.0), =(CAST($0):BIGINT, 8), SEARCH($0, Sarg[1, 2, 5, 7]))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToNotIn_WithOr1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4) OR b = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(NOT IN($0, 1, 2, 3, 4), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToSearchStringWithNull">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE e = 'a' or e = 'b' or e = 'c' or e = 'd' or e = 'e' or e = 'f' or e = NULL or e = 'HELLO WORLD!']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($4, _UTF-16LE'a'), =($4, _UTF-16LE'b'), =($4, _UTF-16LE'c'), =($4, _UTF-16LE'd'), =($4, _UTF-16LE'e'), =($4, _UTF-16LE'f'), =($4, null), =($4, _UTF-16LE'HELLO WORLD!'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[SEARCH($4, Sarg[_UTF-16LE'HELLO WORLD!':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'a':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'b':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'c':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'd':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'e':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'f':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>

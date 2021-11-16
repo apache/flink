@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
@@ -168,5 +169,40 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
     util.verifyRelPlan(
       "SELECT * FROM MyTable WHERE b = 1 OR b = 2 OR (a <> 1 AND a <> 2 AND a <> 3 " +
       "AND a <> 4 AND c = 1) OR b = 3 OR b = 4 OR c = 1")
+  }
+
+  @Test
+  def testConvertToSearchString(): Unit = {
+    util.verifyRelPlan(
+      """
+        |SELECT * from MyTable where e in (
+        |'CTNBSmokeSensor',
+        |'H388N',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N'
+        |)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testConvertToSearchStringWithNull(): Unit = {
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE " +
+        "e = 'a' or e = 'b' or e = 'c' or e = 'd' or e = 'e' or e = 'f' or e = NULL or e = " +
+        "'HELLO WORLD!'"
+    )
+  }
+
+  @Test
+  def testConvertToSearchWithMixedType(): Unit = {
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE a is null or a = 1 OR a = 2 OR a = 3.0 OR a = 4.0 OR a = 5" +
+        " OR a = 7 OR a = CAST(8 AS BIGINT)"
+    )
   }
 }
