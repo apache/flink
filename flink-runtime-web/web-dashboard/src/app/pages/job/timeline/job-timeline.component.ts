@@ -17,22 +17,22 @@
  */
 
 import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   ElementRef,
   OnDestroy,
-  ChangeDetectionStrategy,
-  ViewChild,
-  ChangeDetectorRef,
-  AfterViewInit
+  ViewChild
 } from '@angular/core';
 import { Subject } from 'rxjs';
 import { distinctUntilChanged, filter, takeUntil } from 'rxjs/operators';
 
-import { Chart } from '@antv/g2';
 import * as G2 from '@antv/g2';
+import { Chart } from '@antv/g2';
 
-import { COLOR_MAP } from 'config';
-import { JobDetailCorrect, SafeAny, VerticesItemRange } from 'interfaces';
+import { COLOR_MAP, ColorKey } from 'config';
+import { JobDetailCorrect, VerticesItemRange } from 'interfaces';
 import { JobService } from 'services';
 
 /// <reference path="../../../../../node_modules/@antv/g2/src/index.d.ts" />
@@ -145,7 +145,10 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
       this.cdr.markForCheck();
       setTimeout(() => {
         try {
-          (document.getElementById('subtask') as SafeAny).scrollIntoViewIfNeeded();
+          // FIXME scrollIntoViewIfNeeded is a non-standard extension and will not work everywhere
+          ((document.getElementById('subtask') as unknown) as {
+            scrollIntoViewIfNeeded: () => void;
+          }).scrollIntoViewIfNeeded();
         } catch (e) {}
       });
     });
@@ -167,8 +170,7 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
     this.mainChartInstance
       .interval()
       .position('id*range')
-      // @ts-ignore
-      .color('status', (type: SafeAny) => COLOR_MAP[type])
+      .color('status', (type: string) => COLOR_MAP[type as ColorKey])
       .label('name', {
         offset: -20,
         formatter: (text: string) => {
@@ -187,9 +189,11 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
     this.mainChartInstance.tooltip({
       title: 'name'
     });
-    this.mainChartInstance.on('click', (e: SafeAny) => {
+    this.mainChartInstance.on('click', (e: { x: number; y: number }) => {
       if (this.mainChartInstance.getSnapRecords(e).length) {
-        const data = (this.mainChartInstance.getSnapRecords(e)[0] as SafeAny)._origin;
+        const data = ((this.mainChartInstance.getSnapRecords(e)[0] as unknown) as {
+          _origin: { name: string; id: string };
+        })._origin;
         this.selectedName = data.name;
         this.updateSubTaskChart(data.id);
       }
@@ -211,7 +215,6 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
     this.subTaskChartInstance
       .interval()
       .position('name*range')
-      // @ts-ignore
-      .color('status', (type: SafeAny) => COLOR_MAP[type]);
+      .color('status', (type: string) => COLOR_MAP[type as ColorKey]);
   }
 }

@@ -33,7 +33,7 @@ import {
 import { select } from 'd3-selection';
 import { zoomIdentity } from 'd3-zoom';
 
-import { NodesItemCorrect, NodesItemLink, SafeAny } from 'interfaces';
+import { NodesItemCorrect, NodesItemLink } from 'interfaces';
 
 import { LayoutNode, NzGraph } from './graph';
 import { NodeComponent } from './node.component';
@@ -113,14 +113,14 @@ export class DagreComponent extends NzGraph {
       this.visibility = Visibility.Visible;
 
       const hostDims = this.elementRef.nativeElement.getBoundingClientRect();
-      const generatedGraph = this.graph.graph() as SafeAny;
+      const generatedGraph = this.graph.graph();
       this.cacheTransform.k = Math.min(
-        hostDims.height / (generatedGraph.height + 200),
-        hostDims.width / (generatedGraph.width + 120),
+        hostDims.height / (generatedGraph.height! + 200),
+        hostDims.width / (generatedGraph.width! + 120),
         1
       );
-      const width = generatedGraph.width * this.cacheTransform.k;
-      const height = generatedGraph.height * this.cacheTransform.k;
+      const width = generatedGraph.width! * this.cacheTransform.k;
+      const height = generatedGraph.height! * this.cacheTransform.k;
       let translateX = (hostDims.width - width) / 2;
       let translateY = (hostDims.height - height) / 2;
       if (width < 0 || height < 0) {
