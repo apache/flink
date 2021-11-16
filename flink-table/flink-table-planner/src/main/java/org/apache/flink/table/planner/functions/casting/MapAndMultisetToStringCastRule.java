@@ -35,7 +35,10 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.con
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 
-/** {@link LogicalTypeRoot#MAP} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+/**
+ * {@link LogicalTypeRoot#MAP} and {@link LogicalTypeRoot#MULTISET} to {@link
+ * LogicalTypeFamily#CHARACTER_STRING} cast rule.
+ */
 class MapAndMultisetToStringCastRule
         extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
 
