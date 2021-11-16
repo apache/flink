@@ -1642,5 +1642,119 @@ class CalcITCase extends BatchTestBase {
         LocalTime.of(16, 51, 0, 123000000),
         LocalTime.of(16, 50, 1, 123000000)
       )))
+
+    // Tests for tinyint
+    checkResult(
+      """
+        |select
+        |  timestampadd(day, cast(1 as tinyint), a),
+        |  timestampadd(hour, cast(1 as tinyint), a),
+        |  timestampadd(minute, cast(1 as tinyint), a),
+        |  timestampadd(second, cast(1 as tinyint), a),
+        |  timestampadd(day, cast(1 as tinyint), b),
+        |  timestampadd(hour, cast(1 as tinyint), b),
+        |  timestampadd(minute, cast(1 as tinyint), b),
+        |  timestampadd(second, cast(1 as tinyint), b),
+        |  timestampadd(day, cast(1 as tinyint), c),
+        |  timestampadd(hour, cast(1 as tinyint), c),
+        |  timestampadd(minute, cast(1 as tinyint), c),
+        |  timestampadd(second, cast(1 as tinyint), c),
+        |  timestampadd(day, cast(1 as tinyint), d),
+        |  timestampadd(hour, cast(1 as tinyint), d),
+        |  timestampadd(minute, cast(1 as tinyint), d),
+        |  timestampadd(second, cast(1 as tinyint), d),
+        |  timestampadd(day, cast(1 as tinyint), e),
+        |  timestampadd(hour, cast(1 as tinyint), e),
+        |  timestampadd(minute, cast(1 as tinyint), e),
+        |  timestampadd(second, cast(1 as tinyint), e),
+        |  timestampadd(day, cast(1 as tinyint), f),
+        |  timestampadd(hour, cast(1 as tinyint), f),
+        |  timestampadd(minute, cast(1 as tinyint), f),
+        |  timestampadd(second, cast(1 as tinyint), f)
+        |from MyTable
+        |""".stripMargin,
+      Seq(row(
+        LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123000000),
+        LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123000000),
+        LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123000000),
+        LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123000000),
+        LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123456789),
+        LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123456789),
+        LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123456789),
+        LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123456789),
+        Instant.ofEpochMilli(1626339000123L + 24 * 3600 * 1000L),
+        Instant.ofEpochMilli(1626339000123L + 3600 * 1000L),
+        Instant.ofEpochMilli(1626339000123L + 60 * 1000L),
+        Instant.ofEpochMilli(1626339000123L + 1000L),
+        Instant.ofEpochSecond(1626339000 + 24 * 3600, 123456789),
+        Instant.ofEpochSecond(1626339000 + 3600, 123456789),
+        Instant.ofEpochSecond(1626339000 + 60, 123456789),
+        Instant.ofEpochSecond(1626339000 + 1, 123456789),
+        LocalDate.of(2021, 7, 16),
+        LocalDateTime.of(2021, 7, 15, 1, 0, 0),
+        LocalDateTime.of(2021, 7, 15, 0, 1, 0),
+        LocalDateTime.of(2021, 7, 15, 0, 0, 1),
+        LocalTime.of(16, 50, 0, 123000000),
+        LocalTime.of(17, 50, 0, 123000000),
+        LocalTime.of(16, 51, 0, 123000000),
+        LocalTime.of(16, 50, 1, 123000000)
+      )))
+
+    // Tests for smallint
+    checkResult(
+      """
+        |select
+        |  timestampadd(day, cast(1 as smallint), a),
+        |  timestampadd(hour, cast(1 as smallint), a),
+        |  timestampadd(minute, cast(1 as smallint), a),
+        |  timestampadd(second, cast(1 as smallint), a),
+        |  timestampadd(day, cast(1 as smallint), b),
+        |  timestampadd(hour, cast(1 as smallint), b),
+        |  timestampadd(minute, cast(1 as smallint), b),
+        |  timestampadd(second, cast(1 as smallint), b),
+        |  timestampadd(day, cast(1 as smallint), c),
+        |  timestampadd(hour, cast(1 as smallint), c),
+        |  timestampadd(minute, cast(1 as smallint), c),
+        |  timestampadd(second, cast(1 as smallint), c),
+        |  timestampadd(day, cast(1 as smallint), d),
+        |  timestampadd(hour, cast(1 as smallint), d),
+        |  timestampadd(minute, cast(1 as smallint), d),
+        |  timestampadd(second, cast(1 as smallint), d),
+        |  timestampadd(day, cast(1 as smallint), e),
+        |  timestampadd(hour, cast(1 as smallint), e),
+        |  timestampadd(minute, cast(1 as smallint), e),
+        |  timestampadd(second, cast(1 as smallint), e),
+        |  timestampadd(day, cast(1 as smallint), f),
+        |  timestampadd(hour, cast(1 as smallint), f),
+        |  timestampadd(minute, cast(1 as smallint), f),
+        |  timestampadd(second, cast(1 as smallint), f)
+        |from MyTable
+        |""".stripMargin,
+      Seq(row(
+        LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123000000),
+        LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123000000),
+        LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123000000),
+        LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123000000),
+        LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123456789),
+        LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123456789),
+        LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123456789),
+        LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123456789),
+        Instant.ofEpochMilli(1626339000123L + 24 * 3600 * 1000L),
+        Instant.ofEpochMilli(1626339000123L + 3600 * 1000L),
+        Instant.ofEpochMilli(1626339000123L + 60 * 1000L),
+        Instant.ofEpochMilli(1626339000123L + 1000L),
+        Instant.ofEpochSecond(1626339000 + 24 * 3600, 123456789),
+        Instant.ofEpochSecond(1626339000 + 3600, 123456789),
+        Instant.ofEpochSecond(1626339000 + 60, 123456789),
+        Instant.ofEpochSecond(1626339000 + 1, 123456789),
+        LocalDate.of(2021, 7, 16),
+        LocalDateTime.of(2021, 7, 15, 1, 0, 0),
+        LocalDateTime.of(2021, 7, 15, 0, 1, 0),
+        LocalDateTime.of(2021, 7, 15, 0, 0, 1),
+        LocalTime.of(16, 50, 0, 123000000),
+        LocalTime.of(17, 50, 0, 123000000),
+        LocalTime.of(16, 51, 0, 123000000),
+        LocalTime.of(16, 50, 1, 123000000)
+      )))
   }
 }
