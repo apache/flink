@@ -105,11 +105,11 @@ class MapAndMultisetToStringCastRule
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         final LogicalType keyType =
-                inputLogicalType.is(LogicalTypeFamily.COLLECTION)
+                inputLogicalType.is(LogicalTypeRoot.MULTISET)
                         ? ((MultisetType) inputLogicalType).getElementType()
                         : ((MapType) inputLogicalType).getKeyType();
         final LogicalType valueType =
-                inputLogicalType.is(LogicalTypeFamily.COLLECTION)
+                inputLogicalType.is(LogicalTypeRoot.MULTISET)
                         ? INT().getLogicalType()
                         : ((MapType) inputLogicalType).getValueType();
 
@@ -120,28 +120,6 @@ class MapAndMultisetToStringCastRule
         final String keyArrayTerm = newName("keys");
         final String valueArrayTerm = newName("values");
 
-        return generateMapToString(
-                context,
-                inputTerm,
-                returnVariable,
-                targetLogicalType,
-                keyType,
-                valueType,
-                builderTerm,
-                keyArrayTerm,
-                valueArrayTerm);
-    }
-
-    protected String generateMapToString(
-            CodeGeneratorCastRule.Context context,
-            String inputTerm,
-            String returnVariable,
-            LogicalType targetLogicalType,
-            LogicalType keyType,
-            LogicalType valueType,
-            String builderTerm,
-            String keyArrayTerm,
-            String valueArrayTerm) {
         return new CastRuleUtils.CodeWriter()
                 .declStmt(ArrayData.class, keyArrayTerm, methodCall(inputTerm, "keyArray"))
                 .declStmt(ArrayData.class, valueArrayTerm, methodCall(inputTerm, "valueArray"))
