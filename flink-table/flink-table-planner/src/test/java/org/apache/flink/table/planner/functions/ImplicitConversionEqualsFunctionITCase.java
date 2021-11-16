@@ -42,7 +42,11 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 
-/** Tests for type conversions in '='. */
+/**
+ * Tests for type conversions in '='. These tests are only for SQL API. We temporarily forbid "="
+ * between numeric and (var)char fields and throw an exception because it will produce wrong result.
+ * SEE [FLINK-24914].
+ */
 public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestBase {
 
     // numeric data
@@ -160,8 +164,7 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
             builder.columnTypes.add(leftType);
             builder.testSpec =
                     TestSpec.forFunction(
-                            BuiltInFunctionDefinitions.EQUALS,
-                            "The left type in type conversion is " + leftType.toString());
+                            BuiltInFunctionDefinitions.EQUALS, "left: " + leftType.toString());
             return builder;
         }
 
@@ -180,25 +183,25 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
         }
 
         private TestSpec build() {
-            List<ResultSpec> resultSpecs = new ArrayList<>();
             String leftColumnName = "f0";
 
+            testSpec.onFieldsWithData(columnData.toArray())
+                    .andDataTypes(columnTypes.toArray(new AbstractDataType<?>[] {}));
             int failNum = 0;
             for (int i = 1; i < columnTypes.size(); i++) {
                 String rightColumnName = "f" + i;
                 DataType rightType = columnTypes.get(i - failNum);
                 String exceptionMsg;
                 if (isSuccessResults.get(i - 1)) {
-                    resultSpecs.add(
-                            resultSpecOnlyContainsSqlExpression(
-                                    String.format(
-                                            "CAST(%s AS %s) = CAST(%s AS %s)",
-                                            leftColumnName,
-                                            leftType.toString(),
-                                            rightColumnName,
-                                            rightType.toString()),
-                                    true,
-                                    BOOLEAN()));
+                    testSpec.testSqlResult(
+                            String.format(
+                                    "CAST(%s AS %s) = CAST(%s AS %s)",
+                                    leftColumnName,
+                                    leftType.toString(),
+                                    rightColumnName,
+                                    rightType),
+                            true,
+                            BOOLEAN());
                 } else {
                     exceptionMsg = getImplicitConversionFromStringExceptionMsg(rightType);
                     testSpec.testSqlRuntimeError(
@@ -207,14 +210,12 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
                                     leftColumnName,
                                     leftType.toString(),
                                     rightColumnName,
-                                    rightType.toString()),
+                                    rightType),
                             exceptionMsg);
                     failNum++;
                 }
             }
-            testSpec.onFieldsWithData(columnData.toArray())
-                    .andDataTypes(columnTypes.toArray(new AbstractDataType<?>[] {}))
-                    .testResult(resultSpecs.toArray(new ResultSpec[0]));
+
             return testSpec;
         }
 
