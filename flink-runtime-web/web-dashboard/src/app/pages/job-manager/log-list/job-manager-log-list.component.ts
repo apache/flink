@@ -31,18 +31,19 @@ import { typeDefinition } from '../../../utils/strong-type';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerLogListComponent implements OnInit {
-  listOfLog: JobManagerLogItem[] = [];
-  isLoading = true;
+  public readonly trackByName = (_: number, log: JobManagerLogItem): string => log.name;
+  public readonly narrowLogData = typeDefinition<JobManagerLogItem>();
 
-  trackByName = (_: number, log: JobManagerLogItem): string => log.name;
-  readonly narrowLogData = typeDefinition<JobManagerLogItem>();
+  public readonly sortLastModifiedTimeFn = (pre: JobManagerLogItem, next: JobManagerLogItem): number =>
+    pre.mtime - next.mtime;
+  public readonly sortSizeFn = (pre: JobManagerLogItem, next: JobManagerLogItem): number => pre.size - next.size;
 
-  sortLastModifiedTimeFn = (pre: JobManagerLogItem, next: JobManagerLogItem): number => pre.mtime - next.mtime;
-  sortSizeFn = (pre: JobManagerLogItem, next: JobManagerLogItem): number => pre.size - next.size;
+  public listOfLog: JobManagerLogItem[] = [];
+  public isLoading = true;
 
-  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
+  constructor(private readonly jobManagerService: JobManagerService, private readonly cdr: ChangeDetectorRef) {}
 
-  ngOnInit(): void {
+  public ngOnInit(): void {
     this.jobManagerService
       .loadLogList()
       .pipe(

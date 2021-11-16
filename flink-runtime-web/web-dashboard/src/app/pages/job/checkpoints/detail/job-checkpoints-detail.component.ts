@@ -36,30 +36,39 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsDetailComponent implements OnInit {
-  innerCheckPoint: CheckPointCompletedStatistics;
-  jobDetail: JobDetailCorrect;
-  checkPointType: string;
+  public readonly trackById = (_: number, node: VerticesItem): string => node.id;
+
+  public innerCheckPoint: CheckPointCompletedStatistics;
+  public jobDetail: JobDetailCorrect;
+  public checkPointType: string;
+
+  public checkPointDetail: CheckPointDetail;
+  public checkPointConfig: CheckPointConfig;
+  public listOfVertex: VerticesItem[] = [];
+  public isLoading = true;
 
   @Input()
-  set checkPoint(value) {
+  public set checkPoint(value) {
     this.innerCheckPoint = value;
     this.refresh();
   }
 
-  get checkPoint(): CheckPointCompletedStatistics {
+  public get checkPoint(): CheckPointCompletedStatistics {
     return this.innerCheckPoint;
   }
 
-  checkPointDetail: CheckPointDetail;
-  checkPointConfig: CheckPointConfig;
-  listOfVertex: VerticesItem[] = [];
-  isLoading = true;
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
 
-  trackVertexBy(_: number, node: VerticesItem): string {
-    return node.id;
+  public ngOnInit(): void {
+    this.jobService.jobDetail$.pipe(first()).subscribe(data => {
+      this.jobDetail = data;
+      this.listOfVertex = data!.vertices;
+      this.cdr.markForCheck();
+      this.refresh();
+    });
   }
 
-  refresh(): void {
+  public refresh(): void {
     this.isLoading = true;
     if (this.jobDetail && this.jobDetail.jid) {
       forkJoin([
@@ -91,16 +100,5 @@ export class JobCheckpointsDetailComponent implements OnInit {
         }
       );
     }
-  }
-
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit(): void {
-    this.jobService.jobDetail$.pipe(first()).subscribe(data => {
-      this.jobDetail = data;
-      this.listOfVertex = data!.vertices;
-      this.cdr.markForCheck();
-      this.refresh();
-    });
   }
 }

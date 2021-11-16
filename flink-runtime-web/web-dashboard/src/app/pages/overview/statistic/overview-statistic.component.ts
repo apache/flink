@@ -18,7 +18,7 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
-import { flatMap, takeUntil } from 'rxjs/operators';
+import { mergeMap, takeUntil } from 'rxjs/operators';
 
 import { Overview } from 'interfaces';
 import { OverviewService, StatusService } from 'services';
@@ -30,20 +30,21 @@ import { OverviewService, StatusService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OverviewStatisticComponent implements OnInit, OnDestroy {
-  statistic: Overview | null;
-  destroy$ = new Subject();
+  public statistic: Overview | null;
+
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
-    private statusService: StatusService,
-    private overviewService: OverviewService,
-    private cdr: ChangeDetectorRef
+    private readonly statusService: StatusService,
+    private readonly overviewService: OverviewService,
+    private readonly cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit(): void {
+  public ngOnInit(): void {
     this.statusService.refresh$
       .pipe(
         takeUntil(this.destroy$),
-        flatMap(() => this.overviewService.loadOverview())
+        mergeMap(() => this.overviewService.loadOverview())
       )
       .subscribe(data => {
         this.statistic = data;
@@ -51,7 +52,7 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

@@ -29,24 +29,17 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsComponent implements OnInit {
-  checkPointStats: CheckPoint;
-  checkPointConfig: CheckPointConfig;
-  jobDetail: JobDetailCorrect;
+  public readonly trackById = (_: number, node: CheckPointHistory): number => node.id;
 
-  moreDetailsPanel = { active: false, disabled: false };
+  public checkPointStats: CheckPoint;
+  public checkPointConfig: CheckPointConfig;
+  public jobDetail: JobDetailCorrect;
 
-  trackHistoryBy(_: number, node: CheckPointHistory): number {
-    return node.id;
-  }
+  public moreDetailsPanel = { active: false, disabled: false };
 
-  refresh(): void {
-    this.jobService.loadCheckpointStats(this.jobDetail.jid).subscribe(data => (this.checkPointStats = data));
-    this.jobService.loadCheckpointConfig(this.jobDetail.jid).subscribe(data => (this.checkPointConfig = data));
-  }
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit(): void {
+  public ngOnInit(): void {
     this.jobService.jobDetail$.pipe(distinctUntilChanged((pre, next) => pre.jid === next.jid)).subscribe(data => {
       this.jobDetail = data;
       this.jobService.loadCheckpointStats(this.jobDetail.jid).subscribe(stats => {
@@ -58,5 +51,10 @@ export class JobCheckpointsComponent implements OnInit {
         this.cdr.markForCheck();
       });
     });
+  }
+
+  public refresh(): void {
+    this.jobService.loadCheckpointStats(this.jobDetail.jid).subscribe(data => (this.checkPointStats = data));
+    this.jobService.loadCheckpointConfig(this.jobDetail.jid).subscribe(data => (this.checkPointConfig = data));
   }
 }
