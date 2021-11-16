@@ -70,4 +70,6 @@ public interface SharedStateRegistry extends AutoCloseable {
      * @param checkpointID which uses the states.
      */
     void registerAll(Iterable<? extends CompositeStateHandle> stateHandles, long checkpointID);
+
+    void checkpointCompleted(long checkpointId);
 }
