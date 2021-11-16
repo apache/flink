@@ -20,7 +20,7 @@ import { Component, ChangeDetectionStrategy, OnInit, OnDestroy, ChangeDetectorRe
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { NodesItemCorrectInterface } from 'interfaces';
+import { NodesItemCorrect } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -31,7 +31,7 @@ import { JobService } from 'services';
 })
 export class JobOverviewDrawerDetailComponent implements OnInit, OnDestroy {
   destroy$ = new Subject();
-  node: NodesItemCorrectInterface | null;
+  node: NodesItemCorrect | null;
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 

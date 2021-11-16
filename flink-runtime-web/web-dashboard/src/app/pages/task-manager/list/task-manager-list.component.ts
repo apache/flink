@@ -23,10 +23,10 @@ import { mergeMap, takeUntil } from 'rxjs/operators';
 
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
-import { TaskmanagersItemInterface } from 'interfaces';
+import { TaskmanagersItem } from 'interfaces';
 import { StatusService, TaskManagerService } from 'services';
 
-function createSortFn(selector: (item: TaskmanagersItemInterface) => number): NzTableSortFn<TaskmanagersItemInterface> {
+function createSortFn(selector: (item: TaskmanagersItem) => number): NzTableSortFn<TaskmanagersItem> {
   return (pre, next) => (selector(pre) > selector(next) ? 1 : -1);
 }
 
@@ -37,7 +37,7 @@ function createSortFn(selector: (item: TaskmanagersItemInterface) => number): Nz
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerListComponent implements OnInit, OnDestroy {
-  public readonly trackById = (_: number, node: TaskmanagersItemInterface): string => node.id;
+  public readonly trackById = (_: number, node: TaskmanagersItem): string => node.id;
 
   public readonly sortDataPortFn = createSortFn(item => item.dataPort);
   public readonly sortHeartBeatFn = createSortFn(item => item.timeSinceLastHeartbeat);
@@ -48,14 +48,14 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
   public readonly sortFreeMemoryFn = createSortFn(item => item.hardware?.freeMemory);
   public readonly sortManagedMemoryFn = createSortFn(item => item.hardware?.managedMemory);
 
-  public listOfTaskManager: TaskmanagersItemInterface[] = [];
+  public listOfTaskManager: TaskmanagersItem[] = [];
   public isLoading = true;
   public sortName: string;
   public sortValue: string;
 
   private readonly destroy$ = new Subject<void>();
 
-  public navigateTo(taskManager: TaskmanagersItemInterface): void {
+  public navigateTo(taskManager: TaskmanagersItem): void {
     this.router.navigate([taskManager.id, 'metrics'], { relativeTo: this.activatedRoute }).then();
   }
 

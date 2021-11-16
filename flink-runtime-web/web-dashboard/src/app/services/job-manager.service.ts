@@ -22,7 +22,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
-import { JobManagerLogItemInterface } from 'interfaces';
+import { JobManagerLogItem } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -57,9 +57,9 @@ export class JobManagerService {
   /**
    * Load JM log list
    */
-  loadLogList(): Observable<JobManagerLogItemInterface[]> {
+  loadLogList(): Observable<JobManagerLogItem[]> {
     return this.httpClient
-      .get<{ logs: JobManagerLogItemInterface[] }>(`${BASE_URL}/jobmanager/logs`)
+      .get<{ logs: JobManagerLogItem[] }>(`${BASE_URL}/jobmanager/logs`)
       .pipe(map(data => data.logs));
   }
 

@@ -20,7 +20,7 @@ import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, ChangeDetectorRe
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
 
-import { SubTaskAccumulatorsInterface, UserAccumulatorsInterface } from 'interfaces';
+import { SubTaskAccumulators, UserAccumulators } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -31,21 +31,21 @@ import { JobService } from 'services';
 })
 export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy {
   destroy$ = new Subject();
-  listOfAccumulator: UserAccumulatorsInterface[] = [];
-  listOfSubTaskAccumulator: SubTaskAccumulatorsInterface[] = [];
+  listOfAccumulator: UserAccumulators[] = [];
+  listOfSubTaskAccumulator: SubTaskAccumulators[] = [];
   isLoading = true;
 
-  trackAccumulatorBy(_: number, node: SubTaskAccumulatorsInterface): string {
+  trackAccumulatorBy(_: number, node: SubTaskAccumulators): string {
     return node.name;
   }
-  trackSubtaskBy(_: number, node: SubTaskAccumulatorsInterface): number {
+  trackSubtaskBy(_: number, node: SubTaskAccumulators): number {
     return node.subtask;
   }
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
-  transformToSubTaskAccumulator(list: SubTaskAccumulatorsInterface[]): SubTaskAccumulatorsInterface[] {
-    const transformed: SubTaskAccumulatorsInterface[] = [];
+  transformToSubTaskAccumulator(list: SubTaskAccumulators[]): SubTaskAccumulators[] {
+    const transformed: SubTaskAccumulators[] = [];
     list.forEach(accumulator => {
       // @ts-ignore
       accumulator['user-accumulators'].forEach(userAccumulator => {

@@ -30,11 +30,11 @@ import { first } from 'rxjs/operators';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 import {
-  CheckPointSubTaskInterface,
+  CheckPointSubTask,
   CompletedSubTaskCheckPointStatistics,
-  JobDetailCorrectInterface,
+  JobDetailCorrect,
   SubTaskCheckPointStatisticsItem,
-  VerticesItemInterface
+  VerticesItem
 } from 'interfaces';
 import { JobService } from 'services';
 
@@ -55,11 +55,11 @@ function createSortFn(
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
-  @Input() public vertex: VerticesItemInterface;
+  @Input() public vertex: VerticesItem;
   @Input() public checkPointId: number;
 
-  public jobDetail: JobDetailCorrectInterface;
-  public subTaskCheckPoint: CheckPointSubTaskInterface;
+  public jobDetail: JobDetailCorrect;
+  public subTaskCheckPoint: CheckPointSubTask;
   public listOfSubTaskCheckPoint: SubTaskCheckPointStatisticsItem[] = [];
   public isLoading = true;
   public sortName: string;

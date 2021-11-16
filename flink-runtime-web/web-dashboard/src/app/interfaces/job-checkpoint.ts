@@ -18,7 +18,7 @@
 
 import { SafeAny } from './safe-any';
 
-export interface CheckPointInterface {
+export interface CheckPoint {
   counts: {
     restored: number;
     total: number;
@@ -27,13 +27,13 @@ export interface CheckPointInterface {
     failed: number;
   };
   summary: {
-    state_size: CheckPointMinMaxAvgStatisticsInterface;
-    end_to_end_duration: CheckPointMinMaxAvgStatisticsInterface;
-    alignment_buffered: CheckPointMinMaxAvgStatisticsInterface;
+    state_size: CheckPointMinMaxAvgStatistics;
+    end_to_end_duration: CheckPointMinMaxAvgStatistics;
+    alignment_buffered: CheckPointMinMaxAvgStatistics;
   };
   latest: {
-    completed: CheckPointCompletedStatisticsInterface;
-    savepoint: CheckPointCompletedStatisticsInterface;
+    completed: CheckPointCompletedStatistics;
+    savepoint: CheckPointCompletedStatistics;
     failed: {
       id: number;
       status: string;
@@ -47,7 +47,7 @@ export interface CheckPointInterface {
       num_acknowledged_subtasks: number;
       failure_timestamp: number;
       failure_message: string;
-      task: CheckPointTaskStatisticsInterface;
+      task: CheckPointTaskStatistics;
     };
     restored: {
       id: number;
@@ -55,11 +55,11 @@ export interface CheckPointInterface {
       is_savepoint: boolean;
       external_path: string;
     };
-    history: CheckPointHistoryInterface;
+    history: CheckPointHistory;
   };
 }
 
-export interface CheckPointHistoryInterface {
+export interface CheckPointHistory {
   id: number;
   status: string;
   is_savepoint: boolean;
@@ -70,10 +70,10 @@ export interface CheckPointHistoryInterface {
   alignment_buffered: number;
   num_subtasks: number;
   num_acknowledged_subtasks: number;
-  task: CheckPointTaskStatisticsInterface;
+  task: CheckPointTaskStatistics;
 }
 
-export interface CheckPointMinMaxAvgStatisticsInterface {
+export interface CheckPointMinMaxAvgStatistics {
   min: number;
   max: number;
   avg: number;
@@ -84,7 +84,7 @@ export interface CheckPointMinMaxAvgStatisticsInterface {
   p999: number;
 }
 
-export interface CheckPointCompletedStatisticsInterface {
+export interface CheckPointCompletedStatistics {
   id: number;
   status: string;
   is_savepoint: boolean;
@@ -95,13 +95,13 @@ export interface CheckPointCompletedStatisticsInterface {
   alignment_buffered: number;
   num_subtasks: number;
   num_acknowledged_subtasks: number;
-  tasks: CheckPointTaskStatisticsInterface;
+  tasks: CheckPointTaskStatistics;
   external_path: string;
   discarded: boolean;
   checkpoint_type: string;
 }
 
-export interface CheckPointTaskStatisticsInterface {
+export interface CheckPointTaskStatistics {
   id: number;
   status: string;
   latest_ack_timestamp: number;
@@ -112,7 +112,7 @@ export interface CheckPointTaskStatisticsInterface {
   num_acknowledged_subtasks: number;
 }
 
-export interface CheckPointConfigInterface {
+export interface CheckPointConfig {
   mode: SafeAny;
   interval: number;
   timeout: number;
@@ -130,7 +130,7 @@ export interface CheckPointConfigInterface {
   checkpoints_after_tasks_finish: boolean;
 }
 
-export interface CheckPointDetailInterface {
+export interface CheckPointDetail {
   id: number;
   status: string;
   is_savepoint: boolean;
@@ -185,7 +185,7 @@ export type SubTaskCheckPointStatisticsItem = {
   status: string;
 } & (CompletedSubTaskCheckPointStatistics | PendingSubTaskCheckPointStatistics);
 
-export interface CheckPointSubTaskInterface {
+export interface CheckPointSubTask {
   id: number;
   status: string;
   latest_ack_timestamp: number;
@@ -195,17 +195,17 @@ export interface CheckPointSubTaskInterface {
   num_subtasks: number;
   num_acknowledged_subtasks: number;
   summary: {
-    state_size: CheckPointMinMaxAvgStatisticsInterface;
-    end_to_end_duration: CheckPointMinMaxAvgStatisticsInterface;
+    state_size: CheckPointMinMaxAvgStatistics;
+    end_to_end_duration: CheckPointMinMaxAvgStatistics;
     checkpoint_duration: {
-      sync: CheckPointMinMaxAvgStatisticsInterface;
-      async: CheckPointMinMaxAvgStatisticsInterface;
+      sync: CheckPointMinMaxAvgStatistics;
+      async: CheckPointMinMaxAvgStatistics;
     };
     alignment: {
-      buffered: CheckPointMinMaxAvgStatisticsInterface;
-      duration: CheckPointMinMaxAvgStatisticsInterface;
+      buffered: CheckPointMinMaxAvgStatistics;
+      duration: CheckPointMinMaxAvgStatistics;
     };
-    start_delay: CheckPointMinMaxAvgStatisticsInterface;
+    start_delay: CheckPointMinMaxAvgStatistics;
   };
   subtasks: SubTaskCheckPointStatisticsItem[];
 }

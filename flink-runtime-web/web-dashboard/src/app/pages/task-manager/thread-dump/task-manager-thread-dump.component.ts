@@ -23,7 +23,7 @@ import { first, takeUntil } from 'rxjs/operators';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
-import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerDetail } from 'interfaces';
 import { TaskManagerService } from 'services';
 
 @Component({
@@ -36,7 +36,7 @@ export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
   dump = '';
   loading = true;
   editorOptions: EditorOptions = flinkEditorOptions;
-  taskManagerDetail: TaskManagerDetailInterface;
+  taskManagerDetail: TaskManagerDetail;
   private destroy$ = new Subject<void>();
 
   reload(): void {

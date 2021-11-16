@@ -32,7 +32,7 @@ import { Chart } from '@antv/g2';
 import * as G2 from '@antv/g2';
 
 import { COLOR_MAP } from 'config';
-import { JobDetailCorrectInterface, SafeAny, VerticesItemRangeInterface } from 'interfaces';
+import { JobDetailCorrect, SafeAny, VerticesItemRange } from 'interfaces';
 import { JobService } from 'services';
 
 /// <reference path="../../../../../node_modules/@antv/g2/src/index.d.ts" />
@@ -45,11 +45,11 @@ import { JobService } from 'services';
 })
 export class JobTimelineComponent implements AfterViewInit, OnDestroy {
   destroy$ = new Subject();
-  listOfVertex: VerticesItemRangeInterface[] = [];
+  listOfVertex: VerticesItemRange[] = [];
   listOfSubTaskTimeLine: Array<{ name: string; status: string; range: [number, number] }> = [];
   mainChartInstance: Chart;
   subTaskChartInstance: Chart;
-  jobDetail: JobDetailCorrectInterface;
+  jobDetail: JobDetailCorrect;
   selectedName: string;
   isShowSubTaskTimeLine = false;
   @ViewChild('mainTimeLine', { static: true }) mainTimeLine: ElementRef;

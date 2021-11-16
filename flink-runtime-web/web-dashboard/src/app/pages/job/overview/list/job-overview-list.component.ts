@@ -20,11 +20,11 @@ import { ChangeDetectionStrategy, Component, ElementRef, EventEmitter, Input, Ou
 
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
-import { NodesItemCorrectInterface } from 'interfaces';
+import { NodesItemCorrect } from 'interfaces';
 
 function createSortFn(
-  selector: (item: NodesItemCorrectInterface) => number | string | undefined
-): NzTableSortFn<NodesItemCorrectInterface> {
+  selector: (item: NodesItemCorrect) => number | string | undefined
+): NzTableSortFn<NodesItemCorrect> {
   return (pre, next) => (selector(pre)! > selector(next)! ? 1 : -1);
 }
 
@@ -35,7 +35,7 @@ function createSortFn(
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewListComponent {
-  public readonly trackById = (_: number, node: NodesItemCorrectInterface): string => node.id;
+  public readonly trackById = (_: number, node: NodesItemCorrect): string => node.id;
 
   public readonly sortStatusFn = createSortFn(item => item.detail?.status);
   public readonly sortReadBytesFn = createSortFn(item => item.detail?.metrics?.['read-bytes']);
@@ -47,27 +47,27 @@ export class JobOverviewListComponent {
   public readonly sortDurationFn = createSortFn(item => item.detail?.duration);
   public readonly sortEndTimeFn = createSortFn(item => item.detail?.['end-time']);
 
-  public innerNodes: NodesItemCorrectInterface[] = [];
+  public innerNodes: NodesItemCorrect[] = [];
   public sortName: string;
   public sortValue: string;
   public left = 390;
 
-  @Output() public readonly nodeClick = new EventEmitter<NodesItemCorrectInterface>();
+  @Output() public readonly nodeClick = new EventEmitter<NodesItemCorrect>();
 
-  @Input() public selectedNode: NodesItemCorrectInterface;
+  @Input() public selectedNode: NodesItemCorrect;
 
   @Input()
-  public set nodes(value: NodesItemCorrectInterface[]) {
+  public set nodes(value: NodesItemCorrect[]) {
     this.innerNodes = value;
   }
 
-  public get nodes(): NodesItemCorrectInterface[] {
+  public get nodes(): NodesItemCorrect[] {
     return this.innerNodes;
   }
 
   constructor(public readonly elementRef: ElementRef) {}
 
-  public clickNode(node: NodesItemCorrectInterface): void {
+  public clickNode(node: NodesItemCorrect): void {
     this.nodeClick.emit(node);
   }
 }

@@ -20,7 +20,7 @@ import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRe
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil, tap } from 'rxjs/operators';
 
-import { JobBackpressureInterface, JobBackpressureSubtaskInterface, NodesItemCorrectInterface } from 'interfaces';
+import { JobBackpressure, JobBackpressureSubtask, NodesItemCorrect } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -33,12 +33,12 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
   destroy$ = new Subject();
   isLoading = true;
   now = Date.now();
-  selectedVertex: NodesItemCorrectInterface | null;
-  backpressure = {} as JobBackpressureInterface;
-  listOfSubTaskBackpressure: JobBackpressureSubtaskInterface[] = [];
+  selectedVertex: NodesItemCorrect | null;
+  backpressure = {} as JobBackpressure;
+  listOfSubTaskBackpressure: JobBackpressureSubtask[] = [];
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-  trackBackPressureBy(_: number, node: JobBackpressureSubtaskInterface): number {
+  trackBackPressureBy(_: number, node: JobBackpressureSubtask): number {
     return node.subtask;
   }
 

@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy
 import { Subject } from 'rxjs';
 import { distinctUntilKeyChanged, takeUntil } from 'rxjs/operators';
 
-import { JobDetailCorrectInterface } from 'interfaces';
+import { JobDetailCorrect } from 'interfaces';
 import { JobService, StatusService } from 'services';
 
 @Component({
@@ -33,7 +33,7 @@ export class JobStatusComponent implements OnInit, OnDestroy {
   @Input() isLoading = true;
   private destroy$ = new Subject();
   statusTips: string;
-  jobDetail: JobDetailCorrectInterface;
+  jobDetail: JobDetailCorrect;
   listOfNavigation = [
     {
       path: 'overview',

@@ -31,7 +31,7 @@ import { catchError, filter, map, takeUntil } from 'rxjs/operators';
 
 import { DagreComponent } from 'share/common/dagre/dagre.component';
 
-import { NodesItemCorrectInterface, NodesItemLinkInterface } from 'interfaces';
+import { NodesItemCorrect, NodesItemLink } from 'interfaces';
 import { JobService, MetricsService } from 'services';
 
 @Component({
@@ -42,15 +42,15 @@ import { JobService, MetricsService } from 'services';
 })
 export class JobOverviewComponent implements OnInit, OnDestroy {
   @ViewChild(DagreComponent, { static: true }) dagreComponent: DagreComponent;
-  nodes: NodesItemCorrectInterface[] = [];
-  links: NodesItemLinkInterface[] = [];
+  nodes: NodesItemCorrect[] = [];
+  links: NodesItemLink[] = [];
   destroy$ = new Subject();
-  selectedNode: NodesItemCorrectInterface | null;
+  selectedNode: NodesItemCorrect | null;
   top = 500;
   jobId: string;
   timeoutId: number;
 
-  onNodeClick(node: NodesItemCorrectInterface): void {
+  onNodeClick(node: NodesItemCorrect): void {
     if (!(this.selectedNode && this.selectedNode.id === node.id)) {
       this.router.navigate([node.id], { relativeTo: this.activatedRoute }).then();
     }
@@ -64,7 +64,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     }
   }
 
-  mergeWithBackPressure(nodes: NodesItemCorrectInterface[]): Observable<NodesItemCorrectInterface[]> {
+  mergeWithBackPressure(nodes: NodesItemCorrect[]): Observable<NodesItemCorrect[]> {
     return forkJoin(
       nodes.map(node => {
         return this.metricService
@@ -82,7 +82,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     ).pipe(catchError(() => of(nodes)));
   }
 
-  mergeWithWatermarks(nodes: NodesItemCorrectInterface[]): Observable<NodesItemCorrectInterface[]> {
+  mergeWithWatermarks(nodes: NodesItemCorrect[]): Observable<NodesItemCorrect[]> {
     return forkJoin(
       nodes.map(node => {
         return this.metricService.getWatermarks(this.jobId, node.id).pipe(

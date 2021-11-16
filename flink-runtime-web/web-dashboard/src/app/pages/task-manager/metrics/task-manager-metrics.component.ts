@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerDetail } from 'interfaces';
 import { TaskManagerService } from 'services';
 
 @Component({
@@ -31,7 +31,7 @@ import { TaskManagerService } from 'services';
 })
 export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject();
-  taskManagerDetail: TaskManagerDetailInterface;
+  taskManagerDetail: TaskManagerDetail;
   metrics: { [id: string]: number } = {};
 
   constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}

@@ -24,19 +24,19 @@ import { distinctUntilChanged, mergeMap, takeUntil, tap } from 'rxjs/operators';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
-import { ExceptionInfoInterface, RootExceptionInfoInterface } from 'interfaces';
+import { ExceptionInfo, RootExceptionInfo } from 'interfaces';
 import { JobService } from 'services';
 
 interface ExceptionHistoryItem {
   /**
    * List of concurrent exceptions that caused this failure.
    */
-  exceptions: ExceptionInfoInterface[];
+  exceptions: ExceptionInfo[];
 
   /**
    * An exception from the list, that is currently selected for rendering.
    */
-  selected: ExceptionInfoInterface;
+  selected: ExceptionInfo;
 
   /**
    * Should this failure be expanded in UI?
@@ -44,12 +44,12 @@ interface ExceptionHistoryItem {
   expand: boolean;
 }
 
-const stripConcurrentExceptions = function(rootException: RootExceptionInfoInterface): ExceptionInfoInterface {
+const stripConcurrentExceptions = function(rootException: RootExceptionInfo): ExceptionInfo {
   const { concurrentExceptions, ...mainException } = rootException;
   return mainException;
 };
 
-const markGlobalFailure = function(exception: ExceptionInfoInterface): ExceptionInfoInterface {
+const markGlobalFailure = function(exception: ExceptionInfo): ExceptionInfo {
   if (exception.taskName == null) {
     exception.taskName = '(global failure)';
   }
@@ -72,7 +72,7 @@ export class JobExceptionsComponent implements OnInit, OnDestroy {
   editorOptions: EditorOptions = flinkEditorOptions;
   private destroy$ = new Subject<void>();
 
-  trackExceptionBy(_: number, node: ExceptionInfoInterface): number {
+  trackExceptionBy(_: number, node: ExceptionInfo): number {
     return node.timestamp;
   }
   loadMore(): void {
