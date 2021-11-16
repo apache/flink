@@ -18,14 +18,13 @@
 
 import { Pipe, PipeTransform } from '@angular/core';
 
-import { SafeAny } from 'interfaces';
 import { isNil } from 'utils';
 
 @Pipe({
   name: 'humanizeDuration'
 })
 export class HumanizeDurationPipe implements PipeTransform {
-  transform(value: number, short: boolean = false): SafeAny {
+  public transform(value: number, short: boolean = false): string {
     if (isNil(value) || isNaN(value)) {
       return '-';
     } else if (value < 0) {

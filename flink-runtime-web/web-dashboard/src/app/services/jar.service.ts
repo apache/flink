@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-import { HttpClient, HttpRequest, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpParams, HttpRequest } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
-import { JarList, NodesItemCorrect, Plan, SafeAny, VerticesLink } from 'interfaces';
+import { JarList, NodesItemCorrect, Plan, VerticesLink } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -42,7 +42,7 @@ export class JarService {
     );
   }
 
-  public uploadJar(fd: File): Observable<SafeAny> {
+  public uploadJar(fd: File): Observable<HttpEvent<unknown>> {
     const formData = new FormData();
     formData.append('jarfile', fd, fd.name);
     const req = new HttpRequest('POST', `${BASE_URL}/jars/upload`, formData, {
@@ -51,8 +51,8 @@ export class JarService {
     return this.httpClient.request(req);
   }
 
-  public deleteJar(jarId: string): Observable<SafeAny> {
-    return this.httpClient.delete(`${BASE_URL}/jars/${jarId}`);
+  public deleteJar(jarId: string): Observable<void> {
+    return this.httpClient.delete<void>(`${BASE_URL}/jars/${jarId}`);
   }
 
   public runJob(
