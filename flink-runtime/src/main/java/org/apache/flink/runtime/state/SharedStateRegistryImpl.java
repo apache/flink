@@ -93,7 +93,25 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                 // if the confirmation notification was missing.
                 // However, it's also not required to use exactly the same handle or placeholder
                 if (!Objects.equals(state, entry.stateHandle)) {
-                    scheduledStateDeletion = state;
+                    if (entry.confirmed || isPlaceholder(state)) {
+                        scheduledStateDeletion = state;
+                    } else {
+                        // Old entry is not in a confirmed checkpoint yet, and the new one differs.
+                        // This might result from (omitted KG range here for simplicity):
+                        // 1. Flink recovers from a failure using a checkpoint 1
+                        // 2. State Backend is initialized to UID xyz and a set of SST: { 01.sst }
+                        // 3. JM triggers checkpoint 2
+                        // 4. TM sends handle: "xyz-002.sst"; JM registers it under "xyz-002.sst"
+                        // 5. TM crashes; everything is repeated from (2)
+                        // 6. TM recovers from CP 1 again: backend UID "xyz", SST { 01.sst }
+                        // 7. JM triggers checkpoint 3
+                        // 8. TM sends NEW state "xyz-002.sst"
+                        // 9. JM discards it as duplicate
+                        // 10. checkpoint completes, but a wrong SST file is used
+                        // So we use a new entry and discard the old one:
+                        scheduledStateDeletion = entry.stateHandle;
+                        entry.stateHandle = state;
+                    }
                     LOG.trace(
                             "Identified duplicate state registration under key {}. New state {} was determined to "
                                     + "be an unnecessary copy of existing state {} and will be dropped.",
@@ -152,6 +170,15 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
         synchronized (registeredStates) {
             for (CompositeStateHandle stateHandle : stateHandles) {
                 stateHandle.registerSharedStates(this, checkpointID);
+            }
+        }
+    }
+
+    @Override
+    public void checkpointCompleted(long checkpointId) {
+        for (SharedStateEntry entry : registeredStates.values()) {
+            if (entry.lastUsedCheckpointID == checkpointId) {
+                entry.confirmed = true;
             }
         }
     }
@@ -222,9 +249,12 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
     private static final class SharedStateEntry {
 
         /** The shared state handle */
-        final StreamStateHandle stateHandle;
+        StreamStateHandle stateHandle;
 
         private long lastUsedCheckpointID;
+
+        /** Whether this entry is included into a confirmed checkpoint. */
+        private boolean confirmed;
 
         SharedStateEntry(StreamStateHandle value, long checkpointID) {
             this.stateHandle = value;

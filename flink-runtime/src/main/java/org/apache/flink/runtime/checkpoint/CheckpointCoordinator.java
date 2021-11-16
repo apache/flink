@@ -1219,6 +1219,8 @@ public class CheckpointCoordinator {
         final CompletedCheckpoint lastSubsumed;
         final CheckpointProperties props = pendingCheckpoint.getProps();
 
+        completedCheckpointStore.getSharedStateRegistry().checkpointCompleted(checkpointId);
+
         try {
             completedCheckpoint = finalizeCheckpoint(pendingCheckpoint);
 

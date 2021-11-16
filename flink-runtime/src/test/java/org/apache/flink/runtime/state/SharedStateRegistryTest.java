@@ -53,23 +53,37 @@ public class SharedStateRegistryTest {
         assertFalse(firstState.isDiscarded());
         assertFalse(secondState.isDiscarded());
 
-        // attempt to register state under an existing key
+        // attempt to register state under an existing key - before CP completion
+        // new state should replace the old one
         TestSharedState firstStatePrime =
                 new TestSharedState(firstState.getRegistrationKey().getKeyString());
         result =
                 sharedStateRegistry.registerReference(
                         firstState.getRegistrationKey(), firstStatePrime, 0L);
-        assertFalse(firstStatePrime == result);
-        assertTrue(firstState == result);
-        assertTrue(firstStatePrime.isDiscarded());
-        assertFalse(firstState.isDiscarded());
+        assertTrue(firstStatePrime == result);
+        assertFalse(firstStatePrime.isDiscarded());
+        assertFalse(firstState == result);
+        assertTrue(firstState.isDiscarded());
+
+        // attempt to register state under an existing key - after CP completion
+        // new state should be discarded
+        sharedStateRegistry.checkpointCompleted(0L);
+        TestSharedState firstStateDPrime =
+                new TestSharedState(firstState.getRegistrationKey().getKeyString());
+        result =
+                sharedStateRegistry.registerReference(
+                        firstState.getRegistrationKey(), firstStateDPrime, 0L);
+        assertFalse(firstStateDPrime == result);
+        assertTrue(firstStateDPrime.isDiscarded());
+        assertTrue(firstStatePrime == result);
+        assertFalse(firstStatePrime.isDiscarded());
 
         // reference the first state again
         result =
                 sharedStateRegistry.registerReference(
                         firstState.getRegistrationKey(), firstState, 0L);
-        assertTrue(firstState == result);
-        assertFalse(firstState.isDiscarded());
+        assertTrue(firstStatePrime == result);
+        assertFalse(firstStatePrime.isDiscarded());
 
         sharedStateRegistry.unregisterUnusedState(1L);
         assertTrue(secondState.isDiscarded());

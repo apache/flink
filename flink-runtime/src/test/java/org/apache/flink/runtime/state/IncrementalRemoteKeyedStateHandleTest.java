@@ -80,6 +80,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
 
         // Now we register both ...
         stateHandle1.registerSharedStates(registry, 0L);
+        registry.checkpointCompleted(0L);
         stateHandle2.registerSharedStates(registry, 0L);
 
         for (Map.Entry<StateHandleID, StreamStateHandle> stateHandleEntry :
