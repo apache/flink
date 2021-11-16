@@ -26,8 +26,8 @@ import { isNil } from 'utils';
 })
 export class HumanizeBytesPipe implements PipeTransform {
   transform(value: number): SafeAny {
-    if (isNil(value) || value < 0) {
-      return '-';
+    if (isNil(value) || isNaN(value) || value < 0) {
+      return '–';
     }
     const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
     const converter = (v: number, p: number): string => {
