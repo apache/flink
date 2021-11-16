@@ -289,4 +289,22 @@ under the License.
 		</plugins>
 	</build>
 
+	<profiles>
+		<profile>
+			<id>java17</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>io.github.zentol.japicmp</groupId>
+						<artifactId>japicmp-maven-plugin</artifactId>
+						<configuration>
+							<!-- version bump broke the checks -->
+							<skip>true</skip>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 </project>
