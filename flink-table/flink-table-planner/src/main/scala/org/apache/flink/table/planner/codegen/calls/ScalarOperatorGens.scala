@@ -20,13 +20,14 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.data.binary.BinaryArrayData
-import org.apache.flink.table.planner.functions.casting.{CastRuleProvider, CodeGeneratorCastRule, ExpressionCodeGeneratorCastRule}
+import org.apache.flink.table.planner.functions.casting.{CastRule, CastRuleProvider, CodeGeneratorCastRule, ExpressionCodeGeneratorCastRule}
 import org.apache.flink.table.data.util.MapDataUtil
+import org.apache.flink.table.data.utils.CastExecutor
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull, binaryWriterWriteField, binaryWriterWriteNull, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
-import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
@@ -42,6 +43,7 @@ import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.util.Preconditions.checkArgument
 import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
 
+import java.time.ZoneId
 import java.util.Arrays.asList
 import scala.collection.JavaConversions._
 
@@ -487,7 +489,7 @@ object ScalarOperatorGens {
     // for performance, we cast literal string to literal time.
     else if (isTimePoint(left.resultType) && isCharacterString(right.resultType)) {
       if (right.literal) {
-        generateEquals(ctx, left, generateCastStringLiteralToDateTime(ctx, right, left.resultType))
+        generateEquals(ctx, left, generateCastLiteral(ctx, right, left.resultType))
       } else {
         generateEquals(ctx, left, generateCast(ctx, right, left.resultType))
       }
@@ -496,7 +498,7 @@ object ScalarOperatorGens {
       if (left.literal) {
         generateEquals(
           ctx,
-          generateCastStringLiteralToDateTime(ctx, left, right.resultType),
+          generateCastLiteral(ctx, left, right.resultType),
           right)
       } else {
         generateEquals(ctx, generateCast(ctx, left, right.resultType), right)
@@ -946,7 +948,7 @@ object ScalarOperatorGens {
 
         // Generate the code block
         val castCodeBlock = codeGeneratorCastRule.generateCodeBlock(
-          toCastContext(ctx),
+          toCodegenCastContext(ctx),
           operand.resultTerm,
           operand.nullTerm,
           inputType,
@@ -1942,42 +1944,43 @@ object ScalarOperatorGens {
     }
   }
 
-  private def generateCastStringLiteralToDateTime(
-      ctx: CodeGeneratorContext,
-      stringLiteral: GeneratedExpression,
-      expectType: LogicalType): GeneratedExpression = {
-    checkArgument(stringLiteral.literal)
-    if (java.lang.Boolean.valueOf(stringLiteral.nullTerm)) {
-      return generateNullLiteral(expectType, nullCheck = true)
+  /**
+   * This method supports casting literals to non-composite types (primitives, strings, date time).
+   * Every cast result is declared as class member, in order to be able to reuse it.
+   */
+  private def generateCastLiteral(
+     ctx: CodeGeneratorContext,
+     literalExpr: GeneratedExpression,
+     resultType: LogicalType): GeneratedExpression = {
+    checkArgument(literalExpr.literal)
+    if (java.lang.Boolean.valueOf(literalExpr.nullTerm)) {
+      return generateNullLiteral(resultType, nullCheck = true)
     }
 
-    val stringValue = stringLiteral.literalValue.get.toString
-    val literalCode = expectType.getTypeRoot match {
-      case DATE =>
-        DateTimeUtils.dateStringToUnixDate(stringValue) match {
-          case null => throw new ValidationException(s"String '$stringValue' is not a valid date")
-          case v => v
-        }
-      case TIME_WITHOUT_TIME_ZONE =>
-        DateTimeUtils.timeStringToUnixDate(stringValue) match {
-          case null => throw new ValidationException(s"String '$stringValue' is not a valid time")
-          case v => v
-        }
-      case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        DateTimeUtils.toTimestampData(stringValue) match {
-          case null =>
-            throw new ValidationException(s"String '$stringValue' is not a valid timestamp")
-          case v => s"${CodeGenUtils.TIMESTAMP_DATA}.fromEpochMillis(" +
-            s"${v.getMillisecond}L, ${v.getNanoOfMillisecond})"
-        }
-      case _ => throw new UnsupportedOperationException
+    val castExecutor = CastRuleProvider.create(
+      toCastContext(ctx),
+      literalExpr.resultType,
+      resultType
+    ).asInstanceOf[CastExecutor[Any, Any]]
+
+    if (castExecutor == null) {
+      throw new CodeGenException(
+        s"Unsupported casting from ${literalExpr.resultType} to $resultType")
     }
 
-    val typeTerm = primitiveTypeTermForType(expectType)
-    val resultTerm = newName("stringToTime")
-    val stmt = s"$typeTerm $resultTerm = $literalCode;"
-    ctx.addReusableMember(stmt)
-    GeneratedExpression(resultTerm, "false", "", expectType)
+    try {
+      val result = castExecutor.cast(literalExpr.literalValue.get)
+      val resultTerm = newName("stringToTime")
+
+      val declStmt =
+        s"${primitiveTypeTermForType(resultType)} $resultTerm = ${primitiveLiteralForType(result)};"
+
+      ctx.addReusableMember(declStmt)
+      GeneratedExpression(resultTerm, "false", "", resultType, Some(result))
+    } catch {
+      case e: Throwable =>
+        throw new ValidationException("Error when casting literal: " + e.getMessage, e)
+    }
   }
 
   private def generateArrayComparison(
@@ -2169,7 +2172,7 @@ object ScalarOperatorGens {
     rule match {
       case codeGeneratorCastRule: ExpressionCodeGeneratorCastRule[_, _] =>
         operandTerm => codeGeneratorCastRule.generateExpression(
-          toCastContext(ctx),
+          toCodegenCastContext(ctx),
           operandTerm,
           operandType,
           resultType
@@ -2179,7 +2182,7 @@ object ScalarOperatorGens {
     }
   }
 
-  def toCastContext(ctx: CodeGeneratorContext): CodeGeneratorCastRule.Context = {
+  def toCodegenCastContext(ctx: CodeGeneratorContext): CodeGeneratorCastRule.Context = {
     new CodeGeneratorCastRule.Context {
       override def getSessionTimeZoneTerm: String = ctx.addReusableSessionTimeZone()
       override def declareVariable(ty: String, variablePrefix: String): String =
@@ -2190,6 +2193,14 @@ object ScalarOperatorGens {
         ctx.addReusableMember(s"private $ty $field = $init;")
         field
       }
+    }
+  }
+
+  def toCastContext(ctx: CodeGeneratorContext): CastRule.Context = {
+    new CastRule.Context {
+      override def getSessionZoneId: ZoneId = ctx.tableConfig.getLocalTimeZone
+
+      override def getClassLoader: ClassLoader = Thread.currentThread().getContextClassLoader
     }
   }
 
