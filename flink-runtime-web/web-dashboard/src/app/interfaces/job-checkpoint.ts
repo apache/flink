@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-export interface CheckPoint {
+export interface Checkpoint {
   counts: {
     restored: number;
     total: number;
@@ -25,13 +25,13 @@ export interface CheckPoint {
     failed: number;
   };
   summary: {
-    state_size: CheckPointMinMaxAvgStatistics;
-    end_to_end_duration: CheckPointMinMaxAvgStatistics;
-    alignment_buffered: CheckPointMinMaxAvgStatistics;
+    state_size: CheckpointMinMaxAvgStatistics;
+    end_to_end_duration: CheckpointMinMaxAvgStatistics;
+    alignment_buffered: CheckpointMinMaxAvgStatistics;
   };
   latest: {
-    completed: CheckPointCompletedStatistics;
-    savepoint: CheckPointCompletedStatistics;
+    completed: CheckpointCompletedStatistics;
+    savepoint: CheckpointCompletedStatistics;
     failed: {
       id: number;
       status: string;
@@ -45,7 +45,7 @@ export interface CheckPoint {
       num_acknowledged_subtasks: number;
       failure_timestamp: number;
       failure_message: string;
-      task: CheckPointTaskStatistics;
+      task: CheckpointTaskStatistics;
     };
     restored: {
       id: number;
@@ -53,11 +53,11 @@ export interface CheckPoint {
       is_savepoint: boolean;
       external_path: string;
     };
-    history: CheckPointHistory;
+    history: CheckpointHistory;
   };
 }
 
-export interface CheckPointHistory {
+export interface CheckpointHistory {
   id: number;
   status: string;
   is_savepoint: boolean;
@@ -68,10 +68,10 @@ export interface CheckPointHistory {
   alignment_buffered: number;
   num_subtasks: number;
   num_acknowledged_subtasks: number;
-  task: CheckPointTaskStatistics;
+  task: CheckpointTaskStatistics;
 }
 
-export interface CheckPointMinMaxAvgStatistics {
+export interface CheckpointMinMaxAvgStatistics {
   min: number;
   max: number;
   avg: number;
@@ -82,7 +82,7 @@ export interface CheckPointMinMaxAvgStatistics {
   p999: number;
 }
 
-export interface CheckPointCompletedStatistics {
+export interface CheckpointCompletedStatistics {
   id: number;
   status: string;
   is_savepoint: boolean;
@@ -93,13 +93,13 @@ export interface CheckPointCompletedStatistics {
   alignment_buffered: number;
   num_subtasks: number;
   num_acknowledged_subtasks: number;
-  tasks: CheckPointTaskStatistics;
+  tasks: CheckpointTaskStatistics;
   external_path: string;
   discarded: boolean;
   checkpoint_type: string;
 }
 
-export interface CheckPointTaskStatistics {
+export interface CheckpointTaskStatistics {
   id: number;
   status: string;
   latest_ack_timestamp: number;
@@ -110,7 +110,7 @@ export interface CheckPointTaskStatistics {
   num_acknowledged_subtasks: number;
 }
 
-export interface CheckPointConfig {
+export interface CheckpointConfig {
   mode: 'exactly_once' | string;
   interval: number;
   timeout: number;
@@ -128,7 +128,7 @@ export interface CheckPointConfig {
   checkpoints_after_tasks_finish: boolean;
 }
 
-export interface CheckPointDetail {
+export interface CheckpointDetail {
   id: number;
   status: string;
   is_savepoint: boolean;
@@ -157,7 +157,7 @@ export interface CheckPointDetail {
   }>;
 }
 
-export interface CompletedSubTaskCheckPointStatistics {
+export interface CompletedSubTaskCheckpointStatistics {
   ack_timestamp: number;
   end_to_end_duration: number;
   state_size: number;
@@ -176,14 +176,14 @@ export interface CompletedSubTaskCheckPointStatistics {
   aborted: boolean;
 }
 
-export interface PendingSubTaskCheckPointStatistics {}
+export interface PendingSubTaskCheckpointStatistics {}
 
-export type SubTaskCheckPointStatisticsItem = {
+export type SubTaskCheckpointStatisticsItem = {
   index: number;
   status: string;
-} & (CompletedSubTaskCheckPointStatistics | PendingSubTaskCheckPointStatistics);
+} & (CompletedSubTaskCheckpointStatistics | PendingSubTaskCheckpointStatistics);
 
-export interface CheckPointSubTask {
+export interface CheckpointSubTask {
   id: number;
   status: string;
   latest_ack_timestamp: number;
@@ -193,17 +193,17 @@ export interface CheckPointSubTask {
   num_subtasks: number;
   num_acknowledged_subtasks: number;
   summary: {
-    state_size: CheckPointMinMaxAvgStatistics;
-    end_to_end_duration: CheckPointMinMaxAvgStatistics;
+    state_size: CheckpointMinMaxAvgStatistics;
+    end_to_end_duration: CheckpointMinMaxAvgStatistics;
     checkpoint_duration: {
-      sync: CheckPointMinMaxAvgStatistics;
-      async: CheckPointMinMaxAvgStatistics;
+      sync: CheckpointMinMaxAvgStatistics;
+      async: CheckpointMinMaxAvgStatistics;
     };
     alignment: {
-      buffered: CheckPointMinMaxAvgStatistics;
-      duration: CheckPointMinMaxAvgStatistics;
+      buffered: CheckpointMinMaxAvgStatistics;
+      duration: CheckpointMinMaxAvgStatistics;
     };
-    start_delay: CheckPointMinMaxAvgStatistics;
+    start_delay: CheckpointMinMaxAvgStatistics;
   };
-  subtasks: SubTaskCheckPointStatisticsItem[];
+  subtasks: SubTaskCheckpointStatisticsItem[];
 }

@@ -21,11 +21,11 @@ import { forkJoin } from 'rxjs';
 import { first } from 'rxjs/operators';
 
 import {
-  CheckPointCompletedStatistics,
-  CheckPointDetail,
+  CheckpointCompletedStatistics,
+  CheckpointDetail,
   JobDetailCorrect,
   VerticesItem,
-  CheckPointConfig
+  CheckpointConfig
 } from 'interfaces';
 import { JobService } from 'services';
 
@@ -38,12 +38,12 @@ import { JobService } from 'services';
 export class JobCheckpointsDetailComponent implements OnInit {
   public readonly trackById = (_: number, node: VerticesItem): string => node.id;
 
-  public innerCheckPoint: CheckPointCompletedStatistics;
+  public innerCheckPoint: CheckpointCompletedStatistics;
   public jobDetail: JobDetailCorrect;
   public checkPointType: string;
 
-  public checkPointDetail: CheckPointDetail;
-  public checkPointConfig: CheckPointConfig;
+  public checkPointDetail: CheckpointDetail;
+  public checkPointConfig: CheckpointConfig;
   public listOfVertex: VerticesItem[] = [];
   public isLoading = true;
 
@@ -53,7 +53,7 @@ export class JobCheckpointsDetailComponent implements OnInit {
     this.refresh();
   }
 
-  public get checkPoint(): CheckPointCompletedStatistics {
+  public get checkPoint(): CheckpointCompletedStatistics {
     return this.innerCheckPoint;
   }
 

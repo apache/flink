@@ -30,20 +30,20 @@ import { first } from 'rxjs/operators';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 import {
-  CheckPointSubTask,
-  CompletedSubTaskCheckPointStatistics,
+  CheckpointSubTask,
+  CompletedSubTaskCheckpointStatistics,
   JobDetailCorrect,
-  SubTaskCheckPointStatisticsItem,
+  SubTaskCheckpointStatisticsItem,
   VerticesItem
 } from 'interfaces';
 import { JobService } from 'services';
 
 function createSortFn(
-  selector: (item: CompletedSubTaskCheckPointStatistics) => number | boolean
-): NzTableSortFn<SubTaskCheckPointStatisticsItem> {
+  selector: (item: CompletedSubTaskCheckpointStatistics) => number | boolean
+): NzTableSortFn<SubTaskCheckpointStatisticsItem> {
   // FIXME This type-asserts that pre / next are a specific subtype.
   return (pre, next) =>
-    selector(pre as CompletedSubTaskCheckPointStatistics) > selector(next as CompletedSubTaskCheckPointStatistics)
+    selector(pre as CompletedSubTaskCheckpointStatistics) > selector(next as CompletedSubTaskCheckpointStatistics)
       ? 1
       : -1;
 }
@@ -59,8 +59,8 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
   @Input() public checkPointId: number;
 
   public jobDetail: JobDetailCorrect;
-  public subTaskCheckPoint: CheckPointSubTask;
-  public listOfSubTaskCheckPoint: SubTaskCheckPointStatisticsItem[] = [];
+  public subTaskCheckPoint: CheckpointSubTask;
+  public listOfSubTaskCheckPoint: SubTaskCheckpointStatisticsItem[] = [];
   public isLoading = true;
   public sortName: string;
   public sortValue: string;
