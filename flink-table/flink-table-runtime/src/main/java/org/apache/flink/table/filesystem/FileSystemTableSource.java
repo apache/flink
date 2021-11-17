@@ -436,7 +436,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
     enum ReadableFileInfo implements Serializable {
         FILEPATH(
-                "filepath",
+                "file.path",
                 DataTypes.STRING().notNull(),
                 new FileInfoAccessor() {
                     private static final long serialVersionUID = 1L;
@@ -447,7 +447,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     }
                 }),
         FILENAME(
-                "filename",
+                "file.name",
                 DataTypes.STRING().notNull(),
                 new FileInfoAccessor() {
                     private static final long serialVersionUID = 1L;
@@ -459,7 +459,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     }
                 }),
         SIZE(
-                "size",
+                "file.size",
                 DataTypes.BIGINT().notNull(),
                 new FileInfoAccessor() {
                     private static final long serialVersionUID = 1L;
@@ -470,14 +470,14 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     }
                 }),
         MODIFICATION_TIME(
-                "modification_time",
+                "file.modification_time",
                 DataTypes.TIMESTAMP_LTZ(3).notNull(),
                 new FileInfoAccessor() {
                     private static final long serialVersionUID = 1L;
 
                     @Override
                     public Object getValue(FileSourceSplit split) {
-                        long nanos = split.modificationTime();
+                        long nanos = split.fileModificationTime();
                         return TimestampData.fromLocalDateTime(
                                 LocalDateTime.ofInstant(
                                         Instant.ofEpochMilli(nanos),

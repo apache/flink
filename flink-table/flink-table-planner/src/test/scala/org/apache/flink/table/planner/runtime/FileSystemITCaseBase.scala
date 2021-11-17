@@ -96,7 +96,7 @@ trait FileSystemITCaseBase {
            |  a int,
            |  b bigint,
            |  c as b + 1,
-           |  f string metadata from 'filepath'
+           |  f string metadata from 'file.path'
            |) partitioned by (a, b) with (
            |  'connector' = 'filesystem',
            |  'path' = '$resultPath',
@@ -126,7 +126,7 @@ trait FileSystemITCaseBase {
            |  x string,
            |  y int,
            |  a int,
-           |  f string metadata from 'filepath',
+           |  f string metadata from 'file.path',
            |  b bigint
            |) with (
            |  'connector' = 'filesystem',
@@ -380,12 +380,12 @@ trait FileSystemITCaseBase {
 
     tableEnv.executeSql(
       s"""
-         |create table metadataTable (
-         |  x string,
-         |  filepath string metadata,
-         |  filename string metadata,
-         |  size bigint metadata,
-         |  modification_time timestamp_ltz metadata
+         |CREATE TABLE metadataTable (
+         |  x STRING,
+         |  `file.path` STRING METADATA,
+         |  `file.name` STRING METADATA,
+         |  `file.size` BIGINT METADATA,
+         |  `file.modification_time` TIMESTAMP_LTZ(3) METADATA
          |) with (
          |  'connector' = 'filesystem',
          |  'path' = '$resultPath',
@@ -395,10 +395,10 @@ trait FileSystemITCaseBase {
     )
 
     tableEnv.executeSql(
-      "insert into nonPartitionedTable (x) select x from originalT limit 1").await()
+      "INSERT INTO nonPartitionedTable (x) SELECT x FROM originalT LIMIT 1").await()
 
     checkPredicate(
-      "select * from metadataTable",
+      "SELECT * FROM metadataTable",
       row => {
         assertEquals(5, row.getArity)
 

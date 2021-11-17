@@ -244,10 +244,10 @@ public class FileSystemTableFactoryTest {
         assertTrue(source instanceof FileSystemTableSource);
 
         Map<String, DataType> readableMetadata = new HashMap<>();
-        readableMetadata.put("filepath", DataTypes.STRING().notNull());
-        readableMetadata.put("filename", DataTypes.STRING().notNull());
-        readableMetadata.put("size", DataTypes.BIGINT().notNull());
-        readableMetadata.put("modification_time", DataTypes.TIMESTAMP_LTZ(3).notNull());
+        readableMetadata.put("file.path", DataTypes.STRING().notNull());
+        readableMetadata.put("file.name", DataTypes.STRING().notNull());
+        readableMetadata.put("file.size", DataTypes.BIGINT().notNull());
+        readableMetadata.put("file.modification_time", DataTypes.TIMESTAMP_LTZ(3).notNull());
 
         assertEquals(readableMetadata, ((FileSystemTableSource) source).listReadableMetadata());
     }

@@ -65,12 +65,20 @@ public class HiveSourceSplit extends FileSourceSplit {
             Path filePath,
             long offset,
             long length,
-            long modificationTime,
+            long fileModificationTime,
             long fileSize,
             String[] hostnames,
             @Nullable CheckpointedPosition readerPosition,
             HiveTablePartition hiveTablePartition) {
-        super(id, filePath, offset, length, modificationTime, fileSize, hostnames, readerPosition);
+        super(
+                id,
+                filePath,
+                offset,
+                length,
+                fileModificationTime,
+                fileSize,
+                hostnames,
+                readerPosition);
         this.hiveTablePartition =
                 checkNotNull(hiveTablePartition, "hiveTablePartition can not be null");
     }
@@ -107,7 +115,7 @@ public class HiveSourceSplit extends FileSourceSplit {
                 path(),
                 offset(),
                 length(),
-                modificationTime(),
+                fileModificationTime(),
                 fileSize(),
                 hostnames(),
                 position,

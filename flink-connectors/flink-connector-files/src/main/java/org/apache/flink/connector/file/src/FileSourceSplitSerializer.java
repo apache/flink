@@ -67,7 +67,7 @@ public final class FileSourceSplitSerializer implements SimpleVersionedSerialize
         split.path().write(out);
         out.writeLong(split.offset());
         out.writeLong(split.length());
-        out.writeLong(split.modificationTime());
+        out.writeLong(split.fileModificationTime());
         out.writeLong(split.fileSize());
         writeStringArray(out, split.hostnames());
 
