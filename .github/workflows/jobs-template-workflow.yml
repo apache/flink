@@ -66,7 +66,7 @@ jobs:
   compile:
     name: "compile_${{ inputs.stage_name }}"
     runs-on: ubuntu-latest #${{parameters.test_pool_definition}}
-    if: success() && (inputs.mode != 'e2e')
+    if: ${{ success() && inputs.mode != 'e2e' }}
     timeout-minutes: 240 #cancelTimeoutInMinutes: 1 ???
     steps:
       - name: "Checks out Flink"
@@ -92,7 +92,7 @@ jobs:
       # (usually because a pom file has changed), we'll fall back to a key without
       # the pom files (CACHE_FALLBACK_KEY).
       - name: "Cache Maven local repo"
-        if: inputs.test_pool_name != "Default"
+        if: ${{ inputs.test_pool_name != 'Default' }}
         uses: actions/cache@v2
         with:
           path: ${{ inputs.maven_cache_folder }}
@@ -121,7 +121,7 @@ jobs:
     name: "test_${{ inputs.stage_name }}"
     needs: compile
     runs-on: ubuntu-20.04
-    if: success() && inputs.mode != "e2e"
+    if: ${{ success() && inputs.mode != 'e2e' }}
     timeout-minutes: 240 #cancelTimeoutInMinutes: 1 ???
     strategy:
       matrix:
@@ -162,7 +162,7 @@ jobs:
         run: FLINK_ARTIFACT_DIR=${{ inputs.flink_artifact_dir }} ./tools/azure-pipelines/unpack_build_artifact.sh
 
       - name: "Cache Maven local repo"
-        if: inputs.test_pool_name != "Default" # This probably doesn't work as input cannot be an object
+        if: ${{ inputs.test_pool_name != 'Default' }}
         uses: actions/cache@v2
         with:
           path: ${{ inputs.maven_cache_folder }}
@@ -171,7 +171,7 @@ jobs:
 
       - name: "Cache Docker images"
         id: docker-cache
-        if: inputs.test_pool_name != "Default" # This probably doesn't work as input cannot be an object
+        if: ${{ inputs.test_pool_name != 'Default' }}
         uses: actions/cache@v2
         with:
           path: ${{ inputs.docker_images_cache_folder }}
@@ -179,7 +179,7 @@ jobs:
           restore-keys: ${{ inputs.cache_fallback_key }}
 
       - name: "Load Docker images if not present in the cache, yet"
-        if: cancelled() && !steps.docker-cache.cache.hit
+        if: ${{ cancelled() && !steps.docker-cache.cache.hit }}
         run: ./tools/azure-pipelines/cache_docker_images.sh load
 
       - name: "Set JDK"
@@ -206,7 +206,7 @@ jobs:
 
       - name: "Publish Unit Test Results"
         uses: EnricoMi/publish-unit-test-result-action@v1
-        if: always()
+        if: ${{ always() }}
         with:
           files: '**/TEST*.xml'
 
