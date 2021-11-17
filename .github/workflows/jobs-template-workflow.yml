@@ -218,5 +218,5 @@ jobs:
           path: ${{ steps.test-run.outputs.debug-files-output-dir }}
 
       - name: "Save Docker images to cache"
-        if: ${{ !cancelled() && (failed() || !steps.docker-cache.cache.hit) }}
+        if: ${{ !cancelled() && (failure() || !steps.docker-cache.cache.hit) }}
         run: ./tools/azure-pipelines/cache_docker_images.sh save
