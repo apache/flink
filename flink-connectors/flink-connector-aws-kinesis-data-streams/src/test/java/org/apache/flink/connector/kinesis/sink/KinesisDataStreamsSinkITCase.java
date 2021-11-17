@@ -18,6 +18,7 @@
 package org.apache.flink.connector.kinesis.sink;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -31,27 +32,30 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.rnorth.ducttape.ratelimits.RateLimiter;
+import org.rnorth.ducttape.ratelimits.RateLimiterBuilder;
+import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 import software.amazon.awssdk.services.kinesis.model.StreamStatus;
 
+import java.time.Duration;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 
-import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_ACCESS_KEY_ID;
-import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_ENDPOINT;
-import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_REGION;
-import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_SECRET_ACCESS_KEY;
-import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.HTTP_PROTOCOL_VERSION;
-import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.TRUST_ALL_CERTIFICATES;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ACCESS_KEY_ID;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ENDPOINT;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_REGION;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_SECRET_ACCESS_KEY;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.HTTP_PROTOCOL_VERSION;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.TRUST_ALL_CERTIFICATES;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
@@ -62,20 +66,22 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
     private final ElementConverter<String, PutRecordsRequestEntry> elementConverter =
             KinesisDataStreamsSinkElementConverter.<String>builder()
-                    .serializationSchema(new SimpleStringSchema())
-                    .partitionKeyGenerator(element -> String.valueOf(element.hashCode()))
+                    .setSerializationSchema(new SimpleStringSchema())
+                    .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
                     .build();
 
     private final ElementConverter<String, PutRecordsRequestEntry>
             partitionKeyTooLongElementConverter =
                     KinesisDataStreamsSinkElementConverter.<String>builder()
-                            .serializationSchema(new SimpleStringSchema())
-                            .partitionKeyGenerator(element -> element)
+                            .setSerializationSchema(new SimpleStringSchema())
+                            .setPartitionKeyGenerator(element -> element)
                             .build();
 
     @ClassRule
-    public static KinesaliteContainer kinesalite =
-            new KinesaliteContainer(DockerImageName.parse(DockerImageVersions.KINESALITE));
+    public static final KinesaliteContainer KINESALITE =
+            new KinesaliteContainer(DockerImageName.parse(DockerImageVersions.KINESALITE))
+                    .withNetwork(Network.newNetwork())
+                    .withNetworkAliases("kinesalite");
 
     private StreamExecutionEnvironment env;
     private KinesisAsyncClient kinesisClient;
@@ -87,12 +93,13 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        kinesisClient = kinesalite.getV2Client();
+        kinesisClient = KINESALITE.getHostClient();
     }
 
     @Test
     public void elementsMaybeWrittenSuccessfullyToLocalInstanceWhenBatchSizeIsReached()
             throws Exception {
+
         new Scenario()
                 .withKinesaliteStreamName("test-stream-name-1")
                 .withSinkConnectionStreamName("test-stream-name-1")
@@ -102,6 +109,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     @Test
     public void elementsBufferedAndTriggeredByTimeBasedFlushShouldBeFlushedIfSourcedIsKeptAlive()
             throws Exception {
+
         new Scenario()
                 .withNumberOfElementsToSend(10)
                 .withMaxBatchSize(100)
@@ -113,10 +121,10 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
     @Test
     public void veryLargeMessagesSucceedInBeingPersisted() throws Exception {
+
         new Scenario()
                 .withNumberOfElementsToSend(5)
                 .withSizeOfMessageBytes(2500)
-                .withBufferMaxSizeBytes(8192)
                 .withMaxBatchSize(10)
                 .withExpectedElements(5)
                 .withKinesaliteStreamName("test-stream-name-3")
@@ -127,11 +135,11 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     @Test
     public void multipleInFlightRequestsResultsInCorrectNumberOfElementsPersisted()
             throws Exception {
+
         new Scenario()
                 .withNumberOfElementsToSend(150)
                 .withSizeOfMessageBytes(2500)
                 .withBufferMaxTimeMS(2000)
-                .withBufferMaxSizeBytes(8192)
                 .withMaxInflightReqs(10)
                 .withMaxBatchSize(20)
                 .withExpectedElements(150)
@@ -159,7 +167,6 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                                 new Scenario()
                                         .withNumberOfElementsToSend(5)
                                         .withSizeOfMessageBytes(2500)
-                                        .withBufferMaxSizeBytes(8192)
                                         .withExpectedElements(5)
                                         .withKinesaliteStreamName("test-stream-name-7")
                                         .withSinkConnectionStreamName("test-stream-name-7")
@@ -174,7 +181,6 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         private int numberOfElementsToSend = 50;
         private int sizeOfMessageBytes = 25;
         private int bufferMaxTimeMS = 1000;
-        private int bufferMaxSizeBytes = 819200;
         private int maxInflightReqs = 1;
         private int maxBatchSize = 50;
         private int expectedElements = 50;
@@ -196,10 +202,10 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                             .returns(String.class);
 
             Properties prop = new Properties();
-            prop.setProperty(AWS_ENDPOINT, kinesalite.getHostEndpointUrl());
-            prop.setProperty(AWS_ACCESS_KEY_ID, kinesalite.getAccessKey());
-            prop.setProperty(AWS_SECRET_ACCESS_KEY, kinesalite.getSecretKey());
-            prop.setProperty(AWS_REGION, kinesalite.getRegion().toString());
+            prop.setProperty(AWS_ENDPOINT, KINESALITE.getHostEndpointUrl());
+            prop.setProperty(AWS_ACCESS_KEY_ID, KINESALITE.getAccessKey());
+            prop.setProperty(AWS_SECRET_ACCESS_KEY, KINESALITE.getSecretKey());
+            prop.setProperty(AWS_REGION, KINESALITE.getRegion().toString());
             prop.setProperty(TRUST_ALL_CERTIFICATES, "true");
             prop.setProperty(HTTP_PROTOCOL_VERSION, "HTTP1_1");
 
@@ -207,7 +213,6 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                     KinesisDataStreamsSink.<String>builder()
                             .setElementConverter(elementConverter)
                             .setMaxTimeInBufferMS(bufferMaxTimeMS)
-                            .setFlushOnBufferSizeInBytes(bufferMaxSizeBytes)
                             .setMaxInFlightRequests(maxInflightReqs)
                             .setMaxBatchSize(maxBatchSize)
                             .setFailOnError(failOnError)
@@ -259,11 +264,6 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
             return this;
         }
 
-        public Scenario withBufferMaxSizeBytes(int bufferMaxSizeBytes) {
-            this.bufferMaxSizeBytes = bufferMaxSizeBytes;
-            return this;
-        }
-
         public Scenario withMaxInflightReqs(int maxInflightReqs) {
             this.maxInflightReqs = maxInflightReqs;
             return this;
@@ -299,6 +299,46 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
             this.elementConverter = elementConverter;
             return this;
         }
+
+        private void prepareStream(String streamName) throws Exception {
+            final RateLimiter rateLimiter =
+                    RateLimiterBuilder.newBuilder()
+                            .withRate(1, SECONDS)
+                            .withConstantThroughput()
+                            .build();
+
+            KinesisAsyncClient kinesisClient = KINESALITE.getHostClient();
+            kinesisClient
+                    .createStream(
+                            CreateStreamRequest.builder()
+                                    .streamName(streamName)
+                                    .shardCount(1)
+                                    .build())
+                    .get();
+
+            Deadline deadline = Deadline.fromNow(Duration.ofMinutes(1));
+            while (!rateLimiter.getWhenReady(() -> streamExists(streamName))) {
+                if (deadline.isOverdue()) {
+                    throw new RuntimeException("Failed to create stream within time");
+                }
+            }
+        }
+
+        private boolean streamExists(final String streamName) {
+            try {
+                return kinesisClient
+                                .describeStream(
+                                        DescribeStreamRequest.builder()
+                                                .streamName(streamName)
+                                                .build())
+                                .get()
+                                .streamDescription()
+                                .streamStatus()
+                        == StreamStatus.ACTIVE;
+            } catch (Exception e) {
+                return false;
+            }
+        }
     }
 
     private void testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(
@@ -314,32 +354,5 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                                         .runScenario());
         assertEquals(
                 "Encountered non-recoverable exception", thrown.getCause().getCause().getMessage());
-    }
-
-    private void prepareStream(String testStreamName)
-            throws InterruptedException, ExecutionException {
-        kinesisClient
-                .createStream(
-                        CreateStreamRequest.builder()
-                                .streamName(testStreamName)
-                                .shardCount(1)
-                                .build())
-                .get();
-
-        DescribeStreamResponse describeStream =
-                kinesisClient
-                        .describeStream(
-                                DescribeStreamRequest.builder().streamName(testStreamName).build())
-                        .get();
-
-        while (describeStream.streamDescription().streamStatus() != StreamStatus.ACTIVE) {
-            describeStream =
-                    kinesisClient
-                            .describeStream(
-                                    DescribeStreamRequest.builder()
-                                            .streamName(testStreamName)
-                                            .build())
-                            .get();
-        }
     }
 }
