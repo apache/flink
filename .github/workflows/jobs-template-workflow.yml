@@ -110,7 +110,7 @@ jobs:
       - name: "Compile"
         run: |
           ${{ inputs.environment }} ./tools/ci/compile.sh || exit $?
-          ./tools/azure-pipelines/create_build_artifact.sh
+          FLINK_ARTIFACT_DIR=${{ inputs.flink_artifact_dir }} ./tools/azure-pipelines/create_build_artifact.sh
 
       # upload artifacts for next stage
       - name: Upload artifacts
