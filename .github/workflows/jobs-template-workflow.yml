@@ -93,7 +93,7 @@ jobs:
         run: |
           ${{ inputs.environment }} ./tools/ci/compile.sh || exit $?
 
-      - name: "Collect build artifacts to ${{ env.FLINK_ARTIFACT_DIR }}"
+      - name: "Collect build artifacts"
         run: ./tools/azure-pipelines/create_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}
 
       # upload artifacts for next stage
@@ -145,7 +145,7 @@ jobs:
           name: FlinkCompileArtifact-${{ inputs.stage_name }}
           path: ${{ env.FLINK_ARTIFACT_DIR }}
 
-      - name: "Unpack Build artifact from ${{ env.FLINK_ARTIFACT_DIR }}"
+      - name: "Unpack Build artifact"
         run: ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}
 
       - name: "Cache Maven local repo"
@@ -165,7 +165,7 @@ jobs:
           key: ${{ matrix.module }}-docker-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', 'flink-test-utils-parent/**/DockerImageVersions.java') }}
           restore-keys: ${{ matrix.module }}-docker-${{ runner.os }}
 
-      - name: "Load Docker images if not present in the cache folder ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}, yet"
+      - name: "Load Docker images if not present in cache, yet"
         if: ${{ cancelled() && !steps.docker-cache.cache.hit }}
         run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ env.DOCKER_IMAGES_CACHE_FOLDER }} load
 
@@ -199,6 +199,6 @@ jobs:
           name: logs-${{ inputs.stage_name }}-${{ steps.test-run.outputs.debug-files-name }}
           path: ${{ steps.test-run.outputs.debug-files-output-dir }}
 
-      - name: "Save Docker images to cache from ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}"
+      - name: "Save Docker images to cache"
         if: ${{ !cancelled() && (failure() || !steps.docker-cache.cache.hit) }}
         run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ env.DOCKER_IMAGES_CACHE_FOLDER }} save
