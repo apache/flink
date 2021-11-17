@@ -62,6 +62,10 @@ on:
         description: "Directory for the build artifacts"
         required: true
         type: string
+      flink_log_dir:
+        description: "Directory for the log files"
+        required: true
+        type: string
       docker_images_cache_key:
         description: "key for the Docker images cache"
         required: true
@@ -184,30 +188,34 @@ jobs:
       - name: "Set coredump pattern"
         run: sudo sysctl -w kernel.core_pattern=core.%p
       - name: "Test - ${{ matrix.module }}"
+        id: test-run-${{ matrix.module }}
         env:
           IT_CASE_S3_BUCKET: ${{ secrets.s3_bucket }}
           IT_CASE_S3_ACCESS_KEY: ${{ secrets.s3_access_key }}
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
           IT_CASE_GLUE_SCHEMA_ACCESS_KEY: ${{ secrets.glue_schema_access_key }}
           IT_CASE_GLUE_SCHEMA_SECRET_KEY: ${{ secrets.glue_schema_secret_key }}
-        run: ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh ${{ matrix.module }}
+        run: |
+          ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh \
+              -a ${{ github.job }} \
+              -f ${{ inputs.flink_log_dir }} \
+              -t ${{ runner.temp }} \
+              ./tools/ci/test_controller.sh ${{ matrix.module }}
       - name: "Publish Unit Test Results"
         uses: EnricoMi/publish-unit-test-result-action@v1
         if: always()
         with:
           files: '**/TEST*.xml'
+      - name: "Upload artifacts"
+        uses: actions/upload-artifact@v2
+        if: ${{ steps.test-run-${{ matrix.module }}.outputs.debug-files-output-dir }} != ''
+        with:
+          name: logs-${{ inputs.stage_name }}-${{ steps.test-run-${{ matrix.module }}.outputs.debug-files-name }}
+          path: ${{ steps.test-run-${{ matrix.module }}.outputs.debug-files-output-dir }}
 
 jobs:
   - job: test_${{parameters.stage_name}}
     steps:
-      # upload debug artifacts
-      - task: PublishPipelineArtifact@1
-        condition: not(eq('$(DEBUG_FILES_OUTPUT_DIR)', ''))
-        displayName: Upload Logs
-        inputs:
-          targetPath: $(DEBUG_FILES_OUTPUT_DIR)
-          artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
-
       - script: ./tools/azure-pipelines/cache_docker_images.sh save
         displayName: Save docker images
         condition: and(not(canceled()), or(failed(), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true')))
