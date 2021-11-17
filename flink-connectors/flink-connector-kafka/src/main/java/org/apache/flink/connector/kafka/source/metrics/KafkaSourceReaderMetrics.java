@@ -310,7 +310,7 @@ public class KafkaSourceReaderMetrics {
                             "Error when getting Kafka consumer metric \"%s\" "
                                     + "for partition \"%s\". "
                                     + "Metric \"%s\" may not be reported correctly. ",
-                            RECORDS_LAG, tp, MetricNames.PENDING_BYTES),
+                            RECORDS_LAG, tp, MetricNames.PENDING_RECORDS),
                     e);
             return null;
         }
