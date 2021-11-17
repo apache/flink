@@ -53,15 +53,15 @@ env:
 
 jobs:
   compile:
-    name: "compile_${{ inputs.stage_name }}"
-    runs-on: ubuntu-latest #${{parameters.test_pool_definition}}
+    name: "Compile"
+    runs-on: ubuntu-latest
     if: ${{ success() && inputs.mode != 'e2e' }}
-    timeout-minutes: 240 #cancelTimeoutInMinutes: 1 ???
+    timeout-minutes: 240
     steps:
       - name: "Checks out Flink"
         uses: actions/checkout@v2
 
-      - name: "Set up Maven" #and SSL??? This replaces the container from the original yml
+      - name: "Set up Maven" # and SSL???
         uses: stCarolas/setup-maven@v4.2
         with:
           maven-version: 3.2.5
@@ -106,7 +106,7 @@ jobs:
           path: ${{ env.FLINK_ARTIFACT_DIR }}
 
   test:
-    name: "Test (stage: ${{ inputs.stage_name }}; module: ${{ matrix.module }})"
+    name: "Test (module: ${{ matrix.module }})"
     needs: compile
     runs-on: ubuntu-20.04
     if: ${{ success() && inputs.mode != 'e2e' }}
@@ -124,11 +124,11 @@ jobs:
           - finegrained_resource_management
 
     steps:
-      - name: "Checks out Flink"
+      - name: "Flink Checkout"
         uses: actions/checkout@v2
         timeout-minutes: 5
 
-      - name: "Set up Maven" #and SSL??? This replaces the container from the original yml
+      - name: "Set up Maven" # and SSL???
         uses: stCarolas/setup-maven@v4.2
         with:
           maven-version: 3.2.5
