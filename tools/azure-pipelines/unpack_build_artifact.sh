@@ -17,6 +17,16 @@
 # limitations under the License.
 ################################################################################
 
+while getopts "f:" o; do
+    case "${o}" in
+        f)
+            FLINK_ARTIFACT_DIR=${OPTARG};;
+        *)
+          # no special treatment of invalid parameters necessary
+          ;;
+    esac
+done
+shift $((OPTIND-1))
 
 if ! [ -e $FLINK_ARTIFACT_DIR ]; then
     echo "Cached flink dir $FLINK_ARTIFACT_DIR does not exist. Exiting build."

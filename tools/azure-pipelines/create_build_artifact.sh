@@ -17,6 +17,17 @@
 # limitations under the License.
 ################################################################################
 
+while getopts "f:" o; do
+    case "${o}" in
+        f)
+            FLINK_ARTIFACT_DIR=${OPTARG};;
+        *)
+          # no special treatment of invalid parameters necessary
+          ;;
+    esac
+done
+shift $((OPTIND-1))
+
 echo "Creating build artifact dir $FLINK_ARTIFACT_DIR"
 
 cp -r . "$FLINK_ARTIFACT_DIR"

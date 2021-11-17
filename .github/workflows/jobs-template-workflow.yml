@@ -94,7 +94,7 @@ jobs:
           ${{ inputs.environment }} ./tools/ci/compile.sh || exit $?
 
       - name: "Collect build artifacts to ${{ env.FLINK_ARTIFACT_DIR }}"
-        run: ./tools/azure-pipelines/create_build_artifact.sh
+        run: ./tools/azure-pipelines/create_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}
 
       # upload artifacts for next stage
       - name: Upload artifacts
@@ -146,7 +146,7 @@ jobs:
           path: ${{ env.FLINK_ARTIFACT_DIR }}
 
       - name: "Unpack Build artifact from ${{ env.FLINK_ARTIFACT_DIR }}"
-        run: ./tools/azure-pipelines/unpack_build_artifact.sh
+        run: ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}
 
       - name: "Cache Maven local repo"
         if: ${{ inputs.test_pool_name != 'Default' }}
