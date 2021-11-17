@@ -33,14 +33,10 @@ jobs:
   ci:
     uses: ververica/flink/.github/workflows/jobs-template-workflow.yml@hackathon2021b-migrate-to-GHA
     with:
-      test_pool_name: ""
       stage_name: "ci"
       environment: 'PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12"'
       jdk: 8
       mode: ""
-      maven_cache_folder: ${{ github.workspace }}/.m2/repository
-      flink_artifact_dir: ${{ github.workspace }}/flink_artifact
-      docker_images_cache_folder: ${{ github.workspace }}/.docker-cache
     secrets:
       s3_bucket: ""
       s3_access_key: ""

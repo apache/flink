@@ -18,10 +18,6 @@ name: "Reusable workflow example"
 on:
   workflow_call:
     inputs:
-      test_pool_name:
-        description: "defines the hardware pool for compilation and unit test execution."
-        required: true
-        type: string
       stage_name:
         description: "defines a unique identifier for all jobs in a stage (in case the jobs are added multiple times to a stage)"
         required: true
