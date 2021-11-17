@@ -142,6 +142,12 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-kinesis-data-streams</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-aws-base</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -193,6 +199,14 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-kinesis-data-streams</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -303,6 +317,7 @@ under the License.
 							<artifactSet combine.children="append">
 								<includes>
 									<include>org.apache.flink:flink-connector-aws-base:*</include>
+									<include>org.apache.flink:flink-connector-aws-kinesis-data-streams:*</include>
 									<include>com.amazonaws:*</include>
 									<include>com.google.protobuf:*</include>
 									<include>org.apache.httpcomponents:*</include>
@@ -371,6 +386,12 @@ under the License.
 									<artifact>software.amazon.awssdk:*</artifact>
 									<excludes>
 										<exclude>META-INF/services/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.flink:flink-connector-aws-kinesis-data-streams:*</artifact>
+									<excludes>
+										<exclude>profile</exclude>
 									</excludes>
 								</filter>
 								<filter>

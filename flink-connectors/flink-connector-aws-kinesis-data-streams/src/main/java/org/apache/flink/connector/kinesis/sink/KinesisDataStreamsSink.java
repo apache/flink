@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.kinesis.sink;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.AsyncSinkBase;
@@ -73,8 +74,9 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
             Integer maxBatchSize,
             Integer maxInFlightRequests,
             Integer maxBufferedRequests,
-            Long flushOnBufferSizeInBytes,
+            Long maxBatchSizeInBytes,
             Long maxTimeInBufferMS,
+            Long maxRecordSizeInBytes,
             boolean failOnError,
             String streamName,
             Properties kinesisClientProperties) {
@@ -83,8 +85,9 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
                 maxBatchSize,
                 maxInFlightRequests,
                 maxBufferedRequests,
-                flushOnBufferSizeInBytes,
-                maxTimeInBufferMS);
+                maxBatchSizeInBytes,
+                maxTimeInBufferMS,
+                maxRecordSizeInBytes);
         this.streamName =
                 Preconditions.checkNotNull(
                         streamName,
@@ -107,6 +110,7 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
         return new KinesisDataStreamsSinkBuilder<>();
     }
 
+    @Experimental
     @Override
     public SinkWriter<InputT, Void, Collection<PutRecordsRequestEntry>> createWriter(
             InitContext context, List<Collection<PutRecordsRequestEntry>> states) {
@@ -116,13 +120,15 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
                 getMaxBatchSize(),
                 getMaxInFlightRequests(),
                 getMaxBufferedRequests(),
-                getFlushOnBufferSizeInBytes(),
+                getMaxBatchSizeInBytes(),
                 getMaxTimeInBufferMS(),
+                getMaxRecordSizeInBytes(),
                 failOnError,
                 streamName,
                 kinesisClientProperties);
     }
 
+    @Experimental
     @Override
     public Optional<SimpleVersionedSerializer<Collection<PutRecordsRequestEntry>>>
             getWriterStateSerializer() {

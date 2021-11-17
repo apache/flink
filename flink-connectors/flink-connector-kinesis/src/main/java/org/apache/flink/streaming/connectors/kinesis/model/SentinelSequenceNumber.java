@@ -18,10 +18,12 @@
 package org.apache.flink.streaming.connectors.kinesis.model;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 
 /**
  * Special flag values for sequence numbers in shards to indicate special positions. The value is
- * initially set by {@code FlinkKinesisConsumer} when {@code KinesisDataFetcher}s are created. The
+ * initially set by {@link FlinkKinesisConsumer} when {@link KinesisDataFetcher}s are created. The
  * KinesisDataFetchers will use this value to determine how to retrieve the starting shard iterator
  * from AWS Kinesis.
  */
