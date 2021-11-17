@@ -50,9 +50,13 @@ jobs:
   docs-404-check:
     runs-on: ubuntu-latest
     steps:
+      - name: "Checks out Flink"
+        uses: actions/checkout@v2
+
       - name: "Check if PR contains docs change"
         run: |
           source ./tools/azure-pipelines/build_properties.sh
           pr_contains_docs_changes
+
       - name: "Builds docs"
         run: ./tools/ci/docs.sh
