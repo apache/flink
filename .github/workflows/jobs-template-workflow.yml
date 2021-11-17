@@ -167,7 +167,7 @@ jobs:
 
       - name: "Load Docker images if not present in the cache folder ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}, yet"
         if: ${{ cancelled() && !steps.docker-cache.cache.hit }}
-        run: ./tools/azure-pipelines/cache_docker_images.sh load
+        run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ env.DOCKER_IMAGES_CACHE_FOLDER }} load
 
       - name: "Set coredump pattern"
         run: sudo sysctl -w kernel.core_pattern=core.%p
@@ -201,4 +201,4 @@ jobs:
 
       - name: "Save Docker images to cache from ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}"
         if: ${{ !cancelled() && (failure() || !steps.docker-cache.cache.hit) }}
-        run: ./tools/azure-pipelines/cache_docker_images.sh save
+        run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ env.DOCKER_IMAGES_CACHE_FOLDER }} save
