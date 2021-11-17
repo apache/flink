@@ -31,6 +31,13 @@ under the License.
 	<name>Flink : Streaming Scala</name>
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 
 		<!-- core dependencies -->

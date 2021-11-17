@@ -36,6 +36,12 @@ under the License.
 
 	<properties>
 		<kafka.version>3.2.3</kafka.version>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			Kryo
+			-->--add-opens=java.base/java.lang=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>

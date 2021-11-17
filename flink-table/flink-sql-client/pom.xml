@@ -35,6 +35,15 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			Hadoop StringInternUtils
+			-->--add-opens=java.base/java.net=ALL-UNNAMED <!--
+			CommonTestUtils#setEnv
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 
 		<!-- Flink client to submit jobs -->

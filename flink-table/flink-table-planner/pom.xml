@@ -37,6 +37,23 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			HashAggCodeGeneratorTest / AggTestBase
+			-->--add-opens=java.base/java.lang=ALL-UNNAMED <!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			kryo AtomicBoolean
+			-->--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED <!--
+			kryo LocalDate/ZoneOffset
+			-->--add-opens=java.base/java.time=ALL-UNNAMED <!--
+			kryo MathContext
+			-->--add-opens=java.base/java.math=ALL-UNNAMED <!--
+			kryo ByteBuffer
+			-->--add-opens=java.base/java.nio=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 		<!-- Mainly used for calcite-core, relocated in org.apache.flink.calcite.shaded by the shade plugin -->
 		<dependency>
