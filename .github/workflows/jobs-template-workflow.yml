@@ -166,7 +166,7 @@ jobs:
           restore-keys: ${{ matrix.module }}-docker-${{ runner.os }}
 
       - name: "Load Docker images if not present in cache, yet"
-        if: ${{ cancelled() && !steps.docker-cache.cache.hit }}
+        if: ${{ !cancelled() && !steps.docker-cache.cache.hit }}
         run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ env.DOCKER_IMAGES_CACHE_FOLDER }} load
 
       - name: "Set coredump pattern"
