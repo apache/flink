@@ -19,7 +19,7 @@
 # b) It prints a warning if the test has reached 80% of it's execution time
 # c) N minutes before the end of the execution time, it will start uploading the current output as azure artifacts
 
-while getopts 'f:t:' flag; do
+while getopts 'a:t:' flag; do
   case "${flag}" in
     a) export AGENT_JOBNAME="$OPTARG";;
     t) export AGENT_TEMPDIRECTORY="$OPTARG";;
