@@ -81,8 +81,8 @@ class ConvertToNotInOrInRule
   }
 
   /**
-    * Returns a condition decomposed by [[AND]] or [[OR]].
-    */
+   * Returns a condition decomposed by [[AND]] or [[OR]].
+   */
   private def decomposedBy(rex: RexNode, operator: SqlBinaryOperator): Seq[RexNode] = {
     operator match {
       case AND => RelOptUtil.conjunctions(rex)
@@ -91,12 +91,12 @@ class ConvertToNotInOrInRule
   }
 
   /**
-    * Convert a cascade predicates to [[IN]] or [[NOT_IN]].
-    *
-    * @param builder The [[RelBuilder]] to build the [[RexNode]].
-    * @param rex     The predicates to be converted.
-    * @return The converted predicates.
-    */
+   * Convert a cascade predicates to [[IN]] or [[NOT_IN]].
+   *
+   * @param builder The [[RelBuilder]] to build the [[RexNode]].
+   * @param rex     The predicates to be converted.
+   * @return The converted predicates.
+   */
   private def convertToNotInOrIn(
       builder: RelBuilder,
       rex: RexNode,
@@ -157,7 +157,7 @@ class ConvertToNotInOrInRule
         val inputRef = list.head.getOperands.head
         val values = list.map(_.getOperands.last)
         val call = toOperator match {
-          case IN => makeIn(builder.getRexBuilder, inputRef, values)
+          case IN => builder.getRexBuilder.makeIn(inputRef, values)
           case _ => builder.getRexBuilder.makeCall(toOperator, List(inputRef) ++ values)
         }
         rexBuffer += call
@@ -187,54 +187,6 @@ class ConvertToNotInOrInRule
       case LogicalTypeRoot.FLOAT | LogicalTypeRoot.DOUBLE => rexNodes.size >= FRACTIONAL_THRESHOLD
       case _ => rexNodes.size >= THRESHOLD
     }
-  }
-
-
-  /**
-   * Convert the conditions into the [[IN]] and fix [CALCITE-4888]: Unexpected [[RexNode]]
-   * when call [[RelBuilder#in]] to create an [[IN]] predicate with a list of varchar
-   * literals which have different length in [[RexBuilder#makeIn]].
-   *
-   * The reason why don't use [[RexBuilder#makeIn]] is when make the [[SEARCH]] operator,
-   * it uses the type of the first element in the SEARCH argument as the type of the other
-   * elements. It may change the value of the other elements. For example, it may rightPad
-   * the char element if the common type has larger size. Therefore, it recommends to use
-   * [[RelDataTypeFactory]] to calculate the least restrictive type for all types. Please
-   * refer to [[org.apache.calcite.rex.RexSimplify#getType]] for the correct behaviour.
-   *
-   * The process here is much simplified comparing to the [[RexBuilder#makeIn]]. Because the
-   * converted condition is always like `arg = valA` and `valA` is a [[RexLiteral]].
-   * Therefore, it promises the type of value in the `ranges` is always same and it's safe to
-   * remove unrelated check and branches.
-   */
-  private def makeIn[T <: Comparable[T]](
-      rexBuilder: RexBuilder,
-      arg: RexNode,
-      ranges: mutable.Buffer[_ >: RexNode]): RexNode = {
-    // calculate the common type
-    val distinctTypes = Util.distinctList(
-      ranges.map(x => x.asInstanceOf[RexNode].getType).toList)
-    val commonType: RelDataType = rexBuilder.getTypeFactory.leastRestrictive(distinctTypes)
-    // build the search argument
-    val rangeSet: RangeSet[T] = TreeRangeSet.create()
-    var containsNull = false
-    ranges.foreach {
-      case literal: RexLiteral =>
-        val comparable = literal.getValue.asInstanceOf[T]
-        if (comparable == null) {
-          containsNull = true
-        } else {
-          rangeSet.add(Range.singleton(comparable))
-        }
-      case range =>
-        throw new TableException("Impossible data: " + range)
-    }
-    val sarg = Sarg.of(containsNull, rangeSet)
-    // build the SEARCH call
-    rexBuilder.makeCall(
-      SEARCH,
-      arg,
-      rexBuilder.makeSearchArgumentLiteral(sarg, commonType))
   }
 }
 
