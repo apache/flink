@@ -19,7 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
+import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordBatch;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;

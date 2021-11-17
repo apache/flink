@@ -33,8 +33,7 @@ under the License.
 	<artifactId>flink-connector-aws-kinesis-data-streams</artifactId>
 	<name>Flink : Connectors : AWS Kinesis Data Streams</name>
 	<properties>
-		<aws.sdk.version>1.12.7</aws.sdk.version>
-		<aws.sdkv2.version>2.17.52</aws.sdkv2.version>
+		<aws.sdk.version>2.17.52</aws.sdk.version>
 		<aws.kinesis-kpl.version>0.14.1</aws.kinesis-kpl.version>
 	</properties>
 
@@ -54,36 +53,34 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<!-- Amazon AWS SDK v1.x dependencies -->
 		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk-core</artifactId>
-			<version>${aws.sdk.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-base</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk-kinesis</artifactId>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sdk-core</artifactId>
 			<version>${aws.sdk.version}</version>
 		</dependency>
 
-		<!-- Amazon AWS SDK v2.x dependencies -->
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>kinesis</artifactId>
-			<version>${aws.sdkv2.version}</version>
+			<version>${aws.sdk.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>netty-nio-client</artifactId>
-			<version>${aws.sdkv2.version}</version>
+			<version>${aws.sdk.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>sts</artifactId>
-			<version>${aws.sdkv2.version}</version>
+			<version>${aws.sdk.version}</version>
 		</dependency>
 
 		<!-- Test dependencies -->
@@ -91,6 +88,14 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-base</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
@@ -114,20 +119,11 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.22.1</version>
-				<configuration>
-					<systemPropertyVariables>
-						<!-- Required for Kinesalite. -->
-						<!-- Including shaded and non-shaded conf to support test running from Maven and IntelliJ -->
-						<com.amazonaws.sdk.disableCbor>true</com.amazonaws.sdk.disableCbor>
-						<com.amazonaws.sdk.disableCertChecking>true</com.amazonaws.sdk.disableCertChecking>
-						<org.apache.flink.kinesis.shaded.com.amazonaws.sdk.disableCbor>true</org.apache.flink.kinesis.shaded.com.amazonaws.sdk.disableCbor>
-						<org.apache.flink.kinesis.shaded.com.amazonaws.sdk.disableCertChecking>true</org.apache.flink.kinesis.shaded.com.amazonaws.sdk.disableCertChecking>
-					</systemPropertyVariables>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>
