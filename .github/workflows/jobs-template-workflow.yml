@@ -38,14 +38,6 @@ on:
         description: "mode of execution. Can be nightly, e2e, release"
         required: true
         type: string
-      cache_key:
-        description: "key for the Maven cache"
-        required: true
-        type: string
-      cache_fallback_key:
-        description: "fallback key for the Maven cache"
-        required: true
-        type: string
       maven_cache_folder:
         description: "folder for the Maven cache"
         required: true
@@ -104,8 +96,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ inputs.maven_cache_folder }}
-          key: ${{ inputs.cache_key }}
-          restore-keys: ${{ inputs.cache_fallback_key }}
+          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml', '!**/target/**') }}
+          restore-keys: maven-${{ runner.os }}
 
       - name: "Set JDK"
         run: |
@@ -174,8 +166,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ inputs.maven_cache_folder }}
-          key: ${{ inputs.cache_key }}
-          restore-keys: ${{ inputs.cache_fallback_key }}
+          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml', '!**/target/**') }}
+          restore-keys: maven-${{ runner.os }}
 
       - name: "Cache Docker images"
         id: docker-cache
