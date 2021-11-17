@@ -45,6 +45,7 @@ import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
@@ -201,6 +202,9 @@ public class MiniCluster implements AutoCloseableAsync {
     @GuardedBy("lock")
     private RpcServiceFactory taskManagerRpcServiceFactory;
 
+    @GuardedBy("lock")
+    private WorkingDirectory workingDirectory;
+
     /** Flag marking the mini cluster as started/running. */
     private volatile boolean running;
 
@@ -283,6 +287,13 @@ public class MiniCluster implements AutoCloseableAsync {
                     miniClusterConfiguration.getRpcServiceSharing() == RpcServiceSharing.SHARED;
 
             try {
+                workingDirectory =
+                        WorkingDirectory.create(
+                                ClusterEntrypointUtils.generateWorkingDirectoryFile(
+                                        configuration,
+                                        Optional.empty(),
+                                        "minicluster_" + ResourceID.generate()));
+
                 initializeIOFormatClasses(configuration);
 
                 rpcSystem = RpcSystem.load(configuration);
@@ -581,7 +592,11 @@ public class MiniCluster implements AutoCloseableAsync {
                                     remainingServicesTerminationFuture,
                                     () -> terminateExecutors(shutdownTimeoutMillis));
 
-                    executorsTerminationFuture.whenComplete(
+                    final CompletableFuture<Void> deleteDirectoriesFuture =
+                            FutureUtils.runAfterwards(
+                                    executorsTerminationFuture, this::deleteDirectories);
+
+                    deleteDirectoriesFuture.whenComplete(
                             (Void ignored, Throwable throwable) -> {
                                 if (throwable != null) {
                                     terminationFuture.completeExceptionally(
@@ -1172,6 +1187,14 @@ public class MiniCluster implements AutoCloseableAsync {
                         executorShutdownTimeoutMillis, TimeUnit.MILLISECONDS, ioExecutor);
             } else {
                 return CompletableFuture.completedFuture(null);
+            }
+        }
+    }
+
+    private void deleteDirectories() throws IOException {
+        synchronized (lock) {
+            if (workingDirectory != null) {
+                workingDirectory.delete();
             }
         }
     }

@@ -22,13 +22,18 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.io.File;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -118,5 +123,33 @@ public class ConfigurationUtilsTest extends TestLogger {
         mapElements.put("A:,B", "C:,D");
         mapElements.put(10, 20);
         assertEquals("'''A:,B'':''C:,D''',10:20", ConfigurationUtils.convertToString(mapElements));
+    }
+
+    @Test
+    public void testRandomTempDirectorySelection() {
+        final Configuration configuration = new Configuration();
+        final StringBuilder tempDirectories = new StringBuilder();
+        final int numberTempDirectories = 20;
+
+        for (int i = 0; i < numberTempDirectories; i++) {
+            tempDirectories.append(UUID.randomUUID()).append(',');
+        }
+
+        configuration.set(CoreOptions.TMP_DIRS, tempDirectories.toString());
+
+        final Set<File> allTempDirectories =
+                Arrays.stream(ConfigurationUtils.parseTempDirectories(configuration))
+                        .map(File::new)
+                        .collect(Collectors.toSet());
+
+        final Set<File> drawnTempDirectories = new HashSet<>();
+        final int numberDraws = 100;
+
+        for (int i = 0; i < numberDraws; i++) {
+            drawnTempDirectories.add(ConfigurationUtils.getRandomTempDirectory(configuration));
+        }
+
+        assertThat(drawnTempDirectories).hasSizeGreaterThan(1);
+        assertThat(drawnTempDirectories).isSubsetOf(allTempDirectories);
     }
 }

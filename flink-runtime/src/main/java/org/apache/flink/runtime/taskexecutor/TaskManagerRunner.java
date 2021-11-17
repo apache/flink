@@ -37,6 +37,7 @@ import org.apache.flink.runtime.blob.TaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -79,6 +80,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetAddress;
 import java.time.Duration;
@@ -127,6 +129,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
     private final TaskExecutorService taskExecutorService;
 
+    private final WorkingDirectory workingDirectory;
+
     private final CompletableFuture<Result> terminationFuture;
 
     private final RpcSystem rpcSystem;
@@ -164,6 +168,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
         this.resourceId =
                 getTaskManagerResourceID(
                         configuration, rpcService.getAddress(), rpcService.getPort());
+
+        this.workingDirectory =
+                ClusterEntrypointUtils.createTaskManagerWorkingDirectory(configuration, resourceId);
+
+        LOG.info("Using working directory: {}", workingDirectory);
 
         HeartbeatServices heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
@@ -256,8 +265,19 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         FutureUtils.composeAfterwards(
                                 taskManagerTerminationFuture, this::shutDownServices);
 
+                final CompletableFuture<Void> workingDirCleanupFuture;
+
+                if (terminationResult == Result.SUCCESS) {
+                    workingDirCleanupFuture =
+                            FutureUtils.runAfterwards(
+                                    serviceTerminationFuture, this::deleteWorkingDir);
+                } else {
+                    // keep the working directory in case of a failure
+                    workingDirCleanupFuture = serviceTerminationFuture;
+                }
+
                 final CompletableFuture<Void> rpcSystemClassLoaderCloseFuture =
-                        FutureUtils.runAfterwards(serviceTerminationFuture, rpcSystem::close);
+                        FutureUtils.runAfterwards(workingDirCleanupFuture, rpcSystem::close);
 
                 rpcSystemClassLoaderCloseFuture.whenComplete(
                         (Void ignored, Throwable throwable) -> {
@@ -271,6 +291,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
         }
 
         return terminationFuture;
+    }
+
+    private void deleteWorkingDir() throws IOException {
+        if (workingDirectory != null) {
+            workingDirectory.delete();
+        }
     }
 
     private CompletableFuture<Void> shutDownServices() {

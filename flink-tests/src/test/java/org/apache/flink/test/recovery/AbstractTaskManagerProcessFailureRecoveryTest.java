@@ -265,7 +265,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
     public abstract void testTaskManagerFailure(Configuration configuration, File coordinateDir)
             throws Exception;
 
-    protected static void printProcessLog(String processName, TestProcess process) {
+    static void printProcessLog(String processName, TestProcess process) {
         if (process == null) {
             System.out.println("-----------------------------------------");
             System.out.println(" PROCESS " + processName + " WAS NOT STARTED.");

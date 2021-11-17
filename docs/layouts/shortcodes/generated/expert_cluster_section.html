@@ -32,5 +32,23 @@
             <td><p>Enum</p></td>
             <td>Defines whether cluster will handle any uncaught exceptions by just logging them (LOG mode), or by failing job (FAIL mode)<br /><br />Possible values:<ul><li>"LOG"</li><li>"FAIL"</li></ul></td>
         </tr>
+        <tr>
+            <td><h5>process.jobmanager.working-dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Working directory for Flink JobManager processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to <code class="highlighter-rouge">process.working-dir</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>process.taskmanager.working-dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Working directory for Flink TaskManager processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to <code class="highlighter-rouge">process.working-dir</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>process.working-dir</h5></td>
+            <td style="word-wrap: break-word;">io.tmp.dirs</td>
+            <td>String</td>
+            <td>Working directory for Flink processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to a randomly picked temporary directory defined via <code class="highlighter-rouge">io.tmp.dirs</code>.</td>
+        </tr>
     </tbody>
 </table>

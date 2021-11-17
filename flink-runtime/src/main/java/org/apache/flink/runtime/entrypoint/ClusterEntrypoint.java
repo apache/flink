@@ -151,6 +151,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     @GuardedBy("lock")
     private ExecutorService ioExecutor;
 
+    @GuardedBy("lock")
+    private WorkingDirectory workingDirectory;
+
     private ExecutionGraphInfoStore executionGraphInfoStore;
 
     private final Thread shutDownHook;
@@ -354,6 +357,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                     "Initialize cluster entrypoint {} with resource id {}.",
                     getClass().getSimpleName(),
                     resourceId);
+
+            workingDirectory =
+                    ClusterEntrypointUtils.createJobManagerWorkingDirectory(
+                            configuration, resourceId);
         }
     }
 
@@ -525,7 +532,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
             final CompletableFuture<Void> cleanupDirectoriesFuture =
                     FutureUtils.runAfterwards(
-                            rpcSystemClassLoaderCloseFuture, this::cleanupDirectories);
+                            rpcSystemClassLoaderCloseFuture,
+                            () -> cleanupDirectories(shutdownBehaviour));
 
             cleanupDirectoriesFuture.whenComplete(
                     (Void ignored2, Throwable serviceThrowable) -> {
@@ -571,12 +579,37 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     /**
      * Clean up of temporary directories created by the {@link ClusterEntrypoint}.
      *
+     * @param shutdownBehaviour specifying the shutdown behaviour
      * @throws IOException if the temporary directories could not be cleaned up
      */
-    protected void cleanupDirectories() throws IOException {
+    protected void cleanupDirectories(ShutdownBehaviour shutdownBehaviour) throws IOException {
+        IOException ioException = null;
+
         final String webTmpDir = configuration.getString(WebOptions.TMP_DIR);
 
-        FileUtils.deleteDirectory(new File(webTmpDir));
+        try {
+            FileUtils.deleteDirectory(new File(webTmpDir));
+        } catch (IOException ioe) {
+            ioException = ioe;
+        }
+
+        // We only clean up the working directory if we gracefully shut down. If it is a process
+        // failure, then we want to keep the working directory for potential recoveries.
+        if (shutdownBehaviour == ShutdownBehaviour.GRACEFUL_SHUTDOWN) {
+            synchronized (lock) {
+                if (workingDirectory != null) {
+                    try {
+                        workingDirectory.delete();
+                    } catch (IOException ioe) {
+                        ioException = ExceptionUtils.firstOrSuppressed(ioe, ioException);
+                    }
+                }
+            }
+        }
+
+        if (ioException != null) {
+            throw ioException;
+        }
     }
 
     // --------------------------------------------------
@@ -665,8 +698,11 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         DETACHED
     }
 
-    private enum ShutdownBehaviour {
+    /** Shutdown behaviour of a {@link ClusterEntrypoint}. */
+    protected enum ShutdownBehaviour {
+        // Graceful shutdown means that the process wants to terminate and will clean everything up
         GRACEFUL_SHUTDOWN,
+        // Process failure means that we don't clean up things so that they could be recovered
         PROCESS_FAILURE,
     }
 }
