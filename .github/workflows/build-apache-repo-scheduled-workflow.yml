@@ -24,9 +24,8 @@
 name: "Build Apache Repo"
 
 on:
-  push:
-  schedule:
-    - cron: '0 0 * * *' # Deploy every day at 00:00
+  workflow_dispatch:
+
 
 resources:
   containers:

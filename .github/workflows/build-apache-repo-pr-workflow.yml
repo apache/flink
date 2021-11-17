@@ -24,7 +24,8 @@
 name: "Build Apache Repo"
 
 on:
-  push:
+  workflow_dispatch:
+
 
 resources:
   containers:
