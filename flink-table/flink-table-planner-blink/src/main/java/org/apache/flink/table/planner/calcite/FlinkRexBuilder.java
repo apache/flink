@@ -35,6 +35,7 @@ import org.apache.calcite.util.Sarg;
 import org.apache.calcite.util.TimestampString;
 import org.apache.calcite.util.Util;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -126,8 +127,19 @@ public final class FlinkRexBuilder extends RexBuilder {
     @SuppressWarnings("rawTypes")
     public RexNode makeIn(RexNode arg, List<? extends RexNode> ranges) {
         if (areAssignable(arg, ranges)) {
-            final Sarg sarg = toSarg(Comparable.class, ranges, false);
+            // Fix calcite doesn't check literal whether is NULL here
+            List<RexNode> rangeWithoutNull = new ArrayList<>();
+            boolean containsNull = false;
+            for (RexNode node : ranges) {
+                if (isNull(node)) {
+                    containsNull = true;
+                } else {
+                    rangeWithoutNull.add(node);
+                }
+            }
+            final Sarg sarg = toSarg(Comparable.class, rangeWithoutNull, containsNull);
             if (sarg != null) {
+                // Fix calcite use the type of the first element as the search argement type.
                 List<RelDataType> distinctTypes =
                         Util.distinctList(
                                 ranges.stream().map(RexNode::getType).collect(Collectors.toList()));
@@ -143,6 +155,13 @@ public final class FlinkRexBuilder extends RexBuilder {
                 ranges.stream()
                         .map(r -> makeCall(SqlStdOperatorTable.EQUALS, arg, r))
                         .collect(Util.toImmutableList()));
+    }
+
+    private boolean isNull(RexNode node) {
+        if (node instanceof RexLiteral) {
+            return ((RexLiteral) node).isNull();
+        }
+        return false;
     }
 
     /** Copied from the {@link RexBuilder} to fix the {@link RexBuilder#makeIn}. */
@@ -163,7 +182,7 @@ public final class FlinkRexBuilder extends RexBuilder {
      */
     @SuppressWarnings("UnstableApiUsage")
     private static <C extends Comparable<C>> Sarg<C> toSarg(
-            Class<C> clazz, List<? extends RexNode> ranges, boolean containsNull) {
+            Class<C> clazz, List<RexNode> ranges, boolean containsNull) {
         if (ranges.isEmpty()) {
             // Cannot convert an empty list to a Sarg (by this interface, at least)
             // because we use the type of the first element.
