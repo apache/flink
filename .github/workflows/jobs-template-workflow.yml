@@ -99,10 +99,12 @@ jobs:
           key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml', '!**/target/**') }}
           restore-keys: maven-${{ runner.os }}
 
-      - name: "Set JDK"
-        run: |
-          echo "::set-output name=JAVA_HOME::${JAVA_HOME}_${{ inputs.jdk }}_X64"
-          echo "::set-output name=PATH::${JAVA_HOME}_${{ inputs.jdk }}_X64/bin:$PATH"
+      # see https://github.com/actions/setup-java#supported-distributions
+      - name: "Set JDK ${{ inputs.jdk }}"
+        uses: actions/setup-java@v2
+        with:
+          distribution: "temurin"
+          java-version: ${{ inputs.jdk }}
 
       # Compile
       - name: "Compile"
@@ -151,6 +153,13 @@ jobs:
         with:
           maven-version: 3.2.5
 
+      # see https://github.com/actions/setup-java#supported-distributions
+      - name: "Set JDK ${{ inputs.jdk }}"
+        uses: actions/setup-java@v2
+        with:
+          distribution: "temurin"
+          java-version: ${{ inputs.jdk }}
+
       # download artifact from compile stage
       - name: "Download pipeline artifact"
         uses: actions/download-artifact@v2
@@ -181,11 +190,6 @@ jobs:
       - name: "Load Docker images if not present in the cache, yet"
         if: ${{ cancelled() && !steps.docker-cache.cache.hit }}
         run: ./tools/azure-pipelines/cache_docker_images.sh load
-
-      - name: "Set JDK"
-        run: |
-          echo "::set-output name=JAVA_HOME::${JAVA_HOME}_${{ inputs.jdk }}_X64"
-          echo "::set-output name=PATH::${JAVA_HOME}_${{ inputs.jdk }}_X64/bin:$PATH"
 
       - name: "Set coredump pattern"
         run: sudo sysctl -w kernel.core_pattern=core.%p
