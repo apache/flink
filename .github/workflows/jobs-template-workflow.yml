@@ -58,6 +58,18 @@ on:
         description: "folder for the Maven cache"
         required: true
         type: string
+      flink_artifact_dir:
+        description: "Directory for the build artifacts"
+        required: true
+        type: string
+      docker_images_cache_key:
+        description: "key for the Docker images cache"
+        required: true
+        type: string
+      docker_images_cache_folder:
+        description: "folder for the Docker images cache"
+        required: true
+        type: string
 #    secrets:
 #      token:
 #        required: false
@@ -69,19 +81,12 @@ jobs:
     if: success() && (inputs.mode != e2e)
     timeout-minutes: 240 #cancelTimeoutInMinutes: 1 ???
     steps:
-      - name: "Clean workspace required?"
       - name: "TODO: AutoModality/action-clean@v1 Should only be necessary if specifying runs-on: self-hosted"
       - name: "TODO: free up disk space required? Original version called ./tools/azure-pipelines/free_disk_space.sh"
       - name: "Set up Maven" #and SSL??? This replaces the container from the original yml
         uses: stCarolas/setup-maven@v4.2
         with:
           maven-version: 3.2.5
-      - name: "Cache Maven local repo"
-        if: inputs.test_pool_definition.name != "Default" # This probably doesn't work as input cannot be an object
-        uses:
-
-jobs:
-    steps:
       # The cache task is persisting the .m2 directory between builds, so that
       # we do not have to re-download all dependencies from maven central for
       # each build. The hope is that downloading the cache is faster than
@@ -90,94 +95,85 @@ jobs:
       # as a key for the build cache (CACHE_KEY). If we have a cache miss on the hash
       # (usually because a pom file has changed), we'll fall back to a key without
       # the pom files (CACHE_FALLBACK_KEY).
-      # Offical documentation of the Cache task: https://docs.microsoft.com/en-us/azure/devops/pipelines/caching/?view=azure-devops
-      - task: Cache@2
-        inputs:
-          key: $(CACHE_KEY)
-          restoreKeys: $(CACHE_FALLBACK_KEY)
-          path: $(MAVEN_CACHE_FOLDER)
-        continueOnError: true # continue the build even if the cache fails.
-        # do not use cache on the "Default" queue
-        condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
-        displayName: Cache Maven local repo
-      - script: |
-          echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
-          echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
-        displayName: "Set JDK"
+      - name: "Cache Maven local repo"
+        if: inputs.test_pool_definition.name != "Default" # This probably doesn't work as input cannot be an object
+        uses: actions/cache@v2
+        with:
+          path: ${{ inputs.maven_cache_folder }}
+          key: ${{ inputs.cache_key }}
+          restore-keys: ${{ inputs.cache_fallback_key }}
+      - name: "Set JDK"
+        run: |
+          echo "::set-output name=JAVA_HOME::${JAVA_HOME}_${{ inputs.jdk }}_X64"
+          echo "::set-output name=PATH::${JAVA_HOME}_${{ inputs.jdk }}_X64/bin:$PATH"
       # Compile
-      - script: |
-          ${{parameters.environment}} ./tools/ci/compile.sh || exit $?
+      - name: "Compile"
+        run: |
+          ${{ inputs.environment }} ./tools/ci/compile.sh || exit $?
           ./tools/azure-pipelines/create_build_artifact.sh
-        displayName: Compile
-
       # upload artifacts for next stage
-      - task: PublishPipelineArtifact@1
-        inputs:
-          targetPath: $(FLINK_ARTIFACT_DIR)
-          artifact: FlinkCompileArtifact-${{parameters.stage_name}}
-
-  - job: test_${{parameters.stage_name}}
-    dependsOn: compile_${{parameters.stage_name}}
-    condition: and(succeeded(), not(eq(variables['MODE'], 'e2e')))
-    pool: ${{parameters.test_pool_definition}}
-    container: ${{parameters.container}}
-    timeoutInMinutes: 240
-    cancelTimeoutInMinutes: 1
-    workspace:
-      clean: all
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          name: FlinkCompileArtifact-${{ inputs.stage_name }}
+          path: ${{ inputs.flink_artifact_dir }}
+  test:
+    name: "test_${{ inputs.stage_name }}"
+    needs: compile
+    runs-on: ubuntu-20.04
+    if: success() && inputs.mode != "e2e"
+    timeout-minutes: 240 #cancelTimeoutInMinutes: 1 ???
     strategy:
       matrix:
-        core:
-          module: core
-        python:
-          module: python
-        libraries:
-          module: libraries
-        table:
-          module: table
-        connectors:
-          module: connectors
-        kafka_gelly:
-          module: kafka/gelly
-        tests:
-          module: tests
-        misc:
-          module: misc
-        finegrained_resource_management:
-          module: finegrained_resource_management
+        module:
+          - core
+          - python
+          - libraries
+          - table
+          - connectors
+          - kafka/gelly
+          - tests
+          - misc
+          - finegrained_resource_management
+
     steps:
-      # if on Azure, free up disk space
-      - script: ./tools/azure-pipelines/free_disk_space.sh
-        target: host
-        condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
-        displayName: Free up disk space
-
+      - name: "TODO: AutoModality/action-clean@v1 Should only be necessary if specifying runs-on: self-hosted"
+      - name: "TODO: free up disk space required? Original version called ./tools/azure-pipelines/free_disk_space.sh"
+      - name: "Set up Maven" #and SSL??? This replaces the container from the original yml
+        uses: stCarolas/setup-maven@v4.2
+        with:
+          maven-version: 3.2.5
       # download artifact from compile stage
-      - task: DownloadPipelineArtifact@2
-        inputs:
-          path: $(FLINK_ARTIFACT_DIR)
-          artifact: FlinkCompileArtifact-${{parameters.stage_name}}
+      - name: "Download pipeline artifact"
+        uses: actions/download-artifact@v2
+        with:
+          name: FlinkCompileArtifact-${{ inputs.stage_name }}
+          path: ${{ inputs.flink_artifact_dir }}
+      - name: "Unpack Build artifact"
+        run: FLINK_ARTIFACT_DIR=${{ inputs.flink_artifact_dir }} ./tools/azure-pipelines/unpack_build_artifact.sh
+      - name: "Cache Maven local repo"
+        if: inputs.test_pool_definition.name != "Default" # This probably doesn't work as input cannot be an object
+        uses: actions/cache@v2
+        with:
+          path: ${{ inputs.maven_cache_folder }}
+          key: ${{ inputs.cache_key }}
+          restore-keys: ${{ inputs.cache_fallback_key }}
+      - name: "Cache docker images"
+        if: inputs.test_pool_definition.name != "Default" # This probably doesn't work as input cannot be an object
+        uses: actions/cache@v2
+        with:
+          path: ${{ inputs.docker_images_cache_folder }}
+          key: ${{ matrix.module }} | ${{ inputs.docker_images_cache_folder }}
+          '"$(module)" | $(docker_images_cache_key)'
+          restore-keys: ${{ inputs.cache_fallback_key }}
 
-      - script: ./tools/azure-pipelines/unpack_build_artifact.sh
-        displayName: "Unpack Build artifact"
-
-      - task: Cache@2
-        inputs:
-          key: $(CACHE_KEY)
-          restoreKeys: $(CACHE_FALLBACK_KEY)
-          path: $(MAVEN_CACHE_FOLDER)
-        continueOnError: true # continue the build even if the cache fails.
-        condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
-        displayName: Cache Maven local repo
-
+jobs:
+  - job: test_${{parameters.stage_name}}
+    steps:
       - task: Cache@2
         inputs:
           key: '"$(module)" | $(DOCKER_IMAGES_CACHE_KEY)'
-          path: $(DOCKER_IMAGES_CACHE_FOLDER)
           cacheHitVar: DOCKER_IMAGES_CACHE_HIT
-        continueOnError: true
-        condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
-        displayName: Cache docker images
 
       - script: ./tools/azure-pipelines/cache_docker_images.sh load
         displayName: Restore docker images
