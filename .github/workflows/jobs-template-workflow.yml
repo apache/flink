@@ -169,15 +169,14 @@ jobs:
       - name: "Load Docker images if not present in the cache, yet"
         if: cancelled() && !steps.docker-cache.cache.hit
         run: ./tools/azure-pipelines/cache_docker_images.sh load
+      - name: "Set JDK"
+        run: |
+          echo "::set-output name=JAVA_HOME::${JAVA_HOME}_${{ inputs.jdk }}_X64"
+          echo "::set-output name=PATH::${JAVA_HOME}_${{ inputs.jdk }}_X64/bin:$PATH"
 
 jobs:
   - job: test_${{parameters.stage_name}}
     steps:
-      - script: |
-          echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
-          echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
-        displayName: "Set JDK"
-
       - script: sudo sysctl -w kernel.core_pattern=core.%p
         displayName: Set coredump pattern
 
