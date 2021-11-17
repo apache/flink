@@ -31,7 +31,7 @@ on:
 
 jobs:
   ci:
-    uses: ververica/flink/.github/workflows/jobs-template-workflow.yml
+    uses: ververica/flink/.github/workflows/jobs-template-workflow.yml@HEAD
     with:
       test_pool_name: ""
       stage_name: "ci"
@@ -44,6 +44,12 @@ jobs:
       flink_artifact_dir: ${{ github.workspace }}/flink_artifact
       docker_images_cache_key: docker-images-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', 'flink-test-utils-parent/**/DockerImageVersions.java') }}
       docker_images_cache_folder: ${{ github.workspace }}/.docker-cache
+    secrets:
+      s3_bucket: ""
+      s3_access_key: ""
+      s3_secret_key: ""
+      glue_schema_access_key: ""
+      glue_schema_secret_key: ""
   docs-404-check:
     runs-on: ubuntu-latest
     steps:
