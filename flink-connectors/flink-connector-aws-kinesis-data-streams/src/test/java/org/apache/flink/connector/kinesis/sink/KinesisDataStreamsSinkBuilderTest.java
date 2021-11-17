@@ -17,19 +17,44 @@
 
 package org.apache.flink.connector.kinesis.sink;
 
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.base.sink.writer.ElementConverter;
+
 import org.junit.Test;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 /** Covers construction, defaults and sanity checking of KinesisDataStreamsSinkBuilder. */
 public class KinesisDataStreamsSinkBuilderTest {
+    private static final ElementConverter<String, PutRecordsRequestEntry>
+            ELEMENT_CONVERTER_PLACEHOLDER =
+                    KinesisDataStreamsSinkElementConverter.<String>builder()
+                            .setSerializationSchema(new SimpleStringSchema())
+                            .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
+                            .build();
+
+    @Test
+    public void elementConverterOfSinkMustBeSetWhenBuilt() {
+        Throwable thrown =
+                assertThrows(
+                        NullPointerException.class,
+                        () -> KinesisDataStreamsSink.builder().setStreamName("stream").build());
+        assertEquals(
+                "ElementConverter must be not null when initilizing the AsyncSinkBase.",
+                thrown.getMessage());
+    }
 
     @Test
     public void streamNameOfSinkMustBeSetWhenBuilt() {
         Throwable thrown =
                 assertThrows(
-                        NullPointerException.class, () -> KinesisDataStreamsSink.builder().build());
+                        NullPointerException.class,
+                        () ->
+                                KinesisDataStreamsSink.<String>builder()
+                                        .setElementConverter(ELEMENT_CONVERTER_PLACEHOLDER)
+                                        .build());
         assertEquals(
                 "The stream name must not be null when initializing the KDS Sink.",
                 thrown.getMessage());
@@ -40,7 +65,11 @@ public class KinesisDataStreamsSinkBuilderTest {
         Throwable thrown =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> KinesisDataStreamsSink.builder().setStreamName("").build());
+                        () ->
+                                KinesisDataStreamsSink.<String>builder()
+                                        .setStreamName("")
+                                        .setElementConverter(ELEMENT_CONVERTER_PLACEHOLDER)
+                                        .build());
         assertEquals(
                 "The stream name must be set when initializing the KDS Sink.", thrown.getMessage());
     }
