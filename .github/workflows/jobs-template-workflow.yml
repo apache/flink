@@ -81,12 +81,20 @@ jobs:
     if: success() && (inputs.mode != e2e)
     timeout-minutes: 240 #cancelTimeoutInMinutes: 1 ???
     steps:
+      - name: "Checks out Flink"
+        uses: actions/checkout@v2
+
       - name: "TODO: AutoModality/action-clean@v1 Should only be necessary if specifying runs-on: self-hosted"
+        run: echo "Still todo"
+
       - name: "TODO: free up disk space required? Original version called ./tools/azure-pipelines/free_disk_space.sh"
+        run: echo "Still todo"
+
       - name: "Set up Maven" #and SSL??? This replaces the container from the original yml
         uses: stCarolas/setup-maven@v4.2
         with:
           maven-version: 3.2.5
+
       # The cache task is persisting the .m2 directory between builds, so that
       # we do not have to re-download all dependencies from maven central for
       # each build. The hope is that downloading the cache is faster than
@@ -102,21 +110,25 @@ jobs:
           path: ${{ inputs.maven_cache_folder }}
           key: ${{ inputs.cache_key }}
           restore-keys: ${{ inputs.cache_fallback_key }}
+
       - name: "Set JDK"
         run: |
           echo "::set-output name=JAVA_HOME::${JAVA_HOME}_${{ inputs.jdk }}_X64"
           echo "::set-output name=PATH::${JAVA_HOME}_${{ inputs.jdk }}_X64/bin:$PATH"
+
       # Compile
       - name: "Compile"
         run: |
           ${{ inputs.environment }} ./tools/ci/compile.sh || exit $?
           ./tools/azure-pipelines/create_build_artifact.sh
+
       # upload artifacts for next stage
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: FlinkCompileArtifact-${{ inputs.stage_name }}
           path: ${{ inputs.flink_artifact_dir }}
+
   test:
     name: "test_${{ inputs.stage_name }}"
     needs: compile
@@ -137,20 +149,30 @@ jobs:
           - finegrained_resource_management
 
     steps:
+      - name: "Checks out Flink"
+        uses: actions/checkout@v2
+
       - name: "TODO: AutoModality/action-clean@v1 Should only be necessary if specifying runs-on: self-hosted"
+        run: echo "Still todo"
+
       - name: "TODO: free up disk space required? Original version called ./tools/azure-pipelines/free_disk_space.sh"
+        run: echo "Still todo"
+
       - name: "Set up Maven" #and SSL??? This replaces the container from the original yml
         uses: stCarolas/setup-maven@v4.2
         with:
           maven-version: 3.2.5
+
       # download artifact from compile stage
       - name: "Download pipeline artifact"
         uses: actions/download-artifact@v2
         with:
           name: FlinkCompileArtifact-${{ inputs.stage_name }}
           path: ${{ inputs.flink_artifact_dir }}
+
       - name: "Unpack Build artifact"
         run: FLINK_ARTIFACT_DIR=${{ inputs.flink_artifact_dir }} ./tools/azure-pipelines/unpack_build_artifact.sh
+
       - name: "Cache Maven local repo"
         if: inputs.test_pool_name != "Default" # This probably doesn't work as input cannot be an object
         uses: actions/cache@v2
@@ -158,6 +180,7 @@ jobs:
           path: ${{ inputs.maven_cache_folder }}
           key: ${{ inputs.cache_key }}
           restore-keys: ${{ inputs.cache_fallback_key }}
+
       - name: "Cache Docker images"
         id: docker-cache
         if: inputs.test_pool_name != "Default" # This probably doesn't work as input cannot be an object
@@ -166,15 +189,19 @@ jobs:
           path: ${{ inputs.docker_images_cache_folder }}
           key: "${{ matrix.module }}-${{ inputs.docker_images_cache_folder }}"
           restore-keys: ${{ inputs.cache_fallback_key }}
+
       - name: "Load Docker images if not present in the cache, yet"
         if: cancelled() && !steps.docker-cache.cache.hit
         run: ./tools/azure-pipelines/cache_docker_images.sh load
+
       - name: "Set JDK"
         run: |
           echo "::set-output name=JAVA_HOME::${JAVA_HOME}_${{ inputs.jdk }}_X64"
           echo "::set-output name=PATH::${JAVA_HOME}_${{ inputs.jdk }}_X64/bin:$PATH"
+
       - name: "Set coredump pattern"
         run: sudo sysctl -w kernel.core_pattern=core.%p
+
       - name: "Test - ${{ matrix.module }}"
         id: test-run-${{ matrix.module }}
         env:
@@ -188,17 +215,20 @@ jobs:
               -a ${{ github.job }} \
               -t ${{ runner.temp }} \
               ./tools/ci/test_controller.sh ${{ matrix.module }}
+
       - name: "Publish Unit Test Results"
         uses: EnricoMi/publish-unit-test-result-action@v1
         if: always()
         with:
           files: '**/TEST*.xml'
+
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v2
         if: ${{ steps.test-run-${{ matrix.module }}.outputs.debug-files-output-dir }} != ''
         with:
           name: logs-${{ inputs.stage_name }}-${{ steps.test-run-${{ matrix.module }}.outputs.debug-files-name }}
           path: ${{ steps.test-run-${{ matrix.module }}.outputs.debug-files-output-dir }}
+
       - name: "Save Docker images to cache"
         if: ${{ !cancelled() && (failed() || !steps.docker-cache.cache.hit) }}
         run: ./tools/azure-pipelines/cache_docker_images.sh save
