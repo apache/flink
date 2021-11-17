@@ -19,10 +19,10 @@
 package org.apache.flink.table.connector.format;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.projection.Projection;
 
 /**
  * Extension of {@link DecodingFormat} which is able to produce projected rows.

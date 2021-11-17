@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.projection;
+package org.apache.flink.table.connector;
 
 import org.apache.flink.table.types.DataType;
 

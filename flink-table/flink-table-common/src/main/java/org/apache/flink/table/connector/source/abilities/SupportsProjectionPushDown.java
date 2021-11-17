@@ -21,10 +21,10 @@ package org.apache.flink.table.connector.source.abilities;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.projection.Projection;
 
 /**
  * Enables to push down a (possibly nested) projection into a {@link ScanTableSource}.

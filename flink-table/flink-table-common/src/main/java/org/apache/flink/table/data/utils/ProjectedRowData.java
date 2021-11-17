@@ -19,6 +19,7 @@
 package org.apache.flink.table.data.utils;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.MapData;
@@ -27,7 +28,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.projection.Projection;
 import org.apache.flink.types.RowKind;
 
 import java.util.Arrays;
