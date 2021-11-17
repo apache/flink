@@ -62,10 +62,6 @@ on:
         description: "Directory for the build artifacts"
         required: true
         type: string
-      flink_log_dir:
-        description: "Directory for the log files"
-        required: true
-        type: string
       docker_images_cache_key:
         description: "key for the Docker images cache"
         required: true
@@ -198,7 +194,6 @@ jobs:
         run: |
           ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh \
               -a ${{ github.job }} \
-              -f ${{ inputs.flink_log_dir }} \
               -t ${{ runner.temp }} \
               ./tools/ci/test_controller.sh ${{ matrix.module }}
       - name: "Publish Unit Test Results"
