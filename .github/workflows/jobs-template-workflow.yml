@@ -70,9 +70,17 @@ on:
         description: "folder for the Docker images cache"
         required: true
         type: string
-#    secrets:
-#      token:
-#        required: false
+    secrets:
+      s3_bucket:
+        required: true
+      s3_access_key:
+        required: true
+      s3_secret_key:
+        required: true
+      glue_schema_access_key:
+        required: true
+      glue_schema_secret_key:
+        required: true
 
 jobs:
   compile:
@@ -175,20 +183,18 @@ jobs:
           echo "::set-output name=PATH::${JAVA_HOME}_${{ inputs.jdk }}_X64/bin:$PATH"
       - name: "Set coredump pattern"
         run: sudo sysctl -w kernel.core_pattern=core.%p
+      - name: "Test - ${{ matrix.module }}"
+        env:
+          IT_CASE_S3_BUCKET: ${{ secrets.s3_bucket }}
+          IT_CASE_S3_ACCESS_KEY: ${{ secrets.s3_access_key }}
+          IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
+          IT_CASE_GLUE_SCHEMA_ACCESS_KEY: ${{ secrets.glue_schema_access_key }}
+          IT_CASE_GLUE_SCHEMA_SECRET_KEY: ${{ secrets.glue_schema_secret_key }}
+        run: ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh ${{ matrix.module }}
 
 jobs:
   - job: test_${{parameters.stage_name}}
     steps:
-      # Test
-      - script: ${{parameters.environment}} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module)
-        displayName: Test - $(module)
-        env:
-          IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
-          IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
-          IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
-          IT_CASE_GLUE_SCHEMA_ACCESS_KEY: $(SECRET_GLUE_SCHEMA_ACCESS_KEY)
-          IT_CASE_GLUE_SCHEMA_SECRET_KEY: $(SECRET_GLUE_SCHEMA_SECRET_KEY)
-
       - task: PublishTestResults@2
         condition: succeededOrFailed()
         inputs:
