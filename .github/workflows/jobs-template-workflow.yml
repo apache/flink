@@ -18,7 +18,7 @@ name: "Reusable workflow example"
 on:
   workflow_call:
     inputs:
-      test_pool_definition: 
+      test_pool_name:
         description: "defines the hardware pool for compilation and unit test execution."
         required: true
         type: string
@@ -96,7 +96,7 @@ jobs:
       # (usually because a pom file has changed), we'll fall back to a key without
       # the pom files (CACHE_FALLBACK_KEY).
       - name: "Cache Maven local repo"
-        if: inputs.test_pool_definition.name != "Default" # This probably doesn't work as input cannot be an object
+        if: inputs.test_pool_name != "Default" # This probably doesn't work as input cannot be an object
         uses: actions/cache@v2
         with:
           path: ${{ inputs.maven_cache_folder }}
@@ -113,7 +113,7 @@ jobs:
           ./tools/azure-pipelines/create_build_artifact.sh
       # upload artifacts for next stage
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v2
         with:
           name: FlinkCompileArtifact-${{ inputs.stage_name }}
           path: ${{ inputs.flink_artifact_dir }}
@@ -152,34 +152,27 @@ jobs:
       - name: "Unpack Build artifact"
         run: FLINK_ARTIFACT_DIR=${{ inputs.flink_artifact_dir }} ./tools/azure-pipelines/unpack_build_artifact.sh
       - name: "Cache Maven local repo"
-        if: inputs.test_pool_definition.name != "Default" # This probably doesn't work as input cannot be an object
+        if: inputs.test_pool_name != "Default" # This probably doesn't work as input cannot be an object
         uses: actions/cache@v2
         with:
           path: ${{ inputs.maven_cache_folder }}
           key: ${{ inputs.cache_key }}
           restore-keys: ${{ inputs.cache_fallback_key }}
-      - name: "Cache docker images"
-        if: inputs.test_pool_definition.name != "Default" # This probably doesn't work as input cannot be an object
+      - name: "Cache Docker images"
+        id: docker-cache
+        if: inputs.test_pool_name != "Default" # This probably doesn't work as input cannot be an object
         uses: actions/cache@v2
         with:
           path: ${{ inputs.docker_images_cache_folder }}
-          key: ${{ matrix.module }} | ${{ inputs.docker_images_cache_folder }}
-          '"$(module)" | $(docker_images_cache_key)'
+          key: "${{ matrix.module }}-${{ inputs.docker_images_cache_folder }}"
           restore-keys: ${{ inputs.cache_fallback_key }}
+      - name: "Load Docker images if not present in the cache, yet"
+        if: cancelled() && !steps.docker-cache.cache.hit
+        run: ./tools/azure-pipelines/cache_docker_images.sh load
 
 jobs:
   - job: test_${{parameters.stage_name}}
     steps:
-      - task: Cache@2
-        inputs:
-          key: '"$(module)" | $(DOCKER_IMAGES_CACHE_KEY)'
-          cacheHitVar: DOCKER_IMAGES_CACHE_HIT
-
-      - script: ./tools/azure-pipelines/cache_docker_images.sh load
-        displayName: Restore docker images
-        condition: and(not(canceled()), eq(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
-        continueOnError: true
-
       - script: |
           echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
           echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
