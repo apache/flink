@@ -57,7 +57,7 @@ public class LookupJoinJsonPlanITCase extends JsonPlanTestBase {
                 new String[] {"age int", "id bigint", "name varchar"},
                 new HashMap<String, String>() {
                     {
-                        put("disable-lookup", "false");
+                        put("enable-lookup", "true");
                     }
                 });
         createTestValuesSinkTable(

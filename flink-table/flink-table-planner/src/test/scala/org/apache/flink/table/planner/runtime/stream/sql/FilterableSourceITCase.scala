@@ -58,7 +58,6 @@ class FilterableSourceITCase extends StreamingTestBase {
          |   'enable-watermark-push-down' = 'true',
          |   'filterable-fields' = 'a;c;d',
          |   'bounded' = 'false',
-         |   'disable-lookup' = 'true',
          |   'data-id' = '$dataId'
          | )
          |""".stripMargin
@@ -98,7 +97,6 @@ class FilterableSourceITCase extends StreamingTestBase {
          |   'enable-watermark-push-down' = 'true',
          |   'filterable-fields' = 'c;d',
          |   'bounded' = 'false',
-         |   'disable-lookup' = 'true',
          |   'data-id' = '$dataId'
          | )
          |""".stripMargin
@@ -137,8 +135,7 @@ class FilterableSourceITCase extends StreamingTestBase {
          |  'filterable-fields' = 'c',
          |  'enable-watermark-push-down' = 'true',
          |  'data-id' = '$dataId',
-         |  'bounded' = 'false',
-         |  'disable-lookup' = 'true'
+         |  'bounded' = 'false'
          |)
        """.stripMargin
     tEnv.executeSql(ddl)

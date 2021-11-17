@@ -76,7 +76,8 @@ object StreamTestSink {
   }
 }
 
-abstract class AbstractExactlyOnceSink[T] extends RichSinkFunction[T] with CheckpointedFunction {
+abstract class AbstractExactlyOnceSinkFunction[T]
+  extends RichSinkFunction[T] with CheckpointedFunction {
   protected var resultsState: ListState[String] = _
   protected var localResults: ArrayBuffer[String] = _
   protected val idx: Int = StreamTestSink.getNewSinkId
@@ -132,7 +133,7 @@ abstract class AbstractExactlyOnceSink[T] extends RichSinkFunction[T] with Check
   }
 }
 
-final class StringSink[T] extends AbstractExactlyOnceSink[T]() {
+final class StringSink[T] extends AbstractExactlyOnceSinkFunction[T]() {
   override def invoke(value: T) {
     localResults += value.toString
   }
@@ -142,7 +143,7 @@ final class StringSink[T] extends AbstractExactlyOnceSink[T]() {
 
 final class TestingAppendRowDataSink(
     rowTypeInfo: InternalTypeInfo[RowData], tz: TimeZone)
-  extends AbstractExactlyOnceSink[RowData] {
+  extends AbstractExactlyOnceSinkFunction[RowData] {
 
   def this(rowTypeInfo: InternalTypeInfo[RowData]) {
     this(rowTypeInfo, TimeZone.getTimeZone("UTC"))
@@ -157,7 +158,7 @@ final class TestingAppendRowDataSink(
 
 }
 
-final class TestingAppendSink(tz: TimeZone) extends AbstractExactlyOnceSink[Row] {
+final class TestingAppendSink(tz: TimeZone) extends AbstractExactlyOnceSinkFunction[Row] {
   def this() {
     this(TimeZone.getTimeZone("UTC"))
   }
@@ -168,7 +169,7 @@ final class TestingAppendSink(tz: TimeZone) extends AbstractExactlyOnceSink[Row]
 }
 
 final class TestingUpsertSink(keys: Array[Int], tz: TimeZone)
-  extends AbstractExactlyOnceSink[(Boolean, RowData)] {
+  extends AbstractExactlyOnceSinkFunction[(Boolean, RowData)] {
 
   private var upsertResultsState: ListState[String] = _
   private var localUpsertResults: mutable.Map[String, String] = _
@@ -429,7 +430,7 @@ class TestingOutputFormat[T](tz: TimeZone)
 }
 
 class TestingRetractSink(tz: TimeZone)
-  extends AbstractExactlyOnceSink[(Boolean, Row)] {
+  extends AbstractExactlyOnceSinkFunction[(Boolean, Row)] {
   protected var retractResultsState: ListState[String] = _
   protected var localRetractResults: ArrayBuffer[String] = _
 

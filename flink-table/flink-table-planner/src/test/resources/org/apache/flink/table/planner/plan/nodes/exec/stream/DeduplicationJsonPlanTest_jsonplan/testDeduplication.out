@@ -9,7 +9,6 @@
         "tableName" : "srcValuesTable"
       },
       "catalogTable" : {
-        "disable-lookup" : "true",
         "schema.4.expr" : "PROCTIME()",
         "schema.0.data-type" : "BIGINT",
         "schema.2.name" : "product",

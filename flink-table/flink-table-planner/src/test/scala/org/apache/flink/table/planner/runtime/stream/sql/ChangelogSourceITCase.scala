@@ -277,8 +277,7 @@ class ChangelogSourceITCase(
          |) WITH (
          | 'connector' = 'values',
          | 'data-id' = '$userDataId',
-         | 'changelog-mode' = 'I,UA,UB,D',
-         | 'disable-lookup' = 'true'
+         | 'changelog-mode' = 'I,UA,UB,D'
          |)
          |""".stripMargin)
     val ratesDataId = TestValuesTableFactory.registerData(TestData.ratesHistoryData)
@@ -290,8 +289,7 @@ class ChangelogSourceITCase(
          |) WITH (
          |  'connector' = 'values',
          |  'data-id' = '$ratesDataId',
-         |  'changelog-mode' = 'I,UB,UA,D',
-         |  'disable-lookup' = 'true'
+         |  'changelog-mode' = 'I,UB,UA,D'
          |)
       """.stripMargin)
   }
@@ -326,8 +324,7 @@ class ChangelogSourceITCase(
          |) WITH (
          | 'connector' = 'values',
          | 'data-id' = '$userDataId',
-         | 'changelog-mode' = 'UA,D',
-         | 'disable-lookup' = 'true'
+         | 'changelog-mode' = 'UA,D'
          |)
          |""".stripMargin)
     val ratesChangelog: Seq[Row] = Seq(
@@ -354,8 +351,7 @@ class ChangelogSourceITCase(
          |) WITH (
          |  'connector' = 'values',
          |  'data-id' = '$ratesDataId',
-         |  'changelog-mode' = 'UA,D',
-         |  'disable-lookup' = 'true'
+         |  'changelog-mode' = 'UA,D'
          |)
       """.stripMargin)
   }
@@ -374,8 +370,7 @@ class ChangelogSourceITCase(
          |) WITH (
          | 'connector' = 'values',
          | 'data-id' = '$userDataId',
-         | 'changelog-mode' = 'UA,D',
-         | 'disable-lookup' = 'true'
+         | 'changelog-mode' = 'UA,D'
          |)
          |""".stripMargin)
     val ratesDataId = TestValuesTableFactory.registerData(TestData.ratesUpsertData)
@@ -388,8 +383,7 @@ class ChangelogSourceITCase(
          |) WITH (
          |  'connector' = 'values',
          |  'data-id' = '$ratesDataId',
-         |  'changelog-mode' = 'UA,D',
-         |  'disable-lookup' = 'true'
+         |  'changelog-mode' = 'UA,D'
          |)
       """.stripMargin)
   }
@@ -409,8 +403,7 @@ class ChangelogSourceITCase(
          |) WITH (
          | 'connector' = 'values',
          | 'data-id' = '$userDataId',
-         | 'changelog-mode' = 'I,D',
-         | 'disable-lookup' = 'true'
+         | 'changelog-mode' = 'I,D'
          |)
          |""".stripMargin)
     val ratesChangelog = convertToNoUpdateData(TestData.ratesHistoryData)
@@ -423,8 +416,7 @@ class ChangelogSourceITCase(
          |) WITH (
          |  'connector' = 'values',
          |  'data-id' = '$ratesDataId',
-         |  'changelog-mode' = 'I,D',
-         |  'disable-lookup' = 'true'
+         |  'changelog-mode' = 'I,D'
          |)
       """.stripMargin)
   }

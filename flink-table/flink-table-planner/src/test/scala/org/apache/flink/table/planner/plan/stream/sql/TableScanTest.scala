@@ -22,8 +22,9 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.expressions.utils.Func0
-import org.apache.flink.table.planner.factories.dynamictablesource.MockedLookupTableSource
+import org.apache.flink.table.planner.factories.source.MockedLookupTableSource
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.Test
 
 class TableScanTest extends TableTestBase {
@@ -433,8 +434,7 @@ class TableScanTest extends TableTestBase {
         |) WITH (
         |  'connector' = 'values',
         |  'changelog-mode' = 'UA,D',
-        |  'enable-watermark-push-down' = 'true',
-        |  'disable-lookup' = 'true'
+        |  'enable-watermark-push-down' = 'true'
         |)
       """.stripMargin)
     util.verifyRelPlan("SELECT id, ts FROM src", ExplainDetail.CHANGELOG_MODE)
@@ -540,8 +540,7 @@ class TableScanTest extends TableTestBase {
         |  rate BIGINT
         |) WITH (
         |  'connector' = 'values',
-        |  'changelog-mode' = 'UA,D',
-        |  'disable-lookup' = 'true'
+        |  'changelog-mode' = 'UA,D'
         |)
       """.stripMargin)
 
@@ -577,8 +576,7 @@ class TableScanTest extends TableTestBase {
         |  WATERMARK FOR rowtime AS rowtime
         |) WITH (
         |  'connector' = 'values',
-        |  'changelog-mode' = 'UA,D',
-        |  'disable-lookup' = 'true'
+        |  'changelog-mode' = 'UA,D'
         |)
       """.stripMargin)
 
@@ -623,7 +621,8 @@ class TableScanTest extends TableTestBase {
         |  b DOUBLE
         |) WITH (
         |  'connector' = 'values',
-        |  'changelog-mode' = 'I,UB,D'
+        |  'changelog-mode' = 'I,UB,D',
+        |  'enable-lookup' = 'true'
         |)
       """.stripMargin)
     thrown.expect(classOf[ValidationException])
@@ -631,7 +630,7 @@ class TableScanTest extends TableTestBase {
       "Invalid source for table 'default_catalog.default_database.src'. A ScanTableSource " +
       "doesn't support a changelog stream that contains UPDATE_BEFORE but no UPDATE_AFTER. " +
       "Please adapt the implementation of class 'org.apache.flink.table.planner.factories" +
-      ".dynamictablesource.TestValuesScanLookupTableSource'.")
+      ".source.TestValuesScanLookupTableSource'.")
     util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 

@@ -63,7 +63,8 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         + "  age int \n"
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
-                        + "  'bounded' = 'false')";
+                        + "  'bounded' = 'false',\n"
+                        + "  'enable-lookup' = 'true')";
         tEnv.executeSql(srcTableA);
         tEnv.executeSql(srcTableB);
     }

@@ -74,7 +74,8 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
           |  `name` STRING,
           |  `age` INT
           |) WITH (
-          |  'connector' = 'values'
+          |  'connector' = 'values',
+          |  'enable-lookup' = 'true'
           |)
           |""".stripMargin)
 
@@ -87,7 +88,8 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
           |  `nominal_age` as age + 1
           |) WITH (
           |  'connector' = 'values',
-          |  'bounded' = 'true'
+          |  'bounded' = 'true',
+          |  'enable-lookup' = 'true'
           |)
           |""".stripMargin)
     }
@@ -486,7 +488,8 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |  `name` STRING,
         |  `age` INT
         |) WITH (
-        |  'connector' = 'values'
+        |  'connector' = 'values',
+        |  'enable-lookup' = 'true'
         |)
         |""".stripMargin)
     val sql =
@@ -511,7 +514,8 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |  `name` char(10),
         |  `age` INT
         |) WITH (
-        |  'connector' = 'values'
+        |  'connector' = 'values',
+        |  'enable-lookup' = 'true'
         |)
         |""".stripMargin)
 
@@ -551,7 +555,8 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
            |  `ts` TIMESTAMP(3)
            |) WITH (
            |  'connector' = 'values',
-           |  'lookup-function-class' = '${lookupFunction.getClass.getName}'
+           |  'lookup-function-class' = '${lookupFunction.getClass.getName}',
+           |  'enable-lookup' = 'true'
            |)
            |""".stripMargin)
     }

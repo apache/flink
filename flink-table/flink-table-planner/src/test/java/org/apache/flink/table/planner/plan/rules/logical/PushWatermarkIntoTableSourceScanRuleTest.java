@@ -89,8 +89,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + ") WITH (\n"
                         + "  'connector' = 'values',\n"
                         + "  'enable-watermark-push-down' = 'true',\n"
-                        + "  'bounded' = 'false',\n"
-                        + "  'disable-lookup' = 'true'"
+                        + "  'bounded' = 'false'"
                         + ")";
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan("select a, c from MyTable");
@@ -108,8 +107,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'enable-watermark-push-down' = 'true',\n"
-                        + " 'bounded' = 'false',\n"
-                        + " 'disable-lookup' = 'true'"
+                        + " 'bounded' = 'false'"
                         + ")";
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan("SELECT * from MyTable");
@@ -127,8 +125,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + ") WITH (\n"
                         + "  'connector' = 'values',\n"
                         + "  'enable-watermark-push-down' = 'true',\n"
-                        + "  'bounded' = 'false',\n"
-                        + "  'disable-lookup' = 'true'"
+                        + "  'bounded' = 'false'"
                         + ")";
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan(
@@ -146,8 +143,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + ") WITH (\n"
                         + "  'connector' = 'values',\n"
                         + "  'enable-watermark-push-down' = 'true',\n"
-                        + "  'bounded' = 'false',\n"
-                        + "  'disable-lookup' = 'true'"
+                        + "  'bounded' = 'false'"
                         + ")";
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan("SELECT * FROM MyTable");
@@ -165,8 +161,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + ") WITH (\n"
                         + "  'connector' = 'values',\n"
                         + "  'enable-watermark-push-down' = 'true',\n"
-                        + "  'bounded' = 'false',\n"
-                        + "  'disable-lookup' = 'true'"
+                        + "  'bounded' = 'false'"
                         + ")";
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan("SELECT * FROM MyTable");
@@ -184,8 +179,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + ") WITH (\n"
                         + "  'connector' = 'values',\n"
                         + "  'enable-watermark-push-down' = 'true',\n"
-                        + "  'bounded' = 'false',\n"
-                        + "  'disable-lookup' = 'true'"
+                        + "  'bounded' = 'false'"
                         + ")";
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan("SELECT * FROM MyTable");
@@ -207,8 +201,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + ") WITH (\n"
                         + "  'connector' = 'values',\n"
                         + "  'enable-watermark-push-down' = 'true',\n"
-                        + "  'bounded' = 'false',\n"
-                        + "  'disable-lookup' = 'true'"
+                        + "  'bounded' = 'false'"
                         + ")";
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan("SELECT * FROM MyTable");
@@ -228,8 +221,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + "  'connector' = 'values',\n"
                         + "  'readable-metadata' = 'metadata_1:STRING,metadata_2:INT',\n"
                         + "  'enable-watermark-push-down' = 'true',\n"
-                        + "  'bounded' = 'false',\n"
-                        + "  'disable-lookup' = 'true'"
+                        + "  'bounded' = 'false'"
                         + ")";
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan("SELECT * FROM MyTable");
@@ -250,8 +242,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + ") WITH (\n"
                         + "  'connector' = 'values',\n"
                         + "  'enable-watermark-push-down' = 'true',\n"
-                        + "  'bounded' = 'false',\n"
-                        + "  'disable-lookup' = 'true'"
+                        + "  'bounded' = 'false'"
                         + ")";
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan("select a, c from MyTable");

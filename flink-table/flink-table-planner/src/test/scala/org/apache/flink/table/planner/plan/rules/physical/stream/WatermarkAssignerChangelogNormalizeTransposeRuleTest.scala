@@ -43,7 +43,8 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
          |) WITH (
          |  'connector' = 'values',
          |  'changelog-mode' = 'UA,D',
-         |  'enable-watermark-push-down' = 'true'
+         |  'enable-watermark-push-down' = 'true',
+         |  'enable-lookup' = 'true'
          |)
          |""".stripMargin)
 
@@ -60,7 +61,8 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
          |) WITH (
          |  'connector' = 'values',
          |  'changelog-mode' = 'UA,D',
-         |  'enable-watermark-push-down' = 'true'
+         |  'enable-watermark-push-down' = 'true',
+         |  'enable-lookup' = 'true'
          |)
          |""".stripMargin)
 
@@ -78,7 +80,8 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
          |) WITH (
          | 'connector' = 'values',
          | 'changelog-mode' = 'UA,D',
-         | 'enable-watermark-push-down' = 'true'
+         | 'enable-watermark-push-down' = 'true',
+         | 'enable-lookup' = 'true'
          |)
          |""".stripMargin)
   }

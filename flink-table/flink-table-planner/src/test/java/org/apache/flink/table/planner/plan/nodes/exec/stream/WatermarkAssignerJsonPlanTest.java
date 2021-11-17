@@ -49,8 +49,7 @@ public class WatermarkAssignerJsonPlanTest extends TableTestBase {
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
                         + "  'bounded' = 'false',"
-                        + "  'enable-watermark-push-down' = 'false',"
-                        + "  'disable-lookup' = 'true')";
+                        + "  'enable-watermark-push-down' = 'false')";
         tEnv.executeSql(srcTableDdl);
         String sinkTableDdl =
                 "CREATE TABLE sink (\n"

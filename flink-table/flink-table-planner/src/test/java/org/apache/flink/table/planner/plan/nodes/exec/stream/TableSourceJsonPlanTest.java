@@ -147,8 +147,7 @@ public class TableSourceJsonPlanTest extends TableTestBase {
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
                         + "  'bounded' = 'false',"
-                        + "  'enable-watermark-push-down' = 'true',"
-                        + "  'disable-lookup' = 'true')";
+                        + "  'enable-watermark-push-down' = 'true')";
         tEnv.executeSql(srcTableDdl);
         String sinkTableDdl =
                 "CREATE TABLE sink (\n"

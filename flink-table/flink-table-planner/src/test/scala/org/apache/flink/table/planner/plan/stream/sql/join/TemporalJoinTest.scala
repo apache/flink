@@ -65,8 +65,7 @@ class TemporalJoinTest extends TableTestBase {
         | WATERMARK FOR rowtime AS rowtime,
         | PRIMARY KEY(currency) NOT ENFORCED
         |) WITH (
-        | 'connector' = 'values',
-        | 'disable-lookup' = 'true'
+        | 'connector' = 'values'
         |)
       """.stripMargin)
 
@@ -82,8 +81,7 @@ class TemporalJoinTest extends TableTestBase {
         | PRIMARY KEY(currency) NOT ENFORCED
         |) WITH (
         | 'connector' = 'values',
-        | 'changelog-mode' = 'I,UB,UA,D',
-        | 'disable-lookup' = 'true'
+        | 'changelog-mode' = 'I,UB,UA,D'
         |)
       """.stripMargin)
 
@@ -98,8 +96,7 @@ class TemporalJoinTest extends TableTestBase {
         | PRIMARY KEY(currency) NOT ENFORCED
         |) WITH (
         | 'connector' = 'values',
-        | 'changelog-mode' = 'I,UB,UA,D',
-        | 'disable-lookup' = 'true'
+        | 'changelog-mode' = 'I,UB,UA,D'
         |)
       """.stripMargin)
 

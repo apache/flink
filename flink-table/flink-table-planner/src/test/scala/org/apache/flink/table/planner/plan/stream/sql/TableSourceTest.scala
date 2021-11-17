@@ -61,7 +61,6 @@ class TableSourceTest extends TableTestBase {
          |) WITH (
          |  'connector' = 'values',
          |  'bounded' = 'false',
-         |  'disable-lookup' = 'true',
          |  'enable-watermark-push-down' = 'true'
          |)
        """.stripMargin

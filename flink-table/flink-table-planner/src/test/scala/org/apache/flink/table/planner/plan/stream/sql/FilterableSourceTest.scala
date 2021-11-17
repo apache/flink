@@ -42,8 +42,7 @@ class FilterableSourceTest extends TableTestBase {
         |   'connector' = 'values',
         |   'enable-watermark-push-down' = 'true',
         |   'filterable-fields' = 'a;d',
-        |   'bounded' = 'false',
-        |   'disable-lookup' = 'true'
+        |   'bounded' = 'false'
         | )
         |""".stripMargin
 
@@ -74,8 +73,7 @@ class FilterableSourceTest extends TableTestBase {
         |) WITH (
         |  'connector' = 'values',
         |  'filterable-fields' = 'name',
-        |  'bounded' = 'false',
-        |  'disable-lookup' = 'true'
+        |  'bounded' = 'false'
         |)
         |""".stripMargin
 
@@ -95,8 +93,7 @@ class FilterableSourceTest extends TableTestBase {
         |) WITH (
         |  'connector' = 'values',
         |  'filterable-fields' = 'name',
-        |  'bounded' = 'false',
-        |  'disable-lookup' = 'true'
+        |  'bounded' = 'false'
         |)
         |""".stripMargin
 
@@ -117,8 +114,7 @@ class FilterableSourceTest extends TableTestBase {
         |  'connector' = 'values',
         |  'bounded' = 'false',
         |  'enable-watermark-push-down' = 'true',
-        |  'filterable-fields' = 'name',
-        |  'disable-lookup' = 'true'
+        |  'filterable-fields' = 'name'
         |)
         |""".stripMargin
 
@@ -145,8 +141,7 @@ class FilterableSourceTest extends TableTestBase {
          |   'connector' = 'values',
          |   'bounded' = 'false',
          |   'filterable-fields' = 'f',
-         |   'enable-watermark-push-down' = 'true',
-         |   'disable-lookup' = 'true'
+         |   'enable-watermark-push-down' = 'true'
          | )
          |""".stripMargin
     util.tableEnv.executeSql(ddl)

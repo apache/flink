@@ -112,8 +112,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'true',\n"
-                        + " 'filterable-fields' = 'a;b',\n"
-                        + " 'disable-lookup' = 'true'"
+                        + " 'filterable-fields' = 'a;b'"
                         + ")";
         util.tableEnv().executeSql(ddl);
         super.testWithInterval();

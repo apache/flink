@@ -211,12 +211,11 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         final FlinkRelBuilder relBuilder = planner.getRelBuilder();
         final ExpressionConverter converter = new ExpressionConverter(relBuilder);
 
-        // on the validation period, only one watermark spec is guaranteed to exists
+        // on the validation period, only one watermark spec is guaranteed to exist
         final WatermarkSpec watermarkSpec = schema.getWatermarkSpecs().get(0);
 
         RexNode watermarkExpr = watermarkSpec.getWatermarkExpression().accept(converter);
 
-        // the column in watermarkExpr may be a computed column
         String rowtimeColumnName = watermarkSpec.getRowtimeAttribute();
         int rowtimeColumnIndex = schema.getColumnNames().indexOf(rowtimeColumnName);
 
@@ -226,6 +225,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                     "The physical column called by the computed column is missing!");
         }
 
+        // the column in watermarkExpr may be a computed column
         Column rowtimeColumn = schema.getColumn(rowtimeColumnIndex).get();
         if (rowtimeColumn instanceof ComputedColumn) {
             final RexNode computedNode =

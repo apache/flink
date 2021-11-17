@@ -30,7 +30,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.factories.dynamictablesource.MockedLookupTableSource;
+import org.apache.flink.table.planner.factories.source.MockedLookupTableSource;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;

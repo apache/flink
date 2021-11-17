@@ -150,7 +150,6 @@ public class DynamicTableSourceSpecSerdeTest {
 
         Map<String, String> properties2 = new HashMap<>();
         properties2.put("connector", "values");
-        properties2.put("disable-lookup", "true");
         properties2.put("enable-watermark-push-down", "true");
         properties2.put("filterable-fields", "b");
         properties2.put("bounded", "false");

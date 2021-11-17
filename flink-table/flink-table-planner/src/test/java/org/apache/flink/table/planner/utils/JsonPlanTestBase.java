@@ -101,7 +101,6 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
         properties.put("connector", "values");
         properties.put("data-id", dataId);
         properties.put("bounded", "true");
-        properties.put("disable-lookup", "true");
         properties.putAll(extraProperties);
         String ddl =
                 String.format(

@@ -61,7 +61,8 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
           |  `age` INT
           |) WITH (
           |  'connector' = 'values',
-          |  'bounded' = 'true'
+          |  'bounded' = 'true',
+          |  'enable-lookup' = 'true'
           |)
           |""".stripMargin)
 
@@ -74,7 +75,8 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
           |  `nominal_age` as age + 1
           |) WITH (
           |  'connector' = 'values',
-          |  'bounded' = 'true'
+          |  'bounded' = 'true',
+          |  'enable-lookup' = 'true'
           |)
           |""".stripMargin)
     }

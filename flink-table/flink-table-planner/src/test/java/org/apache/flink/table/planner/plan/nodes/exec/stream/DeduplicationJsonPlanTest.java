@@ -49,8 +49,8 @@ public class DeduplicationJsonPlanTest extends TableTestBase {
                         + "  proctime AS PROCTIME()\n"
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
-                        + "  'bounded' = 'false',"
-                        + "  'disable-lookup' = 'true')";
+                        + "  'bounded' = 'false'"
+                        + ")";
         tEnv.executeSql(srcTableDdl);
         String sinkTableDdl =
                 "CREATE TABLE sink (\n"

@@ -152,7 +152,6 @@ class TemporalJoinITCase(state: StateBackendMode)
          |) WITH (
          |  'connector' = 'values',
          |  'bounded' = 'false',
-         |  'disable-lookup' = 'true',
          |  'data-id' = '$procTimeCurrencyDataId'
          |)
          |""".stripMargin)
@@ -169,7 +168,6 @@ class TemporalJoinITCase(state: StateBackendMode)
          |) WITH (
          |  'connector' = 'values',
          |  'bounded' = 'false',
-         |  'disable-lookup' = 'true',
          |  'changelog-mode' = 'I,UA,UB,D',
          |  'data-id' = '$procTimeCurrencyChangelogDataId'
          |)

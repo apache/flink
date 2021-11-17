@@ -535,8 +535,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 + ") WITH ("
                                 + "  'connector' = 'values',"
                                 + "  'data-id' = '%s',"
-                                + "  'changelog-mode' = 'UA,D',"
-                                + "  'disable-lookup' = 'true'"
+                                + "  'changelog-mode' = 'UA,D'"
                                 + ")",
                         format, TestValuesTableFactory.registerData(changelogData));
         tEnv.executeSql(createChangelog);

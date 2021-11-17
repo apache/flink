@@ -23,10 +23,11 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase
-import org.apache.flink.table.planner.runtime.utils.{AbstractExactlyOnceSink, StreamingTestBase, TestSinkUtil, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{AbstractExactlyOnceSinkFunction, StreamingTestBase, TestSinkUtil, TestingAppendSink}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
-import org.junit.{Assert, Before, Test}
+import org.junit.{Before, Test}
 
 import scala.collection.{Seq, mutable}
 
@@ -60,7 +61,7 @@ abstract class StreamFileSystemITCaseBase extends StreamingTestBase with FileSys
     val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sinkResults = new mutable.MutableList[Row]
 
-    val sink = new AbstractExactlyOnceSink[Row] {
+    val sink = new AbstractExactlyOnceSinkFunction[Row] {
       override def invoke(value: Row, context: SinkFunction.Context): Unit =
         sinkResults += value
     }

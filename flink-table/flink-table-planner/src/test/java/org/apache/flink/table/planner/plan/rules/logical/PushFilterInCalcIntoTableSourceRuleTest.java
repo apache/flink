@@ -104,8 +104,7 @@ public class PushFilterInCalcIntoTableSourceRuleTest
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'false',\n"
-                        + " 'filterable-fields' = 'name',\n"
-                        + " 'disable-lookup' = 'true'"
+                        + " 'filterable-fields' = 'name'"
                         + ")";
 
         util.tableEnv().executeSql(ddl3);
@@ -140,8 +139,7 @@ public class PushFilterInCalcIntoTableSourceRuleTest
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'false',\n"
-                        + " 'filterable-fields' = 'a;b',\n"
-                        + " 'disable-lookup' = 'true'"
+                        + " 'filterable-fields' = 'a;b'"
                         + ")";
 
         util.tableEnv().executeSql(ddl);

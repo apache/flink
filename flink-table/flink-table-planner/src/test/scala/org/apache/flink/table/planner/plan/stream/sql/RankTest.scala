@@ -814,7 +814,8 @@ class RankTest extends TableTestBase {
          |  `name` STRING,
          |  `age` INT
          |) WITH (
-         |  'connector' = 'values'
+         |  'connector' = 'values',
+         |  'enable-lookup' = 'true'
          |)
          |""".stripMargin)
     util.tableEnv.executeSql(

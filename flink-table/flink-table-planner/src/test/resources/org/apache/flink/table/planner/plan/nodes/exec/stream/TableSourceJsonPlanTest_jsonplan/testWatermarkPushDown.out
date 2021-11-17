@@ -10,18 +10,17 @@
       },
       "catalogTable" : {
         "schema.watermark.0.strategy.expr" : "`c` - INTERVAL '5' SECOND",
-        "disable-lookup" : "true",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "bounded" : "false",
-        "schema.1.data-type" : "INT",
         "schema.2.data-type" : "TIMESTAMP(3)",
         "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
         "schema.watermark.0.rowtime" : "c",
         "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
+        "schema.2.name" : "c",
         "enable-watermark-push-down" : "true",
-        "schema.0.name" : "a"
+        "schema.1.name" : "b",
+        "bounded" : "false",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "INT"
       },
       "sourceAbilitySpecs" : [ {
         "type" : "WatermarkPushDown",
