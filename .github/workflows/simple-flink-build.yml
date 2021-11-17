@@ -31,7 +31,7 @@ on:
 
 jobs:
   ci:
-    uses: ververica/flink/.github/workflows/jobs-template-workflow.yml@HEAD
+    uses: ververica/flink/.github/workflows/jobs-template-workflow.yml@${{ github.sha }}
     with:
       test_pool_name: ""
       stage_name: "ci"
