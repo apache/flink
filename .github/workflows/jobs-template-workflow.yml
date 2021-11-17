@@ -212,15 +212,11 @@ jobs:
         with:
           name: logs-${{ inputs.stage_name }}-${{ steps.test-run-${{ matrix.module }}.outputs.debug-files-name }}
           path: ${{ steps.test-run-${{ matrix.module }}.outputs.debug-files-output-dir }}
+      - name: "Save Docker images to cache"
+        if: ${{ !cancelled() && (failed() || !steps.docker-cache.cache.hit) }}
+        run: ./tools/azure-pipelines/cache_docker_images.sh save
 
 jobs:
-  - job: test_${{parameters.stage_name}}
-    steps:
-      - script: ./tools/azure-pipelines/cache_docker_images.sh save
-        displayName: Save docker images
-        condition: and(not(canceled()), or(failed(), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true')))
-        continueOnError: true
-
   - template: e2e-template.yml
     parameters:
       stage_name: ${{parameters.stage_name}}
