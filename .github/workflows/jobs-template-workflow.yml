@@ -191,15 +191,15 @@ jobs:
           IT_CASE_GLUE_SCHEMA_ACCESS_KEY: ${{ secrets.glue_schema_access_key }}
           IT_CASE_GLUE_SCHEMA_SECRET_KEY: ${{ secrets.glue_schema_secret_key }}
         run: ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh ${{ matrix.module }}
+      - name: "Publish Unit Test Results"
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        if: always()
+        with:
+          files: '**/TEST*.xml'
 
 jobs:
   - job: test_${{parameters.stage_name}}
     steps:
-      - task: PublishTestResults@2
-        condition: succeededOrFailed()
-        inputs:
-          testResultsFormat: 'JUnit'
-
       # upload debug artifacts
       - task: PublishPipelineArtifact@1
         condition: not(eq('$(DEBUG_FILES_OUTPUT_DIR)', ''))
