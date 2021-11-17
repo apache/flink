@@ -90,6 +90,8 @@ jobs:
           java-version: ${{ inputs.jdk }}
 
       - name: "Compile Flink"
+        env:
+          MAVEN_OPTS: " -Dmaven.repo.local=${{ env.MAVEN_REPOSITORY_DIR }}"
         run: |
           ${{ inputs.environment }} ./tools/ci/compile.sh || exit $?
 
@@ -175,6 +177,7 @@ jobs:
       - name: "Test - ${{ matrix.module }}"
         id: test-run
         env:
+          MAVEN_OPTS: " -Dmaven.repo.local=${{ env.MAVEN_REPOSITORY_DIR }}"
           IT_CASE_S3_BUCKET: ${{ secrets.s3_bucket }}
           IT_CASE_S3_ACCESS_KEY: ${{ secrets.s3_access_key }}
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
