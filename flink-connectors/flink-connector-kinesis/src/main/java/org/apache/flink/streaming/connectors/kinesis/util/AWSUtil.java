@@ -18,8 +18,9 @@
 package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
+import org.apache.flink.connector.aws.config.AWSConfigConstants;
+import org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider;
+import org.apache.flink.connector.kinesis.util.AWSKinesisDataStreamsUtil;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
@@ -59,7 +60,7 @@ import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequen
 
 /** Some utilities specific to Amazon Web Service. */
 @Internal
-public class AWSUtil extends AWSGeneralUtil {
+public class AWSUtil {
     /**
      * Creates an AmazonKinesis client.
      *
@@ -80,7 +81,8 @@ public class AWSUtil extends AWSGeneralUtil {
     public static AmazonKinesis createKinesisClient(
             Properties configProps, ClientConfiguration awsClientConfig) {
         // set a Flink-specific user agent
-        awsClientConfig.setUserAgentPrefix(formatFlinkUserAgentPrefix());
+        awsClientConfig.setUserAgentPrefix(
+                AWSKinesisDataStreamsUtil.formatFlinkUserAgentPrefix(true));
 
         // utilize automatic refreshment of credentials by directly passing the
         // AWSCredentialsProvider
@@ -128,7 +130,7 @@ public class AWSUtil extends AWSGeneralUtil {
     private static AWSCredentialsProvider getCredentialsProvider(
             final Properties configProps, final String configPrefix) {
         CredentialProvider credentialProviderType =
-                getCredentialProviderType(configProps, configPrefix);
+                AWSKinesisDataStreamsUtil.getCredentialProviderType(configProps, configPrefix);
 
         switch (credentialProviderType) {
             case ENV_VAR:

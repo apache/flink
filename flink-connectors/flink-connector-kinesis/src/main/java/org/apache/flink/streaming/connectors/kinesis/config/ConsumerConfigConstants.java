@@ -18,14 +18,15 @@
 package org.apache.flink.streaming.connectors.kinesis.config;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.aws.config.AWSConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumer;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
-
-import software.amazon.awssdk.http.Protocol;
 
 import java.time.Duration;
 
 /**
- * Optional consumer specific configuration keys and default values for {@code
+ * Optional consumer specific configuration keys and default values for {@link
  * FlinkKinesisConsumer}.
  */
 @PublicEvolving
@@ -408,12 +409,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
     public static final Duration DEFAULT_EFO_HTTP_CLIENT_READ_TIMEOUT = Duration.ofMinutes(6);
 
-    public static final boolean DEFAULT_TRUST_ALL_CERTIFICATES = false;
-
-    public static final Protocol DEFAULT_HTTP_PROTOCOL = Protocol.HTTP2;
-
     /**
-     * To avoid shard iterator expires in {@code ShardConsumer}s, the value for the configured
+     * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured
      * getRecords interval can not exceed 5 minutes, which is the expire time for retrieved
      * iterators.
      */

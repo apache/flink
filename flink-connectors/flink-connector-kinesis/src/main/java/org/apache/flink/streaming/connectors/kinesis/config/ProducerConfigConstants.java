@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.config;
 
+import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 
 /**

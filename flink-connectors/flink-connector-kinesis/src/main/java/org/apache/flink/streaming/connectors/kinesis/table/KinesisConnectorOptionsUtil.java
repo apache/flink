@@ -59,8 +59,8 @@ class KinesisConnectorOptionsUtil {
 
     /**
      * Prefix for properties defined in {@link
-     * org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants} that are delegated
-     * to {@link org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer} and {@link
+     * org.apache.flink.connector.aws.config.AWSConfigConstants} that are delegated to {@link
+     * org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer} and {@link
      * org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer}.
      */
     public static final String AWS_PROPERTIES_PREFIX = "aws.";
