@@ -1,0 +1,105 @@
+name: "Continuous Integration/Deployment"
+
+on:
+  push:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Java Environment
+        uses: actions/setup-java@v1
+        with:
+          java-version: '11'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Setup GCP
+        uses: google-github-actions/setup-gcloud@v0.2.1
+        with:
+          version: '334.0.0'
+          project_id: "vvp-devel-240810"
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+          credentials_file_path: /tmp/gcp-credentials
+
+      - name: Configure GCloud and Docker
+        run: gcloud --quiet auth configure-docker
+
+      - name: Assemble
+        run: ./gradlew assemble
+
+      - name: Check
+        run: ./gradlew check
+
+      - name: Publish Unit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        if: always()
+        with:
+          files: build/test-reports/**/TEST*.xml
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-reports-${{ github.run_number }}
+          path: build/reports
+          retention-days: 30
+
+      # Remove some files from the Gradle cache that might interfere with
+      # subsequent runs.
+      - name: Cleanup Gradle Cache
+        run: |
+          rm -f ~/.gradle/caches/modules-2/modules-2.lock
+          rm -f ~/.gradle/caches/modules-2/gc.properties
+
+  deploy-master-release:
+    needs: ci
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release-') || startsWith(github.ref, 'refs/tags/') }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Java Environment
+        uses: actions/setup-java@v1
+        with:
+          java-version: '11'
+
+      - name: Setup GCP
+        uses: google-github-actions/setup-gcloud@v0.2.1
+        with:
+          version: '334.0.0'
+          project_id: "vvp-devel-240810"
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+          credentials_file_path: /tmp/gcp-credentials
+
+      - name: Configure GCloud and Docker
+        run: gcloud --quiet auth configure-docker
+
+      - name: Check RELEASE file contents in release branches and master
+        run: |
+          ! (for minorVersion in $(seq 1 29); do git show origin/release-2.${minorVersion}:RELEASE 2> /dev/null; done; git show origin/master:RELEASE) | sort | uniq -c | grep -v '   1'
+
+      - name: Build & Test Containers
+        run: |
+          ./gradlew buildImage -PincludeConnectors
+          ./scripts/test-container-structure.sh
+        env:
+          BLACKDUCK_API_TOKEN: ${{ secrets.BLACKDUCK_API_TOKEN }}
+
+      - name: Deploy Master/Release/Tag
+        run: scripts/deploy-dev.sh
+        env:
+          BLACKDUCK_API_TOKEN: ${{ secrets.BLACKDUCK_API_TOKEN }}
+
