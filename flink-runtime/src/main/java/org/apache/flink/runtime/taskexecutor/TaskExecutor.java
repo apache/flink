@@ -115,6 +115,7 @@ import org.apache.flink.runtime.taskexecutor.rpc.RpcKvStateRegistryListener;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcPartitionStateChecker;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcTaskOperatorEventGateway;
+import org.apache.flink.runtime.taskexecutor.slot.LocalSlotAllocationSnapshot;
 import org.apache.flink.runtime.taskexecutor.slot.SlotActions;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotActiveException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
@@ -129,6 +130,7 @@ import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalConsumer;
 import org.apache.flink.util.Preconditions;
@@ -145,8 +147,11 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -235,6 +240,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     private final JobLeaderService jobLeaderService;
 
     private final LeaderRetrievalService resourceManagerLeaderRetriever;
+
+    /** Directory to read/write allocation files. */
+    private final File allocationsDirectory;
 
     // ------------------------------------------------------------------------
 
@@ -334,6 +342,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         ScheduledExecutorService sampleExecutor =
                 Executors.newSingleThreadScheduledExecutor(sampleThreadFactory);
         this.threadInfoSampleService = new ThreadInfoSampleService(sampleExecutor);
+
+        this.allocationsDirectory = null;
     }
 
     private HeartbeatManager<Void, TaskExecutorHeartbeatPayload>
@@ -422,6 +432,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     new FileCache(
                             taskManagerConfiguration.getTmpDirectories(),
                             taskExecutorBlobService.getPermanentBlobService());
+
+            tryLoadLocalAllocationSnapshots();
         } catch (Exception e) {
             handleStartTaskExecutorServicesException(e);
         }
@@ -1065,6 +1077,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             log.debug(message);
             return FutureUtils.completedExceptionally(new TaskManagerException(message));
         }
+
+        tryPersistAllocationSnapshot(slotId, jobId, targetAddress, allocationId, resourceProfile);
 
         try {
             allocateSlot(slotId, jobId, allocationId, resourceProfile);
@@ -1901,6 +1915,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
             final int slotIndex = taskSlotTable.freeSlot(allocationId, cause);
 
+            tryCleanupSlotAllocationSnapshot(slotIndex);
+
             if (slotIndex != -1) {
 
                 if (isConnectedToResourceManager()) {
@@ -2012,6 +2028,123 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             String.format(
                                     "%s is no longer allocated by job %s.",
                                     allocationID, allocatedSlotReport.getJobId())));
+        }
+    }
+
+    private void tryPersistAllocationSnapshot(
+            SlotID slotId,
+            JobID jobId,
+            String jobTargetAddress,
+            AllocationID allocationId,
+            ResourceProfile resourceProfile) {
+        if (!allocationsDirectory.exists() && !allocationsDirectory.mkdirs()) {
+            log.debug(
+                    "Allocations directory {} doesn't exist and cannot be created.",
+                    allocationsDirectory.toPath());
+            return;
+        }
+
+        // Let's try to write the slot allocations on file
+        final File slotAllocationSnapshotFile = slotAllocationFile(slotId.getSlotNumber());
+        try (ObjectOutputStream oos =
+                new ObjectOutputStream(new FileOutputStream(slotAllocationSnapshotFile))) {
+            oos.writeObject(
+                    new LocalSlotAllocationSnapshot(
+                            slotId, jobId, jobTargetAddress, allocationId, resourceProfile));
+            log.debug(
+                    "Successfully written allocation state metadata file {} for job {} and allocation {}.",
+                    slotAllocationSnapshotFile.toPath(),
+                    jobId,
+                    allocationId);
+        } catch (IOException e) {
+            log.debug(
+                    "Cannot write the local allocations state. File {} for job {} and allocation {}.",
+                    slotAllocationSnapshotFile.toPath(),
+                    jobId,
+                    allocationId,
+                    e);
+        }
+    }
+
+    private void tryCleanupSlotAllocationSnapshot(int requestedIndex) {
+        if (!allocationsDirectory.exists()) {
+            log.debug(
+                    "There is no local allocations snapshot directory to cleanup {}.",
+                    allocationsDirectory.toPath());
+            return;
+        }
+
+        // Let's try to write the slot allocations on file
+        final File slotAllocationSnapshotFile = slotAllocationFile(requestedIndex);
+        try {
+            FileUtils.deleteFileOrDirectory(slotAllocationSnapshotFile);
+            log.debug(
+                    "Successfully deleted allocation state metadata file {}.",
+                    slotAllocationSnapshotFile.toPath());
+        } catch (IOException e) {
+            log.debug(
+                    "Cannot delete the local allocations state file {}.",
+                    slotAllocationSnapshotFile.toPath(),
+                    e);
+        }
+    }
+
+    private File slotAllocationFile(int slotIndex) {
+        return new File(allocationsDirectory.getAbsolutePath(), slotIndex + ".bin");
+    }
+
+    /**
+     * This method tries to repopulate the {@link JobTable} and {@link TaskSlotTable} from the local
+     * filesystem in a best-effort manner.
+     */
+    private void tryLoadLocalAllocationSnapshots() {
+        if (!allocationsDirectory.exists()) {
+            log.debug(
+                    "There is no local allocations snapshot directory to load from {}.",
+                    allocationsDirectory.toPath());
+            return;
+        }
+
+        // Let's try to populate the slot allocation from local file
+        final File[] slotAllocationFiles = allocationsDirectory.listFiles();
+        if (slotAllocationFiles == null) {
+            log.debug("No allocation files to load.");
+            return;
+        }
+
+        List<LocalSlotAllocationSnapshot> allocations = new ArrayList<>(slotAllocationFiles.length);
+
+        for (File allocationFile : slotAllocationFiles) {
+            try (ObjectInputStream ois =
+                    new ObjectInputStream(new FileInputStream(allocationFile))) {
+                allocations.add((LocalSlotAllocationSnapshot) ois.readObject());
+            } catch (IOException | ClassNotFoundException e) {
+                log.debug(
+                        "Cannot read the local allocations state file {}.",
+                        allocationFile.toPath(),
+                        e);
+            }
+        }
+
+        log.debug("Resolved allocation files {}.", allocations);
+
+        for (LocalSlotAllocationSnapshot allocationSnapshot : allocations) {
+            try {
+                allocateSlot(
+                        allocationSnapshot.getSlotID(),
+                        allocationSnapshot.getJobId(),
+                        allocationSnapshot.getAllocationId(),
+                        allocationSnapshot.getResourceProfile());
+
+                jobTable.getOrCreateJob(
+                        allocationSnapshot.getJobId(),
+                        () ->
+                                registerNewJobAndCreateServices(
+                                        allocationSnapshot.getJobId(),
+                                        allocationSnapshot.getJobTargetAddress()));
+            } catch (Exception e) {
+                log.debug("Cannot reallocate restored slot {}.", allocationSnapshot, e);
+            }
         }
     }
 
