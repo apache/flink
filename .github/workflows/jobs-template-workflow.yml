@@ -22,10 +22,6 @@ on:
         description: "defines the hardware pool for compilation and unit test execution."
         required: true
         type: string
-      e2e_pool_definion:
-        description: "defines the hardware pool for end-to-end test execution"
-        required: true
-        type: string
       stage_name:
         description: "defines a unique identifier for all jobs in a stage (in case the jobs are added multiple times to a stage)"
         required: true
@@ -34,10 +30,6 @@ on:
         description: "defines environment variables for downstream scripts"
         required: true
         type: string
-      run_end_to_end:
-        description: "if set to 'true', the end to end tests will be executed"
-        required: true
-        type: boolean
       jdk:
         description: "the jdk version to use"
         required: true
