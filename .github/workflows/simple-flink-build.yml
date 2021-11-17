@@ -31,7 +31,7 @@ on:
 
 jobs:
   ci:
-    uses: ververica/flink/.github/workflows/jobs-template-workflow.yml@${{ github.sha }}
+    uses: ververica/flink/.github/workflows/jobs-template-workflow.yml@hackathon2021b-migrate-to-GHA
     with:
       test_pool_name: ""
       stage_name: "ci"
