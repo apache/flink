@@ -20,6 +20,7 @@ package org.apache.flink.table.connector.format;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.projection.Projection;
 
@@ -28,6 +29,9 @@ import org.apache.flink.table.types.projection.Projection;
  *
  * <p>For more details on usage and differences between {@link DecodingFormat} and {@link
  * ProjectableDecodingFormat}, check the documentation of {@link DecodingFormat}.
+ *
+ * @see Projection
+ * @see ProjectedRowData
  */
 @PublicEvolving
 public interface ProjectableDecodingFormat<I> extends DecodingFormat<I> {
