@@ -34,13 +34,16 @@ import java.util.stream.IntStream;
  * data types. A row projection includes both reducing the accessible fields and reordering them.
  */
 @PublicEvolving
-public interface Projection {
+public abstract class Projection {
+
+    // sealed class
+    private Projection() {}
 
     /** Project the provided {@link DataType} using this {@link Projection}. */
-    DataType project(DataType dataType);
+    public abstract DataType project(DataType dataType);
 
     /** @return {@code true} whether this projection is nested or not. */
-    boolean isNested();
+    public abstract boolean isNested();
 
     /**
      * Perform a difference of this {@link Projection} with another {@link Projection}. The result
@@ -59,7 +62,7 @@ public interface Projection {
      * @param other the subtrahend
      * @throws IllegalArgumentException when {@code other} is nested.
      */
-    Projection difference(Projection other);
+    public abstract Projection difference(Projection other);
 
     /**
      * Complement this projection. The returned projection is an ordered projection of fields from 0
@@ -74,10 +77,10 @@ public interface Projection {
      * @param fieldsNumber the size of the universe
      * @throws IllegalStateException if this projection is nested.
      */
-    Projection complement(int fieldsNumber);
+    public abstract Projection complement(int fieldsNumber);
 
     /** Like {@link #complement(int)}, using the {@code dataType} fields count. */
-    default Projection complement(DataType dataType) {
+    public Projection complement(DataType dataType) {
         return complement(DataType.getFieldCount(dataType));
     }
 
@@ -88,7 +91,7 @@ public interface Projection {
      *
      * @throws IllegalStateException if this projection is nested.
      */
-    int[] toTopLevelIndexes();
+    public abstract int[] toTopLevelIndexes();
 
     /**
      * Convert this instance to a nested projection index paths. The array represents the mapping of
@@ -96,13 +99,13 @@ public interface Projection {
      * 2, 1], ...]} specifies to include the 2nd field of the 3rd field of the 1st field in the
      * top-level row.
      */
-    int[][] toNestedIndexes();
+    public abstract int[][] toNestedIndexes();
 
     /**
      * Create an empty {@link Projection}, that is a projection that projects no fields, returning
      * an empty {@link DataType}.
      */
-    static Projection empty() {
+    public static Projection empty() {
         return EmptyProjection.INSTANCE;
     }
 
@@ -111,7 +114,7 @@ public interface Projection {
      *
      * @see #toTopLevelIndexes()
      */
-    static Projection of(int[] indexes) {
+    public static Projection of(int[] indexes) {
         if (indexes.length == 0) {
             return empty();
         }
@@ -123,7 +126,7 @@ public interface Projection {
      *
      * @see #toNestedIndexes()
      */
-    static Projection of(int[][] indexes) {
+    public static Projection of(int[][] indexes) {
         if (indexes.length == 0) {
             return empty();
         }
@@ -134,53 +137,50 @@ public interface Projection {
      * Create a {@link Projection} of the provided {@code dataType} using the provided {@code
      * projectedFields}.
      */
-    static Projection fromFieldNames(DataType dataType, List<String> projectedFields) {
+    public static Projection fromFieldNames(DataType dataType, List<String> projectedFields) {
         List<String> dataTypeFieldNames = DataType.getFieldNames(dataType);
         return new TopLevelProjection(
                 projectedFields.stream().mapToInt(dataTypeFieldNames::indexOf).toArray());
     }
 
     /** Create a {@link Projection} of all the fields in the provided {@code dataType}. */
-    static Projection all(DataType dataType) {
+    public static Projection all(DataType dataType) {
         return new TopLevelProjection(
                 IntStream.range(0, DataType.getFieldCount(dataType)).toArray());
     }
 
-    abstract class AbstractProjection implements Projection {
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (!(o instanceof Projection)) {
-                return false;
-            }
-            Projection other = (Projection) o;
-            if (!this.isNested() && !other.isNested()) {
-                return Arrays.equals(this.toTopLevelIndexes(), other.toTopLevelIndexes());
-            }
-            return Arrays.deepEquals(this.toNestedIndexes(), other.toNestedIndexes());
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
         }
-
-        @Override
-        public int hashCode() {
-            if (isNested()) {
-                return Arrays.deepHashCode(toNestedIndexes());
-            }
-            return Arrays.hashCode(toTopLevelIndexes());
+        if (!(o instanceof Projection)) {
+            return false;
         }
-
-        @Override
-        public String toString() {
-            if (isNested()) {
-                return "Nested projection = " + Arrays.deepToString(toNestedIndexes());
-            }
-            return "Top level projection = " + Arrays.toString(toTopLevelIndexes());
+        Projection other = (Projection) o;
+        if (!this.isNested() && !other.isNested()) {
+            return Arrays.equals(this.toTopLevelIndexes(), other.toTopLevelIndexes());
         }
+        return Arrays.deepEquals(this.toNestedIndexes(), other.toNestedIndexes());
     }
 
-    class EmptyProjection extends AbstractProjection {
+    @Override
+    public int hashCode() {
+        if (isNested()) {
+            return Arrays.deepHashCode(toNestedIndexes());
+        }
+        return Arrays.hashCode(toTopLevelIndexes());
+    }
+
+    @Override
+    public String toString() {
+        if (isNested()) {
+            return "Nested projection = " + Arrays.deepToString(toNestedIndexes());
+        }
+        return "Top level projection = " + Arrays.toString(toTopLevelIndexes());
+    }
+
+    private static class EmptyProjection extends Projection {
 
         static final EmptyProjection INSTANCE = new EmptyProjection();
 
@@ -217,7 +217,7 @@ public interface Projection {
         }
     }
 
-    class NestedProjection extends AbstractProjection {
+    private static class NestedProjection extends Projection {
 
         final int[][] projection;
         final boolean nested;
@@ -304,7 +304,7 @@ public interface Projection {
         }
     }
 
-    class TopLevelProjection extends AbstractProjection {
+    private static class TopLevelProjection extends Projection {
 
         final int[] projection;
 
