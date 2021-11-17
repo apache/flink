@@ -19,11 +19,11 @@ package org.apache.flink.streaming.connectors.kinesis.manualtests;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.KinesisPartitioner;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.examples.ProduceIntoKinesis;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
 

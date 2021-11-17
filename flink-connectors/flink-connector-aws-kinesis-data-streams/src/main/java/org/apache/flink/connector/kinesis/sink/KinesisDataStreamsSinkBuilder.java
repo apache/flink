@@ -33,8 +33,8 @@ import java.util.Properties;
  * <pre>{@code
  * ElementConverter<String, PutRecordsRequestEntry> elementConverter =
  *             KinesisDataStreamsSinkElementConverter.<String>builder()
- *                     .serializationSchema(new SimpleStringSchema())
- *                     .partitionKeyGenerator(element -> String.valueOf(element.hashCode()))
+ *                     .setSerializationSchema(new SimpleStringSchema())
+ *                     .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
  *                     .build();
  *
  * KinesisDataStreamsSink<String> kdsSink =
@@ -62,11 +62,12 @@ public class KinesisDataStreamsSinkBuilder<InputT>
         extends AsyncSinkBaseBuilder<
                 InputT, PutRecordsRequestEntry, KinesisDataStreamsSinkBuilder<InputT>> {
 
-    private static final int DEFAULT_MAX_BATCH_SIZE = 200;
+    private static final int DEFAULT_MAX_BATCH_SIZE = 500;
     private static final int DEFAULT_MAX_IN_FLIGHT_REQUESTS = 16;
     private static final int DEFAULT_MAX_BUFFERED_REQUESTS = 10000;
-    private static final long DEFAULT_FLUSH_ON_BUFFER_SIZE_IN_B = 64 * 1024 * 1024;
+    private static final long DEFAULT_MAX_BATCH_SIZE_IN_B = 5 * 1024 * 1024;
     private static final long DEFAULT_MAX_TIME_IN_BUFFER_MS = 5000;
+    private static final long DEFAULT_MAX_RECORD_SIZE_IN_B = 1 * 1024 * 1024;
     private static final boolean DEFAULT_FAIL_ON_ERROR = false;
 
     private Boolean failOnError;
@@ -110,12 +111,15 @@ public class KinesisDataStreamsSinkBuilder<InputT>
                 getMaxBufferedRequests() == null
                         ? DEFAULT_MAX_BUFFERED_REQUESTS
                         : getMaxBufferedRequests(),
-                getFlushOnBufferSizeInBytes() == null
-                        ? DEFAULT_FLUSH_ON_BUFFER_SIZE_IN_B
-                        : getFlushOnBufferSizeInBytes(),
+                getMaxBatchSizeInBytes() == null
+                        ? DEFAULT_MAX_BATCH_SIZE_IN_B
+                        : getMaxBatchSizeInBytes(),
                 getMaxTimeInBufferMS() == null
                         ? DEFAULT_MAX_TIME_IN_BUFFER_MS
                         : getMaxTimeInBufferMS(),
+                getMaxRecordSizeInBytes() == null
+                        ? DEFAULT_MAX_RECORD_SIZE_IN_B
+                        : getMaxRecordSizeInBytes(),
                 failOnError == null ? DEFAULT_FAIL_ON_ERROR : failOnError,
                 streamName,
                 kinesisClientProperties == null ? new Properties() : kinesisClientProperties);
