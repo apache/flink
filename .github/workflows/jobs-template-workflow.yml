@@ -120,7 +120,7 @@ jobs:
           path: ${{ inputs.flink_artifact_dir }}
 
   test:
-    name: "test_${{ inputs.stage_name }}"
+    name: "Test (stage: ${{ inputs.stage_name }}; module: ${{ matrix.module }})"
     needs: compile
     runs-on: ubuntu-20.04
     if: ${{ success() && inputs.mode != 'e2e' }}
