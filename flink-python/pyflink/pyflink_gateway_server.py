@@ -254,8 +254,10 @@ def launch_gateway_server_process(env, args):
             [construct_flink_classpath(env), construct_hadoop_classpath(env)])
         if "FLINK_TESTING" in env:
             classpath = os.pathsep.join([classpath, construct_test_classpath()])
-        command = [java_executable, jvm_args, "-XX:+IgnoreUnrecognizedVMOptions"] + jvm_opts \
-            + log_settings + ["-cp", classpath, program_args.main_class] + program_args.other_args
+        command = [java_executable, jvm_args, "-XX:+IgnoreUnrecognizedVMOptions",
+                   "--add-opens=jdk.proxy2/jdk.proxy2=ALL-UNNAMED"] \
+            + jvm_opts + log_settings \
+            + ["-cp", classpath, program_args.main_class] + program_args.other_args
     else:
         command = [os.path.join(env["FLINK_BIN_DIR"], "flink"), "run"] + program_args.other_args \
             + ["-c", program_args.main_class]

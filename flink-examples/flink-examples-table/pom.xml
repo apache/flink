@@ -32,6 +32,13 @@ under the License.
 	<artifactId>flink-examples-table_${scala.binary.version}</artifactId>
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 		<!-- Flink core -->
 		<dependency>

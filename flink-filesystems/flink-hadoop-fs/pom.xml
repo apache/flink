@@ -31,6 +31,17 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			HadoopConfigLoadingTest
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			HadoopUtilsTest
+			-->--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED <!--
+			HadoopDataInputStreamTest
+			-->--add-opens=java.base/java.io=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>

@@ -150,6 +150,11 @@ public abstract class TestJvmProcess {
             cmd = ArrayUtils.addAll(cmd, jvmArgs);
         }
 
+        final String moduleConfig = System.getProperty("surefire.module.config");
+        if (moduleConfig != null) {
+            cmd = ArrayUtils.addAll(cmd, moduleConfig.split(" "));
+        }
+
         synchronized (createDestroyLock) {
             checkState(process == null, "process already started");
 

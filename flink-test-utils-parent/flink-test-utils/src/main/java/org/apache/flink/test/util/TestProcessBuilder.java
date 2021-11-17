@@ -63,6 +63,13 @@ public class TestProcessBuilder {
         jvmArgs.add(getCurrentClasspath());
         jvmArgs.add("-XX:+IgnoreUnrecognizedVMOptions");
 
+        final String moduleConfig = System.getProperty("surefire.module.config");
+        if (moduleConfig != null) {
+            for (String moduleArg : moduleConfig.split(" ")) {
+                addJvmArg(moduleArg);
+            }
+        }
+
         this.mainClass = mainClass;
     }
 

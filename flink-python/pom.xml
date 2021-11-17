@@ -35,6 +35,15 @@ under the License.
 
 	<properties>
 		<arrow.version>5.0.0</arrow.version>
+		<kafka.version>3.2.3</kafka.version>
+		<surefire.module.config><!--
+			CommonTestUtils#setEnv
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			Kryo AtomicBoolean
+			-->--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED <!--
+			Arrow MemoryUtil
+			-->--add-opens=java.base/java.nio=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>
