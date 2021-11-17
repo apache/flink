@@ -38,8 +38,8 @@ jobs:
       environment: 'PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12"'
       jdk: 8
       mode: ""
-      cache_key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml', '!**/target/**') }}
-      cache_fallback_key: maven-${{ runner.os }}
+      cache_key: maven-linux-${{ hashFiles('**/pom.xml', '!**/target/**') }}
+      cache_fallback_key: maven-linux
       maven_cache_folder: ${{ github.workspace }}/.m2/repository
       flink_artifact_dir: ${{ github.workspace }}/flink_artifact
       docker_images_cache_key: docker-images-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', 'flink-test-utils-parent/**/DockerImageVersions.java') }}
