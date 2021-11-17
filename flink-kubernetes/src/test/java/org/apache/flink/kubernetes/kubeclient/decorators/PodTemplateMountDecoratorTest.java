@@ -24,6 +24,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesLabel;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -136,7 +137,7 @@ public class PodTemplateMountDecoratorTest extends KubernetesJobManagerTestBase 
                 new VolumeBuilder()
                         .withName(Constants.POD_TEMPLATE_VOLUME)
                         .withNewConfigMap()
-                        .withName(Constants.POD_TEMPLATE_CONFIG_MAP_PREFIX + CLUSTER_ID)
+                        .withName(KubernetesLabel.POD_TEMPLATE_CONFIG_MAP.generateWith(CLUSTER_ID))
                         .withItems(keyToPaths)
                         .endConfigMap()
                         .build());

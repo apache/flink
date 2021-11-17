@@ -34,6 +34,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesLabel;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import io.fabric8.kubernetes.api.model.Container;
@@ -207,7 +208,8 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
                         .deployApplicationCluster(clusterSpecification, appConfig)
                         .getClusterClient();
 
-        final String address = CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX + "." + NAMESPACE;
+        final String address =
+                KubernetesLabel.FLINK_REST_SERVICE.generateWith(CLUSTER_ID) + "." + NAMESPACE;
         final int port = flinkConfig.get(RestOptions.PORT);
         assertThat(
                 clusterClient.getWebInterfaceURL(),

@@ -31,23 +31,17 @@ public class Constants {
     public static final String MAIN_CONTAINER_NAME = "flink-main-container";
 
     public static final String FLINK_CONF_VOLUME = "flink-config-volume";
-    public static final String CONFIG_MAP_PREFIX = "flink-config-";
 
     public static final String HADOOP_CONF_VOLUME = "hadoop-config-volume";
-    public static final String HADOOP_CONF_CONFIG_MAP_PREFIX = "hadoop-config-";
     public static final String HADOOP_CONF_DIR_IN_POD = "/opt/hadoop/conf";
     public static final String ENV_HADOOP_CONF_DIR = "HADOOP_CONF_DIR";
     public static final String ENV_HADOOP_HOME = "HADOOP_HOME";
 
     public static final String KERBEROS_KEYTAB_VOLUME = "kerberos-keytab-volume";
-    public static final String KERBEROS_KEYTAB_SECRET_PREFIX = "kerberos-keytab-";
     public static final String KERBEROS_KEYTAB_MOUNT_POINT = "/opt/kerberos/kerberos-keytab";
     public static final String KERBEROS_KRB5CONF_VOLUME = "kerberos-krb5conf-volume";
-    public static final String KERBEROS_KRB5CONF_CONFIG_MAP_PREFIX = "kerberos-krb5conf-";
     public static final String KERBEROS_KRB5CONF_MOUNT_DIR = "/etc";
     public static final String KERBEROS_KRB5CONF_FILE = "krb5.conf";
-
-    public static final String FLINK_REST_SERVICE_SUFFIX = "-rest";
 
     public static final String NAME_SEPARATOR = "-";
 
@@ -83,8 +77,6 @@ public class Constants {
 
     public static final String HEADLESS_SERVICE_CLUSTER_IP = "None";
 
-    public static final int MAXIMUM_CHARACTERS_OF_CLUSTER_ID = 45;
-
     public static final String RESTART_POLICY_OF_NEVER = "Never";
 
     // Constants for Kubernetes high availability
@@ -102,7 +94,6 @@ public class Constants {
     public static final String TASK_MANAGER_POD_TEMPLATE_FILE_NAME =
             "taskmanager-pod-template.yaml";
     public static final String POD_TEMPLATE_DIR_IN_POD = "/opt/flink/pod-template";
-    public static final String POD_TEMPLATE_CONFIG_MAP_PREFIX = "pod-template-";
     public static final String POD_TEMPLATE_VOLUME = "pod-template-volume";
 
     // Kubernetes start scripts

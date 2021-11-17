@@ -22,6 +22,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParameters;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesLabel;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -63,7 +64,8 @@ public class PodTemplateMountDecorator extends AbstractKubernetesStepDecorator {
     public PodTemplateMountDecorator(AbstractKubernetesParameters kubernetesComponentConf) {
         this.kubernetesComponentConf = checkNotNull(kubernetesComponentConf);
         this.podTemplateConfigMapName =
-                Constants.POD_TEMPLATE_CONFIG_MAP_PREFIX + kubernetesComponentConf.getClusterId();
+                KubernetesLabel.POD_TEMPLATE_CONFIG_MAP.generateWith(
+                        kubernetesComponentConf.getClusterId());
     }
 
     @Override

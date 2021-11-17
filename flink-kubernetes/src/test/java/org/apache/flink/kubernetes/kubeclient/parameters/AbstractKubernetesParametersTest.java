@@ -23,6 +23,7 @@ import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesLabel;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
@@ -64,12 +65,10 @@ public class AbstractKubernetesParametersTest extends TestLogger {
     public void testClusterIdLengthLimitation() {
         final String stringWithIllegalLength =
                 StringUtils.generateRandomAlphanumericString(
-                        new Random(), Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID + 1);
+                        new Random(), KubernetesLabel.getClusterIdMaxLength() + 1);
         flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, stringWithIllegalLength);
         assertThrows(
-                "must be no more than "
-                        + Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID
-                        + " characters",
+                "must be no more than " + KubernetesLabel.getClusterIdMaxLength() + " characters",
                 IllegalArgumentException.class,
                 testingKubernetesParameters::getClusterId);
     }

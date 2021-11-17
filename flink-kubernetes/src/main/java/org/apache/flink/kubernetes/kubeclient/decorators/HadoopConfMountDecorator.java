@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParameters;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesLabel;
 import org.apache.flink.util.FileUtils;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -202,6 +203,6 @@ public class HadoopConfMountDecorator extends AbstractKubernetesStepDecorator {
     }
 
     public static String getHadoopConfConfigMapName(String clusterId) {
-        return Constants.HADOOP_CONF_CONFIG_MAP_PREFIX + clusterId;
+        return KubernetesLabel.HADOOP_CONF_CONFIG_MAP.generateWith(clusterId);
     }
 }

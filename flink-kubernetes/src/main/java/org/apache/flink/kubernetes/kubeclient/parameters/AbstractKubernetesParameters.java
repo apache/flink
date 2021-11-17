@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesLabel;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
@@ -38,6 +39,7 @@ import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
 /** Abstract class for the {@link KubernetesParameters}. */
 public abstract class AbstractKubernetesParameters implements KubernetesParameters {
@@ -67,16 +69,16 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
     public String getClusterId() {
         final String clusterId = flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID);
 
-        if (StringUtils.isBlank(clusterId)) {
-            throw new IllegalArgumentException(
-                    KubernetesConfigOptions.CLUSTER_ID.key() + " must not be blank.");
-        } else if (clusterId.length() > Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID) {
-            throw new IllegalArgumentException(
-                    KubernetesConfigOptions.CLUSTER_ID.key()
-                            + " must be no more than "
-                            + Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID
-                            + " characters.");
-        }
+        checkArgument(
+                !isNullOrWhitespaceOnly(clusterId),
+                "%s must not be blank.",
+                KubernetesConfigOptions.CLUSTER_ID.key());
+        checkArgument(
+                clusterId.length() <= KubernetesLabel.getClusterIdMaxLength(),
+                "%s must be no more than %s characters. Please change %s.",
+                clusterId,
+                KubernetesLabel.getClusterIdMaxLength(),
+                KubernetesConfigOptions.CLUSTER_ID.key());
 
         return clusterId;
     }

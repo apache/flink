@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesLabel;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import java.util.List;
@@ -220,10 +221,14 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The cluster-id, which should be no more than 45 characters, is used for identifying a unique Flink cluster. "
+                                            "The cluster-id, which should be no more than %s characters, is used for identifying a unique Flink cluster. "
                                                     + "The id must only contain lowercase alphanumeric characters and \"-\". "
                                                     + "The required format is %s. "
                                                     + "If not set, the client will automatically generate it with a random ID.",
+                                            text(
+                                                    String.valueOf(
+                                                            KubernetesLabel
+                                                                    .getClusterIdMaxLength())),
                                             code("[a-z]([-a-z0-9]*[a-z0-9])"))
                                     .build());
 

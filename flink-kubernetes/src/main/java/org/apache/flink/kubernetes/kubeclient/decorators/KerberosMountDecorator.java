@@ -22,6 +22,7 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParameters;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesLabel;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.util.StringUtils;
 
@@ -198,10 +199,10 @@ public class KerberosMountDecorator extends AbstractKubernetesStepDecorator {
     }
 
     public static String getKerberosKeytabSecretName(String clusterId) {
-        return Constants.KERBEROS_KEYTAB_SECRET_PREFIX + clusterId;
+        return KubernetesLabel.KERBEROS_KEYTAB_SECRET.generateWith(clusterId);
     }
 
-    public static String getKerberosKrb5confConfigMapName(String clusterID) {
-        return Constants.KERBEROS_KRB5CONF_CONFIG_MAP_PREFIX + clusterID;
+    public static String getKerberosKrb5confConfigMapName(String clusterId) {
+        return KubernetesLabel.KERBEROS_KRB5CONF_CONFIG_MAP.generateWith(clusterId);
     }
 }

@@ -26,7 +26,7 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
-import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesLabel;
 import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
@@ -75,7 +75,6 @@ public class KubernetesClusterClientFactory
 
     private String generateClusterId() {
         final String randomID = new AbstractID().toString();
-        return (CLUSTER_ID_PREFIX + randomID)
-                .substring(0, Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID);
+        return (CLUSTER_ID_PREFIX + randomID).substring(0, KubernetesLabel.getClusterIdMaxLength());
     }
 }

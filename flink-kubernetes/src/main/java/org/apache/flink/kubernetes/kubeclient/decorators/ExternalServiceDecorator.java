@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesLabel;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
@@ -69,7 +70,7 @@ public class ExternalServiceDecorator extends AbstractKubernetesStepDecorator {
 
     /** Generate name of the external Service. */
     public static String getExternalServiceName(String clusterId) {
-        return clusterId + Constants.FLINK_REST_SERVICE_SUFFIX;
+        return KubernetesLabel.FLINK_REST_SERVICE.generateWith(clusterId);
     }
 
     /** Generate namespaced name of the external Service. */
