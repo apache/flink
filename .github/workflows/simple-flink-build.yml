@@ -42,7 +42,6 @@ jobs:
       cache_fallback_key: maven-linux
       maven_cache_folder: ${{ github.workspace }}/.m2/repository
       flink_artifact_dir: ${{ github.workspace }}/flink_artifact
-      docker_images_cache_key: docker-images-linux-${{ hashFiles('**/cache_docker_images.sh', 'flink-test-utils-parent/**/DockerImageVersions.java') }}
       docker_images_cache_folder: ${{ github.workspace }}/.docker-cache
     secrets:
       s3_bucket: ""

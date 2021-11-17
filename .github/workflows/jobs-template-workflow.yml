@@ -54,10 +54,6 @@ on:
         description: "Directory for the build artifacts"
         required: true
         type: string
-      docker_images_cache_key:
-        description: "key for the Docker images cache"
-        required: true
-        type: string
       docker_images_cache_folder:
         description: "folder for the Docker images cache"
         required: true
@@ -187,7 +183,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ inputs.docker_images_cache_folder }}
-          key: "${{ matrix.module }}-${{ inputs.docker_images_cache_folder }}"
+          key: ${{ matrix.module }}-docker-images-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', 'flink-test-utils-parent/**/DockerImageVersions.java') }}
           restore-keys: ${{ inputs.cache_fallback_key }}
 
       - name: "Load Docker images if not present in the cache, yet"
