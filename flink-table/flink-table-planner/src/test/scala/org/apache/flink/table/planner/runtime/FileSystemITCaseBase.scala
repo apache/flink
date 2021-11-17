@@ -404,13 +404,13 @@ trait FileSystemITCaseBase {
 
         // Only one file, because we don't have partitions
         val file = new File(URI.create(resultPath).getPath).listFiles()(0)
+        val filename = Paths.get(file.toURI).getFileName.toString
 
-        assertEquals(
-          file.getPath,
-          row.getFieldAs[String](1)
+        assertTrue(
+          row.getFieldAs[String](1).contains(filename)
         )
         assertEquals(
-          Paths.get(file.toURI).getFileName.toString,
+          filename,
           row.getFieldAs[String](2)
         )
         assertEquals(
