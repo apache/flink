@@ -191,7 +191,7 @@ jobs:
         run: sudo sysctl -w kernel.core_pattern=core.%p
 
       - name: "Test - ${{ matrix.module }}"
-        id: test-run-${{ matrix.module }}
+        id: test-run
         env:
           IT_CASE_S3_BUCKET: ${{ secrets.s3_bucket }}
           IT_CASE_S3_ACCESS_KEY: ${{ secrets.s3_access_key }}
@@ -212,10 +212,10 @@ jobs:
 
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v2
-        if: ${{ steps.test-run-${{ matrix.module }}.outputs.debug-files-output-dir }} != ''
+        if: ${{ steps.test-run.outputs.debug-files-output-dir }} != ''
         with:
-          name: logs-${{ inputs.stage_name }}-${{ steps.test-run-${{ matrix.module }}.outputs.debug-files-name }}
-          path: ${{ steps.test-run-${{ matrix.module }}.outputs.debug-files-output-dir }}
+          name: logs-${{ inputs.stage_name }}-${{ steps.test-run.outputs.debug-files-name }}
+          path: ${{ steps.test-run.outputs.debug-files-output-dir }}
 
       - name: "Save Docker images to cache"
         if: ${{ !cancelled() && (failed() || !steps.docker-cache.cache.hit) }}
