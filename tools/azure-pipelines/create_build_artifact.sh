@@ -17,9 +17,16 @@
 # limitations under the License.
 ################################################################################
 
-echo "Creating build artifact dir $FLINK_ARTIFACT_DIR"
-
-cp -r . "$FLINK_ARTIFACT_DIR"
+while getopts "f:" o; do
+    case "${o}" in
+        f)
+            FLINK_ARTIFACT_DIR=${OPTARG};;
+        *)
+          # no special treatment of invalid parameters necessary
+          ;;
+    esac
+done
+shift $((OPTIND-1))
 
 echo "Minimizing artifact files"
 
@@ -28,20 +35,21 @@ echo "Minimizing artifact files"
 # by removing files not required for subsequent stages
 
 # jars are re-built in subsequent stages, so no need to cache them (cannot be avoided)
-find "$FLINK_ARTIFACT_DIR" -maxdepth 8 -type f -name '*.jar' | xargs rm -rf
+find . -maxdepth 8 -type f -name '*.jar' -exec rm -rf {} \;
 
 # .git directory
 # not deleting this can cause build stability issues
 # merging the cached version sometimes fails
-rm -rf "$FLINK_ARTIFACT_DIR/.git"
+rm -rf "./.git"
 
 # AZ Pipelines has a problem with links.
-rm "$FLINK_ARTIFACT_DIR/build-target"
+rm "./build-target"
 
 # Remove javadocs because they are not used in later stages
-rm -rf "$FLINK_ARTIFACT_DIR/target/site"
+rm -rf "./target/site"
 
 # Remove WebUI node directories; unnecessary because the UI is already fully built
-rm -rf "$FLINK_ARTIFACT_DIR/flink-runtime-web/web-dashboard/node"
-rm -rf "$FLINK_ARTIFACT_DIR/flink-runtime-web/web-dashboard/node_modules"
+rm -rf "./flink-runtime-web/web-dashboard/node"
+rm -rf "./flink-runtime-web/web-dashboard/node_modules"
 
+tar -c -z --exclude ${FLINK_ARTIFACT_DIR} -f ${FLINK_ARTIFACT_DIR} .

@@ -17,14 +17,26 @@
 # limitations under the License.
 ################################################################################
 
+while getopts "f:t:" o; do
+    case "${o}" in
+        f)
+            FLINK_ARTIFACT_DIR=${OPTARG};;
+        t)
+            TARGET_FOLDER_PARAMETER="-C ${OPTARG}";;
+        *)
+          # no special treatment of invalid parameters necessary
+          ;;
+    esac
+done
+shift $((OPTIND-1))
 
 if ! [ -e $FLINK_ARTIFACT_DIR ]; then
-    echo "Cached flink dir $FLINK_ARTIFACT_DIR does not exist. Exiting build."
+    echo "Cached flink archive $FLINK_ARTIFACT_DIR does not exist. Exiting build."
     exit 1
 fi
 
-echo "Merging cache"
-cp -RT "$FLINK_ARTIFACT_DIR" "."
+echo "Extracting build artifacts"
+tar -xzf ${FLINK_ARTIFACT_DIR} ${TARGET_FOLDER_PARAMETER}
 
 echo "Adjusting timestamps"
 # adjust timestamps of proto file to avoid re-generation

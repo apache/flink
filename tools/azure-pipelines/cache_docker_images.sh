@@ -21,6 +21,14 @@
 # includes testcontainer images, kafka, elasticearch, etc.
 #
 
+while getopts "f:" o; do
+    case "${o}" in
+        f)
+            DOCKER_IMAGES_CACHE_FOLDER=${OPTARG};;
+    esac
+done
+shift $((OPTIND-1))
+
 if [ -z "${DOCKER_IMAGES_CACHE_FOLDER:-}" ]
 then
     echo "\$DOCKER_IMAGES_CACHE_FOLDER must be set to cache the testing docker images. Exiting"
@@ -36,7 +44,7 @@ DOCKER_IMAGES_CACHE_PATH="${DOCKER_IMAGES_CACHE_FOLDER}/cache.tar"
 helpFunction()
 {
    echo ""
-   echo "Usage: $0 MODE"
+   echo "Usage: $0 [-f <folder>] MODE"
    echo -e "\tMODE :: What mode to run the script in (either save or load)"
    exit 1
 }

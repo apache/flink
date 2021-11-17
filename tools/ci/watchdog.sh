@@ -23,7 +23,7 @@
 #
 
 # Number of seconds w/o output before printing a stack trace and killing the watched process
-MAX_NO_OUTPUT=${MAX_NO_OUTPUT:-900}
+MAX_NO_OUTPUT=${MAX_NO_OUTPUT:-1800}
 
 # Number of seconds to sleep before checking the output again
 SLEEP_TIME=${SLEEP_TIME:-20}

@@ -19,6 +19,17 @@
 # b) It prints a warning if the test has reached 80% of it's execution time
 # c) N minutes before the end of the execution time, it will start uploading the current output as azure artifacts
 
+while getopts 'a:d:t:' flag; do
+  case "${flag}" in
+    a) export AGENT_JOBNAME="$OPTARG";;
+    d) export AGENT_TEMPDIRECTORY="$OPTARG";;
+    t) export SYSTEM_JOBTIMEOUT="$OPTARG";;
+    *) echo "Wrong parameter passed. $OPTARG";;
+  esac
+done
+
+shift "$((OPTIND-1))"
+
 COMMAND=$@
 
 HERE="`dirname \"$0\"`"             # relative
