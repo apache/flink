@@ -41,8 +41,8 @@ public class SinkIntoKinesis {
 
     private static final ElementConverter<String, PutRecordsRequestEntry> elementConverter =
             KinesisDataStreamsSinkElementConverter.<String>builder()
-                    .serializationSchema(new SimpleStringSchema())
-                    .partitionKeyGenerator(element -> String.valueOf(element.hashCode()))
+                    .setSerializationSchema(new SimpleStringSchema())
+                    .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
                     .build();
 
     public static void main(String[] args) throws Exception {

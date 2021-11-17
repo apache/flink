@@ -17,14 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
+import org.apache.flink.connector.aws.config.AWSConfigConstants;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
-import com.amazonaws.services.kinesis.model.ListStreamsResult;
 import org.rnorth.ducttape.ratelimits.RateLimiter;
 import org.rnorth.ducttape.ratelimits.RateLimiterBuilder;
 import org.rnorth.ducttape.unreliables.Unreliables;
@@ -37,15 +31,19 @@ import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
+import software.amazon.awssdk.services.kinesis.model.ListStreamsResponse;
+import software.amazon.awssdk.services.kinesis.model.StreamStatus;
 import software.amazon.awssdk.utils.AttributeMap;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import static com.amazonaws.SDKGlobalConfiguration.ACCESS_KEY_ENV_VAR;
-import static com.amazonaws.SDKGlobalConfiguration.SECRET_KEY_ENV_VAR;
 
 /**
  * A testcontainer based on Kinesalite.
@@ -56,26 +54,26 @@ import static com.amazonaws.SDKGlobalConfiguration.SECRET_KEY_ENV_VAR;
 public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
     private static final String ACCESS_KEY = "access key";
     private static final String SECRET_KEY = "secret key";
+    private static final int PORT = 4567;
     private static final Region REGION = Region.US_EAST_1;
+    private static final String URL_FORMAT = "https://%s:%s";
 
     public KinesaliteContainer(DockerImageName imageName) {
         super(imageName);
 
-        withEnv(ACCESS_KEY_ENV_VAR, ACCESS_KEY);
-        withEnv(SECRET_KEY_ENV_VAR, ACCESS_KEY);
-        withExposedPorts(4567);
+        withExposedPorts(PORT);
         waitingFor(new ListStreamsWaitStrategy());
-        tryStartContainer();
+        startContainer();
     }
 
     /** Returns the endpoint url to access the container from outside the docker network. */
     public String getContainerEndpointUrl() {
-        return String.format("https://%s:%s", getContainerIpAddress(), getMappedPort(4567));
+        return String.format(URL_FORMAT, getContainerIpAddress(), getMappedPort(PORT));
     }
 
     /** Returns the endpoint url to access the host from inside the docker network. */
     public String getHostEndpointUrl() {
-        return String.format("https://%s:%s", getHost(), getMappedPort(4567));
+        return String.format(URL_FORMAT, getHost(), getMappedPort(PORT));
     }
 
     public String getAccessKey() {
@@ -101,28 +99,18 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
     }
 
     /** Returns the client to access the container from outside the docker network. */
-    public AmazonKinesis getContainerClient() {
+    public KinesisAsyncClient getContainerClient() throws URISyntaxException {
         return getClient(getContainerEndpointUrl());
     }
 
     /** Returns the client to access the host from inside the docker network. */
-    public AmazonKinesis getHostClient() {
+    public KinesisAsyncClient getHostClient() throws URISyntaxException {
         return getClient(getHostEndpointUrl());
     }
 
-    private AmazonKinesis getClient(String endPoint) {
-        return AmazonKinesisClientBuilder.standard()
-                .withCredentials(
-                        new AWSStaticCredentialsProvider(
-                                new BasicAWSCredentials(getAccessKey(), getSecretKey())))
-                .withEndpointConfiguration(
-                        new AwsClientBuilder.EndpointConfiguration(endPoint, "us-east-1"))
-                .build();
-    }
-
-    public KinesisAsyncClient getV2Client() throws URISyntaxException {
+    public KinesisAsyncClient getClient(String endPoint) throws URISyntaxException {
         return KinesisAsyncClient.builder()
-                .endpointOverride(new URI(getHostEndpointUrl()))
+                .endpointOverride(new URI(endPoint))
                 .region(REGION)
                 .credentialsProvider(
                         () -> AwsBasicCredentials.create(getAccessKey(), getSecretKey()))
@@ -130,7 +118,17 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
                 .build();
     }
 
-    private void tryStartContainer() {
+    public void prepareStream(String streamName)
+            throws ExecutionException, InterruptedException, URISyntaxException {
+        KinesisAsyncClient kinesisClient = getHostClient();
+        kinesisClient
+                .createStream(
+                        CreateStreamRequest.builder().streamName(streamName).shardCount(1).build())
+                .get();
+        waitingFor(new ActiveStreamWaitStrategy(kinesisClient, streamName));
+    }
+
+    private void startContainer() {
         withCreateContainerCmdModifier(
                 cmd ->
                         cmd.withEntrypoint(
@@ -162,15 +160,50 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
 
         @Override
         protected void waitUntilReady() {
+            retryUntilSuccessRunner(() -> list());
+        }
+
+        protected <T> void retryUntilSuccessRunner(final Callable<T> lambda) {
             Unreliables.retryUntilSuccess(
                     (int) this.startupTimeout.getSeconds() * TIMEOUT_PER_RETRY,
                     TimeUnit.SECONDS,
-                    () -> rateLimiter.getWhenReady(() -> tryList()));
+                    () -> rateLimiter.getWhenReady(() -> lambda.call()));
         }
 
-        private ListStreamsResult tryList() {
-            tryStartContainer();
-            return getContainerClient().listStreams();
+        private ListStreamsResponse list()
+                throws ExecutionException, InterruptedException, URISyntaxException {
+            startContainer();
+            return getContainerClient().listStreams().get();
+        }
+    }
+
+    private class ActiveStreamWaitStrategy extends ListStreamsWaitStrategy {
+        private KinesisAsyncClient kinesisClient;
+        private String streamName;
+
+        protected ActiveStreamWaitStrategy(KinesisAsyncClient kinesisClient, String streamName) {
+            this.kinesisClient = kinesisClient;
+            this.streamName = streamName;
+        }
+
+        @Override
+        protected void waitUntilReady() {
+            retryUntilSuccessRunner(() -> waitForStream());
+        }
+
+        private DescribeStreamResponse waitForStream()
+                throws ExecutionException, InterruptedException {
+            DescribeStreamResponse describeStream;
+            do {
+                describeStream =
+                        kinesisClient
+                                .describeStream(
+                                        DescribeStreamRequest.builder()
+                                                .streamName(streamName)
+                                                .build())
+                                .get();
+            } while (describeStream.streamDescription().streamStatus() != StreamStatus.ACTIVE);
+            return describeStream;
         }
     }
 
