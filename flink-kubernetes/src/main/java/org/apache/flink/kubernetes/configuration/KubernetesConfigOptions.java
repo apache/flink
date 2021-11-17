@@ -200,7 +200,7 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The cluster-id, which should be no more than 45 characters, is used for identifying a unique Flink cluster. "
+                                            "The cluster-id, which should be no more than 40 characters, is used for identifying a unique Flink cluster. "
                                                     + "The id must only contain lowercase alphanumeric characters and \"-\". "
                                                     + "The required format is %s. "
                                                     + "If not set, the client will automatically generate it with a random ID.",
