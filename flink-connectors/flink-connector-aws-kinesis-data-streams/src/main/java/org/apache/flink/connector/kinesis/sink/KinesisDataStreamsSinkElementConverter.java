@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.kinesis.sink;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.connector.sink.SinkWriter;
@@ -30,7 +31,7 @@ import java.io.Serializable;
 import java.util.function.Function;
 
 /**
- * An implementation of the {@link ElementConverter} that uses the AWS v2 Kinesis SDK. The user only
+ * An implementation of the {@link ElementConverter} that uses the AWS Kinesis SDK v2. The user only
  * needs to provide a {@link SerializationSchema} of the {@code InputT} and a {@link
  * PartitionKeyGenerator} lambda to transform the input element into a String.
  */
@@ -53,6 +54,7 @@ public class KinesisDataStreamsSinkElementConverter<InputT>
         this.partitionKeyGenerator = partitionKeyGenerator;
     }
 
+    @Experimental
     @Override
     public PutRecordsRequestEntry apply(InputT element, SinkWriter.Context context) {
         return PutRecordsRequestEntry.builder()
@@ -80,18 +82,19 @@ public class KinesisDataStreamsSinkElementConverter<InputT>
         private SerializationSchema<InputT> serializationSchema;
         private PartitionKeyGenerator<InputT> partitionKeyGenerator;
 
-        public Builder<InputT> serializationSchema(
+        public Builder<InputT> setSerializationSchema(
                 SerializationSchema<InputT> serializationSchema) {
             this.serializationSchema = serializationSchema;
             return this;
         }
 
-        public Builder<InputT> partitionKeyGenerator(
+        public Builder<InputT> setPartitionKeyGenerator(
                 PartitionKeyGenerator<InputT> partitionKeyGenerator) {
             this.partitionKeyGenerator = partitionKeyGenerator;
             return this;
         }
 
+        @Experimental
         public KinesisDataStreamsSinkElementConverter<InputT> build() {
             Preconditions.checkNotNull(
                     serializationSchema,
