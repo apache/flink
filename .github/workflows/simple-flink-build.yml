@@ -21,7 +21,7 @@
 #  - custom triggered e2e tests
 #  - nightly builds
 
-name: "Build Apache Repo"
+name: "Hadoop 2.8.3"
 
 on:
   push:

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: "Reusable workflow example"
+name: "Build and Test Apache Flink"
 
 on:
   workflow_call:
