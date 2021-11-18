@@ -126,7 +126,6 @@ jobs:
     steps:
       - name: "Flink Checkout"
         uses: actions/checkout@v2
-        timeout-minutes: 5
 
       - name: "Set up Maven" # and SSL???
         uses: stCarolas/setup-maven@v4.2
@@ -143,19 +142,16 @@ jobs:
       # download artifact from compile stage
       - name: "Download pipeline artifact"
         uses: actions/download-artifact@v2
-        timeout-minutes: 5
         with:
           name: FlinkCompileArtifact-${{ inputs.stage_name }}
           path: ${{ env.FLINK_ARTIFACT_DIR }}
 
       - name: "Unpack Build artifact"
-        timeout-minutes: 5
         run: ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}
 
       - name: "Cache Maven local repo"
         if: ${{ inputs.test_pool_name != 'Default' }}
         uses: actions/cache@v2
-        timeout-minutes: 5
         with:
           path: ${{ env.MAVEN_REPOSITORY_DIR }}
           key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml', '!**/target/**') }}
@@ -203,12 +199,10 @@ jobs:
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v2
         if: ${{ steps.test-run.outputs.debug-files-output-dir }} != ''
-        timeout-minutes: 5
         with:
           name: logs-${{ inputs.stage_name }}-${{ steps.test-run.outputs.debug-files-name }}
           path: ${{ steps.test-run.outputs.debug-files-output-dir }}
 
       - name: "Save Docker images to cache"
         if: ${{ !cancelled() && (failure() || !steps.docker-cache.cache.hit) }}
-        timeout-minutes: 5
         run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ env.DOCKER_IMAGES_CACHE_FOLDER }} save
