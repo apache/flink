@@ -37,11 +37,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link NFA}. */
 public class NFATest extends TestLogger {
@@ -85,7 +87,7 @@ public class NFATest extends TestLogger {
         states.add(endState);
         states.add(endingState);
 
-        List<Map<String, List<Event>>> expectedPatterns = new ArrayList<>();
+        Collection<Map<String, List<Event>>> expectedPatterns = new HashSet<>();
 
         Map<String, List<Event>> firstPattern = new HashMap<>();
         firstPattern.put("start", Collections.singletonList(new Event(1, "start", 1.0)));
@@ -103,8 +105,7 @@ public class NFATest extends TestLogger {
 
         Collection<Map<String, List<Event>>> actualPatterns =
                 nfaTestHarness.consumeRecords(streamEvents);
-
-        assertEquals(expectedPatterns, actualPatterns);
+        assertTrue(expectedPatterns.containsAll(actualPatterns));
     }
 
     @Test
