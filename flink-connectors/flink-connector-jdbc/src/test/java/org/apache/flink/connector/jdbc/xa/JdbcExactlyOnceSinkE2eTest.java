@@ -57,8 +57,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.containers.OracleContainerProvider;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import javax.sql.XADataSource;
 
@@ -142,10 +142,10 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         return Arrays.asList(
                 // PGSQL: check for issues with suspending connections (requires pooling) and
                 // honoring limits (properly closing connections).
-                new PgSqlJdbcExactlyOnceSinkTestEnv(4),
+                // new PgSqlJdbcExactlyOnceSinkTestEnv(4)
                 //            ,
                 // MYSQL: check for issues with errors on closing connections.
-                new MySqlJdbcExactlyOnceSinkTestEnv(4),
+                // new MySqlJdbcExactlyOnceSinkTestEnv(4)
                 // ORACLE - default tests.
                 new OracleJdbcExactlyOnceSinkTestEnv(4)
                 // MSSQL - not testing: XA transactions need to be enabled via GUI (plus EULA).
@@ -805,11 +805,11 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
     private static class OracleJdbcExactlyOnceSinkTestEnv implements JdbcExactlyOnceSinkTestEnv {
         private final int parallelism;
-        private final JdbcDatabaseContainer<?> db;
+        private final OracleContainer db;
 
         private OracleJdbcExactlyOnceSinkTestEnv(int parallelism) {
             this.parallelism = parallelism;
-            this.db = new OracleContainerProvider().newInstance();
+            this.db = new OracleContainer();
         }
 
         @Override
@@ -841,6 +841,87 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         @Override
         public String toString() {
             return db + ", parallelism=" + parallelism;
+        }
+
+        /** {@link OracleContainer}. */
+        private static final class OracleContainer extends JdbcDatabaseContainer<OracleContainer> {
+            public static final String NAME = "oracle";
+            private static final String IMAGE = "wnameless/oracle-xe-11g-r2";
+
+            private static final DockerImageName ORACLE_IMAGE = DockerImageName.parse(IMAGE);
+
+            private static final int ORACLE_PORT = 1521;
+            private static final int APEX_HTTP_PORT = 8080;
+
+            private static final int DEFAULT_STARTUP_TIMEOUT_SECONDS = 240;
+            private static final int DEFAULT_CONNECT_TIMEOUT_SECONDS = 120;
+
+            private String username = "system";
+            private String password = "oracle";
+
+            public OracleContainer() {
+                super(ORACLE_IMAGE);
+                preconfigure();
+            }
+
+            private void preconfigure() {
+                withStartupTimeoutSeconds(DEFAULT_STARTUP_TIMEOUT_SECONDS);
+                withConnectTimeoutSeconds(DEFAULT_CONNECT_TIMEOUT_SECONDS);
+                addExposedPorts(ORACLE_PORT, APEX_HTTP_PORT);
+            }
+
+            @Override
+            protected Integer getLivenessCheckPort() {
+                return getMappedPort(ORACLE_PORT);
+            }
+
+            @Override
+            public String getDriverClassName() {
+                return "oracle.jdbc.OracleDriver";
+            }
+
+            @Override
+            public String getJdbcUrl() {
+                return "jdbc:oracle:thin:"
+                        + getUsername()
+                        + "/"
+                        + getPassword()
+                        + "@"
+                        + getHost()
+                        + ":"
+                        + getOraclePort()
+                        + ":"
+                        + getSid();
+            }
+
+            @Override
+            public String getUsername() {
+                return username;
+            }
+
+            @Override
+            public String getPassword() {
+                return password;
+            }
+
+            @SuppressWarnings("SameReturnValue")
+            public String getSid() {
+                return "xe";
+            }
+
+            public Integer getOraclePort() {
+                return getMappedPort(ORACLE_PORT);
+            }
+
+            @SuppressWarnings("unused")
+            public Integer getWebPort() {
+                return getMappedPort(APEX_HTTP_PORT);
+            }
+
+            @Override
+            public String getTestQueryString() {
+                return "SELECT 1 FROM DUAL";
+            }
         }
 
         private static class OracleXaDataSourceFactory

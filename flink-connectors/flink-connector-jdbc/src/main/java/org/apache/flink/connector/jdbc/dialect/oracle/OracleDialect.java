@@ -52,7 +52,7 @@ class OracleDialect extends AbstractDialect {
 
     @Override
     public String getLimitClause(long limit) {
-        return "";
+        return "FETCH FIRST " + limit + " ROWS ONLY";
     }
 
     @Override
@@ -103,7 +103,7 @@ class OracleDialect extends AbstractDialect {
                         .collect(Collectors.joining(", "));
 
         // if we can't divide schema and table-name is risky to call quoteIdentifier(tableName)
-        // for example in SQL-server [tbo].[sometable] is ok but [tbo.sometable] is not
+        // for example [tbo].[sometable] is ok but [tbo.sometable] is not
         String mergeQuery =
                 " MERGE INTO "
                         + tableName
@@ -140,10 +140,6 @@ class OracleDialect extends AbstractDialect {
     public Set<LogicalTypeRoot> supportedTypes() {
         // The data types used in Oracle are list at:
         // https://www.techonthenet.com/oracle/datatypes.php
-
-        // TODO: We can't convert BINARY data type to
-        //  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in
-        // LegacyTypeInfoDataTypeConverter.
 
         return EnumSet.of(
                 LogicalTypeRoot.CHAR,
