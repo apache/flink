@@ -153,7 +153,8 @@ public class StateAssignmentOperation {
 
         // 1. first compute the new parallelism
         checkParallelismPreconditions(taskStateAssignment);
-
+        KeyGroupRangeAssignment.operatorIdByGroupId =
+                new int[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0};
         List<KeyGroupRange> keyGroupPartitions =
                 createKeyGroupPartitions(
                         taskStateAssignment.executionJobVertex.getMaxParallelism(),
@@ -294,22 +295,23 @@ public class StateAssignmentOperation {
         List<KeyedStateHandle> subManagedKeyedState;
         List<KeyedStateHandle> subRawKeyedState;
 
-        if (newParallelism == oldParallelism) {
-            if (operatorState.getState(subTaskIndex) != null) {
-                subManagedKeyedState =
-                        operatorState.getState(subTaskIndex).getManagedKeyedState().asList();
-                subRawKeyedState = operatorState.getState(subTaskIndex).getRawKeyedState().asList();
-            } else {
-                subManagedKeyedState = emptyList();
-                subRawKeyedState = emptyList();
-            }
-        } else {
-            subManagedKeyedState =
-                    getManagedKeyedStateHandles(
-                            operatorState, keyGroupPartitions.get(subTaskIndex));
-            subRawKeyedState =
-                    getRawKeyedStateHandles(operatorState, keyGroupPartitions.get(subTaskIndex));
-        }
+        //        if (newParallelism == oldParallelism) {
+        //            if (operatorState.getState(subTaskIndex) != null) {
+        //                subManagedKeyedState =
+        //
+        // operatorState.getState(subTaskIndex).getManagedKeyedState().asList();
+        //                subRawKeyedState =
+        // operatorState.getState(subTaskIndex).getRawKeyedState().asList();
+        //            } else {
+        //                subManagedKeyedState = emptyList();
+        //                subRawKeyedState = emptyList();
+        //            }
+        //        } else {
+        subManagedKeyedState =
+                getManagedKeyedStateHandles(operatorState, keyGroupPartitions.get(subTaskIndex));
+        subRawKeyedState =
+                getRawKeyedStateHandles(operatorState, keyGroupPartitions.get(subTaskIndex));
+        //        }
 
         if (subManagedKeyedState.isEmpty() && subRawKeyedState.isEmpty()) {
             return new Tuple2<>(emptyList(), emptyList());

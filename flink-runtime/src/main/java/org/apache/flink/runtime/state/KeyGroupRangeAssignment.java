@@ -23,6 +23,8 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
 public final class KeyGroupRangeAssignment {
+    /* Key group id -> operator id */
+    public static volatile int[] operatorIdByGroupId;
 
     /**
      * The default lower bound for max parallelism if nothing was configured by the user. We have
@@ -100,8 +102,22 @@ public final class KeyGroupRangeAssignment {
                 maxParallelism >= parallelism,
                 "Maximum parallelism must not be smaller than parallelism.");
 
-        int start = ((operatorIndex * maxParallelism + parallelism - 1) / parallelism);
-        int end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;
+        int start = -1, end = -1;
+        if (operatorIdByGroupId != null && parallelism > 1) {
+            for (int i = 0; i < operatorIdByGroupId.length; i++) {
+                if (start == -1 && operatorIdByGroupId[i] == operatorIndex) {
+                    start = i;
+                }
+
+                if (operatorIdByGroupId[i] == operatorIndex) {
+                    end = i;
+                }
+            }
+        } else {
+            start = ((operatorIndex * maxParallelism + parallelism - 1) / parallelism);
+            end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;
+        }
+
         return new KeyGroupRange(start, end);
     }
 
@@ -123,7 +139,9 @@ public final class KeyGroupRangeAssignment {
      */
     public static int computeOperatorIndexForKeyGroup(
             int maxParallelism, int parallelism, int keyGroupId) {
-        return keyGroupId * parallelism / maxParallelism;
+        return operatorIdByGroupId != null && parallelism > 1
+                ? operatorIdByGroupId[keyGroupId]
+                : keyGroupId * parallelism / maxParallelism;
     }
 
     /**
