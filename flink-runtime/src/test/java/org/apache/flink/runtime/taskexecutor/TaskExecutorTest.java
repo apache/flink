@@ -63,7 +63,6 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -102,6 +101,7 @@ import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
@@ -2710,7 +2710,7 @@ public class TaskExecutorTest extends TestLogger {
                 false, new File[] {tmp.newFolder()}, Executors.directExecutor());
     }
 
-    private TaskExecutor createTaskExecutor(int numberOFSlots) {
+    private TaskExecutor createTaskExecutor(int numberOFSlots) throws IOException {
         final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(numberOFSlots);
         final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
                 new LocalUnresolvedTaskManagerLocation();
@@ -2724,12 +2724,14 @@ public class TaskExecutorTest extends TestLogger {
     }
 
     @Nonnull
-    private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices) {
+    private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices)
+            throws IOException {
         return createTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES);
     }
 
     private TaskExecutor createTaskExecutor(
-            TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices) {
+            TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices)
+            throws IOException {
         return createTaskExecutor(
                 taskManagerServices,
                 heartbeatServices,
@@ -2739,13 +2741,15 @@ public class TaskExecutorTest extends TestLogger {
     private TaskExecutor createTaskExecutor(
             TaskManagerServices taskManagerServices,
             HeartbeatServices heartbeatServices,
-            TaskExecutorPartitionTracker taskExecutorPartitionTracker) {
+            TaskExecutorPartitionTracker taskExecutorPartitionTracker)
+            throws IOException {
         return new TaskExecutor(
                 rpc,
                 TaskManagerConfiguration.fromConfiguration(
                         configuration,
                         TM_RESOURCE_SPEC,
-                        InetAddress.getLoopbackAddress().getHostAddress()),
+                        InetAddress.getLoopbackAddress().getHostAddress(),
+                        TestFileUtils.createTempDir()),
                 haServices,
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
@@ -2757,12 +2761,14 @@ public class TaskExecutorTest extends TestLogger {
                 taskExecutorPartitionTracker);
     }
 
-    private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices) {
+    private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices)
+            throws IOException {
         return createTestingTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES);
     }
 
     private TestingTaskExecutor createTestingTaskExecutor(
-            TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices) {
+            TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices)
+            throws IOException {
         return createTestingTaskExecutor(
                 taskManagerServices, heartbeatServices, createUnregisteredTaskManagerMetricGroup());
     }
@@ -2770,13 +2776,15 @@ public class TaskExecutorTest extends TestLogger {
     private TestingTaskExecutor createTestingTaskExecutor(
             TaskManagerServices taskManagerServices,
             HeartbeatServices heartbeatServices,
-            TaskManagerMetricGroup metricGroup) {
+            TaskManagerMetricGroup metricGroup)
+            throws IOException {
         return new TestingTaskExecutor(
                 rpc,
                 TaskManagerConfiguration.fromConfiguration(
                         configuration,
                         TM_RESOURCE_SPEC,
-                        InetAddress.getLoopbackAddress().getHostAddress()),
+                        InetAddress.getLoopbackAddress().getHostAddress(),
+                        TestFileUtils.createTempDir()),
                 haServices,
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
@@ -2872,30 +2880,6 @@ public class TaskExecutorTest extends TestLogger {
         @Override
         public void close() throws ExecutionException, InterruptedException, TimeoutException {
             RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
-        }
-    }
-
-    private static final class StartStopNotifyingLeaderRetrievalService
-            implements LeaderRetrievalService {
-        private final CompletableFuture<LeaderRetrievalListener> startFuture;
-
-        private final CompletableFuture<Void> stopFuture;
-
-        private StartStopNotifyingLeaderRetrievalService(
-                CompletableFuture<LeaderRetrievalListener> startFuture,
-                CompletableFuture<Void> stopFuture) {
-            this.startFuture = startFuture;
-            this.stopFuture = stopFuture;
-        }
-
-        @Override
-        public void start(LeaderRetrievalListener listener) {
-            startFuture.complete(listener);
-        }
-
-        @Override
-        public void stop() {
-            stopFuture.complete(null);
         }
     }
 

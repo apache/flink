@@ -150,7 +150,7 @@ public class SavepointEnvironment implements Environment {
 
     @Override
     public TaskManagerRuntimeInfo getTaskManagerInfo() {
-        return new SavepointTaskManagerRuntimeInfo(getIOManager());
+        return new SavepointTaskManagerRuntimeInfo(getIOManager().getSpillingDirectories()[0]);
     }
 
     @Override

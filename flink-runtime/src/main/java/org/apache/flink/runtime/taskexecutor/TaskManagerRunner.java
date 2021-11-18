@@ -565,7 +565,10 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
         TaskManagerConfiguration taskManagerConfiguration =
                 TaskManagerConfiguration.fromConfiguration(
-                        configuration, taskExecutorResourceSpec, externalAddress);
+                        configuration,
+                        taskExecutorResourceSpec,
+                        externalAddress,
+                        workingDirectory.getTmpDirectory());
 
         String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
