@@ -198,7 +198,8 @@ public class StateInitializationContextImplTest {
                                 // stream.
                                 return null;
                             }
-                        });
+                        },
+                        null);
 
         AbstractStreamOperator<?> mockOperator = mock(AbstractStreamOperator.class);
         when(mockOperator.getOperatorID()).thenReturn(operatorID);

@@ -19,14 +19,17 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.checkpoint.KeyGroupAssignment;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -82,6 +85,30 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                             streamSubtaskStates(),
                             OperatorSubtaskState::getResultSubpartitionState));
         }
+    }
+
+    @Override
+    public KeyGroupAssignment readAssignment(OperatorID operatorID) {
+        return readAssignment(operatorID, OperatorSubtaskState::getKeyGroupAssignment);
+    }
+
+    @Override
+    public KeyGroupAssignment readDownstreamAssignment(OperatorID operatorID) {
+        return readAssignment(operatorID, OperatorSubtaskState::getDownstreamKeyGroupAssignment);
+    }
+
+    private KeyGroupAssignment readAssignment(
+            OperatorID operatorID,
+            Function<OperatorSubtaskState, KeyGroupAssignment> assignmentFunction) {
+        if (operatorID == null) {
+            Preconditions.checkState(taskStateSnapshot.getSubtaskStateMappings().size() <= 1);
+
+            return streamSubtaskStates().findFirst().map(assignmentFunction).orElse(null);
+        }
+
+        OperatorSubtaskState subtaskState =
+                taskStateSnapshot.getSubtaskStateByOperatorID(operatorID);
+        return subtaskState == null ? null : assignmentFunction.apply(subtaskState);
     }
 
     private <Info, Context, Handle extends AbstractChannelStateHandle<Info>> void read(

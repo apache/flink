@@ -33,7 +33,7 @@ public interface ConfigurableStreamPartitioner {
      * Configure the {@link StreamPartitioner} with the maximum parallelism of the down stream
      * operator.
      *
-     * @param maxParallelism Maximum parallelism of the down stream operator.
+     * @param configuration
      */
-    void configure(int maxParallelism);
+    void configure(StreamPartitionerConfiguration configuration);
 }

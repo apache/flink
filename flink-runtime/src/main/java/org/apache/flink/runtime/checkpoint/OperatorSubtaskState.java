@@ -107,6 +107,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
      */
     private final long stateSize;
 
+    private final KeyGroupAssignment keyGroupAssignment;
+    private final KeyGroupAssignment downstreamKeyGroupAssignment;
+
     private OperatorSubtaskState(
             StateObjectCollection<OperatorStateHandle> managedOperatorState,
             StateObjectCollection<OperatorStateHandle> rawOperatorState,
@@ -115,7 +118,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
             StateObjectCollection<InputChannelStateHandle> inputChannelState,
             StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState,
             InflightDataRescalingDescriptor inputRescalingDescriptor,
-            InflightDataRescalingDescriptor outputRescalingDescriptor) {
+            InflightDataRescalingDescriptor outputRescalingDescriptor,
+            KeyGroupAssignment keyGroupAssignment,
+            KeyGroupAssignment downstreamKeyGroupAssignment) {
 
         this.managedOperatorState = checkNotNull(managedOperatorState);
         this.rawOperatorState = checkNotNull(rawOperatorState);
@@ -125,6 +130,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         this.resultSubpartitionState = checkNotNull(resultSubpartitionState);
         this.inputRescalingDescriptor = checkNotNull(inputRescalingDescriptor);
         this.outputRescalingDescriptor = checkNotNull(outputRescalingDescriptor);
+        this.keyGroupAssignment = keyGroupAssignment;
+        this.downstreamKeyGroupAssignment = downstreamKeyGroupAssignment;
 
         long calculateStateSize = managedOperatorState.getStateSize();
         calculateStateSize += rawOperatorState.getStateSize();
@@ -145,7 +152,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 StateObjectCollection.empty(),
                 StateObjectCollection.empty(),
                 InflightDataRescalingDescriptor.NO_RESCALE,
-                InflightDataRescalingDescriptor.NO_RESCALE);
+                InflightDataRescalingDescriptor.NO_RESCALE,
+                null,
+                null);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -180,6 +189,14 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 
     public InflightDataRescalingDescriptor getOutputRescalingDescriptor() {
         return outputRescalingDescriptor;
+    }
+
+    public KeyGroupAssignment getKeyGroupAssignment() {
+        return keyGroupAssignment;
+    }
+
+    public KeyGroupAssignment getDownstreamKeyGroupAssignment() {
+        return downstreamKeyGroupAssignment;
     }
 
     @Override
@@ -265,6 +282,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         if (!getOutputRescalingDescriptor().equals(that.getOutputRescalingDescriptor())) {
             return false;
         }
+        if (!getKeyGroupAssignment().equals(that.getKeyGroupAssignment())) {
+            return false;
+        }
         return getRawKeyedState().equals(that.getRawKeyedState());
     }
 
@@ -279,6 +299,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         result = 31 * result + getInputRescalingDescriptor().hashCode();
         result = 31 * result + getOutputRescalingDescriptor().hashCode();
         result = 31 * result + (int) (getStateSize() ^ (getStateSize() >>> 32));
+        result = 31 * result + getKeyGroupAssignment().hashCode();
         return result;
     }
 
@@ -299,6 +320,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 + resultSubpartitionState
                 + ", stateSize="
                 + stateSize
+                + ", keyGroupAssignment="
+                + keyGroupAssignment
                 + '}';
     }
 
@@ -320,7 +343,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 .setInputChannelState(inputChannelState)
                 .setResultSubpartitionState(resultSubpartitionState)
                 .setInputRescalingDescriptor(inputRescalingDescriptor)
-                .setOutputRescalingDescriptor(outputRescalingDescriptor);
+                .setOutputRescalingDescriptor(outputRescalingDescriptor)
+                .setKeyGroupAssignment(keyGroupAssignment);
     }
 
     public static Builder builder() {
@@ -348,6 +372,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 InflightDataRescalingDescriptor.NO_RESCALE;
         private InflightDataRescalingDescriptor outputRescalingDescriptor =
                 InflightDataRescalingDescriptor.NO_RESCALE;
+        private KeyGroupAssignment downstreamKeyGroupAssignment = null;
+        private KeyGroupAssignment keyGroupAssignment = null;
 
         private Builder() {}
 
@@ -417,6 +443,16 @@ public class OperatorSubtaskState implements CompositeStateHandle {
             return this;
         }
 
+        public Builder setKeyGroupAssignment(KeyGroupAssignment assignment) {
+            this.keyGroupAssignment = assignment;
+            return this;
+        }
+
+        public Builder setDownstreamKeyGroupAssignment(KeyGroupAssignment assignment) {
+            this.downstreamKeyGroupAssignment = assignment;
+            return this;
+        }
+
         public OperatorSubtaskState build() {
             return new OperatorSubtaskState(
                     managedOperatorState,
@@ -426,7 +462,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                     inputChannelState,
                     resultSubpartitionState,
                     inputRescalingDescriptor,
-                    outputRescalingDescriptor);
+                    outputRescalingDescriptor,
+                    keyGroupAssignment,
+                    downstreamKeyGroupAssignment);
         }
     }
 }

@@ -39,6 +39,7 @@ import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitionerConfiguration;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
@@ -234,7 +235,11 @@ public final class RescalingStreamTaskNetworkInput<T>
             StreamPartitioner<T> partitioner = (StreamPartitioner<T>) gatePartitioners.apply(index);
             partitioner.setup(numberOfChannels);
             if (partitioner instanceof ConfigurableStreamPartitioner) {
-                ((ConfigurableStreamPartitioner) partitioner).configure(maxParallelism);
+                ((ConfigurableStreamPartitioner) partitioner)
+                        .configure(
+                                new StreamPartitionerConfiguration.Builder()
+                                        .maxParallelism(maxParallelism)
+                                        .build());
             }
             return partitioner;
         }

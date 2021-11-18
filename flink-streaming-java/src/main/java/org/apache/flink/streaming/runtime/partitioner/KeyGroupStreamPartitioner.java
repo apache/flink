@@ -19,12 +19,15 @@ package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.checkpoint.KeyGroupAssignment;
 import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -40,6 +43,7 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T>
     private final KeySelector<T, K> keySelector;
 
     private int maxParallelism;
+    private int[] operatorIdByKeyGroupId;
 
     public KeyGroupStreamPartitioner(KeySelector<T, K> keySelector, int maxParallelism) {
         Preconditions.checkArgument(maxParallelism > 0, "Number of key-groups must be > 0!");
@@ -60,8 +64,13 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T>
             throw new RuntimeException(
                     "Could not extract key from " + record.getInstance().getValue(), e);
         }
-        return KeyGroupRangeAssignment.assignKeyToParallelOperator(
-                key, maxParallelism, numberOfChannels);
+        if (operatorIdByKeyGroupId == null) {
+            return KeyGroupRangeAssignment.assignKeyToParallelOperator(
+                    key, maxParallelism, numberOfChannels);
+        } else {
+            return operatorIdByKeyGroupId[
+                    KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism)];
+        }
     }
 
     @Override
@@ -85,9 +94,25 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T>
     }
 
     @Override
-    public void configure(int maxParallelism) {
-        KeyGroupRangeAssignment.checkParallelismPreconditions(maxParallelism);
-        this.maxParallelism = maxParallelism;
+    public void configure(StreamPartitionerConfiguration configuration) {
+        KeyGroupRangeAssignment.checkParallelismPreconditions(configuration.getMaxParallelism());
+        this.maxParallelism = configuration.getMaxParallelism();
+        KeyGroupAssignment assignment = configuration.getKeyGroupAssignment();
+        if (configuration.getKeyGroupAssignment() != null) {
+            List<KeyGroupRange> keyGroupRanges = assignment.getKeyGroupRanges();
+            int[] operatorIdByKeyGroupId = new int[maxParallelism];
+            for (int keyGroupId = 0; keyGroupId < maxParallelism; keyGroupId++) {
+                for (int operatorId = 0; operatorId < keyGroupRanges.size(); operatorId++) {
+                    KeyGroupRange keyGroupRange = keyGroupRanges.get(operatorId);
+                    if (keyGroupRange.getStartKeyGroup() <= keyGroupId
+                            && keyGroupId <= keyGroupRange.getEndKeyGroup()) {
+                        operatorIdByKeyGroupId[keyGroupId] = operatorId;
+                        break;
+                    }
+                }
+            }
+            this.operatorIdByKeyGroupId = operatorIdByKeyGroupId;
+        }
     }
 
     @Override

@@ -17,8 +17,10 @@ package org.apache.flink.runtime.checkpoint.channel;
  */
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.KeyGroupAssignment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 
 import java.io.IOException;
 
@@ -30,6 +32,10 @@ public interface SequentialChannelStateReader extends AutoCloseable {
 
     void readOutputData(ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion)
             throws IOException, InterruptedException;
+
+    KeyGroupAssignment readAssignment(OperatorID operatorID);
+
+    KeyGroupAssignment readDownstreamAssignment(OperatorID operatorID);
 
     @Override
     void close() throws Exception;
@@ -43,6 +49,16 @@ public interface SequentialChannelStateReader extends AutoCloseable {
                 @Override
                 public void readOutputData(
                         ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion) {}
+
+                @Override
+                public KeyGroupAssignment readAssignment(OperatorID operatorID) {
+                    return null;
+                }
+
+                @Override
+                public KeyGroupAssignment readDownstreamAssignment(OperatorID operatorID) {
+                    return null;
+                }
 
                 @Override
                 public void close() {}

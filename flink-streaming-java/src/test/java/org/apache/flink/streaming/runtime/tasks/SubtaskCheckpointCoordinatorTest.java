@@ -349,9 +349,7 @@ public class SubtaskCheckpointCoordinatorTest {
 
             OneInputStreamTask<String, String> task = testHarness.getTask();
             OperatorChain<String, OneInputStreamOperator<String, String>> operatorChain =
-                    new RegularOperatorChain<>(
-                            task,
-                            StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment));
+                    new RegularOperatorChain<>(task, null);
             long checkpointId = 42L;
             // notify checkpoint aborted before execution.
             subtaskCheckpointCoordinator.notifyCheckpointAborted(

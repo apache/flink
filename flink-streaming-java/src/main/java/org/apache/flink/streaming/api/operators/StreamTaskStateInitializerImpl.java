@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.checkpoint.KeyGroupAssignment;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
@@ -100,13 +101,16 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
     private final InternalTimeServiceManager.Provider timeServiceManagerProvider;
 
+    private final KeyGroupAssignment keyGroupAssignment;
+
     public StreamTaskStateInitializerImpl(Environment environment, StateBackend stateBackend) {
 
         this(
                 environment,
                 stateBackend,
                 TtlTimeProvider.DEFAULT,
-                InternalTimeServiceManagerImpl::create);
+                InternalTimeServiceManagerImpl::create,
+                null);
     }
 
     @VisibleForTesting
@@ -114,13 +118,15 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             Environment environment,
             StateBackend stateBackend,
             TtlTimeProvider ttlTimeProvider,
-            InternalTimeServiceManager.Provider timeServiceManagerProvider) {
+            InternalTimeServiceManager.Provider timeServiceManagerProvider,
+            KeyGroupAssignment keyGroupAssignment) {
 
         this.environment = environment;
         this.taskStateManager = Preconditions.checkNotNull(environment.getTaskStateManager());
         this.stateBackend = Preconditions.checkNotNull(stateBackend);
         this.ttlTimeProvider = ttlTimeProvider;
         this.timeServiceManagerProvider = Preconditions.checkNotNull(timeServiceManagerProvider);
+        this.keyGroupAssignment = keyGroupAssignment;
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -309,11 +315,17 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
         TaskInfo taskInfo = environment.getTaskInfo();
 
-        final KeyGroupRange keyGroupRange =
-                KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
-                        taskInfo.getMaxNumberOfParallelSubtasks(),
-                        taskInfo.getNumberOfParallelSubtasks(),
-                        taskInfo.getIndexOfThisSubtask());
+        final KeyGroupRange keyGroupRange;
+        if (keyGroupAssignment == null) {
+            keyGroupRange =
+                    KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
+                            taskInfo.getMaxNumberOfParallelSubtasks(),
+                            taskInfo.getNumberOfParallelSubtasks(),
+                            taskInfo.getIndexOfThisSubtask());
+        } else {
+            keyGroupRange =
+                    keyGroupAssignment.getKeyGroupRanges().get(taskInfo.getIndexOfThisSubtask());
+        }
 
         // Now restore processing is included in backend building/constructing process, so we need
         // to make sure

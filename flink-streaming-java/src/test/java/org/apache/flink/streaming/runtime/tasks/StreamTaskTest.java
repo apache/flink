@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.KeyGroupAssignment;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -2149,9 +2150,10 @@ public class StreamTaskTest extends TestLogger {
         protected void cleanUpInternal() throws Exception {}
 
         @Override
-        public StreamTaskStateInitializer createStreamTaskStateInitializer() {
+        public StreamTaskStateInitializer createStreamTaskStateInitializer(
+                KeyGroupAssignment keyGroupAssignment) {
             final StreamTaskStateInitializer streamTaskStateManager =
-                    super.createStreamTaskStateInitializer();
+                    super.createStreamTaskStateInitializer(keyGroupAssignment);
             return (operatorID,
                     operatorClassName,
                     processingTimeService,

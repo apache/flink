@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.KeyGroupAssignment;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
@@ -83,6 +84,7 @@ import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitionerConfiguration;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
@@ -604,7 +606,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     //  Core work methods of the Stream Task
     // ------------------------------------------------------------------------
 
-    public StreamTaskStateInitializer createStreamTaskStateInitializer() {
+    public StreamTaskStateInitializer createStreamTaskStateInitializer(
+            KeyGroupAssignment keyGroupAssignment) {
         InternalTimeServiceManager.Provider timerServiceProvider =
                 configuration.getTimerServiceProvider(getUserCodeClassLoader());
         return new StreamTaskStateInitializerImpl(
@@ -613,7 +616,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 TtlTimeProvider.DEFAULT,
                 timerServiceProvider != null
                         ? timerServiceProvider
-                        : InternalTimeServiceManagerImpl::create);
+                        : InternalTimeServiceManagerImpl::create,
+                keyGroupAssignment);
     }
 
     protected Counter setupNumRecordsInCounter(StreamOperator streamOperator) {
@@ -684,7 +688,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         reader.readOutputData(
                 getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
 
-        operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+        operatorChain.initializeStateAndOpenOperators(
+                createStreamTaskStateInitializer(reader.readAssignment(null)));
 
         IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
         channelIOExecutor.execute(
@@ -1633,7 +1638,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         if (outputPartitioner instanceof ConfigurableStreamPartitioner) {
             int numKeyGroups = bufferWriter.getNumTargetKeyGroups();
             if (0 < numKeyGroups) {
-                ((ConfigurableStreamPartitioner) outputPartitioner).configure(numKeyGroups);
+                SequentialChannelStateReader reader =
+                        environment.getTaskStateManager().getSequentialChannelStateReader();
+
+                StreamPartitionerConfiguration partitionerConf =
+                        new StreamPartitionerConfiguration.Builder()
+                                .maxParallelism(numKeyGroups)
+                                .keyGroupAssignment(reader.readDownstreamAssignment(null))
+                                .build();
+                ((ConfigurableStreamPartitioner) outputPartitioner).configure(partitionerConf);
             }
         }
 

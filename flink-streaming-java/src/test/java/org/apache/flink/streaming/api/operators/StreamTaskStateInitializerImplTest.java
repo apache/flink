@@ -316,7 +316,8 @@ public class StreamTaskStateInitializerImplTest {
                                 throws Exception {
                             return null;
                         }
-                    });
+                    },
+                    null);
         }
     }
 }

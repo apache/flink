@@ -323,7 +323,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
             TtlTimeProvider ttlTimeProvider,
             InternalTimeServiceManager.Provider timeServiceManagerProvider) {
         return new StreamTaskStateInitializerImpl(
-                env, stateBackend, ttlTimeProvider, timeServiceManagerProvider);
+                env, stateBackend, ttlTimeProvider, timeServiceManagerProvider, null);
     }
 
     public void setStateBackend(StateBackend stateBackend) {
@@ -589,7 +589,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
             }
         }
 
-        operator.initializeState(mockTask.createStreamTaskStateInitializer());
+        operator.initializeState(mockTask.createStreamTaskStateInitializer(null));
         initializeCalled = true;
     }
 

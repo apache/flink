@@ -88,6 +88,9 @@ class TaskStateAssignment {
     private final Map<IntermediateDataSetID, TaskStateAssignment> consumerAssignment;
     private final Map<ExecutionJobVertex, TaskStateAssignment> vertexAssignments;
 
+    private KeyGroupAssignment downstreamKeyGroupAssignment;
+    private KeyGroupAssignment keyGroupAssignment;
+
     public TaskStateAssignment(
             ExecutionJobVertex executionJobVertex,
             Map<OperatorID, OperatorState> oldState,
@@ -128,6 +131,14 @@ class TaskStateAssignment {
         hasOutputState =
                 oldState.get(outputOperatorID).getStates().stream()
                         .anyMatch(subState -> !subState.getResultSubpartitionState().isEmpty());
+    }
+
+    public void setDownstreamKeyGroupAssignment(KeyGroupAssignment assignment) {
+        this.downstreamKeyGroupAssignment = assignment;
+    }
+
+    public void setKeyGroupAssignment(KeyGroupAssignment assignment) {
+        this.keyGroupAssignment = assignment;
     }
 
     public TaskStateAssignment[] getDownstreamAssignments() {
@@ -172,6 +183,8 @@ class TaskStateAssignment {
                 .setRawKeyedState(getState(instanceID, subRawKeyedState))
                 .setInputChannelState(inputState)
                 .setResultSubpartitionState(outputState)
+                .setDownstreamKeyGroupAssignment(downstreamKeyGroupAssignment)
+                .setKeyGroupAssignment(keyGroupAssignment)
                 .setInputRescalingDescriptor(
                         createRescalingDescriptor(
                                 instanceID,
