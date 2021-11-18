@@ -63,10 +63,10 @@ class HiveParallelismInference {
             return parallelism;
         }
 
-        if (limit != null) {
-            parallelism = Math.min(parallelism, (int) (limit / 1000));
+        if (!infer || limit == null) {
+            return parallelism;
         }
-
+        parallelism = Math.min(parallelism, (int) (limit / 1000));
         // make sure that parallelism is at least 1
         return Math.max(1, parallelism);
     }

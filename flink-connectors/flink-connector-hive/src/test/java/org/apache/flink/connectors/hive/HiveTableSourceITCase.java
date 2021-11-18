@@ -18,11 +18,14 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
@@ -41,8 +44,10 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase;
@@ -70,6 +75,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -565,6 +571,64 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                         .defaultValue()
                         .intValue(),
                 transformation.getParallelism());
+    }
+
+    @Test
+    public void testParallelismOnDisableInferSourceParallelism() throws Exception {
+        final String dbName = "source_db";
+        final String tblName = "test_parallelism_disable_infer_source_parallelism";
+        TableEnvironment tEnv = createTableEnv();
+        tEnv.getConfig()
+                .getConfiguration()
+                .setBoolean(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
+        tEnv.getConfig()
+                .getConfiguration()
+                .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, -1);
+
+        tEnv.executeSql(
+                "CREATE TABLE source_db.test_parallelism_disable_infer_source_parallelism "
+                        + "(`year` STRING, `value` INT) partitioned by (pt int)");
+        tEnv.executeSql(
+                "CREATE TABLE source_db.test_sink " + "(`year` STRING, `value` INT, `pt` INT) ");
+
+        HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
+                .addRow(new Object[] {"2014", 3})
+                .addRow(new Object[] {"2014", 4})
+                .commit("pt=0");
+        HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
+                .addRow(new Object[] {"2015", 2})
+                .addRow(new Object[] {"2015", 5})
+                .commit("pt=1");
+        String sql =
+                "insert into source_db.test_sink select * from hive.source_db.test_parallelism_disable_infer_source_parallelism";
+
+        testHiveSourceParallelismAndAssert(miniClusterResource.getNumberSlots(), sql, tEnv);
+
+        tEnv.getConfig().getConfiguration().setInteger(CoreOptions.DEFAULT_PARALLELISM, 5);
+
+        testHiveSourceParallelismAndAssert(5, sql, tEnv);
+
+        tEnv.getConfig()
+                .getConfiguration()
+                .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 10);
+
+        testHiveSourceParallelismAndAssert(10, sql, tEnv);
+    }
+
+    private void testHiveSourceParallelismAndAssert(
+            int expected, String sql, TableEnvironment tEnv) {
+        Planner planner = ((TableEnvironmentImpl) tEnv).getPlanner();
+        ModifyOperation ops = (ModifyOperation) planner.getParser().parse(sql).get(0);
+        List<Transformation<?>> transformations = planner.translate(Collections.singletonList(ops));
+        Pipeline pipeline =
+                ((TableEnvironmentImpl) tEnv)
+                        .getExecutor()
+                        .createPipeline(transformations, tEnv.getConfig().getConfiguration(), null);
+        Collection<Integer> sourceIDs = ((StreamGraph) pipeline).getSourceIDs();
+        for (Integer sourceID : sourceIDs) {
+            Assert.assertEquals(
+                    expected, ((StreamGraph) pipeline).getStreamNode(sourceID).getParallelism());
+        }
     }
 
     @Test

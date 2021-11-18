@@ -360,6 +360,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return planner;
     }
 
+    @VisibleForTesting
+    public Executor getExecutor() {
+        return execEnv;
+    }
+
     @Override
     public Table fromTableSource(TableSource<?> source) {
         // only accept StreamTableSource and LookupableTableSource here
