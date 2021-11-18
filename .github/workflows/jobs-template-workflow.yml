@@ -91,7 +91,7 @@ jobs:
 
       - name: "Compile Flink"
         env:
-          MAVEN_OPTS: " -X -Dmaven.repo.local=${{ env.MAVEN_REPOSITORY_DIR }}"
+          MAVEN_OPTS: " -Dmaven.repo.local=${{ env.MAVEN_REPOSITORY_DIR }}"
         run: |
           ${{ inputs.environment }} ./tools/ci/compile.sh || exit $?
 
