@@ -137,28 +137,23 @@ Time taken: 0.028 seconds, Fetched: 0 row(s)
 ```
 
 
-#### step 2: configure Flink cluster and SQL CLI
+#### step 2: start SQL Client, and create a Hive catalog with Flink SQL DDL
 
-Add all Hive dependencies to `/lib` dir in Flink distribution, and modify SQL CLI's yaml config file `sql-cli-defaults.yaml` as following:
+Add all Hive dependencies to `/lib` dir in Flink distribution, and create a Hive catalog in Flink SQL CLI as following:
 
-```yaml
+```bash
 
-execution:
-    type: streaming
-    ...
-    current-catalog: myhive  # set the HiveCatalog as the current catalog of the session
-    current-database: mydatabase
-    
-catalogs:
-   - name: myhive
-     type: hive
-     hive-conf-dir: /opt/hive-conf  # contains hive-site.xml
+Flink SQL> CREATE CATALOG myhive WITH (
+  'type' = 'hive',
+  'hive-conf-dir' = '/opt/hive-conf'
+);
+
 ```
 
 
 #### step 3: set up a Kafka cluster
 
-Bootstrap a local Kafka 2.3.0 cluster with a topic named "test", and produce some simple data to the topic as tuple of name and age.
+Bootstrap a local Kafka cluster with a topic named "test", and produce some simple data to the topic as tuple of name and age.
 
 ```bash
 
@@ -180,11 +175,12 @@ john,21
 ```
 
 
-#### step 4: start SQL Client, and create a Kafka table with Flink SQL DDL
+#### step 4: create a Kafka table with Flink SQL DDL
 
-Start Flink SQL Client, create a simple Kafka 2.3.0 table via DDL, and verify its schema.
+Create a simple Kafka table with Flink SQL DDL, and verify its schema.
 
 ```bash
+Flink SQL> USE CATALOG myhive;
 
 Flink SQL> CREATE TABLE mykafka (name String, age Int) WITH (
    'connector.type' = 'kafka',
