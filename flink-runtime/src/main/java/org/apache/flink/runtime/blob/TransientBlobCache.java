@@ -64,17 +64,20 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
      * Instantiates a new BLOB cache.
      *
      * @param blobClientConfig global configuration
+     * @param storageDir storage directory for the cached blobs
      * @param serverAddress address of the {@link BlobServer} to use for fetching files from or
      *     {@code null} if none yet
      * @throws IOException thrown if the (local or distributed) file storage cannot be created or is
      *     not usable
      */
     public TransientBlobCache(
-            final Configuration blobClientConfig, @Nullable final InetSocketAddress serverAddress)
-            throws IOException {
+            final Configuration blobClientConfig,
+            final File storageDir,
+            @Nullable final InetSocketAddress serverAddress) {
 
         super(
                 blobClientConfig,
+                storageDir,
                 new VoidBlobStore(),
                 LoggerFactory.getLogger(TransientBlobCache.class),
                 serverAddress);

@@ -76,10 +76,7 @@ public class BlobClientTest extends TestLogger {
     @BeforeClass
     public static void startServer() throws IOException {
         Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-        blobServer = new TestBlobServer(config, new VoidBlobStore());
+        blobServer = new TestBlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
         blobServer.start();
 
         clientConfig = new Configuration();
@@ -546,8 +543,9 @@ public class BlobClientTest extends TestLogger {
 
         private volatile long blockingMillis = 0;
 
-        TestBlobServer(Configuration config, BlobStore blobStore) throws IOException {
-            super(config, blobStore);
+        TestBlobServer(Configuration config, File storageDirectory, BlobStore blobStore)
+                throws IOException {
+            super(config, storageDirectory, blobStore);
         }
 
         @Override

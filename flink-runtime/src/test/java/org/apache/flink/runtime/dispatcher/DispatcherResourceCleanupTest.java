@@ -21,7 +21,6 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -144,8 +143,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         jobId = jobGraph.getJobID();
 
         configuration = new Configuration();
-        configuration.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
         highAvailabilityServices = new TestingHighAvailabilityServices();
         clearedJobLatch = new OneShotLatch();
@@ -166,7 +163,12 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         cleanupJobFuture = new CompletableFuture<>();
 
-        blobServer = new TestingBlobServer(configuration, testingBlobStore, cleanupJobFuture);
+        blobServer =
+                new TestingBlobServer(
+                        configuration,
+                        temporaryFolder.newFolder(),
+                        testingBlobStore,
+                        cleanupJobFuture);
 
         // upload a blob to the blob server
         permanentBlobKey = blobServer.putPermanent(jobId, new byte[256]);
@@ -653,10 +655,11 @@ public class DispatcherResourceCleanupTest extends TestLogger {
          */
         public TestingBlobServer(
                 Configuration config,
+                File storageDirectory,
                 BlobStore blobStore,
                 CompletableFuture<JobID> cleanupJobFuture)
                 throws IOException {
-            super(config, blobStore);
+            super(config, storageDirectory, blobStore);
             this.cleanupJobFuture = cleanupJobFuture;
         }
 

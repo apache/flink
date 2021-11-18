@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
@@ -108,10 +107,9 @@ public class BlobServerDeleteTest extends TestLogger {
             throws IOException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -176,10 +174,9 @@ public class BlobServerDeleteTest extends TestLogger {
             @Nullable final JobID jobId, BlobKey.BlobType blobType) throws IOException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -230,13 +227,11 @@ public class BlobServerDeleteTest extends TestLogger {
         assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
         File blobFile = null;
         File directory = null;
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -290,10 +285,9 @@ public class BlobServerDeleteTest extends TestLogger {
         JobID jobId2 = new JobID();
 
         Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -359,8 +353,6 @@ public class BlobServerDeleteTest extends TestLogger {
             throws IOException, InterruptedException, ExecutionException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
         final int concurrentDeleteOperations = 3;
         final ExecutorService executor = Executors.newFixedThreadPool(concurrentDeleteOperations);
@@ -370,7 +362,8 @@ public class BlobServerDeleteTest extends TestLogger {
 
         final byte[] data = {1, 2, 3};
 
-        try (final BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (final BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 

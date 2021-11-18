@@ -86,6 +86,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
      * Instantiates a new cache for permanent BLOBs which are also available in an HA store.
      *
      * @param blobClientConfig global configuration
+     * @param storageDir storage directory for the cached blobs
      * @param blobView (distributed) HA blob store file system to retrieve files from first
      * @param serverAddress address of the {@link BlobServer} to use for fetching files from or
      *     {@code null} if none yet
@@ -94,12 +95,12 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
      */
     public PermanentBlobCache(
             final Configuration blobClientConfig,
+            final File storageDir,
             final BlobView blobView,
-            @Nullable final InetSocketAddress serverAddress)
-            throws IOException {
-
+            @Nullable final InetSocketAddress serverAddress) {
         this(
                 blobClientConfig,
+                storageDir,
                 blobView,
                 serverAddress,
                 new BlobCacheSizeTracker(MemorySize.ofMebiBytes(DEFAULT_SIZE_LIMIT_MB).getBytes()));
@@ -108,13 +109,13 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
     @VisibleForTesting
     public PermanentBlobCache(
             final Configuration blobClientConfig,
+            final File storageDir,
             final BlobView blobView,
             @Nullable final InetSocketAddress serverAddress,
-            BlobCacheSizeTracker blobCacheSizeTracker)
-            throws IOException {
-
+            BlobCacheSizeTracker blobCacheSizeTracker) {
         super(
                 blobClientConfig,
+                storageDir,
                 blobView,
                 LoggerFactory.getLogger(PermanentBlobCache.class),
                 serverAddress);

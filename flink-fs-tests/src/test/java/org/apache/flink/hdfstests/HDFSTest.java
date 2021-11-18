@@ -267,7 +267,8 @@ public class HDFSTest {
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobServerRecoveryTest.testBlobServerRecovery(config, blobStoreService);
+            BlobServerRecoveryTest.testBlobServerRecovery(
+                    config, blobStoreService, temporaryFolder.newFolder());
         } finally {
             blobStoreService.closeAndCleanupAllData();
         }
@@ -290,7 +291,7 @@ public class HDFSTest {
 
         try {
             BlobServerCorruptionTest.testGetFailsFromCorruptFile(
-                    config, blobStoreService, exception);
+                    config, blobStoreService, temporaryFolder.newFolder(), exception);
         } finally {
             blobStoreService.closeAndCleanupAllData();
         }
@@ -312,7 +313,8 @@ public class HDFSTest {
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobCacheRecoveryTest.testBlobCacheRecovery(config, blobStoreService);
+            BlobCacheRecoveryTest.testBlobCacheRecovery(
+                    config, blobStoreService, temporaryFolder.newFolder());
         } finally {
             blobStoreService.closeAndCleanupAllData();
         }
@@ -335,7 +337,7 @@ public class HDFSTest {
 
         try {
             BlobCacheCorruptionTest.testGetFailsFromCorruptFile(
-                    new JobID(), config, blobStoreService, exception);
+                    new JobID(), config, blobStoreService, temporaryFolder.newFolder(), exception);
         } finally {
             blobStoreService.closeAndCleanupAllData();
         }

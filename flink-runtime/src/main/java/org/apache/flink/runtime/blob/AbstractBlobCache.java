@@ -75,10 +75,10 @@ public abstract class AbstractBlobCache implements Closeable {
 
     public AbstractBlobCache(
             final Configuration blobClientConfig,
+            final File storageDir,
             final BlobView blobView,
             final Logger logger,
-            @Nullable final InetSocketAddress serverAddress)
-            throws IOException {
+            @Nullable final InetSocketAddress serverAddress) {
 
         this.log = checkNotNull(logger);
         this.blobClientConfig = checkNotNull(blobClientConfig);
@@ -86,7 +86,7 @@ public abstract class AbstractBlobCache implements Closeable {
         this.readWriteLock = new ReentrantReadWriteLock();
 
         // configure and create the storage directory
-        this.storageDir = BlobUtils.initLocalStorageDirectory(blobClientConfig);
+        this.storageDir = storageDir;
         log.info("Created BLOB cache storage directory " + storageDir);
 
         // configure the number of fetch retries

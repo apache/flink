@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -40,6 +41,7 @@ public class BlobCacheService implements TaskExecutorBlobService {
      * Instantiates a new BLOB cache.
      *
      * @param blobClientConfig global configuration
+     * @param storageDir storage directory for the cached blobs
      * @param blobView (distributed) blob store file system to retrieve files from first
      * @param serverAddress address of the {@link BlobServer} to use for fetching files from or
      *     {@code null} if none yet
@@ -48,13 +50,13 @@ public class BlobCacheService implements TaskExecutorBlobService {
      */
     public BlobCacheService(
             final Configuration blobClientConfig,
+            final File storageDir,
             final BlobView blobView,
-            @Nullable final InetSocketAddress serverAddress)
-            throws IOException {
+            @Nullable final InetSocketAddress serverAddress) {
 
         this(
-                new PermanentBlobCache(blobClientConfig, blobView, serverAddress),
-                new TransientBlobCache(blobClientConfig, serverAddress));
+                new PermanentBlobCache(blobClientConfig, storageDir, blobView, serverAddress),
+                new TransientBlobCache(blobClientConfig, storageDir, serverAddress));
     }
 
     /**

@@ -29,6 +29,8 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -38,7 +40,7 @@ public class BlobUtilsTest {
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     /**
-     * Tests {@link BlobUtils#initLocalStorageDirectory} using {@link
+     * Tests {@link BlobUtils#createBlobStorageDirectory} using {@link
      * BlobServerOptions#STORAGE_DIRECTORY} per default.
      */
     @Test
@@ -48,67 +50,22 @@ public class BlobUtilsTest {
         config.setString(BlobServerOptions.STORAGE_DIRECTORY, blobStorageDir);
         config.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
-        File dir = BlobUtils.initLocalStorageDirectory(config);
+        File dir = BlobUtils.createBlobStorageDirectory(config, null);
         assertThat(dir.getAbsolutePath(), startsWith(blobStorageDir));
     }
 
-    /**
-     * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to {@link CoreOptions#TMP_DIRS}
-     * with a single temp directory.
-     */
+    /** Tests {@link BlobUtils#createBlobStorageDirectory}'s fallback to the fall back directory. */
     @Test
     public void testTaskManagerFallbackBlobStorageDirectory1() throws IOException {
         Configuration config = new Configuration();
-        String blobStorageDir = temporaryFolder.getRoot().getAbsolutePath();
-        config.setString(CoreOptions.TMP_DIRS, blobStorageDir);
+        final File fallbackDirectory = new File(temporaryFolder.newFolder(), "foobar");
 
-        File dir = BlobUtils.initLocalStorageDirectory(config);
-        assertThat(dir.getAbsolutePath(), startsWith(blobStorageDir));
+        File dir = BlobUtils.createBlobStorageDirectory(config, fallbackDirectory);
+        assertThat(dir, is(equalTo(fallbackDirectory)));
     }
 
-    /**
-     * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to {@link CoreOptions#TMP_DIRS}
-     * having multiple temp directories.
-     */
-    @Test
-    public void testTaskManagerFallbackBlobStorageDirectory2a() throws IOException {
-        Configuration config = new Configuration();
-        String blobStorageDirs =
-                temporaryFolder.newFolder().getAbsolutePath()
-                        + ","
-                        + temporaryFolder.newFolder().getAbsolutePath();
-        config.setString(CoreOptions.TMP_DIRS, blobStorageDirs);
-
-        File dir = BlobUtils.initLocalStorageDirectory(config);
-        assertThat(dir.getAbsolutePath(), startsWith(temporaryFolder.getRoot().getAbsolutePath()));
-    }
-
-    /**
-     * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to {@link CoreOptions#TMP_DIRS}
-     * having multiple temp directories.
-     */
-    @Test
-    public void testTaskManagerFallbackBlobStorageDirectory2b() throws IOException {
-        Configuration config = new Configuration();
-        String blobStorageDirs =
-                temporaryFolder.newFolder().getAbsolutePath()
-                        + File.pathSeparator
-                        + temporaryFolder.newFolder().getAbsolutePath();
-        config.setString(CoreOptions.TMP_DIRS, blobStorageDirs);
-
-        File dir = BlobUtils.initLocalStorageDirectory(config);
-        assertThat(dir.getAbsolutePath(), startsWith(temporaryFolder.getRoot().getAbsolutePath()));
-    }
-
-    /**
-     * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to the default value of {@link
-     * CoreOptions#TMP_DIRS}.
-     */
-    @Test
-    public void testTaskManagerFallbackFallbackBlobStorageDirectory1() throws IOException {
-        Configuration config = new Configuration();
-
-        File dir = BlobUtils.initLocalStorageDirectory(config);
-        assertThat(dir.getAbsolutePath(), startsWith(CoreOptions.TMP_DIRS.defaultValue()));
+    @Test(expected = IOException.class)
+    public void testBlobUtilsFailIfNoStorageDirectoryIsSpecified() throws IOException {
+        BlobUtils.createBlobStorageDirectory(new Configuration(), null);
     }
 }

@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.FileUtils;
 import org.hamcrest.CoreMatchers;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -57,7 +57,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class BlobCacheCorruptionTest extends TestLogger {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     @Rule public final ExpectedException exception = ExpectedException.none();
 
@@ -98,9 +98,7 @@ public class BlobCacheCorruptionTest extends TestLogger {
         final Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(
-                HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
+                HighAvailabilityOptions.HA_STORAGE_PATH, TEMPORARY_FOLDER.newFolder().getPath());
 
         BlobStoreService blobStoreService = null;
 
@@ -108,7 +106,13 @@ public class BlobCacheCorruptionTest extends TestLogger {
             blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
             testGetFailsFromCorruptFile(
-                    jobId, blobType, corruptOnHAStore, config, blobStoreService, exception);
+                    jobId,
+                    blobType,
+                    corruptOnHAStore,
+                    config,
+                    blobStoreService,
+                    TEMPORARY_FOLDER.newFolder(),
+                    exception);
         } finally {
             if (blobStoreService != null) {
                 blobStoreService.closeAndCleanupAllData();
@@ -131,11 +135,12 @@ public class BlobCacheCorruptionTest extends TestLogger {
             JobID jobId,
             Configuration config,
             BlobStore blobStore,
+            File blobStorage,
             ExpectedException expectedException)
             throws IOException {
 
         testGetFailsFromCorruptFile(
-                jobId, PERMANENT_BLOB, true, config, blobStore, expectedException);
+                jobId, PERMANENT_BLOB, true, config, blobStore, blobStorage, expectedException);
     }
 
     /**
@@ -159,6 +164,7 @@ public class BlobCacheCorruptionTest extends TestLogger {
             boolean corruptOnHAStore,
             Configuration config,
             BlobStore blobStore,
+            File blobStorage,
             ExpectedException expectedException)
             throws IOException {
 
@@ -168,10 +174,12 @@ public class BlobCacheCorruptionTest extends TestLogger {
 
         Random rnd = new Random();
 
-        try (BlobServer server = new BlobServer(config, blobStore);
+        try (BlobServer server =
+                        new BlobServer(config, new File(blobStorage, "server"), blobStore);
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                new File(blobStorage, "cache"),
                                 corruptOnHAStore ? blobStore : new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 

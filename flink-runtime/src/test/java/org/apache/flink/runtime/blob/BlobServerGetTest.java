@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.util.FlinkException;
@@ -116,10 +115,9 @@ public class BlobServerGetTest extends TestLogger {
             @Nullable final JobID jobId1, @Nullable final JobID jobId2, BlobKey.BlobType blobType)
             throws IOException {
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -167,8 +165,6 @@ public class BlobServerGetTest extends TestLogger {
         final Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(
                 HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
 
         BlobStoreService blobStore = null;
@@ -177,7 +173,8 @@ public class BlobServerGetTest extends TestLogger {
             blobStore = BlobUtils.createBlobStoreFromConfig(config);
 
             File tempFileDir = null;
-            try (BlobServer server = new BlobServer(config, blobStore)) {
+            try (BlobServer server =
+                    new BlobServer(config, temporaryFolder.newFolder(), blobStore)) {
 
                 server.start();
 
@@ -240,8 +237,6 @@ public class BlobServerGetTest extends TestLogger {
         final Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(
                 HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
 
         BlobStoreService blobStore = null;
@@ -250,7 +245,8 @@ public class BlobServerGetTest extends TestLogger {
             blobStore = BlobUtils.createBlobStoreFromConfig(config);
 
             File jobStoreDir = null;
-            try (BlobServer server = new BlobServer(config, blobStore)) {
+            try (BlobServer server =
+                    new BlobServer(config, temporaryFolder.newFolder(), blobStore)) {
 
                 server.start();
 
@@ -302,10 +298,9 @@ public class BlobServerGetTest extends TestLogger {
         final JobID jobId = new JobID();
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -367,10 +362,6 @@ public class BlobServerGetTest extends TestLogger {
     private void testConcurrentGetOperations(
             @Nullable final JobID jobId, final BlobKey.BlobType blobType)
             throws IOException, InterruptedException, ExecutionException {
-        final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
         final BlobStore blobStore = mock(BlobStore.class);
 
         final int numberConcurrentGetOperations = 3;
@@ -396,7 +387,8 @@ public class BlobServerGetTest extends TestLogger {
         final ExecutorService executor =
                 Executors.newFixedThreadPool(numberConcurrentGetOperations);
 
-        try (final BlobServer server = new BlobServer(config, blobStore)) {
+        try (final BlobServer server =
+                new BlobServer(new Configuration(), temporaryFolder.newFolder(), blobStore)) {
 
             server.start();
 

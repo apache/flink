@@ -38,6 +38,7 @@ import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
@@ -302,6 +303,23 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         LOG.info("Initializing cluster services.");
 
         synchronized (lock) {
+            resourceId =
+                    configuration
+                            .getOptional(JobManagerOptions.JOB_MANAGER_RESOURCE_ID)
+                            .map(ResourceID::new)
+                            .orElseGet(ResourceID::generate);
+
+            LOG.debug(
+                    "Initialize cluster entrypoint {} with resource id {}.",
+                    getClass().getSimpleName(),
+                    resourceId);
+
+            workingDirectory =
+                    ClusterEntrypointUtils.createJobManagerWorkingDirectory(
+                            configuration, resourceId);
+
+            LOG.info("Using working directory: {}.", workingDirectory);
+
             rpcSystem = RpcSystem.load(configuration);
 
             commonRpcService =
@@ -324,7 +342,11 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             ClusterEntrypointUtils.getPoolSize(configuration),
                             new ExecutorThreadFactory("cluster-io"));
             haServices = createHaServices(configuration, ioExecutor, rpcSystem);
-            blobServer = new BlobServer(configuration, haServices.createBlobStore());
+            blobServer =
+                    BlobUtils.createBlobServer(
+                            configuration,
+                            workingDirectory.getBlobStorageDirectory(),
+                            haServices.createBlobStore());
             blobServer.start();
             heartbeatServices = createHeartbeatServices(configuration);
             metricRegistry = createMetricRegistry(configuration, pluginManager, rpcSystem);
@@ -346,21 +368,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             executionGraphInfoStore =
                     createSerializableExecutionGraphStore(
                             configuration, commonRpcService.getScheduledExecutor());
-
-            resourceId =
-                    configuration
-                            .getOptional(JobManagerOptions.JOB_MANAGER_RESOURCE_ID)
-                            .map(ResourceID::new)
-                            .orElseGet(ResourceID::generate);
-
-            LOG.debug(
-                    "Initialize cluster entrypoint {} with resource id {}.",
-                    getClass().getSimpleName(),
-                    resourceId);
-
-            workingDirectory =
-                    ClusterEntrypointUtils.createJobManagerWorkingDirectory(
-                            configuration, resourceId);
         }
     }
 

@@ -31,6 +31,7 @@ public class WorkingDirectory {
     private final File root;
     private final File tmp;
     private final File localState;
+    private final File blobStorage;
 
     private WorkingDirectory(File root) throws IOException {
         this.root = root;
@@ -42,6 +43,9 @@ public class WorkingDirectory {
 
         localState = new File(root, "localState");
         createDirectory(localState);
+
+        blobStorage = new File(root, "blobStorage");
+        createDirectory(blobStorage);
     }
 
     private static void createDirectory(File directory) throws IOException {
@@ -79,5 +83,9 @@ public class WorkingDirectory {
     public static WorkingDirectory createIn(File parentDirectory, String directoryName)
             throws IOException {
         return create(new File(parentDirectory, directoryName));
+    }
+
+    public File getBlobStorageDirectory() {
+        return blobStorage;
     }
 }

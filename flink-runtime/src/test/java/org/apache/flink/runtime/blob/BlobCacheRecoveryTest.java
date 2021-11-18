@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
@@ -27,10 +26,11 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
@@ -48,7 +48,7 @@ import static org.junit.Assert.assertTrue;
 /** Tests for the recovery of files of a {@link BlobCacheService} from a HA store. */
 public class BlobCacheRecoveryTest extends TestLogger {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     /**
      * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from
@@ -59,16 +59,14 @@ public class BlobCacheRecoveryTest extends TestLogger {
         Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(
-                HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
+                HighAvailabilityOptions.HA_STORAGE_PATH, TEMPORARY_FOLDER.newFolder().getPath());
 
         BlobStoreService blobStoreService = null;
 
         try {
             blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
-            testBlobCacheRecovery(config, blobStoreService);
+            testBlobCacheRecovery(config, blobStoreService, TEMPORARY_FOLDER.newFolder());
         } finally {
             if (blobStoreService != null) {
                 blobStoreService.closeAndCleanupAllData();
@@ -89,7 +87,8 @@ public class BlobCacheRecoveryTest extends TestLogger {
      * @param blobStore shared HA blob store to use
      * @throws IOException in case of failures
      */
-    public static void testBlobCacheRecovery(final Configuration config, final BlobStore blobStore)
+    public static void testBlobCacheRecovery(
+            final Configuration config, final BlobStore blobStore, final File blobStorage)
             throws IOException {
 
         final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
@@ -97,17 +96,21 @@ public class BlobCacheRecoveryTest extends TestLogger {
                 config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
         Random rand = new Random();
 
-        try (BlobServer server0 = new BlobServer(config, blobStore);
-                BlobServer server1 = new BlobServer(config, blobStore);
+        try (BlobServer server0 =
+                        new BlobServer(config, new File(blobStorage, "server0"), blobStore);
+                BlobServer server1 =
+                        new BlobServer(config, new File(blobStorage, "server1"), blobStore);
                 // use VoidBlobStore as the HA store to force download from each server's HA store
                 BlobCacheService cache0 =
                         new BlobCacheService(
                                 config,
+                                new File(blobStorage, "cache0"),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server0.getPort()));
                 BlobCacheService cache1 =
                         new BlobCacheService(
                                 config,
+                                new File(blobStorage, "cache1"),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server1.getPort()))) {
 

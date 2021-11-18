@@ -122,7 +122,10 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                                         configuration)
                                 .toString());
         blobServer =
-                new BlobServer(configuration, BlobUtils.createBlobStoreFromConfig(configuration));
+                new BlobServer(
+                        configuration,
+                        temporaryFolder.newFolder(),
+                        BlobUtils.createBlobStoreFromConfig(configuration));
     }
 
     @After

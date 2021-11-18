@@ -125,17 +125,19 @@ public class BlobServer extends Thread
      * Instantiates a new BLOB server and binds it to a free network port.
      *
      * @param config Configuration to be used to instantiate the BlobServer
+     * @param storageDir storage directory for the blobs
      * @param blobStore BlobStore to store blobs persistently
      * @throws IOException thrown if the BLOB server cannot bind to a free network port or if the
      *     (local or distributed) file storage cannot be created or is not usable
      */
-    public BlobServer(Configuration config, BlobStore blobStore) throws IOException {
+    public BlobServer(Configuration config, File storageDir, BlobStore blobStore)
+            throws IOException {
         this.blobServiceConfiguration = checkNotNull(config);
         this.blobStore = checkNotNull(blobStore);
         this.readWriteLock = new ReentrantReadWriteLock();
 
         // configure and create the storage directory
-        this.storageDir = BlobUtils.initLocalStorageDirectory(config);
+        this.storageDir = storageDir;
         LOG.info("Created BLOB server storage directory {}", storageDir);
 
         // configure the maximum number of concurrent connections

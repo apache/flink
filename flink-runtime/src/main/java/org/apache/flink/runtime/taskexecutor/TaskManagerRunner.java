@@ -33,6 +33,7 @@ import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.TaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
@@ -189,8 +190,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
         metricRegistry.startQueryService(metricQueryServiceRpcService, resourceId);
 
         blobCacheService =
-                new BlobCacheService(
-                        configuration, highAvailabilityServices.createBlobStore(), null);
+                BlobUtils.createBlobCacheService(
+                        configuration,
+                        workingDirectory.getBlobStorageDirectory(),
+                        highAvailabilityServices.createBlobStore(),
+                        null);
 
         final ExternalResourceInfoProvider externalResourceInfoProvider =
                 ExternalResourceUtils.createStaticExternalResourceInfoProviderFromConfig(

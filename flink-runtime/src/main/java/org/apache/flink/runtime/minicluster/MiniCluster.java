@@ -34,6 +34,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -375,14 +376,19 @@ public class MiniCluster implements AutoCloseableAsync {
                                 new ExecutorThreadFactory("mini-cluster-io"));
                 haServices = createHighAvailabilityServices(configuration, ioExecutor);
 
-                blobServer = new BlobServer(configuration, haServices.createBlobStore());
+                blobServer =
+                        BlobUtils.createBlobServer(
+                                configuration,
+                                workingDirectory.getBlobStorageDirectory(),
+                                haServices.createBlobStore());
                 blobServer.start();
 
                 heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
                 blobCacheService =
-                        new BlobCacheService(
+                        BlobUtils.createBlobCacheService(
                                 configuration,
+                                workingDirectory.getBlobStorageDirectory(),
                                 haServices.createBlobStore(),
                                 new InetSocketAddress(
                                         InetAddress.getLocalHost(), blobServer.getPort()));
