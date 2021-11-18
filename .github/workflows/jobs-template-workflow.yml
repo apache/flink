@@ -54,7 +54,7 @@ env:
 jobs:
   compile:
     name: "Compile"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: ${{ success() && inputs.mode != 'e2e' }}
     timeout-minutes: 240
     steps:
@@ -108,7 +108,7 @@ jobs:
   test:
     name: "Test (module: ${{ matrix.module }})"
     needs: compile
-    runs-on: self-hosted
+    runs-on: ubuntu-20.04
     if: ${{ success() && inputs.mode != 'e2e' }}
     strategy:
       matrix:
