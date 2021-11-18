@@ -190,7 +190,8 @@ jobs:
         run: |
           ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh \
               -a ${{ github.job }} \
-              -t ${{ runner.temp }} \
+              -d ${{ runner.temp }} \
+              -t 240 \
               ./tools/ci/test_controller.sh ${{ matrix.module }}
 
       - name: "Publish Unit Test Results"

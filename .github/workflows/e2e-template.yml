@@ -161,11 +161,12 @@ jobs:
             IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
             IT_CASE_GLUE_SCHEMA_ACCESS_KEY: ${{ secrets.glue_schema_access_key }}
             IT_CASE_GLUE_SCHEMA_SECRET_KEY: ${{ secrets.glue_schema_secret_key }}
+          timeout-minutes: 310
           run: |
             ${{ inputs.environment }} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh \
               -a ${{ github.job }} \
               -d ${{ runner.temp }} \
-              -t
+              -t 310 \
               flink-end-to-end-tests/run-nightly-tests.sh ${{ inputs.group }}
 
         - name: "Upload Logs"
