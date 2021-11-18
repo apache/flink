@@ -47,7 +47,7 @@ public class AkkaRpcSystemLoader implements RpcSystemLoader {
     private static final String FLINK_RPC_AKKA_FAT_JAR = "flink-rpc-akka.jar";
 
     static final String HINT_USAGE =
-            "mvn package -pl flink-rpc/flink-rpc-akka,flink-rpc/flink-rpc-akka-loader";
+            "mvn clean package -pl flink-rpc/flink-rpc-akka,flink-rpc/flink-rpc-akka-loader -DskipTests";
 
     @Override
     public RpcSystem loadRpcSystem(Configuration config) {
