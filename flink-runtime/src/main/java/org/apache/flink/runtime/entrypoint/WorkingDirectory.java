@@ -29,18 +29,30 @@ import java.io.IOException;
  */
 public class WorkingDirectory {
     private final File root;
+    private final File tmp;
 
     private WorkingDirectory(File root) throws IOException {
         this.root = root;
+        createDirectory(root);
 
-        if (!root.mkdirs() && !root.exists()) {
+        this.tmp = new File(root, "tmp");
+        createDirectory(tmp);
+        FileUtils.cleanDirectory(tmp);
+    }
+
+    private static void createDirectory(File directory) throws IOException {
+        if (!directory.mkdirs() && !directory.exists()) {
             throw new IOException(
-                    String.format("Could not create the working directory %s.", root));
+                    String.format("Could not create the working directory %s.", directory));
         }
     }
 
     public void delete() throws IOException {
         FileUtils.deleteDirectory(root);
+    }
+
+    public File getTmpDirectory() {
+        return tmp;
     }
 
     public WorkingDirectory createSubWorkingDirectory(String directoryName) throws IOException {
