@@ -25,6 +25,8 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 
+import java.util.function.Consumer;
+
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
@@ -153,6 +155,23 @@ class MapAndMultisetToStringCastRule
                                             valueType.copy(false),
                                             targetLogicalType);
 
+                            Consumer<CastRuleUtils.CodeWriter> appendNonNullValue =
+                                    bodyWriter ->
+                                            bodyWriter
+                                                    // If value not null, extract it and
+                                                    // execute the cast
+                                                    .assignStmt(
+                                                            valueTerm,
+                                                            rowFieldReadAccess(
+                                                                    indexTerm,
+                                                                    valueArrayTerm,
+                                                                    valueType))
+                                                    .append(valueCast)
+                                                    .stmt(
+                                                            methodCall(
+                                                                    builderTerm,
+                                                                    "append",
+                                                                    valueCast.getReturnTerm()));
                             loopBodyWriter
                                     // Write the comma
                                     .ifStmt(
@@ -200,32 +219,20 @@ class MapAndMultisetToStringCastRule
                                                                     builderTerm,
                                                                     "append",
                                                                     NULL_STR_LITERAL)))
-                                    .stmt(methodCall(builderTerm, "append", strLiteral("=")))
-                                    .ifStmt(
-                                            "!" + valueIsNullTerm,
-                                            thenBodyWriter ->
-                                                    thenBodyWriter
-                                                            // If value not null, extract it and
-                                                            // execute the cast
-                                                            .assignStmt(
-                                                                    valueTerm,
-                                                                    rowFieldReadAccess(
-                                                                            indexTerm,
-                                                                            valueArrayTerm,
-                                                                            valueType))
-                                                            .append(valueCast)
-                                                            .stmt(
-                                                                    methodCall(
-                                                                            builderTerm,
-                                                                            "append",
-                                                                            valueCast
-                                                                                    .getReturnTerm())),
-                                            elseBodyWriter ->
-                                                    elseBodyWriter.stmt(
-                                                            methodCall(
-                                                                    builderTerm,
-                                                                    "append",
-                                                                    NULL_STR_LITERAL)));
+                                    .stmt(methodCall(builderTerm, "append", strLiteral("=")));
+                            if (inputLogicalType.is(LogicalTypeRoot.MULTISET)) {
+                                appendNonNullValue.accept(loopBodyWriter);
+                            } else {
+                                loopBodyWriter.ifStmt(
+                                        "!" + valueIsNullTerm,
+                                        appendNonNullValue,
+                                        elseBodyWriter ->
+                                                elseBodyWriter.stmt(
+                                                        methodCall(
+                                                                builderTerm,
+                                                                "append",
+                                                                NULL_STR_LITERAL)));
+                            }
                         })
                 .stmt(methodCall(builderTerm, "append", strLiteral("}")))
                 // Assign the result value
