@@ -385,7 +385,7 @@ trait FileSystemITCaseBase {
          |  `file.path` STRING METADATA,
          |  `file.name` STRING METADATA,
          |  `file.size` BIGINT METADATA,
-         |  `file.modification_time` TIMESTAMP_LTZ(3) METADATA
+         |  `file.modification-time` TIMESTAMP_LTZ(3) METADATA
          |) with (
          |  'connector' = 'filesystem',
          |  'path' = '$resultPath',

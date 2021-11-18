@@ -247,7 +247,7 @@ public class FileSystemTableFactoryTest {
         readableMetadata.put("file.path", DataTypes.STRING().notNull());
         readableMetadata.put("file.name", DataTypes.STRING().notNull());
         readableMetadata.put("file.size", DataTypes.BIGINT().notNull());
-        readableMetadata.put("file.modification_time", DataTypes.TIMESTAMP_LTZ(3).notNull());
+        readableMetadata.put("file.modification-time", DataTypes.TIMESTAMP_LTZ(3).notNull());
 
         assertEquals(readableMetadata, ((FileSystemTableSource) source).listReadableMetadata());
     }

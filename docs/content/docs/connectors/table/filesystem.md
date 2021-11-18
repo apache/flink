@@ -137,7 +137,7 @@ The following connector metadata can be accessed as metadata columns in a table 
       <td>Byte count of the file.</td>
     </tr>
     <tr>
-      <td><code>file.modification_time</code></td>
+      <td><code>file.modification-time</code></td>
       <td><code>TIMESTAMP_LTZ(3) NOT NULL</code></td>
       <td>Modification time of the file.</td>
     </tr>

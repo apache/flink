@@ -470,7 +470,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     }
                 }),
         MODIFICATION_TIME(
-                "file.modification_time",
+                "file.modification-time",
                 DataTypes.TIMESTAMP_LTZ(3).notNull(),
                 new FileInfoAccessor() {
                     private static final long serialVersionUID = 1L;
