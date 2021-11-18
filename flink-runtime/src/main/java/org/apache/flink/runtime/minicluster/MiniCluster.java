@@ -669,6 +669,7 @@ public class MiniCluster implements AutoCloseableAsync {
                             blobCacheService,
                             useLocalCommunication(),
                             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                            workingDirectory.createSubWorkingDirectory("tm_" + taskManagers.size()),
                             taskManagerTerminatingFatalErrorHandlerFactory.create(
                                     taskManagers.size()));
 

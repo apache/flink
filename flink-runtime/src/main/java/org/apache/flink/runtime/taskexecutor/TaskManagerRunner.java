@@ -207,6 +207,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         blobCacheService,
                         false,
                         externalResourceInfoProvider,
+                        workingDirectory,
                         this);
 
         this.terminationFuture = new CompletableFuture<>();
@@ -481,6 +482,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             BlobCacheService blobCacheService,
             boolean localCommunicationOnly,
             ExternalResourceInfoProvider externalResourceInfoProvider,
+            WorkingDirectory workingDirectory,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
 
@@ -495,6 +497,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         blobCacheService,
                         localCommunicationOnly,
                         externalResourceInfoProvider,
+                        workingDirectory,
                         fatalErrorHandler);
 
         return TaskExecutorToServiceAdapter.createFor(taskExecutor);
@@ -510,6 +513,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             TaskExecutorBlobService taskExecutorBlobService,
             boolean localCommunicationOnly,
             ExternalResourceInfoProvider externalResourceInfoProvider,
+            WorkingDirectory workingDirectory,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
 
@@ -531,7 +535,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         resourceID,
                         externalAddress,
                         localCommunicationOnly,
-                        taskExecutorResourceSpec);
+                        taskExecutorResourceSpec,
+                        workingDirectory);
 
         Tuple2<TaskManagerMetricGroup, MetricGroup> taskManagerMetricGroup =
                 MetricUtils.instantiateTaskManagerMetricGroup(
@@ -680,6 +685,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 BlobCacheService blobCacheService,
                 boolean localCommunicationOnly,
                 ExternalResourceInfoProvider externalResourceInfoProvider,
+                WorkingDirectory workingDirectory,
                 FatalErrorHandler fatalErrorHandler)
                 throws Exception;
     }

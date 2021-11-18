@@ -28,6 +28,7 @@ import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -273,6 +274,7 @@ public class TaskManagerRunnerTest extends TestLogger {
                 blobCacheService,
                 localCommunicationOnly,
                 externalResourceInfoProvider,
+                workingDirectory,
                 fatalErrorHandler) -> taskExecutorService;
     }
 
@@ -313,6 +315,7 @@ public class TaskManagerRunnerTest extends TestLogger {
                 BlobCacheService blobCacheService,
                 boolean localCommunicationOnly,
                 ExternalResourceInfoProvider externalResourceInfoProvider,
+                WorkingDirectory workingDirectory,
                 FatalErrorHandler fatalErrorHandler) {
             return TestingTaskExecutorService.newBuilder()
                     .setStartRunnable(

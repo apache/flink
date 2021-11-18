@@ -30,6 +30,7 @@ import java.io.IOException;
 public class WorkingDirectory {
     private final File root;
     private final File tmp;
+    private final File localState;
 
     private WorkingDirectory(File root) throws IOException {
         this.root = root;
@@ -38,6 +39,9 @@ public class WorkingDirectory {
         this.tmp = new File(root, "tmp");
         createDirectory(tmp);
         FileUtils.cleanDirectory(tmp);
+
+        localState = new File(root, "localState");
+        createDirectory(localState);
     }
 
     private static void createDirectory(File directory) throws IOException {
@@ -53,6 +57,10 @@ public class WorkingDirectory {
 
     public File getTmpDirectory() {
         return tmp;
+    }
+
+    public File getLocalStateDirectory() {
+        return localState;
     }
 
     public WorkingDirectory createSubWorkingDirectory(String directoryName) throws IOException {
