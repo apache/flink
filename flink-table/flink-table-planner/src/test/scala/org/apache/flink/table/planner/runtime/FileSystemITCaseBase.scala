@@ -419,9 +419,7 @@ trait FileSystemITCaseBase {
         )
         assertEquals(
           // Note: It's TIMESTAMP_LTZ
-          Instant.ofEpochMilli(file.lastModified())
-            .atZone(DateTimeUtils.UTC_ZONE.toZoneId)
-            .toInstant,
+          Instant.ofEpochMilli(file.lastModified()),
           row.getFieldAs[Instant](4)
         )
       }

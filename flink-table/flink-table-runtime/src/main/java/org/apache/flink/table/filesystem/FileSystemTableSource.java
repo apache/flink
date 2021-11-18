@@ -53,7 +53,6 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
@@ -61,8 +60,6 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.nio.file.Paths;
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -477,11 +474,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
                     @Override
                     public Object getValue(FileSourceSplit split) {
-                        long nanos = split.fileModificationTime();
-                        return TimestampData.fromLocalDateTime(
-                                LocalDateTime.ofInstant(
-                                        Instant.ofEpochMilli(nanos),
-                                        DateTimeUtils.UTC_ZONE.toZoneId()));
+                        return TimestampData.fromEpochMillis(split.fileModificationTime());
                     }
                 });
 
