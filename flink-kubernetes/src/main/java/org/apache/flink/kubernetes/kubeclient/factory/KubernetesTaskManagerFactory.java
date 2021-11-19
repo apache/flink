@@ -43,7 +43,7 @@ import java.util.List;
 /** Utility class for constructing the TaskManager Pod on the JobManager. */
 public class KubernetesTaskManagerFactory {
 
-    public static KubernetesTaskManagerSpecification buildTaskManagerKubernetesPod(
+    public static KubernetesTaskManagerSpecification buildKubernetesTaskManagerSpecification(
             FlinkPod podTemplate, KubernetesTaskManagerParameters kubernetesTaskManagerParameters)
             throws IOException {
         FlinkPod flinkPod = Preconditions.checkNotNull(podTemplate).copy();

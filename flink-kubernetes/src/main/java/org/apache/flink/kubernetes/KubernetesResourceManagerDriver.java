@@ -159,46 +159,51 @@ public class KubernetesResourceManagerDriver
         final CompletableFuture<KubernetesWorkerNode> requestResourceFuture =
                 new CompletableFuture<>();
 
+        KubernetesTaskManagerSpecification taskManagerSpec = null;
+        KubernetesPod taskManagerPod = null;
+        String podName = null;
         try {
-            final KubernetesTaskManagerSpecification taskManagerSpec =
-                    KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(
+            taskManagerSpec =
+                    KubernetesTaskManagerFactory.buildKubernetesTaskManagerSpecification(
                             taskManagerPodTemplate, parameters);
-            final KubernetesPod taskManagerPod = taskManagerSpec.getKubernetesPod();
-            final String podName = taskManagerPod.getName();
+            taskManagerPod = taskManagerSpec.getKubernetesPod();
+            podName = taskManagerPod.getName();
 
             requestResourceFutures.put(podName, requestResourceFuture);
-
-            log.info(
-                    "Creating new TaskManager pod with name {} and resource <{},{}>.",
-                    podName,
-                    parameters.getTaskManagerMemoryMB(),
-                    parameters.getTaskManagerCPU());
-
-            final CompletableFuture<Void> createPodFuture =
-                    flinkKubeClient.createTaskManagerPod(taskManagerSpec);
-
-            FutureUtils.assertNoException(
-                    createPodFuture.handleAsync(
-                            (ignore, exception) -> {
-                                if (exception != null) {
-                                    log.warn(
-                                            "Could not create pod {}, exception: {}",
-                                            podName,
-                                            exception);
-                                    CompletableFuture<KubernetesWorkerNode> future =
-                                            requestResourceFutures.remove(taskManagerPod.getName());
-                                    if (future != null) {
-                                        future.completeExceptionally(exception);
-                                    }
-                                } else {
-                                    log.info("Pod {} is created.", podName);
-                                }
-                                return null;
-                            },
-                            getMainThreadExecutor()));
         } catch (Exception e) {
             requestResourceFuture.completeExceptionally(e);
         }
+
+        log.info(
+                "Creating new TaskManager pod with name {} and resource <{},{}>.",
+                podName,
+                parameters.getTaskManagerMemoryMB(),
+                parameters.getTaskManagerCPU());
+
+        final CompletableFuture<Void> createPodFuture =
+                flinkKubeClient.createTaskManagerPod(taskManagerSpec);
+
+        final KubernetesPod finalTaskManagerPod = taskManagerPod;
+        final String finalPodName = podName;
+        FutureUtils.assertNoException(
+                createPodFuture.handleAsync(
+                        (ignore, exception) -> {
+                            if (exception != null) {
+                                log.warn(
+                                        "Could not create pod {}, exception: {}",
+                                        finalPodName,
+                                        exception);
+                                CompletableFuture<KubernetesWorkerNode> future =
+                                        requestResourceFutures.remove(finalTaskManagerPod.getName());
+                                if (future != null) {
+                                    future.completeExceptionally(exception);
+                                }
+                            } else {
+                                log.info("Pod {} is created.", finalPodName);
+                            }
+                            return null;
+                        },
+                        getMainThreadExecutor()));
 
         return requestResourceFuture;
     }

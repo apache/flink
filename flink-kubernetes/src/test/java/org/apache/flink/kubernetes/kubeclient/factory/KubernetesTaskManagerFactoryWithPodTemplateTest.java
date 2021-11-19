@@ -32,7 +32,7 @@ public class KubernetesTaskManagerFactoryWithPodTemplateTest
 
     @Override
     protected Pod getResultPod(FlinkPod podTemplate) throws IOException {
-        return KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(
+        return KubernetesTaskManagerFactory.buildKubernetesTaskManagerSpecification(
                         podTemplate,
                         KubernetesTestUtils.createTaskManagerParameters(
                                 flinkConfig, "taskmanager-" + UUID.randomUUID().toString()))

@@ -64,7 +64,7 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
         generateKerberosFileItems();
 
         this.resultPod =
-                KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(
+                KubernetesTaskManagerFactory.buildKubernetesTaskManagerSpecification(
                                 new FlinkPod.Builder().build(), kubernetesTaskManagerParameters)
                         .getKubernetesPod()
                         .getInternalResource();
