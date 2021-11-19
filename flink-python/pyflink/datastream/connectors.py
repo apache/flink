@@ -196,7 +196,7 @@ class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
     Flink Sink to produce data into a Kafka topic.
 
     Please note that this producer provides at-least-once reliability guarantees when checkpoints
-    are enabled and set_flush_on_checkpoint(True) is set. Otherwise, the producer doesn;t provid any
+    are enabled and set_flush_on_checkpoint(True) is set. Otherwise, the producer doesn't provide any
     reliability guarantees.
     """
 

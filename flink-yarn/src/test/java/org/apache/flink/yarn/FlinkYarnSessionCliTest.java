@@ -608,18 +608,18 @@ public class FlinkYarnSessionCliTest extends TestLogger {
         return createFlinkYarnSessionCli(new Configuration());
     }
 
-    private FlinkYarnSessionCli createFlinkYarnSessionCliWithJmAndTmTotalMemory(int totalMemomory)
+    private FlinkYarnSessionCli createFlinkYarnSessionCliWithJmAndTmTotalMemory(int totalMemory)
             throws FlinkException {
-        return createFlinkYarnSessionCli(createConfigurationWithJmAndTmTotalMemory(totalMemomory));
+        return createFlinkYarnSessionCli(createConfigurationWithJmAndTmTotalMemory(totalMemory));
     }
 
-    private Configuration createConfigurationWithJmAndTmTotalMemory(int totalMemomory)
+    private Configuration createConfigurationWithJmAndTmTotalMemory(int totalMemory)
             throws FlinkException {
         Configuration configuration = new Configuration();
         configuration.set(
-                JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemomory));
+                JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemory));
         configuration.set(
-                TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemomory));
+                TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemory));
         return configuration;
     }
 

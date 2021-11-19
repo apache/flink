@@ -95,7 +95,7 @@ public class AdaptivePollingRecordPublisher extends PollingRecordPublisher {
 
     /**
      * Calculates how many records to read each time through the loop based on a target throughput
-     * and the measured frequenecy of the loop.
+     * and the measured frequency of the loop.
      *
      * @param runLoopTimeNanos The total time of one pass through the loop
      * @param numRecords The number of records of the last read operation

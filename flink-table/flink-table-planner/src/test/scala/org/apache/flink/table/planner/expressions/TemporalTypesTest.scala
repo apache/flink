@@ -826,7 +826,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     //testSqlApi("TO_DATE(1521331200)", "2018-03-18")
     testSqlApi("EXTRACT(HOUR FROM TIME '06:07:08')", "6")
     testSqlApi("EXTRACT(MINUTE FROM TIME '06:07:08')", "7")
-    //testSqlApi("EXTRACT(HOUR FROM TO_TIME('06:07:08'))", "6")  NO TO_TIME funciton
+    // testSqlApi("EXTRACT(HOUR FROM TO_TIME('06:07:08'))", "6")  NO TO_TIME function
     testSqlApi("EXTRACT(HOUR FROM CAST('06:07:08' AS TIME))", "6")
     testSqlApi("EXTRACT(DAY FROM CAST('2018-03-18' AS DATE))", "18")
     testSqlApi("EXTRACT(DAY FROM DATE '2018-03-18')", "18")
