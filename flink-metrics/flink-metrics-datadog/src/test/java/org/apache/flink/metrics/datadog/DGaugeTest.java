@@ -30,7 +30,7 @@ import static org.junit.Assert.assertNull;
 public class DGaugeTest extends TestLogger {
 
     @Test
-    public void testGetMetricValueForGauge() {
+    public void testGetMetricValue() {
         Object[] gaugeValue = new Object[1];
 
         final DGauge<Object> gauge =
