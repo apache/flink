@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -35,6 +36,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeServiceFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolServiceFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.PreferredAllocationRequestSlotMatchingStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.SimpleRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
@@ -165,7 +169,8 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                 SystemClock.getInstance(),
                                 rpcTimeout,
                                 slotIdleTimeout,
-                                batchSlotTimeout);
+                                batchSlotTimeout,
+                                getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             case Adaptive:
                 schedulerNGFactory = getAdaptiveSchedulerFactoryFromConfiguration(configuration);
@@ -182,6 +187,26 @@ public final class DefaultSlotPoolServiceSchedulerFactory
 
         return new DefaultSlotPoolServiceSchedulerFactory(
                 slotPoolServiceFactory, schedulerNGFactory);
+    }
+
+    @VisibleForTesting
+    static RequestSlotMatchingStrategy getRequestSlotMatchingStrategy(
+            Configuration configuration, JobType jobType) {
+        final boolean isLocalRecoveryEnabled =
+                configuration.get(CheckpointingOptions.LOCAL_RECOVERY);
+
+        if (isLocalRecoveryEnabled) {
+            if (jobType == JobType.STREAMING) {
+                return PreferredAllocationRequestSlotMatchingStrategy.INSTANCE;
+            } else {
+                LOG.warn(
+                        "Batch jobs do not support local recovery. Falling back for request slot matching strategy to {}.",
+                        SimpleRequestSlotMatchingStrategy.class.getSimpleName());
+                return SimpleRequestSlotMatchingStrategy.INSTANCE;
+            }
+        } else {
+            return SimpleRequestSlotMatchingStrategy.INSTANCE;
+        }
     }
 
     private static AdaptiveSchedulerFactory getAdaptiveSchedulerFactoryFromConfiguration(
