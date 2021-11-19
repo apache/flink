@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * reducing state using {@link
  * org.apache.flink.api.common.functions.RuntimeContext#getReducingState(ReducingStateDescriptor)}.
  *
- * @param <T> The type of the values that can be added to the list state.
+ * @param <T> The type of the values that can be added to the reducing state.
  */
 @PublicEvolving
 public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>, T> {
@@ -41,7 +41,8 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
     private final ReduceFunction<T> reduceFunction;
 
     /**
-     * Creates a new {@code ReducingStateDescriptor} with the given name, type, and default value.
+     * Creates a new {@code ReducingStateDescriptor} with the given name, reduceFunction, and
+     * typeClass.
      *
      * <p>If this constructor fails (because it is not possible to describe the type via a class),
      * consider using the {@link #ReducingStateDescriptor(String, ReduceFunction, TypeInformation)}
@@ -49,34 +50,33 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
      *
      * @param name The (unique) name for the state.
      * @param reduceFunction The {@code ReduceFunction} used to aggregate the state.
-     * @param typeClass The type of the values in the state.
+     * @param typeClass The class of the type of values in the state.
      */
     public ReducingStateDescriptor(
             String name, ReduceFunction<T> reduceFunction, Class<T> typeClass) {
         super(name, typeClass, null);
         this.reduceFunction = checkNotNull(reduceFunction);
-
-        if (reduceFunction instanceof RichFunction) {
-            throw new UnsupportedOperationException(
-                    "ReduceFunction of ReducingState can not be a RichFunction.");
-        }
+        checkReduceFunctionNotRich(reduceFunction);
     }
 
     /**
-     * Creates a new {@code ReducingStateDescriptor} with the given name and default value.
+     * Creates a new {@code ReducingStateDescriptor} with the given name, reduceFunction, and
+     * typeInfo.
      *
      * @param name The (unique) name for the state.
      * @param reduceFunction The {@code ReduceFunction} used to aggregate the state.
-     * @param typeInfo The type of the values in the state.
+     * @param typeInfo The type information for the values in the state.
      */
     public ReducingStateDescriptor(
             String name, ReduceFunction<T> reduceFunction, TypeInformation<T> typeInfo) {
         super(name, typeInfo, null);
         this.reduceFunction = checkNotNull(reduceFunction);
+        checkReduceFunctionNotRich(reduceFunction);
     }
 
     /**
-     * Creates a new {@code ValueStateDescriptor} with the given name and default value.
+     * Creates a new {@code ValueStateDescriptor} with the given name, reduceFunction, and
+     * typeSerializer.
      *
      * @param name The (unique) name for the state.
      * @param reduceFunction The {@code ReduceFunction} used to aggregate the state.
@@ -86,6 +86,7 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
             String name, ReduceFunction<T> reduceFunction, TypeSerializer<T> typeSerializer) {
         super(name, typeSerializer, null);
         this.reduceFunction = checkNotNull(reduceFunction);
+        checkReduceFunctionNotRich(reduceFunction);
     }
 
     /** Returns the reduce function to be used for the reducing state. */
@@ -96,5 +97,12 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
     @Override
     public Type getType() {
         return Type.REDUCING;
+    }
+
+    private void checkReduceFunctionNotRich(ReduceFunction<T> reduceFunction) {
+        if (reduceFunction instanceof RichFunction) {
+            throw new UnsupportedOperationException(
+                    "ReduceFunction of ReducingState can not be a RichFunction.");
+        }
     }
 }
