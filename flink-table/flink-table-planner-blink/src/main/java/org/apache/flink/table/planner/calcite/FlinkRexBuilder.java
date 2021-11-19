@@ -122,6 +122,8 @@ public final class FlinkRexBuilder extends RexBuilder {
      * https://issues.apache.org/jira/browse/CALCITE-4590 and
      * https://issues.apache.org/jira/browse/CALCITE-2321. Please refer to {@code
      * org.apache.calcite.rex.RexSimplify.RexSargBuilder#getType} for the correct behaviour.
+     *
+     * <p>Once CALCITE-4888 is fixed, this method (and related methods) should be removed.
      */
     @Override
     @SuppressWarnings("rawTypes")
