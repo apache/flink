@@ -217,7 +217,7 @@ This feature is not yet supported in Python
 {{< /tabs>}}
 
 ### WindowAll
-#### DataStreamStream &rarr; AllWindowedStream
+#### DataStream &rarr; AllWindowedStream
 
 Windows can be defined on regular DataStreams. Windows group all the stream events according to some characteristic (e.g., the data that arrived within the last 5 seconds). See [windows](windows.html) for a complete description of windows.
 
