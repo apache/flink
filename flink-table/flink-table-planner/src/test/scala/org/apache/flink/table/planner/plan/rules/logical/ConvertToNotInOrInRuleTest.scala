@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
@@ -189,7 +190,7 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
   }
 
   @Test
-  def testConvertToSearchString2(): Unit = {
+  def testConvertToSearchStringWithNull(): Unit = {
     util.verifyRelPlan(
       "SELECT * FROM MyTable WHERE " +
         "e = 'a' or e = 'b' or e = 'c' or e = 'd' or e = 'e' or e = 'f' or e = NULL or e = " +
