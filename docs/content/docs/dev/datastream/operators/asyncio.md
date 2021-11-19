@@ -266,6 +266,6 @@ For example, the following patterns result in a blocking `asyncInvoke(...)` func
 
   - Blocking/waiting on the future-type objects returned by an asynchronous client inside the `asyncInvoke(...)` method
   
-An **AsyncFunction(AsyncWaitOperator) can be used anywhere the job graph, except that it cannot be chained to a `SourceFunction`/`SourceStreamTask`.**
+**An AsyncFunction(AsyncWaitOperator) can be used anywhere the job graph, except that it cannot be chained to a `SourceFunction`/`SourceStreamTask`.**
 
 {{< top >}}
