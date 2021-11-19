@@ -70,7 +70,11 @@ public class DCounterTest extends TestLogger {
 
         final DGauge<Object> gauge =
                 new DGauge<>(
-                        () -> gaugeValue[0], "gauge", "localhost", Collections.emptyList(), () -> 0);
+                        () -> gaugeValue[0],
+                        "gauge",
+                        "localhost",
+                        Collections.emptyList(),
+                        () -> 0);
 
         // sane initial state
         assertNull(gauge.getMetricValue());
