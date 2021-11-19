@@ -14,17 +14,5 @@ jobs:
     name: Spell checker
     runs-on: ubuntu-20.04
     steps:
-    - name: checkout-merge
-      if: "contains(github.event_name, 'pull_request')"
-      uses: actions/checkout@v2.0.0
-      with:
-        ref: refs/pull/${{github.event.pull_request.number}}/merge
-    - name: checkout
-      if: "!contains(github.event_name, 'pull_request')"
-      uses: actions/checkout@v2.0.0
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-    - name: check-spelling
-      uses: ./
-      with:
-        experimental_apply_changes_via_bot: 1
+    - name: Check spelling
+      uses: check-spelling/check-spelling@v0.0.20-alpha3
