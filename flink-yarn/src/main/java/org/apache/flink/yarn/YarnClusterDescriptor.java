@@ -744,10 +744,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     }
                 }
                 if (!queueFound) {
-                    String queueNames = "";
-                    for (QueueInfo queue : queues) {
-                        queueNames += queue.getQueueName() + ", ";
-                    }
+                    String queueNames = StringUtils.toQuotedListString(queues.toArray());
                     LOG.warn(
                             "The specified queue '"
                                     + this.yarnQueue
