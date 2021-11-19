@@ -1,5 +1,4 @@
-://github.com/\w+/\w+
-^(?:https\??|data):\S*[*+]$
-^..:0.Xx\S*}\\b$
-catching 'templatesz'
-\\templates(?![a-z])
+# See https://github.com/check-spelling/check-spelling/wiki/Configuration-Examples:-patterns
+
+# ignore long runs of a single character:
+\b([A-Za-z])\g{-1}{3,}\b
