@@ -410,11 +410,15 @@ public class HiveCatalog extends AbstractCatalog {
 
         try {
             if (databaseExists(databaseName)) {
-                throw new DatabaseAlreadyExistException(getName(), databaseName);
-            } else {
-                Database database = getHiveDatabase(databaseName);
-                database.setName(newDatabaseName);
-                client.alterDatabase(databaseName, database);
+                if (databaseExists(newDatabaseName)) {
+                    throw new DatabaseAlreadyExistException(getName(), newDatabaseName);
+                } else {
+                    Database database = getHiveDatabase(databaseName);
+                    database.setName(newDatabaseName);
+                    client.alterDatabase(databaseName, database);
+                }
+            } else if (!ignoreIfNotExists) {
+                throw new DatabaseNotExistException(getName(), databaseName);
             }
         } catch (TException e) {
             throw new CatalogException(
