@@ -1,0 +1,4 @@
+\.png$
+^LICENSE\.txt$
+^\.dockerignore$
+^\.github/

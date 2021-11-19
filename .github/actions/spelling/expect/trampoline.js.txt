@@ -1,0 +1,7 @@
+argv
+cwd
+stderr
+stdin
+stdio
+stdout
+chmod

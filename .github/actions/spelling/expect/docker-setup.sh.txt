@@ -1,0 +1,13 @@
+aarch
+bdc
+cbeaff
+fchurn
+github
+jsoref
+linux
+mkdir
+noarch
+rpmfind
+spellchecker
+tmp
+wordlist

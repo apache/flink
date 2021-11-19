@@ -1,0 +1,12 @@
+debian
+ENTRYPOINT
+FRONTEND
+github
+homepage
+http
+json
+jsoref
+noreply
+README
+Soref
+WORKDIR

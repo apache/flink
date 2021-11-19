@@ -1,0 +1,3 @@
+dirname
+perl
+usr
