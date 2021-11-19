@@ -21,12 +21,14 @@ package org.apache.flink.table.planner.functions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.junit.runners.Parameterized;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -137,7 +139,7 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
 
     // unsupported temporarily
     private static List<TestSpec> unsupportedImplicitConversionBetweenNumericAndString() {
-        return Arrays.asList(
+        return Collections.singletonList(
                 TypeConversionTestBuilder.left(STRING(), STRING_DATA_EQUALS_NUMERIC)
                         .right(STRING(), STRING_DATA_EQUALS_NUMERIC)
                         .fail(TINYINT(), TINY_INT_DATA)
@@ -151,75 +153,84 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
     }
 
     static class TypeConversionTestBuilder {
-        private TestSpec testSpec;
         private DataType leftType;
-        private final List<Object> columnData = new ArrayList<>();
-        private final List<DataType> columnTypes = new ArrayList<>();
-        private final List<Boolean> isSuccessResults = new ArrayList<>();
+        private Object leftValue;
+        private final List<Object> rightDataOnSuccess = new ArrayList<>();
+        private final List<DataType> rightTypesOnSuccess = new ArrayList<>();
+        private final List<Object> rightDataOnFailure = new ArrayList<>();
+        private final List<DataType> rightTypesOnFailure = new ArrayList<>();
 
         private static TypeConversionTestBuilder left(DataType leftType, Object leftValue) {
             TypeConversionTestBuilder builder = new TypeConversionTestBuilder();
             builder.leftType = leftType;
-            builder.columnData.add(leftValue);
-            builder.columnTypes.add(leftType);
-            builder.testSpec =
-                    TestSpec.forFunction(
-                            BuiltInFunctionDefinitions.EQUALS, "left: " + leftType.toString());
+            builder.leftValue = leftValue;
             return builder;
         }
 
         private TypeConversionTestBuilder right(DataType rightType, Object rightValue) {
-            this.isSuccessResults.add(true);
-            this.columnTypes.add(rightType);
-            this.columnData.add(rightValue);
+            this.rightTypesOnSuccess.add(rightType);
+            this.rightDataOnSuccess.add(rightValue);
             return this;
         }
 
         private TypeConversionTestBuilder fail(DataType rightType, Object rightValue) {
-            this.isSuccessResults.add(false);
-            this.columnTypes.add(rightType);
-            this.columnData.add(rightValue);
+            this.rightTypesOnFailure.add(rightType);
+            this.rightDataOnFailure.add(rightValue);
             return this;
         }
 
         private TestSpec build() {
-            String leftColumnName = "f0";
+            int columnBaseIdx = 0;
+            String leftColumnName = "f" + columnBaseIdx;
+            columnBaseIdx++;
 
-            testSpec.onFieldsWithData(columnData.toArray())
-                    .andDataTypes(columnTypes.toArray(new AbstractDataType<?>[] {}));
-            int failNum = 0;
-            for (int i = 1; i < columnTypes.size(); i++) {
-                String rightColumnName = "f" + i;
-                DataType rightType = columnTypes.get(i - failNum);
-                String exceptionMsg;
-                if (isSuccessResults.get(i - 1)) {
-                    testSpec.testSqlResult(
-                            String.format(
-                                    "CAST(%s AS %s) = CAST(%s AS %s)",
-                                    leftColumnName,
-                                    leftType.toString(),
-                                    rightColumnName,
-                                    rightType),
-                            true,
-                            BOOLEAN());
-                } else {
-                    exceptionMsg = getImplicitConversionFromStringExceptionMsg(rightType);
-                    testSpec.testSqlRuntimeError(
-                            String.format(
-                                    "CAST(%s AS %s) = CAST(%s AS %s)",
-                                    leftColumnName,
-                                    leftType.toString(),
-                                    rightColumnName,
-                                    rightType),
-                            exceptionMsg);
-                    failNum++;
-                }
+            TestSpec testSpec =
+                    TestSpec.forFunction(
+                            BuiltInFunctionDefinitions.EQUALS, "left: " + leftType.toString());
+
+            final List<Object> allData = new ArrayList<>();
+            allData.add(leftValue);
+            allData.addAll(rightDataOnSuccess);
+            allData.addAll(rightDataOnFailure);
+
+            final List<Object> allTypes = new ArrayList<>();
+            allTypes.add(leftType);
+            allTypes.addAll(rightTypesOnSuccess);
+            allTypes.addAll(rightTypesOnFailure);
+
+            testSpec.onFieldsWithData(allData.toArray())
+                    .andDataTypes(allTypes.toArray(new AbstractDataType<?>[] {}));
+
+            // test successful cases
+            for (int i = 0; i < rightTypesOnSuccess.size(); i++) {
+                String rightColumnName = "f" + (i + columnBaseIdx);
+                DataType rightType = rightTypesOnSuccess.get(i);
+                testSpec.testSqlResult(
+                        String.format(
+                                "CAST(%s AS %s) = CAST(%s AS %s)",
+                                leftColumnName, leftType.toString(), rightColumnName, rightType),
+                        true,
+                        BOOLEAN());
             }
 
+            columnBaseIdx = columnBaseIdx + rightTypesOnSuccess.size();
+            // test failed cases
+            for (int i = 0; i < rightTypesOnFailure.size(); i++) {
+                String rightColumnName = "f" + (i + columnBaseIdx);
+                DataType rightType = rightTypesOnFailure.get(i);
+                String exceptionMsg =
+                        getImplicitConversionFromStringExceptionMsg(
+                                rightType.getLogicalType().getTypeRoot());
+                testSpec.testSqlRuntimeError(
+                        String.format(
+                                "CAST(%s AS %s) = CAST(%s AS %s)",
+                                leftColumnName, leftType.toString(), rightColumnName, rightType),
+                        exceptionMsg);
+            }
             return testSpec;
         }
 
-        private String getImplicitConversionFromStringExceptionMsg(DataType rightType) {
+        private String getImplicitConversionFromStringExceptionMsg(LogicalTypeRoot rightType) {
             return String.format(
                     "implicit type conversion between VARCHAR and %s is not supported now",
                     rightType.toString());

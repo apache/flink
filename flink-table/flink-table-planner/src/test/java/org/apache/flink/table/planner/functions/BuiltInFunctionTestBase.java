@@ -25,6 +25,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.Expression;
@@ -192,6 +193,7 @@ public abstract class BuiltInFunctionTestBase {
         } catch (AssertionError e) {
             throw e;
         } catch (Throwable t) {
+            assertTrue(t instanceof ValidationException);
             assertThat(t.getMessage(), containsString(testItem.errorMessage));
         }
     }

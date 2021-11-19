@@ -1167,15 +1167,16 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     static class CastTestSpecBuilder {
-        private TestSpec testSpec;
         private DataType targetType;
-        private final List<Object> columnData = new ArrayList<>();
-        private final List<DataType> columnTypes = new ArrayList<>();
-        private final List<Object> expectedValues = new ArrayList<>();
-        private final List<TestType> testTypes = new ArrayList<>();
 
-        private enum TestType {
-            RESULT,
+        private final List<Object> fromDataOnSuccess = new ArrayList<>();
+        private final List<Object> fromDataExpectedValueOnSuccess = new ArrayList<>();
+        private final List<DataType> fromDataTypesOnSuccess = new ArrayList<>();
+        private final List<Object> fromDataOnFailure = new ArrayList<>();
+        private final List<DataType> fromDataTypesOnFailure = new ArrayList<>();
+        private final List<FailureType> fromDataFailureTypes = new ArrayList<>();
+
+        private enum FailureType {
             ERROR_SQL,
             ERROR_TABLE_API
         }
@@ -1183,61 +1184,80 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         private static CastTestSpecBuilder testCastTo(DataType targetType) {
             CastTestSpecBuilder tsb = new CastTestSpecBuilder();
             tsb.targetType = targetType;
-            tsb.testSpec =
-                    TestSpec.forFunction(
-                            BuiltInFunctionDefinitions.CAST, "To " + targetType.toString());
             return tsb;
         }
 
         private CastTestSpecBuilder fromCase(DataType dataType, Object src, Object target) {
-            this.testTypes.add(TestType.RESULT);
-            this.columnTypes.add(dataType);
-            this.columnData.add(src);
-            this.expectedValues.add(target);
+            this.fromDataTypesOnSuccess.add(dataType);
+            this.fromDataOnSuccess.add(src);
+            this.fromDataExpectedValueOnSuccess.add(target);
             return this;
         }
 
         private CastTestSpecBuilder failTableApi(DataType dataType, Object src) {
-            return fail(TestType.ERROR_TABLE_API, dataType, src);
+            return fail(FailureType.ERROR_TABLE_API, dataType, src);
         }
 
         private CastTestSpecBuilder failSQL(DataType dataType, Object src) {
-            return fail(TestType.ERROR_TABLE_API, dataType, src);
+            return fail(FailureType.ERROR_TABLE_API, dataType, src);
         }
 
         private CastTestSpecBuilder fail(DataType dataType, Object src) {
-            fail(TestType.ERROR_TABLE_API, dataType, src);
-            return fail(TestType.ERROR_SQL, dataType, src);
+            fail(FailureType.ERROR_TABLE_API, dataType, src);
+            return fail(FailureType.ERROR_SQL, dataType, src);
         }
 
-        private CastTestSpecBuilder fail(TestType type, DataType dataType, Object src) {
-            this.testTypes.add(type);
-            this.columnTypes.add(dataType);
-            this.columnData.add(src);
+        private CastTestSpecBuilder fail(FailureType type, DataType dataType, Object src) {
+            this.fromDataFailureTypes.add(type);
+            this.fromDataTypesOnFailure.add(dataType);
+            this.fromDataOnFailure.add(src);
             return this;
         }
 
         private TestSpec build() {
-            List<ResultSpec> testSpecs = new ArrayList<>(columnData.size());
-            // expectedValues may contain less elements if there are also error test cases
-            int idxOffset = 0;
-            for (int i = 0; i < columnData.size(); i++) {
-                String colName = "f" + i;
-                LogicalType colType = columnTypes.get(i).getLogicalType();
+            TestSpec testSpec =
+                    TestSpec.forFunction(
+                            BuiltInFunctionDefinitions.CAST, "To " + targetType.toString());
+
+            final List<Object> allData = new ArrayList<>();
+            allData.addAll(fromDataOnSuccess);
+            allData.addAll(fromDataOnFailure);
+
+            final List<Object> allTypes = new ArrayList<>();
+            allTypes.addAll(fromDataTypesOnSuccess);
+            allTypes.addAll(fromDataTypesOnFailure);
+
+            List<ResultSpec> testSpecs = new ArrayList<>(allData.size());
+            // test successful cases
+            int columnBaseIdx = 0;
+            for (int i = 0; i < fromDataTypesOnSuccess.size(); i++) {
+                String colName = "f" + (i + columnBaseIdx);
+                testSpecs.add(
+                        resultSpec(
+                                $(colName).cast(targetType),
+                                "CAST(" + colName + " AS " + targetType.toString() + ")",
+                                fromDataExpectedValueOnSuccess.get(i),
+                                targetType));
+            }
+
+            // test failed cases
+            columnBaseIdx = columnBaseIdx + fromDataTypesOnSuccess.size();
+            for (int i = 0; i < fromDataTypesOnFailure.size(); i++) {
+                String colName = "f" + (i + columnBaseIdx);
+                LogicalType colType = fromDataTypesOnFailure.get(i).getLogicalType();
                 String errorMsg;
-                switch (testTypes.get(i)) {
+                switch (fromDataFailureTypes.get(i)) {
                     case ERROR_TABLE_API:
                         errorMsg =
                                 specificErrorMsg(
                                         colType,
                                         String.format(
                                                 "Invalid function call:%ncast("
-                                                        + columnTypes.get(i).toString()
+                                                        + fromDataTypesOnFailure.get(i).toString()
                                                         + ", "
                                                         + targetType.toString()
                                                         + ")"));
                         testSpec.testTableApiValidationError($(colName).cast(targetType), errorMsg);
-                        idxOffset++;
                         break;
                     case ERROR_SQL:
                         errorMsg =
@@ -1245,20 +1265,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                         colType, "Cast function cannot convert value of type ");
                         testSpec.testSqlValidationError(
                                 "CAST(" + colName + " AS " + targetType.toString() + ")", errorMsg);
-                        idxOffset++;
-                        break;
-                    case RESULT:
-                        testSpecs.add(
-                                resultSpec(
-                                        $(colName).cast(targetType),
-                                        "CAST(" + colName + " AS " + targetType.toString() + ")",
-                                        expectedValues.get(i - idxOffset),
-                                        targetType));
                         break;
                 }
             }
-            testSpec.onFieldsWithData(columnData.toArray())
-                    .andDataTypes(columnTypes.toArray(new AbstractDataType<?>[] {}))
+            testSpec.onFieldsWithData(allData.toArray())
+                    .andDataTypes(allTypes.toArray(new AbstractDataType<?>[] {}))
                     .testResult(testSpecs.toArray(new ResultSpec[0]));
             return testSpec;
         }
