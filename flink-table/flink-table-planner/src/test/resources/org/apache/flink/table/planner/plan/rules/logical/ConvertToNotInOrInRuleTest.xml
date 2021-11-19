@@ -407,25 +407,6 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testConvertToNotIn_WithOr1">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable WHERE (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4) OR b = 1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)), =($1, 1))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(NOT IN($0, 1, 2, 3, 4), =($1, 1))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testConvertToNotIn_WithOr2">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 OR b = 1]]>
@@ -483,7 +464,26 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testConvertToSearchString2">
+  <TestCase name="testConvertToNotIn_WithOr1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4) OR b = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(NOT IN($0, 1, 2, 3, 4), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToSearchStringWithNull">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE e = 'a' or e = 'b' or e = 'c' or e = 'd' or e = 'e' or e = 'f' or e = NULL or e = 'HELLO WORLD!']]>
     </Resource>
