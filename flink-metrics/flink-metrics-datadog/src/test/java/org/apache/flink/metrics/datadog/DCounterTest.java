@@ -26,7 +26,6 @@ import org.junit.Test;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 /** Tests for the {@link DCounter}. */
 public class DCounterTest extends TestLogger {
@@ -62,42 +61,5 @@ public class DCounterTest extends TestLogger {
         // properly handle decrements
         backingCounter.dec(10);
         assertEquals(0L, counter.getMetricValue());
-    }
-
-    @Test
-    public void testGetMetricValueForGauge() {
-        Object[] gaugeValue = new Object[1];
-
-        final DGauge<Object> gauge =
-                new DGauge<>(
-                        () -> gaugeValue[0],
-                        "gauge",
-                        "localhost",
-                        Collections.emptyList(),
-                        () -> 0);
-
-        // sane initial state
-        assertNull(gauge.getMetricValue());
-        gauge.ackReport();
-
-        // true becomes 1
-        gaugeValue[0] = true;
-        assertEquals(gauge.getMetricValue(), 1);
-        gauge.ackReport();
-
-        // false becomes 0
-        gaugeValue[0] = false;
-        assertEquals(gauge.getMetricValue(), 0);
-        gauge.ackReport();
-
-        // integers stay the same
-        gaugeValue[0] = 42;
-        assertEquals(gauge.getMetricValue(), 42);
-        gauge.ackReport();
-
-        // floats stay the same
-        gaugeValue[0] = 3.142;
-        assertEquals(gauge.getMetricValue(), 3.142);
-        gauge.ackReport();
     }
 }
