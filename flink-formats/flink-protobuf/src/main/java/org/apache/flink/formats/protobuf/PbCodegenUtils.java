@@ -18,14 +18,20 @@
 
 package org.apache.flink.formats.protobuf;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.formats.protobuf.serialize.PbCodegenSerializeFactory;
 import org.apache.flink.formats.protobuf.serialize.PbCodegenSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import com.google.protobuf.Descriptors.FieldDescriptor;
+import org.codehaus.janino.SimpleCompiler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Codegen utils only used in protobuf format. */
 public class PbCodegenUtils {
+    private static final Logger LOG = LoggerFactory.getLogger(PbCodegenUtils.class);
+
     /**
      * @param dataGetter code phrase which represent flink container type like row/array in codegen
      *     sections
@@ -237,5 +243,19 @@ public class PbCodegenUtils {
         appender.appendSegment(code);
         appender.appendSegment("}");
         return appender.code();
+    }
+
+    public static Class compileClass(ClassLoader classloader, String className, String code)
+            throws ClassNotFoundException {
+        SimpleCompiler simpleCompiler = new SimpleCompiler();
+        simpleCompiler.setParentClassLoader(classloader);
+        try {
+            simpleCompiler.cook(code);
+        } catch (Throwable t) {
+            LOG.error("Protobuf codegen compile error: \n" + code);
+            throw new InvalidProgramException(
+                    "Program cannot be compiled. This is a bug. Please file an issue.", t);
+        }
+        return simpleCompiler.getClassLoader().loadClass(className);
     }
 }

@@ -42,7 +42,8 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
 
     /**
      * @param internalDataGetStr the real value of {@code internalDataGetStr} may be String, int,
-     *     long, double, float, boolean, byte[] {@code internalDataGetStr} must not be null.
+     *     long, double, float, boolean, byte[], enum value {@code internalDataGetStr} must not be
+     *     null.
      */
     @Override
     public String codegen(String returnPbVarName, String internalDataGetStr) {

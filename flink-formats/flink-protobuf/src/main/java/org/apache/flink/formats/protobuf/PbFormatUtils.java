@@ -89,6 +89,16 @@ public class PbFormatUtils {
         }
     }
 
+    public static String getFullJavaName(Descriptors.EnumDescriptor enumDescriptor) {
+        if (null != enumDescriptor.getContainingType()) {
+            return getFullJavaName(enumDescriptor.getContainingType())
+                    + "."
+                    + enumDescriptor.getName();
+        } else {
+            return enumDescriptor.getFullName();
+        }
+    }
+
     public static boolean isSimpleType(LogicalType type) {
         switch (type.getTypeRoot()) {
             case BOOLEAN:
@@ -123,16 +133,6 @@ public class PbFormatUtils {
         } catch (Exception y) {
             throw new IllegalArgumentException(
                     String.format("get %s descriptors error!", className), y);
-        }
-    }
-
-    public static String getFullJavaName(Descriptors.EnumDescriptor enumDescriptor) {
-        if (null != enumDescriptor.getContainingType()) {
-            return getFullJavaName(enumDescriptor.getContainingType())
-                    + "."
-                    + enumDescriptor.getName();
-        } else {
-            return enumDescriptor.getFullName();
         }
     }
 

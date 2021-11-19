@@ -22,6 +22,8 @@ package org.apache.flink.formats.protobuf;
 public class PbConstant {
     public static final String PB_METHOD_GET_DESCRIPTOR = "getDescriptor";
     public static final String PB_METHOD_PARSE_FROM = "parseFrom";
+    public static final String GENERATED_DECODE_METHOD = "decode";
+    public static final String GENERATED_ENCODE_METHOD = "encode";
     public static final String PB_MAP_KEY_NAME = "key";
     public static final String PB_MAP_VALUE_NAME = "value";
     public static final String PB_OUTER_CLASS_SUFFIX = "OuterClass";

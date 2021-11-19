@@ -20,6 +20,8 @@ package org.apache.flink.formats.protobuf.serialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
+import org.apache.flink.formats.protobuf.PbCodegenUtils;
+import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.formats.protobuf.deserialize.ProtoToRowConverter;
@@ -31,14 +33,15 @@ import org.apache.flink.table.types.logical.RowType;
 import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
-import org.codehaus.janino.ScriptEvaluator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * {@link RowToProtoConverter} can convert flink row data to binary protobuf message data by codegen
@@ -46,51 +49,63 @@ import java.util.Map;
  */
 public class RowToProtoConverter {
     private static final Logger LOG = LoggerFactory.getLogger(ProtoToRowConverter.class);
-    private final ScriptEvaluator se;
 
-    public RowToProtoConverter(RowType rowType, PbFormatConfig pbFormatConfig)
+    private final Method encodeMethod;
+
+    public RowToProtoConverter(RowType rowType, PbFormatConfig formatConfig)
             throws PbCodegenException {
         try {
             Descriptors.Descriptor descriptor =
-                    PbFormatUtils.getDescriptor(pbFormatConfig.getMessageClassName());
-            se = new ScriptEvaluator();
-            se.setParameters(new String[] {"rowData"}, new Class[] {RowData.class});
-            se.setReturnType(AbstractMessage.class);
-            se.setDefaultImports(
-                    // pb
-                    AbstractMessage.class.getName(),
-                    Descriptors.class.getName(),
-                    // flink row
-                    RowData.class.getName(),
-                    ArrayData.class.getName(),
-                    StringData.class.getName(),
-                    ByteString.class.getName(),
-                    // java common
-                    List.class.getName(),
-                    ArrayList.class.getName(),
-                    Map.class.getName(),
-                    HashMap.class.getName());
+                    PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
+            Class<?> messageClass = Class.forName(formatConfig.getMessageClassName());
 
             PbCodegenAppender codegenAppender = new PbCodegenAppender();
+            String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");
+            String generatedClassName = "GeneratedRowToProto_" + uuid;
+            String generatedPackageName = RowToProtoConverter.class.getPackage().getName();
+            codegenAppender.appendLine("package " + generatedPackageName);
+            codegenAppender.appendLine("import " + AbstractMessage.class.getName());
+            codegenAppender.appendLine("import " + Descriptors.class.getName());
+            codegenAppender.appendLine("import " + RowData.class.getName());
+            codegenAppender.appendLine("import " + ArrayData.class.getName());
+            codegenAppender.appendLine("import " + StringData.class.getName());
+            codegenAppender.appendLine("import " + ByteString.class.getName());
+            codegenAppender.appendLine("import " + List.class.getName());
+            codegenAppender.appendLine("import " + ArrayList.class.getName());
+            codegenAppender.appendLine("import " + Map.class.getName());
+            codegenAppender.appendLine("import " + HashMap.class.getName());
+
+            codegenAppender.appendSegment("public class " + generatedClassName + "{");
+            codegenAppender.appendSegment(
+                    "public static AbstractMessage "
+                            + PbConstant.GENERATED_ENCODE_METHOD
+                            + "(RowData rowData){");
             codegenAppender.appendLine("AbstractMessage message = null");
             PbCodegenSerializer codegenSer =
                     PbCodegenSerializeFactory.getPbCodegenTopRowSer(
-                            descriptor, rowType, pbFormatConfig);
+                            descriptor, rowType, formatConfig);
             String genCode = codegenSer.codegen("message", "rowData");
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return message");
+            codegenAppender.appendSegment("}");
+            codegenAppender.appendSegment("}");
 
             String printCode = codegenAppender.printWithLineNumber();
             LOG.debug("Protobuf encode codegen: \n" + printCode);
-
-            se.cook(codegenAppender.code());
+            Class generatedClass =
+                    PbCodegenUtils.compileClass(
+                            this.getClass().getClassLoader(),
+                            generatedPackageName + "." + generatedClassName,
+                            codegenAppender.code());
+            encodeMethod =
+                    generatedClass.getMethod(PbConstant.GENERATED_ENCODE_METHOD, RowData.class);
         } catch (Exception ex) {
             throw new PbCodegenException(ex);
         }
     }
 
     public byte[] convertRowToProtoBinary(RowData rowData) throws Exception {
-        AbstractMessage message = (AbstractMessage) se.evaluate(new Object[] {rowData});
+        AbstractMessage message = (AbstractMessage) encodeMethod.invoke(null, rowData);
         return message.toByteArray();
     }
 }
