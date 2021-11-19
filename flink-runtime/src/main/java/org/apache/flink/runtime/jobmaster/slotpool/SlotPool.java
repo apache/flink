@@ -36,6 +36,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -162,9 +163,30 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      * @return a newly allocated slot that was previously not available.
      */
     @Nonnull
+    default CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
+            @Nonnull SlotRequestId slotRequestId,
+            @Nonnull ResourceProfile resourceProfile,
+            @Nullable Time timeout) {
+        return requestNewAllocatedSlot(
+                slotRequestId, resourceProfile, Collections.emptyList(), timeout);
+    }
+
+    /**
+     * Request the allocation of a new slot from the resource manager. This method will not return a
+     * slot from the already available slots from the pool, but instead will add a new slot to that
+     * pool that is immediately allocated and returned.
+     *
+     * @param slotRequestId identifying the requested slot
+     * @param resourceProfile resource profile that specifies the resource requirements for the
+     *     requested slot
+     * @param preferredAllocations preferred allocations for the new allocated slot
+     * @param timeout timeout for the allocation procedure
+     * @return a newly allocated slot that was previously not available.
+     */
     CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
             @Nonnull SlotRequestId slotRequestId,
             @Nonnull ResourceProfile resourceProfile,
+            @Nonnull Collection<AllocationID> preferredAllocations,
             @Nullable Time timeout);
 
     /**
@@ -178,8 +200,17 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      * @return a future which is completed with newly allocated batch slot
      */
     @Nonnull
+    default CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
+            @Nonnull SlotRequestId slotRequestId, @Nonnull ResourceProfile resourceProfile) {
+        return requestNewAllocatedBatchSlot(
+                slotRequestId, resourceProfile, Collections.emptyList());
+    }
+
+    @Nonnull
     CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
-            @Nonnull SlotRequestId slotRequestId, @Nonnull ResourceProfile resourceProfile);
+            @Nonnull SlotRequestId slotRequestId,
+            @Nonnull ResourceProfile resourceProfile,
+            Collection<AllocationID> preferredAllocations);
 
     /**
      * Disables batch slot request timeout check. Invoked when someone else wants to take over the

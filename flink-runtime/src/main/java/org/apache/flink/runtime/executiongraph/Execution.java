@@ -554,10 +554,11 @@ public class Execution
             }
 
             LOG.info(
-                    "Deploying {} (attempt #{}) with attempt id {} to {} with allocation id {}",
+                    "Deploying {} (attempt #{}) with attempt id {} and vertex id {} to {} with allocation id {}",
                     vertex.getTaskNameWithSubtaskIndex(),
                     attemptNumber,
                     vertex.getCurrentExecutionAttempt().getAttemptId(),
+                    vertex.getID(),
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
 
