@@ -1,5 +1,6 @@
 package org.apache.flink.formats.protobuf;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 import static org.apache.flink.formats.protobuf.PbFormatOptions.IGNORE_PARSE_ERRORS;
@@ -7,7 +8,7 @@ import static org.apache.flink.formats.protobuf.PbFormatOptions.READ_DEFAULT_VAL
 import static org.apache.flink.formats.protobuf.PbFormatOptions.WRITE_NULL_STRING_LITERAL;
 
 /** Config of protobuf configs. */
-public class PbFormatConfig {
+public class PbFormatConfig implements Serializable {
     private String messageClassName;
     private boolean ignoreParseErrors;
     private boolean readDefaultValues;
