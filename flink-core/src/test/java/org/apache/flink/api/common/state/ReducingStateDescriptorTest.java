@@ -49,12 +49,14 @@ public class ReducingStateDescriptorTest extends TestLogger {
         assertNotNull(descr.getSerializer());
         assertEquals(serializer, descr.getSerializer());
         assertEquals(reducer, descr.getReduceFunction());
+        assertEquals(StateDescriptor.Type.REDUCING, descr.getType());
 
         ReducingStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
 
         assertEquals("testName", copy.getName());
         assertNotNull(copy.getSerializer());
         assertEquals(serializer, copy.getSerializer());
+        assertEquals(StateDescriptor.Type.REDUCING, copy.getType());
     }
 
     @Test
