@@ -7,6 +7,8 @@ message MapTest {
     optional int32 a = 1;
     map<string, string> map1 = 2;
     map<string, InnerMessageTest> map2 = 3;
+    map<string, bytes> map3 = 4;
+
 
     message InnerMessageTest{
           optional int32 a =1;

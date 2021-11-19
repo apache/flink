@@ -32,6 +32,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.types.logical.RowType;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.FileDescriptor.Syntax;
 import org.slf4j.Logger;
@@ -83,6 +84,7 @@ public class ProtoToRowConverter {
             codegenAppender.appendLine("import " + List.class.getName());
             codegenAppender.appendLine("import " + Map.class.getName());
             codegenAppender.appendLine("import " + HashMap.class.getName());
+            codegenAppender.appendLine("import " + ByteString.class.getName());
 
             codegenAppender.appendSegment("public class " + generatedClassName + "{");
             codegenAppender.appendSegment(

@@ -38,7 +38,7 @@ import org.junit.Test;
  *
  * <p>It is valid proto definition.
  */
-public class MetaNoouterNomultiProtoToRowTest {
+public class MetaNoOuterNoMultiProtoToRowTest {
     @Test
     public void testSimple() {
         RowType rowType =

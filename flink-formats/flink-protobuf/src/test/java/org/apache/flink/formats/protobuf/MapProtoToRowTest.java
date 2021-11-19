@@ -25,8 +25,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import com.google.protobuf.ByteString;
 import org.junit.Test;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /** Test conversion of proto map data to flink internal data. */
@@ -47,6 +49,7 @@ public class MapProtoToRowTest {
                         .putMap1("a", "b")
                         .putMap1("c", "d")
                         .putMap2("f", innerMessageTest)
+                        .putMap3("e", ByteString.copyFrom(new byte[] {1, 2, 3}))
                         .build();
 
         RowData row = deserializationSchema.deserialize(mapTest.toByteArray());
@@ -64,5 +67,9 @@ public class MapProtoToRowTest {
 
         assertEquals(1, rowData2.getInt(0));
         assertEquals(2L, rowData2.getLong(1));
+
+        MapData map3 = row.getMap(3);
+        assertEquals("e", map3.keyArray().getString(0).toString());
+        assertArrayEquals(new byte[] {1, 2, 3}, map3.valueArray().getBinary(0));
     }
 }
