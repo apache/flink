@@ -45,8 +45,6 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /** Utilities for shared logic in classes of this package. */
 final class StrategyUtils {
@@ -102,13 +100,13 @@ final class StrategyUtils {
 
     static boolean isDecimalComputation(LogicalType type1, LogicalType type2) {
         // both must be exact numeric
-        if (!hasFamily(type1, LogicalTypeFamily.EXACT_NUMERIC)
-                || !hasFamily(type2, LogicalTypeFamily.EXACT_NUMERIC)) {
+        if (!type1.is(LogicalTypeFamily.EXACT_NUMERIC)
+                || !type2.is(LogicalTypeFamily.EXACT_NUMERIC)) {
             return false;
         }
 
         // one decimal must be present
-        return hasRoot(type1, LogicalTypeRoot.DECIMAL) || hasRoot(type2, LogicalTypeRoot.DECIMAL);
+        return type1.is(LogicalTypeRoot.DECIMAL) || type2.is(LogicalTypeRoot.DECIMAL);
     }
 
     /**
@@ -125,14 +123,14 @@ final class StrategyUtils {
     private static @Nullable DataType findDataTypeOfRoot(
             DataType actualDataType, LogicalTypeRoot expectedRoot) {
         final LogicalType actualType = actualDataType.getLogicalType();
-        if (hasRoot(actualType, expectedRoot)) {
+        if (actualType.is(expectedRoot)) {
             return actualDataType;
         }
         switch (expectedRoot) {
             case CHAR:
                 return DataTypes.CHAR(CharType.DEFAULT_LENGTH);
             case VARCHAR:
-                if (hasRoot(actualType, CHAR)) {
+                if (actualType.is(CHAR)) {
                     return DataTypes.VARCHAR(getLength(actualType));
                 }
                 return DataTypes.VARCHAR(VarCharType.DEFAULT_LENGTH);
@@ -141,14 +139,14 @@ final class StrategyUtils {
             case BINARY:
                 return DataTypes.BINARY(BinaryType.DEFAULT_LENGTH);
             case VARBINARY:
-                if (hasRoot(actualType, BINARY)) {
+                if (actualType.is(BINARY)) {
                     return DataTypes.VARBINARY(getLength(actualType));
                 }
                 return DataTypes.VARBINARY(VarBinaryType.DEFAULT_LENGTH);
             case DECIMAL:
-                if (hasFamily(actualType, EXACT_NUMERIC)) {
+                if (actualType.is(EXACT_NUMERIC)) {
                     return DataTypes.DECIMAL(getPrecision(actualType), getScale(actualType));
-                } else if (hasFamily(actualType, APPROXIMATE_NUMERIC)) {
+                } else if (actualType.is(APPROXIMATE_NUMERIC)) {
                     final int precision = getPrecision(actualType);
                     // we don't know where the precision occurs (before or after the dot)
                     return DataTypes.DECIMAL(precision * 2, precision);
@@ -169,7 +167,7 @@ final class StrategyUtils {
             case DATE:
                 return DataTypes.DATE();
             case TIME_WITHOUT_TIME_ZONE:
-                if (hasRoot(actualType, TIMESTAMP_WITHOUT_TIME_ZONE)) {
+                if (actualType.is(TIMESTAMP_WITHOUT_TIME_ZONE)) {
                     return DataTypes.TIME(getPrecision(actualType));
                 }
                 return DataTypes.TIME();

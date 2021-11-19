@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.print.TableauStyle;
 
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
@@ -54,6 +55,7 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
     private final RefreshThread refreshThread;
 
     protected final ResultDescriptor resultDescriptor;
+    protected final TableauStyle tableauStyle;
     protected final int[] columnWidths;
 
     protected int refreshInterval;
@@ -64,10 +66,12 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
 
     protected int selectedRow;
 
-    public CliResultView(CliClient client, ResultDescriptor resultDescriptor, int[] columnWidths) {
+    public CliResultView(
+            CliClient client, ResultDescriptor resultDescriptor, TableauStyle tableauStyle) {
         super(client);
         this.resultDescriptor = resultDescriptor;
-        this.columnWidths = columnWidths;
+        this.tableauStyle = tableauStyle;
+        this.columnWidths = tableauStyle.getColumnWidths();
         refreshThread = new RefreshThread();
         selectedRow = NO_ROW_SELECTED;
     }

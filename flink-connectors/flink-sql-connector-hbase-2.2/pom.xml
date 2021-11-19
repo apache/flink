@@ -28,7 +28,7 @@ under the License.
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>flink-sql-connector-hbase-2.2_${scala.binary.version}</artifactId>
+	<artifactId>flink-sql-connector-hbase-2.2</artifactId>
 	<name>Flink : Connectors : SQL : HBase 2.2</name>
 
 	<packaging>jar</packaging>
@@ -36,7 +36,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-hbase-2.2_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-hbase-2.2</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -69,8 +69,8 @@ under the License.
 							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
-									<include>org.apache.flink:flink-connector-hbase-base_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-connector-hbase-2.2_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-connector-hbase-base</include>
+									<include>org.apache.flink:flink-connector-hbase-2.2</include>
 									<include>org.apache.hbase:hbase-*</include>
 									<include>org.apache.hbase.thirdparty:hbase-shaded-*</include>
 									<include>org.apache.zookeeper:zookeeper</include>

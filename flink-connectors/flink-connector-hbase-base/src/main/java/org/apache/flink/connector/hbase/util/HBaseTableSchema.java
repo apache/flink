@@ -22,13 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.Streams;
 
 import java.io.Serializable;
 import java.nio.charset.Charset;
@@ -200,20 +201,6 @@ public class HBaseTableSchema implements Serializable {
         return qualifierKeys;
     }
 
-    /**
-     * Returns the types of all registered column qualifiers of a specific column family.
-     *
-     * @param family The name of the column family for which the column qualifier types are
-     *     returned.
-     * @return The types of all registered column qualifiers of a specific column family.
-     */
-    public TypeInformation<?>[] getQualifierTypes(String family) {
-        DataType[] dataTypes = getQualifierDataTypes(family);
-        return Arrays.stream(dataTypes)
-                .map(TypeConversions::fromDataTypeToLegacyInfo)
-                .toArray(TypeInformation[]::new);
-    }
-
     public DataType[] getQualifierDataTypes(String family) {
         Map<String, DataType> qualifierMap = familyMap.get(family);
 
@@ -241,15 +228,6 @@ public class HBaseTableSchema implements Serializable {
         return familyMap.get(family);
     }
 
-    /**
-     * Returns the charset for value strings and HBase identifiers.
-     *
-     * @return The charset for value strings and HBase identifiers.
-     */
-    public String getStringCharset() {
-        return this.charset;
-    }
-
     /** Returns field index of row key in the table schema. Returns -1 if row key is not set. */
     public int getRowKeyIndex() {
         return rowKeyInfo == null ? -1 : rowKeyInfo.rowKeyIndex;
@@ -274,39 +252,15 @@ public class HBaseTableSchema implements Serializable {
         return rowKeyInfo == null ? Optional.empty() : Optional.of(rowKeyInfo.rowKeyName);
     }
 
-    /** Gets a new hbase schema with the selected fields. */
-    public HBaseTableSchema getProjectedHBaseTableSchema(int[] projectedFields) {
-        if (projectedFields == null) {
-            return this;
-        }
-        HBaseTableSchema newSchema = new HBaseTableSchema();
-        String[] fieldNames = convertsToTableSchema().getFieldNames();
-        for (int projectedField : projectedFields) {
-            String name = fieldNames[projectedField];
-            if (rowKeyInfo != null && name.equals(rowKeyInfo.rowKeyName)) {
-                newSchema.setRowKey(rowKeyInfo.rowKeyName, rowKeyInfo.rowKeyType);
-            } else {
-                Map<String, DataType> familyInfo = getFamilyInfo(name);
-                for (Map.Entry<String, DataType> entry : familyInfo.entrySet()) {
-                    // create the newSchema
-                    String qualifier = entry.getKey();
-                    newSchema.addColumn(name, qualifier, entry.getValue());
-                }
-            }
-        }
-        newSchema.setCharset(charset);
-        return newSchema;
-    }
-
     /**
-     * Converts this {@link HBaseTableSchema} to {@link TableSchema}, the fields are consisted of
+     * Converts this {@link HBaseTableSchema} to {@link DataType}, the fields are consisted of
      * families and rowkey, the order is in the definition order (i.e. calling {@link
      * #addColumn(String, String, Class)} and {@link #setRowKey(String, Class)}). The family field
      * is a composite type which is consisted of qualifiers.
      *
-     * @return the {@link TableSchema} derived from the {@link HBaseTableSchema}.
+     * @return the {@link DataType} derived from the {@link HBaseTableSchema}.
      */
-    public TableSchema convertsToTableSchema() {
+    public DataType convertToDataType() {
         String[] familyNames = getFamilyNames();
         if (rowKeyInfo != null) {
             String[] fieldNames = new String[familyNames.length + 1];
@@ -324,7 +278,12 @@ public class HBaseTableSchema implements Serializable {
                                     getQualifierNames(family), getQualifierDataTypes(family));
                 }
             }
-            return TableSchema.builder().fields(fieldNames, fieldTypes).build();
+            return DataTypes.ROW(
+                    Streams.zip(
+                                    Arrays.stream(fieldNames),
+                                    Arrays.stream(fieldTypes),
+                                    DataTypes::FIELD)
+                            .toArray(DataTypes.Field[]::new));
         } else {
             String[] fieldNames = new String[familyNames.length];
             DataType[] fieldTypes = new DataType[familyNames.length];
@@ -334,7 +293,12 @@ public class HBaseTableSchema implements Serializable {
                 fieldTypes[i] =
                         getRowDataType(getQualifierNames(family), getQualifierDataTypes(family));
             }
-            return TableSchema.builder().fields(fieldNames, fieldTypes).build();
+            return DataTypes.ROW(
+                    Streams.zip(
+                                    Arrays.stream(fieldNames),
+                                    Arrays.stream(fieldTypes),
+                                    DataTypes::FIELD)
+                            .toArray(DataTypes.Field[]::new));
         }
     }
 
@@ -354,10 +318,10 @@ public class HBaseTableSchema implements Serializable {
         return DataTypes.ROW(fields);
     }
 
-    /** Construct a {@link HBaseTableSchema} from a {@link TableSchema}. */
-    public static HBaseTableSchema fromTableSchema(TableSchema schema) {
+    /** Construct a {@link HBaseTableSchema} from a {@link DataType}. */
+    public static HBaseTableSchema fromDataType(DataType physicalRowType) {
         HBaseTableSchema hbaseSchema = new HBaseTableSchema();
-        RowType rowType = (RowType) schema.toPhysicalRowDataType().getLogicalType();
+        RowType rowType = (RowType) physicalRowType.getLogicalType();
         for (RowType.RowField field : rowType.getFields()) {
             LogicalType fieldType = field.getType();
             if (fieldType.getTypeRoot() == LogicalTypeRoot.ROW) {

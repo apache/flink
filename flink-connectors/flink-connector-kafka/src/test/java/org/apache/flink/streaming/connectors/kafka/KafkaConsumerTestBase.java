@@ -122,6 +122,8 @@ import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommu
 import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommunicationUtils.waitUntilNoJobIsRunning;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -205,9 +207,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
                 final TimeoutException timeoutException = optionalTimeoutException.get();
                 if (useNewSource) {
-                    assertEquals(
-                            "Timed out waiting for a node assignment.",
-                            timeoutException.getMessage());
+                    assertThat(
+                            timeoutException.getCause().getMessage(),
+                            containsString("Timed out waiting for a node assignment."));
                 } else {
                     assertEquals(
                             "Timeout expired while fetching topic metadata",

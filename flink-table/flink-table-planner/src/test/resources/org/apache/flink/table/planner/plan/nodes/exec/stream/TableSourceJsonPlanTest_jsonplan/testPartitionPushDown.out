@@ -21,9 +21,6 @@
         "partition.keys.0.name" : "p"
       },
       "sourceAbilitySpecs" : [ {
-        "type" : "FilterPushDown",
-        "predicates" : [ ]
-      }, {
         "type" : "PartitionPushDown",
         "partitions" : [ {
           "p" : "A"
@@ -64,7 +61,7 @@
         "b" : "INT"
       } ]
     },
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, PartitionTable, filter=[], partitions=[{p=A}], project=[a, b], metadata=[]]], fields=[a, b])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, PartitionTable, partitions=[{p=A}], project=[a, b], metadata=[]]], fields=[a, b])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",

@@ -93,7 +93,7 @@ public class StateBackendOptions {
     public static final ConfigOption<Boolean> LATENCY_TRACK_STATE_NAME_AS_VARIABLE =
             ConfigOptions.key("state.backend.latency-track.state-name-as-variable")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             "Whether to expose state name as a variable if tracking latency.");
 }

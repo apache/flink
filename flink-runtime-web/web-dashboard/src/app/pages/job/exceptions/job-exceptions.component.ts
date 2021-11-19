@@ -17,8 +17,12 @@
  */
 
 import { formatDate } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { distinctUntilChanged, flatMap, tap } from 'rxjs/operators';
+import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy } from '@angular/core';
+import { Subject } from 'rxjs';
+import { distinctUntilChanged, mergeMap, takeUntil, tap } from 'rxjs/operators';
+
+import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
 import { ExceptionInfoInterface, RootExceptionInfoInterface } from 'interfaces';
 import { JobService } from 'services';
@@ -58,13 +62,15 @@ const markGlobalFailure = function(exception: ExceptionInfoInterface): Exception
   styleUrls: ['./job-exceptions.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JobExceptionsComponent implements OnInit {
+export class JobExceptionsComponent implements OnInit, OnDestroy {
   rootException = '';
   exceptionHistory: ExceptionHistoryItem[] = [];
   truncated = false;
   isLoading = false;
   maxExceptions = 0;
   total = 0;
+  editorOptions: EditorOptions = flinkEditorOptions;
+  private destroy$ = new Subject<void>();
 
   trackExceptionBy(_: number, node: ExceptionInfoInterface): number {
     return node.timestamp;
@@ -75,11 +81,12 @@ export class JobExceptionsComponent implements OnInit {
     this.jobService.jobDetail$
       .pipe(
         distinctUntilChanged((pre, next) => pre.jid === next.jid),
-        flatMap(job => this.jobService.loadExceptions(job.jid, this.maxExceptions)),
+        mergeMap(job => this.jobService.loadExceptions(job.jid, this.maxExceptions)),
         tap(() => {
           this.isLoading = false;
           this.cdr.markForCheck();
-        })
+        }),
+        takeUntil(this.destroy$)
       )
       .subscribe(data => {
         // @ts-ignore
@@ -108,5 +115,10 @@ export class JobExceptionsComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadMore();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

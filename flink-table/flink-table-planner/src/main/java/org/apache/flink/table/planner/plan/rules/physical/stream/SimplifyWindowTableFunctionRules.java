@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream;
 
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowDeduplicate;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowRank;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowTableFunction;
@@ -42,6 +43,10 @@ public interface SimplifyWindowTableFunctionRules {
             new SimplifyWindowTableFunctionWithWindowRankRule();
     SimplifyWindowTableFunctionWithCalcWindowRankRule WITH_CALC_WINDOW_RANK =
             new SimplifyWindowTableFunctionWithCalcWindowRankRule();
+    SimplifyWindowTableFunctionWithWindowDeduplicateRule WITH_WINDOW_DEDUPLICATE =
+            new SimplifyWindowTableFunctionWithWindowDeduplicateRule();
+    SimplifyWindowTableFunctionWithCalcWindowDeduplicateRule WITH_CALC_WINDOW_DEDUPLICATE =
+            new SimplifyWindowTableFunctionWithCalcWindowDeduplicateRule();
     SimplifyWindowTableFunctionRuleWithWindowJoinRule WITH_WINDOW_JOIN =
             new SimplifyWindowTableFunctionRuleWithWindowJoinRule();
     SimplifyWindowTableFunctionRuleWithLeftCalcWindowJoinRule WITH_LEFT_CALC_WINDOW_JOIN =
@@ -134,6 +139,36 @@ class SimplifyWindowTableFunctionWithCalcWindowRankRule
                                         StreamPhysicalCalc.class,
                                         operand(StreamPhysicalWindowTableFunction.class, any())))),
                 "SimplifyWindowTableFunctionWithCalcWindowRankRule");
+    }
+}
+
+class SimplifyWindowTableFunctionWithWindowDeduplicateRule
+        extends SimplifyWindowTableFunctionWithWindowRankRuleBase {
+
+    SimplifyWindowTableFunctionWithWindowDeduplicateRule() {
+        super(
+                operand(
+                        StreamPhysicalWindowDeduplicate.class,
+                        operand(
+                                StreamPhysicalExchange.class,
+                                operand(StreamPhysicalWindowTableFunction.class, any()))),
+                "SimplifyWindowTableFunctionWithWindowDeduplicateRule");
+    }
+}
+
+class SimplifyWindowTableFunctionWithCalcWindowDeduplicateRule
+        extends SimplifyWindowTableFunctionWithWindowRankRuleBase {
+
+    SimplifyWindowTableFunctionWithCalcWindowDeduplicateRule() {
+        super(
+                operand(
+                        StreamPhysicalWindowDeduplicate.class,
+                        operand(
+                                StreamPhysicalExchange.class,
+                                operand(
+                                        StreamPhysicalCalc.class,
+                                        operand(StreamPhysicalWindowTableFunction.class, any())))),
+                "SimplifyWindowTableFunctionWithCalcWindowDeduplicateRule");
     }
 }
 

@@ -36,8 +36,9 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
+import org.apache.flink.runtime.heartbeat.HeartbeatReceiver;
+import org.apache.flink.runtime.heartbeat.HeartbeatSender;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.heartbeat.NoOpHeartbeatManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
@@ -736,7 +737,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                                 // monitor the task manager as heartbeat target
                                 taskManagerHeartbeatManager.monitorTarget(
                                         taskManagerId,
-                                        new TaskExecutorHeartbeatTarget(taskExecutorGateway));
+                                        new TaskExecutorHeartbeatSender(taskExecutorGateway));
 
                                 return new JMTMRegistrationSuccess(resourceId);
                             },
@@ -1094,7 +1095,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
             resourceManagerHeartbeatManager.monitorTarget(
                     resourceManagerResourceId,
-                    new ResourceManagerHeartbeatTarget(resourceManagerGateway));
+                    new ResourceManagerHeartbeatReceiver(resourceManagerGateway));
         } else {
             log.debug(
                     "Ignoring resource manager connection to {} because it's duplicated or outdated.",
@@ -1155,20 +1156,12 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     // Utility classes
     // ----------------------------------------------------------------------------------------------
 
-    private static final class TaskExecutorHeartbeatTarget
-            implements HeartbeatTarget<AllocatedSlotReport> {
+    private static final class TaskExecutorHeartbeatSender
+            extends HeartbeatSender<AllocatedSlotReport> {
         private final TaskExecutorGateway taskExecutorGateway;
 
-        private TaskExecutorHeartbeatTarget(TaskExecutorGateway taskExecutorGateway) {
+        private TaskExecutorHeartbeatSender(TaskExecutorGateway taskExecutorGateway) {
             this.taskExecutorGateway = taskExecutorGateway;
-        }
-
-        @Override
-        public CompletableFuture<Void> receiveHeartbeat(
-                ResourceID resourceID, AllocatedSlotReport payload) {
-            // the task manager will not request heartbeat, so
-            // this method will never be called currently
-            return FutureUtils.unsupportedOperationFuture();
         }
 
         @Override
@@ -1178,22 +1171,16 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         }
     }
 
-    private static final class ResourceManagerHeartbeatTarget implements HeartbeatTarget<Void> {
+    private static final class ResourceManagerHeartbeatReceiver extends HeartbeatReceiver<Void> {
         private final ResourceManagerGateway resourceManagerGateway;
 
-        private ResourceManagerHeartbeatTarget(ResourceManagerGateway resourceManagerGateway) {
+        private ResourceManagerHeartbeatReceiver(ResourceManagerGateway resourceManagerGateway) {
             this.resourceManagerGateway = resourceManagerGateway;
         }
 
         @Override
         public CompletableFuture<Void> receiveHeartbeat(ResourceID resourceID, Void payload) {
             return resourceManagerGateway.heartbeatFromJobManager(resourceID);
-        }
-
-        @Override
-        public CompletableFuture<Void> requestHeartbeat(ResourceID resourceID, Void payload) {
-            // request heartbeat will never be called on the job manager side
-            return FutureUtils.unsupportedOperationFuture();
         }
     }
 
@@ -1274,7 +1261,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         long timeoutMillis) {
                     Time timeout = Time.milliseconds(timeoutMillis);
 
-                    return gateway.registerJobManager(
+                    return gateway.registerJobMaster(
                             jobMasterId,
                             jobManagerResourceID,
                             jobManagerRpcAddress,
@@ -1317,10 +1304,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         @Override
         public void jobStatusChanges(
-                final JobID jobId,
-                final JobStatus newJobStatus,
-                final long timestamp,
-                final Throwable error) {
+                final JobID jobId, final JobStatus newJobStatus, final long timestamp) {
 
             if (running) {
                 // run in rpc thread to avoid concurrency

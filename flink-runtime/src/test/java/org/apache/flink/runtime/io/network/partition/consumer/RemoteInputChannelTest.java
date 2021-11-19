@@ -1408,6 +1408,15 @@ public class RemoteInputChannelTest {
         remoteChannel.resumeConsumption();
     }
 
+    @Test(expected = IllegalStateException.class)
+    public void testReleasedChannelAnnounceBufferSize() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
+
+        remoteChannel.releaseAllResources();
+        remoteChannel.announceBufferSize(10);
+    }
+
     @Test
     public void testOnUpstreamBlockedAndResumed() throws Exception {
         BufferPool bufferPool = new TestBufferPool();

@@ -769,7 +769,7 @@ public class BufferingSink
     @Override
     public void invoke(Tuple2<String, Integer> value, Context contex) throws Exception {
         bufferedElements.add(value);
-        if (bufferedElements.size() == threshold) {
+        if (bufferedElements.size() >= threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {
                 // send it to the sink
             }
@@ -816,7 +816,7 @@ class BufferingSink(threshold: Int = 0)
 
   override def invoke(value: (String, Int), context: Context): Unit = {
     bufferedElements += value
-    if (bufferedElements.size == threshold) {
+    if (bufferedElements.size >= threshold) {
       for (element <- bufferedElements) {
         // send it to the sink
       }

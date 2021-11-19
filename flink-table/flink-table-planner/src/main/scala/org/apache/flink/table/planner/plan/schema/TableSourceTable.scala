@@ -131,4 +131,23 @@ class TableSourceTable(
       flinkContext,
       abilitySpecs ++ newAbilitySpecs)
   }
+
+  /**
+   * Creates a copy of this table, changing the statistic
+   *
+   * @param newStatistic new table statistic
+   * @return New TableSourceTable instance with new statistic
+   */
+  def copy(newStatistic: FlinkStatistic): TableSourceTable = {
+    new TableSourceTable(
+      relOptSchema,
+      tableIdentifier,
+      rowType,
+      newStatistic,
+      tableSource,
+      isStreamingMode,
+      catalogTable,
+      flinkContext,
+      abilitySpecs)
+  }
 }

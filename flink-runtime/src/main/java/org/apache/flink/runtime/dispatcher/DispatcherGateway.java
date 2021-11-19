@@ -65,4 +65,40 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
     default CompletableFuture<String> triggerCheckpoint(JobID jobID, @RpcTimeout Time timeout) {
         throw new UnsupportedOperationException();
     }
+
+    /**
+     * Triggers a savepoint with the given savepoint directory as a target, returning a future that
+     * completes with the savepoint location when it is complete.
+     *
+     * @param jobId the job id
+     * @param targetDirectory Target directory for the savepoint.
+     * @param savepointMode context of the savepoint operation
+     * @param timeout Timeout for the asynchronous operation
+     * @return Future which is completed once the operation is triggered successfully
+     */
+    default CompletableFuture<String> triggerSavepointAndGetLocation(
+            JobID jobId,
+            String targetDirectory,
+            TriggerSavepointMode savepointMode,
+            @RpcTimeout Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Stops the job with a savepoint, returning a future that completes with the savepoint location
+     * when the savepoint is completed.
+     *
+     * @param jobId the job id
+     * @param targetDirectory Target directory for the savepoint.
+     * @param savepointMode context of the savepoint operation
+     * @param timeout for the rpc call
+     * @return Future which is completed with the savepoint location once it is completed
+     */
+    default CompletableFuture<String> stopWithSavepointAndGetLocation(
+            JobID jobId,
+            String targetDirectory,
+            TriggerSavepointMode savepointMode,
+            @RpcTimeout final Time timeout) {
+        throw new UnsupportedOperationException();
+    }
 }

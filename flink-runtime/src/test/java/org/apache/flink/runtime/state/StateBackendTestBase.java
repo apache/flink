@@ -65,12 +65,11 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
-import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
-import org.apache.flink.runtime.state.heap.NestedStateMap;
 import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -113,7 +112,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -159,7 +157,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Rule public final ExpectedException expectedException = ExpectedException.none();
 
     @Before
-    public void before() throws IOException {
+    public void before() throws Exception {
         env = buildMockEnv();
     }
 
@@ -171,7 +169,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     // lazily initialized stream storage
     private CheckpointStreamFactory checkpointStreamFactory;
 
-    private MockEnvironment env;
+    protected MockEnvironment env;
 
     protected abstract ConfigurableStateBackend getStateBackend() throws Exception;
 
@@ -185,6 +183,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 "The state backend under test does not implement CheckpointStorage."
                         + "Please override 'createCheckpointStorage' and provide an appropriate"
                         + "checkpoint storage instance");
+    }
+
+    protected CheckpointStorageAccess getCheckpointStorageAccess() throws Exception {
+        return getCheckpointStorage().createCheckpointStorage(new JobID());
     }
 
     protected abstract boolean isSerializerPresenceRequiredOnRestore();
@@ -220,6 +222,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             Environment env)
             throws Exception {
 
+        env.setCheckpointStorageAccess(getCheckpointStorageAccess());
         CheckpointableKeyedStateBackend<K> backend =
                 getStateBackend()
                         .createKeyedStateBackend(
@@ -4369,9 +4372,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.update(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
@@ -4392,9 +4394,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.add(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
@@ -4424,9 +4425,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 backend.setCurrentKey(1);
                 state.add(121818273);
 
-                StateTable<?, ?, ?> stateTable =
-                        ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
+                assertNotNull(
+                        "State not set", ((AbstractHeapState<?, ?, ?>) kvState).getStateTable());
             }
 
             {
@@ -4450,27 +4450,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
                 StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
                 assertNotNull("State not set", stateTable.get(keyGroupIndex));
-                checkConcurrentStateTable(stateTable, numberOfKeyGroups);
             }
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
-        }
-    }
-
-    private void checkConcurrentStateTable(StateTable<?, ?, ?> stateTable, int numberOfKeyGroups) {
-        assertNotNull("State not set", stateTable);
-        if (stateTable instanceof NestedMapsStateTable) {
-            int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-            NestedMapsStateTable<?, ?, ?> nestedMapsStateTable =
-                    (NestedMapsStateTable<?, ?, ?>) stateTable;
-            NestedStateMap<?, ?, ?>[] nestedStateMaps =
-                    (NestedStateMap<?, ?, ?>[]) nestedMapsStateTable.getState();
-            assertTrue(
-                    nestedStateMaps[keyGroupIndex].getNamespaceMap() instanceof ConcurrentHashMap);
-            assertTrue(
-                    nestedStateMaps[keyGroupIndex].getNamespaceMap().get(VoidNamespace.INSTANCE)
-                            instanceof ConcurrentHashMap);
         }
     }
 
@@ -5080,8 +5063,51 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @Test
-    public void testCheckConcurrencyProblemWhenPerformingCheckpointAsync() throws Exception {
+    public void testMapStateGetKeysAndNamespaces() throws Exception {
+        final int elementsNum = 1000;
+        String fieldName = "get-keys-test";
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
+        try {
+            InternalMapState<Integer, String, String, Integer> internalState =
+                    backend.createInternalState(
+                            StringSerializer.INSTANCE,
+                            new MapStateDescriptor<>(
+                                    fieldName, StringSerializer.INSTANCE, IntSerializer.INSTANCE));
+            String[] namespaces = new String[] {"ns1", "ns2"};
 
+            for (int key = 0; key < elementsNum; key++) {
+                backend.setCurrentKey(key);
+                for (String ns : namespaces) {
+                    internalState.setCurrentNamespace(ns);
+                    internalState.put("hello", key);
+                    internalState.put("world", key);
+                }
+            }
+
+            try (Stream<Tuple2<Integer, String>> stream = backend.getKeysAndNamespaces(fieldName)) {
+                final Map<String, Set<Integer>> keysByNamespace = new HashMap<>();
+                stream.forEach(
+                        entry -> {
+                            assertThat("Unexpected namespace", entry.f1, isOneOf(namespaces));
+                            assertThat(
+                                    "Unexpected key",
+                                    entry.f0,
+                                    is(both(greaterThanOrEqualTo(0)).and(lessThan(elementsNum))));
+
+                            Set<Integer> keys =
+                                    keysByNamespace.computeIfAbsent(entry.f1, k -> new HashSet<>());
+                            assertTrue("Duplicate key for namespace", keys.add(entry.f0));
+                        });
+            }
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
+    }
+
+    @Test
+    public void testCheckConcurrencyProblemWhenPerformingCheckpointAsync() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         ExecutorService executorService = Executors.newScheduledThreadPool(1);
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -5239,7 +5265,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         }
     }
 
-    protected KeyedStateHandle runSnapshot(
+    public static KeyedStateHandle runSnapshot(
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture,
             SharedStateRegistry sharedStateRegistry)
             throws Exception {
@@ -5561,8 +5587,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         long value;
     }
 
-    private MockEnvironment buildMockEnv() throws IOException {
-        return MockEnvironment.builder().setTaskStateManager(getTestTaskStateManager()).build();
+    private MockEnvironment buildMockEnv() throws Exception {
+        MockEnvironment mockEnvironment =
+                MockEnvironment.builder().setTaskStateManager(getTestTaskStateManager()).build();
+        mockEnvironment.setCheckpointStorageAccess(getCheckpointStorageAccess());
+        return mockEnvironment;
     }
 
     protected TestTaskStateManager getTestTaskStateManager() throws IOException {

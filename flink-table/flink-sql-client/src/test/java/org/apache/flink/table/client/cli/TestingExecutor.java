@@ -20,16 +20,16 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
@@ -44,18 +44,18 @@ class TestingExecutor implements Executor {
     private int numCancelCalls = 0;
 
     private int numRetrieveResultChancesCalls = 0;
-    private final List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
+    private final List<SupplierWithException<TypedResult<List<RowData>>, SqlExecutionException>>
             resultChanges;
 
     private int numRetrieveResultPageCalls = 0;
-    private final List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages;
+    private final List<SupplierWithException<List<RowData>, SqlExecutionException>> resultPages;
 
     private final SqlParserHelper helper;
 
     TestingExecutor(
-            List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
+            List<SupplierWithException<TypedResult<List<RowData>>, SqlExecutionException>>
                     resultChanges,
-            List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages) {
+            List<SupplierWithException<List<RowData>, SqlExecutionException>> resultPages) {
         this.resultChanges = resultChanges;
         this.resultPages = resultPages;
         helper = new SqlParserHelper();
@@ -83,7 +83,7 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
+    public TypedResult<List<RowData>> retrieveResultChanges(String sessionId, String resultId)
             throws SqlExecutionException {
         return resultChanges
                 .get(Math.min(numRetrieveResultChancesCalls++, resultChanges.size() - 1))
@@ -91,7 +91,8 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
+    public List<RowData> retrieveResultPage(String resultId, int page)
+            throws SqlExecutionException {
         return resultPages
                 .get(Math.min(numRetrieveResultPageCalls++, resultPages.size() - 1))
                 .get();
@@ -146,14 +147,14 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public TableResult executeOperation(String sessionId, Operation operation)
+    public TableResultInternal executeOperation(String sessionId, Operation operation)
             throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
-            throws SqlExecutionException {
+    public TableResultInternal executeModifyOperations(
+            String sessionId, List<ModifyOperation> operations) throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 

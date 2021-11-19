@@ -32,6 +32,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -53,6 +54,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
 import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -234,6 +237,53 @@ public class AkkaRpcActorTest extends TestLogger {
             Throwable cause = e.getCause();
             assertEquals(Exception.class, cause.getClass());
             assertEquals("some test", cause.getMessage());
+        }
+    }
+
+    /**
+     * Tests that the AkkaInvocationHandler properly fails the returned future if the response
+     * cannot be deserialized.
+     */
+    @Test
+    public void testResultFutureFailsOnDeserializationError() throws Exception {
+        // setup 2 actor systems and rpc services that support remote connections (for which RPCs go
+        // through serialization)
+        final AkkaRpcService serverAkkaRpcService =
+                new AkkaRpcService(
+                        AkkaUtils.createActorSystem(
+                                "serverActorSystem",
+                                AkkaUtils.getAkkaConfig(
+                                        new Configuration(), new HostAndPort("localhost", 0))),
+                        AkkaRpcServiceConfiguration.defaultConfiguration());
+
+        final AkkaRpcService clientAkkaRpcService =
+                new AkkaRpcService(
+                        AkkaUtils.createActorSystem(
+                                "clientActorSystem",
+                                AkkaUtils.getAkkaConfig(
+                                        new Configuration(), new HostAndPort("localhost", 0))),
+                        AkkaRpcServiceConfiguration.defaultConfiguration());
+
+        try {
+            final DeserializatonFailingEndpoint rpcEndpoint =
+                    new DeserializatonFailingEndpoint(serverAkkaRpcService);
+            rpcEndpoint.start();
+
+            final DeserializatonFailingGateway rpcGateway =
+                    rpcEndpoint.getSelfGateway(DeserializatonFailingGateway.class);
+
+            final DeserializatonFailingGateway connect =
+                    clientAkkaRpcService
+                            .connect(rpcGateway.getAddress(), DeserializatonFailingGateway.class)
+                            .get();
+
+            assertThat(
+                    connect.doStuff(),
+                    FlinkMatchers.futureWillCompleteExceptionally(
+                            RpcException.class, Duration.ofHours(1)));
+        } finally {
+            RpcUtils.terminateRpcService(clientAkkaRpcService, timeout);
+            RpcUtils.terminateRpcService(serverAkkaRpcService, timeout);
         }
     }
 
@@ -743,6 +793,32 @@ public class AkkaRpcActorTest extends TestLogger {
             }.start();
 
             return future;
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    private interface DeserializatonFailingGateway extends RpcGateway {
+        CompletableFuture<DeserializationFailingObject> doStuff();
+    }
+
+    private static class DeserializatonFailingEndpoint extends RpcEndpoint
+            implements DeserializatonFailingGateway {
+
+        protected DeserializatonFailingEndpoint(RpcService rpcService) {
+            super(rpcService);
+        }
+
+        @Override
+        public CompletableFuture<DeserializationFailingObject> doStuff() {
+            return CompletableFuture.completedFuture(new DeserializationFailingObject());
+        }
+    }
+
+    private static class DeserializationFailingObject implements Serializable {
+        private void readObject(ObjectInputStream aInputStream)
+                throws ClassNotFoundException, IOException {
+            throw new ClassNotFoundException("test exception");
         }
     }
 

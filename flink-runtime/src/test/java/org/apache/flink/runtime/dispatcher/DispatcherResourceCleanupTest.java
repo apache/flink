@@ -215,6 +215,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
                                 VoidHistoryServerArchivist.INSTANCE,
                                 null,
+                                new DispatcherOperationCaches(),
                                 UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
                                 jobGraphWriter,
                                 jobManagerRunnerFactory,

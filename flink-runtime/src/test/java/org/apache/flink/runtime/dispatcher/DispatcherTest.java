@@ -330,7 +330,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         // this call is supposed to fail
         try {
             dispatcherGateway
-                    .triggerSavepoint(jobId, "file:///tmp/savepoint", false, TIMEOUT)
+                    .triggerSavepointAndGetLocation(
+                            jobId, "file:///tmp/savepoint", TriggerSavepointMode.SAVEPOINT, TIMEOUT)
                     .get();
             fail("Previous statement should have failed");
         } catch (ExecutionException t) {

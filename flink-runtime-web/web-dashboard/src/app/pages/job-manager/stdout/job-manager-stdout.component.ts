@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
-import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
 import { JobManagerService } from 'services';
 
@@ -28,21 +31,33 @@ import { JobManagerService } from 'services';
   styleUrls: ['./job-manager-stdout.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JobManagerStdoutComponent implements OnInit {
-  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
+export class JobManagerStdoutComponent implements OnInit, OnDestroy {
   stdout = '';
+  loading = true;
+  editorOptions: EditorOptions = flinkEditorOptions;
+  private destroy$ = new Subject<void>();
 
   reload(): void {
-    this.jobManagerService.loadStdout().subscribe(data => {
-      this.monacoEditorComponent.layout();
-      this.stdout = data;
-      this.cdr.markForCheck();
-    });
+    this.loading = true;
+    this.cdr.markForCheck();
+    this.jobManagerService
+      .loadStdout()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.loading = false;
+        this.stdout = data;
+        this.cdr.markForCheck();
+      });
   }
 
   constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     this.reload();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { finalize } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import { finalize, takeUntil } from 'rxjs/operators';
 
-import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
 import { JobManagerService } from 'services';
 
@@ -33,13 +35,15 @@ import { JobManagerService } from 'services';
   },
   styleUrls: ['./job-manager-log-detail.component.less']
 })
-export class JobManagerLogDetailComponent implements OnInit {
+export class JobManagerLogDetailComponent implements OnInit, OnDestroy {
   logs = '';
   logName = '';
   downloadUrl = '';
   isLoading = false;
   isFullScreen = false;
-  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
+  editorOptions: EditorOptions = flinkEditorOptions;
+  private destroy$ = new Subject<void>();
+
   constructor(
     private jobManagerService: JobManagerService,
     private cdr: ChangeDetectorRef,
@@ -54,9 +58,9 @@ export class JobManagerLogDetailComponent implements OnInit {
       .pipe(
         finalize(() => {
           this.isLoading = false;
-          this.layoutEditor();
           this.cdr.markForCheck();
-        })
+        }),
+        takeUntil(this.destroy$)
       )
       .subscribe(data => {
         this.logs = data.data;
@@ -64,17 +68,17 @@ export class JobManagerLogDetailComponent implements OnInit {
       });
   }
 
-  layoutEditor(): void {
-    setTimeout(() => this.monacoEditorComponent.layout());
-  }
-
   toggleFullScreen(fullScreen: boolean): void {
     this.isFullScreen = fullScreen;
-    this.layoutEditor();
   }
 
   ngOnInit(): void {
     this.logName = this.activatedRoute.snapshot.params.logName;
     this.reload();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

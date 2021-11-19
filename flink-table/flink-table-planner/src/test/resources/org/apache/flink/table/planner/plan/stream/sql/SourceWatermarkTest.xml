@@ -144,7 +144,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyLtzTable, project=[a, b, originTime], metadata=[originTime], watermark=[TO_TIMESTAMP_LTZ(originTime, 3)]]], fields=[a, b, originTime])
++- TableSourceScan(table=[[default_catalog, default_database, MyLtzTable, project=[a, b], metadata=[originTime], watermark=[TO_TIMESTAMP_LTZ(originTime, 3)]]], fields=[a, b, originTime])
 ]]>
     </Resource>
   </TestCase>
@@ -182,7 +182,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, originTime], metadata=[originTime], watermark=[TO_TIMESTAMP(FROM_UNIXTIME(/(originTime, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')]]], fields=[a, b, originTime])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[originTime], watermark=[TO_TIMESTAMP(FROM_UNIXTIME(/(originTime, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')]]], fields=[a, b, originTime])
 ]]>
     </Resource>
   </TestCase>

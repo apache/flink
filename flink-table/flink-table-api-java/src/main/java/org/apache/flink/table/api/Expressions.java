@@ -26,6 +26,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.expressions.TimePointUnit;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -44,7 +45,12 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCa
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAYAGG_NULL_ON_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECTAGG_ABSENT_ON_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_STRING;
 
 /**
  * Entry point of the Table API Expression DSL such as: {@code $("myField").plus(10).abs()}
@@ -629,6 +635,64 @@ public final class Expressions {
     }
 
     /**
+     * Builds a JSON object string by aggregating key-value expressions into a single JSON object.
+     *
+     * <p>The key expression must return a non-nullable character string. Value expressions can be
+     * arbitrary, including other JSON functions. If a value is {@code NULL}, the {@link JsonOnNull
+     * onNull} behavior defines what to do.
+     *
+     * <p>Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+     *
+     * <p>This function is currently not supported in {@code OVER} windows.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // "{\"Apple\":2,\"Banana\":17,\"Orange\":0}"
+     * orders.select(jsonObjectAgg(JsonOnNull.NULL, $("product"), $("cnt")))
+     * }</pre>
+     *
+     * @see #jsonObject(JsonOnNull, Object...)
+     * @see #jsonArrayAgg(JsonOnNull, Object)
+     */
+    public static ApiExpression jsonObjectAgg(JsonOnNull onNull, Object keyExpr, Object valueExpr) {
+        final BuiltInFunctionDefinition functionDefinition;
+        switch (onNull) {
+            case ABSENT:
+                functionDefinition = JSON_OBJECTAGG_ABSENT_ON_NULL;
+                break;
+            case NULL:
+            default:
+                functionDefinition = JSON_OBJECTAGG_NULL_ON_NULL;
+                break;
+        }
+
+        return apiCall(functionDefinition, keyExpr, valueExpr);
+    }
+
+    /**
+     * Serializes a value into JSON.
+     *
+     * <p>This function returns a JSON string containing the serialized value. If the value is
+     * {@code null}, the function returns {@code null}.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // null
+     * jsonString(nullOf(DataTypes.INT()))
+     *
+     * jsonString(1)                   // "1"
+     * jsonString(true)                // "true"
+     * jsonString("Hello, World!")     // "\"Hello, World!\""
+     * jsonString(Arrays.asList(1, 2)) // "[1,2]"
+     * }</pre>
+     */
+    public static ApiExpression jsonString(Object value) {
+        return apiCallAtLeastOneArgument(JSON_STRING, value);
+    }
+
+    /**
      * Builds a JSON array string from a list of values.
      *
      * <p>This function returns a JSON string. The values can be arbitrary expressions. The {@link
@@ -664,6 +728,40 @@ public final class Expressions {
                 Stream.concat(Stream.of(onNull), Arrays.stream(values)).toArray(Object[]::new);
 
         return apiCall(JSON_ARRAY, arguments);
+    }
+
+    /**
+     * Builds a JSON object string by aggregating items into an array.
+     *
+     * <p>Item expressions can be arbitrary, including other JSON functions. If a value is {@code
+     * NULL}, the {@link JsonOnNull onNull} behavior defines what to do.
+     *
+     * <p>This function is currently not supported in {@code OVER} windows, unbounded session
+     * windows, or hop windows.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // "[\"Apple\",\"Banana\",\"Orange\"]"
+     * orders.select(jsonArrayAgg(JsonOnNull.NULL, $("product")))
+     * }</pre>
+     *
+     * @see #jsonArray(JsonOnNull, Object...)
+     * @see #jsonObjectAgg(JsonOnNull, Object, Object)
+     */
+    public static ApiExpression jsonArrayAgg(JsonOnNull onNull, Object itemExpr) {
+        final BuiltInFunctionDefinition functionDefinition;
+        switch (onNull) {
+            case NULL:
+                functionDefinition = JSON_ARRAYAGG_NULL_ON_NULL;
+                break;
+            case ABSENT:
+            default:
+                functionDefinition = JSON_ARRAYAGG_ABSENT_ON_NULL;
+                break;
+        }
+
+        return apiCall(functionDefinition, itemExpr);
     }
 
     /**

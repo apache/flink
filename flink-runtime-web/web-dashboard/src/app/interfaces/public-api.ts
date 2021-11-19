@@ -32,4 +32,5 @@ export * from './plan';
 export * from './overview';
 export * from './task-manager';
 export * from './job-accumulators';
+export * from './job-manager';
 export * from './safe-any';

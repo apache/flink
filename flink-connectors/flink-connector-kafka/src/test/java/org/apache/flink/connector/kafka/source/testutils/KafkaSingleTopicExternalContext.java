@@ -42,7 +42,6 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -155,7 +154,7 @@ public class KafkaSingleTopicExternalContext implements ExternalContext<String> 
     }
 
     @Override
-    public Collection<String> generateTestData(int splitIndex, long seed) {
+    public List<String> generateTestData(int splitIndex, long seed) {
         Random random = new Random(seed);
         List<String> randomStringRecords = new ArrayList<>();
         int recordNum =

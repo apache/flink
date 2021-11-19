@@ -154,7 +154,7 @@ public class ElasticsearchSinkBuilder<IN> {
     }
 
     /**
-     * Sets the type of back of to use when flushing bulk requests. The default bulk flush back off
+     * Sets the type of back off to use when flushing bulk requests. The default bulk flush back off
      * type is {@link FlushBackoffType#NONE}.
      *
      * <p>Sets the amount of delay between each backoff attempt when flushing bulk requests, in

@@ -98,7 +98,7 @@ public class DynamicTableSinkSpecSerdeTest {
         TableEnvironmentImpl tableEnv =
                 (TableEnvironmentImpl)
                         TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        assertNotNull(actual.getTableSink((PlannerBase) tableEnv.getPlanner()));
+        assertNotNull(actual.getTableSink(((PlannerBase) tableEnv.getPlanner()).getFlinkContext()));
     }
 
     @Parameterized.Parameters(name = "{0}")

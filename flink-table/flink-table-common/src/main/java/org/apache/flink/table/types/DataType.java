@@ -33,12 +33,13 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 
 /**
@@ -146,6 +147,8 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
     }
 
     // --------------------------------------------------------------------------------------------
+    // Utilities for Common Data Type Transformations
+    // --------------------------------------------------------------------------------------------
 
     /**
      * Returns the first-level field names for the provided {@link DataType}.
@@ -155,7 +158,7 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
      */
     public static List<String> getFieldNames(DataType dataType) {
         final LogicalType type = dataType.getLogicalType();
-        if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+        if (type.is(LogicalTypeRoot.DISTINCT_TYPE)) {
             return getFieldNames(dataType.getChildren().get(0));
         } else if (isCompositeType(type)) {
             return LogicalTypeChecks.getFieldNames(type);
@@ -171,7 +174,7 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
      */
     public static List<DataType> getFieldDataTypes(DataType dataType) {
         final LogicalType type = dataType.getLogicalType();
-        if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+        if (type.is(LogicalTypeRoot.DISTINCT_TYPE)) {
             return getFieldDataTypes(dataType.getChildren().get(0));
         } else if (isCompositeType(type)) {
             return dataType.getChildren();
@@ -214,6 +217,28 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
      */
     public static DataType projectFields(DataType dataType, int[] indexes) {
         return DataTypeUtils.projectRow(dataType, indexes);
+    }
+
+    /**
+     * Exclude fields with the provided {@code indexes} from the {@code dataType}. This method
+     * behaves as the inverse method of {@link #projectFields(DataType, int[])}.
+     *
+     * <p>Note: This method only excludes (possibly nested) fields in the top-level row.
+     */
+    public static DataType excludeFields(DataType dataType, int[] indexes) {
+        // Convert indexes to set
+        final Set<Integer> indexesSet = new HashSet<>();
+        for (int index : indexes) {
+            indexesSet.add(index);
+        }
+
+        // Compute projection
+        final int[] projection =
+                IntStream.range(0, DataType.getFieldCount(dataType))
+                        .filter(i -> !indexesSet.contains(i))
+                        .toArray();
+
+        return DataType.projectFields(dataType, projection);
     }
 
     /**

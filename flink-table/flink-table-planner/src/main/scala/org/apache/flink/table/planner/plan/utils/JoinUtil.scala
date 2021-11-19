@@ -237,34 +237,23 @@ object JoinUtil {
    * Check whether input join node satisfy preconditions to convert into regular join.
    *
    * @param join input join to analyze.
+   * @param newLeft new left child of join
+   * @param newRight new right child of join
    *
    * @return True if input join node satisfy preconditions to convert into regular join,
    *         else false.
    */
-  def satisfyRegularJoin(join: FlinkLogicalJoin): Boolean = {
-    satisfyRegularJoin(join, join.getRight)
-  }
-
-  /**
-   * Check whether input join node satisfy preconditions to convert into regular join.
-   *
-   * @param join input join to analyze.
-   * @param right right child of input join
-   *
-   * @return True if input join node satisfy preconditions to convert into regular join,
-   *         else false.
-   */
-  def satisfyRegularJoin(join: FlinkLogicalJoin, right: RelNode): Boolean = {
-    if (right.isInstanceOf[FlinkLogicalSnapshot]) {
+  def satisfyRegularJoin(join: FlinkLogicalJoin, newLeft: RelNode, newRight: RelNode): Boolean = {
+    if (newRight.isInstanceOf[FlinkLogicalSnapshot]) {
       // exclude lookup join
       false
-    } else if (satisfyTemporalJoin(join)) {
+    } else if (satisfyTemporalJoin(join, newLeft, newRight)) {
       // exclude temporal table join
       false
-    } else if (satisfyIntervalJoin(join)) {
+    } else if (satisfyIntervalJoin(join, newLeft, newRight)) {
       // exclude interval join
       false
-    } else if (satisfyWindowJoin(join)) {
+    } else if (satisfyWindowJoin(join, newLeft, newRight)) {
       // exclude window join
       false
     } else {

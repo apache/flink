@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
 
 import junit.framework.TestCase.{assertFalse, assertTrue}
@@ -43,7 +42,7 @@ class FlinkTypeFactoryTest {
           typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
-      if (!hasRoot(t, LogicalTypeRoot.NULL)) {
+      if (!t.is(LogicalTypeRoot.NULL)) {
         Assert.assertEquals(
           t.copy(false),
           FlinkTypeFactory.toLogicalType(
@@ -58,7 +57,7 @@ class FlinkTypeFactoryTest {
           typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
-      if (!hasRoot(t, LogicalTypeRoot.NULL)) {
+      if (!t.is(LogicalTypeRoot.NULL)) {
         Assert.assertEquals(
           t.copy(false),
           FlinkTypeFactory.toLogicalType(

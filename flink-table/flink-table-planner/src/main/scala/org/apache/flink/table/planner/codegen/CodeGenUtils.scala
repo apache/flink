@@ -43,7 +43,7 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale, hasRoot}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.types.{Row, RowKind}
@@ -143,6 +143,16 @@ object CodeGenUtils {
     name
   }
 
+  def className(c: Class[_]): String = {
+    val name = c.getCanonicalName
+    if (name == null) {
+      throw new CodeGenException(
+        s"Class '${c.getName}' does not have a canonical name. " +
+          s"Make sure it is statically accessible.")
+    }
+    name
+  }
+
   /**
    * Returns a term for representing the given class in Java code.
    */
@@ -209,6 +219,22 @@ object CodeGenUtils {
     case RAW => className[BinaryRawValueData[_]]
     case SYMBOL | UNRESOLVED =>
       throw new IllegalArgumentException("Illegal type: " + t)
+  }
+
+  /**
+   * Returns true if [[primitiveDefaultValue()]] returns a nullable Java type, that is,
+   * a non primitive type.
+   */
+  @tailrec
+  def isPrimitiveNullable(t: LogicalType): Boolean = t.getTypeRoot match {
+    // ordered by type root definition
+    case BOOLEAN | TINYINT | SMALLINT | INTEGER |
+         DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH |
+         BIGINT | INTERVAL_DAY_TIME | FLOAT | DOUBLE => false
+
+    case DISTINCT_TYPE => isPrimitiveNullable(t.asInstanceOf[DistinctType].getSourceType)
+
+    case _ => true
   }
 
   /**
@@ -284,69 +310,6 @@ object CodeGenUtils {
       s"$BINARY_RAW_VALUE.getJavaObjectFromRawValueData($term, $serTerm).hashCode()"
     case NULL | SYMBOL | UNRESOLVED =>
       throw new IllegalArgumentException("Illegal type: " + t)
-  }
-
-  // ----------------------------------------------------------------------------------------------
-
-  // Cast numeric type to another numeric type with larger range.
-  // This function must be in sync with [[NumericOrDefaultReturnTypeInference]].
-  def getNumericCastedResultTerm(expr: GeneratedExpression, targetType: LogicalType): String = {
-    (expr.resultType.getTypeRoot, targetType.getTypeRoot) match {
-      case _ if isInteroperable(expr.resultType, targetType) => expr.resultTerm
-
-      // byte -> other numeric types
-      case (TINYINT, SMALLINT) => s"(short) ${expr.resultTerm}"
-      case (TINYINT, INTEGER) => s"(int) ${expr.resultTerm}"
-      case (TINYINT, BIGINT) => s"(long) ${expr.resultTerm}"
-      case (TINYINT, DECIMAL) =>
-        val dt = targetType.asInstanceOf[DecimalType]
-        s"$DECIMAL_UTIL.castFrom(" +
-          s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
-      case (TINYINT, FLOAT) => s"(float) ${expr.resultTerm}"
-      case (TINYINT, DOUBLE) => s"(double) ${expr.resultTerm}"
-
-      // short -> other numeric types
-      case (SMALLINT, INTEGER) => s"(int) ${expr.resultTerm}"
-      case (SMALLINT, BIGINT) => s"(long) ${expr.resultTerm}"
-      case (SMALLINT, DECIMAL) =>
-        val dt = targetType.asInstanceOf[DecimalType]
-        s"$DECIMAL_UTIL.castFrom(" +
-          s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
-      case (SMALLINT, FLOAT) => s"(float) ${expr.resultTerm}"
-      case (SMALLINT, DOUBLE) => s"(double) ${expr.resultTerm}"
-
-      // int -> other numeric types
-      case (INTEGER, BIGINT) => s"(long) ${expr.resultTerm}"
-      case (INTEGER, DECIMAL) =>
-        val dt = targetType.asInstanceOf[DecimalType]
-        s"$DECIMAL_UTIL.castFrom(" +
-          s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
-      case (INTEGER, FLOAT) => s"(float) ${expr.resultTerm}"
-      case (INTEGER, DOUBLE) => s"(double) ${expr.resultTerm}"
-
-      // long -> other numeric types
-      case (BIGINT, DECIMAL) =>
-        val dt = targetType.asInstanceOf[DecimalType]
-        s"$DECIMAL_UTIL.castFrom(" +
-          s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
-      case (BIGINT, FLOAT) => s"(float) ${expr.resultTerm}"
-      case (BIGINT, DOUBLE) => s"(double) ${expr.resultTerm}"
-
-      // decimal -> other numeric types
-      case (DECIMAL, DECIMAL) =>
-        val dt = targetType.asInstanceOf[DecimalType]
-        s"$DECIMAL_UTIL.castToDecimal(" +
-          s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
-      case (DECIMAL, FLOAT) =>
-        s"$DECIMAL_UTIL.castToFloat(${expr.resultTerm})"
-      case (DECIMAL, DOUBLE) =>
-        s"$DECIMAL_UTIL.castToDouble(${expr.resultTerm})"
-
-      // float -> other numeric types
-      case (FLOAT, DOUBLE) => s"(double) ${expr.resultTerm}"
-
-      case _ => null
-    }
   }
 
   // -------------------------- Method & Enum ---------------------------------------
@@ -429,19 +392,11 @@ object CodeGenUtils {
 
   // -------------------------- RowData Read Access -------------------------------
 
-  def rowFieldReadAccess(
-      ctx: CodeGeneratorContext,
-      index: Int,
-      rowTerm: String,
-      fieldType: LogicalType) : String =
-    rowFieldReadAccess(ctx, index.toString, rowTerm, fieldType)
+  def rowFieldReadAccess(index: Int, rowTerm: String, fieldType: LogicalType): String =
+    rowFieldReadAccess(index.toString, rowTerm, fieldType)
 
   @tailrec
-  def rowFieldReadAccess(
-      ctx: CodeGeneratorContext,
-      indexTerm: String,
-      rowTerm: String,
-      t: LogicalType)
+  def rowFieldReadAccess(indexTerm: String, rowTerm: String, t: LogicalType)
     : String = t.getTypeRoot match {
       // ordered by type root definition
       case CHAR | VARCHAR =>
@@ -475,7 +430,7 @@ object CodeGenUtils {
       case ROW | STRUCTURED_TYPE =>
         s"$rowTerm.getRow($indexTerm, ${getFieldCount(t)})"
       case DISTINCT_TYPE =>
-        rowFieldReadAccess(ctx, indexTerm, rowTerm, t.asInstanceOf[DistinctType].getSourceType)
+        rowFieldReadAccess(indexTerm, rowTerm, t.asInstanceOf[DistinctType].getSourceType)
       case RAW =>
         s"(($BINARY_RAW_VALUE) $rowTerm.getRawValue($indexTerm))"
       case NULL | SYMBOL | UNRESOLVED =>
@@ -911,7 +866,7 @@ object CodeGenUtils {
     val targetTypeTerm = boxedTypeTermForType(targetType)
 
     // untyped null literal
-    if (hasRoot(internalExpr.resultType, NULL)) {
+    if (internalExpr.resultType.is(NULL)) {
       return s"($targetTypeTerm) null"
     }
 
@@ -1030,7 +985,7 @@ object CodeGenUtils {
     val targetTypeTerm = boxedTypeTermForType(targetType)
 
     // untyped null literal
-    if (hasRoot(internalExpr.resultType, NULL)) {
+    if (internalExpr.resultType.is(NULL)) {
       return s"($targetTypeTerm) null"
     }
 

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.hint;
 
+import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
+
 import org.apache.calcite.rel.hint.HintPredicates;
 import org.apache.calcite.rel.hint.HintStrategy;
 import org.apache.calcite.rel.hint.HintStrategyTable;
@@ -43,6 +45,11 @@ public abstract class FlinkHintStrategies {
                                                         hint.kvOptions.size() > 0,
                                                         "Hint [{}] only support non empty key value options",
                                                         hint.hintName))
+                                .build())
+                .hintStrategy(
+                        FlinkHints.HINT_NAME_JSON_AGGREGATE_WRAPPED,
+                        HintStrategy.builder(HintPredicates.AGGREGATE)
+                                .excludedRules(WrapJsonAggFunctionArgumentsRule.INSTANCE)
                                 .build())
                 .build();
     }

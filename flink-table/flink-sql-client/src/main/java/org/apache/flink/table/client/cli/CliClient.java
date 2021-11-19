@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.config.SqlClientOptions;
@@ -35,6 +36,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
+import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
@@ -49,7 +51,7 @@ import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
 import org.apache.flink.table.utils.EncodingUtils;
-import org.apache.flink.table.utils.PrintUtils;
+import org.apache.flink.table.utils.print.PrintStyle;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.jline.reader.EndOfFileException;
@@ -442,6 +444,9 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof ShowCreateTableOperation) {
             // SHOW CREATE TABLE
             callShowCreateTable((ShowCreateTableOperation) operation);
+        } else if (operation instanceof ShowCreateViewOperation) {
+            // SHOW CREATE VIEW
+            callShowCreateView((ShowCreateViewOperation) operation);
         } else {
             // fallback to default implementation
             executeOperation(operation);
@@ -592,6 +597,10 @@ public class CliClient implements AutoCloseable {
         printRawContent(operation);
     }
 
+    public void callShowCreateView(ShowCreateViewOperation operation) {
+        printRawContent(operation);
+    }
+
     public void printRawContent(Operation operation) {
         TableResult tableResult = executor.executeOperation(sessionId, operation);
         // show raw content instead of tableau style
@@ -622,22 +631,19 @@ public class CliClient implements AutoCloseable {
     }
 
     private void executeOperation(Operation operation) {
-        TableResult result = executor.executeOperation(sessionId, operation);
+        TableResultInternal result = executor.executeOperation(sessionId, operation);
         if (TABLE_RESULT_OK == result) {
             // print more meaningful message than tableau OK result
             printInfo(MESSAGE_EXECUTE_STATEMENT);
         } else {
             // print tableau if result has content
-            PrintUtils.printAsTableauForm(
-                    result.getResolvedSchema(),
-                    result.collect(),
-                    terminal.writer(),
-                    Integer.MAX_VALUE,
-                    "",
-                    false,
-                    false,
-                    CliUtils.getSessionTimeZone(executor.getSessionConfig(sessionId)));
-            terminal.flush();
+            PrintStyle.tableauWithDataInferredColumnWidths(
+                            result.getResolvedSchema(),
+                            result.getRowDataToStringConverter(),
+                            Integer.MAX_VALUE,
+                            true,
+                            false)
+                    .print(result.collectInternal(), terminal.writer());
         }
     }
 

@@ -173,30 +173,6 @@ public final class DecimalDataUtils {
         return bd.longValue();
     }
 
-    public static long castToLong(DecimalData dec) {
-        return castToIntegral(dec);
-    }
-
-    public static int castToInt(DecimalData dec) {
-        return (int) castToIntegral(dec);
-    }
-
-    public static short castToShort(DecimalData dec) {
-        return (short) castToIntegral(dec);
-    }
-
-    public static byte castToByte(DecimalData dec) {
-        return (byte) castToIntegral(dec);
-    }
-
-    public static float castToFloat(DecimalData dec) {
-        return (float) doubleValue(dec);
-    }
-
-    public static double castToDouble(DecimalData dec) {
-        return doubleValue(dec);
-    }
-
     public static DecimalData castToDecimal(DecimalData dec, int precision, int scale) {
         return fromBigDecimal(dec.toBigDecimal(), precision, scale);
     }

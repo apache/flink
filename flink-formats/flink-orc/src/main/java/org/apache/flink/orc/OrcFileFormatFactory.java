@@ -27,8 +27,10 @@ import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.BulkDecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
@@ -38,8 +40,6 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
-import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
-import org.apache.flink.table.filesystem.PartitionFieldExtractor;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -48,6 +48,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.orc.TypeDescription;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
@@ -85,71 +86,7 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
     @Override
     public BulkDecodingFormat<RowData> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-        return new BulkDecodingFormat<RowData>() {
-
-            private List<ResolvedExpression> filters;
-
-            @Override
-            public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
-                    DynamicTableSource.Context sourceContext, DataType producedDataType) {
-                List<OrcFilters.Predicate> orcPredicates = new ArrayList<>();
-
-                if (filters != null) {
-                    for (Expression pred : filters) {
-                        OrcFilters.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
-                        if (orcPred != null) {
-                            orcPredicates.add(orcPred);
-                        }
-                    }
-                }
-
-                RowType tableType =
-                        (RowType)
-                                context.getCatalogTable()
-                                        .getSchema()
-                                        .toPhysicalRowDataType()
-                                        .getLogicalType();
-                List<String> tableFieldNames = tableType.getFieldNames();
-                RowType projectedType = (RowType) producedDataType.getLogicalType();
-
-                int[] selectedFields =
-                        projectedType.getFieldNames().stream()
-                                .mapToInt(tableFieldNames::indexOf)
-                                .toArray();
-
-                Properties properties = getOrcProperties(formatOptions);
-                Configuration conf = new Configuration();
-                properties.forEach((k, v) -> conf.set(k.toString(), v.toString()));
-
-                String defaultPartName =
-                        context.getCatalogTable()
-                                .getOptions()
-                                .getOrDefault(
-                                        FileSystemConnectorOptions.PARTITION_DEFAULT_NAME.key(),
-                                        FileSystemConnectorOptions.PARTITION_DEFAULT_NAME
-                                                .defaultValue());
-
-                return OrcColumnarRowFileInputFormat.createPartitionedFormat(
-                        OrcShim.defaultShim(),
-                        conf,
-                        tableType,
-                        context.getCatalogTable().getPartitionKeys(),
-                        PartitionFieldExtractor.forFileSystem(defaultPartName),
-                        selectedFields,
-                        orcPredicates,
-                        VectorizedColumnBatch.DEFAULT_SIZE);
-            }
-
-            @Override
-            public ChangelogMode getChangelogMode() {
-                return ChangelogMode.insertOnly();
-            }
-
-            @Override
-            public void applyFilters(List<ResolvedExpression> filters) {
-                this.filters = filters;
-            }
-        };
+        return new OrcBulkDecodingFormat(formatOptions);
     }
 
     @Override
@@ -176,5 +113,58 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                 return ChangelogMode.insertOnly();
             }
         };
+    }
+
+    private static class OrcBulkDecodingFormat
+            implements BulkDecodingFormat<RowData>,
+                    ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>> {
+
+        private final ReadableConfig formatOptions;
+        private List<ResolvedExpression> filters;
+
+        public OrcBulkDecodingFormat(ReadableConfig formatOptions) {
+            this.formatOptions = formatOptions;
+        }
+
+        @Override
+        public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
+                DynamicTableSource.Context sourceContext,
+                DataType producedDataType,
+                int[][] projections) {
+            List<OrcFilters.Predicate> orcPredicates = new ArrayList<>();
+
+            if (filters != null) {
+                for (Expression pred : filters) {
+                    OrcFilters.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
+                    if (orcPred != null) {
+                        orcPredicates.add(orcPred);
+                    }
+                }
+            }
+
+            Properties properties = getOrcProperties(formatOptions);
+            Configuration conf = new Configuration();
+            properties.forEach((k, v) -> conf.set(k.toString(), v.toString()));
+
+            return OrcColumnarRowFileInputFormat.createPartitionedFormat(
+                    OrcShim.defaultShim(),
+                    conf,
+                    (RowType) producedDataType.getLogicalType(),
+                    Collections.emptyList(),
+                    null,
+                    Projection.of(projections).toTopLevelIndexes(),
+                    orcPredicates,
+                    VectorizedColumnBatch.DEFAULT_SIZE);
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return ChangelogMode.insertOnly();
+        }
+
+        @Override
+        public void applyFilters(List<ResolvedExpression> filters) {
+            this.filters = filters;
+        }
     }
 }

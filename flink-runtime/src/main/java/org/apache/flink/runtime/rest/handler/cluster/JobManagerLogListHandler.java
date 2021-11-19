@@ -73,11 +73,16 @@ public class JobManagerLogListHandler
             return FutureUtils.completedExceptionally(
                     new IOException("Could not list files in " + logDir));
         }
-        final List<LogInfo> logsWithLength =
+        final List<LogInfo> logs =
                 Arrays.stream(logFiles)
                         .filter(File::isFile)
-                        .map(logFile -> new LogInfo(logFile.getName(), logFile.length()))
+                        .map(
+                                logFile ->
+                                        new LogInfo(
+                                                logFile.getName(),
+                                                logFile.length(),
+                                                logFile.lastModified()))
                         .collect(Collectors.toList());
-        return CompletableFuture.completedFuture(new LogListInfo(logsWithLength));
+        return CompletableFuture.completedFuture(new LogListInfo(logs));
     }
 }

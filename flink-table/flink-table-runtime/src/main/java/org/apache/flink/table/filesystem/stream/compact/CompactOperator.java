@@ -49,6 +49,7 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -198,6 +199,11 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
             return;
         }
 
+        Map<Path, Long> inputMap = new HashMap<>();
+        for (Path path : paths) {
+            inputMap.put(path, fileSystem.getFileStatus(path).getLen());
+        }
+
         Path target = createCompactedFile(paths);
         if (fileSystem.exists(target)) {
             return;
@@ -217,12 +223,15 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
             doMultiFilesCompact(partition, paths, target);
         }
 
+        Map<Path, Long> targetMap = new HashMap<>();
+        targetMap.put(target, fileSystem.getFileStatus(target).getLen());
+
         double costSeconds = ((double) (System.currentTimeMillis() - startMillis)) / 1000;
         LOG.info(
-                "Compaction time cost is '{}S', target file is '{}', input files are '{}'",
+                "Compaction time cost is '{}S', output per file as following format: name=size(byte), target file is '{}', input files are '{}'",
                 costSeconds,
-                target,
-                paths);
+                targetMap,
+                inputMap);
     }
 
     private boolean doSingleFileMove(Path src, Path dst) throws IOException {

@@ -66,6 +66,13 @@ Querying unsupported/non-existing versions will return a 404 error.
 
 There exist several async operations among these APIs, e.g. `trigger savepoint`, `rescale a job`. They would return a `triggerid` to identify the operation you just POST and then you need to use that `triggerid` to query for the status of the operation.
 
+For (stop-with-)savepoint operations you can control this `triggerId` by setting it in the body of the request that triggers the operation.
+This allow you to safely* retry such operations without triggering multiple savepoints.
+
+{{< hint info >}}
+The retry is only safe until the [async operation store duration]({{< ref "docs/deployment/config#rest-async-store-duration" >}}) has elapsed.
+{{</ hint >}}
+
 {{< tabs "f00ed142-b05f-44f0-bafc-799080c1d40d" >}}
 {{< tab "v1" >}}
 #### JobManager

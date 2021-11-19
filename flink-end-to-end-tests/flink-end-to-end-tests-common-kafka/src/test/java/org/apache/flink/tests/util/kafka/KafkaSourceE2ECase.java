@@ -27,6 +27,7 @@ import org.apache.flink.connectors.test.common.junit.annotations.TestEnv;
 import org.apache.flink.connectors.test.common.testsuites.SourceTestSuiteBase;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment;
+import org.apache.flink.util.DockerImageVersions;
 
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -34,7 +35,6 @@ import org.testcontainers.utility.DockerImageName;
 /** Kafka E2E test based on connector testing framework. */
 public class KafkaSourceE2ECase extends SourceTestSuiteBase<String> {
     private static final String KAFKA_HOSTNAME = "kafka";
-    private static final String KAFKA_IMAGE_NAME = "confluentinc/cp-kafka:5.5.2";
 
     // Defines TestEnvironment
     @TestEnv
@@ -50,7 +50,7 @@ public class KafkaSourceE2ECase extends SourceTestSuiteBase<String> {
     DefaultContainerizedExternalSystem<KafkaContainer> kafka =
             DefaultContainerizedExternalSystem.builder()
                     .fromContainer(
-                            new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE_NAME))
+                            new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
                                     .withNetworkAliases(KAFKA_HOSTNAME))
                     .bindWithFlinkContainer(flink.getFlinkContainer())
                     .build();

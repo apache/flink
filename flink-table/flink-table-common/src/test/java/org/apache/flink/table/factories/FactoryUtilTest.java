@@ -142,6 +142,27 @@ public class FactoryUtilTest {
     }
 
     @Test
+    public void testSecretOption() {
+        expectError(
+                "Table options are:\n"
+                        + "\n"
+                        + "'buffer-size'='1000'\n"
+                        + "'connector'='test-connector'\n"
+                        + "'key.format'='test-format'\n"
+                        + "'key.test-format.delimiter'=','\n"
+                        + "'password'='******'\n"
+                        + "'property-version'='1'\n"
+                        + "'value.format'='test-format'\n"
+                        + "'value.test-format.delimiter'='|'\n"
+                        + "'value.test-format.fail-on-missing'='true'");
+        testError(
+                options -> {
+                    options.remove("target");
+                    options.put("password", "123");
+                });
+    }
+
+    @Test
     public void testUnconsumedOption() {
         expectError(
                 "Unsupported options found for 'test-connector'.\n\n"
@@ -161,6 +182,7 @@ public class FactoryUtilTest {
                         + "key.test-format.fail-on-missing\n"
                         + "key.test-format.fallback-fail-on-missing\n"
                         + "key.test-format.readable-metadata\n"
+                        + "password\n"
                         + "property-version\n"
                         + "target\n"
                         + "value.format\n"

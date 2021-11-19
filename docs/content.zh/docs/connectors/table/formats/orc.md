@@ -167,7 +167,20 @@ Orc 格式类型的映射和 Apache Hive 是兼容的。下面的表格列出了
       <td>timestamp</td>
       <td>TIMESTAMP</td>
     </tr>
+    <tr>
+      <td>ARRAY</td>
+      <td>-</td>
+      <td>LIST</td>
+    </tr>
+    <tr>
+      <td>MAP</td>
+      <td>-</td>
+      <td>MAP</td>
+    </tr>
+    <tr>
+      <td>ROW</td>
+      <td>-</td>
+      <td>STRUCT</td>
+    </tr>
     </tbody>
 </table>
-
-<span class="label label-danger">注意</span> 复合数据类型: 数组、 映射和行类型暂不支持。

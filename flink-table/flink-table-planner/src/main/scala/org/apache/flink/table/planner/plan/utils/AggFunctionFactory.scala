@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.aggfunctions.IncrSumAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.IncrSumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
@@ -34,7 +33,7 @@ import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.fun._
-import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
+import org.apache.calcite.sql.{SqlAggFunction, SqlJsonConstructorNullClause, SqlKind, SqlRankFunction}
 
 import java.util
 
@@ -122,6 +121,14 @@ class AggFunctionFactory(
 
       case a: SqlAggFunction if a.getKind == SqlKind.COLLECT =>
         createCollectAggFunction(argTypes)
+
+      case fn: SqlAggFunction if fn.getKind == SqlKind.JSON_OBJECTAGG =>
+        val onNull = fn.asInstanceOf[SqlJsonObjectAggAggFunction].getNullClause
+        new JsonObjectAggFunction(argTypes, onNull == SqlJsonConstructorNullClause.ABSENT_ON_NULL)
+
+      case fn: SqlAggFunction if fn.getKind == SqlKind.JSON_ARRAYAGG =>
+        val onNull = fn.asInstanceOf[SqlJsonArrayAggAggFunction].getNullClause
+        new JsonArrayAggFunction(argTypes, onNull == SqlJsonConstructorNullClause.ABSENT_ON_NULL)
 
       case udagg: AggSqlFunction =>
         // Can not touch the literals, Calcite make them in previous RelNode.

@@ -21,12 +21,13 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeduplicate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRank
+import org.apache.flink.table.planner.plan.utils.{RankProcessStrategy, RankUtil}
+
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.table.planner.plan.utils.RankProcessStrategy
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeduplicate
 
 /**
   * Rule that converts [[FlinkLogicalRank]] with fetch to [[StreamPhysicalRank]].
@@ -41,7 +42,7 @@ class StreamPhysicalRankRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
-    !StreamPhysicalDeduplicateRule.canConvertToDeduplicate(rank)
+    !RankUtil.canConvertToDeduplicate(rank)
   }
 
   override def convert(rel: RelNode): RelNode = {

@@ -31,6 +31,8 @@ under the License.
 
 The [JSON](https://www.json.org/json-en.html) format allows to read and write JSON data based on an JSON schema. Currently, the JSON schema is derived from table schema.
 
+The JSON format supports append-only streams, unless you're using a connector that explicitly support retract streams and/or upsert streams like the [Upsert Kafka]({{< ref "docs/connectors/table/upsert-kafka" >}}) connector. If you need to write retract streams and/or upsert streams, we suggest you to look at CDC JSON formats like [Debezium JSON]({{< ref "docs/connectors/table/formats/debezium" >}}) and [Canal JSON]({{< ref "docs/connectors/table/formats/canal" >}}).
+
 Dependencies
 ------------
 

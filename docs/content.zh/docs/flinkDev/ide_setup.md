@@ -167,6 +167,10 @@ IntelliJ 使用 Checkstyle-IDEA 插件在 IDE 中支持 checkstyle。
 
 这意味着 IntelliJ 正在为该项目使用 JDK 11，但是你正在使用不支持 Java 11 的 Flink 版本。这通常在将 IntelliJ 设置为使用 JDK 11 并检出 Flink 的旧版本（<= 1.9）时发生。解决方法：打开项目设置窗口（File → Project Structure → Project Settings: Project），然后选择 JDK 8 作为项目 SDK。如果要使用 JDK 11，则可能必须在切换回新的 Flink 版本后恢复此状态。
 
+- 编译失败 `程序包sun.misc不存在`
+
+这意味着 IntelliJ 正在为该项目使用 JDK 11, 但使用了 `--release` 编译选项来编译 JDK8 字节码，这个编译选项和Flink当前的build方式不兼容。解决办法： 进入 "Preferences" → "Build, Execution, Deployment" → "Compiler" → "Java Compiler", 取消选中 "Use '--release' option for cross-compilation (Java 9 and later)".
+
 - 运行 Flink Examples 且 Flink 出现关于 `NoClassDefFoundError` 错误信息
 
 这可能是由于将 Flink 依赖项设置为 provided，导致它们没有自动放置在类路径中。你可以在运行配置中选中 "Include dependencies with 'Provided' scope" 框，也可以创建一个调用 `main()` 方法的测试示例（provided 依赖关系在测试类路径中可用）。

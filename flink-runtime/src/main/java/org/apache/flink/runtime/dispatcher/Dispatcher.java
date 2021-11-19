@@ -59,6 +59,8 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
+import org.apache.flink.runtime.rest.handler.async.OperationResult;
+import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -140,6 +142,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private DispatcherBootstrap dispatcherBootstrap;
 
+    private final DispatcherCachedOperationsHandler dispatcherCachedOperationsHandler;
+
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
         SUBMISSION,
@@ -189,6 +193,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.dispatcherBootstrapFactory = checkNotNull(dispatcherBootstrapFactory);
 
         this.recoveredJobs = new HashSet<>(recoveredJobs);
+
+        this.dispatcherCachedOperationsHandler =
+                new DispatcherCachedOperationsHandler(
+                        dispatcherServices.getOperationCaches(),
+                        this::triggerSavepointAndGetLocation,
+                        this::stopWithSavepointAndGetLocation);
     }
 
     // ------------------------------------------------------
@@ -696,24 +706,52 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     @Override
-    public CompletableFuture<String> triggerSavepoint(
-            final JobID jobId,
+    public CompletableFuture<Acknowledge> triggerSavepoint(
+            final AsynchronousJobOperationKey operationKey,
             final String targetDirectory,
-            final boolean cancelJob,
+            final TriggerSavepointMode savepointMode,
             final Time timeout) {
-
-        return performOperationOnJobMasterGateway(
-                jobId, gateway -> gateway.triggerSavepoint(targetDirectory, cancelJob, timeout));
+        return dispatcherCachedOperationsHandler.triggerSavepoint(
+                operationKey, targetDirectory, savepointMode, timeout);
     }
 
     @Override
-    public CompletableFuture<String> stopWithSavepoint(
+    public CompletableFuture<String> triggerSavepointAndGetLocation(
+            JobID jobId, String targetDirectory, TriggerSavepointMode savepointMode, Time timeout) {
+        return performOperationOnJobMasterGateway(
+                jobId,
+                gateway ->
+                        gateway.triggerSavepoint(
+                                targetDirectory, savepointMode.isTerminalMode(), timeout));
+    }
+
+    @Override
+    public CompletableFuture<OperationResult<String>> getTriggeredSavepointStatus(
+            AsynchronousJobOperationKey operationKey) {
+        return dispatcherCachedOperationsHandler.getSavepointStatus(operationKey);
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> stopWithSavepoint(
+            AsynchronousJobOperationKey operationKey,
+            String targetDirectory,
+            TriggerSavepointMode savepointMode,
+            final Time timeout) {
+        return dispatcherCachedOperationsHandler.stopWithSavepoint(
+                operationKey, targetDirectory, savepointMode, timeout);
+    }
+
+    @Override
+    public CompletableFuture<String> stopWithSavepointAndGetLocation(
             final JobID jobId,
             final String targetDirectory,
-            final boolean terminate,
+            final TriggerSavepointMode savepointMode,
             final Time timeout) {
         return performOperationOnJobMasterGateway(
-                jobId, gateway -> gateway.stopWithSavepoint(targetDirectory, terminate, timeout));
+                jobId,
+                gateway ->
+                        gateway.stopWithSavepoint(
+                                targetDirectory, savepointMode.isTerminalMode(), timeout));
     }
 
     @Override

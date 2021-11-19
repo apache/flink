@@ -45,7 +45,7 @@ Add the following dependency to your `pom.xml` to use Gelly.
 
 {{< tabs "96de5128-3c66-4942-9498-e9a8ae439314" >}}
 {{< tab "Java" >}}
-{{< artifact flink-gelly withScalaVersion >}}
+{{< artifact flink-gelly >}}
 {{< /tab >}}
 {{< tab "Scala" >}}
 {{< artifact flink-gelly-scala withScalaVersion >}}

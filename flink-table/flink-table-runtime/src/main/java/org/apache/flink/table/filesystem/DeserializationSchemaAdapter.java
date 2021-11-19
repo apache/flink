@@ -28,14 +28,7 @@ import org.apache.flink.connector.file.src.util.ArrayResultIterator;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -45,10 +38,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 import java.util.Queue;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.file.src.util.CheckpointedPosition.NO_OFFSET;
 import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
@@ -58,71 +48,10 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
 
     private static final int BATCH_SIZE = 100;
 
-    // NOTE, deserializationSchema produce full format fields with original order
     private final DeserializationSchema<RowData> deserializationSchema;
 
-    private final String[] fieldNames;
-    private final DataType[] fieldTypes;
-    private final int[] projectFields;
-    private final RowType projectedRowType;
-
-    private final List<String> partitionKeys;
-    private final String defaultPartValue;
-
-    private final int[] toProjectedField;
-    private final RowData.FieldGetter[] formatFieldGetters;
-
-    public DeserializationSchemaAdapter(
-            DeserializationSchema<RowData> deserializationSchema,
-            DataType physicalDataType,
-            int[] projectFields,
-            List<String> partitionKeys,
-            String defaultPartValue) {
+    public DeserializationSchemaAdapter(DeserializationSchema<RowData> deserializationSchema) {
         this.deserializationSchema = deserializationSchema;
-        this.fieldNames = DataType.getFieldNames(physicalDataType).toArray(new String[0]);
-        this.fieldTypes = DataType.getFieldDataTypes(physicalDataType).toArray(new DataType[0]);
-        this.projectFields = projectFields;
-        this.partitionKeys = partitionKeys;
-        this.defaultPartValue = defaultPartValue;
-
-        List<String> projectedNames =
-                Arrays.stream(projectFields)
-                        .mapToObj(idx -> this.fieldNames[idx])
-                        .collect(Collectors.toList());
-
-        this.projectedRowType =
-                RowType.of(
-                        Arrays.stream(projectFields)
-                                .mapToObj(idx -> this.fieldTypes[idx].getLogicalType())
-                                .toArray(LogicalType[]::new),
-                        projectedNames.toArray(new String[0]));
-
-        List<String> formatFields =
-                Arrays.stream(this.fieldNames)
-                        .filter(field -> !partitionKeys.contains(field))
-                        .collect(Collectors.toList());
-
-        List<String> formatProjectedFields =
-                projectedNames.stream()
-                        .filter(field -> !partitionKeys.contains(field))
-                        .collect(Collectors.toList());
-
-        this.toProjectedField =
-                formatProjectedFields.stream().mapToInt(projectedNames::indexOf).toArray();
-
-        this.formatFieldGetters = new RowData.FieldGetter[formatProjectedFields.size()];
-        final Map<String, DataType> fieldDataTypesMap =
-                DataType.getFields(physicalDataType).stream()
-                        .collect(
-                                Collectors.toMap(
-                                        DataTypes.Field::getName, DataTypes.Field::getDataType));
-        for (int i = 0; i < formatProjectedFields.size(); i++) {
-            String name = formatProjectedFields.get(i);
-            this.formatFieldGetters[i] =
-                    RowData.createFieldGetter(
-                            fieldDataTypesMap.get(name).getLogicalType(),
-                            formatFields.indexOf(name));
-        }
     }
 
     private DeserializationSchema<RowData> createDeserialization() throws IOException {
@@ -168,7 +97,7 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
 
     @Override
     public TypeInformation<RowData> getProducedType() {
-        return InternalTypeInfo.of(projectedRowType);
+        return deserializationSchema.getProducedType();
     }
 
     private class Reader implements BulkFormat.Reader<RowData> {
@@ -233,7 +162,6 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
 
         private transient boolean end;
         private transient RecordCollector collector;
-        private transient GenericRowData rowData;
 
         public LineBytesInputFormat(Path path, Configuration config) throws IOException {
             super(path, config);
@@ -245,22 +173,6 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
             super.open(split);
             this.end = false;
             this.collector = new RecordCollector();
-            this.rowData =
-                    PartitionPathUtils.fillPartitionValueForRecord(
-                            fieldNames,
-                            fieldTypes,
-                            projectFields,
-                            partitionKeys,
-                            currentSplit.getPath(),
-                            defaultPartValue);
-        }
-
-        private GenericRowData newOutputRow() {
-            GenericRowData row = new GenericRowData(rowData.getArity());
-            for (int i = 0; i < row.getArity(); i++) {
-                row.setField(i, rowData.getField(i));
-            }
-            return row;
         }
 
         @Override
@@ -284,24 +196,12 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
             return null;
         }
 
-        private RowData convert(RowData record) {
-            GenericRowData outputRow = newOutputRow();
-
-            for (int i = 0; i < toProjectedField.length; i++) {
-                outputRow.setField(
-                        toProjectedField[i], formatFieldGetters[i].getFieldOrNull(record));
-            }
-
-            outputRow.setRowKind(record.getRowKind());
-            return outputRow;
-        }
-
         @Override
         public RowData nextRecord(RowData reuse) throws IOException {
             while (true) {
                 RowData record = collector.records.poll();
                 if (record != null) {
-                    return convert(record);
+                    return record;
                 }
 
                 if (readLine()) {

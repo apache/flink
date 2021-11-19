@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
+import org.apache.flink.runtime.rest.messages.TriggerId;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -44,8 +45,10 @@ public class SavepointTriggerRequestBodyTest
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
-                    {new SavepointTriggerRequestBody("/tmp", true)},
-                    {new SavepointTriggerRequestBody("/tmp", false)}
+                    {new SavepointTriggerRequestBody("/tmp", true, null)},
+                    {new SavepointTriggerRequestBody("/tmp", false, null)},
+                    {new SavepointTriggerRequestBody("/tmp", true, new TriggerId())},
+                    {new SavepointTriggerRequestBody("/tmp", false, new TriggerId())},
                 });
     }
 
@@ -63,5 +66,6 @@ public class SavepointTriggerRequestBodyTest
     protected void assertOriginalEqualsToUnmarshalled(
             final SavepointTriggerRequestBody expected, final SavepointTriggerRequestBody actual) {
         assertEquals(expected.getTargetDirectory(), actual.getTargetDirectory());
+        assertEquals(expected.getTriggerId(), actual.getTriggerId());
     }
 }

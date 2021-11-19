@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
@@ -32,6 +33,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 
 /** Tests for different {@link RollingPolicy rolling policies}. */
 public class BucketsRollingPolicyTest {
@@ -45,9 +47,9 @@ public class BucketsRollingPolicyTest {
 
         final RollingPolicy<String, String> originalRollingPolicy =
                 DefaultRollingPolicy.builder()
-                        .withMaxPartSize(10L)
-                        .withInactivityInterval(4L)
-                        .withRolloverInterval(11L)
+                        .withMaxPartSize(new MemorySize(10L))
+                        .withInactivityInterval(Duration.ofMillis(4L))
+                        .withRolloverInterval(Duration.ofMillis(11L))
                         .build();
 
         final MethodCallCountingPolicyWrapper<String, String> rollingPolicy =
@@ -87,10 +89,10 @@ public class BucketsRollingPolicyTest {
     @Test
     public void testDefaultRollingPolicyDeprecatedCreate() throws Exception {
         DefaultRollingPolicy policy =
-                DefaultRollingPolicy.create()
-                        .withInactivityInterval(10)
-                        .withMaxPartSize(20)
-                        .withRolloverInterval(30)
+                DefaultRollingPolicy.builder()
+                        .withInactivityInterval(Duration.ofMillis(10))
+                        .withMaxPartSize(new MemorySize(20))
+                        .withRolloverInterval(Duration.ofMillis(30))
                         .build();
 
         Assert.assertEquals(10, policy.getInactivityInterval());

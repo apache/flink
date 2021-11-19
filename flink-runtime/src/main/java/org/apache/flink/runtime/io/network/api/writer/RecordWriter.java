@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -83,9 +84,10 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
         this.serializer = new DataOutputSerializer(128);
 
-        checkArgument(timeout >= -1);
-        this.flushAlways = (timeout == 0);
-        if (timeout == -1 || timeout == 0) {
+        checkArgument(timeout >= ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
+        this.flushAlways = (timeout == ExecutionOptions.FLUSH_AFTER_EVERY_RECORD);
+        if (timeout == ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT
+                || timeout == ExecutionOptions.FLUSH_AFTER_EVERY_RECORD) {
             outputFlusher = null;
         } else {
             String threadName =

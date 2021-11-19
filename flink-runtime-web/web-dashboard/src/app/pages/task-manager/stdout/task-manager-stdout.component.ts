@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
-import { first } from 'rxjs/operators';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { Subject } from 'rxjs';
+import { first, takeUntil } from 'rxjs/operators';
 
-import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
 import { TaskManagerDetailInterface } from 'interfaces';
 import { TaskManagerService } from 'services';
@@ -30,33 +32,45 @@ import { TaskManagerService } from 'services';
   styleUrls: ['./task-manager-stdout.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TaskManagerStdoutComponent implements OnInit {
-  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
+export class TaskManagerStdoutComponent implements OnInit, OnDestroy {
   stdout = '';
+  loading = true;
+  editorOptions: EditorOptions = flinkEditorOptions;
   taskManagerDetail: TaskManagerDetailInterface;
+  private destroy$ = new Subject<void>();
 
   reload(): void {
+    this.loading = true;
+    this.cdr.markForCheck();
     if (this.taskManagerDetail) {
-      this.taskManagerService.loadStdout(this.taskManagerDetail.id).subscribe(
-        data => {
-          this.monacoEditorComponent.layout();
-          this.stdout = data;
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.cdr.markForCheck();
-        }
-      );
+      this.taskManagerService
+        .loadStdout(this.taskManagerDetail.id)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(
+          data => {
+            this.loading = false;
+            this.stdout = data;
+            this.cdr.markForCheck();
+          },
+          () => {
+            this.cdr.markForCheck();
+          }
+        );
     }
   }
 
   constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$.pipe(first()).subscribe(data => {
+    this.taskManagerService.taskManagerDetail$.pipe(first(), takeUntil(this.destroy$)).subscribe(data => {
       this.taskManagerDetail = data;
       this.reload();
       this.cdr.markForCheck();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

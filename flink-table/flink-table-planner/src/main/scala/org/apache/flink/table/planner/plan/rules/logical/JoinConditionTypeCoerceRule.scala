@@ -74,7 +74,9 @@ class JoinConditionTypeCoerceRule extends RelOptRule(
             val targetType = typeFactory.leastRestrictive(refList.map(ref => ref.getType))
             if (targetType == null) {
               throw new TableException(
-                s"${ref1.getType} and ${ref2.getType} does not have common type now")
+                s"implicit type conversion between" +
+                s" ${ref1.getType} and ${ref2.getType} " +
+                s"is not supported on join's condition now")
             }
             newJoinFilters += builder.equals(
               rexBuilder.ensureType(targetType, ref1, true),
@@ -87,7 +89,10 @@ class JoinConditionTypeCoerceRule extends RelOptRule(
     }
 
     val newCondExp = builder.and(
-      FlinkRexUtil.simplify(rexBuilder, builder.and(newJoinFilters)))
+      FlinkRexUtil.simplify(
+        rexBuilder,
+        builder.and(newJoinFilters),
+        join.getCluster.getPlanner.getExecutor))
 
     val newJoin = join.copy(
       join.getTraitSet,

@@ -78,7 +78,7 @@ public class AdaptiveSchedulerBuilder {
             error ->
                     FatalExitExceptionHandler.INSTANCE.uncaughtException(
                             Thread.currentThread(), error);
-    private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
+    private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
     private long initializationTimestamp = System.currentTimeMillis();
 
     @Nullable private SlotAllocator slotAllocator;

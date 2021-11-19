@@ -24,7 +24,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.module.Module;
-import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -62,10 +62,10 @@ public class DynamicTableSinkSpec extends CatalogTableSpecBase {
         this.sinkAbilitySpecs = sinkAbilitySpecs;
     }
 
-    public DynamicTableSink getTableSink(PlannerBase planner) {
+    public DynamicTableSink getTableSink(FlinkContext flinkContext) {
         if (tableSink == null) {
             final DynamicTableSinkFactory factory =
-                    planner.getFlinkContext()
+                    flinkContext
                             .getModuleManager()
                             .getFactory(Module::getTableSinkFactory)
                             .orElse(null);

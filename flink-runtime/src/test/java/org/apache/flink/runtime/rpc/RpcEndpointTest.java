@@ -35,10 +35,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the RpcEndpoint, its self gateways and MainThreadExecutor scheduling command. */
@@ -360,21 +361,24 @@ public class RpcEndpointTest extends TestLogger {
             throws InterruptedException, ExecutionException, TimeoutException {
         final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
         final Time timeout = Time.milliseconds(100);
+        CountDownLatch latch = new CountDownLatch(1);
         try {
             endpoint.start();
             final CompletableFuture<Throwable> throwableFuture =
                     endpoint.callAsync(
                                     () -> {
                                         endpoint.validateRunsInMainThread();
-                                        TimeUnit.MILLISECONDS.sleep(timeout.toMilliseconds() * 2);
+                                        latch.await();
                                         return 12345;
                                     },
                                     timeout)
                             .handle((ignore, throwable) -> throwable);
-            final Throwable throwable =
-                    throwableFuture.get(timeout.getSize() * 2, timeout.getUnit());
-            assertTrue(throwable instanceof TimeoutException);
+            final Throwable throwable = throwableFuture.get();
+
+            assertNotNull(throwable);
+            assertThat(throwable, instanceOf(TimeoutException.class));
         } finally {
+            latch.countDown();
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
         }
     }

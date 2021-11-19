@@ -74,7 +74,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.UNRESOLVED;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -278,9 +277,9 @@ public class LogicalTypeParserTest {
     @Test
     public void testSerializableParsing() {
         if (testSpec.expectedType != null) {
-            if (!hasRoot(testSpec.expectedType, UNRESOLVED)
+            if (!testSpec.expectedType.is(UNRESOLVED)
                     && testSpec.expectedType.getChildren().stream()
-                            .noneMatch(t -> hasRoot(t, UNRESOLVED))) {
+                            .noneMatch(t -> t.is(UNRESOLVED))) {
                 assertThat(
                         LogicalTypeParser.parse(testSpec.expectedType.asSerializableString()),
                         equalTo(testSpec.expectedType));

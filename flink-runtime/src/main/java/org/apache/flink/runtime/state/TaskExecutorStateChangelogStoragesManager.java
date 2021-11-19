@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
@@ -144,5 +145,11 @@ public class TaskExecutorStateChangelogStoragesManager {
                 LOG.warn("Exception while disposing state changelog storage {}.", storage, e);
             }
         }
+    }
+
+    @VisibleForTesting
+    @Nullable
+    public Optional<StateChangelogStorage<?>> getChangelogStoragesByJobId(JobID jobId) {
+        return changelogStoragesByJobId.get(jobId);
     }
 }

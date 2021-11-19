@@ -62,6 +62,7 @@ import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowColumns;
 import org.apache.flink.sql.parser.dql.SqlShowCreateTable;
+import org.apache.flink.sql.parser.dql.SqlShowCreateView;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
@@ -104,6 +105,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowColumnsOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
+import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
@@ -276,6 +278,8 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertAlterFunction((SqlAlterFunction) validated));
         } else if (validated instanceof SqlShowCreateTable) {
             return Optional.of(converter.convertShowCreateTable((SqlShowCreateTable) validated));
+        } else if (validated instanceof SqlShowCreateView) {
+            return Optional.of(converter.convertShowCreateView((SqlShowCreateView) validated));
         } else if (validated instanceof SqlShowFunctions) {
             return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
         } else if (validated instanceof SqlShowPartitions) {
@@ -848,6 +852,14 @@ public class SqlToOperationConverter {
                 UnresolvedIdentifier.of(sqlShowCreateTable.getFullTableName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         return new ShowCreateTableOperation(identifier);
+    }
+
+    /** Convert SHOW CREATE VIEW statement. */
+    private Operation convertShowCreateView(SqlShowCreateView sqlShowCreateView) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlShowCreateView.getFullViewName());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return new ShowCreateViewOperation(identifier);
     }
 
     /** Convert SHOW FUNCTIONS statement. */

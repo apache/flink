@@ -25,7 +25,7 @@ import { BASE_URL } from 'config';
 import {
   TaskManagerListInterface,
   TaskManagerDetailInterface,
-  TaskManagerLogInterface,
+  TaskManagerLogItemInterface,
   TaskManagerThreadDumpInterface,
   TaskmanagersItemInterface
 } from 'interfaces';
@@ -62,9 +62,9 @@ export class TaskManagerService {
    *
    * @param taskManagerId
    */
-  loadLogList(taskManagerId: string): Observable<Array<{ name: string; size: number }>> {
+  loadLogList(taskManagerId: string): Observable<TaskManagerLogItemInterface[]> {
     return this.httpClient
-      .get<TaskManagerLogInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}/logs`)
+      .get<{ logs: TaskManagerLogItemInterface[] }>(`${BASE_URL}/taskmanagers/${taskManagerId}/logs`)
       .pipe(map(data => data.logs));
   }
 

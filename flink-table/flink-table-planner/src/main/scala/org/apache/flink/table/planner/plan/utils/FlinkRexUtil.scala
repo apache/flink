@@ -207,7 +207,7 @@ object FlinkRexUtil {
     * 5. a = a, a >= a, a <= a -> true
     * 6. a <> a, a > a, a < a -> false
     */
-  def simplify(rexBuilder: RexBuilder, expr: RexNode): RexNode = {
+  def simplify(rexBuilder: RexBuilder, expr: RexNode, executor: RexExecutor): RexNode = {
     if (expr.isAlwaysTrue || expr.isAlwaysFalse) {
       return expr
     }
@@ -219,7 +219,7 @@ object FlinkRexUtil {
     val binaryComparisonExprReduced = sameExprMerged.accept(
       new BinaryComparisonExprReducer(rexBuilder))
 
-    val rexSimplify = new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, true, RexUtil.EXECUTOR)
+    val rexSimplify = new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, true, executor)
     rexSimplify.simplify(binaryComparisonExprReduced)
   }
 

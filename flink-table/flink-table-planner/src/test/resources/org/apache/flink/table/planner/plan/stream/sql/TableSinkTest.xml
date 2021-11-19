@@ -117,7 +117,7 @@ LogicalSink(table=[default_catalog.default_database.MetadataTable], fields=[a, b
       <![CDATA[
 Sink(table=[default_catalog.default_database.MetadataTable], fields=[a, b, c, metadata_1, metadata_2])
 +- Calc(select=[a, b, c, metadata_1, CAST(CAST(metadata_2)) AS metadata_2])
-   +- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, project=[a, b, c, metadata_1, metadata_2], metadata=[metadata_1, metadata_2]]], fields=[a, b, c, metadata_1, metadata_2])
+   +- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, project=[a, b, c], metadata=[metadata_1, metadata_2]]], fields=[a, b, c, metadata_1, metadata_2])
 ]]>
     </Resource>
   </TestCase>

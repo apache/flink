@@ -59,6 +59,7 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.jsonArray;
 import static org.apache.flink.table.api.Expressions.jsonObject;
+import static org.apache.flink.table.api.Expressions.jsonString;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.nullOf;
 import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.EMPTY_ARRAY;
@@ -79,6 +80,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         testCases.add(jsonValueSpec());
         testCases.addAll(isJsonSpec());
         testCases.addAll(jsonQuerySpec());
+        testCases.addAll(jsonStringSpec());
         testCases.addAll(jsonObjectSpec());
         testCases.addAll(jsonArraySpec());
 
@@ -332,12 +334,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
                         .onFieldsWithData((String) null)
                         .andDataTypes(STRING())
-                        .testResult(
-                                $("f0").jsonQuery("$"),
-                                "JSON_QUERY(f0, '$')",
-                                null,
-                                STRING(),
-                                VARCHAR(2000)),
+                        .testResult($("f0").jsonQuery("$"), "JSON_QUERY(f0, '$')", null, STRING()),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
                         .onFieldsWithData(jsonValue)
                         .andDataTypes(STRING())
@@ -348,38 +345,32 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").jsonQuery("$.a1", WITHOUT_ARRAY),
                                 "JSON_QUERY(f0, '$.a1' WITHOUT WRAPPER)",
                                 "[]",
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.a1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.a1' WITH CONDITIONAL WRAPPER)",
                                 "[]",
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.o1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.o1' WITH CONDITIONAL WRAPPER)",
                                 "[{}]",
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.a1", UNCONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.a1' WITH UNCONDITIONAL WRAPPER)",
                                 "[[]]",
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.n1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.n1' WITH CONDITIONAL WRAPPER)",
                                 "[1]",
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.s1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.s1' WITH CONDITIONAL WRAPPER)",
                                 "[\"Test\"]",
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
 
                         // Empty Behavior
 
@@ -387,20 +378,17 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").jsonQuery("lax $.err1", WITHOUT_ARRAY, NULL, NULL),
                                 "JSON_QUERY(f0, 'lax $.err1' NULL ON EMPTY)",
                                 null,
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("lax $.err2", WITHOUT_ARRAY, EMPTY_ARRAY, NULL),
                                 "JSON_QUERY(f0, 'lax $.err2' EMPTY ARRAY ON EMPTY)",
                                 "[]",
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery("lax $.err3", WITHOUT_ARRAY, EMPTY_OBJECT, NULL),
                                 "JSON_QUERY(f0, 'lax $.err3' EMPTY OBJECT ON EMPTY)",
                                 "{}",
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testSqlRuntimeError(
                                 "JSON_QUERY(f0, 'lax $.err4' ERROR ON EMPTY)",
                                 "Empty result of JSON_QUERY function is not allowed")
@@ -414,28 +402,147 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").jsonQuery("strict $.err6", WITHOUT_ARRAY, NULL, NULL),
                                 "JSON_QUERY(f0, 'strict $.err6' NULL ON ERROR)",
                                 null,
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery(
                                                 "strict $.err7", WITHOUT_ARRAY, NULL, EMPTY_ARRAY),
                                 "JSON_QUERY(f0, 'strict $.err7' EMPTY ARRAY ON ERROR)",
                                 "[]",
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testResult(
                                 $("f0").jsonQuery(
                                                 "strict $.err8", WITHOUT_ARRAY, NULL, EMPTY_OBJECT),
                                 "JSON_QUERY(f0, 'strict $.err8' EMPTY OBJECT ON ERROR)",
                                 "{}",
-                                STRING(),
-                                VARCHAR(2000))
+                                STRING())
                         .testSqlRuntimeError(
                                 "JSON_QUERY(f0, 'strict $.err9' ERROR ON ERROR)",
                                 "No results for path")
                         .testTableApiRuntimeError(
                                 $("f0").jsonQuery("strict $.err10", WITHOUT_ARRAY, NULL, ERROR),
                                 "No results for path"));
+    }
+
+    private static List<TestSpec> jsonStringSpec() {
+        final Map<String, String> mapData = new HashMap<>();
+        mapData.put("M1", "V1");
+        mapData.put("M2", "V2");
+
+        final Map<String, Integer> multisetData = new HashMap<>();
+        multisetData.put("M1", 1);
+        multisetData.put("M2", 2);
+
+        return Arrays.asList(
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
+                        .onFieldsWithData(0)
+                        .testResult(
+                                jsonString(nullOf(STRING())),
+                                "JSON_STRING(CAST(NULL AS STRING))",
+                                null,
+                                STRING().nullable()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
+                        .onFieldsWithData(
+                                "V",
+                                true,
+                                1,
+                                1.23d,
+                                1.23,
+                                LocalDateTime.parse("1990-06-02T13:37:42.001"),
+                                Instant.parse("1990-06-02T13:37:42.001Z"),
+                                Arrays.asList("A1", "A2", "A3"),
+                                Row.of("R1", Instant.parse("1990-06-02T13:37:42.001Z")),
+                                mapData,
+                                multisetData,
+                                "Test".getBytes(StandardCharsets.UTF_8),
+                                "Test".getBytes(StandardCharsets.UTF_8),
+                                Row.of(Collections.singletonList(Row.of(1, 2))))
+                        .andDataTypes(
+                                STRING().notNull(),
+                                BOOLEAN().notNull(),
+                                INT().notNull(),
+                                DOUBLE().notNull(),
+                                DECIMAL(3, 2).notNull(),
+                                TIMESTAMP(3).notNull(),
+                                TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull(),
+                                ARRAY(STRING()).notNull(),
+                                ROW(STRING(), TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)).notNull(),
+                                MAP(STRING(), STRING()).notNull(),
+                                MAP(STRING(), INT()).notNull(),
+                                BINARY(4).notNull(),
+                                VARBINARY(4).notNull(),
+                                ROW(ARRAY(ROW(INT(), INT()))).notNull())
+                        .withFunction(CreateMultiset.class)
+                        .testResult(
+                                resultSpec(
+                                        jsonString($("f0")),
+                                        "JSON_STRING(f0)",
+                                        "\"V\"",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f1")),
+                                        "JSON_STRING(f1)",
+                                        "true",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f2")),
+                                        "JSON_STRING(f2)",
+                                        "1",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f3")),
+                                        "JSON_STRING(f3)",
+                                        "1.23",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f4")),
+                                        "JSON_STRING(f4)",
+                                        "1.23",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f5")),
+                                        "JSON_STRING(f5)",
+                                        "\"1990-06-02T13:37:42.001\"",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f6")),
+                                        "JSON_STRING(f6)",
+                                        "\"1990-06-02T13:37:42.001Z\"",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f7")),
+                                        "JSON_STRING(f7)",
+                                        "[\"A1\",\"A2\",\"A3\"]",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f8")),
+                                        "JSON_STRING(f8)",
+                                        "{\"f0\":\"R1\",\"f1\":\"1990-06-02T13:37:42.001Z\"}",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f9")),
+                                        "JSON_STRING(f9)",
+                                        "{\"M1\":\"V1\",\"M2\":\"V2\"}",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f10")),
+                                        "JSON_STRING(f10)",
+                                        "{\"M1\":1,\"M2\":2}",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f11")),
+                                        "JSON_STRING(f11)",
+                                        "\"VGVzdA==\"",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f12")),
+                                        "JSON_STRING(f12)",
+                                        "\"VGVzdA==\"",
+                                        STRING().notNull()),
+                                resultSpec(
+                                        jsonString($("f13")),
+                                        "JSON_STRING(f13)",
+                                        "{\"f0\":[{\"f0\":1,\"f1\":2}]}",
+                                        STRING().notNull())));
     }
 
     private static List<TestSpec> jsonObjectSpec() {
@@ -456,19 +563,19 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         "JSON_OBJECT()",
                                         "{}",
                                         STRING().notNull(),
-                                        VARCHAR(2000).notNull()),
+                                        STRING().notNull()),
                                 resultSpec(
                                         jsonObject(JsonOnNull.NULL, "K", nullOf(STRING())),
                                         "JSON_OBJECT(KEY 'K' VALUE CAST(NULL AS STRING) NULL ON NULL)",
                                         "{\"K\":null}",
                                         STRING().notNull(),
-                                        VARCHAR(2000).notNull()),
+                                        STRING().notNull()),
                                 resultSpec(
                                         jsonObject(JsonOnNull.ABSENT, "K", nullOf(STRING())),
                                         "JSON_OBJECT(KEY 'K' VALUE CAST(NULL AS STRING) ABSENT ON NULL)",
                                         "{}",
                                         STRING().notNull(),
-                                        VARCHAR(2000).notNull())),
+                                        STRING().notNull())),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECT)
                         .onFieldsWithData(
                                 "V",
@@ -504,79 +611,79 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 jsonObject(
                                         JsonOnNull.NULL,
-                                        "K0",
+                                        "A",
                                         $("f0"),
-                                        "K1",
+                                        "B",
                                         $("f1"),
-                                        "K2",
+                                        "C",
                                         $("f2"),
-                                        "K3",
+                                        "D",
                                         $("f3"),
-                                        "K4",
+                                        "E",
                                         $("f4"),
-                                        "K5",
+                                        "F",
                                         $("f5"),
-                                        "K6",
+                                        "G",
                                         $("f6"),
-                                        "K7",
+                                        "H",
                                         $("f7"),
-                                        "K8",
+                                        "I",
                                         $("f8"),
-                                        "K9",
+                                        "J",
                                         $("f9"),
-                                        "K10",
+                                        "K",
                                         call("CreateMultiset", $("f10")),
-                                        "K11",
+                                        "L",
                                         $("f11"),
-                                        "K12",
+                                        "M",
                                         $("f12"),
-                                        "K13",
+                                        "N",
                                         $("f13"),
-                                        "K14",
+                                        "O",
                                         jsonObject(JsonOnNull.NULL, "A", "B"),
-                                        "K15",
+                                        "P",
                                         jsonArray(
                                                 JsonOnNull.NULL,
                                                 "A",
                                                 jsonObject(JsonOnNull.NULL, "K", "V"))),
                                 "JSON_OBJECT("
-                                        + "'K0' VALUE f0, "
-                                        + "'K1' VALUE f1, "
-                                        + "'K2' VALUE f2, "
-                                        + "'K3' VALUE f3, "
-                                        + "'K4' VALUE f4, "
-                                        + "'K5' VALUE f5, "
-                                        + "'K6' VALUE f6, "
-                                        + "'K7' VALUE f7, "
-                                        + "'K8' VALUE f8, "
-                                        + "'K9' VALUE f9, "
-                                        + "'K10' VALUE CreateMultiset(f10), "
-                                        + "'K11' VALUE f11, "
-                                        + "'K12' VALUE f12, "
-                                        + "'K13' VALUE f13, "
-                                        + "'K14' VALUE JSON_OBJECT(KEY 'A' VALUE 'B'), "
-                                        + "'K15' VALUE JSON_ARRAY('A', JSON_OBJECT('K' VALUE 'V'))"
+                                        + "'A' VALUE f0, "
+                                        + "'B' VALUE f1, "
+                                        + "'C' VALUE f2, "
+                                        + "'D' VALUE f3, "
+                                        + "'E' VALUE f4, "
+                                        + "'F' VALUE f5, "
+                                        + "'G' VALUE f6, "
+                                        + "'H' VALUE f7, "
+                                        + "'I' VALUE f8, "
+                                        + "'J' VALUE f9, "
+                                        + "'K' VALUE CreateMultiset(f10), "
+                                        + "'L' VALUE f11, "
+                                        + "'M' VALUE f12, "
+                                        + "'N' VALUE f13, "
+                                        + "'O' VALUE JSON_OBJECT(KEY 'A' VALUE 'B'), "
+                                        + "'P' VALUE JSON_ARRAY('A', JSON_OBJECT('K' VALUE 'V'))"
                                         + ")",
                                 "{"
-                                        + "\"K0\":\"V\","
-                                        + "\"K1\":true,"
-                                        + "\"K2\":1,"
-                                        + "\"K3\":1.23,"
-                                        + "\"K4\":1.23,"
-                                        + "\"K5\":\"1990-06-02T13:37:42.001\","
-                                        + "\"K6\":\"1990-06-02T13:37:42.001Z\","
-                                        + "\"K7\":[\"A1\",\"A2\",\"A3\"],"
-                                        + "\"K8\":{\"f0\":\"R1\",\"f1\":\"1990-06-02T13:37:42.001Z\"},"
-                                        + "\"K9\":{\"M1\":\"V1\",\"M2\":\"V2\"},"
-                                        + "\"K10\":{\"M1\":1,\"M2\":2},"
-                                        + "\"K11\":\"VGVzdA==\","
-                                        + "\"K12\":\"VGVzdA==\","
-                                        + "\"K13\":{\"f0\":[{\"f0\":1,\"f1\":2}]},"
-                                        + "\"K14\":{\"A\":\"B\"},"
-                                        + "\"K15\":[\"A\",{\"K\":\"V\"}]"
+                                        + "\"A\":\"V\","
+                                        + "\"B\":true,"
+                                        + "\"C\":1,"
+                                        + "\"D\":1.23,"
+                                        + "\"E\":1.23,"
+                                        + "\"F\":\"1990-06-02T13:37:42.001\","
+                                        + "\"G\":\"1990-06-02T13:37:42.001Z\","
+                                        + "\"H\":[\"A1\",\"A2\",\"A3\"],"
+                                        + "\"I\":{\"f0\":\"R1\",\"f1\":\"1990-06-02T13:37:42.001Z\"},"
+                                        + "\"J\":{\"M1\":\"V1\",\"M2\":\"V2\"},"
+                                        + "\"K\":{\"M1\":1,\"M2\":2},"
+                                        + "\"L\":\"VGVzdA==\","
+                                        + "\"M\":\"VGVzdA==\","
+                                        + "\"N\":{\"f0\":[{\"f0\":1,\"f1\":2}]},"
+                                        + "\"O\":{\"A\":\"B\"},"
+                                        + "\"P\":[\"A\",{\"K\":\"V\"}]"
                                         + "}",
                                 STRING().notNull(),
-                                VARCHAR(2000).notNull()));
+                                STRING().notNull()));
     }
 
     private static List<TestSpec> jsonArraySpec() {
@@ -596,19 +703,19 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_ARRAY()",
                                 "[]",
                                 STRING().notNull(),
-                                VARCHAR(2000).notNull())
+                                STRING().notNull())
                         .testResult(
                                 jsonArray(JsonOnNull.NULL, nullOf(STRING())),
                                 "JSON_ARRAY(CAST(NULL AS STRING) NULL ON NULL)",
                                 "[null]",
                                 STRING().notNull(),
-                                VARCHAR(2000).notNull())
+                                STRING().notNull())
                         .testResult(
                                 jsonArray(JsonOnNull.ABSENT, nullOf(STRING())),
                                 "JSON_ARRAY(CAST(NULL AS STRING) ABSENT ON NULL)",
                                 "[]",
                                 STRING().notNull(),
-                                VARCHAR(2000).notNull()),
+                                STRING().notNull()),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAY)
                         .onFieldsWithData(
                                 "V",
@@ -700,7 +807,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "{\"K\":[\"V\"]}"
                                         + "]",
                                 STRING().notNull(),
-                                VARCHAR(2000).notNull()));
+                                STRING().notNull()));
     }
 
     // ---------------------------------------------------------------------------------------------

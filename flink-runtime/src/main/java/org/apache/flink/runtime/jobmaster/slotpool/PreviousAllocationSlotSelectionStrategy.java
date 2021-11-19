@@ -61,8 +61,7 @@ public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStr
         }
 
         // Second, select based on location preference, excluding blacklisted allocations
-        Set<AllocationID> blackListedAllocations =
-                slotProfile.getPreviousExecutionGraphAllocations();
+        Set<AllocationID> blackListedAllocations = slotProfile.getReservedAllocations();
         Collection<SlotInfoAndResources> availableAndAllowedSlots =
                 computeWithoutBlacklistedSlots(availableSlots, blackListedAllocations);
         return fallbackSlotSelectionStrategy.selectBestSlotForProfile(

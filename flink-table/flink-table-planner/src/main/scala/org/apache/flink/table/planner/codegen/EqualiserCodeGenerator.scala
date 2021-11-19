@@ -101,8 +101,8 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
       (fieldTypeTerm, "rightField")
     )
 
-    val leftReadCode = rowFieldReadAccess(ctx, idx, LEFT_INPUT, fieldType)
-    val rightReadCode = rowFieldReadAccess(ctx, idx, RIGHT_INPUT, fieldType)
+    val leftReadCode = rowFieldReadAccess(idx, LEFT_INPUT, fieldType)
+    val rightReadCode = rowFieldReadAccess(idx, RIGHT_INPUT, fieldType)
 
     val (equalsCode, equalsResult) = generateEqualsCode(ctx, fieldType,
       leftFieldTerm, rightFieldTerm, leftNullTerm, rightNullTerm)

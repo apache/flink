@@ -20,8 +20,6 @@ import { Component } from '@angular/core';
 import { fromEvent, merge } from 'rxjs';
 import { map, startWith } from 'rxjs/operators';
 
-import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.service';
-
 import { StatusService } from 'services';
 
 @Component({
@@ -52,8 +50,7 @@ export class AppComponent {
 
   toggleCollapse(): void {
     this.collapsed = !this.collapsed;
-    this.monacoEditorService.layout();
   }
 
-  constructor(public statusService: StatusService, private monacoEditorService: MonacoEditorService) {}
+  constructor(public statusService: StatusService) {}
 }

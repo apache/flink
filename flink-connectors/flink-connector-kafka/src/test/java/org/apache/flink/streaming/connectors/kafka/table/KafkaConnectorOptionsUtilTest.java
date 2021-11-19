@@ -20,8 +20,6 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 
@@ -32,6 +30,10 @@ import java.util.Map;
 
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.createKeyFormatProjection;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.createValueFormatProjection;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertThat;
@@ -43,25 +45,18 @@ public class KafkaConnectorOptionsUtilTest {
 
     @Test
     public void testFormatProjection() {
-        final TableSchema schema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("id", DataTypes.INT()))
-                        .add(TableColumn.metadata("timestamp", DataTypes.TIMESTAMP(3)))
-                        .add(
-                                TableColumn.computed(
-                                        "timestamp_converted",
-                                        DataTypes.STRING(),
-                                        "CAST(`timestamp` AS STRING)"))
-                        .add(TableColumn.physical("name", DataTypes.STRING()))
-                        .add(TableColumn.physical("age", DataTypes.INT()))
-                        .add(TableColumn.physical("address", DataTypes.STRING()))
-                        .build();
+        final DataType dataType =
+                DataTypes.ROW(
+                        FIELD("id", INT()),
+                        FIELD("name", STRING()),
+                        FIELD("age", INT()),
+                        FIELD("address", STRING()));
+
         final Map<String, String> options = createTestOptions();
         options.put("key.fields", "address; name");
         options.put("value.fields-include", "EXCEPT_KEY");
 
         final Configuration config = Configuration.fromMap(options);
-        final DataType dataType = schema.toPhysicalRowDataType();
 
         assertArrayEquals(new int[] {3, 1}, createKeyFormatProjection(config, dataType));
         assertArrayEquals(new int[] {0, 2}, createValueFormatProjection(config, dataType));
@@ -69,12 +64,10 @@ public class KafkaConnectorOptionsUtilTest {
 
     @Test
     public void testMissingKeyFormatProjection() {
-        final TableSchema schema =
-                TableSchema.builder().add(TableColumn.physical("id", DataTypes.INT())).build();
+        final DataType dataType = ROW(FIELD("id", INT()));
         final Map<String, String> options = createTestOptions();
 
         final Configuration config = Configuration.fromMap(options);
-        final DataType dataType = schema.toPhysicalRowDataType();
 
         try {
             createKeyFormatProjection(config, dataType);
@@ -91,16 +84,11 @@ public class KafkaConnectorOptionsUtilTest {
 
     @Test
     public void testInvalidKeyFormatFieldProjection() {
-        final TableSchema schema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("id", DataTypes.INT()))
-                        .add(TableColumn.physical("name", DataTypes.STRING()))
-                        .build();
+        final DataType dataType = ROW(FIELD("id", INT()), FIELD("name", STRING()));
         final Map<String, String> options = createTestOptions();
         options.put("key.fields", "non_existing");
 
         final Configuration config = Configuration.fromMap(options);
-        final DataType dataType = schema.toPhysicalRowDataType();
 
         try {
             createKeyFormatProjection(config, dataType);
@@ -120,18 +108,13 @@ public class KafkaConnectorOptionsUtilTest {
 
     @Test
     public void testInvalidKeyFormatPrefixProjection() {
-        final TableSchema schema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("k_part_1", DataTypes.INT()))
-                        .add(TableColumn.physical("part_2", DataTypes.STRING()))
-                        .add(TableColumn.physical("name", DataTypes.STRING()))
-                        .build();
+        final DataType dataType =
+                ROW(FIELD("k_part_1", INT()), FIELD("part_2", STRING()), FIELD("name", STRING()));
         final Map<String, String> options = createTestOptions();
         options.put("key.fields", "k_part_1;part_2");
         options.put("key.fields-prefix", "k_");
 
         final Configuration config = Configuration.fromMap(options);
-        final DataType dataType = schema.toPhysicalRowDataType();
 
         try {
             createKeyFormatProjection(config, dataType);
@@ -148,17 +131,12 @@ public class KafkaConnectorOptionsUtilTest {
 
     @Test
     public void testInvalidValueFormatProjection() {
-        final TableSchema schema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("k_id", DataTypes.INT()))
-                        .add(TableColumn.physical("id", DataTypes.STRING()))
-                        .build();
+        final DataType dataType = ROW(FIELD("k_id", INT()), FIELD("id", STRING()));
         final Map<String, String> options = createTestOptions();
         options.put("key.fields", "k_id");
         options.put("key.fields-prefix", "k_");
 
         final Configuration config = Configuration.fromMap(options);
-        final DataType dataType = schema.toPhysicalRowDataType();
 
         try {
             createValueFormatProjection(config, dataType);

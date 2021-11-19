@@ -34,7 +34,6 @@ import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeTransformation;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -48,9 +47,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TYPE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasNested;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
  * Utilities to deal with {@link DataView}s.
@@ -65,8 +65,7 @@ public final class DataViewUtils {
     /** Searches for data views in the data type of an accumulator and extracts them. */
     public static List<DataViewSpec> extractDataViews(int aggIndex, DataType accumulatorDataType) {
         final LogicalType accumulatorType = accumulatorDataType.getLogicalType();
-        if (!hasRoot(accumulatorType, LogicalTypeRoot.ROW)
-                && !hasRoot(accumulatorType, LogicalTypeRoot.STRUCTURED_TYPE)) {
+        if (!accumulatorType.is(ROW) && !accumulatorType.is(STRUCTURED_TYPE)) {
             return Collections.emptyList();
         }
         final List<String> fieldNames = getFieldNames(accumulatorType);
@@ -140,7 +139,7 @@ public final class DataViewUtils {
     // --------------------------------------------------------------------------------------------
 
     public static boolean isDataView(LogicalType t, Class<? extends DataView> viewClass) {
-        return hasRoot(t, LogicalTypeRoot.STRUCTURED_TYPE)
+        return t.is(STRUCTURED_TYPE)
                 && ((StructuredType) t)
                         .getImplementationClass()
                         .map(viewClass::isAssignableFrom)

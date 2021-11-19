@@ -47,7 +47,7 @@ class JsonArrayCallGen(call: RexCall) extends CallGenerator {
     val onNull = getOnNullBehavior(operands.head)
     val populateNodeCode = operands.zipWithIndex.drop(1).map {
       case (elementExpr, elementIdx) =>
-        val elementTerm = createNodeTerm(ctx, nodeTerm, elementExpr, call.operands.get(elementIdx))
+        val elementTerm = createNodeTerm(ctx, elementExpr, call.operands.get(elementIdx))
 
         onNull match {
           case NULL_ON_NULL =>

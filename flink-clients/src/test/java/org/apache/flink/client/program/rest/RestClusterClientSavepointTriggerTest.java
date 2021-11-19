@@ -70,11 +70,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -129,7 +129,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
         try (final RestServerEndpoint restServerEndpoint =
                 createRestServerEndpoint(
                         request -> {
-                            assertNull(request.getTargetDirectory());
+                            assertThat(request.getTargetDirectory().isPresent(), is(false));
                             assertFalse(request.isCancelJob());
                             return triggerId;
                         },
@@ -158,7 +158,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
                         triggerRequestBody -> {
                             assertEquals(
                                     expectedSubmittedSavepointDir,
-                                    triggerRequestBody.getTargetDirectory());
+                                    triggerRequestBody.getTargetDirectory().get());
                             assertFalse(triggerRequestBody.isCancelJob());
                             return triggerId;
                         },

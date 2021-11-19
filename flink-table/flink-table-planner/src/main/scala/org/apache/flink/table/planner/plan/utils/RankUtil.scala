@@ -19,11 +19,16 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.ExpressionReducer
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
-import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, VariableRankRange}
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeduplicate
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, RankType, VariableRankRange}
 
 import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.RelCollation
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil}
 import org.apache.calcite.sql.SqlKind
 
@@ -310,4 +315,43 @@ object RankUtil {
     }
   }
 
+  /**
+   * Whether the given rank could be converted to [[StreamPhysicalDeduplicate]].
+   *
+   * Returns true if the given rank is sorted by time attribute and limits 1
+   * and its RankFunction is ROW_NUMBER, else false.
+   *
+   * @param rank The [[FlinkLogicalRank]] node
+   * @return True if the input rank could be converted to [[StreamPhysicalDeduplicate]]
+   */
+  def canConvertToDeduplicate(rank: FlinkLogicalRank): Boolean = {
+    val sortCollation = rank.orderKey
+    val rankRange = rank.rankRange
+
+    val isRowNumberType = rank.rankType == RankType.ROW_NUMBER
+
+    val isLimit1 = rankRange match {
+      case rankRange: ConstantRankRange =>
+        rankRange.getRankStart == 1 && rankRange.getRankEnd == 1
+      case _ => false
+    }
+
+    val inputRowType = rank.getInput.getRowType
+    val isSortOnTimeAttribute = sortOnTimeAttribute(sortCollation, inputRowType)
+
+    !rank.outputRankNumber && isLimit1 && isSortOnTimeAttribute && isRowNumberType
+  }
+
+  private def sortOnTimeAttribute(
+      sortCollation: RelCollation,
+      inputRowType: RelDataType): Boolean = {
+    if (sortCollation.getFieldCollations.size() != 1) {
+      false
+    } else {
+      val firstSortField = sortCollation.getFieldCollations.get(0)
+      val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
+      FlinkTypeFactory.isProctimeIndicatorType(fieldType) ||
+        FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
+    }
+  }
 }

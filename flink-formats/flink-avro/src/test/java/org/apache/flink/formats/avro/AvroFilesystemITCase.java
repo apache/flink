@@ -28,6 +28,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import static org.apache.avro.file.DataFileConstants.NULL_CODEC;
+
 /** ITCase to test avro format for {@link AvroFileSystemFormatFactory} in batch mode. */
 @RunWith(Parameterized.class)
 public class AvroFilesystemITCase extends BatchFileSystemITCaseBase {
@@ -44,11 +46,16 @@ public class AvroFilesystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @Override
+    public boolean supportsReadingMetadata() {
+        return false;
+    }
+
+    @Override
     public String[] formatProperties() {
         List<String> ret = new ArrayList<>();
         ret.add("'format'='avro'");
         if (configure) {
-            ret.add("'avro.codec'='snappy'");
+            ret.add(String.format("'avro.codec'='%s'", NULL_CODEC));
         }
         return ret.toArray(new String[0]);
     }

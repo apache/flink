@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
@@ -67,7 +67,7 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
                 new TaskExecutorStateChangelogStoragesManager();
         Configuration configuration = new Configuration();
         configuration.set(
-                CheckpointingOptions.STATE_CHANGE_LOG_STORAGE,
+                StateChangelogOptions.STATE_CHANGE_LOG_STORAGE,
                 TestStateChangelogStorageFactory.identifier);
         JobID jobId1 = new JobID(1L, 1L);
         StateChangelogStorage<?> storage1 =
@@ -90,7 +90,7 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
         TaskExecutorStateChangelogStoragesManager manager =
                 new TaskExecutorStateChangelogStoragesManager();
         Configuration configuration = new Configuration();
-        configuration.set(CheckpointingOptions.STATE_CHANGE_LOG_STORAGE, "invalid");
+        configuration.set(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE, "invalid");
 
         JobID jobId1 = new JobID(1L, 1L);
         StateChangelogStorage<?> storage1 =
@@ -99,8 +99,8 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
 
         // change configuration, assert the result not change.
         configuration.set(
-                CheckpointingOptions.STATE_CHANGE_LOG_STORAGE,
-                CheckpointingOptions.STATE_CHANGE_LOG_STORAGE.defaultValue());
+                StateChangelogOptions.STATE_CHANGE_LOG_STORAGE,
+                StateChangelogOptions.STATE_CHANGE_LOG_STORAGE.defaultValue());
         StateChangelogStorage<?> storage2 =
                 manager.stateChangelogStorageForJob(jobId1, configuration);
         Assert.assertNull(storage2);
@@ -110,7 +110,7 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
                 manager.stateChangelogStorageForJob(jobId2, configuration);
         Assert.assertNotNull(storage3);
 
-        configuration.set(CheckpointingOptions.STATE_CHANGE_LOG_STORAGE, "invalid");
+        configuration.set(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE, "invalid");
         StateChangelogStorage<?> storage4 =
                 manager.stateChangelogStorageForJob(jobId2, configuration);
         Assert.assertNotNull(storage4);
@@ -126,7 +126,7 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
                 new TaskExecutorStateChangelogStoragesManager();
         Configuration configuration = new Configuration();
         configuration.set(
-                CheckpointingOptions.STATE_CHANGE_LOG_STORAGE,
+                StateChangelogOptions.STATE_CHANGE_LOG_STORAGE,
                 TestStateChangelogStorageFactory.identifier);
         JobID jobId1 = new JobID(1L, 1L);
         StateChangelogStorage<?> storage1 =

@@ -18,12 +18,6 @@
 
 package org.apache.flink.table.planner.expressions
 
-import java.sql.Timestamp
-import java.text.SimpleDateFormat
-import java.time.{Instant, ZoneId, ZoneOffset}
-import java.util.{Locale, TimeZone}
-import java.lang.{Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong}
-
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.planner.codegen.CodeGenException
@@ -32,7 +26,14 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
+
 import org.junit.Test
+
+import java.lang.{Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong}
+import java.sql.Timestamp
+import java.text.SimpleDateFormat
+import java.time.{Instant, ZoneId, ZoneOffset}
+import java.util.Locale
 
 class TemporalTypesTest extends ExpressionTestBase {
 
@@ -889,7 +890,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("FLOOR( DATE '2021-03-01' TO WEEK)", "2021-02-28")
     testSqlApi("CEIL( DATE '2021-02-27' TO WEEK)", "2021-02-28")
     testSqlApi("CEIL( DATE '2021-03-01' TO WEEK)", "2021-03-07")
-
+    testSqlApi("CEIL(DATE '2018-01-02' TO DECADE)", "2020-01-01")
+    testSqlApi("CEIL(DATE '2018-03-27' TO CENTURY)", "2101-01-01")
+    testSqlApi("CEIL(DATE '2018-01-02' TO MILLENNIUM)", "3001-01-01")
+    testSqlApi("FLOOR(DATE '2018-07-02' TO DECADE)", "2010-01-01")
+    testSqlApi("FLOOR(DATE '2018-04-02' TO CENTURY)", "2001-01-01")
+    testSqlApi("FLOOR(DATE '2018-01-09' TO MILLENNIUM)", "2001-01-01")
     testSqlApi("FLOOR(TIMESTAMP '2018-03-20 06:44:31' TO HOUR)", "2018-03-20 06:00:00")
     testSqlApi("FLOOR(TIMESTAMP '2018-03-20 06:44:31' TO DAY)", "2018-03-20 00:00:00")
     testSqlApi("FLOOR(TIMESTAMP '2018-03-20 00:00:00' TO DAY)", "2018-03-20 00:00:00")
@@ -897,6 +903,11 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("FLOOR(TIMESTAMP '2021-03-01 00:00:00' TO WEEK)", "2021-02-28 00:00:00")
     testSqlApi("FLOOR(TIMESTAMP '2018-04-01 06:44:31' TO MONTH)", "2018-04-01 00:00:00")
     testSqlApi("FLOOR(TIMESTAMP '2018-01-01 06:44:31' TO MONTH)", "2018-01-01 00:00:00")
+    testSqlApi("FLOOR(TIMESTAMP '2021-03-21 00:00:00' TO QUARTER)", "2021-01-01 00:00:00")
+    testSqlApi("FLOOR(TIMESTAMP '2018-01-02 21:00:01' TO DECADE)", "2010-01-01 00:00:00")
+    testSqlApi("FLOOR(TIMESTAMP '2018-01-01 00:00:00' TO DECADE)", "2010-01-01 00:00:00")
+    testSqlApi("FLOOR(TIMESTAMP '2018-01-02 21:00:01' TO CENTURY)", "2001-01-01 00:00:00")
+    testSqlApi("FLOOR(TIMESTAMP '2018-01-02 21:00:01' TO MILLENNIUM)", "2001-01-01 00:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:44:31' TO HOUR)", "2018-03-20 07:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:00:00' TO HOUR)", "2018-03-20 06:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:44:31' TO DAY)", "2018-03-21 00:00:00")
@@ -909,6 +920,13 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("CEIL(TIMESTAMP '2018-12-02 00:00:00' TO MONTH)", "2019-01-01 00:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-01-01 21:00:01' TO YEAR)", "2018-01-01 00:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-01-02 21:00:01' TO YEAR)", "2019-01-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2021-03-21 00:00:00' TO QUARTER)", "2021-04-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-01-02 21:00:01' TO DECADE)", "2020-01-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '1999-01-01 00:00:00' TO DECADE)", "2000-01-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-01-02 21:00:01' TO CENTURY)", "2101-01-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '1999-01-01 00:00:00' TO CENTURY)", "2001-01-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-01-02 21:00:01' TO MILLENNIUM)", "3001-01-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '1999-01-01 00:00:00' TO MILLENNIUM)", "2001-01-01 00:00:00")
 
     testSqlApi(s"FLOOR(${timestampLtz("2018-03-20 06:44:31")} TO HOUR)", "2018-03-20 06:00:00")
     testSqlApi(s"FLOOR(${timestampLtz("2018-03-20 06:44:31")} TO DAY)", "2018-03-20 00:00:00")
@@ -917,6 +935,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(s"FLOOR(${timestampLtz("2021-03-01 00:00:00")} TO WEEK)", "2021-02-28 00:00:00")
     testSqlApi(s"FLOOR(${timestampLtz("2018-04-01 06:44:31")} TO MONTH)", "2018-04-01 00:00:00")
     testSqlApi(s"FLOOR(${timestampLtz("2018-01-01 06:44:31")} TO MONTH)", "2018-01-01 00:00:00")
+    testSqlApi(s"FLOOR(${timestampLtz("2018-01-02 21:00:01")} TO QUARTER)", "2018-01-01 00:00:00")
+    testSqlApi(s"FLOOR(${timestampLtz("2018-05-02 21:00:01")} TO QUARTER)", "2018-04-01 00:00:00")
+    testSqlApi(s"FLOOR(${timestampLtz("2018-01-02 21:00:01")} TO DECADE)", "2010-01-01 00:00:00")
+    testSqlApi(s"FLOOR(${timestampLtz("2018-01-02 21:00:01")} TO CENTURY)", "2001-01-01 00:00:00")
+    testSqlApi(
+      s"FLOOR(${timestampLtz("2018-01-02 21:00:01")} TO MILLENNIUM)", "2001-01-01 00:00:00")
     testSqlApi(s"CEIL(${timestampLtz("2018-03-20 06:44:31")} TO HOUR)", "2018-03-20 07:00:00")
     testSqlApi(s"CEIL(${timestampLtz("2018-03-20 06:00:00")} TO HOUR)", "2018-03-20 06:00:00")
     testSqlApi(s"CEIL(${timestampLtz("2018-03-20 06:44:31")} TO DAY)", "2018-03-21 00:00:00")
@@ -929,6 +953,11 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(s"CEIL(${timestampLtz("2018-12-02 00:00:00")} TO MONTH)", "2019-01-01 00:00:00")
     testSqlApi(s"CEIL(${timestampLtz("2018-01-01 21:00:01")} TO YEAR)", "2018-01-01 00:00:00")
     testSqlApi(s"CEIL(${timestampLtz("2018-01-02 21:00:01")} TO YEAR)", "2019-01-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-01-02 21:00:01")} TO QUARTER)", "2018-04-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-04-02 21:00:01")} TO QUARTER)", "2018-07-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-01-02 21:00:01")} TO DECADE)", "2020-01-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-01-02 21:00:01")} TO CENTURY)", "2101-01-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-01-02 21:00:01")} TO MILLENNIUM)", "3001-01-01 00:00:00")
 
     // others
     testSqlApi("QUARTER(DATE '2016-04-12')", "2")
@@ -1116,6 +1145,29 @@ class TemporalTypesTest extends ExpressionTestBase {
       "1437699600")
   }
 
+  /**
+   * now Flink only support TIMESTAMP(3) as the return type in TO_TIMESTAMP
+   * See: https://issues.apache.org/jira/browse/FLINK-14925
+   */
+  @Test
+  def testToTimeStampFunctionWithHighPrecision(): Unit = {
+    testSqlApi(
+      "TO_TIMESTAMP('1970-01-01 00:00:00.123456789')",
+      "1970-01-01 00:00:00.123")
+
+    testSqlApi(
+      "TO_TIMESTAMP('1970-01-01 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSSSS')",
+      "1970-01-01 00:00:00.123")
+
+    testSqlApi(
+      "TO_TIMESTAMP('20000202 59:59.1234567', 'yyyyMMdd mm:ss.SSSSSSS')",
+      "2000-02-02 00:59:59.123")
+
+    testSqlApi(
+      "TO_TIMESTAMP('1234567', 'SSSSSSS')",
+      "1970-01-01 00:00:00.123")
+  }
+
   @Test
   def testHighPrecisionTimestamp(): Unit = {
     // EXTRACT should support millisecond/microsecond/nanosecond
@@ -1167,29 +1219,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     //    "TIMESTAMP '1970-01-01 00:00:00.123455789')",
     //  "1")
 
-    // TO_TIMESTAMP should support up to nanosecond
-    testSqlApi(
-      "TO_TIMESTAMP('1970-01-01 00:00:00.123456789')",
-      "1970-01-01 00:00:00.123456789")
-
-    testSqlApi(
-      "TO_TIMESTAMP('1970-01-01 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSSSS')",
-      "1970-01-01 00:00:00.12345")
-
     testSqlApi("TO_TIMESTAMP('abc')", "null")
 
     // TO_TIMESTAMP should complement YEAR/MONTH/DAY/HOUR/MINUTE/SECOND/NANO_OF_SECOND
     testSqlApi(
       "TO_TIMESTAMP('2000020210', 'yyyyMMddHH')",
       "2000-02-02 10:00:00.000")
-
-    testSqlApi(
-      "TO_TIMESTAMP('20000202 59:59.1234567', 'yyyyMMdd mm:ss.SSSSSSS')",
-      "2000-02-02 00:59:59.1234567")
-
-    testSqlApi(
-      "TO_TIMESTAMP('1234567', 'SSSSSSS')",
-      "1970-01-01 00:00:00.1234567")
 
     // CAST between two TIMESTAMPs
     testSqlApi(

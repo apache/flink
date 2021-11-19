@@ -53,7 +53,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/** IT cases for the {@link FlinkKafkaProducer}. */
+/**
+ * IT cases for the {@link FlinkKafkaProducer}.
+ *
+ * <p>Do not run this class in the same junit execution with other tests in your IDE. This may lead
+ * leaking threads.
+ */
 public class FlinkKafkaProducerITCase extends KafkaTestBase {
 
     protected String transactionalId;
@@ -167,6 +172,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
         checkProducerLeak();
     }
 
+    /** This test hangs when running it in your IDE. */
     @Test
     public void testFlinkKafkaProducerFailBeforeNotify() throws Exception {
         String topic = "flink-kafka-producer-fail-before-notify";

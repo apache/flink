@@ -132,14 +132,25 @@ public class KubernetesUtils {
     }
 
     /**
-     * Get task manager labels for the current Flink cluster. They could be used to watch the pods
-     * status.
+     * Get task manager selectors for the current Flink cluster. They could be used to watch the
+     * pods status.
      *
      * @return Task manager labels.
      */
-    public static Map<String, String> getTaskManagerLabels(String clusterId) {
+    public static Map<String, String> getTaskManagerSelectors(String clusterId) {
         final Map<String, String> labels = getCommonLabels(clusterId);
         labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
+        return Collections.unmodifiableMap(labels);
+    }
+
+    /**
+     * Get job manager selectors for the current Flink cluster.
+     *
+     * @return JobManager selectors.
+     */
+    public static Map<String, String> getJobManagerSelectors(String clusterId) {
+        final Map<String, String> labels = getCommonLabels(clusterId);
+        labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
         return Collections.unmodifiableMap(labels);
     }
 

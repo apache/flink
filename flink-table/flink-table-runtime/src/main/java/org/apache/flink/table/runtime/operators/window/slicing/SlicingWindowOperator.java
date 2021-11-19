@@ -21,12 +21,17 @@ package org.apache.flink.table.runtime.operators.window.slicing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -116,6 +121,9 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     /** The tracked processing time triggered last time. */
     private transient long lastTriggeredProcessingTime;
 
+    /** The operator state to store watermark. */
+    private transient ListState<Long> watermarkState;
+
     // ------------------------------------------------------------------------
     // Metrics
     // ------------------------------------------------------------------------
@@ -150,6 +158,8 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
                         getKeyedStateBackend(),
                         collector,
                         getRuntimeContext()));
+        // initialize watermark
+        windowProcessor.initializeWatermark(currentWatermark);
 
         // metrics
         this.numLateRecordsDropped = metrics.counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
@@ -168,6 +178,33 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
                                 return internalTimerService.currentProcessingTime() - watermark;
                             }
                         });
+    }
+
+    @Override
+    public void initializeState(StateInitializationContext context) throws Exception {
+        super.initializeState(context);
+        ListStateDescriptor<Long> watermarkStateDesc =
+                new ListStateDescriptor<>("watermark", LongSerializer.INSTANCE);
+        this.watermarkState = context.getOperatorStateStore().getUnionListState(watermarkStateDesc);
+        if (context.isRestored()) {
+            Iterable<Long> watermarks = watermarkState.get();
+            if (watermarks != null) {
+                Long minWatermark = Long.MAX_VALUE;
+                for (Long watermark : watermarks) {
+                    minWatermark = Math.min(watermark, minWatermark);
+                }
+                if (minWatermark != Long.MAX_VALUE) {
+                    this.currentWatermark = minWatermark;
+                }
+            }
+        }
+    }
+
+    @Override
+    public void snapshotState(StateSnapshotContext context) throws Exception {
+        super.snapshotState(context);
+        this.watermarkState.clear();
+        this.watermarkState.add(currentWatermark);
     }
 
     @Override
@@ -190,8 +227,12 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
 
     @Override
     public void processWatermark(Watermark mark) throws Exception {
-        windowProcessor.advanceProgress(mark.getTimestamp());
-        super.processWatermark(mark);
+        if (mark.getTimestamp() > currentWatermark) {
+            windowProcessor.advanceProgress(mark.getTimestamp());
+            super.processWatermark(mark);
+        } else {
+            super.processWatermark(new Watermark(currentWatermark));
+        }
     }
 
     @Override

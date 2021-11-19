@@ -95,11 +95,11 @@ public interface DynamicTableFactory extends Factory {
          *
          * <pre>{@code
          * // Project some fields into a new data type
-         * DataType projectedDataType = DataType.projectRow(
+         * DataType projectedDataType = DataType.projectFields(
          *      context.getPhysicalRowDataType(), projectedIndexes);
          *
          * // Create key data type
-         * DataType keyDataType = DataType.projectRow(
+         * DataType keyDataType = DataType.projectFields(
          *      context.getPhysicalRowDataType(), context.getPrimaryKeyIndexes());
          *
          * // Create a new data type filtering columns of the original data type
