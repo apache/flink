@@ -1,0 +1,12 @@
+#!/usr/bin/env perl
+$/="\0";
+my @base_cmd=split ' ', $ENV{arguments};
+while (<>) {
+  my @cmd=@base_cmd;
+  push @cmd, $_;
+  open my $input, '-|', @cmd;
+  while (<$input>) {
+    print;
+  }
+  close $input;
+}

@@ -1,0 +1,20 @@
+{
+    "problemMatcher": [
+        {
+            "owner": "check-spelling",
+            "pattern": [
+                {
+                    "regexp": "^(.+):[\\s]line\\s(\\d+),[\\s]columns\\s(\\d+)-(\\d+),\\s(Error|Warning|Info)\\s-\\s(.+)\\s\\((.+)\\)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "endColumn": 4,
+                    "severity": 5,
+                    "message": 6,
+                    "code": 7
+                }
+            ]
+        }
+    ]
+}
+
