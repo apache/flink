@@ -81,7 +81,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
     @Override
     public StreamElementSerializer<T> duplicate() {
         TypeSerializer<T> copy = typeSerializer.duplicate();
-        return (copy == typeSerializer) ? this : new StreamElementSerializer<T>(copy);
+        return (copy == typeSerializer) ? this : new StreamElementSerializer<>(copy);
     }
 
     // ------------------------------------------------------------------------
@@ -90,7 +90,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
     @Override
     public StreamRecord<T> createInstance() {
-        return new StreamRecord<T>(typeSerializer.createInstance());
+        return new StreamRecord<>(typeSerializer.createInstance());
     }
 
     @Override
@@ -114,7 +114,9 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
     @Override
     public StreamElement copy(StreamElement from, StreamElement reuse) {
-        if (from.isRecord() && reuse.isRecord()) {
+        // need not check reuse is really a StreamRecord, otherwise reuse.asRecord() will throw
+        // ClassCastException, similar as cannot copy does.
+        if (from.isRecord()) {
             StreamRecord<T> fromRecord = from.asRecord();
             StreamRecord<T> reuseRecord = reuse.asRecord();
 
@@ -136,19 +138,16 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
         if (tag == TAG_REC_WITH_TIMESTAMP) {
             // move timestamp
-            target.writeLong(source.readLong());
+            target.write(source, 8);
             typeSerializer.copy(source, target);
         } else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
             typeSerializer.copy(source, target);
         } else if (tag == TAG_WATERMARK) {
-            target.writeLong(source.readLong());
+            target.write(source, 8);
         } else if (tag == TAG_STREAM_STATUS) {
-            target.writeInt(source.readInt());
+            target.write(source, 4);
         } else if (tag == TAG_LATENCY_MARKER) {
-            target.writeLong(source.readLong());
-            target.writeLong(source.readLong());
-            target.writeLong(source.readLong());
-            target.writeInt(source.readInt());
+            target.write(source, 28);
         } else {
             throw new IOException("Corrupt stream, found tag: " + tag);
         }
@@ -188,9 +187,9 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         int tag = source.readByte();
         if (tag == TAG_REC_WITH_TIMESTAMP) {
             long timestamp = source.readLong();
-            return new StreamRecord<T>(typeSerializer.deserialize(source), timestamp);
+            return new StreamRecord<>(typeSerializer.deserialize(source), timestamp);
         } else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
-            return new StreamRecord<T>(typeSerializer.deserialize(source));
+            return new StreamRecord<>(typeSerializer.deserialize(source));
         } else if (tag == TAG_WATERMARK) {
             return new Watermark(source.readLong());
         } else if (tag == TAG_STREAM_STATUS) {
@@ -221,6 +220,8 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
             return reuseRecord;
         } else if (tag == TAG_WATERMARK) {
             return new Watermark(source.readLong());
+        } else if (tag == TAG_STREAM_STATUS) {
+            return new WatermarkStatus(source.readInt());
         } else if (tag == TAG_LATENCY_MARKER) {
             return new LatencyMarker(
                     source.readLong(),
@@ -237,7 +238,9 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof StreamElementSerializer) {
+        if (obj == this) {
+            return true;
+        } else if (obj instanceof StreamElementSerializer) {
             StreamElementSerializer<?> other = (StreamElementSerializer<?>) obj;
 
             return typeSerializer.equals(other.typeSerializer);
