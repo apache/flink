@@ -36,6 +36,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
+		<!-- the same with flink-table/pom.xml -->
 		<janino.version>3.0.11</janino.version>
 	</properties>
 
@@ -74,15 +75,15 @@ under the License.
 		<!-- JSON RowData schema test dependency -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Json filesystem format factory ITCase test dependency -->
+		<!-- Filesystem format factory ITCase test dependency -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -102,7 +103,7 @@ under the License.
 			<plugin>
 				<groupId>com.github.os72</groupId>
 				<artifactId>protoc-jar-maven-plugin</artifactId>
-				<version>${protoc.version}</version>
+				<version>3.11.4</version>
 				<executions>
 					<execution>
 						<phase>generate-sources</phase>
