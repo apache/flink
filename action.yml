@@ -1,0 +1,109 @@
+name: 'Check spelling'
+description: 'Spell check commits'
+author: 'jsoref'
+branding:
+  icon: 'edit-3'
+  color: 'red'
+inputs:
+  GITHUB_TOKEN:
+    description: 'The GITHUB_TOKEN secret'
+    default: "${{ github.token }}"
+    required: true
+  bucket:
+    description: 'Container for spelling configuration'
+    required: false
+  project:
+    description: 'Folder/Branch within bucket containing spelling configuration'
+    required: false
+  config:
+    description: 'Spelling configuration directory'
+    default: ".github/actions/spelling"
+    required: false
+  experimental_path:
+    description: 'Directory root to check for spelling (note that bucket/project/config are independent of this)'
+    default: '.'
+    required: false
+  dictionary_url:
+    description: "Location of dictionary (if you aren't providing one in your repository)"
+    default: 'https://raw.githubusercontent.com/check-spelling/check-spelling/dictionary-\$DICTIONARY_VERSION/dict.txt'
+    required: false
+  dictionary_version:
+    description: 'Version of the dictionary (only used if the url includes $DICTIONARY_VERSION)'
+    default: "20200211"
+    required: false
+  debug:
+    description: 'Debug'
+    required: false
+  experimental_apply_changes_via_bot:
+    description: '(Experimental) Allow users to quote-reply to the bot comment to update the PR'
+    default: "0"
+    required: false
+  experimental_parallel_jobs:
+    description: 'Number of CPUs available for running checks'
+    required: false
+    default: '2'
+  post_comment:
+    description: 'Post comment with report'
+    required: false
+    default: '1'
+  capture_output_unknown_words:
+    description: 'Capture unknown words (should be added to expect.txt) as an output'
+    required: false
+    default: ''
+  capture_output_stale_words:
+    description: 'Capture stale words (should be removed from expect.txt) as an output'
+    required: false
+    default: ''
+  capture_output_skipped_files:
+    description: 'Capture skipped files (could be added to excludes.txt) as an output'
+    required: false
+    default: ''
+  shortest_word:
+    description: 'Shortest word'
+    required: false
+    default: '3'
+  longest_word:
+    description: 'Longest word'
+    required: false
+    default: ''
+  experimental_commit_note:
+    description: 'If set, commit updates to expect automatically with this note'
+    required: false
+    default: ''
+
+outputs:
+  unknown_words:
+    description: "Unrecognized words (should be added to expect.txt)"
+    value: ${{ steps.spelling.outputs.unknown_words }}
+  stale_words:
+    description: "Stale words (should be removed from expect.txt) as an output"
+    value: ${{ steps.spelling.outputs.stale_words }}
+  skipped_files:
+    description: "Skipped files (could be added to excludes.txt)"
+    value: ${{ steps.spelling.outputs.skipped_files }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: spelling
+      run: >
+        INPUT_GITHUB_TOKEN="${{ inputs.GITHUB_TOKEN }}"
+        INPUT_BUCKET="${{ inputs.bucket }}"
+        INPUT_PROJECT="${{ inputs.project }}"
+        INPUT_CONFIG="${{ inputs.config }}"
+        INPUT_PATH="${{ inputs.experimental_path }}"
+        INPUT_DICTIONARY_VERSION="${{ inputs.dictionary_version }}"
+        INPUT_DICTIONARY_URL="${{ inputs.dictionary_url }}"
+        INPUT_EXPERIMENTAL_APPLY_CHANGES_VIA_BOT="${{ inputs.experimental_apply_changes_via_bot }}"
+        INPUT_EXPERIMENTAL_PARALLEL_JOBS="${{ inputs.experimental_parallel_jobs }}"
+        INPUT_EXPERIMENTAL_COMMIT_NOTE="${{ inputs.experimental_commit_note }}"
+        INPUT_POST_COMMENT="${{ inputs.post_comment }}"
+        INPUT_CAPTURE_UNKNOWN_WORDS="${{ inputs.capture_output_unknown_words }}"
+        INPUT_CAPTURE_STALE_WORDS="${{ inputs.capture_output_stale_words }}"
+        INPUT_CAPTURE_SKIPPED_FILES="${{ inputs.capture_output_skipped_files }}"
+        INPUT_LONGEST_WORD="${{ inputs.longest_word }}"
+        INPUT_SHORTEST_WORD="${{ inputs.shortest_word }}"
+        DEBUG="${{ inputs.debug }}"
+        spellchecker=$GITHUB_ACTION_PATH
+        $GITHUB_ACTION_PATH/unknown-words.sh
+      shell: bash
