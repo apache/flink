@@ -55,7 +55,7 @@ public class OptionsTest {
     }
 
     @Test
-    public void testChoicesWithInvalidDefautlValue() throws RequiredParametersException {
+    public void testChoicesWithInvalidDefaultValue() throws RequiredParametersException {
         expectedException.expect(RequiredParametersException.class);
         expectedException.expectMessage(
                 "Valid values for option choices do not contain defined default value x");

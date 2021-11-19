@@ -69,9 +69,9 @@ public class RestServerSSLAuthITCase extends TestLogger {
     private final Configuration clientConfig;
     private final Configuration serverConfig;
 
-    public RestServerSSLAuthITCase(final Tuple2<Configuration, Configuration> clinetServerConfig) {
-        this.clientConfig = clinetServerConfig.f0;
-        this.serverConfig = clinetServerConfig.f1;
+    public RestServerSSLAuthITCase(final Tuple2<Configuration, Configuration> clientServerConfig) {
+        this.clientConfig = clientServerConfig.f0;
+        this.serverConfig = clientServerConfig.f1;
     }
 
     @Parameterized.Parameters

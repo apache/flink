@@ -94,8 +94,8 @@ public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase 
         DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
 
         // emit result
-        List<Tuple2<Long, Long>> resutTuples = new ArrayList<>();
-        result.output(new LocalCollectionOutputFormat<>(resutTuples));
+        List<Tuple2<Long, Long>> resultTuples = new ArrayList<>();
+        result.output(new LocalCollectionOutputFormat<>(resultTuples));
 
         env.execute();
     }

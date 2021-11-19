@@ -1350,7 +1350,7 @@ Before running a data analysis program on a large data set in a distributed clus
 
 Flink provides a few nice features to significantly ease the development process of data analysis programs by supporting local debugging from within an IDE, injection of test data, and collection of result data. This section give some hints how to ease the development of Flink programs.
 
-### Local Execution Envronment
+### Local Execution Environment
 
 A LocalEnvironment starts a Flink system within the same JVM process it was created in. If you start the LocalEnvironment from an IDE, you can set breakpoints in your code and easily debug your program.
 

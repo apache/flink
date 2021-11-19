@@ -100,20 +100,20 @@ public class ContainerSpecification implements java.io.Serializable {
     public static class Artifact {
 
         public Artifact(
-                Path source, Path dest, boolean executable, boolean cachable, boolean extract) {
+                Path source, Path dest, boolean executable, boolean cacheable, boolean extract) {
             checkArgument(source.isAbsolute(), "source must be absolute");
             checkArgument(!dest.isAbsolute(), "destination must be relative");
             this.source = source;
             this.dest = dest;
             this.executable = executable;
-            this.cachable = cachable;
+            this.cacheable = cacheable;
             this.extract = extract;
         }
 
         public final Path source;
         public final Path dest;
         public final boolean executable;
-        public final boolean cachable;
+        public final boolean cacheable;
         public final boolean extract;
 
         @Override
@@ -125,8 +125,8 @@ public class ContainerSpecification implements java.io.Serializable {
                     + dest
                     + ", executable="
                     + executable
-                    + ", cachable="
-                    + cachable
+                    + ", cacheable="
+                    + cacheable
                     + ", extract="
                     + extract
                     + '}';
@@ -141,7 +141,7 @@ public class ContainerSpecification implements java.io.Serializable {
             public Path source;
             public Path dest;
             public boolean executable = false;
-            public boolean cachable = true;
+            public boolean cacheable = true;
             public boolean extract = false;
 
             public Builder setSource(Path source) {
@@ -154,8 +154,8 @@ public class ContainerSpecification implements java.io.Serializable {
                 return this;
             }
 
-            public Builder setCachable(boolean cachable) {
-                this.cachable = cachable;
+            public Builder setCacheable(boolean cacheable) {
+                this.cacheable = cacheable;
                 return this;
             }
 
@@ -170,7 +170,7 @@ public class ContainerSpecification implements java.io.Serializable {
             }
 
             public Artifact build() {
-                return new Artifact(source, dest, executable, cachable, extract);
+                return new Artifact(source, dest, executable, cacheable, extract);
             }
         }
     }

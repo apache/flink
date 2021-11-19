@@ -208,7 +208,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                 .commit("pt=1");
         Table src =
                 batchTableEnv.sqlQuery("select * from hive.source_db.test_table_pt_1 where pt = 0");
-        // first check execution plan to ensure partition prunning works
+        // first check execution plan to ensure partition pruning works
         String[] explain = src.explain().split("==.*==\n");
         assertEquals(4, explain.length);
         String optimizedLogicalPlan = explain[2];

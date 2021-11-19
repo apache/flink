@@ -265,7 +265,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
      * (filterRestoredPartitionsWithDiscovered is active)
      */
     @Test
-    public void testSetFilterRestoredParitionsNoChange() throws Exception {
+    public void testSetFilterRestoredPartitionsNoChange() throws Exception {
         checkFilterRestoredPartitionsWithDisovered(
                 Arrays.asList(new String[] {"kafka_topic_1", "kafka_topic_2"}),
                 Arrays.asList(new String[] {"kafka_topic_1", "kafka_topic_2"}),
@@ -278,7 +278,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
      * in restored partitions. (filterRestoredPartitionsWithDiscovered is active)
      */
     @Test
-    public void testSetFilterRestoredParitionsWithRemovedTopic() throws Exception {
+    public void testSetFilterRestoredPartitionsWithRemovedTopic() throws Exception {
         checkFilterRestoredPartitionsWithDisovered(
                 Arrays.asList(new String[] {"kafka_topic_1", "kafka_topic_2"}),
                 Arrays.asList(new String[] {"kafka_topic_1"}),
@@ -291,7 +291,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
      * (filterRestoredPartitionsWithDiscovered is active)
      */
     @Test
-    public void testSetFilterRestoredParitionsWithAddedTopic() throws Exception {
+    public void testSetFilterRestoredPartitionsWithAddedTopic() throws Exception {
         checkFilterRestoredPartitionsWithDisovered(
                 Arrays.asList(new String[] {"kafka_topic_1"}),
                 Arrays.asList(new String[] {"kafka_topic_1", "kafka_topic_2"}),
@@ -304,7 +304,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
      * (filterRestoredPartitionsWithDiscovered is disabled)
      */
     @Test
-    public void testDisableFilterRestoredParitionsNoChange() throws Exception {
+    public void testDisableFilterRestoredPartitionsNoChange() throws Exception {
         checkFilterRestoredPartitionsWithDisovered(
                 Arrays.asList(new String[] {"kafka_topic_1", "kafka_topic_2"}),
                 Arrays.asList(new String[] {"kafka_topic_1", "kafka_topic_2"}),
@@ -317,7 +317,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
      * still in restored partitions. (filterRestoredPartitionsWithDiscovered is disabled)
      */
     @Test
-    public void testDisableFilterRestoredParitionsWithRemovedTopic() throws Exception {
+    public void testDisableFilterRestoredPartitionsWithRemovedTopic() throws Exception {
         checkFilterRestoredPartitionsWithDisovered(
                 Arrays.asList(new String[] {"kafka_topic_1", "kafka_topic_2"}),
                 Arrays.asList(new String[] {"kafka_topic_1"}),
@@ -330,7 +330,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
      * (filterRestoredPartitionsWithDiscovered is disabled)
      */
     @Test
-    public void testDisableFilterRestoredParitionsWithAddedTopic() throws Exception {
+    public void testDisableFilterRestoredPartitionsWithAddedTopic() throws Exception {
         checkFilterRestoredPartitionsWithDisovered(
                 Arrays.asList(new String[] {"kafka_topic_1"}),
                 Arrays.asList(new String[] {"kafka_topic_1", "kafka_topic_2"}),

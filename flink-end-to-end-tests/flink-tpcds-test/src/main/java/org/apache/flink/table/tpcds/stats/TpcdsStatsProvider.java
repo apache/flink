@@ -1345,9 +1345,9 @@ public class TpcdsStatsProvider {
     }
 
     public static void registerTpcdsStats(TableEnvironment tEnv) {
-        for (Map.Entry<String, CatalogTableStats> enrty : catalogTableStatsMap.entrySet()) {
-            String table = enrty.getKey();
-            CatalogTableStats catalogTableStats = enrty.getValue();
+        for (Map.Entry<String, CatalogTableStats> entry : catalogTableStatsMap.entrySet()) {
+            String table = entry.getKey();
+            CatalogTableStats catalogTableStats = entry.getValue();
             catalogTableStats.register2Catalog(tEnv, table);
         }
     }

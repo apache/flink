@@ -169,7 +169,7 @@ public class EntropyInjectorTest {
     }
 
     @Test
-    public void testClassLoaderFixingFsWithSafeyNet() throws Exception {
+    public void testClassLoaderFixingFsWithSafeNet() throws Exception {
         final String entropyKey = "__ekey__";
         final String entropyValue = "abc";
 
@@ -195,7 +195,7 @@ public class EntropyInjectorTest {
     }
 
     @Test
-    public void testClassLoaderFixingFsWithoutSafeyNet() throws Exception {
+    public void testClassLoaderFixingFsWithoutSafeNet() throws Exception {
         final String entropyKey = "__ekey__";
         final String entropyValue = "abc";
 
