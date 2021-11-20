@@ -764,7 +764,7 @@ json:
   - sql: JSON_STRING(value)
     table: jsonString(value)
     description: |
-      将值序列化为JSON。
+      将值序列化为 JSON。
 
       此函数返回一个包含序列化值的JSON字符串。如果值为 `NULL`，函数返回 `NULL`。
 
