@@ -766,7 +766,7 @@ json:
     description: |
       将值序列化为JSON。
 
-      这个函数返回一个包含序列化值的JSON字符串。如果值为 `NULL`，函数返回 `NULL`。
+      此函数返回一个包含序列化值的JSON字符串。如果值为 `NULL`，函数返回 `NULL`。
 
       ```
       -- NULL
