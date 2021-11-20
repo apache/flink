@@ -766,7 +766,7 @@ json:
     description: |
       将值序列化为 JSON。
 
-      此函数返回一个包含序列化值的JSON字符串。如果值为 `NULL`，函数返回 `NULL`。
+      此函数返回一个包含序列化值的 JSON 字符串。如果值为 `NULL`，函数返回 `NULL`。
 
       ```
       -- NULL
@@ -940,9 +940,9 @@ json:
   - sql: JSON_ARRAYAGG(items [ { NULL | ABSENT } ON NULL ])
     table: jsonArrayAgg(JsonOnNull, itemExpression)
     description: |
-      通过将字段聚合到数组中构建JSON对象字符串。
+      通过将字段聚合到数组中构建 JSON 对象字符串。
 
-      项表达式可以是任意的，包括其他 JSON 函数。如果值为 `NULL`，则 `ON NULL` 行为定义了要执行的操作。如果省略，默认情况下假定为 `ABSENT ON NULL`。
+      项目表达式可以是任意的，包括其他 JSON 函数。如果值为 `NULL`，则 `ON NULL` 行为定义了要执行的操作。如果省略，默认情况下假定为 `ABSENT ON NULL`。
 
       此函数目前不支持 `OVER` windows、未绑定的 session windows 或 hop windows。
 
