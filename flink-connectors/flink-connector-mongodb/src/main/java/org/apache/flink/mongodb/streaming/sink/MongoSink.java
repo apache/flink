@@ -120,8 +120,8 @@ public class MongoSink<IN> implements Sink<IN, DocumentBulk, DocumentBulk, Void>
             return this;
         }
 
-        public MongoSink build() {
-            return new MongoSink(this.servers, this.database, this.username, this.password, this.collectionName, this.serializer
+        public MongoSink<IN> build() {
+            return new MongoSink<IN>(this.servers, this.database, this.username, this.password, this.collectionName, this.serializer
                     , this.isTransactional, this.retryWrites, this.writeConcern, this.timeout, this.maxSize, this.bulkFlushInterval,
                     this.flushOnCheckpoint,this.model);
         }
