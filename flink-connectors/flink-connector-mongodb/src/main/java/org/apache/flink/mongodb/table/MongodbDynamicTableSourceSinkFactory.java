@@ -38,15 +38,18 @@ public class MongodbDynamicTableSourceSinkFactory implements DynamicTableSinkFac
             .stringType()
             .noDefaultValue()
             .withDescription("The uri to connect.");
-    public static final ConfigOption<String> COLLECTION_NAME = ConfigOptions.key("collection".toLowerCase())
+    public static final ConfigOption<String> COLLECTION_NAME = ConfigOptions
+            .key("collection".toLowerCase())
             .stringType()
             .noDefaultValue()
             .withDescription("The name of the collection to return.");
-    public static final ConfigOption<Integer> MAX_CONNECTION_IDLE_TIME = ConfigOptions.key("maxConnectionIdleTime".toLowerCase())
+    public static final ConfigOption<Integer> MAX_CONNECTION_IDLE_TIME = ConfigOptions
+            .key("maxConnectionIdleTime".toLowerCase())
             .intType()
             .defaultValue(Integer.valueOf(60000))
             .withDescription("The maximum idle time for a pooled connection.");
-    public static final ConfigOption<Integer> BATCH_SIZE = ConfigOptions.key("batchSize".toLowerCase())
+    public static final ConfigOption<Integer> BATCH_SIZE = ConfigOptions
+            .key("batchSize".toLowerCase())
             .intType()
             .defaultValue(Integer.valueOf(1024))
             .withDescription("The batch size when table invoking.");
@@ -65,9 +68,18 @@ public class MongodbDynamicTableSourceSinkFactory implements DynamicTableSinkFac
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         helper.validate();
 
-        MongodbSinkConf mongodbSinkConf = new MongodbSinkConf((String) helper.getOptions().get(DATABASE), (String) helper.getOptions().get(COLLECTION_NAME), (String) helper.getOptions().get(URI), ((Integer) helper.getOptions().get(MAX_CONNECTION_IDLE_TIME)).intValue(), ((Integer) helper.getOptions().get(BATCH_SIZE)).intValue());
+        MongodbSinkConf mongodbSinkConf = new MongodbSinkConf(
+                (String) helper
+                        .getOptions()
+                        .get(DATABASE),
+                (String) helper.getOptions().get(COLLECTION_NAME),
+                (String) helper.getOptions().get(URI),
+                ((Integer) helper.getOptions().get(MAX_CONNECTION_IDLE_TIME)).intValue(),
+                ((Integer) helper.getOptions().get(BATCH_SIZE)).intValue());
 
-        TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+        TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context
+                .getCatalogTable()
+                .getSchema());
         LOG.info("Create dynamic mongoDB table table: {}.", mongodbSinkConf);
         return new MongodbDynamicTableSink(mongodbSinkConf, physicalSchema);
     }
@@ -98,9 +110,18 @@ public class MongodbDynamicTableSourceSinkFactory implements DynamicTableSinkFac
     public DynamicTableSource createDynamicTableSource(Context context) {
         ContextUtil.transformContext(this, context);
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
-        MongodbSinkConf mongodbSinkConf = new MongodbSinkConf((String) helper.getOptions().get(DATABASE), (String) helper.getOptions().get(COLLECTION_NAME), (String) helper.getOptions().get(URI), ((Integer) helper.getOptions().get(MAX_CONNECTION_IDLE_TIME)).intValue(), ((Integer) helper.getOptions().get(BATCH_SIZE)).intValue());
+        MongodbSinkConf mongodbSinkConf = new MongodbSinkConf(
+                (String) helper
+                        .getOptions()
+                        .get(DATABASE),
+                (String) helper.getOptions().get(COLLECTION_NAME),
+                (String) helper.getOptions().get(URI),
+                ((Integer) helper.getOptions().get(MAX_CONNECTION_IDLE_TIME)).intValue(),
+                ((Integer) helper.getOptions().get(BATCH_SIZE)).intValue());
 
-        TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+        TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context
+                .getCatalogTable()
+                .getSchema());
         LOG.info("Create dynamic mongoDB table table: {}.", mongodbSinkConf);
 
         final DecodingFormat<DeserializationSchema<RowData>> decodingFormat =

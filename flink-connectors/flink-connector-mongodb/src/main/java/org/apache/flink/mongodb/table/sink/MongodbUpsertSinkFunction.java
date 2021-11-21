@@ -19,13 +19,6 @@ public class MongodbUpsertSinkFunction extends MongodbBaseSinkFunction<RowData> 
         this.converter = converter;
     }
 
-    /**
-     * 将二进制RowData转换成flink可处理的Row，再将Row封装成要插入的Document对象
-     *
-     * @param value
-     * @param context
-     * @return
-     */
     @Override
     Document invokeDocument(RowData value, Context context) {
         Row row = (Row) this.converter.toExternal(value);

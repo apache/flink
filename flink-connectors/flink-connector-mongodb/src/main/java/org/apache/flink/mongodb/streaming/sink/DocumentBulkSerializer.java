@@ -28,7 +28,6 @@ public class DocumentBulkSerializer implements SimpleVersionedSerializer<Documen
 
     private static Codec<Document> DOCUMENT_CODEC = new DocumentCodec();
 
-
     @Override
     public int getVersion() {
         return version;

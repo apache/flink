@@ -30,7 +30,6 @@ public class MongodbDynamicTableSource implements ScanTableSource {
         this.decodingFormat = decodingFormat;
     }
 
-
     @Override
     public DynamicTableSource copy() {
         return new MongodbDynamicTableSource(this.mongodbSinkConf, this.tableSchema, decodingFormat);

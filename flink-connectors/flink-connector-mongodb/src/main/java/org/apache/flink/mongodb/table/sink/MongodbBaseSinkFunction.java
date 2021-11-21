@@ -7,6 +7,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -35,7 +36,6 @@ public abstract class MongodbBaseSinkFunction<IN> extends RichSinkFunction<IN> i
         this.client = clientProvider.getClient();
         this.batch = new ArrayList();
     }
-
 
     @Override
     public void close() throws Exception {

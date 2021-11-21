@@ -28,7 +28,6 @@ public class MongoColloctionProviders {
 
         private long timeout;
 
-
         public Builder setdatabase(String database) {
             this.database = database;
             return this;
