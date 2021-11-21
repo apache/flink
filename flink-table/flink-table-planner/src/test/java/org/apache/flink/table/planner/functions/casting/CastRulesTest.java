@@ -367,20 +367,19 @@ class CastRulesTest {
                                 StringData.fromString("Apache Flink"))
                         .fromCase(BOOLEAN(), true, StringData.fromString("true"))
                         .fromCase(BOOLEAN(), false, StringData.fromString("false"))
-                        .fromCase(
-                                BINARY(2), new byte[] {0, 1}, StringData.fromString("\u0000\u0001"))
+                        .fromCase(BINARY(2), new byte[] {0, 1}, StringData.fromString("[0, 1]"))
                         .fromCase(
                                 VARBINARY(3),
                                 new byte[] {0, 1, 2},
-                                StringData.fromString("\u0000\u0001\u0002"))
+                                StringData.fromString("[0, 1, 2]"))
                         .fromCase(
                                 VARBINARY(5),
                                 new byte[] {0, 1, 2},
-                                StringData.fromString("\u0000\u0001\u0002"))
+                                StringData.fromString("[0, 1, 2]"))
                         .fromCase(
                                 BYTES(),
                                 new byte[] {0, 1, 2, 3, 4},
-                                StringData.fromString("\u0000\u0001\u0002\u0003\u0004"))
+                                StringData.fromString("[0, 1, 2, 3, 4]"))
                         .fromCase(
                                 DECIMAL(4, 3),
                                 DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),

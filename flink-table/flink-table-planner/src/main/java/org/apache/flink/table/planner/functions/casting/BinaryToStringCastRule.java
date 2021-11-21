@@ -20,16 +20,18 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.TinyIntType;
 
-import java.nio.charset.StandardCharsets;
-
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.accessStaticField;
+import static org.apache.flink.table.planner.codegen.CodeGenUtils.arrFieldAccess;
+import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
+import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.accessField;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 
-/**
- * {@link LogicalTypeFamily#BINARY_STRING} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule.
- */
-class BinaryToStringCastRule extends AbstractCharacterFamilyTargetRule<byte[]> {
+class BinaryToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<byte[], String> {
 
     static final BinaryToStringCastRule INSTANCE = new BinaryToStringCastRule();
 
@@ -41,13 +43,66 @@ class BinaryToStringCastRule extends AbstractCharacterFamilyTargetRule<byte[]> {
                         .build());
     }
 
+    /* Example generated code
+
+    builder$1.setLength(0);
+    builder$1.append("[");
+    for (int i$2 = 0; i$2 < _myInput.length; i$2++) {
+        if (i$2 != 0) {
+            builder$1.append(", ");
+        }
+        byte element$3 = -1;
+        element$3 = _myInput[i$2];
+        builder$1.append(element$3);
+    }
+    builder$1.append("]");
+    result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(builder$1.toString());
+
+     */
+
     @Override
-    public String generateStringExpression(
+    protected String generateCodeBlockInternal(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
+            String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return constructorCall(
-                String.class, inputTerm, accessStaticField(StandardCharsets.class, "UTF_8"));
+        final LogicalType innerInputType = new TinyIntType();
+
+        final String builderTerm = newName("builder");
+        context.declareClassField(
+                className(StringBuilder.class), builderTerm, constructorCall(StringBuilder.class));
+
+        return new CastRuleUtils.CodeWriter()
+                .stmt(methodCall(builderTerm, "setLength", 0))
+                .stmt(methodCall(builderTerm, "append", strLiteral("[")))
+                .forStmt(
+                        accessField(inputTerm, "length"),
+                        (indexTerm, loopBodyWriter) -> {
+                            String elementTerm = newName("element");
+
+                            loopBodyWriter
+                                    // Write the comma
+                                    .ifStmt(
+                                            indexTerm + " != 0",
+                                            thenBodyWriter ->
+                                                    thenBodyWriter.stmt(
+                                                            methodCall(
+                                                                    builderTerm,
+                                                                    "append",
+                                                                    strLiteral((", ")))))
+                                    // Extract element from array
+                                    .declPrimitiveStmt(innerInputType, elementTerm)
+                                    .assignStmt(elementTerm, arrFieldAccess(indexTerm, inputTerm))
+                                    .stmt(methodCall(builderTerm, "append", elementTerm));
+                        })
+                .stmt(methodCall(builderTerm, "append", strLiteral("]")))
+                // Assign the result value
+                .assignStmt(
+                        returnVariable,
+                        CastRuleUtils.staticCall(
+                                BINARY_STRING_DATA_FROM_STRING(),
+                                methodCall(builderTerm, "toString")))
+                .toString();
     }
 }

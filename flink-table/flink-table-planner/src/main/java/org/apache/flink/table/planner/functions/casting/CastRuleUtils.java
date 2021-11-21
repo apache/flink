@@ -75,6 +75,10 @@ final class CastRuleUtils {
         return className(clazz) + "." + fieldName;
     }
 
+    static String accessField(String name, String fieldName) {
+        return name + "." + fieldName;
+    }
+
     static String ternaryOperator(String condition, String ifTrue, String ifFalse) {
         return "((" + condition + ") ? (" + ifTrue + ") : (" + ifFalse + "))";
     }

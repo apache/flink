@@ -737,6 +737,12 @@ object CodeGenUtils {
       throw new IllegalArgumentException("Illegal type: " + t);
   }
 
+  // ------------------------------- Array Access ----------------------------------------
+  def arrFieldAccess(index: Int, arrTerm: String): String =
+    arrFieldAccess(index.toString, arrTerm)
+
+  def arrFieldAccess(index: String, arrTerm: String): String = s"$arrTerm[$index]"
+
   // -------------------------- Data Structure Conversion  -------------------------------
 
   /**
