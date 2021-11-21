@@ -4711,7 +4711,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                         Static.RESOURCE.illegalExpressionForTemporal(
                                 dataType.getSqlTypeName().getName()));
             }
-            if (!ns.getTable().isTemporal()) {
+            if (ns.getTable() != null && !ns.getTable().isTemporal()) {
                 List<String> qualifiedName = ns.getTable().getQualifiedName();
                 String tableName = qualifiedName.get(qualifiedName.size() - 1);
                 throw newValidationError(
