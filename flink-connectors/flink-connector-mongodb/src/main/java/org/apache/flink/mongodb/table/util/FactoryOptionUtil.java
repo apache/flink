@@ -8,13 +8,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class FactoryOptionUtil {
-    /**
-     * 将参数统一小写
-     *
-     * @param factory
-     * @param options
-     * @return
-     */
     public static Map<String, String> normalizeOptionCaseAsFactory(final Factory factory, final Map<String, String> options) {
         final Map<String, String> normalizedOptions = new HashMap<String, String>();
         final Map<String, String> requiredOptionKeysLowerCaseToOriginal = (Map<String, String>) factory.requiredOptions().stream().collect(Collectors.toMap(option -> option.key().toLowerCase(), ConfigOption::key));

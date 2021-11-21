@@ -1,6 +1,5 @@
 package org.apache.flink.mongodb.table.sink;
 
-
 import org.apache.flink.mongodb.table.MongodbConf;
 
 public class MongodbSinkConf extends MongodbConf {
