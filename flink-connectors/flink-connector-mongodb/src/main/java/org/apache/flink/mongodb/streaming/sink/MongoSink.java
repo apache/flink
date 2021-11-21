@@ -24,7 +24,7 @@ import static com.mongodb.WriteConcern.MAJORITY;
 public class MongoSink<IN> implements Sink<IN, DocumentBulk, DocumentBulk, Void> {
 
     private DocumentSerializer<IN> serializer;
-    private Boolean isTransactional;
+    private boolean isTransactional;
     private transient MongoClient mongoClient;
     private transient MongoDatabase db;
     private transient MongoCollection<Document> collection;
@@ -32,6 +32,7 @@ public class MongoSink<IN> implements Sink<IN, DocumentBulk, DocumentBulk, Void>
     private long bulkFlushInterval;
     private boolean flushOnCheckpoint;
     private final MongoClientProvider clientProvider;
+    private boolean model;
 
     public static <IN> DefaultMongoSinkBuilder<IN> BuilderClient(String username,
                                                                  String password,
@@ -55,6 +56,7 @@ public class MongoSink<IN> implements Sink<IN, DocumentBulk, DocumentBulk, Void>
         private long maxSize = 1024L;
         private long bulkFlushInterval = 1000L;
         private boolean flushOnCheckpoint = true;
+        private boolean model = false;
 
 
         public DefaultMongoSinkBuilder(String username,
@@ -113,9 +115,15 @@ public class MongoSink<IN> implements Sink<IN, DocumentBulk, DocumentBulk, Void>
             return this;
         }
 
+        public DefaultMongoSinkBuilder<IN> isOpenMergeIntoModel(final boolean model) {
+            this.model = model;
+            return this;
+        }
+
         public MongoSink build() {
             return new MongoSink(this.servers, this.database, this.username, this.password, this.collectionName, this.serializer
-                    , this.isTransactional, this.retryWrites, this.writeConcern, this.timeout, this.maxSize, this.bulkFlushInterval, this.flushOnCheckpoint);
+                    , this.isTransactional, this.retryWrites, this.writeConcern, this.timeout, this.maxSize, this.bulkFlushInterval,
+                    this.flushOnCheckpoint,this.model);
         }
     }
 
@@ -125,13 +133,14 @@ public class MongoSink<IN> implements Sink<IN, DocumentBulk, DocumentBulk, Void>
                      String password,
                      String collectionName,
                      DocumentSerializer<IN> serializer,
-                     Boolean isTransactional,
-                     Boolean retryWrites,
+                     boolean isTransactional,
+                     boolean retryWrites,
                      WriteConcern writeConcern,
                      long timeout,
                      long maxSize,
                      long bulkFlushInterval,
-                     boolean flushOnCheckpoint
+                     boolean flushOnCheckpoint,
+                     boolean model
 
     ) {
         this.serializer = serializer;
@@ -139,6 +148,7 @@ public class MongoSink<IN> implements Sink<IN, DocumentBulk, DocumentBulk, Void>
         this.maxSize = maxSize;
         this.bulkFlushInterval = bulkFlushInterval;
         this.flushOnCheckpoint = flushOnCheckpoint;
+        this.model = model;
 
         this.clientProvider =
                 MongoColloctionProviders
@@ -157,7 +167,7 @@ public class MongoSink<IN> implements Sink<IN, DocumentBulk, DocumentBulk, Void>
     @Override
     public SinkWriter<IN, DocumentBulk, DocumentBulk> createWriter(InitContext initContext, List<DocumentBulk> states)
             throws IOException {
-        MongoBulkWriter<IN> writer = new MongoBulkWriter<IN>(collection, serializer, maxSize, bulkFlushInterval, flushOnCheckpoint);
+        MongoBulkWriter<IN> writer = new MongoBulkWriter<IN>(collection, serializer, maxSize, bulkFlushInterval, flushOnCheckpoint,model);
         writer.initializeState(states);
         return writer;
     }

@@ -60,7 +60,8 @@ public class MongoBulkWriter<IN> implements SinkWriter<IN, DocumentBulk, Documen
             DocumentSerializer<IN> serializer,
             long maxSize,
             long bulkFlushInterval,
-            boolean flushOnCheckpoint
+            boolean flushOnCheckpoint,
+            boolean model
     ) {
 
         this.serializer = serializer;
@@ -81,7 +82,10 @@ public class MongoBulkWriter<IN> implements SinkWriter<IN, DocumentBulk, Documen
                                     if (!closed) {
                                         try {
                                             rollBulkIfNeeded(true);
-                                            flush();
+                                            if (model) {
+                                                mergeInto();
+                                            }
+                                            flushInsert();
                                         } catch (Exception e) {
                                             flushException = e;
                                         }
@@ -140,13 +144,9 @@ public class MongoBulkWriter<IN> implements SinkWriter<IN, DocumentBulk, Documen
     }
 
     /**
-     * Flush by non-transactional bulk write, which may result in data duplicates after multiple tries.
-     * There may be concurrent flushes when concurrent checkpoints are enabled.
-     * <p>
-     * We manually retry write operations, because the driver doesn't support automatic retries for some MongoDB
-     * setups (e.g. standalone instances). TODO: This should be configurable in the future.
+     * Update exists, no insert exists, note: the primary key ID is required to be unique
      */
-    private synchronized void flush() {
+    private synchronized void mergeInto() {
         if (!closed) {
             ensureConnection();
             retryPolicy.reset();
@@ -155,7 +155,6 @@ public class MongoBulkWriter<IN> implements SinkWriter<IN, DocumentBulk, Documen
                 DocumentBulk bulk = iterator.next();
                 do {
                     try {
-                        //UpdateOptions options = new UpdateOptions().upsert(true);
                         List<Document> documents = bulk.getDocuments();
                         if (documents.size() == 0) {
                             break;
@@ -167,18 +166,44 @@ public class MongoBulkWriter<IN> implements SinkWriter<IN, DocumentBulk, Documen
                             public void accept(Document document) {
                                 Bson filter = Filters.eq("_id", document.get("_id"));
                                 UpdateOptions options = new UpdateOptions().upsert(true);
-                                UpdateOneModel<Document> updateOneModel = new UpdateOneModel<>(filter, new Document("$set", document), options);
+                                UpdateOneModel<Document> updateOneModel = new UpdateOneModel<>(
+                                        filter,
+                                        new Document("$set", document),
+                                        options);
                                 batchOperateList.add(updateOneModel);
                             }
                         });
                         BulkWriteOptions options = new BulkWriteOptions();
-                        // 关闭排序后，mongo会对writeModelList操作重新排序，提高效率
                         options.ordered(false);
-                        BulkWriteResult bulkWriteResult = collection.bulkWrite(batchOperateList, options);
+                        BulkWriteResult bulkWriteResult = collection.bulkWrite(
+                                batchOperateList,
+                                options);
+                        iterator.remove();
+                        break;
+                    } catch (MongoException e) {
+                        LOGGER.error("Failed to mergeInto data to MongoDB:{}", e.getMessage());
+                    }
+                } while (!closed && retryPolicy.shouldBackoffRetry());
+            }
+        }
+    }
+
+    private synchronized void flushInsert() {
+        if (!closed) {
+            ensureConnection();
+            retryPolicy.reset();
+            Iterator<DocumentBulk> iterator = pendingBulks.iterator();
+            while (iterator.hasNext()) {
+                DocumentBulk bulk = iterator.next();
+                do {
+                    try {
+                        // ordered, non-bypass mode
+                        collection.insertMany(bulk.getDocuments());
                         iterator.remove();
                         break;
                     } catch (MongoException e) {
                         // maybe partial failure
+                        LOGGER.error("Failed to flushInsert data to MongoDB:{}", e.getMessage());
                     }
                 } while (!closed && retryPolicy.shouldBackoffRetry());
             }
@@ -189,7 +214,7 @@ public class MongoBulkWriter<IN> implements SinkWriter<IN, DocumentBulk, Documen
         try {
             collection.listIndexes();
         } catch (MongoException e) {
-            LOGGER.warn("|Mongdb操作|Connection is not available, try to reconnect", e);
+            LOGGER.warn("MongdbOP Connection is not available, try to reconnect", e);
         }
     }
 
