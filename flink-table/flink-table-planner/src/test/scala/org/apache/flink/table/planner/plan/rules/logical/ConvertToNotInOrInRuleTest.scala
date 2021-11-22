@@ -194,8 +194,7 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
     util.verifyRelPlan(
       "SELECT * FROM MyTable WHERE " +
         "e = 'a' or e = 'b' or e = 'c' or e = 'd' or e = 'e' or e = 'f' or e = NULL or e = " +
-        "'HELLO " +
-        "WORLD!'"
+        "'HELLO WORLD!'"
     )
   }
 
