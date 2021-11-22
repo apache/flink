@@ -1979,7 +1979,7 @@ object ScalarOperatorGens {
       GeneratedExpression(resultTerm, "false", "", resultType, Some(result))
     } catch {
       case e: Throwable =>
-        throw new ValidationException("Error when casting literal: " + e.getMessage, e)
+        throw new ValidationException("Error when casting literal. " + e.getMessage, e)
     }
   }
 
