@@ -272,6 +272,39 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     assertEquals(expected, sink.getAppendResults.sorted)
   }
 
+  /** test rowtime inner join that for right stream, the window bounds are negative **/
+  @Test
+  def testRowTimeInnerJoinWithNegativeWindowBoundsForRight(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t2.key, t2.id, t1.id
+        |FROM T1 as t1 join T2 as t2 ON
+        |  t1.rowtime BETWEEN t2.rowtime + INTERVAL '1' SECOND AND
+        |    t2.rowtime + INTERVAL '3' SECOND
+        |""".stripMargin
+
+    val data1 = new mutable.MutableList[(String, String, Long)]
+    // for boundary test
+    data1.+=((null.asInstanceOf[String], "L-1", 1000L))
+
+    val data2 = new mutable.MutableList[(String, String, Long)]
+    data2.+=(("A", "R-0", 0L))
+    val t1 = env.fromCollection(data1)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(data2)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+    val sink = new TestingAppendSink
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(sink)
+    env.execute()
+    val expected = mutable.MutableList("A,R-0,L-1")
+    assertEquals(expected, sink.getAppendResults.sorted)
+  }
+
   /** test rowtime inner join without equal condition **/
   @Test
   def testRowTimeInnerJoinWithoutEqualCondition(): Unit = {

@@ -64,10 +64,7 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
 
     @Override
     void updateOperatorTime(Context ctx) {
-        leftOperatorTime =
-                ctx.timerService().currentWatermark() > 0
-                        ? ctx.timerService().currentWatermark()
-                        : 0L;
+        leftOperatorTime = ctx.timerService().currentWatermark();
         // We may set different operator times in the future.
         rightOperatorTime = leftOperatorTime;
     }

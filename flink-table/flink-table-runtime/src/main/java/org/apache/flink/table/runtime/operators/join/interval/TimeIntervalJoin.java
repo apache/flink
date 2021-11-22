@@ -75,12 +75,12 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     private transient ValueState<Long> rightTimerState;
 
     // Points in time until which the respective cache has been cleaned.
-    private long leftExpirationTime = 0L;
-    private long rightExpirationTime = 0L;
+    private long leftExpirationTime = Long.MIN_VALUE;
+    private long rightExpirationTime = Long.MIN_VALUE;
 
     // Current time on the respective input stream.
-    protected long leftOperatorTime = 0L;
-    protected long rightOperatorTime = 0L;
+    protected long leftOperatorTime = Long.MIN_VALUE;
+    protected long rightOperatorTime = Long.MIN_VALUE;
 
     TimeIntervalJoin(
             FlinkJoinType joinType,
@@ -349,6 +349,17 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
      */
     private long calExpirationTime(long operatorTime, long relativeSize) {
         if (operatorTime < Long.MAX_VALUE) {
+            // prevent expiration time out of bounds
+            if (relativeSize >= 0) {
+                if (operatorTime < Long.MIN_VALUE + relativeSize + allowedLateness + 1) {
+                    return Long.MIN_VALUE;
+                }
+            } else {
+                if (operatorTime - relativeSize < Long.MIN_VALUE + allowedLateness + 1) {
+                    return Long.MIN_VALUE;
+                }
+            }
+
             return operatorTime - relativeSize - allowedLateness - 1;
         } else {
             // When operatorTime = Long.MaxValue, it means the stream has reached the end.
