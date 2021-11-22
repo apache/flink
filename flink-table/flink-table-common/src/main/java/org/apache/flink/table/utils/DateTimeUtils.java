@@ -317,6 +317,7 @@ public class DateTimeUtils {
     // --------------------------------------------------------------------------------------------
     // String --> Timestamp conversion
     // --------------------------------------------------------------------------------------------
+
     public static TimestampData toTimestampData(String dateStr) {
         int length = dateStr.length();
         String format;
@@ -411,7 +412,7 @@ public class DateTimeUtils {
      * @param format date time string format
      * @param tz the time zone
      */
-    public static Long toTimestamp(String dateStr, String format, TimeZone tz) {
+    private static Long toTimestamp(String dateStr, String format, TimeZone tz) {
         SimpleDateFormat formatter = FORMATTER_CACHE.get(format);
         formatter.setTimeZone(tz);
         try {
@@ -1717,7 +1718,7 @@ public class DateTimeUtils {
         return timeStringToUnixDate(v, 0);
     }
 
-    public static Integer timeStringToUnixDate(String v, int start) {
+    private static Integer timeStringToUnixDate(String v, int start) {
         final int colon1 = v.indexOf(':', start);
         // timezone hh:mm:ss[.ssssss][[+|-]hh:mm:ss]
         // refer https://www.w3.org/TR/NOTE-datetime

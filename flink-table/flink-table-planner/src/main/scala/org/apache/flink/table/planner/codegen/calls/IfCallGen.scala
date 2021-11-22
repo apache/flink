@@ -19,10 +19,9 @@
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, primitiveDefaultValue, primitiveTypeTermForType}
-import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens.toCastContext
-import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens.toCodegenCastContext
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.functions.casting.{CastRuleProvider, ExpressionCodeGeneratorCastRule}
-import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.types.logical.LogicalType
 
 /**
@@ -86,7 +85,7 @@ class IfCallGen() extends CallGenerator {
       rule match {
         case codeGeneratorCastRule: ExpressionCodeGeneratorCastRule[_, _] =>
           codeGeneratorCastRule.generateExpression(
-            toCastContext(ctx),
+            toCodegenCastContext(ctx),
             expr.resultTerm,
             expr.resultType,
             targetType
