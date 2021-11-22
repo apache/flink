@@ -24,7 +24,7 @@ under the License.
 
 # Windowing table-valued functions (Windowing TVFs)
 
-{{< label Streaming >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 Windows are at the heart of processing infinite streams. Windows split the stream into “buckets” of finite size, over which we can apply computations. This document focuses on how windowing is performed in Flink SQL and how the programmer can benefit to the maximum from its offered functionality.
 
@@ -49,8 +49,8 @@ See more how to apply further computations based on windowing TVF:
 ## Window Functions
 
 Apache Flink provides 3 built-in windowing TVFs: `TUMBLE`, `HOP` and `CUMULATE`. The return value of windowing TVF is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. 
-For SQL queries on streaming tables, the "window_time" field is a [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the window. 
-For SQL on batch tables, the "window_time" field is an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ` based on input time field type. 
+In streaming mode, the "window_time" field is a [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the window. 
+In batch mode, the "window_time" field is an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ` based on input time field type. 
 The "window_time" field can be used in subsequent time-based operations, e.g. another windowing TVF, or <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>, <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>. The value of `window_time` always equal to `window_end - 1ms`.
 
 ### TUMBLE
@@ -60,8 +60,8 @@ The `TUMBLE` function assigns each element to a window of specified window size.
 {{< img src="/fig/tumbling-windows.svg" alt="Tumbling Windows" width="70%">}}
 
 The `TUMBLE` function assigns a window for each row of a relation based on a time attribute field.
-For SQL queries on streaming tables, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
-For SQL on batch tables, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
+In streaming mode, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
+In batch mode, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
 The return value of `TUMBLE` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
 
 `TUMBLE` function takes three required parameters, one optional parameter:
@@ -148,8 +148,8 @@ For example, you could have windows of size 10 minutes that slides by 5 minutes.
 {{< img src="/fig/sliding-windows.svg" alt="Hopping windows" width="70%">}}
 
 The `HOP` function assigns windows that cover rows within the interval of size and shifting every slide based on a time attribute field.
-For SQL queries on streaming tables, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
-For SQL on batch tables, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
+In streaming mode, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
+In batch mode, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
 The return value of `HOP` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after windowing TVF.
 
 `HOP` takes four required parameters, one optional parameter:
@@ -224,8 +224,8 @@ For example, you could have a cumulating window for 1 hour step and 1 day max si
 {{< img src="/fig/cumulating-windows.png" alt="Cumulating Windows" width="70%">}}
 
 The `CUMULATE` functions assigns windows based on a time attribute column.
-For SQL queries on streaming tables, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
-For SQL on batch tables, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
+In streaming mode, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
+In batch mode, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
 The return value of `CUMULATE` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
 
 `CUMULATE` takes four required parameters, one optional parameter:

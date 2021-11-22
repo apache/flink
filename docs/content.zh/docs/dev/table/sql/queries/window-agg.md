@@ -41,8 +41,8 @@ Unlike other aggregations on continuous tables, window aggregation do not emit i
 ### Windowing TVFs
 
 Flink supports `TUMBLE`, `HOP` and `CUMULATE` types of window aggregations.
-For SQL queries on streaming tables, the time attribute field of a window table-valued function must be on either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). See [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) for more windowing functions information.
-For SQL on batch tables, the time attribute field of a window table-valued function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
+In streaming mode, the time attribute field of a window table-valued function must be on either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). See [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) for more windowing functions information.
+In batch mode, the time attribute field of a window table-valued function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
 
 Here are some examples for `TUMBLE`, `HOP` and `CUMULATE` window aggregations.
 
@@ -255,9 +255,9 @@ Group Window Aggregations are defined in the `GROUP BY` clause of a SQL query. J
 
 ### Time Attributes
 
-For SQL queries on streaming tables, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) to learn how to define time attributes.
+In streaming mode, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) to learn how to define time attributes.
 
-For SQL on batch tables, the `time_attr` argument of the group window function must be an attribute of type `TIMESTAMP`.
+In batch mode, the `time_attr` argument of the group window function must be an attribute of type `TIMESTAMP`.
 
 ### Selecting Group Window Start and End Timestamps
 
