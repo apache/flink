@@ -808,38 +808,6 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     listener.close()
   }
 
-  @Test
-  def testSqlSnapshotWithCTE(): Unit = {
-    tEnv.executeSql(
-      """
-        |CREATE TABLE T1 (
-        |  a INT,
-        |  b STRING,
-        |  proctime AS PROCTIME()
-        |) WITH (
-        |  'connector' = 'values',
-        |  'bounded' = 'true'
-        |)
-        |""".stripMargin)
-    tEnv.executeSql(
-      """
-        |CREATE TABLE T2 (
-        |  a INT,
-        |  b STRING
-        |) WITH (
-        |  'connector' = 'values',
-        |  'bounded' = 'true'
-        |)
-        |""".stripMargin)
-    tEnv.explainSql(
-      """
-        |WITH MyView(a, b) AS (SELECT a, b FROM T2)
-        |SELECT * FROM T1 AS T
-        |LEFT JOIN MyView FOR SYSTEM_TIME AS OF T.proctime AS D
-        |ON T.a = D.a
-        |""".stripMargin)
-  }
-
   def getPersonData: List[(String, Int, Double, String)] = {
     val data = new mutable.MutableList[(String, Int, Double, String)]
     data.+=(("Mike", 1, 12.3, "Smith"))
