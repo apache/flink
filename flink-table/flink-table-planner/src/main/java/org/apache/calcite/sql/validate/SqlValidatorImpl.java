@@ -4711,7 +4711,12 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                         Static.RESOURCE.illegalExpressionForTemporal(
                                 dataType.getSqlTypeName().getName()));
             }
-            if (ns.getTable() != null && !ns.getTable().isTemporal()) {
+            if (ns instanceof IdentifierNamespace && ns.resolve() instanceof WithItemNamespace) {
+                // If the snapshot is used over a CTE, and then we don't have a concrete underlying
+                // table to operate on.
+                return;
+            }
+            if (!ns.getTable().isTemporal()) {
                 List<String> qualifiedName = ns.getTable().getQualifiedName();
                 String tableName = qualifiedName.get(qualifiedName.size() - 1);
                 throw newValidationError(
