@@ -804,7 +804,7 @@ hashfunctions:
     description: 以 32 个十六进制数字的字符串形式返回 string 的 MD5 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA1(string)
     table: STRING.sha1()
-    description: 以 56 个十六进制数字的字符串形式返回 string 的 SHA-224 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    description: 以 40 个十六进制数字的字符串形式返回 string 的 SHA-1 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA224(string)
     table: STRING.sha224()
     description: 以 56 个十六进制数字的字符串形式返回 string 的 SHA-224 哈希值；如果字符串为 `NULL`，则返回 `NULL`。

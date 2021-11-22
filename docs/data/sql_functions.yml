@@ -675,7 +675,7 @@ hashfunctions:
     description: Returns the MD5 hash of string as a string of 32 hexadecimal digits; returns NULL if string is NULL.
   - sql: SHA1(string)
     table: STRING.sha1()
-    description: Returns the SHA-224 hash of string as a string of 56 hexadecimal digits; returns NULL if string is NULL.
+    description: Returns the SHA-1 hash of string as a string of 40 hexadecimal digits; returns NULL if string is NULL.
   - sql: SHA224(string)
     table: STRING.sha224()
     description: Returns the SHA-224 hash of string as a string of 56 hexadecimal digits; returns NULL if string is NULL.
