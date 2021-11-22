@@ -22,18 +22,15 @@ import { EMPTY, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
-import { OverviewInterface } from 'interfaces';
+import { Overview } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
 })
 export class OverviewService {
-  constructor(private httpClient: HttpClient) {}
+  constructor(private readonly httpClient: HttpClient) {}
 
-  /**
-   * Get cluster overview status
-   */
-  loadOverview(): Observable<OverviewInterface> {
-    return this.httpClient.get<OverviewInterface>(`${BASE_URL}/overview`).pipe(catchError(() => EMPTY));
+  public loadOverview(): Observable<Overview> {
+    return this.httpClient.get<Overview>(`${BASE_URL}/overview`).pipe(catchError(() => EMPTY));
   }
 }

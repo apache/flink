@@ -32,12 +32,25 @@ import { JobManagerService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerStdoutComponent implements OnInit, OnDestroy {
-  stdout = '';
-  loading = true;
-  editorOptions: EditorOptions = flinkEditorOptions;
-  private destroy$ = new Subject<void>();
+  public readonly editorOptions: EditorOptions = flinkEditorOptions;
 
-  reload(): void {
+  public stdout = '';
+  public loading = true;
+
+  private readonly destroy$ = new Subject<void>();
+
+  constructor(private readonly jobManagerService: JobManagerService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
+    this.reload();
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public reload(): void {
     this.loading = true;
     this.cdr.markForCheck();
     this.jobManagerService
@@ -48,16 +61,5 @@ export class JobManagerStdoutComponent implements OnInit, OnDestroy {
         this.stdout = data;
         this.cdr.markForCheck();
       });
-  }
-
-  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit(): void {
-    this.reload();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

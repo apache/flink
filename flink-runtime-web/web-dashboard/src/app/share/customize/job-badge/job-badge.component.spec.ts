@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-import { SafeAny } from 'interfaces';
+import { render, screen } from '@testing-library/angular';
 
-export function deepFind(obj: SafeAny, path: string): SafeAny {
-  const paths = path.split('.');
-  let current = obj;
-  for (let i = 0; i < paths.length; ++i) {
-    const rePath = paths[i].replace('$', '.');
-    if (current[rePath] === undefined) {
-      return undefined;
-    } else {
-      current = current[rePath];
-    }
-  }
-  return current;
-}
+import { JobBadgeComponent } from './job-badge.component';
+
+describe('A job badge', () => {
+  it('displays the state', async () => {
+    await render(JobBadgeComponent, {
+      componentProperties: {
+        state: 'RUNNING'
+      }
+    });
+
+    expect(screen.getByText('RUNNING'));
+  });
+});

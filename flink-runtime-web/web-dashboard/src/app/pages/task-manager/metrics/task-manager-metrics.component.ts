@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerDetail } from 'interfaces';
 import { TaskManagerService } from 'services';
 
 @Component({
@@ -30,13 +30,14 @@ import { TaskManagerService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject();
-  taskManagerDetail: TaskManagerDetailInterface;
-  metrics: { [id: string]: number } = {};
+  public taskManagerDetail: TaskManagerDetail;
+  public metrics: { [id: string]: number } = {};
 
-  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
+  private readonly destroy$ = new Subject<void>();
 
-  ngOnInit(): void {
+  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
     this.taskManagerService.taskManagerDetail$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       this.taskManagerDetail = data;
       this.taskManagerService
@@ -58,7 +59,7 @@ export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

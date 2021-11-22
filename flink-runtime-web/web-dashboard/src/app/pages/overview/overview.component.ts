@@ -18,10 +18,10 @@
 
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { flatMap, share, takeUntil } from 'rxjs/operators';
+import { mergeMap, share, takeUntil } from 'rxjs/operators';
 
-import { JobsItemInterface } from 'interfaces';
-import { StatusService, JobService } from 'services';
+import { JobsItem } from 'interfaces';
+import { JobService, StatusService } from 'services';
 
 @Component({
   selector: 'flink-overview',
@@ -30,20 +30,21 @@ import { StatusService, JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OverviewComponent implements OnInit, OnDestroy {
-  jobData$: Observable<JobsItemInterface[]>;
-  destroy$ = new Subject();
+  public jobData$: Observable<JobsItem[]>;
 
-  constructor(private statusService: StatusService, private jobService: JobService) {}
+  private readonly destroy$ = new Subject<void>();
 
-  ngOnInit(): void {
+  constructor(private readonly statusService: StatusService, private readonly jobService: JobService) {}
+
+  public ngOnInit(): void {
     this.jobData$ = this.statusService.refresh$.pipe(
       takeUntil(this.destroy$),
-      flatMap(() => this.jobService.loadJobs()),
+      mergeMap(() => this.jobService.loadJobs()),
       share()
     );
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

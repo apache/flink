@@ -16,8 +16,15 @@
  * limitations under the License.
  */
 
-import { SafeAny } from 'interfaces';
+import { isNil } from './is-nil';
 
-export function isNil(value: SafeAny): boolean {
-  return value == null;
-}
+describe('is-nil', () => {
+  it('works', () => {
+    expect(isNil(undefined)).toBe(true);
+    expect(isNil(null)).toBe(true);
+
+    expect(isNil(0)).toBe(false);
+    expect(isNil(false)).toBe(false);
+    expect(isNil('')).toBe(false);
+  });
+});

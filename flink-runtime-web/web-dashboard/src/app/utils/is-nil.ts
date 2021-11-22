@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-export interface JobManagerLogItem {
-  name: string;
-  size: number;
-  mtime: number;
+export function isNil(value: unknown): value is undefined | null {
+  return value === undefined || value === null;
 }

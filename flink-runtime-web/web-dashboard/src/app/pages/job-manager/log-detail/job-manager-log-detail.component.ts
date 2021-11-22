@@ -36,21 +36,32 @@ import { JobManagerService } from 'services';
   styleUrls: ['./job-manager-log-detail.component.less']
 })
 export class JobManagerLogDetailComponent implements OnInit, OnDestroy {
-  logs = '';
-  logName = '';
-  downloadUrl = '';
-  isLoading = false;
-  isFullScreen = false;
-  editorOptions: EditorOptions = flinkEditorOptions;
-  private destroy$ = new Subject<void>();
+  public logs = '';
+  public logName = '';
+  public downloadUrl = '';
+  public isLoading = false;
+  public isFullScreen = false;
+  public editorOptions: EditorOptions = flinkEditorOptions;
+
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
-    private jobManagerService: JobManagerService,
-    private cdr: ChangeDetectorRef,
-    private activatedRoute: ActivatedRoute
+    private readonly jobManagerService: JobManagerService,
+    private readonly cdr: ChangeDetectorRef,
+    private readonly activatedRoute: ActivatedRoute
   ) {}
 
-  reload(): void {
+  public ngOnInit(): void {
+    this.logName = this.activatedRoute.snapshot.params.logName;
+    this.reload();
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public reload(): void {
     this.isLoading = true;
     this.cdr.markForCheck();
     this.jobManagerService
@@ -68,17 +79,7 @@ export class JobManagerLogDetailComponent implements OnInit, OnDestroy {
       });
   }
 
-  toggleFullScreen(fullScreen: boolean): void {
+  public toggleFullScreen(fullScreen: boolean): void {
     this.isFullScreen = fullScreen;
-  }
-
-  ngOnInit(): void {
-    this.logName = this.activatedRoute.snapshot.params.logName;
-    this.reload();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

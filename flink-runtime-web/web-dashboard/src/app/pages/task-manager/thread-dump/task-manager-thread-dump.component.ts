@@ -23,7 +23,7 @@ import { first, takeUntil } from 'rxjs/operators';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
-import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerDetail } from 'interfaces';
 import { TaskManagerService } from 'services';
 
 @Component({
@@ -33,13 +33,30 @@ import { TaskManagerService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
-  dump = '';
-  loading = true;
-  editorOptions: EditorOptions = flinkEditorOptions;
-  taskManagerDetail: TaskManagerDetailInterface;
-  private destroy$ = new Subject<void>();
+  public readonly editorOptions: EditorOptions = flinkEditorOptions;
 
-  reload(): void {
+  public dump = '';
+  public loading = true;
+  public taskManagerDetail: TaskManagerDetail;
+
+  private readonly destroy$ = new Subject<void>();
+
+  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
+    this.taskManagerService.taskManagerDetail$.pipe(first(), takeUntil(this.destroy$)).subscribe(data => {
+      this.taskManagerDetail = data;
+      this.reload();
+      this.cdr.markForCheck();
+    });
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public reload(): void {
     this.loading = true;
     this.cdr.markForCheck();
     if (this.taskManagerDetail) {
@@ -57,20 +74,5 @@ export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
           }
         );
     }
-  }
-
-  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$.pipe(first(), takeUntil(this.destroy$)).subscribe(data => {
-      this.taskManagerDetail = data;
-      this.reload();
-      this.cdr.markForCheck();
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

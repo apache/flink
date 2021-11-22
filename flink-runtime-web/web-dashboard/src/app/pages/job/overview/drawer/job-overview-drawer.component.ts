@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import { trigger, animate, style, transition } from '@angular/animations';
-import { Component, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/core';
+import { animate, style, transition, trigger } from '@angular/animations';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest, Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
@@ -49,7 +49,7 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
-  listOfNavigation = [
+  public readonly listOfNavigation = [
     { title: 'Detail', path: 'detail' },
     { title: 'SubTasks', path: 'subtasks' },
     { title: 'TaskManagers', path: 'taskmanagers' },
@@ -59,39 +59,27 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
     { title: 'Metrics', path: 'metrics' },
     { title: 'FlameGraph', path: 'flamegraph' }
   ];
-  fullScreen = false;
+
+  public fullScreen = false;
+
   private cachePath = this.listOfNavigation[0].path;
-  private destroy$ = new Subject();
 
-  closeDrawer(): void {
-    if (this.fullScreen) {
-      this.fullScreen = false;
-      this.jobChartService.resize();
-    } else {
-      this.router.navigate(['../../'], { relativeTo: this.activatedRoute }).then();
-    }
-  }
-
-  fullDrawer(): void {
-    this.fullScreen = true;
-    this.jobChartService.resize();
-  }
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
-    private activatedRoute: ActivatedRoute,
-    private router: Router,
-    private jobService: JobService,
-    private jobChartService: JobChartService
+    private readonly activatedRoute: ActivatedRoute,
+    private readonly router: Router,
+    private readonly jobService: JobService,
+    private readonly jobChartService: JobChartService
   ) {}
 
-  ngOnInit(): void {
+  public ngOnInit(): void {
     const nodeId$ = this.activatedRoute.params.pipe(map(item => item.vertexId));
-    combineLatest(this.jobService.jobDetail$.pipe(map(item => item.plan.nodes)), nodeId$)
+    combineLatest([this.jobService.jobDetail$.pipe(map(item => item.plan.nodes)), nodeId$])
       .pipe(takeUntil(this.destroy$))
-      .subscribe(data => {
-        const [nodes, nodeId] = data;
+      .subscribe(([nodes, nodeId]) => {
         if (!this.activatedRoute.firstChild) {
-          this.router.navigate([this.cachePath], { relativeTo: this.activatedRoute });
+          this.router.navigate([this.cachePath], { relativeTo: this.activatedRoute }).then();
         } else {
           this.cachePath = this.activatedRoute.firstChild.snapshot.data.path;
         }
@@ -101,9 +89,23 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.jobService.selectedVertex$.next(null);
+  }
+
+  public closeDrawer(): void {
+    if (this.fullScreen) {
+      this.fullScreen = false;
+      this.jobChartService.resize();
+    } else {
+      this.router.navigate(['../../'], { relativeTo: this.activatedRoute }).then();
+    }
+  }
+
+  public fullDrawer(): void {
+    this.fullScreen = true;
+    this.jobChartService.resize();
   }
 }

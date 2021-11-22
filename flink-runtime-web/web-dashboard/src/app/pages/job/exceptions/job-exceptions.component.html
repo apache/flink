@@ -46,7 +46,7 @@
           </tr>
         </thead>
         <tbody>
-          <ng-container *ngFor="let item of exceptionHistory; trackBy: trackExceptionBy">
+          <ng-container *ngFor="let item of exceptionHistory; trackBy: trackByTimestamp">
             <tr>
               <td nzShowExpand [(nzExpand)]="item.expand"></td>
               <td>{{ item.selected.timestamp | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
