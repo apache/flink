@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.types.logical.LogicalTypeRoot
 
@@ -27,7 +26,7 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
 import org.apache.calcite.sql.SqlBinaryOperator
-import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, EQUALS, IN, NOT_EQUALS, NOT_IN, OR, SEARCH}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, EQUALS, IN, NOT_EQUALS, NOT_IN, OR}
 import org.apache.calcite.tools.RelBuilder
 
 import scala.collection.JavaConversions._
