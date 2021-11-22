@@ -25,6 +25,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -100,6 +107,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -1477,6 +1485,96 @@ public class DefaultSchedulerTest extends TestLogger {
         shuffleMaster.completeAllPendingRegistrations();
         assertThat(trackedPartitions, hasSize(0));
         assertThat(shuffleMaster.getExternallyReleasedPartitions(), hasSize(1));
+    }
+
+    @Test
+    public void testCheckpointCleanerIsClosedAfterCheckpointServices() throws Exception {
+        final ScheduledExecutorService executorService =
+                Executors.newSingleThreadScheduledExecutor();
+        try {
+            doTestCheckpointCleanerIsClosedAfterCheckpointServices(
+                    (checkpointRecoveryFactory, checkpointCleaner) -> {
+                        final JobGraph jobGraph = singleJobVertexJobGraph(1);
+                        enableCheckpointing(jobGraph);
+                        try {
+                            return SchedulerTestingUtils.newSchedulerBuilder(
+                                            jobGraph,
+                                            ComponentMainThreadExecutorServiceAdapter
+                                                    .forSingleThreadExecutor(executorService))
+                                    .setCheckpointRecoveryFactory(checkpointRecoveryFactory)
+                                    .setCheckpointCleaner(checkpointCleaner)
+                                    .build();
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    },
+                    executorService);
+        } finally {
+            executorService.shutdownNow();
+        }
+    }
+
+    /**
+     * Visible for re-use in {@link
+     * org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerTest}.
+     */
+    public static void doTestCheckpointCleanerIsClosedAfterCheckpointServices(
+            BiFunction<CheckpointRecoveryFactory, CheckpointsCleaner, SchedulerNG> schedulerFactory,
+            ScheduledExecutorService executorService)
+            throws Exception {
+        final CountDownLatch checkpointServicesShutdownBlocked = new CountDownLatch(1);
+        final CountDownLatch cleanerClosed = new CountDownLatch(1);
+        final CompletedCheckpointStore completedCheckpointStore =
+                new StandaloneCompletedCheckpointStore(1) {
+
+                    @Override
+                    public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
+                            throws Exception {
+                        checkpointServicesShutdownBlocked.await();
+                        super.shutdown(jobStatus, checkpointsCleaner);
+                    }
+                };
+        final CheckpointIDCounter checkpointIDCounter =
+                new StandaloneCheckpointIDCounter() {
+
+                    @Override
+                    public void shutdown(JobStatus jobStatus) throws Exception {
+                        checkpointServicesShutdownBlocked.await();
+                        super.shutdown(jobStatus);
+                    }
+                };
+        final CheckpointsCleaner checkpointsCleaner =
+                new CheckpointsCleaner() {
+
+                    @Override
+                    public synchronized CompletableFuture<Void> closeAsync() {
+                        cleanerClosed.countDown();
+                        return super.closeAsync();
+                    }
+                };
+
+        final SchedulerNG scheduler =
+                schedulerFactory.apply(
+                        new TestingCheckpointRecoveryFactory(
+                                completedCheckpointStore, checkpointIDCounter),
+                        checkpointsCleaner);
+        final CompletableFuture<Void> schedulerClosed = new CompletableFuture<>();
+        final CountDownLatch schedulerClosing = new CountDownLatch(1);
+
+        executorService.submit(
+                () -> {
+                    scheduler.closeAsync().thenRun(() -> schedulerClosed.complete(null));
+                    schedulerClosing.countDown();
+                });
+
+        // Wait for scheduler to start closing.
+        schedulerClosing.await();
+        assertFalse(
+                "CheckpointCleaner should not close before checkpoint services.",
+                cleanerClosed.await(10, TimeUnit.MILLISECONDS));
+        checkpointServicesShutdownBlocked.countDown();
+        cleanerClosed.await();
+        schedulerClosed.get();
     }
 
     private static TaskExecutionState createFailedTaskExecutionState(
