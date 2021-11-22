@@ -265,9 +265,9 @@ function run_group_2 {
     EXIT_CODE=$?
 }
 
-if [ $1 == "1" ]; then
+if [ "$1" == "1" ]; then
     run_group_1
-elif [ $1 == "2" ]; then
+elif [ "$1" == "2" ]; then
     run_group_2
 else
     run_group_1
