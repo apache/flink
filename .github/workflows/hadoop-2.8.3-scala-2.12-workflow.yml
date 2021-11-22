@@ -21,22 +21,20 @@
 #  - custom triggered e2e tests
 #  - nightly builds
 
-name: "Hadoop 2.8.3"
+name: "Hadoop 2.8.3/Java 8/Scala 2.12 (Matthias)"
 
 on:
   push:
     branches:
-      - hackathon2021b-migrate-to-GHA
+      - hackathon2021b-matthias
   workflow_dispatch:
 
 jobs:
   ci:
-    uses: ververica/flink/.github/workflows/jobs-template-workflow.yml@hackathon2021b-migrate-to-GHA
+    uses: ververica/flink/.github/workflows/flink-ci-template.yml@hackathon2021b-matthias
     with:
-      stage_name: "ci"
       environment: 'PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12"'
-      jdk: 8
-      mode: ""
+      jdk-version: 8
     secrets:
       s3_bucket: ""
       s3_access_key: ""
