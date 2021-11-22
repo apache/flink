@@ -143,9 +143,9 @@ class FlinkStatistic(
       builder.append(relWindowProperties.toString).append(", ")
     }
 
-    if (builder.nonEmpty && builder.length() > 2) {
+    if (builder.nonEmpty && builder.length > 2) {
       // delete `, ` if build is not empty
-      builder.delete(builder.length() - 2, builder.length())
+      builder.delete(builder.length - 2, builder.length)
     }
     builder.toString()
   }
