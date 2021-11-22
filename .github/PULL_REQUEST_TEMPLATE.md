@@ -39,6 +39,8 @@
 
 ## Verifying this change
 
+Please make sure both new and modified tests in this PR follows the conventions defined in our code quality guide: https://flink.apache.org/contributing/code-style-and-quality-common.html#testing
+
 *(Please pick either of the following options)*
 
 This change is a trivial rework / code cleanup without any test coverage.
