@@ -687,16 +687,10 @@ class TableSinkITCase extends StreamingTestBase {
          |  'sink-changelog-mode-enforced' = 'I,D'
          |)
          |""".stripMargin)
+    // source is insert only, it never produce a delete, so we do not require a pk for the sink
     Try(tEnv
       .executeSql(s"INSERT INTO $sinkTableWithoutPkName SELECT * FROM $sourceTableName")
-      .await()) match {
-      case Failure(e) =>
-        val exception = ExceptionUtils
-          .findThrowableWithMessage(
-            e,
-            "a primary key is required")
-        assertTrue(exception.isPresent)
-    }
+      .await()).isSuccess
 
     tEnv.executeSql(
       s"""

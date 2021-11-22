@@ -121,9 +121,10 @@ class ChangelogSourceITCase(
       "user4,Tina,tina@gmail.com,11.30,22.60")
     assertEquals(expected.sorted, TestValuesTableFactory.getResults("user_sink").sorted)
 
-    // verify the update_before messages haven been filtered when scanning changelog source
     sourceMode match {
-      case CHANGELOG_SOURCE | CHANGELOG_SOURCE_WITH_EVENTS_DUPLICATE =>
+      // verify the update_before messages haven been filtered when scanning changelog source
+      // the CHANGELOG_SOURCE has I,UA,UB,D but no primary key, so we can not omit UB
+      case CHANGELOG_SOURCE_WITH_EVENTS_DUPLICATE =>
         val rawResult = TestValuesTableFactory.getRawResults("user_sink")
         val hasUB = rawResult.exists(r => r.startsWith("-U"))
         assertFalse(
