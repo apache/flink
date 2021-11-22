@@ -28,10 +28,13 @@ import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationS
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
+import org.apache.flink.testutils.junit.RetryOnFailure;
+import org.apache.flink.testutils.junit.RetryRule;
 
 import kafka.server.KafkaServer;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -59,7 +62,11 @@ import static org.junit.Assert.fail;
  * <p>Do not run this class in the same junit execution with other tests in your IDE. This may lead
  * leaking threads.
  */
+// This test is known to be unstable due to the test setup.
+@RetryOnFailure(times = 2)
 public class FlinkKafkaProducerITCase extends KafkaTestBase {
+
+    @Rule public final RetryRule retryRule = new RetryRule();
 
     protected String transactionalId;
     protected Properties extraProperties;
