@@ -68,7 +68,7 @@ class WindowTableFunctionTest extends TableTestBase {
         |SELECT *
         |FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '15' MINUTE))
         |""".stripMargin
-    util.verifyExplain(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -91,7 +91,7 @@ class WindowTableFunctionTest extends TableTestBase {
         |SELECT *
         |FROM TABLE(HOP(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '1' HOUR, INTERVAL '2' HOUR))
         |""".stripMargin
-    util.verifyExplain(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -115,7 +115,7 @@ class WindowTableFunctionTest extends TableTestBase {
         |FROM TABLE(
         | CUMULATE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
         |""".stripMargin
-    util.verifyExplain(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -144,7 +144,7 @@ class WindowTableFunctionTest extends TableTestBase {
         |FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '3' SECOND))
         |GROUP BY window_start, window_end, a
         |""".stripMargin
-    util.verifyExplain(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -160,7 +160,7 @@ class WindowTableFunctionTest extends TableTestBase {
         |)
         |GROUP BY window_start, window_end, b
         |""".stripMargin
-    util.verifyExplain(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -178,7 +178,7 @@ class WindowTableFunctionTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.b
       """.stripMargin
-    util.verifyRelPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -193,6 +193,6 @@ class WindowTableFunctionTest extends TableTestBase {
         |)
         |WHERE rownum <= 3
       """.stripMargin
-    util.verifyRelPlan(sql)
+    util.verifyExecPlan(sql)
   }
 }
