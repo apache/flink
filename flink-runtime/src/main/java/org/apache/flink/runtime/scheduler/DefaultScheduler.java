@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -111,6 +112,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final Consumer<ComponentMainThreadExecutor> startUpAction,
             final ScheduledExecutor delayExecutor,
             final ClassLoader userCodeLoader,
+            final CheckpointsCleaner checkpointsCleaner,
             final CheckpointRecoveryFactory checkpointRecoveryFactory,
             final JobManagerJobMetricGroup jobManagerJobMetricGroup,
             final SchedulingStrategyFactory schedulingStrategyFactory,
@@ -133,6 +135,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 ioExecutor,
                 jobMasterConfiguration,
                 userCodeLoader,
+                checkpointsCleaner,
                 checkpointRecoveryFactory,
                 jobManagerJobMetricGroup,
                 executionVertexVersioner,

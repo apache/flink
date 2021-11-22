@@ -167,9 +167,9 @@ public class AdaptiveScheduler
     private final ClassLoader userCodeClassLoader;
     private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
+    private final CheckpointsCleaner checkpointsCleaner;
     private final CompletedCheckpointStore completedCheckpointStore;
     private final CheckpointIDCounter checkpointIdCounter;
-    private final CheckpointsCleaner checkpointsCleaner;
 
     private final CompletableFuture<JobStatus> jobTerminationFuture = new CompletableFuture<>();
 
@@ -210,6 +210,7 @@ public class AdaptiveScheduler
             SlotAllocator slotAllocator,
             Executor ioExecutor,
             ClassLoader userCodeClassLoader,
+            CheckpointsCleaner checkpointsCleaner,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
             Duration initialResourceAllocationTimeout,
             Duration resourceStabilizationTimeout,
@@ -238,6 +239,7 @@ public class AdaptiveScheduler
         this.restartBackoffTimeStrategy = restartBackoffTimeStrategy;
         this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
         this.fatalErrorHandler = fatalErrorHandler;
+        this.checkpointsCleaner = checkpointsCleaner;
         this.completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
                         jobGraph,
@@ -248,7 +250,6 @@ public class AdaptiveScheduler
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
                         jobGraph, checkpointRecoveryFactory);
-        this.checkpointsCleaner = new CheckpointsCleaner();
 
         this.slotAllocator = slotAllocator;
 
@@ -420,12 +421,12 @@ public class AdaptiveScheduler
 
         backgroundTask.abort();
         // wait for the background task to finish and then close services
-        return CompletableFuture.allOf(
+        return FutureUtils.composeAfterwards(
                 FutureUtils.runAfterwardsAsync(
                         backgroundTask.getTerminationFuture(),
                         () -> stopCheckpointServicesSafely(jobTerminationFuture.get()),
                         getMainThreadExecutor()),
-                checkpointsCleaner.closeAsync());
+                checkpointsCleaner::closeAsync);
     }
 
     private void stopCheckpointServicesSafely(JobStatus terminalState) {

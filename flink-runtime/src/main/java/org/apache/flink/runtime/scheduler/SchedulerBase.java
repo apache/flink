@@ -157,6 +157,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             final Executor ioExecutor,
             final Configuration jobMasterConfiguration,
             final ClassLoader userCodeLoader,
+            final CheckpointsCleaner checkpointsCleaner,
             final CheckpointRecoveryFactory checkpointRecoveryFactory,
             final JobManagerJobMetricGroup jobManagerJobMetricGroup,
             final ExecutionVertexVersioner executionVertexVersioner,
@@ -174,7 +175,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
         this.mainThreadExecutor = mainThreadExecutor;
 
-        this.checkpointsCleaner = new CheckpointsCleaner();
+        this.checkpointsCleaner = checkpointsCleaner;
         this.completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
                         jobGraph,
@@ -599,12 +600,13 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         final FlinkException cause = new FlinkException("Scheduler is being stopped.");
 
         final CompletableFuture<Void> checkpointServicesShutdownFuture =
-                CompletableFuture.allOf(
+                FutureUtils.composeAfterwards(
                         executionGraph
                                 .getTerminationFuture()
                                 .thenAcceptAsync(
                                         this::shutDownCheckpointServices, getMainThreadExecutor()),
-                        checkpointsCleaner.closeAsync());
+                        checkpointsCleaner::closeAsync);
+
         FutureUtils.assertNoException(checkpointServicesShutdownFuture);
 
         incrementVersionsOfAllVertices();

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
@@ -400,6 +401,7 @@ public class SchedulerTestingUtils {
         private ScheduledExecutor delayExecutor =
                 new ScheduledExecutorServiceAdapter(futureExecutor);
         private ClassLoader userCodeLoader = ClassLoader.getSystemClassLoader();
+        private CheckpointsCleaner checkpointCleaner = new CheckpointsCleaner();
         private CheckpointRecoveryFactory checkpointRecoveryFactory =
                 new StandaloneCheckpointRecoveryFactory();
         private Time rpcTimeout = DEFAULT_TIMEOUT;
@@ -455,6 +457,12 @@ public class SchedulerTestingUtils {
 
         public DefaultSchedulerBuilder setUserCodeLoader(final ClassLoader userCodeLoader) {
             this.userCodeLoader = userCodeLoader;
+            return this;
+        }
+
+        public DefaultSchedulerBuilder setCheckpointCleaner(
+                final CheckpointsCleaner checkpointsCleaner) {
+            this.checkpointCleaner = checkpointsCleaner;
             return this;
         }
 
@@ -554,6 +562,7 @@ public class SchedulerTestingUtils {
                     componentMainThreadExecutor -> {},
                     delayExecutor,
                     userCodeLoader,
+                    checkpointCleaner,
                     checkpointRecoveryFactory,
                     jobManagerJobMetricGroup,
                     schedulingStrategyFactory,
