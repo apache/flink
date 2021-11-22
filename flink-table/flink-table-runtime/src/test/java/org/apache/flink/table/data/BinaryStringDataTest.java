@@ -60,6 +60,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -420,29 +421,29 @@ public class BinaryStringDataTest {
     @Test
     public void testToNumeric() {
         // Test to integer.
-        assertEquals(Byte.valueOf("123"), toByte(fromString("123")));
-        assertEquals(Byte.valueOf("123"), toByte(fromString("+123")));
-        assertEquals(Byte.valueOf("-123"), toByte(fromString("-123")));
+        assertEquals(Byte.parseByte("123"), toByte(fromString("123")));
+        assertEquals(Byte.parseByte("123"), toByte(fromString("+123")));
+        assertEquals(Byte.parseByte("-123"), toByte(fromString("-123")));
 
-        assertEquals(Short.valueOf("123"), toShort(fromString("123")));
-        assertEquals(Short.valueOf("123"), toShort(fromString("+123")));
-        assertEquals(Short.valueOf("-123"), toShort(fromString("-123")));
+        assertEquals(Short.parseShort("123"), toShort(fromString("123")));
+        assertEquals(Short.parseShort("123"), toShort(fromString("+123")));
+        assertEquals(Short.parseShort("-123"), toShort(fromString("-123")));
 
-        assertEquals(Integer.valueOf("123"), toInt(fromString("123")));
-        assertEquals(Integer.valueOf("123"), toInt(fromString("+123")));
-        assertEquals(Integer.valueOf("-123"), toInt(fromString("-123")));
+        assertEquals(Integer.parseInt("123"), toInt(fromString("123")));
+        assertEquals(Integer.parseInt("123"), toInt(fromString("+123")));
+        assertEquals(Integer.parseInt("-123"), toInt(fromString("-123")));
 
-        assertEquals(Long.valueOf("1234567890"), toLong(fromString("1234567890")));
-        assertEquals(Long.valueOf("+1234567890"), toLong(fromString("+1234567890")));
-        assertEquals(Long.valueOf("-1234567890"), toLong(fromString("-1234567890")));
+        assertEquals(Long.parseLong("1234567890"), toLong(fromString("1234567890")));
+        assertEquals(Long.parseLong("+1234567890"), toLong(fromString("+1234567890")));
+        assertEquals(Long.parseLong("-1234567890"), toLong(fromString("-1234567890")));
 
         // Test decimal string to integer.
-        assertEquals(Integer.valueOf("123"), toInt(fromString("123.456789")));
-        assertEquals(Long.valueOf("123"), toLong(fromString("123.456789")));
+        assertEquals(Integer.parseInt("123"), toInt(fromString("123.456789")));
+        assertEquals(Long.parseLong("123"), toLong(fromString("123.456789")));
 
         // Test negative cases.
-        assertNull(toInt(fromString("1a3.456789")));
-        assertNull(toInt(fromString("123.a56789")));
+        assertThrows(NumberFormatException.class, () -> toInt(fromString("1a3.456789")));
+        assertThrows(NumberFormatException.class, () -> toInt(fromString("123.a56789")));
 
         // Test composite in BinaryRowData.
         BinaryRowData row = new BinaryRowData(20);
@@ -453,10 +454,10 @@ public class BinaryStringDataTest {
         writer.writeString(3, BinaryStringData.fromString("123456789"));
         writer.complete();
 
-        assertEquals(Byte.valueOf("1"), toByte(((BinaryStringData) row.getString(0))));
-        assertEquals(Short.valueOf("123"), toShort(((BinaryStringData) row.getString(1))));
-        assertEquals(Integer.valueOf("12345"), toInt(((BinaryStringData) row.getString(2))));
-        assertEquals(Long.valueOf("123456789"), toLong(((BinaryStringData) row.getString(3))));
+        assertEquals(Byte.parseByte("1"), toByte(((BinaryStringData) row.getString(0))));
+        assertEquals(Short.parseShort("123"), toShort(((BinaryStringData) row.getString(1))));
+        assertEquals(Integer.parseInt("12345"), toInt(((BinaryStringData) row.getString(2))));
+        assertEquals(Long.parseLong("123456789"), toLong(((BinaryStringData) row.getString(3))));
     }
 
     @Test

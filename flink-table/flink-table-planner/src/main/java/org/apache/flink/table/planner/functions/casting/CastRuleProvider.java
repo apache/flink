@@ -58,6 +58,14 @@ public class CastRuleProvider {
                 .addRule(MapAndMultisetToStringCastRule.INSTANCE)
                 .addRule(RowToStringCastRule.INSTANCE)
                 .addRule(RawToStringCastRule.INSTANCE)
+                // From string rules
+                .addRule(StringToBooleanCastRule.INSTANCE)
+                .addRule(StringToDecimalCastRule.INSTANCE)
+                .addRule(StringToNumericPrimitiveCastRule.INSTANCE)
+                .addRule(StringToDateCastRule.INSTANCE)
+                .addRule(StringToTimeCastRule.INSTANCE)
+                .addRule(StringToTimestampCastRule.INSTANCE)
+                .addRule(StringToBinaryCastRule.INSTANCE)
                 // Collection rules
                 .addRule(ArrayToArrayCastRule.INSTANCE)
                 // Special rules

@@ -25,7 +25,9 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import java.util.Collections;
 
+import static org.apache.flink.table.planner.codegen.CodeGenUtils.boxedTypeTermForType;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.box;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.cast;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.unbox;
 
 /**
@@ -71,7 +73,14 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
                         box(
                                 generateExpression(
                                         createCodeGeneratorCastRuleContext(context),
-                                        unbox(inputArgumentName, inputLogicalType),
+                                        unbox(
+                                                // We need the casting because the rules uses the
+                                                // concrete classes (e.g. StringData and
+                                                // BinaryStringData)
+                                                cast(
+                                                        boxedTypeTermForType(inputLogicalType),
+                                                        inputArgumentName),
+                                                inputLogicalType),
                                         inputLogicalType,
                                         targetLogicalType),
                                 targetLogicalType));

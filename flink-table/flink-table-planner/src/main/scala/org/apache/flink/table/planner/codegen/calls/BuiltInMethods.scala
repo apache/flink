@@ -22,11 +22,10 @@ import org.apache.flink.table.data.{DecimalData, DecimalDataUtils, TimestampData
 import org.apache.flink.table.runtime.functions._
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange
-
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
 import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
-import org.apache.flink.table.data.binary.BinaryStringData
+import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUtil}
 
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
@@ -402,16 +401,6 @@ object BuiltInMethods {
     "toTimestampData",
     classOf[String], classOf[String])
 
-  val STRING_TO_TIMESTAMP_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "toTimestamp",
-    classOf[String], classOf[TimeZone])
-
-  val STRING_TO_TIMESTAMP_WITH_FORMAT_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "toTimestamp",
-    classOf[String], classOf[String], classOf[TimeZone])
-
   val TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_DATE = Types.lookupMethod(
     classOf[DateTimeUtils],
     "timestampWithLocalZoneToDate",
@@ -546,6 +535,60 @@ object BuiltInMethods {
 
   val BINARY_STRING_DATA_FROM_STRING = Types.lookupMethod(classOf[BinaryStringData], "fromString",
     classOf[String])
+
+  val STRING_DATA_TO_BOOLEAN = Types.lookupMethod(
+    classOf[BinaryStringDataUtil],
+    "toBoolean",
+    classOf[BinaryStringData])
+
+  val STRING_DATA_TO_DECIMAL = Types.lookupMethod(
+    classOf[BinaryStringDataUtil],
+    "toDecimal",
+    classOf[BinaryStringData],
+    classOf[Int],
+    classOf[Int])
+
+  val STRING_DATA_TO_LONG = Types.lookupMethod(
+    classOf[BinaryStringDataUtil],
+    "toLong",
+    classOf[BinaryStringData])
+
+  val STRING_DATA_TO_INT = Types.lookupMethod(
+    classOf[BinaryStringDataUtil],
+    "toInt",
+    classOf[BinaryStringData])
+
+  val STRING_DATA_TO_SHORT = Types.lookupMethod(
+    classOf[BinaryStringDataUtil],
+    "toShort",
+    classOf[BinaryStringData])
+
+  val STRING_DATA_TO_BYTE = Types.lookupMethod(
+    classOf[BinaryStringDataUtil],
+    "toByte",
+    classOf[BinaryStringData])
+
+  val STRING_DATA_TO_FLOAT = Types.lookupMethod(
+    classOf[BinaryStringDataUtil],
+    "toFloat",
+    classOf[BinaryStringData])
+
+  val STRING_DATA_TO_DOUBLE = Types.lookupMethod(
+    classOf[BinaryStringDataUtil],
+    "toDouble",
+    classOf[BinaryStringData])
+
+  val STRING_DATA_TO_DATE = Types.lookupMethod(
+    classOf[BinaryStringDataUtil], "toDate", classOf[BinaryStringData])
+
+  val STRING_DATA_TO_TIME = Types.lookupMethod(
+    classOf[BinaryStringDataUtil], "toTime", classOf[BinaryStringData])
+
+  val STRING_DATA_TO_TIMESTAMP = Types.lookupMethod(
+    classOf[BinaryStringDataUtil], "toTimestamp", classOf[BinaryStringData])
+
+  val STRING_DATA_TO_TIMESTAMP_WITH_ZONE = Types.lookupMethod(
+    classOf[BinaryStringDataUtil], "toTimestamp", classOf[BinaryStringData], classOf[TimeZone])
 
   // DecimalData functions
 

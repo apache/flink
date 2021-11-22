@@ -31,4 +31,9 @@ abstract class AbstractCastRule<IN, OUT> implements CastRule<IN, OUT> {
     public CastRulePredicate getPredicateDefinition() {
         return predicate;
     }
+
+    @Override
+    public boolean canFail() {
+        return false;
+    }
 }
