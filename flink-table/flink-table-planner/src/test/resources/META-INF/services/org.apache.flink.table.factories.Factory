@@ -16,3 +16,4 @@
 org.apache.flink.table.planner.factories.TestValuesTableFactory
 org.apache.flink.table.planner.factories.TestFileFactory
 org.apache.flink.table.planner.factories.TableFactoryHarness$Factory
+

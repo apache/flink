@@ -768,9 +768,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       val sinkRequiredTraits = if (sinkTrait.equals(ONLY_UPDATE_AFTER)) {
         // if sink's pk(s) are not exactly match input changeLogUpsertKeys then it will fallback
         // to beforeAndAfter mode for the correctness
-        var shouldFallback: Boolean = false
-        val sinkDefinedPks = toScala(sink.catalogTable.getResolvedSchema
-            .getPrimaryKey).map(_.getColumns).map(toScala[String]).getOrElse(Seq())
+        var requireBeforeAndAfter: Boolean = false
+        val sinkDefinedPks = sink.catalogTable.getResolvedSchema.getPrimaryKeyIndexes
+
         if (sinkDefinedPks.nonEmpty) {
           val sinkColumns = sink.catalogTable.getResolvedSchema.getColumnNames
           val sinkPks = ImmutableBitSet.of(sinkDefinedPks.map(sinkColumns.indexOf): _*)
@@ -781,11 +781,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           // Notice: even sink pk(s) contains input upsert key we cannot optimize to UA only,
           // this differs from batch job's unique key inference
           if (changeLogUpsertKeys == null || changeLogUpsertKeys.size() == 0
-              || !changeLogUpsertKeys.exists {0 == _.compareTo(sinkPks)}) {
-            shouldFallback = true
+              || !changeLogUpsertKeys.exists {_.equals(sinkPks)}) {
+            requireBeforeAndAfter = true
           }
         }
-        if (shouldFallback) {
+        if (requireBeforeAndAfter) {
           Seq(beforeAndAfter)
         } else {
           Seq(onlyAfter, beforeAndAfter)
@@ -804,8 +804,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       val inputChangelogMode = ChangelogPlanUtils.getChangelogMode(
         sink.getInput.asInstanceOf[StreamPhysicalRel]).get
       val catalogTable = sink.catalogTable
-      val primaryKeys = toScala(catalogTable.getResolvedSchema
-          .getPrimaryKey).map(_.getColumns).map(toScala[String]).getOrElse(Seq())
+      val primaryKeys = catalogTable.getResolvedSchema.getPrimaryKeyIndexes
       val upsertMaterialize = tableConfig.getConfiguration.get(
         ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE) match {
         case UpsertMaterialize.FORCE => primaryKeys.nonEmpty
