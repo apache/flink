@@ -28,12 +28,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "Source: Custom File source",
     "pact" : "Data Source",
     "contents" : "Source: Custom File source",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "CsvTableSource(read fields: last)",
     "pact" : "Operator",
     "contents" : "CsvTableSource(read fields: last)",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -45,6 +47,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "SourceConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: last)]], fields=[last])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -56,6 +59,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "SinkConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SinkConversion To Row",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -67,6 +71,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "Map",
     "pact" : "Operator",
     "contents" : "Map",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -78,12 +83,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "Source: Custom File source",
     "pact" : "Data Source",
     "contents" : "Source: Custom File source",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "CsvTableSource(read fields: first)",
     "pact" : "Operator",
     "contents" : "CsvTableSource(read fields: first)",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -95,6 +102,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "SourceConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: first)]], fields=[first])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -106,6 +114,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "SinkConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SinkConversion To Row",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -117,6 +126,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "Map",
     "pact" : "Operator",
     "contents" : "Map",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -128,6 +138,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "Sink: CsvTableSink(first)",
     "pact" : "Data Sink",
     "contents" : "Sink: CsvTableSink(first)",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -139,6 +150,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "Sink: CsvTableSink(first)",
     "pact" : "Data Sink",
     "contents" : "Sink: CsvTableSink(first)",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

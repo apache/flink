@@ -79,6 +79,10 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.assertj.core.api.Assertions;
 import org.hamcrest.Description;
 import org.hamcrest.FeatureMatcher;
@@ -610,6 +614,27 @@ public class StreamGraphGeneratorTest extends TestLogger {
         }
         // IllegalArgumentException will be thrown without FLINK-9216
         env.getStreamGraph().getStreamingPlanAsJSON();
+    }
+
+    /** Tests that the generated Json graph has correct slot sharing group. */
+    @Test
+    public void testJsonGraphSlotSharingGroup() throws JsonProcessingException {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStream<Integer> source = env.fromElements(1, 2, 3);
+        source.map(x -> x + 1)
+                .slotSharingGroup("map")
+                .addSink(new DiscardingSink<>())
+                .slotSharingGroup("sink");
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode nodes =
+                mapper.readTree(env.getStreamGraph().getStreamingPlanAsJSON()).get("nodes");
+
+        assertEquals(
+                nodes.get(0).get(JSONGenerator.SLOT_SHARING_GROUP).asText(),
+                StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP);
+        assertEquals(nodes.get(1).get(JSONGenerator.SLOT_SHARING_GROUP).asText(), "map");
+        assertEquals(nodes.get(2).get(JSONGenerator.SLOT_SHARING_GROUP).asText(), "sink");
     }
 
     /** Test iteration job, check slot sharing group and co-location group. */

@@ -54,12 +54,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Source: source[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 4
   }, {
     "id" : ,
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
     "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 4,
     "predecessors" : [ {
       "id" : ,
@@ -92,12 +94,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Source: source[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 4
   }, {
     "id" : ,
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
     "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -130,12 +134,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Source: source[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "ConstraintEnforcer[]",
     "pact" : "Operator",
     "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[id])]",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -147,6 +153,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
     "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 9,
     "predecessors" : [ {
       "id" : ,
@@ -179,12 +186,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Source: source[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 4
   }, {
     "id" : ,
     "type" : "ConstraintEnforcer[]",
     "pact" : "Operator",
     "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[id])]",
+    "slot_sharing_group" : "default",
     "parallelism" : 4,
     "predecessors" : [ {
       "id" : ,
@@ -196,6 +205,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
     "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 4,
     "predecessors" : [ {
       "id" : ,
@@ -228,12 +238,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Source: source[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "ConstraintEnforcer[]",
     "pact" : "Operator",
     "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[id])]",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -245,6 +257,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
     "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 9,
     "predecessors" : [ {
       "id" : ,
@@ -368,12 +381,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Source: source[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "DropUpdateBefore[]",
     "pact" : "Operator",
     "contents" : "[]:DropUpdateBefore",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -385,6 +400,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "ConstraintEnforcer[]",
     "pact" : "Operator",
     "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[id])]",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -396,6 +412,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
     "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -436,12 +453,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, r
     "type" : "Source: source[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name, ts])",
+    "slot_sharing_group" : "default",
     "parallelism" : 4
   }, {
     "id" : ,
     "type" : "Rank[]",
     "pact" : "Operator",
     "contents" : "[]:Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[id], orderBy=[ts DESC], select=[id, city_name, ts])",
+    "slot_sharing_group" : "default",
     "parallelism" : 4,
     "predecessors" : [ {
       "id" : ,
@@ -453,6 +472,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, r
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[id, city_name, ts, 1 AS rn])",
+    "slot_sharing_group" : "default",
     "parallelism" : 4,
     "predecessors" : [ {
       "id" : ,
@@ -464,6 +484,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, r
     "type" : "ConstraintEnforcer[]",
     "pact" : "Operator",
     "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[id])]",
+    "slot_sharing_group" : "default",
     "parallelism" : 4,
     "predecessors" : [ {
       "id" : ,
@@ -475,6 +496,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, r
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
     "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, rn])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -661,12 +683,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Source: source[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "ConstraintEnforcer[]",
     "pact" : "Operator",
     "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[id])]",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -678,6 +702,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
     "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

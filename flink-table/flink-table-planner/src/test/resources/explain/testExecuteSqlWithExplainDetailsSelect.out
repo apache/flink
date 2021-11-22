@@ -18,12 +18,14 @@ Calc(select=[a, b, c], where=[(a > 10)])
     "type" : "Source: Custom Source",
     "pact" : "Data Source",
     "contents" : "Source: Custom Source",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SourceConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -35,6 +37,7 @@ Calc(select=[a, b, c], where=[(a > 10)])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, b, c], where=[(a > 10)])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

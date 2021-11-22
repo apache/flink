@@ -20,12 +20,14 @@ Sink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
     "type" : "Source: Values[]",
     "pact" : "Data Source",
     "contents" : "[]:Values(tuples=[[{ 0 }]])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[1 AS EXPR$0, 1 AS EXPR$1])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -37,6 +39,7 @@ Sink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
     "type" : "StreamingFileWriter",
     "pact" : "Operator",
     "contents" : "StreamingFileWriter",
+    "slot_sharing_group" : "default",
     "parallelism" : 8,
     "predecessors" : [ {
       "id" : ,
@@ -48,6 +51,7 @@ Sink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
     "type" : "Sink: end",
     "pact" : "Data Sink",
     "contents" : "Sink: end",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

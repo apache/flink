@@ -9,12 +9,14 @@ Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Sink: MySink[]",
     "pact" : "Data Sink",
     "contents" : "[]:Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

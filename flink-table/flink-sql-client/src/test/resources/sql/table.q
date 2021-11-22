@@ -721,12 +721,14 @@ Sink(table=[default_catalog.default_database.orders2], fields=[user, product, am
     "type" : "Source: orders[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "WatermarkAssigner[]",
     "pact" : "Operator",
     "contents" : "[]:WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -738,6 +740,7 @@ Sink(table=[default_catalog.default_database.orders2], fields=[user, product, am
     "type" : "ConstraintEnforcer[]",
     "pact" : "Operator",
     "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[user])]",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -749,6 +752,7 @@ Sink(table=[default_catalog.default_database.orders2], fields=[user, product, am
     "type" : "Sink: orders2[]",
     "pact" : "Data Sink",
     "contents" : "[]:Sink(table=[default_catalog.default_database.orders2], fields=[user, product, amount, ts])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -786,12 +790,14 @@ Calc(select=[user, product])
     "type" : "Source: orders[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[user, product, ts])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -803,6 +809,7 @@ Calc(select=[user, product])
     "type" : "WatermarkAssigner[]",
     "pact" : "Operator",
     "contents" : "[]:WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -814,6 +821,7 @@ Calc(select=[user, product])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[user, product])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -895,12 +903,14 @@ Calc(select=[user, product])
     "type" : "Source: orders[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[user, product, ts])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -912,6 +922,7 @@ Calc(select=[user, product])
     "type" : "WatermarkAssigner[]",
     "pact" : "Operator",
     "contents" : "[]:WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -923,6 +934,7 @@ Calc(select=[user, product])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[user, product])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

@@ -44,6 +44,7 @@ public class JSONGenerator {
     public static final String PACT = "pact";
     public static final String CONTENTS = "contents";
     public static final String PARALLELISM = "parallelism";
+    public static final String SLOT_SHARING_GROUP = "slot_sharing_group";
 
     private StreamGraph streamGraph;
     private final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
@@ -184,6 +185,8 @@ public class JSONGenerator {
         }
 
         node.put(CONTENTS, vertex.getOperatorDescription());
+
+        node.put(SLOT_SHARING_GROUP, vertex.getSlotSharingGroup());
 
         node.put(PARALLELISM, streamGraph.getStreamNode(vertexID).getParallelism());
     }

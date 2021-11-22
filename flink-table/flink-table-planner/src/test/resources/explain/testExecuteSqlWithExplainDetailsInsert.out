@@ -21,12 +21,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[d, e])
     "type" : "Source: Custom Source",
     "pact" : "Data Source",
     "contents" : "Source: Custom Source",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SourceConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -38,6 +40,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[d, e])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, b], where=[(a > 10)])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -49,6 +52,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[d, e])
     "type" : "SinkConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SinkConversion To Row",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -60,6 +64,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[d, e])
     "type" : "Sink: Unnamed",
     "pact" : "Data Sink",
     "contents" : "Sink: Unnamed",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

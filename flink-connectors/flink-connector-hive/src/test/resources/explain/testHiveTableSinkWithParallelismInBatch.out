@@ -20,12 +20,14 @@ Sink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
     "type" : "Source: Values[]",
     "pact" : "Data Source",
     "contents" : "[]:Values(tuples=[[{ 0 }]], values=[ZERO])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[1 AS EXPR$0, 1 AS EXPR$1])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -38,6 +40,7 @@ Sink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
     "pact" : "Operator",
     "contents" : "Map",
     "parallelism" : 8,
+    "slot_sharing_group" : "default",
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "REBALANCE",
@@ -48,6 +51,7 @@ Sink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
     "type" : "Sink: Unnamed",
     "pact" : "Data Sink",
     "contents" : "Sink: Unnamed",
+    "slot_sharing_group" : "default",
     "parallelism" : 8,
     "predecessors" : [ {
       "id" : ,

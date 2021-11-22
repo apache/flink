@@ -35,12 +35,14 @@ BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[
     "type" : "Source: Collection Source",
     "pact" : "Data Source",
     "contents" : "Source: Collection Source",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SourceConversion(table=[default_catalog.default_database.MyTable], fields=[f0])",
     "pact" : "Operator",
     "contents" : "SourceConversion(table=[default_catalog.default_database.MyTable], fields=[f0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -70,12 +72,14 @@ BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[
     "type" : "Source: Collection Source",
     "pact" : "Data Source",
     "contents" : "Source: Collection Source",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SourceConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable], fields=[f0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -111,12 +115,14 @@ Calc(select=[EXPR$0 AS s])
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])",
     "pact" : "Operator",
     "contents" : "Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -128,6 +134,7 @@ Calc(select=[EXPR$0 AS s])
     "type" : "Calc(select=[EXPR$0 AS s])",
     "pact" : "Operator",
     "contents" : "Calc(select=[EXPR$0 AS s])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -163,12 +170,14 @@ Calc(select=[EXPR$0 AS s])
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Correlate[]",
     "pact" : "Operator",
     "contents" : "[]:Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -180,6 +189,7 @@ Calc(select=[EXPR$0 AS s])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[EXPR$0 AS s])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -219,12 +229,14 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])",
     "pact" : "Operator",
     "contents" : "LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -236,6 +248,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])",
     "pact" : "Operator",
     "contents" : "HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -247,6 +260,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
     "pact" : "Operator",
     "contents" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -286,12 +300,14 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "HashWindowAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -303,6 +319,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "HashWindowAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -314,6 +331,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[b, w$end AS window_end, EXPR$2])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -356,12 +374,14 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "LocalHashAggregate(groupBy=[a, b], select=[a, b])",
     "pact" : "Operator",
     "contents" : "LocalHashAggregate(groupBy=[a, b], select=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -373,6 +393,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
     "pact" : "Operator",
     "contents" : "HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -384,6 +405,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
     "pact" : "Operator",
     "contents" : "LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -395,6 +417,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
     "pact" : "Operator",
     "contents" : "HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -437,12 +460,14 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "HashAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:LocalHashAggregate(groupBy=[a, b], select=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -454,6 +479,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "HashAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -465,6 +491,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "HashAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -476,6 +503,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "HashAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -516,18 +544,21 @@ HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0,
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])",
     "pact" : "Operator",
     "contents" : "HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -572,18 +603,21 @@ HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0,
     "type" : "Source: A[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Source: B[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "HashJoin[]",
     "pact" : "Operator",
     "contents" : "[]:HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -620,12 +654,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, i
     "type" : "Source: Collection Source",
     "pact" : "Data Source",
     "contents" : "Source: Collection Source",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SourceConversion(table=[default_catalog.default_database.MySource, source: [filterPushedDown=[false], filter=[]]], fields=[name, id, amount, price])",
     "pact" : "Operator",
     "contents" : "SourceConversion(table=[default_catalog.default_database.MySource, source: [filterPushedDown=[false], filter=[]]], fields=[name, id, amount, price])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -637,6 +673,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, i
     "type" : "SinkConversion To Row",
     "pact" : "Operator",
     "contents" : "SinkConversion To Row",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -648,6 +685,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, i
     "type" : "Sink: collect",
     "pact" : "Data Sink",
     "contents" : "Sink: collect",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -680,12 +718,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, i
     "type" : "Source: Collection Source",
     "pact" : "Data Source",
     "contents" : "Source: Collection Source",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SourceConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MySource, source: [filterPushedDown=[false], filter=[]]], fields=[name, id, amount, price])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -697,6 +737,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, i
     "type" : "SinkConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SinkConversion To Row",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -708,6 +749,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, i
     "type" : "Sink: collect",
     "pact" : "Data Sink",
     "contents" : "Sink: collect",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -744,12 +786,14 @@ Limit(offset=[0], fetch=[10], global=[true])
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[]]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[10]]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Limit(offset=[], fetch=[10], global=[false])",
     "pact" : "Operator",
     "contents" : "Limit(offset=[0], fetch=[10], global=[false])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -761,6 +805,7 @@ Limit(offset=[0], fetch=[10], global=[true])
     "type" : "Limit(offset=[], fetch=[10], global=[true])",
     "pact" : "Operator",
     "contents" : "Limit(offset=[0], fetch=[10], global=[true])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -797,12 +842,14 @@ Limit(offset=[0], fetch=[10], global=[true])
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[10]]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Limit[]",
     "pact" : "Operator",
     "contents" : "[]:Limit(offset=[0], fetch=[10], global=[false])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -814,6 +861,7 @@ Limit(offset=[0], fetch=[10], global=[true])
     "type" : "Limit[]",
     "pact" : "Operator",
     "contents" : "[]:Limit(offset=[0], fetch=[10], global=[true])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -854,12 +902,14 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -871,6 +921,7 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
     "type" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
     "pact" : "Operator",
     "contents" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -882,6 +933,7 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
     "type" : "Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -922,12 +974,14 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -938,7 +992,7 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
     "id" : ,
     "type" : "LookupJoin[]",
     "pact" : "Operator",
-    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
+    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -950,6 +1004,7 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -987,12 +1042,14 @@ Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, F
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1004,6 +1061,7 @@ Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, F
     "type" : "Match(orderBy=[proctime ASC], measures=[FINAL(A\".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])",
     "pact" : "Operator",
     "contents" : "Match(orderBy=[proctime ASC], measures=[FINAL(A\".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1041,12 +1099,14 @@ Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, F
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1058,6 +1118,7 @@ Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, F
     "type" : "Match[]",
     "pact" : "Operator",
     "contents" : "[]:Match(orderBy=[proctime ASC], measures=[FINAL(A\".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1105,24 +1166,28 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, C]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, C]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "MultipleInput(readOrder=[2,1,0], members=[\\nHashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])\\n:- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])\\n:  :- [#2] Exchange(distribution=[hash[a]])\\n:  +- [#3] Exchange(distribution=[hash[a]])\\n+- [#1] Exchange(distribution=[hash[a]])\\n])",
     "pact" : "Operator",
     "contents" : "MultipleInput(readOrder=[2,1,0], members=[\\nHashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])\\n:- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])\\n:  :- [#2] Exchange(distribution=[hash[a]])\\n:  +- [#3] Exchange(distribution=[hash[a]])\\n+- [#1] Exchange(distribution=[hash[a]])\\n])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1178,24 +1243,28 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
     "type" : "Source: C[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, C]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Source: A[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Source: B[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "MultipleInput[]",
     "pact" : "Operator",
     "contents" : "[]:MultipleInput(readOrder=[2,1,0], members=[\\nHashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])\\n:- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])\\n:  :- [#2] Exchange(distribution=[hash[a]])\\n:  +- [#3] Exchange(distribution=[hash[a]])\\n+- [#1] Exchange(distribution=[hash[a]])\\n])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1242,18 +1311,21 @@ NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[left])",
     "pact" : "Operator",
     "contents" : "NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[left])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1296,18 +1368,21 @@ NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b
     "type" : "Source: A[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Source: B[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "NestedLoopJoin[]",
     "pact" : "Operator",
     "contents" : "[]:NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[left])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1349,12 +1424,14 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Sort(orderBy=[b ASC, rowtime ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[b ASC, rowtime ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1366,6 +1443,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
     "pact" : "Operator",
     "contents" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1377,6 +1455,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "Calc(select=[b, w0$o0 AS $1])",
     "pact" : "Operator",
     "contents" : "Calc(select=[b, w0$o0 AS $1])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1414,12 +1493,14 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[b ASC, rowtime ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1431,6 +1512,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "OverAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1442,6 +1524,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[b, w0$o0 AS $1])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1481,12 +1564,14 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Sort(orderBy=[b ASC, a ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[b ASC, a ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1498,6 +1583,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
     "pact" : "Operator",
     "contents" : "OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1509,6 +1595,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1548,12 +1635,14 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[b ASC, a ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1565,6 +1654,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "OverAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1576,6 +1666,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1626,12 +1717,14 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Sort(orderBy=[a ASC, b ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[a ASC, b ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1643,6 +1736,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "LocalSortAggregate(groupBy=[a, b], select=[a, b])",
     "pact" : "Operator",
     "contents" : "LocalSortAggregate(groupBy=[a, b], select=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1654,6 +1748,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort(orderBy=[a ASC, b ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[a ASC, b ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1665,6 +1760,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
     "pact" : "Operator",
     "contents" : "SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1676,6 +1772,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort(orderBy=[a ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[a ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1687,6 +1784,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
     "pact" : "Operator",
     "contents" : "LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1698,6 +1796,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort(orderBy=[a ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[a ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1709,6 +1808,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
     "pact" : "Operator",
     "contents" : "SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1759,12 +1859,14 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[a ASC, b ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1776,6 +1878,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "SortAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:LocalSortAggregate(groupBy=[a, b], select=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1787,6 +1890,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[a ASC, b ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1798,6 +1902,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "SortAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1809,6 +1914,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[a ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1820,6 +1926,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "SortAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1831,6 +1938,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[a ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1842,6 +1950,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "SortAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1878,12 +1987,14 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SortLimit(orderBy=[a ASC], offset=[], fetch=[10], global=[false])",
     "pact" : "Operator",
     "contents" : "SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[false])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1895,6 +2006,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])
     "type" : "SortLimit(orderBy=[a ASC], offset=[], fetch=[10], global=[true])",
     "pact" : "Operator",
     "contents" : "SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1931,12 +2043,14 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SortLimit[]",
     "pact" : "Operator",
     "contents" : "[]:SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[false])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1948,6 +2062,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])
     "type" : "SortLimit[]",
     "pact" : "Operator",
     "contents" : "[]:SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1988,18 +2103,21 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0])",
     "pact" : "Operator",
     "contents" : "SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2043,12 +2161,14 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[b ASC, rowtime ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2060,6 +2180,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "SortWindowAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2071,6 +2192,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[b, w$end AS window_end, EXPR$2])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2111,18 +2233,21 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0
     "type" : "Source: A[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Source: B[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SortMergeJoin[]",
     "pact" : "Operator",
     "contents" : "[]:SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2166,12 +2291,14 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "Sort(orderBy=[b ASC, rowtime ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[b ASC, rowtime ASC])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2183,6 +2310,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
     "pact" : "Operator",
     "contents" : "SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2194,6 +2322,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
     "pact" : "Operator",
     "contents" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
+    "slot_sharing_group" : "default",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,

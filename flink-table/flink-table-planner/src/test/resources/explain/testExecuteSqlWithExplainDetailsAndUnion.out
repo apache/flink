@@ -22,12 +22,14 @@ Union(all=[true], union=[a, b, c])
     "type" : "Source: Custom Source",
     "pact" : "Data Source",
     "contents" : "Source: Custom Source",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SourceConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -39,12 +41,14 @@ Union(all=[true], union=[a, b, c])
     "type" : "Source: Custom Source",
     "pact" : "Data Source",
     "contents" : "Source: Custom Source",
+    "slot_sharing_group" : "default",
     "parallelism" : 1
   }, {
     "id" : ,
     "type" : "SourceConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable2, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
+    "slot_sharing_group" : "default",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
