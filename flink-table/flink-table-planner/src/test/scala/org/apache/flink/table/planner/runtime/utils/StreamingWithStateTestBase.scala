@@ -138,12 +138,10 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   }
 
   private def mapStrEquals(str1: String, str2: String): Boolean = {
-    val array1 = str1.toCharArray
-    val array2 = str2.toCharArray
-    if (array1.length != array2.length) {
+    if (str1.length != str2.length) {
       return false
     }
-    val l = array1.length
+    val l = str1.length
     val leftBrace = "{".charAt(0)
     val rightBrace = "}".charAt(0)
     val equalsChar = "=".charAt(0)
@@ -207,15 +205,16 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     }
 
     while (idx < l) {
-      val char1 = array1(idx)
-      val char2 = array2(idx)
+      val char1 = str1.charAt(idx)
+      val char2 = str2.charAt(idx)
       if (char1 != char2) {
         return false
       }
 
       if (char1 == leftBrace) {
-        val rightBraceIdx = array1.subSequence(idx + 1, l).toString.indexOf(rightBrace)
-        appendStrToMap(array1.subSequence(idx + 1, rightBraceIdx + idx + 2), map1)
+
+        val rightBraceIdx = str1.substring(idx + 1, l).indexOf(rightBrace)
+        appendStrToMap(str1.substring(idx + 1, rightBraceIdx + idx + 2), map1)
         idx += rightBraceIdx
       } else {
         idx += 1
