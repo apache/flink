@@ -1,5 +1,6 @@
 package org.apache.flink.mongodb.table.sink;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mongodb.connection.MongoClientProvider;
 import org.apache.flink.mongodb.connection.MongoColloctionProviders;
