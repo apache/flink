@@ -50,7 +50,7 @@ public class AutoCloseableRegistryTest extends TestLogger {
         AutoCloseableRegistry autoCloseableRegistry = new AutoCloseableRegistry();
         autoCloseableRegistry.registerCloseable(
                 () -> {
-                    throw new Exception("3");
+                    throw new AssertionError("3");
                 });
         autoCloseableRegistry.registerCloseable(
                 () -> {
@@ -68,7 +68,7 @@ public class AutoCloseableRegistryTest extends TestLogger {
         } catch (Exception ex) {
             assertEquals("1", ex.getMessage());
             assertEquals("2", ex.getSuppressed()[0].getMessage());
-            assertEquals("3", ex.getSuppressed()[1].getMessage());
+            assertEquals("java.lang.AssertionError: 3", ex.getSuppressed()[1].getMessage());
         }
     }
 }

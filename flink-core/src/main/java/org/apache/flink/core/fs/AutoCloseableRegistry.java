@@ -69,6 +69,6 @@ public class AutoCloseableRegistry
     /** This implementation implies that any exception is possible during closing. */
     @Override
     protected void doClose(List<AutoCloseable> toClose) throws Exception {
-        IOUtils.closeAll(reverse(toClose));
+        IOUtils.closeAll(reverse(toClose), Throwable.class);
     }
 }
