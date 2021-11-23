@@ -42,6 +42,10 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
     /**
      * Limit the total number of records read by this format. When the limit is reached, subsequent
      * readers will no longer read data.
+     *
+     * <p>LIMIT N would produce a list of N records totally. But the source can produce more. There
+     * are limiters in the downstream operator. The globalNumberRead is just for the total limit, as
+     * soon as someone has reached its limit, the source can be ended.
      */
     @Nullable private transient AtomicLong globalNumberRead;
 
@@ -115,6 +119,9 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
                 RecordIterator<T> batch = reader.readBatch();
                 return batch == null ? null : new LimitableIterator(batch);
             } catch (Exception e) {
+                // ignore any exception if someone reached limit
+                // Theoretically, once the limit bar is reached, whatever problems are encountered
+                // subsequently, the required task has been completed
                 if (reachLimit()) {
                     return null;
                 } else {
