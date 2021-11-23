@@ -1,4 +1,4 @@
-package org.apache.flink.mongodb.streaming.connection;
+package org.apache.flink.mongodb.connection;
 
 import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoCredential;
@@ -48,7 +48,15 @@ public class MongoSingleCollectionProvider implements MongoClientProvider {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MongoSingleCollectionProvider.class);
 
-    public MongoSingleCollectionProvider(String servers, String username, String password, WriteConcern writeConcern, boolean retryWrites, long timeout, String database, String defaultCollection) {
+    public MongoSingleCollectionProvider(
+            String servers,
+            String username,
+            String password,
+            WriteConcern writeConcern,
+            boolean retryWrites,
+            long timeout,
+            String database,
+            String defaultCollection) {
         this.database = database;
         this.defaultCollection = defaultCollection;
         this.servers = servers;
@@ -63,12 +71,16 @@ public class MongoSingleCollectionProvider implements MongoClientProvider {
     public MongoClient getClient() {
         synchronized (this) {
             if (client == null) {
-                MongoCredential credential = MongoCredential.createCredential(username, database, password.toCharArray());
+                MongoCredential credential = MongoCredential.createCredential(
+                        username,
+                        database,
+                        password.toCharArray());
                 List<ServerAddress> serverList = new ArrayList();
                 String[] serverAddressArr = servers.split(",");
                 for (String serverAddressStr : serverAddressArr) {
                     if (serverAddressStr.contains(":")) {
-                        serverList.add(new ServerAddress(serverAddressStr.split(":")[0],
+                        serverList.add(new ServerAddress(
+                                serverAddressStr.split(":")[0],
                                 Integer.parseInt(serverAddressStr.split(":")[1])));
                     } else {
                         serverList.add(new ServerAddress(serverAddressStr));
@@ -76,8 +88,12 @@ public class MongoSingleCollectionProvider implements MongoClientProvider {
                 }
                 MongoClientSettings settings = MongoClientSettings.builder()
                         .credential(credential)
+                        .applicationName("")
                         .writeConcern(writeConcern)
                         .retryWrites(retryWrites)
+                        .retryReads()
+                        .readPreference()
+                        .compressorList()
                         .applyToClusterSettings(builder -> {
                             builder.hosts(serverList);
                             builder.serverSelectionTimeout(timeout, TimeUnit.SECONDS);

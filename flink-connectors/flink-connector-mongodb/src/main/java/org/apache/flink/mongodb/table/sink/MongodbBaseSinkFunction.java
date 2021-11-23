@@ -1,8 +1,8 @@
 package org.apache.flink.mongodb.table.sink;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.mongodb.table.connection.MongoColloctionProviders;
-import org.apache.flink.mongodb.table.connection.MongoSingleCollectionProvider;
+import org.apache.flink.mongodb.connection.MongoClientProvider;
+import org.apache.flink.mongodb.connection.MongoColloctionProviders;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -20,15 +20,15 @@ public abstract class MongodbBaseSinkFunction<IN> extends RichSinkFunction<IN> i
     private final MongodbSinkConf mongodbSinkConf;
     private transient MongoClient client;
     private transient List<Document> batch;
-    private final MongoSingleCollectionProvider clientProvider;
+    private final MongoClientProvider clientProvider;
 
     protected MongodbBaseSinkFunction(MongodbSinkConf mongodbSinkConf) {
         this.mongodbSinkConf = mongodbSinkConf;
         this.clientProvider = MongoColloctionProviders
                 .getBuilder()
-                .connectionString(this.mongodbSinkConf.getUri())
-                .database(this.mongodbSinkConf.getDatabase())
-                .collection(this.mongodbSinkConf.getCollection()).build();
+                .setServers(this.mongodbSinkConf.getUri())
+                .setdatabase(this.mongodbSinkConf.getDatabase())
+                .setCollection(this.mongodbSinkConf.getCollection()).build();
     }
 
     @Override
@@ -68,9 +68,9 @@ public abstract class MongodbBaseSinkFunction<IN> extends RichSinkFunction<IN> i
         }
         MongoDatabase mongoDatabase = this.client.getDatabase(this.mongodbSinkConf.getDatabase());
 
-        MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(this.mongodbSinkConf.getCollection());
+        MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(this.mongodbSinkConf
+                .getCollection());
         mongoCollection.insertMany(this.batch);
-
         this.batch.clear();
     }
 
