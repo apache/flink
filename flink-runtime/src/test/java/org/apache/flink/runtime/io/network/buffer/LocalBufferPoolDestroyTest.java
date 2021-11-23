@@ -127,10 +127,8 @@ public class LocalBufferPoolDestroyTest {
                     return true;
                 }
             }
-            return false;
-        } else {
-            return false;
         }
+        return false;
     }
 
     /** Task triggering a blocking buffer request (the test assumes that no buffer is available). */
