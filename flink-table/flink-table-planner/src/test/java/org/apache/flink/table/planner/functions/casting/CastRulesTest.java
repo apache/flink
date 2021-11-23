@@ -472,14 +472,12 @@ class CastRulesTest {
                                         LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123000000)
                                                 .atZone(CET)
                                                 .toInstant()))
-                        // https://issues.apache.org/jira/browse/FLINK-24446 Fractional seconds are
-                        // lost
                         .fromCase(
                                 STRING(),
                                 CET_CONTEXT,
                                 StringData.fromString("2021-09-27 12:34:56.123456789"),
                                 TimestampData.fromInstant(
-                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 0)
+                                        LocalDateTime.of(2021, 9, 28, 22, 52, 32, 789000000)
                                                 .atZone(CET)
                                                 .toInstant())),
                 CastTestSpecBuilder.testCastTo(STRING())

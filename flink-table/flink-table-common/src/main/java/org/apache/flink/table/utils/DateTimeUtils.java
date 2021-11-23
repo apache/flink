@@ -391,12 +391,8 @@ public class DateTimeUtils {
         String format;
         if (length == 10) {
             format = DATE_FORMAT_STRING;
-        } else if (length == 21) {
-            format = DEFAULT_DATETIME_FORMATS[1];
-        } else if (length == 22) {
-            format = DEFAULT_DATETIME_FORMATS[2];
-        } else if (length == 23) {
-            format = DEFAULT_DATETIME_FORMATS[3];
+        } else if (length >= 21 && length <= 29) {
+            format = DEFAULT_DATETIME_FORMATS[length - 20];
         } else {
             // otherwise fall back to the default
             format = DEFAULT_DATETIME_FORMATS[0];
