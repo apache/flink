@@ -141,7 +141,7 @@ class DataStream[T](stream: JavaStream[T]) {
       case ds: SingleOutputStreamOperator[T] => ds.setMaxParallelism(maxParallelism)
       case _ =>
         throw new UnsupportedOperationException("Operator " + stream + " cannot set the maximum" +
-                                                  "parallelism")
+                                                  " parallelism")
     }
 
     this
