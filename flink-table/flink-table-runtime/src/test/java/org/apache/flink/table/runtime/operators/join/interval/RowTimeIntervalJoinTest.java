@@ -384,6 +384,148 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         testHarness.close();
     }
 
+    /** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime + 20. * */
+    @Test
+    public void testRowTimeSemiJoin() throws Exception {
+        RowTimeIntervalJoin joinProcessFunc =
+                new RowTimeIntervalJoin(
+                        FlinkJoinType.SEMI, -10, 20, 0, rowType, rowType, joinFunction, 0, 0);
+
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+
+        testHarness.open();
+
+        testHarness.processWatermark1(new Watermark(1));
+        testHarness.processWatermark2(new Watermark(1));
+
+        // Test late data.
+        testHarness.processElement1(insertRecord(1L, "k1"));
+        assertEquals(1, testHarness.numEventTimeTimers());
+        // The (1, "k1") can't match any data in right and is cached.
+        assertEquals(2, testHarness.numKeyedStateEntries());
+
+        testHarness.processElement1(insertRecord(2L, "k1"));
+        // (1, "k1") and (2, "k1") in left will be output and removed from left state.
+        testHarness.processElement2(insertRecord(2L, "k1"));
+
+        assertEquals(2, testHarness.numEventTimeTimers());
+        assertEquals(3, testHarness.numKeyedStateEntries());
+
+        // (5L, "k1") in left can match the (2L, "k1") in right and will not be cached.
+        testHarness.processElement1(insertRecord(5L, "k1"));
+        testHarness.processElement2(insertRecord(15L, "k1"));
+        testHarness.processWatermark1(new Watermark(20));
+        testHarness.processWatermark2(new Watermark(20));
+        // There are no records in left currently.
+        assertEquals(3, testHarness.numKeyedStateEntries());
+
+        testHarness.processElement1(insertRecord(35L, "k1"));
+
+        // The right rows with timestamp = 2 and 15 will be removed here.
+        // And the timer to clean up in left and right will be cleared.
+        testHarness.processWatermark1(new Watermark(38));
+        testHarness.processWatermark2(new Watermark(38));
+
+        assertEquals(0, testHarness.numEventTimeTimers());
+        assertEquals(0, testHarness.numKeyedStateEntries());
+
+        testHarness.processElement1(insertRecord(40L, "k2"));
+        // (40L, "k2") in left will be output and removed from state here.
+        testHarness.processElement2(insertRecord(39L, "k2"));
+        assertEquals(3, testHarness.numKeyedStateEntries());
+
+        // The left row with timestamp = 35 is not existed, so nothing happens here.
+        testHarness.processWatermark1(new Watermark(61));
+        testHarness.processWatermark2(new Watermark(61));
+        assertEquals(3, testHarness.numKeyedStateEntries());
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(new Watermark(-19));
+        expectedOutput.add(insertRecord(1L, "k1"));
+        expectedOutput.add(insertRecord(2L, "k1"));
+        expectedOutput.add(insertRecord(5L, "k1"));
+        expectedOutput.add(new Watermark(0));
+        expectedOutput.add(insertRecord(35L, "k1"));
+        expectedOutput.add(new Watermark(18));
+        expectedOutput.add(insertRecord(40L, "k2"));
+        expectedOutput.add(new Watermark(41));
+
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    /** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime + 20. * */
+    @Test
+    public void testRowTimeAntiJoin() throws Exception {
+        RowTimeIntervalJoin joinProcessFunc =
+                new RowTimeIntervalJoin(
+                        FlinkJoinType.ANTI, -10, 20, 0, rowType, rowType, joinFunction, 0, 0);
+
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+
+        testHarness.open();
+
+        testHarness.processWatermark1(new Watermark(1));
+        testHarness.processWatermark2(new Watermark(1));
+
+        // Test late data.
+        testHarness.processElement1(insertRecord(1L, "k1"));
+        assertEquals(1, testHarness.numEventTimeTimers());
+        // The (1, "k1") is cached.
+        assertEquals(2, testHarness.numKeyedStateEntries());
+
+        testHarness.processElement1(insertRecord(2L, "k1"));
+        // (1, "k1") and (2, "k1") in left are invalid and will be removed.
+        testHarness.processElement2(insertRecord(2L, "k1"));
+
+        assertEquals(2, testHarness.numEventTimeTimers());
+        assertEquals(3, testHarness.numKeyedStateEntries());
+
+        // (5L, "k1") in left can match the (2L, "k1") in right, so it is invalid and will not be
+        // cached.
+        testHarness.processElement1(insertRecord(5L, "k1"));
+        testHarness.processElement2(insertRecord(15L, "k1"));
+        testHarness.processWatermark1(new Watermark(20));
+        testHarness.processWatermark2(new Watermark(20));
+        // There are no records in left currently.
+        assertEquals(3, testHarness.numKeyedStateEntries());
+
+        // (35L, "k1") in left can match the (2L, "k1") in right, so it is invalid and will not be
+        // cached.
+        testHarness.processElement1(insertRecord(35L, "k1"));
+
+        // The right rows with timestamp = 2 and 15 will be removed here.
+        // And the timers to clean up records in left and right will be cleared.
+        testHarness.processWatermark1(new Watermark(38));
+        testHarness.processWatermark2(new Watermark(38));
+
+        assertEquals(0, testHarness.numEventTimeTimers());
+        assertEquals(0, testHarness.numKeyedStateEntries());
+
+        testHarness.processElement1(insertRecord(40L, "k2"));
+        // (40L, "k2") in left is valid and removed from state here.
+        testHarness.processElement2(insertRecord(62L, "k2"));
+        assertEquals(4, testHarness.numKeyedStateEntries());
+
+        // The left row with timestamp = 40 will be output and cleaned up.
+        // And the timer to clean uo right records will be cleared.
+        testHarness.processWatermark1(new Watermark(66));
+        testHarness.processWatermark2(new Watermark(66));
+        assertEquals(2, testHarness.numKeyedStateEntries());
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(new Watermark(-19));
+        expectedOutput.add(new Watermark(0));
+        expectedOutput.add(new Watermark(18));
+        expectedOutput.add(insertRecord(40L, "k2"));
+        expectedOutput.add(new Watermark(46));
+
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
     private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
             createTestHarness(RowTimeIntervalJoin intervalJoinFunc) throws Exception {
         KeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator =
