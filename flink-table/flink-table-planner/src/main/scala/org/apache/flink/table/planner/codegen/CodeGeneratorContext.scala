@@ -531,7 +531,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     // assignment
     val field =
     s"""
-       |$fieldTerm = $utilsName.getTimeInMills($localtimestamp.getMillisecond());
+       |$fieldTerm = $utilsName.timestampMillisToTime($localtimestamp.getMillisecond());
        |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -550,7 +550,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableMemberStatements.add(
       s"""
           |private static final int $fieldTerm =
-          | $utilsName.getTimeInMills($queryStartLocalTimestamp.getMillisecond());
+          | $utilsName.timestampMillisToTime($queryStartLocalTimestamp.getMillisecond());
           | """.stripMargin)
     fieldTerm
   }
@@ -568,7 +568,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableMemberStatements.add(s"private int $fieldTerm;")
 
     // assignment
-    val field = s"$fieldTerm = $utilsName.getDateInDays($timestamp.getMillisecond());"
+    val field = s"$fieldTerm = $utilsName.timestampMillisToDate($timestamp.getMillisecond());"
 
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -585,7 +585,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableMemberStatements.add(
     s"""
        |private static final int $fieldTerm =
-       | $fieldTerm = $utilsName.getDateInDays($timestamp.getMillisecond());
+       | $fieldTerm = $utilsName.timestampMillisToDate($timestamp.getMillisecond());
        |""".stripMargin)
 
     fieldTerm

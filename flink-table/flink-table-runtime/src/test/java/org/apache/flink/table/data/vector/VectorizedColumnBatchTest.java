@@ -176,8 +176,7 @@ public class VectorizedColumnBatchTest {
                             julianDay |= (bytes[i] & (0xff));
                         }
                         long millisecond =
-                                (julianDay - DateTimeUtils.EPOCH_JULIAN)
-                                                * DateTimeUtils.MILLIS_PER_DAY
+                                (julianDay - 2440588) * DateTimeUtils.MILLIS_PER_DAY
                                         + nanoOfDay / 1000000;
                         int nanoOfMillisecond = (int) (nanoOfDay % 1000000);
                         return TimestampData.fromEpochMillis(millisecond, nanoOfMillisecond);

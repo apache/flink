@@ -24,7 +24,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 
 import java.io.IOException;
 import java.sql.Date;
@@ -38,6 +40,11 @@ public class DateSerializer extends TypeSerializerSingleton<Date> {
     private static final long serialVersionUID = 1L;
 
     public static final DateSerializer INSTANCE = new DateSerializer();
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static final DataStructureConverter<Integer, Date> converter =
+            (DataStructureConverter)
+                    DataStructureConverters.getConverter(DataTypes.DATE().bridgedTo(Date.class));
 
     @Override
     public boolean isImmutableType() {
@@ -76,12 +83,12 @@ public class DateSerializer extends TypeSerializerSingleton<Date> {
         if (record == null) {
             throw new IllegalArgumentException("The Date record must not be null.");
         }
-        target.writeInt(PythonTypeUtils.dateToInternal(record));
+        target.writeInt(converter.toInternal(record));
     }
 
     @Override
     public Date deserialize(DataInputView source) throws IOException {
-        return PythonTypeUtils.internalToDate(source.readInt());
+        return converter.toExternalOrNull(source.readInt());
     }
 
     @Override
