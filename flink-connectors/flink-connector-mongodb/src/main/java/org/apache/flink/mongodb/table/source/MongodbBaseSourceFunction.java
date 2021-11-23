@@ -2,8 +2,8 @@ package org.apache.flink.mongodb.table.source;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.mongodb.table.connection.MongoColloctionProviders;
-import org.apache.flink.mongodb.table.connection.MongoSingleCollectionProvider;
+import org.apache.flink.mongodb.connection.MongoClientProvider;
+import org.apache.flink.mongodb.connection.MongoColloctionProviders;
 import org.apache.flink.mongodb.table.sink.MongodbSinkConf;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -30,17 +30,19 @@ public class MongodbBaseSourceFunction<RowData> extends RichParallelSourceFuncti
     private final MongodbSinkConf mongodbSinkConf;
     private transient MongoClient client;
     private transient List<byte[]> batch;
-    private final MongoSingleCollectionProvider clientProvider;
+    private final MongoClientProvider clientProvider;
     private DeserializationSchema<RowData> deserializer;
 
-    protected MongodbBaseSourceFunction(MongodbSinkConf mongodbSinkConf, DeserializationSchema<RowData> deserializer) {
+    protected MongodbBaseSourceFunction(
+            MongodbSinkConf mongodbSinkConf,
+            DeserializationSchema<RowData> deserializer) {
         this.mongodbSinkConf = mongodbSinkConf;
         this.deserializer = deserializer;
         this.clientProvider = MongoColloctionProviders
                 .getBuilder()
-                .connectionString(this.mongodbSinkConf.getUri())
-                .database(this.mongodbSinkConf.getDatabase())
-                .collection(this.mongodbSinkConf.getCollection()).build();
+                .setServers(this.mongodbSinkConf.getUri())
+                .setdatabase(this.mongodbSinkConf.getDatabase())
+                .setCollection(this.mongodbSinkConf.getCollection()).build();
     }
 
     @Override
@@ -91,7 +93,8 @@ public class MongodbBaseSourceFunction<RowData> extends RichParallelSourceFuncti
 
         MongoDatabase mongoDatabase = this.client.getDatabase(this.mongodbSinkConf.getDatabase());
 
-        MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(this.mongodbSinkConf.getCollection());
+        MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(this.mongodbSinkConf
+                .getCollection());
         FindIterable<Document> documents = mongoCollection.find();
         MongoCursor<Document> iterator = documents.iterator();
         while (iterator.hasNext()) {
