@@ -236,21 +236,21 @@ public class ProcTimeRangeBoundedPrecedingFunction<K>
         // add current elements to aggregator. Multiple elements might
         // have arrived in the same proctime
         // the same accumulator value will be computed for all elements
-        int iElemenets = 0;
-        while (iElemenets < currentElements.size()) {
-            RowData input = currentElements.get(iElemenets);
+        int iElements = 0;
+        while (iElements < currentElements.size()) {
+            RowData input = currentElements.get(iElements);
             function.accumulate(input);
-            iElemenets += 1;
+            iElements += 1;
         }
 
         // we need to build the output and emit for every event received at this proctime
-        iElemenets = 0;
+        iElements = 0;
         RowData aggValue = function.getValue();
-        while (iElemenets < currentElements.size()) {
-            RowData input = currentElements.get(iElemenets);
+        while (iElements < currentElements.size()) {
+            RowData input = currentElements.get(iElements);
             output.replace(input, aggValue);
             out.collect(output);
-            iElemenets += 1;
+            iElements += 1;
         }
 
         // update the value of accumulators for future incremental computation

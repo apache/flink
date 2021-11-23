@@ -224,7 +224,7 @@ arithmetic:
     description: Returns a pseudorandom double value in the range [0.0, INT)
   - sql: RAND_INTEGER(INT1, INT2)
     table: randInteger(INT1, INT2)
-    description: Returns a pseudorandom double value in the range [0.0, INT2) with an initial seed INT1. Two RAND_INTGER functions will return idential sequences of numbers if they have the same initial seed and bound.
+    description: Returns a pseudorandom double value in the range [0.0, INT2) with an initial seed INT1. Two RAND_INTGER functions will return identital sequences of numbers if they have the same initial seed and bound.
   - sql: UUID()
     table: uuid()
     description: Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.

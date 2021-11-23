@@ -132,7 +132,7 @@ public class MultipartUploadResource extends ExternalResource {
 
         this.setFileUploadVerifier(
                 (request, restfulGateway) -> {
-                    // the default verifier checks for identiy (i.e. same name and content) of all
+                    // the default verifier checks for identity (i.e. same name and content) of all
                     // uploaded files
                     List<Path> expectedFiles =
                             getFilesToUpload().stream()

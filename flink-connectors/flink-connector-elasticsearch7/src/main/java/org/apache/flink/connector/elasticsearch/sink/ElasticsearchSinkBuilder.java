@@ -194,7 +194,7 @@ public class ElasticsearchSinkBuilder<IN> {
     }
 
     /**
-     * Sets the password used to authenticate the conection with the Elasticsearch cluster.
+     * Sets the password used to authenticate the connection with the Elasticsearch cluster.
      *
      * @param password of the Elasticsearch cluster user
      * @return {@link ElasticsearchSinkBuilder}

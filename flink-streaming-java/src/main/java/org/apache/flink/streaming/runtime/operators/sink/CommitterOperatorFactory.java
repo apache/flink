@@ -72,7 +72,7 @@ public final class CommitterOperatorFactory<CommT, GlobalCommT>
 
             checkState(
                     !(committerHandler instanceof NoopCommitterHandler),
-                    "committer operator without commmitter");
+                    "committer operator without committer");
             final CommitterOperator<CommT, GlobalCommT> committerOperator =
                     new CommitterOperator<>(
                             processingTimeService, committableSerializer, committerHandler);

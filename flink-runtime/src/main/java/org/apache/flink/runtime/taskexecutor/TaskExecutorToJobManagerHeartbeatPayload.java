@@ -52,7 +52,7 @@ public class TaskExecutorToJobManagerHeartbeatPayload implements Serializable {
 
     @Override
     public String toString() {
-        return "TaskExectorToJobManagerHeartbeatPayload{"
+        return "TaskExecutorToJobManagerHeartbeatPayload{"
                 + "accumulatorReport="
                 + accumulatorReport
                 + ", executionDeploymentReport="
