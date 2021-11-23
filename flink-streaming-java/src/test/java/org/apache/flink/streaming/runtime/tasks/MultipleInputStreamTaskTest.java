@@ -392,7 +392,7 @@ public class MultipleInputStreamTaskTest {
 
     /**
      * With chained sources, task's and main operator's number of input records are two different
-     * things. The first one should take into account only records comming in from the network,
+     * things. The first one should take into account only records coming in from the network,
      * ignoring records produced inside the task itself (like via a chained source). Main operator
      * should on the other hand report all records from all of the inputs (regardless if it's a
      * network or chained input).

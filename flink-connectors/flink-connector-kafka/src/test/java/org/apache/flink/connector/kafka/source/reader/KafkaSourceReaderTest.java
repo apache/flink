@@ -213,7 +213,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                 reader.snapshotState(checkpointId);
             } while (output.count() < totalNumRecords);
 
-            // The completion of the last checkpoint should subsume all the previous checkpoitns.
+            // The completion of the last checkpoint should subsume all the previous checkpoints.
             assertEquals(checkpointId, reader.getOffsetsToCommit().size());
 
             long lastCheckpointId = checkpointId;

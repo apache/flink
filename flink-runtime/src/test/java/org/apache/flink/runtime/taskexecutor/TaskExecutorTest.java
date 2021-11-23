@@ -1689,7 +1689,7 @@ public class TaskExecutorTest extends TestLogger {
                     .freeSlot(allocationId, new FlinkException("Test exception"), timeout)
                     .get();
 
-            // wait that the job leader retrieval service for jobId stopped becaue it should get
+            // wait that the job leader retrieval service for jobId stopped because it should get
             // removed
             stopFuture.get();
             assertThat(jobLeaderService.containsJob(jobId), is(false));

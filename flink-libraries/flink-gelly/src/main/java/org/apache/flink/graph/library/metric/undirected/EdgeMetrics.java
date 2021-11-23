@@ -84,7 +84,7 @@ public class EdgeMetrics<K extends Comparable<K>, VV, EV>
      * Implementation notes:
      *
      * <p>Use aggregator to replace SumEdgeStats when aggregators are rewritten to use
-     * a hash-combineable hashed-reduce.
+     * a hash-combinable hashed-reduce.
      */
 
     @Override

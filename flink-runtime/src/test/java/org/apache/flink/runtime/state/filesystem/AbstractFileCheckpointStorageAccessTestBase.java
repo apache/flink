@@ -50,7 +50,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Test base for file-system-based checkoint storage, such as the {@link
+ * Test base for file-system-based checkpoint storage, such as the {@link
  * MemoryBackendCheckpointStorageAccess} and the {@link FsCheckpointStorageAccess}.
  */
 public abstract class AbstractFileCheckpointStorageAccessTestBase {
