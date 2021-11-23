@@ -1,11 +1,13 @@
 package org.apache.flink.mongodb.table.sink;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.types.DataType;
 
+@Internal
 public class MongodbDynamicTableSink implements DynamicTableSink {
     private final MongodbSinkConf mongodbSinkConf;
     private final ResolvedSchema tableSchema;

@@ -1,5 +1,6 @@
 package org.apache.flink.mongodb.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.mongodb.table.sink.MongodbDynamicTableSink;
@@ -30,6 +31,7 @@ import static org.apache.flink.mongodb.table.MongodbConnectorOptions.SERVER;
 import static org.apache.flink.mongodb.table.MongodbConnectorOptions.TIMEOUT;
 import static org.apache.flink.mongodb.table.MongodbConnectorOptions.URI;
 
+@Internal
 public class MongodbDynamicTableSourceSinkFactory implements DynamicTableSinkFactory, DynamicTableSourceFactory {
     public static final String IDENTIFIER = "mongodb";
 
