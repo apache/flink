@@ -37,7 +37,7 @@ import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMem
  * </ul>
  *
  * We use Total Process Memory to refer to all the memory components, while Total Flink Memory
- * refering to all the components except JVM Metaspace and JVM Overhead.
+ * referring to all the components except JVM Metaspace and JVM Overhead.
  *
  * <p>The relationships of JobManager memory components are shown below.
  *

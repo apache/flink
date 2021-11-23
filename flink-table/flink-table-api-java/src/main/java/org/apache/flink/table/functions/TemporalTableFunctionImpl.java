@@ -36,7 +36,7 @@ import java.sql.Timestamp;
  * the {@code timeAttribute}, for which it returns matching version of the {@code
  * underlyingHistoryTable}, from which this {@link TemporalTableFunction} was created.
  *
- * <p>This function shouldn't be evaluated. Instead calls to it should be rewritten by the optimiser
+ * <p>This function shouldn't be evaluated. Instead calls to it should be rewritten by the optimizer
  * into other operators (like Temporal Table Join).
  */
 @Internal

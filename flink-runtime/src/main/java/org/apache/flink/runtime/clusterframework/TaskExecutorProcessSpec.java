@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
  *
  * Among all the components, Framework Heap Memory and Task Heap Memory use on heap memory, while
  * the rest use off heap memory. We use Total Process Memory to refer to all the memory components,
- * while Total Flink Memory refering to all the components except JVM Metaspace and JVM Overhead.
+ * while Total Flink Memory referring to all the components except JVM Metaspace and JVM Overhead.
  *
  * <p>The relationships of TaskExecutor memory components are shown below.
  *

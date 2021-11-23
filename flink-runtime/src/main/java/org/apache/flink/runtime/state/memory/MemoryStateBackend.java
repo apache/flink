@@ -184,7 +184,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend
 
     /**
      * Creates a new memory state backend that accepts states whose serialized forms are up to the
-     * given number of bytes and that uses asynchronous snashots as configured.
+     * given number of bytes and that uses asynchronous snapshots as configured.
      *
      * <p>Checkpoint and default savepoint locations are used as specified in the runtime
      * configuration.

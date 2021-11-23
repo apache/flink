@@ -451,7 +451,7 @@ public class HiveConf extends Configuration {
         "Time to retain removed files in cmrootdir."),
     REPLCMINTERVAL("hive.repl.cm.interval","3600s",
         new TimeValidator(TimeUnit.SECONDS),
-        "Inteval for cmroot cleanup thread."),
+        "Interval for cmroot cleanup thread."),
     REPL_FUNCTIONS_ROOT_DIR("hive.repl.replica.functions.root.dir","/user/hive/repl/functions/",
         "Root directory on the replica warehouse where the repl sub-system will store jars from the primary warehouse"),
     REPL_APPROX_MAX_LOAD_TASKS("hive.repl.approx.max.load.tasks", 10000,

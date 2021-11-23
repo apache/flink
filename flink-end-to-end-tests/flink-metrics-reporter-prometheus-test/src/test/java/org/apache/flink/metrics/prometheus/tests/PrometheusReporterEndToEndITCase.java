@@ -338,10 +338,10 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
         }
 
         public static TestParams from(
-                String jarLocationDesription,
+                String jarLocationDescription,
                 Consumer<FlinkResourceSetup.FlinkResourceSetupBuilder> builderSetup,
                 InstantiationType instantiationType) {
-            return new TestParams(jarLocationDesription, builderSetup, instantiationType);
+            return new TestParams(jarLocationDescription, builderSetup, instantiationType);
         }
 
         public Consumer<FlinkResourceSetup.FlinkResourceSetupBuilder> getBuilderSetup() {

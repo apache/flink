@@ -2028,7 +2028,7 @@ public class RexSimplify {
             return operand;
         }
         if (RexUtil.isLosslessCast(operand)) {
-            // x :: y below means cast(x as y) (which is PostgreSQL-specifiic cast by the way)
+            // x :: y below means cast(x as y) (which is PostgreSQL-specific cast by the way)
             // A) Remove lossless casts:
             // A.1) intExpr :: bigint :: int => intExpr
             // A.2) char2Expr :: char(5) :: char(2) => char2Expr

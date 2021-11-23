@@ -57,7 +57,7 @@ public interface StateSnapshotTransformer<T> {
             /**
              * Skip first null entries.
              *
-             * <p>While traversing collection entries, as optimisation, stops transforming if
+             * <p>While traversing collection entries, as optimization, stops transforming if
              * encounters first non-null included entry and returns it plus the rest untouched.
              */
             STOP_ON_FIRST_INCLUDED

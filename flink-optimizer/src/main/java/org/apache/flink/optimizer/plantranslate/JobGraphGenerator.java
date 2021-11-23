@@ -1170,7 +1170,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
             if (headVertex == null) {
                 throw new CompilerException(
-                        "Bug: Trying to merge solution set with its sucessor, but successor has not been created.");
+                        "Bug: Trying to merge solution set with its successor, but successor has not been created.");
             }
 
             // reset the vertex type to iteration head

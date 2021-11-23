@@ -47,7 +47,7 @@ public class FailureHandlingResult {
     private final long restartDelayMS;
 
     /**
-     * The {@link ExecutionVertexID} refering to the {@link ExecutionVertex} the failure is
+     * The {@link ExecutionVertexID} referring to the {@link ExecutionVertex} the failure is
      * originating from or {@code null} if it's a global failure.
      */
     @Nullable private final ExecutionVertexID failingExecutionVertexId;
@@ -193,7 +193,7 @@ public class FailureHandlingResult {
      * <p>The result can be flagged to be from a global failure triggered by the scheduler, rather
      * than from the failure of an individual task.
      *
-     * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+     * @param failingExecutionVertexId the {@link ExecutionVertexID} referring to the {@link
      *     ExecutionVertex} the failure is originating from. Passing {@code null} as a value
      *     indicates that the failure was issued by Flink itself.
      * @param cause The reason of the failure.
@@ -225,7 +225,7 @@ public class FailureHandlingResult {
      * <p>The result can be flagged to be from a global failure triggered by the scheduler, rather
      * than from the failure of an individual task.
      *
-     * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+     * @param failingExecutionVertexId the {@link ExecutionVertexID} referring to the {@link
      *     ExecutionVertex} the failure is originating from. Passing {@code null} as a value
      *     indicates that the failure was issued by Flink itself.
      * @param error reason why the failure is not recoverable

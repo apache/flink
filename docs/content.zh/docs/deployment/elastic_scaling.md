@@ -102,7 +102,7 @@ cp ./examples/streaming/TopSpeedWindowing.jar lib/
 
 - **为有状态的 Job 配置周期性的 Checkpoint**：Reactive 模式在扩缩容时通过最新完成的 Checkpoint 恢复。如果没有配置周期性的 Checkpoint，你的程序会丢失状态。Checkpoint 同时还配置了**重启策略**，Reactive会使用配置的重启策略：如果没有设置，Reactive 模式会让 Job 失败而不是运行扩缩容。
 
-- 在 Ractive 模式下缩容可能会导致长时间的停顿，因为 Flink 需要等待 JobManager 和已经停止的 TaskManager 间心跳超时。当你降低 Job 并行度时，你会发现 Job 会停顿大约 50 秒左右。
+- 在 Reactive 模式下缩容可能会导致长时间的停顿，因为 Flink 需要等待 JobManager 和已经停止的 TaskManager 间心跳超时。当你降低 Job 并行度时，你会发现 Job 会停顿大约 50 秒左右。
   
   这是由于默认的心跳超时时间是 50 秒。在你的基础设施允许的情况下，可以降低 [`heartbeat.timeout`]({{< ref "docs/deployment/config">}}#heartbeat-timeout) 的值。但是降低超时时间，会导致比如在网络拥堵或者 GC Pause 的时候，TaskManager 无法响应心跳。需要注意的是，[`heartbeat.interval`]({{< ref "docs/deployment/config">}}#heartbeat-interval) 配置需要低于超时时间。
 

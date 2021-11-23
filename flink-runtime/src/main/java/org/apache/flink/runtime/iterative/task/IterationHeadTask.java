@@ -470,9 +470,9 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
     }
 
     @SuppressWarnings("unchecked")
-    private void streamSolutionSetToFinalOutput(JoinHashMap<X> soluionSet) throws IOException {
+    private void streamSolutionSetToFinalOutput(JoinHashMap<X> solutionSet) throws IOException {
         final Collector<X> output = this.finalOutputCollector;
-        for (Object e : soluionSet.values()) {
+        for (Object e : solutionSet.values()) {
             output.collect((X) e);
         }
     }

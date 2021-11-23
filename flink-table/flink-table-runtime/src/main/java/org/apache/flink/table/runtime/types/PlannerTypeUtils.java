@@ -218,8 +218,8 @@ public class PlannerTypeUtils {
                             (LegacyLocalDateTimeTypeInfo) typeInfo;
                     return new TimestampType(dateTimeType.getPrecision());
                 } else if (typeInfo instanceof LegacyTimestampTypeInfo) {
-                    LegacyTimestampTypeInfo timstampType = (LegacyTimestampTypeInfo) typeInfo;
-                    return new TimestampType(timstampType.getPrecision());
+                    LegacyTimestampTypeInfo timestampType = (LegacyTimestampTypeInfo) typeInfo;
+                    return new TimestampType(timestampType.getPrecision());
                 } else if (typeInfo instanceof LegacyInstantTypeInfo) {
                     LegacyInstantTypeInfo instantTypeInfo = (LegacyInstantTypeInfo) typeInfo;
                     return new LocalZonedTimestampType(instantTypeInfo.getPrecision());

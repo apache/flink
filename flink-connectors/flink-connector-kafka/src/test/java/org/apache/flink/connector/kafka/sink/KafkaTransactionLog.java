@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.kafka.common.internals.Topic.TRANSACTION_STATE_TOPIC_NAME;
 
 /**
- * This class is responsible to provide the format of the used transationalIds and in case of an
+ * This class is responsible to provide the format of the used transactionalIds and in case of an
  * application restart query the open transactions and decide which must be aborted.
  */
 class KafkaTransactionLog {
