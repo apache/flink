@@ -18,47 +18,71 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.plan.optimize.program.{FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, FlinkStreamProgram, HEP_RULES_EXECUTION_TYPE, StreamOptimizeContext}
+import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.planner.utils.{BatchTableTestUtil, StreamTableTestUtil, TableTestBase, TableTestUtil}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
 
+import java.lang.{Boolean => JBoolean}
+import java.sql.Timestamp
+import java.util.{Collection => JCollection}
+
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
+
+import scala.collection.JavaConversions._
 
 /**
  * Test for [[ProjectWindowTableFunctionTransposeRule]].
  */
-class ProjectWindowTableFunctionTransposeRuleTest extends TableTestBase {
-  private val util = streamTestUtil()
+@RunWith(classOf[Parameterized])
+class ProjectWindowTableFunctionTransposeRuleTest(isStreamingMode: Boolean) extends TableTestBase {
+  private var util: TableTestUtil = _
 
   @Before
   def setup(): Unit = {
-    val programs = new FlinkChainedProgram[StreamOptimizeContext]()
-    programs.addLast(
-      "rules",
-      FlinkHepRuleSetProgramBuilder.newBuilder
-        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(ProjectWindowTableFunctionTransposeRule.INSTANCE))
-        .build())
-    util.replaceStreamProgram(programs)
-
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MyTable (
-         |  a INT,
-         |  b BIGINT,
-         |  c STRING NOT NULL,
-         |  d DECIMAL(10, 3),
-         |  e BIGINT,
-         |  rowtime TIMESTAMP(3),
-         |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
-         |) with (
-         |  'connector' = 'values'
-         |)
-         |""".stripMargin)
+    val program = FlinkHepRuleSetProgramBuilder.newBuilder
+      .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+      .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+      .add(RuleSets.ofList(ProjectWindowTableFunctionTransposeRule.INSTANCE))
+      .build()
+    val programName = "rules"
+    if (isStreamingMode) {
+      val programs = new FlinkChainedProgram[StreamOptimizeContext]()
+      programs.addLast(
+        programName,
+        program.asInstanceOf[FlinkHepRuleSetProgram[StreamOptimizeContext]])
+      util = streamTestUtil()
+      util.asInstanceOf[StreamTableTestUtil].replaceStreamProgram(programs)
+      util.tableEnv.executeSql(
+        s"""
+           |CREATE TABLE MyTable (
+           |  a INT,
+           |  b BIGINT,
+           |  c STRING NOT NULL,
+           |  d DECIMAL(10, 3),
+           |  e BIGINT,
+           |  rowtime TIMESTAMP(3),
+           |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+           |) with (
+           |  'connector' = 'values'
+           |)
+           |""".stripMargin)
+    } else {
+      val programs = new FlinkChainedProgram[BatchOptimizeContext]()
+      programs.addLast(
+        programName,
+        program.asInstanceOf[FlinkHepRuleSetProgram[BatchOptimizeContext]])
+      util = batchTestUtil()
+      util.asInstanceOf[BatchTableTestUtil].replaceBatchProgram(programs)
+      util.addDataStream[(Int, Long, String, BigDecimal, Long, Timestamp)](
+        "MyTable", 'a, 'b, 'c, 'd, 'e, 'rowtime)
+    }
   }
 
   @Test
@@ -99,5 +123,12 @@ class ProjectWindowTableFunctionTransposeRuleTest extends TableTestBase {
         |GROUP BY a, window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)
+  }
+}
+
+object ProjectWindowTableFunctionTransposeRuleTest {
+  @Parameterized.Parameters(name = "isStreamingMode={0}")
+  def parameters(): JCollection[Array[Object]] = {
+    Seq[Array[AnyRef]](Array(JBoolean.TRUE), Array(JBoolean.FALSE))
   }
 }
