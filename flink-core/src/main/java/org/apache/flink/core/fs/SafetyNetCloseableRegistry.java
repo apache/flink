@@ -34,8 +34,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
-import java.util.Collection;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -134,7 +134,7 @@ public class SafetyNetCloseableRegistry
      * This implementation doesn't imply any exception during closing due to backward compatibility.
      */
     @Override
-    protected void doClose(Collection<Closeable> toClose) throws IOException {
+    protected void doClose(List<Closeable> toClose) throws IOException {
         try {
             IOUtils.closeAllQuietly(toClose);
         } finally {

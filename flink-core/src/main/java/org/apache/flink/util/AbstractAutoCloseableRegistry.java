@@ -27,7 +27,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -72,7 +72,7 @@ public abstract class AbstractAutoCloseableRegistry<
      * @param closeable Closeable to register.
      * @throws IOException exception when the registry was closed before.
      */
-    public void registerCloseable(C closeable) throws IOException {
+    public final void registerCloseable(C closeable) throws IOException {
 
         if (null == closeable) {
             return;
@@ -110,7 +110,7 @@ public abstract class AbstractAutoCloseableRegistry<
 
     @Override
     public void close() throws E {
-        Collection<R> toCloseCopy;
+        List<R> toCloseCopy;
 
         synchronized (getSynchronizationLock()) {
             if (closed) {
@@ -127,7 +127,7 @@ public abstract class AbstractAutoCloseableRegistry<
         doClose(toCloseCopy);
     }
 
-    protected abstract void doClose(Collection<R> toClose) throws E;
+    protected abstract void doClose(List<R> toClose) throws E;
 
     public boolean isClosed() {
         synchronized (getSynchronizationLock()) {

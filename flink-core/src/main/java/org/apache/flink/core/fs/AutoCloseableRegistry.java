@@ -26,11 +26,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.shaded.guava30.com.google.common.collect.Lists.reverse;
 
 /**
  * This class allows to register instances of {@link AutoCloseable}, which are all closed if this
@@ -68,9 +68,7 @@ public class AutoCloseableRegistry
 
     /** This implementation implies that any exception is possible during closing. */
     @Override
-    protected void doClose(Collection<AutoCloseable> toClose) throws Exception {
-        ArrayList<AutoCloseable> reversed = new ArrayList<>(toClose);
-        Collections.reverse(reversed);
-        IOUtils.closeAll(reversed);
+    protected void doClose(List<AutoCloseable> toClose) throws Exception {
+        IOUtils.closeAll(reverse(toClose));
     }
 }

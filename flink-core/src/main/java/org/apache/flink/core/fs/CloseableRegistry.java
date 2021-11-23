@@ -26,12 +26,11 @@ import javax.annotation.Nonnull;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.shaded.guava30.com.google.common.collect.Lists.reverse;
 
 /**
  * This class allows to register instances of {@link Closeable}, which are all closed if this
@@ -71,9 +70,7 @@ public class CloseableRegistry
      * This implementation doesn't imply any exception during closing due to backward compatibility.
      */
     @Override
-    public void doClose(Collection<Closeable> toClose) throws IOException {
-        List<AutoCloseable> reversed = new ArrayList<>(toClose);
-        Collections.reverse(reversed);
-        IOUtils.closeAllQuietly(reversed);
+    public void doClose(List<Closeable> toClose) throws IOException {
+        IOUtils.closeAllQuietly(reverse(toClose));
     }
 }
