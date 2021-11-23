@@ -235,6 +235,12 @@ final class CastRuleUtils {
 
         public CodeWriter tryCatchStmt(
                 Consumer<CodeWriter> bodyWriterConsumer,
+                BiConsumer<String, CodeWriter> catchConsumer) {
+            return tryCatchStmt(bodyWriterConsumer, Throwable.class, catchConsumer);
+        }
+
+        public CodeWriter tryCatchStmt(
+                Consumer<CodeWriter> bodyWriterConsumer,
                 Class<? extends Throwable> catchClass,
                 BiConsumer<String, CodeWriter> catchConsumer) {
             final String exceptionTerm = newName("e");

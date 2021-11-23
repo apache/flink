@@ -116,7 +116,6 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
             bodyWriter.tryCatchStmt(
                     tryWriter ->
                             tryWriter.append(codeBlock).stmt("return " + codeBlock.getReturnTerm()),
-                    Throwable.class,
                     (exceptionTerm, catchWriter) ->
                             catchWriter.throwStmt(
                                     constructorCall(

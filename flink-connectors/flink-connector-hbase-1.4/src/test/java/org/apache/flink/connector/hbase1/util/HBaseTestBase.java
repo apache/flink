@@ -19,7 +19,6 @@
 package org.apache.flink.connector.hbase1.util;
 
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.utils.DateTimeUtils;
 
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.HTable;
@@ -260,15 +259,11 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 
         // family 4
         put.addColumn(
-                Bytes.toBytes(FAMILY4),
-                Bytes.toBytes(F4COL1),
-                Bytes.toBytes(DateTimeUtils.toInternal(f4c1)));
+                Bytes.toBytes(FAMILY4), Bytes.toBytes(F4COL1), Bytes.toBytes(toInternal(f4c1)));
         put.addColumn(
                 Bytes.toBytes(FAMILY4), Bytes.toBytes(F4COL2), Bytes.toBytes(toInternal(f4c2)));
         put.addColumn(
-                Bytes.toBytes(FAMILY4),
-                Bytes.toBytes(F4COL3),
-                Bytes.toBytes(DateTimeUtils.toInternal(f4c3)));
+                Bytes.toBytes(FAMILY4), Bytes.toBytes(F4COL3), Bytes.toBytes(toInternal(f4c3)));
         put.addColumn(Bytes.toBytes(FAMILY4), Bytes.toBytes(F4COL4), Bytes.toBytes(f4c4));
         return put;
     }

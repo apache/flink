@@ -29,7 +29,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/** This test class is checking if methods defined in {@link BuiltInMethods} are valid. */
+/** Check if the static methods defined in {@link BuiltInMethods} are valid. */
 class BuiltInMethodsTest {
 
     private static Stream<Method> testMethodsAreAvailable() {
@@ -44,7 +44,10 @@ class BuiltInMethodsTest {
     @MethodSource
     void testMethodsAreAvailable(Method m) throws Exception {
         assertDoesNotThrow(
-                () -> m.invoke(null),
+                () ->
+                        // Note that this null is because the method is static, hence no instance
+                        // should be supplied when calling the reflection
+                        m.invoke(null),
                 "Method " + m.getName() + " throws an exception, perhaps a bad definition?");
         assertNotNull(m.invoke(null));
     }

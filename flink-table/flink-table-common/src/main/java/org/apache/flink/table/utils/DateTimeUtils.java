@@ -68,7 +68,7 @@ public class DateTimeUtils {
     private static final Logger LOG = LoggerFactory.getLogger(DateTimeUtils.class);
 
     /** The julian date of the epoch, 1970-01-01. */
-    private static final int EPOCH_JULIAN = 2440588;
+    public static final int EPOCH_JULIAN = 2440588;
 
     /** The number of milliseconds in a second. */
     private static final long MILLIS_PER_SECOND = 1000L;
@@ -726,26 +726,12 @@ public class DateTimeUtils {
         return formatTimestamp(timestampWithLocalZoneToTimestamp(ts, tz), precision);
     }
 
-    /**
-     * Format a timestamp as specific.
-     *
-     * @param ts the {@link TimestampData} to format.
-     * @param format the string formatter.
-     * @param zoneId the ZoneId.
-     */
     private static String formatTimestamp(TimestampData ts, String format, ZoneId zoneId) {
         DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
         Instant instant = ts.toInstant();
         return LocalDateTime.ofInstant(instant, zoneId).format(formatter);
     }
 
-    /**
-     * Format a timestamp as specific.
-     *
-     * @param ts the timestamp to format.
-     * @param format the string formatter.
-     * @param tz the time zone
-     */
     public static String formatTimestampMillis(long ts, String format, TimeZone tz) {
         SimpleDateFormat formatter = FORMATTER_CACHE.get(format);
         formatter.setTimeZone(tz);
@@ -753,14 +739,6 @@ public class DateTimeUtils {
         return formatter.format(dateTime);
     }
 
-    /**
-     * Format a string datetime as specific.
-     *
-     * @param dateStr the string datetime.
-     * @param fromFormat the original date format.
-     * @param toFormat the target date format.
-     * @param tz the time zone.
-     */
     public static String formatTimestampString(
             String dateStr, String fromFormat, String toFormat, TimeZone tz) {
         SimpleDateFormat fromFormatter = FORMATTER_CACHE.get(fromFormat);
@@ -1365,13 +1343,13 @@ public class DateTimeUtils {
      */
     public static String convertTz(String dateStr, String tzFrom, String tzTo) {
         try {
-            return dateFormatTz(parseTimestampTz(dateStr, tzFrom), tzTo);
+            return formatTimestampTz(parseTimestampTz(dateStr, tzFrom), tzTo);
         } catch (ParseException e) {
             return null;
         }
     }
 
-    private static String dateFormatTz(long ts, String tzStr) {
+    private static String formatTimestampTz(long ts, String tzStr) {
         TimeZone tz = TIMEZONE_CACHE.get(tzStr);
         return formatTimestampMillis(ts, DateTimeUtils.TIMESTAMP_FORMAT_STRING, tz);
     }
