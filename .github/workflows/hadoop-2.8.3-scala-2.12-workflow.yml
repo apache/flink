@@ -23,11 +23,7 @@
 
 name: "Hadoop 2.8.3/Java 8/Scala 2.12 (Matthias)"
 
-on:
-  push:
-    branches:
-      - hackathon2021b-matthias
-  workflow_dispatch:
+on: push
 
 jobs:
   ci:
