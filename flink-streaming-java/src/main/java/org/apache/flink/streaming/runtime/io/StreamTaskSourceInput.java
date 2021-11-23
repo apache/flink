@@ -106,7 +106,7 @@ public class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Checkpointa
      * from a network input. So that we can checkpoint state of the source and all of the other
      * operators at the same time.
      *
-     * <p>Also we are choosing to block the source, as a best effort Optimization as: - either there
+     * <p>Also we are choosing to block the source, as a best effort optimization as: - either there
      * is no backpressure and the checkpoint "alignment" will happen very quickly anyway - or there
      * is a backpressure, and it's better to prioritize processing data from the network to speed up
      * checkpointing. From the cluster resource utilisation perspective, by blocking chained source

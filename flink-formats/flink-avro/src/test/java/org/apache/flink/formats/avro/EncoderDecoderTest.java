@@ -58,7 +58,7 @@ import static org.junit.Assert.fail;
 public class EncoderDecoderTest {
 
     @Test
-    public void testComplexStringsDirect() {
+    public void testComplexStringsDirectly() {
         try {
             Random rnd = new Random(349712539451944123L);
 
