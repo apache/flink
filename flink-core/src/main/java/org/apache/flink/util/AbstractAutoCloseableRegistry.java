@@ -156,13 +156,6 @@ public abstract class AbstractAutoCloseableRegistry<
         return lock;
     }
 
-    /** Adds a mapping to the registry map, respecting locking. */
-    protected final void addCloseableInternal(R closeable, T metaData) {
-        synchronized (getSynchronizationLock()) {
-            closeableToRef.put(closeable, metaData);
-        }
-    }
-
     /** Removes a mapping from the registry map, respecting locking. */
     protected final boolean removeCloseableInternal(R closeable) {
         synchronized (getSynchronizationLock()) {
