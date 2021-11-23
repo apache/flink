@@ -45,18 +45,24 @@ class BinaryToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<byte
 
     /* Example generated code
 
-    builder$1.setLength(0);
-    builder$1.append("[");
-    for (int i$2 = 0; i$2 < _myInput.length; i$2++) {
-        if (i$2 != 0) {
-            builder$1.append(", ");
-        }
+    isNull$0 = _myInputIsNull;
+    if (!isNull$0) {
+        builder$1.setLength(0);
+        builder$1.append("[");
+        for (int i$2 = 0; i$2 < _myInput.length; i$2++) {
+            if (i$2 != 0) {
+                builder$1.append(", ");
+            }
         byte element$3 = -1;
         element$3 = _myInput[i$2];
         builder$1.append(element$3);
+        }
+        builder$1.append("]");
+        result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(builder$1.toString());
+        isNull$0 = result$1 == null;
+    } else {
+        result$1 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
     }
-    builder$1.append("]");
-    result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(builder$1.toString());
 
      */
 
