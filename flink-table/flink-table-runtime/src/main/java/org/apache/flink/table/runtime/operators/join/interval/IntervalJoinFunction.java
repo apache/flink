@@ -82,6 +82,10 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
         }
     }
 
+    public boolean isMatchCondition(RowData first, RowData second) {
+        return joinCondition.apply(first, second);
+    }
+
     public JoinCondition getJoinCondition() {
         return joinCondition;
     }

@@ -58,6 +58,16 @@ public enum FlinkJoinType {
         }
     }
 
+    public boolean isSemiAnti() {
+        switch (this) {
+            case SEMI:
+            case ANTI:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     @Override
     public String toString() {
         switch (this) {

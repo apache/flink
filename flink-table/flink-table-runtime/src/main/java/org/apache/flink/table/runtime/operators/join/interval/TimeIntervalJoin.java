@@ -148,6 +148,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
         long rightQualifiedLowerBound = timeForLeftRow - rightRelativeSize;
         long rightQualifiedUpperBound = timeForLeftRow + leftRelativeSize;
         boolean emitted = false;
+        boolean findMatchingData = false;
 
         // Check if we need to join the current row against cached rows of the right input.
         // The condition here should be rightMinimumTime < rightQualifiedUpperBound.
@@ -166,13 +167,29 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                     List<Tuple2<RowData, Boolean>> rightRecords =
                             rightCache.getRecordsAndIsEmitted(rightTime);
                     for (Tuple2<RowData, Boolean> tuple : rightRecords) {
-                        joinCollector.reset();
-                        joinFunction.join(leftRow, tuple.f0, joinCollector);
-                        emitted = emitted || joinCollector.isEmitted();
-                        if (joinType.isRightOuter()) {
-                            if (!tuple.f1 && joinCollector.isEmitted()) {
-                                // Mark the right row as being successfully joined and emitted.
-                                rightCache.markEmitted(rightTime, tuple.f0);
+                        if (joinType.isSemiAnti()) {
+                            if (joinFunction.isMatchCondition(leftRow, tuple.f0)) {
+                                // In semi join, if a record in left stream can match one record in
+                                // right stream, it can be output immediately and needn't be checked
+                                // continually and be stored.
+                                // In anti join, if a record in left stream can match one record in
+                                // right stream, it can be eliminated immediately and needn't be
+                                // checked continually and be stored.
+                                findMatchingData = true;
+                                if (joinType == FlinkJoinType.SEMI) {
+                                    joinCollector.collect(leftRow);
+                                }
+                                break;
+                            }
+                        } else {
+                            joinCollector.reset();
+                            joinFunction.join(leftRow, tuple.f0, joinCollector);
+                            emitted = emitted || joinCollector.isEmitted();
+                            if (joinType.isRightOuter()) {
+                                if (!tuple.f1 && joinCollector.isEmitted()) {
+                                    // Mark the right row as being successfully joined and emitted.
+                                    rightCache.markEmitted(rightTime, tuple.f0);
+                                }
                             }
                         }
                     }
@@ -188,11 +205,20 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                                 joinCollector.collect(paddingUtil.padRight(tuple.f0));
                             }
                         }
+                    } else if (joinType == FlinkJoinType.ANTI) {
+                        // In anti join, in order to clean up the right cache safely, we should
+                        // refresh the left cache to drop the invalid records.
+                        cleanUpLeftRecordsByRightTimeInAnti(rightTime);
                     }
+
                     // eager remove
                     rightCache.removeRecords(rightTime);
                 } // We could do the short-cutting optimization here once we get a state with
                 // ordered keys.
+
+                if (joinType.isSemiAnti() && findMatchingData) {
+                    return;
+                }
             }
         }
         // Check if we need to cache the current row.
@@ -235,6 +261,21 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                     List<Tuple2<RowData, Boolean>> leftRows =
                             leftCache.getRecordsAndIsEmitted(leftTime);
                     for (Tuple2<RowData, Boolean> tuple : leftRows) {
+                        // In semi join, if a record in right stream can match one record in left
+                        // stream, the left record can be output immediately and removed from state.
+                        // In anti join, if a record in right stream can match one record in left
+                        // stream, the left record can be removed from state immediately.
+                        if (joinType.isSemiAnti()) {
+                            if (joinFunction.isMatchCondition(tuple.f0, rightRow)) {
+                                if (joinType == FlinkJoinType.SEMI) {
+                                    joinCollector.collect(tuple.f0);
+                                }
+                                // In semi/anti join, 'emitted' is always false.
+                                leftCache.removeSingleRecord(leftTime, tuple.f0, false);
+                            }
+                            continue;
+                        }
+
                         joinCollector.reset();
                         joinFunction.join(tuple.f0, rightRow, joinCollector);
                         emitted = emitted || joinCollector.isEmitted();
@@ -255,6 +296,15 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                                 // Emit a null padding result if the left row has
                                 // never been successfully joined.
                                 joinCollector.collect(paddingUtil.padLeft(tuple.f0));
+                            }
+                        }
+                    } else if (joinType == FlinkJoinType.ANTI) {
+                        // Get all right times to help clean up the left records to output left
+                        // valid records.
+                        List<Long> rightAllTimes = rightCache.getAllTimes();
+                        for (long rightTime : rightAllTimes) {
+                            if (leftTime < calExpirationTime(rightTime, leftRelativeSize)) {
+                                cleanUpLeftRecordsByRightTimeInAnti(rightTime);
                             }
                         }
                     }
@@ -398,6 +448,24 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                             collector.collect(paddingUtil.padRight(tuple.f0));
                         }
                     }
+                } else if (removeLeft && joinType == FlinkJoinType.ANTI) {
+                    // clean up left invalid records by right time
+                    List<Long> rightAllTimes = rightCache.getAllTimes();
+                    for (long rightTime : rightAllTimes) {
+                        if (expirationTime < calExpirationTime(rightTime, leftRelativeSize)) {
+                            cleanUpLeftRecordsByRightTimeInAnti(rightTime);
+                        }
+                    }
+                    // output the remaining left records
+                    List<Tuple2<RowData, Boolean>> remainingLeftRecords =
+                            rowCache.getRecordsAndIsEmitted(rowTime);
+                    for (Tuple2<RowData, Boolean> rowDataAndIsEmitted : remainingLeftRecords) {
+                        joinCollector.collect(rowDataAndIsEmitted.f0);
+                    }
+                } else if (!removeLeft && joinType == FlinkJoinType.ANTI) {
+                    // In anti join, we should refresh the left cache to drop the invalid
+                    // records to clear up the right cache safely.
+                    cleanUpLeftRecordsByRightTimeInAnti(expirationTime);
                 }
                 // eager remove
                 rowCache.removeRecords(rowTime);
@@ -417,6 +485,42 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
             timerState.clear();
             rowCache.clear();
         }
+    }
+
+    private void cleanUpLeftRecordsByRightTimeInAnti(long rightTime) throws Exception {
+        List<Long> leftAllTimes = leftCache.getAllTimes();
+        List<Tuple2<RowData, Boolean>> rightRecords = rightCache.getRecordsAndIsEmitted(rightTime);
+        long tempLeftCleanUpTime = calExpirationTime(rightTime, leftRelativeSize);
+        for (Tuple2<RowData, Boolean> rightRecord : rightRecords) {
+            for (long leftTime : leftAllTimes) {
+                if (leftTime < tempLeftCleanUpTime) {
+                    List<Tuple2<RowData, Boolean>> leftRecords =
+                            leftCache.getRecordsAndIsEmitted(leftTime);
+                    for (Tuple2<RowData, Boolean> leftRecord : leftRecords) {
+                        if (!matchAllConditions(
+                                leftRecord.f0, rightRecord.f0, leftTime, rightTime, joinFunction)) {
+                            joinCollector.collect(leftRecord.f0);
+                        }
+                        leftCache.removeSingleRecord(leftTime, leftRecord.f0, leftRecord.f1);
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean matchAllConditions(
+            RowData left,
+            RowData right,
+            long leftTime,
+            long rightTime,
+            IntervalJoinFunction joinFunction) {
+        final long rightLowerBound = leftTime - rightRelativeSize;
+        final long rightUpperBound = leftTime + leftRelativeSize;
+
+        if (!joinFunction.isMatchCondition(left, right)) {
+            return false;
+        }
+        return rightTime >= rightLowerBound && rightTime <= rightUpperBound;
     }
 
     /**
@@ -541,6 +645,30 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
 
         public void removeRecords(long time) throws Exception {
             recordState.remove(time);
+        }
+
+        public void removeSingleRecord(long time, RowData record, boolean isEmitted)
+                throws Exception {
+            Map<Tuple2<RowData, Boolean>, Integer> rowDataMap = recordState.get(time);
+            if (rowDataMap == null) {
+                return;
+            }
+            Tuple2<RowData, Boolean> rowDataAndIsEmitted = Tuple2.of(record, isEmitted);
+            Integer frequency = rowDataMap.get(rowDataAndIsEmitted);
+            if (frequency == null) {
+                return;
+            }
+            if (frequency > 1) {
+                frequency = frequency - 1;
+                rowDataMap.put(rowDataAndIsEmitted, frequency);
+            } else {
+                rowDataMap.remove(rowDataAndIsEmitted);
+            }
+            if (rowDataMap.size() == 0) {
+                recordState.remove(time);
+            } else {
+                recordState.put(time, rowDataMap);
+            }
         }
 
         public void clear() {

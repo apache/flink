@@ -1595,7 +1595,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   dataRightContainsNull.+=(("A", "R-9", 9000L))
 
   @Test
-  def testRowTimeSemiJoinContainNullWithExists(): Unit = {
+  def testRowTimeSemiJoinContainsNullWithExists(): Unit = {
     val sqlQuery =
       """
         |SELECT t1.key, t1.id
@@ -1633,7 +1633,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   }
 
   @Test
-  def testRowTimeAntiJoinContainNullWithExists(): Unit = {
+  def testRowTimeAntiJoinContainsNullWithExists(): Unit = {
     val sqlQuery =
       """
         |SELECT t1.key, t1.id
@@ -1670,7 +1670,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   }
 
   @Test
-  def testRowTimeSemiJoinContainNullWithIn(): Unit = {
+  def testRowTimeSemiJoinContainsNullWithIn(): Unit = {
     val sqlQuery =
       """
         |SELECT t1.key, t1.id
@@ -1705,7 +1705,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   }
 
   @Test
-  def testRowTimeAntiJoinContainNullWithIn(): Unit = {
+  def testRowTimeAntiJoinContainsNullWithIn(): Unit = {
     val sqlQuery =
       """
         |SELECT t1.key, t1.id
@@ -1731,6 +1731,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     result.addSink(sink).setParallelism(1)
     env.execute()
 
+    // ("B", "L-4") and ("B", "L-5") in left can match the (null, "R-2") in right,
+    // so they will not be output.
     val expected = mutable.MutableList[String](
       "A,L-2",
       "A,L-6",
@@ -1770,10 +1772,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       """
         | SELECT t1.key, t1.id FROM T1 AS t1 WHERE t1.key IN(
         | SELECT t2.key FROM T2 as t2
-        |   WHERE t1.rowtime between t2.rowtime - INTERVAL '3' SECOND AND t2.rowtime - INTERVAL '2' SECOND
+        |   WHERE t1.rowtime BETWEEN t2.rowtime - INTERVAL '3' SECOND AND
+        |    t2.rowtime - INTERVAL '2' SECOND
         |   AND t2.key IN(
         |     SELECT t3.key FROM T3 as t3
-        |       WHERE t2.rowtime between t3.rowtime + INTERVAL '2' SECOND AND t3.rowtime + INTERVAL '3' SECOND))
+        |       WHERE t2.rowtime BETWEEN t3.rowtime + INTERVAL '2' SECOND AND
+        |       t3.rowtime + INTERVAL '3' SECOND))
       """.stripMargin
 
     val t1 = env.fromCollection(data1)
@@ -1810,10 +1814,11 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |SELECT t1.key, t1.id FROM T1 AS t1
         |WHERE t1.key IN(
         | SELECT t2.key FROM T2 as t2
-        | WHERE t1.rowtime between t2.rowtime AND t2.rowtime + INTERVAL '5' SECOND)
+        | WHERE t1.rowtime BETWEEN t2.rowtime AND t2.rowtime + INTERVAL '5' SECOND)
         |AND t1.key IN(
         | SELECT t3.key FROM T3 as t3
-        | WHERE t1.rowtime between t3.rowtime + INTERVAL '1' SECOND AND t3.rowtime + INTERVAL '8' SECOND)
+        | WHERE t1.rowtime BETWEEN t3.rowtime + INTERVAL '1' SECOND AND
+        | t3.rowtime + INTERVAL '8' SECOND)
       """.stripMargin
 
     val t1 = env.fromCollection(data1)

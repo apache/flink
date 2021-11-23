@@ -96,7 +96,7 @@ class IntervalJoinTest extends TableTestBase {
       """
         |SELECT t1.a FROM MyTable t1 WHERE t1.a IN (
         | SELECT t2.a FROM MyTable2 t2
-        |   WHERE t1.proctime between t2.proctime and t2.proctime + INTERVAL '5' MINUTE)
+        |   WHERE t1.proctime BETWEEN t2.proctime and t2.proctime + INTERVAL '5' MINUTE)
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -107,7 +107,7 @@ class IntervalJoinTest extends TableTestBase {
       """
         |SELECT t1.a FROM MyTable t1 WHERE t1.a IN (
         | SELECT t2.a FROM MyTable2 t2
-        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+        |   WHERE t1.rowtime BETWEEN t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -118,7 +118,7 @@ class IntervalJoinTest extends TableTestBase {
       """
         |SELECT t1.a FROM MyTable t1 WHERE t1.a NOT IN (
         | SELECT t2.a FROM MyTable2 t2
-        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+        |   WHERE t1.rowtime BETWEEN t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -129,7 +129,7 @@ class IntervalJoinTest extends TableTestBase {
       """
         |SELECT t1.a FROM MyTable t1 WHERE EXISTS (
         | SELECT * FROM MyTable2 t2
-        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+        |   WHERE t1.rowtime BETWEEN t2.rowtime AND t2.rowtime + INTERVAL '5' MINUTE)
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -140,7 +140,7 @@ class IntervalJoinTest extends TableTestBase {
       """
         |SELECT t1.a FROM MyTable t1 WHERE NOT EXISTS (
         | SELECT * FROM MyTable2 t2
-        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+        |   WHERE t1.rowtime BETWEEN t2.rowtime AND t2.rowtime + INTERVAL '5' MINUTE)
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -151,7 +151,8 @@ class IntervalJoinTest extends TableTestBase {
       """
         |SELECT t1.a FROM MyTable t1 WHERE EXISTS (
         | SELECT * FROM MyTable2 t2
-        |   WHERE t1.b = t2.b AND t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+        |   WHERE t1.b = t2.b AND
+        |   t1.rowtime BETWEEN t2.rowtime AND t2.rowtime + INTERVAL '5' MINUTE)
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -162,7 +163,8 @@ class IntervalJoinTest extends TableTestBase {
       """
         |SELECT t1.a FROM MyTable t1 WHERE t1.c > 2 AND NOT(t1.b like 'abc' OR t1.a NOT IN (
         | SELECT t2.a FROM MyTable2 t2
-        |   WHERE t1.b = t2.b AND t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE))
+        |   WHERE t1.b = t2.b AND
+        |   t1.rowtime BETWEEN t2.rowtime AND t2.rowtime + INTERVAL '5' MINUTE))
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -173,10 +175,12 @@ class IntervalJoinTest extends TableTestBase {
       """
         |SELECT t1.a FROM MyTable t1 WHERE EXISTS(
         | SELECT t2.a FROM MyTable2 t2
-        |   WHERE t1.b = t2.b AND t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE
+        |   WHERE t1.b = t2.b AND
+        |   t1.rowtime BETWEEN t2.rowtime AND t2.rowtime + INTERVAL '5' MINUTE
         |   AND t2.a IN(
         |     SELECT t3.a FROM MyTable2 t3
-        |       WHERE t2.b = t3.b AND t2.rowtime between t3.rowtime and t3.rowtime + INTERVAL '5' MINUTE))
+        |       WHERE t2.b = t3.b AND
+        |        t2.rowtime BETWEEN t3.rowtime AND t3.rowtime + INTERVAL '5' MINUTE))
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -187,10 +191,12 @@ class IntervalJoinTest extends TableTestBase {
       """
         |SELECT t1.a FROM MyTable t1 WHERE EXISTS(
         | SELECT t2.a FROM MyTable2 t2
-        |   WHERE t1.b = t2.b AND t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE
+        |   WHERE t1.b = t2.b AND
+        |   t1.rowtime BETWEEN t2.rowtime AND t2.rowtime + INTERVAL '5' MINUTE
         |   AND t2.a NOT IN(
         |     SELECT t3.a FROM MyTable7 t3
-        |       WHERE t2.b = t3.b AND t2.rowtime between t3.rowtime and t3.rowtime + INTERVAL '5' MINUTE))
+        |       WHERE t2.b = t3.b AND
+        |       t2.rowtime BETWEEN t3.rowtime AND t3.rowtime + INTERVAL '5' MINUTE))
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -201,7 +207,7 @@ class IntervalJoinTest extends TableTestBase {
       """
         |SELECT t1.a FROM MyTable t1 WHERE (t1.a, SUBSTRING(t1.b, 1 ,5)) IN (
         | SELECT t2.a, SUBSTRING(t2.b, 1, 5) FROM MyTable2 t2
-        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+        |   WHERE t1.rowtime BETWEEN t2.rowtime AND t2.rowtime + INTERVAL '5' MINUTE)
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -213,10 +219,12 @@ class IntervalJoinTest extends TableTestBase {
         |SELECT t1.a FROM MyTable t1
         |WHERE t1.a IN (
         | SELECT t2.a FROM MyTable2 t2
-        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE)
+        |   WHERE t1.rowtime BETWEEN t2.rowtime
+        |   AND t2.rowtime + INTERVAL '5' MINUTE)
         |AND t1.c IN(
         | SELECT t3.c FROM MyTable7 t3
-        |   WHERE t1.rowtime between t3.rowtime + INTERVAL '1' MINUTE and t3.rowtime + INTERVAL '4' MINUTE)
+        |   WHERE t1.rowtime BETWEEN t3.rowtime + INTERVAL '1' MINUTE AND
+        |   t3.rowtime + INTERVAL '4' MINUTE)
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -230,10 +238,12 @@ class IntervalJoinTest extends TableTestBase {
         |SELECT t1.a FROM MyTable t1
         |WHERE t1.a IN (
         | SELECT t2.a FROM MyTable2 t2
-        |   WHERE t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE
+        |   WHERE t1.rowtime BETWEEN t2.rowtime AND
+        |   t2.rowtime + INTERVAL '5' MINUTE
         | UNION
         | SELECT t3.a FROM MyTable7 t3
-        |   WHERE t1.rowtime between t3.rowtime + INTERVAL '1' MINUTE and t3.rowtime + INTERVAL '4' MINUTE)
+        |   WHERE t1.rowtime BETWEEN t3.rowtime + INTERVAL '1' MINUTE AND
+        |   t3.rowtime + INTERVAL '4' MINUTE)
       """.stripMargin
     util.verifyExecPlan(sql)
   }
