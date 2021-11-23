@@ -28,15 +28,15 @@ on:
         type: number
     secrets:
       s3_bucket:
-        required: true
+        required: false
       s3_access_key:
-        required: true
+        required: false
       s3_secret_key:
-        required: true
+        required: false
       glue_schema_access_key:
-        required: true
+        required: false
       glue_schema_secret_key:
-        required: true
+        required: false
 
 env:
   FLINK_ARTIFACT_DIR: ${{ github.workspace }}/
