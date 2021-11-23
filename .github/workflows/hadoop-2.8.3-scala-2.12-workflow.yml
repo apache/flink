@@ -13,14 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-#
-# This file defines the Flink build for the "apache/flink" repository, including
-# the following:
-#  - PR builds (triggered through ci-bot)
-#  - custom triggered e2e tests
-#  - nightly builds
-
 name: "Hadoop 2.8.3/Java 8/Scala 2.12 (Matthias)"
 
 on: push
