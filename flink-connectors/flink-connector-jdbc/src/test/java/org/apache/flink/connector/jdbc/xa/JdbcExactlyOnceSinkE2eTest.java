@@ -142,10 +142,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         return Arrays.asList(
                 // PGSQL: check for issues with suspending connections (requires pooling) and
                 // honoring limits (properly closing connections).
-                // new PgSqlJdbcExactlyOnceSinkTestEnv(4)
-                //            ,
+                new PgSqlJdbcExactlyOnceSinkTestEnv(4),
                 // MYSQL: check for issues with errors on closing connections.
-                // new MySqlJdbcExactlyOnceSinkTestEnv(4)
+                new MySqlJdbcExactlyOnceSinkTestEnv(4),
                 // ORACLE - default tests.
                 new OracleJdbcExactlyOnceSinkTestEnv(4)
                 // MSSQL - not testing: XA transactions need to be enabled via GUI (plus EULA).
@@ -845,10 +844,10 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         /** {@link OracleContainer}. */
         private static final class OracleContainer extends JdbcDatabaseContainer<OracleContainer> {
-            public static final String NAME = "oracle";
-            private static final String IMAGE = "wnameless/oracle-xe-11g-r2";
-
-            private static final DockerImageName ORACLE_IMAGE = DockerImageName.parse(IMAGE);
+            private static final String DEFAULT_TAG = "18.4.0-slim";
+            private static final String IMAGE = "gvenzl/oracle-xe";
+            private static final DockerImageName ORACLE_IMAGE =
+                    DockerImageName.parse(IMAGE).withTag(DEFAULT_TAG);
 
             private static final int ORACLE_PORT = 1521;
             private static final int APEX_HTTP_PORT = 8080;
@@ -867,12 +866,8 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
             private void preconfigure() {
                 withStartupTimeoutSeconds(DEFAULT_STARTUP_TIMEOUT_SECONDS);
                 withConnectTimeoutSeconds(DEFAULT_CONNECT_TIMEOUT_SECONDS);
+                withEnv("ORACLE_PASSWORD", password);
                 addExposedPorts(ORACLE_PORT, APEX_HTTP_PORT);
-            }
-
-            @Override
-            protected Integer getLivenessCheckPort() {
-                return getMappedPort(ORACLE_PORT);
             }
 
             @Override
