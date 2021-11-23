@@ -26,7 +26,13 @@ import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointProperties;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
@@ -72,7 +78,9 @@ import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator;
 import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.ResourceCounter;
@@ -92,11 +100,13 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -110,6 +120,7 @@ import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGr
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
@@ -830,6 +841,66 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         assertThat(completedCheckpointStoreShutdownFuture.get(), is(JobStatus.FAILED));
         assertThat(checkpointIdCounterShutdownFuture.get(), is(JobStatus.FAILED));
+    }
+
+    @Test
+    public void testCloseCleansCheckpoints() throws Exception {
+        final CompletableFuture<JobStatus> completedCheckpointStoreShutdownFuture =
+                new CompletableFuture<>();
+        final ExecutorService executor = Executors.newSingleThreadExecutor();
+        final CompletedCheckpointStore completedCheckpointStore =
+                new StandaloneCompletedCheckpointStore(2) {
+                    @Override
+                    public void shutdown(
+                            JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) {
+                        try {
+                            for (CompletedCheckpoint chk : getAllCheckpoints()) {
+                                checkpointsCleaner.cleanCheckpoint(chk, true, () -> {}, executor);
+                            }
+                            completedCheckpointStoreShutdownFuture.complete(jobStatus);
+                        } catch (Exception e) {
+                            completedCheckpointStoreShutdownFuture.completeExceptionally(e);
+                        }
+                    }
+                };
+
+        final CheckpointIDCounter checkpointIdCounter = new StandaloneCheckpointIDCounter();
+        completedCheckpointStore.addCheckpoint(
+                new CompletedCheckpoint(
+                        new JobID(),
+                        0L,
+                        0L,
+                        0L,
+                        Collections.emptyMap(),
+                        Collections.emptyList(),
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        new TestCompletedCheckpointStorageLocation()),
+                null,
+                null);
+
+        final JobGraph jobGraph = createJobGraph();
+        // checkpointing components are only created if checkpointing is enabled
+        jobGraph.setSnapshotSettings(
+                new JobCheckpointingSettings(
+                        CheckpointCoordinatorConfiguration.builder().build(), null));
+
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
+                        .setCheckpointRecoveryFactory(
+                                new TestingCheckpointRecoveryFactory(
+                                        completedCheckpointStore, checkpointIdCounter))
+                        .build();
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    // transition into the FAILED state
+                    scheduler.handleGlobalFailure(new FlinkException("Test exception"));
+                    scheduler.closeAsync();
+                });
+
+        assertThat(completedCheckpointStoreShutdownFuture.get(), is(JobStatus.FAILED));
     }
 
     @Test

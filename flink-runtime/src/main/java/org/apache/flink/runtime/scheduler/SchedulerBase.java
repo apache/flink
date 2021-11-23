@@ -610,12 +610,12 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         final FlinkException cause = new FlinkException("Scheduler is being stopped.");
 
         final CompletableFuture<Void> checkpointServicesShutdownFuture =
-                CompletableFuture.allOf(
-                        executionGraph
-                                .getTerminationFuture()
-                                .thenAcceptAsync(
-                                        this::shutDownCheckpointServices, getMainThreadExecutor()),
-                        checkpointsCleaner.closeAsync());
+                executionGraph
+                        .getTerminationFuture()
+                        .thenAcceptAsync(this::shutDownCheckpointServices, getMainThreadExecutor())
+                        // checkpoints cleaner is used when stopping checkpoint services, thus it
+                        // must be closed afterwards
+                        .thenAcceptAsync(ignored -> checkpointsCleaner.closeAsync());
         FutureUtils.assertNoException(checkpointServicesShutdownFuture);
 
         incrementVersionsOfAllVertices();

@@ -19,15 +19,26 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointProperties;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
@@ -51,9 +62,13 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
+import org.apache.flink.runtime.scheduler.adaptive.AdaptiveScheduler;
+import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntryMatcher;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -63,11 +78,13 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.scheduler.strategy.TestSchedulingStrategy;
 import org.apache.flink.runtime.shuffle.TestingShuffleMaster;
+import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -81,6 +98,7 @@ import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.hamcrest.core.Is;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -155,6 +173,14 @@ public class DefaultSchedulerTest extends TestLogger {
     private TestingJobMasterPartitionTracker partitionTracker;
 
     private Time timeout;
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> TEST_EXECUTOR_RESOURCE =
+            new TestExecutorResource<>(Executors::newSingleThreadScheduledExecutor);
+
+    private final ComponentMainThreadExecutor singleThreadMainThreadExecutor =
+            ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                    TEST_EXECUTOR_RESOURCE.getExecutor());
 
     @Before
     public void setUp() throws Exception {
@@ -815,6 +841,69 @@ public class DefaultSchedulerTest extends TestLogger {
         scheduler.updateTaskExecutionState(createFailedTaskExecutionState(attemptId));
         taskRestartExecutor.triggerScheduledTasks();
         assertThat(masterHook.getRestoreCount(), is(equalTo(1)));
+    }
+
+    @Test
+    public void testCloseCleansCheckpoints() throws Exception {
+        final CompletableFuture<Void> completedCheckpointStoreShutdownFuture =
+                new CompletableFuture<>();
+        final ExecutorService executor = Executors.newSingleThreadExecutor();
+        final CompletedCheckpointStore completedCheckpointStore =
+                new StandaloneCompletedCheckpointStore(2) {
+                    @Override
+                    public void shutdown(
+                            JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) {
+                        try {
+                            for (CompletedCheckpoint chk : getAllCheckpoints()) {
+                                checkpointsCleaner.cleanCheckpoint(chk, true, () -> {}, executor);
+                            }
+                            completedCheckpointStoreShutdownFuture.complete(null);
+                        } catch (Exception e) {
+                            completedCheckpointStoreShutdownFuture.completeExceptionally(e);
+                        }
+                    }
+                };
+
+        final CheckpointIDCounter checkpointIdCounter = new StandaloneCheckpointIDCounter();
+        completedCheckpointStore.addCheckpoint(
+                new CompletedCheckpoint(
+                        new JobID(),
+                        0L,
+                        0L,
+                        0L,
+                        Collections.emptyMap(),
+                        Collections.emptyList(),
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        new TestCompletedCheckpointStorageLocation()),
+                null,
+                null);
+
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+        // checkpointing components are only created if checkpointing is enabled
+        jobGraph.setSnapshotSettings(
+                new JobCheckpointingSettings(
+                        CheckpointCoordinatorConfiguration.builder().build(), null));
+
+        final DefaultScheduler scheduler =
+                SchedulerTestingUtils.newSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
+                        .setCheckpointRecoveryFactory(
+                                new TestingCheckpointRecoveryFactory(
+                                        completedCheckpointStore, checkpointIdCounter))
+                        .build();
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    // transition into the FAILED state
+                    scheduler.handleGlobalFailure(new FlinkException("Test exception"));
+                    scheduler.closeAsync();
+                });
+
+        completedCheckpointStoreShutdownFuture.get();
+        assertTrue(
+                completedCheckpointStoreShutdownFuture.isDone()
+                        && !completedCheckpointStoreShutdownFuture.isCompletedExceptionally());
     }
 
     @Test
