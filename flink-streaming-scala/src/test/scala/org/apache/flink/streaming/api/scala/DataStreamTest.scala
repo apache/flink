@@ -97,6 +97,38 @@ class DataStreamTest extends AbstractTestBase {
     assert(plan contains "testWindowReduce")
   }
 
+  @Test
+  def testUserDefinedDescription(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val dataStream1 = env.generateSequence(0, 0)
+      .setDescription("this is test source 1")
+      .map(x => x)
+      .setDescription("this is test map 1")
+    val dataStream2 = env.generateSequence(0, 0)
+      .setDescription("this is test source 2")
+      .map(x => x)
+      .setDescription("this is test map 2")
+
+    val func: (((Long, Long), (Long, Long)) => (Long, Long)) =
+      (x: (Long, Long), y: (Long, Long)) => (0L, 0L)
+    dataStream1.connect(dataStream2)
+      .flatMap({ (in, out: Collector[(Long, Long)]) => }, { (in, out: Collector[(Long, Long)]) => })
+      .setDescription("this is test co flat map")
+      .windowAll(GlobalWindows.create)
+      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
+      .reduce(func)
+      .setDescription("this is test window reduce")
+      .print
+    // test functionality through the operator names in the execution plan
+    val plan = env.getExecutionPlan
+    assertTrue(plan.contains("this is test source 1"))
+    assertTrue(plan.contains("this is test source 2"))
+    assertTrue(plan.contains("this is test map 1"))
+    assertTrue(plan.contains("this is test map 2"))
+    assertTrue(plan.contains("this is test co flat map"))
+    assertTrue(plan.contains("this is test window reduce"))
+  }
+
   /**
    * Tests that [[DataStream.keyBy]] and [[DataStream.partitionCustom]] result in
    * different and correct topologies. Does the some for the [[ConnectedStreams]].
@@ -105,8 +137,8 @@ class DataStreamTest extends AbstractTestBase {
   def testPartitioning(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val src1: DataStream[(Long, Long)] = env.fromElements((0L, 0L))
-    val src2: DataStream[(Long, Long)] = env.fromElements((0L, 0L))
+    val src1 = env.fromElements((0L, 0L))
+    val src2 = env.fromElements((0L, 0L))
 
     val connected = src1.connect(src2)
 
@@ -125,10 +157,10 @@ class DataStreamTest extends AbstractTestBase {
     assert(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId, gid4)))
 
     //Testing DataStream partitioning
-    val partition1: DataStream[_] = src1.keyBy(0)
-    val partition2: DataStream[_] = src1.keyBy(1, 0)
-    val partition3: DataStream[_] = src1.keyBy("_1")
-    val partition4: DataStream[_] = src1.keyBy((x : (Long, Long)) => x._1)
+    val partition1 = src1.keyBy(0)
+    val partition2 = src1.keyBy(1, 0)
+    val partition3 = src1.keyBy("_1")
+    val partition4 = src1.keyBy((x : (Long, Long)) => x._1)
 
     val pid1 = createDownStreamId(partition1)
     val pid2 = createDownStreamId(partition2)
@@ -141,15 +173,15 @@ class DataStreamTest extends AbstractTestBase {
     assert(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId, pid4)))
 
     // Testing DataStream custom partitioning
-    val longPartitioner: Partitioner[Long] = new Partitioner[Long] {
-      override def partition(key: Long, numPartitions: Int): Int = 0
+    val longPartitioner = new Partitioner[Long] {
+      override def partition(key: Long, numPartitions: Int) = 0
     }
 
-    val customPartition1: DataStream[_] =
+    val customPartition1 =
       src1.partitionCustom(longPartitioner, 0)
-    val customPartition3: DataStream[_] =
+    val customPartition3 =
       src1.partitionCustom(longPartitioner, "_1")
-    val customPartition4: DataStream[_] =
+    val customPartition4 =
       src1.partitionCustom(longPartitioner, (x : (Long, Long)) => x._1)
 
     val cpid1 = createDownStreamId(customPartition1)
@@ -160,21 +192,21 @@ class DataStreamTest extends AbstractTestBase {
     assert(isCustomPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId, cpid3)))
 
     //Testing ConnectedStreams grouping
-    val connectedGroup1: ConnectedStreams[_, _] = connected.keyBy(0, 0)
-    val downStreamId1: Integer = createDownStreamId(connectedGroup1)
+    val connectedGroup1 = connected.keyBy(0, 0)
+    val downStreamId1 = createDownStreamId(connectedGroup1)
 
-    val connectedGroup2: ConnectedStreams[_, _] = connected.keyBy(Array[Int](0), Array[Int](0))
-    val downStreamId2: Integer = createDownStreamId(connectedGroup2)
+    val connectedGroup2 = connected.keyBy(Array[Int](0), Array[Int](0))
+    val downStreamId2 = createDownStreamId(connectedGroup2)
 
-    val connectedGroup3: ConnectedStreams[_, _] = connected.keyBy("_1", "_1")
-    val downStreamId3: Integer = createDownStreamId(connectedGroup3)
+    val connectedGroup3 = connected.keyBy("_1", "_1")
+    val downStreamId3 = createDownStreamId(connectedGroup3)
 
-    val connectedGroup4: ConnectedStreams[_, _] =
+    val connectedGroup4 =
       connected.keyBy(Array[String]("_1"), Array[String]("_1"))
-    val downStreamId4: Integer = createDownStreamId(connectedGroup4)
+    val downStreamId4 = createDownStreamId(connectedGroup4)
 
-    val connectedGroup5: ConnectedStreams[_, _] = connected.keyBy(x => x._1, x => x._1)
-    val downStreamId5: Integer = createDownStreamId(connectedGroup5)
+    val connectedGroup5 = connected.keyBy(x => x._1, x => x._1)
+    val downStreamId5 = createDownStreamId(connectedGroup5)
 
     assert(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId, downStreamId1)))
     assert(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId, downStreamId1)))
@@ -192,23 +224,23 @@ class DataStreamTest extends AbstractTestBase {
     assert(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId, downStreamId5)))
 
     //Testing ConnectedStreams partitioning
-    val connectedPartition1: ConnectedStreams[_, _] = connected.keyBy(0, 0)
-    val connectDownStreamId1: Integer = createDownStreamId(connectedPartition1)
+    val connectedPartition1 = connected.keyBy(0, 0)
+    val connectDownStreamId1 = createDownStreamId(connectedPartition1)
 
-    val connectedPartition2: ConnectedStreams[_, _] =
+    val connectedPartition2 =
       connected.keyBy(Array[Int](0), Array[Int](0))
-    val connectDownStreamId2: Integer = createDownStreamId(connectedPartition2)
+    val connectDownStreamId2 = createDownStreamId(connectedPartition2)
 
-    val connectedPartition3: ConnectedStreams[_, _] = connected.keyBy("_1", "_1")
-    val connectDownStreamId3: Integer = createDownStreamId(connectedPartition3)
+    val connectedPartition3 = connected.keyBy("_1", "_1")
+    val connectDownStreamId3 = createDownStreamId(connectedPartition3)
 
-    val connectedPartition4: ConnectedStreams[_, _] =
+    val connectedPartition4 =
       connected.keyBy(Array[String]("_1"), Array[String]("_1"))
-    val connectDownStreamId4: Integer = createDownStreamId(connectedPartition4)
+    val connectDownStreamId4 = createDownStreamId(connectedPartition4)
 
-    val connectedPartition5: ConnectedStreams[_, _] =
+    val connectedPartition5 =
       connected.keyBy(x => x._1, x => x._1)
-    val connectDownStreamId5: Integer = createDownStreamId(connectedPartition5)
+    val connectDownStreamId5 = createDownStreamId(connectedPartition5)
 
     assert(
       isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId, connectDownStreamId1))

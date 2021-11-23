@@ -419,4 +419,17 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
                 new SideOutputTransformation<>(this.getTransformation(), sideOutputTag);
         return new DataStream<>(this.getExecutionEnvironment(), sideOutputTransformation);
     }
+
+    /**
+     * Sets the description for this operation. the description is used in json plan, is expected to
+     * provide more detailed information about the operation than name.
+     *
+     * @param desc The description for this operation.
+     * @return The operation with new description.
+     */
+    @PublicEvolving
+    public SingleOutputStreamOperator<T> setDescription(String desc) {
+        transformation.setDescription(desc);
+        return this;
+    }
 }

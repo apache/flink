@@ -140,6 +140,19 @@ public class DataStreamSink<T> {
         return this;
     }
 
+    /**
+     * Sets the description for this sink. the description is used in json plan, is expected to
+     * provide more detail information about the operation than name.
+     *
+     * @param desc The description for this sink.
+     * @return The sink with new description.
+     */
+    @PublicEvolving
+    public DataStreamSink<T> setDescription(String desc) {
+        transformation.setDescription(desc);
+        return this;
+    }
+
     //	---------------------------------------------------------------------------
     //	 Fine-grained resource profiles are an incomplete work-in-progress feature
     //	 The setters are hence private at this point.

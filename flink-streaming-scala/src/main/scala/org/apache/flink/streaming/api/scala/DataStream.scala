@@ -1225,4 +1225,17 @@ class DataStream[T](stream: JavaStream[T]) {
       operator: OneInputStreamOperator[T, R]): DataStream[R] = {
     asScalaStream(stream.transform(operatorName, implicitly[TypeInformation[R]], operator))
   }
+
+  /**
+   * Sets the description of the current data stream. This description is in json plan,
+   * is expected to provide more detailed information about the operation than name.
+   *
+   * @return The operator with new description
+   */
+  @PublicEvolving
+  def setDescription(desc: String) : DataStream[T] = stream match {
+    case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.setDescription(desc))
+    case _ => throw new UnsupportedOperationException("Only supported for operators.")
+      this
+  }
 }
