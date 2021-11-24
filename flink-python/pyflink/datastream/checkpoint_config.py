@@ -247,7 +247,9 @@ class CheckpointConfig(object):
             self,
             cleanup_mode: 'ExternalizedCheckpointCleanup') -> 'CheckpointConfig':
         """
-        Enables checkpoints to be persisted externally.
+        Sets the mode for externalized checkpoint clean-up. Externalized checkpoints will be enabled
+        automatically unless the mode is set to
+        :data:`ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS`.
 
         Externalized checkpoints write their meta data out to persistent storage and are **not**
         automatically cleaned up when the owning job fails or is suspended (terminating with job
@@ -256,7 +258,7 @@ class CheckpointConfig(object):
 
         The :class:`ExternalizedCheckpointCleanup` mode defines how an externalized checkpoint
         should be cleaned up on job cancellation. If you choose to retain externalized checkpoints
-        on cancellation you have you handle checkpoint clean up manually when you cancel the job as
+        on cancellation you have to handle checkpoint clean-up manually when you cancel the job as
         well (terminating with job status ``CANCELED``).
 
         The target directory for externalized checkpoints is configured via
@@ -268,11 +270,50 @@ class CheckpointConfig(object):
             >>> config.enable_externalized_checkpoints(
             ...     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
-        :param cleanup_mode: Externalized checkpoint cleanup behaviour, the mode could be
-                             :data:`ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION` or
-                             :data:`ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION`
+        :param cleanup_mode: Externalized checkpoint clean-up behaviour, the mode could be
+                             :data:`ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION`,
+                             :data:`ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION` or
+                             :data:`ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS`
+
+        .. note:: Deprecated in 1.15. Use :func:`set_externalized_checkpoint_cleanup` instead.
         """
         self._j_checkpoint_config.enableExternalizedCheckpoints(
+            ExternalizedCheckpointCleanup._to_j_externalized_checkpoint_cleanup(cleanup_mode))
+        return self
+
+    def set_externalized_checkpoint_cleanup(
+            self,
+            cleanup_mode: 'ExternalizedCheckpointCleanup') -> 'CheckpointConfig':
+        """
+        Sets the mode for externalized checkpoint clean-up. Externalized checkpoints will be enabled
+        automatically unless the mode is set to
+        :data:`ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS`.
+
+        Externalized checkpoints write their meta data out to persistent storage and are **not**
+        automatically cleaned up when the owning job fails or is suspended (terminating with job
+        status ``FAILED`` or ``SUSPENDED``). In this case, you have to manually clean up the
+        checkpoint state, both the meta data and actual program state.
+
+        The :class:`ExternalizedCheckpointCleanup` mode defines how an externalized checkpoint
+        should be cleaned up on job cancellation. If you choose to retain externalized checkpoints
+        on cancellation you have to handle checkpoint clean-up manually when you cancel the job as
+        well (terminating with job status ``CANCELED``).
+
+        The target directory for externalized checkpoints is configured via
+        ``org.apache.flink.configuration.CheckpointingOptions#CHECKPOINTS_DIRECTORY``.
+
+        Example:
+        ::
+
+            >>> config.set_externalized_checkpoint_cleanup(
+            ...     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+
+        :param cleanup_mode: Externalized checkpoint clean-up behaviour, the mode could be
+                             :data:`ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION`,
+                             :data:`ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION` or
+                             :data:`ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS`
+        """
+        self._j_checkpoint_config.setExternalizedCheckpointCleanup(
             ExternalizedCheckpointCleanup._to_j_externalized_checkpoint_cleanup(cleanup_mode))
         return self
 
@@ -449,11 +490,17 @@ class ExternalizedCheckpointCleanup(Enum):
 
     Note that checkpoint state is always kept if the job terminates
     with state ``FAILED``.
+
+    :data:`NO_EXTERNALIZED_CHECKPOINTS`:
+
+    Externalized checkpoints are disabled completely.
     """
 
     DELETE_ON_CANCELLATION = 0
 
     RETAIN_ON_CANCELLATION = 1
+
+    NO_EXTERNALIZED_CHECKPOINTS = 2
 
     @staticmethod
     def _from_j_externalized_checkpoint_cleanup(j_cleanup_mode) \
