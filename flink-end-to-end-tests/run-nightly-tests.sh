@@ -27,7 +27,7 @@ fi
 
 export END_TO_END_DIR
 
-if [ -z "$FLINK_DIR" ] ; then
+if [ -z "${FLINK_DIR:-}" ] ; then
     echo "You have to export the Flink distribution directory as FLINK_DIR"
     exit 1
 fi

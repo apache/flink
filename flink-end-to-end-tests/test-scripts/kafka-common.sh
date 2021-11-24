@@ -17,7 +17,7 @@
 # limitations under the License.
 ################################################################################
 
-if [[ -z $TEST_DATA_DIR ]]; then
+if [[ -z "${TEST_DATA_DIR:-}" ]]; then
   echo "Must run common.sh before kafka-common.sh."
   exit 1
 fi
