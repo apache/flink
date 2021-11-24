@@ -56,8 +56,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.ServiceConfigurationError;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -689,15 +687,28 @@ public final class FactoryUtil {
         }
     }
 
-    private static List<Factory> discoverFactories(ClassLoader classLoader) {
-        try {
-            final List<Factory> result = new LinkedList<>();
-            ServiceLoader.load(Factory.class, classLoader).iterator().forEachRemaining(result::add);
-            return result;
-        } catch (ServiceConfigurationError e) {
-            LOG.error("Could not load service provider for factories.", e);
-            throw new TableException("Could not load service provider for factories.", e);
-        }
+    static List<Factory> discoverFactories(ClassLoader classLoader) {
+        final List<Factory> result = new LinkedList<>();
+        ServiceLoaderUtil.load(Factory.class, classLoader)
+                .forEachRemaining(
+                        loadResult -> {
+                            if (loadResult.hasFailed()) {
+                                if (loadResult.getError() instanceof NoClassDefFoundError) {
+                                    LOG.debug(
+                                            "NoClassDefFoundError when loading a "
+                                                    + Factory.class
+                                                    + ". This is expected when trying to load a format dependency but no flink-connector-files is loaded.",
+                                            loadResult.getError());
+                                    // After logging, we just ignore this failure
+                                    return;
+                                }
+                                throw new TableException(
+                                        "Unexpected error when trying to load service provider for factories.",
+                                        loadResult.getError());
+                            }
+                            result.add(loadResult.getService());
+                        });
+        return result;
     }
 
     private static String stringifyOption(String key, String value) {
