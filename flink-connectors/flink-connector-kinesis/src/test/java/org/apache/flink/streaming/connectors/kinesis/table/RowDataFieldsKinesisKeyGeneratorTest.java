@@ -42,12 +42,12 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.streaming.connectors.kinesis.table.RowDataFieldsKinesisPartitioner.MAX_PARTITION_KEY_LENGTH;
+import static org.apache.flink.streaming.connectors.kinesis.table.RowDataFieldsKinesisKeyGenerator.MAX_PARTITION_KEY_LENGTH;
 import static org.apache.flink.table.utils.EncodingUtils.repeat;
 import static org.junit.Assert.assertEquals;
 
-/** Test for {@link RowDataFieldsKinesisPartitioner}. */
-public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
+/** Test for {@link RowDataFieldsKinesisKeyGenerator}. */
+public class RowDataFieldsKinesisKeyGeneratorTest extends TestLogger {
 
     /** Table name to use for the tests. */
     private static final String TABLE_NAME = "click_stream";
@@ -100,13 +100,13 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
     @Test
     public void testGoodPartitioner() {
         for (String delimiter : FIELD_DELIMITERS) {
-            RowDataFieldsKinesisPartitioner partitioner =
-                    new RowDataFieldsKinesisPartitioner(
+            RowDataFieldsKinesisKeyGenerator partitioner =
+                    new RowDataFieldsKinesisKeyGenerator(
                             ROW_TYPE, PARTITION_BY_DATE_AND_IP, delimiter);
 
             for (LocalDateTime time : DATE_TIMES) {
                 String expectedKey = String.join(delimiter, String.valueOf(days(time)), IP);
-                String actualKey = partitioner.getPartitionId(createElement(time, IP));
+                String actualKey = partitioner.apply(createElement(time, IP));
 
                 assertEquals(expectedKey, actualKey);
             }
@@ -115,15 +115,15 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
 
     @Test
     public void testGoodPartitionerExceedingMaxLength() {
-        RowDataFieldsKinesisPartitioner partitioner =
-                new RowDataFieldsKinesisPartitioner(ROW_TYPE, PARTITION_BY_ROUTE);
+        RowDataFieldsKinesisKeyGenerator partitioner =
+                new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, PARTITION_BY_ROUTE);
 
         String ip = "255.255.255.255";
         String route = "http://www.very-" + repeat("long-", 50) + "address.com/home";
         String expectedKey = route.substring(0, MAX_PARTITION_KEY_LENGTH);
 
         for (LocalDateTime time : DATE_TIMES) {
-            String actualKey = partitioner.getPartitionId(createElement(time, ip, route));
+            String actualKey = partitioner.apply(createElement(time, ip, route));
             assertEquals(expectedKey, actualKey);
         }
     }
@@ -135,8 +135,8 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
         String month = String.valueOf(monthOfYear(DATE_TIMES.get(0)));
 
         for (String delimiter : FIELD_DELIMITERS) {
-            RowDataFieldsKinesisPartitioner partitioner =
-                    new RowDataFieldsKinesisPartitioner(ROW_TYPE, PARTITION_BY_DATE, delimiter);
+            RowDataFieldsKinesisKeyGenerator partitioner =
+                    new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, PARTITION_BY_DATE, delimiter);
 
             partitioner.setStaticFields(
                     new HashMap<String, String>() {
@@ -149,7 +149,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
             for (LocalDateTime time : DATE_TIMES) {
                 String day = String.valueOf(dayOfMonth(time));
                 String expectedKey = String.join(delimiter, year, month, day);
-                String actualKey = partitioner.getPartitionId(createElement(time, IP));
+                String actualKey = partitioner.apply(createElement(time, IP));
 
                 assertEquals(expectedKey, actualKey);
             }
@@ -163,8 +163,8 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
         String day = String.valueOf(dayOfMonth(DATE_TIMES.get(0)));
 
         for (String delimiter : FIELD_DELIMITERS) {
-            RowDataFieldsKinesisPartitioner partitioner =
-                    new RowDataFieldsKinesisPartitioner(ROW_TYPE, PARTITION_BY_DATE, delimiter);
+            RowDataFieldsKinesisKeyGenerator partitioner =
+                    new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, PARTITION_BY_DATE, delimiter);
 
             partitioner.setStaticFields(
                     new HashMap<String, String>() {
@@ -177,7 +177,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
             for (LocalDateTime time : DATE_TIMES) {
                 String year = String.valueOf(year(time));
                 String expectedKey = String.join(delimiter, year, month, day);
-                String actualKey = partitioner.getPartitionId(createElement(time, IP));
+                String actualKey = partitioner.apply(createElement(time, IP));
 
                 assertEquals(expectedKey, actualKey);
             }
@@ -190,8 +190,8 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
         String month = String.valueOf(monthOfYear(DATE_TIMES.get(0)));
 
         for (String delimiter : FIELD_DELIMITERS) {
-            RowDataFieldsKinesisPartitioner partitioner =
-                    new RowDataFieldsKinesisPartitioner(ROW_TYPE, PARTITION_BY_DATE, delimiter);
+            RowDataFieldsKinesisKeyGenerator partitioner =
+                    new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, PARTITION_BY_DATE, delimiter);
 
             partitioner.setStaticFields(
                     new HashMap<String, String>() {
@@ -204,7 +204,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
                 String year = String.valueOf(year(time));
                 String day = String.valueOf(dayOfMonth(time));
                 String expectedKey = String.join(delimiter, year, month, day);
-                String actualKey = partitioner.getPartitionId(createElement(time, IP));
+                String actualKey = partitioner.apply(createElement(time, IP));
 
                 assertEquals(expectedKey, actualKey);
             }
@@ -223,7 +223,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
                         new IllegalArgumentException(
                                 "Cannot create a RowDataFieldsKinesisPartitioner for a non-partitioned table")));
 
-        new RowDataFieldsKinesisPartitioner(ROW_TYPE, Collections.emptyList());
+        new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, Collections.emptyList());
     }
 
     @Test
@@ -234,7 +234,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
                         new IllegalArgumentException(
                                 "The sequence of partition keys cannot contain duplicates")));
 
-        new RowDataFieldsKinesisPartitioner(ROW_TYPE, Arrays.asList("ip", "ip"));
+        new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, Arrays.asList("ip", "ip"));
     }
 
     @Test
@@ -245,7 +245,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
                         new IllegalArgumentException(
                                 "The following partition keys are not present in the table: abc")));
 
-        new RowDataFieldsKinesisPartitioner(ROW_TYPE, Arrays.asList("ip", "abc"));
+        new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, Arrays.asList("ip", "abc"));
     }
 
     @Test
@@ -256,7 +256,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
                         new IllegalArgumentException(
                                 "The following partition keys have types that are not supported by Kinesis: time")));
 
-        new RowDataFieldsKinesisPartitioner(ROW_TYPE, Arrays.asList("time", "ip"));
+        new RowDataFieldsKinesisKeyGenerator(ROW_TYPE, Arrays.asList("time", "ip"));
     }
 
     // --------------------------------------------------------------------------------------------

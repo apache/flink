@@ -16,32 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kinesis;
+package org.apache.flink.streaming.connectors.kinesis.table;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator;
 
 import java.util.UUID;
 
 /**
- * A {@link KinesisPartitioner} that maps an arbitrary input {@code element} to a random partition
- * ID.
+ * A {@link PartitionKeyGenerator} that maps an arbitrary input {@code element} to a random
+ * partition ID.
  *
  * @param <T> The input element type.
  */
 @PublicEvolving
-public final class RandomKinesisPartitioner<T> extends KinesisPartitioner<T> {
+public final class RandomKinesisKeyGenerator<T> implements PartitionKeyGenerator<T> {
     @Override
-    public String getPartitionId(T element) {
+    public String apply(T element) {
         return UUID.randomUUID().toString();
     }
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof RandomKinesisPartitioner;
+        return o instanceof RandomKinesisKeyGenerator;
     }
 
     @Override
     public int hashCode() {
-        return RandomKinesisPartitioner.class.hashCode();
+        return RandomKinesisKeyGenerator.class.hashCode();
     }
 }

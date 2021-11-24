@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kinesis;
+package org.apache.flink.streaming.connectors.kinesis.table;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
@@ -29,13 +30,12 @@ import java.util.Objects;
  * <p>This is achieved by using the index of the producer task as a {@code PartitionKey}.
  */
 @PublicEvolving
-public final class FixedKinesisPartitioner<T> extends KinesisPartitioner<T> {
+public final class FixedKinesisKeyGenerator<T> implements PartitionKeyGenerator<T> {
 
     private static final long serialVersionUID = 1L;
 
     private int indexOfThisSubtask = 0;
 
-    @Override
     public void initialize(int indexOfThisSubtask, int numberOfParallelSubtasks) {
         Preconditions.checkArgument(
                 indexOfThisSubtask >= 0, "Id of this subtask cannot be negative.");
@@ -46,7 +46,7 @@ public final class FixedKinesisPartitioner<T> extends KinesisPartitioner<T> {
     }
 
     @Override
-    public String getPartitionId(T record) {
+    public String apply(T record) {
         return String.valueOf(indexOfThisSubtask);
     }
 
@@ -62,12 +62,12 @@ public final class FixedKinesisPartitioner<T> extends KinesisPartitioner<T> {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final FixedKinesisPartitioner<?> that = (FixedKinesisPartitioner<?>) o;
+        final FixedKinesisKeyGenerator<?> that = (FixedKinesisKeyGenerator<?>) o;
         return Objects.equals(this.indexOfThisSubtask, that.indexOfThisSubtask);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(FixedKinesisPartitioner.class.hashCode(), indexOfThisSubtask);
+        return Objects.hash(FixedKinesisKeyGenerator.class.hashCode(), indexOfThisSubtask);
     }
 }
