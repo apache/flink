@@ -91,7 +91,6 @@ under the License.
 					<execution>
 						<id>shade-flink</id>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.antlr:antlr4-runtime</include>
