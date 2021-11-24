@@ -68,9 +68,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * simplify the {@link SplitEnumerator} implementation.
  *
  * <p>The coordinator maintains a {@link
- * org.apache.flink.api.connector.source.SplitEnumeratorContext SplitEnumeratorContext} and shares it
- * with the enumerator. When the coordinator receives an action request from the Flink runtime, it
- * sets up the context, and calls corresponding method of the SplitEnumerator to take actions.
+ * org.apache.flink.api.connector.source.SplitEnumeratorContext SplitEnumeratorContext} and shares
+ * it with the enumerator. When the coordinator receives an action request from the Flink runtime,
+ * it sets up the context, and calls corresponding method of the SplitEnumerator to take actions.
  */
 @Internal
 public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
