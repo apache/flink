@@ -389,6 +389,38 @@ public class JdbcDynamicTableFactoryTest {
         }
     }
 
+    @Test
+    public void testJdbcLookupPropertiesWithExcludeEmptyResult() {
+        Map<String, String> properties = getAllOptions();
+        properties.put("lookup.cache.max-rows", "1000");
+        properties.put("lookup.cache.ttl", "10s");
+        properties.put("lookup.max-retries", "10");
+        properties.put("lookup.cache.caching-missing-key", "true");
+
+        DynamicTableSource actual = createTableSource(SCHEMA, properties);
+
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
+                        .setDBUrl("jdbc:derby:memory:mydb")
+                        .setTableName("mytable")
+                        .build();
+        JdbcLookupOptions lookupOptions =
+                JdbcLookupOptions.builder()
+                        .setCacheMaxSize(1000)
+                        .setCacheExpireMs(10_000)
+                        .setMaxRetryTimes(10)
+                        .setCacheMissingKey(true)
+                        .build();
+        JdbcDynamicTableSource expected =
+                new JdbcDynamicTableSource(
+                        options,
+                        JdbcReadOptions.builder().build(),
+                        lookupOptions,
+                        SCHEMA.toPhysicalRowDataType());
+
+        assertEquals(expected, actual);
+    }
+
     private Map<String, String> getAllOptions() {
         Map<String, String> options = new HashMap<>();
         options.put("connector", "jdbc");
