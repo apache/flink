@@ -121,7 +121,8 @@ class CheckpointConfigTests(PyFlinkTestCase):
 
         self.assertFalse(self.checkpoint_config.is_externalized_checkpoints_enabled())
 
-        self.assertIsNone(self.checkpoint_config.get_externalized_checkpoint_cleanup())
+        self.assertEqual(self.checkpoint_config.get_externalized_checkpoint_cleanup(),
+                         ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS)
 
         self.checkpoint_config.enable_externalized_checkpoints(
             ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
