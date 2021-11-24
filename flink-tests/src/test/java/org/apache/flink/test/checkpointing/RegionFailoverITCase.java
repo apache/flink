@@ -174,7 +174,7 @@ public class RegionFailoverITCase extends TestLogger {
         env.setMaxParallelism(MAX_PARALLELISM);
         env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig()
-                .enableExternalizedCheckpoints(
+                .setExternalizedCheckpointCleanup(
                         CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         env.disableOperatorChaining();
 

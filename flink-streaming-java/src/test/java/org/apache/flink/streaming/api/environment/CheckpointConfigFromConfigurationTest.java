@@ -88,7 +88,7 @@ public class CheckpointConfigFromConfigurationTest {
                         .whenSetFromFile(
                                 "execution.checkpointing.externalized-checkpoint-retention",
                                 "RETAIN_ON_CANCELLATION")
-                        .viaSetter(CheckpointConfig::enableExternalizedCheckpoints)
+                        .viaSetter(CheckpointConfig::setExternalizedCheckpointCleanup)
                         .getterVia(CheckpointConfig::getExternalizedCheckpointCleanup)
                         .nonDefaultValue(
                                 CheckpointConfig.ExternalizedCheckpointCleanup
