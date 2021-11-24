@@ -125,7 +125,8 @@ flink-connectors/flink-connector-kafka,\
 flink-connectors/flink-sql-connector-kafka,"
 
 MODULES_TESTS="\
-flink-tests"
+flink-tests,\
+flink-architecture-tests"
 
 MODULES_FINEGRAINED_RESOURCE_MANAGEMENT=${MODULES_CORE},${MODULES_TESTS}
 
