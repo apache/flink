@@ -160,6 +160,54 @@ public class AWSGeneralUtil {
         return profileBuilder.build();
     }
 
+    public static void validateAwsConfigurations(Properties config) {
+        if (config.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {
+            String credentialsProviderType =
+                    config.getProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
+
+            // value specified for AWSConfigConstants.AWS_CREDENTIALS_PROVIDER needs to be
+            // recognizable
+            CredentialProvider providerType;
+            try {
+                providerType = CredentialProvider.valueOf(credentialsProviderType);
+            } catch (IllegalArgumentException e) {
+                StringBuilder sb = new StringBuilder();
+                for (CredentialProvider type : CredentialProvider.values()) {
+                    sb.append(type.toString()).append(", ");
+                }
+                throw new IllegalArgumentException(
+                        "Invalid AWS Credential Provider Type set in config. Valid values are: "
+                                + sb.toString());
+            }
+
+            // if BASIC type is used, also check that the Access Key ID and Secret Key is supplied
+            if (providerType == CredentialProvider.BASIC) {
+                if (!config.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
+                        || !config.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
+                    throw new IllegalArgumentException(
+                            "Please set values for AWS Access Key ID ('"
+                                    + AWSConfigConstants.AWS_ACCESS_KEY_ID
+                                    + "') "
+                                    + "and Secret Key ('"
+                                    + AWSConfigConstants.AWS_SECRET_ACCESS_KEY
+                                    + "') when using the BASIC AWS credential provider type.");
+                }
+            }
+        }
+
+        if (config.containsKey(AWSConfigConstants.AWS_REGION)) {
+            // specified AWS Region name must be recognizable
+            if (!Region.regions().contains(getRegion(config))) {
+                StringBuilder sb = new StringBuilder();
+                for (Region region : Region.regions()) {
+                    sb.append(region.id()).append(", ");
+                }
+                throw new IllegalArgumentException(
+                        "Invalid AWS region set in config. Valid values are: " + sb.toString());
+            }
+        }
+    }
+
     private static AwsCredentialsProvider getAssumeRoleCredentialProvider(
             final Properties configProps, final String configPrefix) {
         return StsAssumeRoleCredentialsProvider.builder()

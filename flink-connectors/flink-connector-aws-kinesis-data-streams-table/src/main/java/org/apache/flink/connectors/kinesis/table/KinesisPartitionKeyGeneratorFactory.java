@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kinesis.table;
+package org.apache.flink.connectors.kinesis.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
@@ -29,8 +29,8 @@ import org.apache.flink.util.InstantiationUtil;
 
 import java.util.List;
 
-import static org.apache.flink.streaming.connectors.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER;
-import static org.apache.flink.streaming.connectors.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER_FIELD_DELIMITER;
+import static org.apache.flink.connectors.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER;
+import static org.apache.flink.connectors.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER_FIELD_DELIMITER;
 
 /** Factory Class for {@link PartitionKeyGenerator}. */
 @Internal

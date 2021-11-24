@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.table;
 
+import org.apache.flink.connectors.kinesis.table.KinesisConnectorOptions;
+import org.apache.flink.connectors.kinesis.table.RowDataFieldsKinesisKeyGenerator;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -41,8 +43,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import static org.apache.flink.connectors.kinesis.table.RowDataFieldsKinesisKeyGenerator.MAX_PARTITION_KEY_LENGTH;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.streaming.connectors.kinesis.table.RowDataFieldsKinesisKeyGenerator.MAX_PARTITION_KEY_LENGTH;
 import static org.apache.flink.table.utils.EncodingUtils.repeat;
 import static org.junit.Assert.assertEquals;
 

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kinesis.table;
+package org.apache.flink.connectors.kinesis.table;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator;
