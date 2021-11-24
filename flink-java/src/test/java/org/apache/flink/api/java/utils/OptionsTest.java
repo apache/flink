@@ -55,16 +55,6 @@ public class OptionsTest {
     }
 
     @Test
-    public void testChoicesWithInvalidDefaultValue() throws RequiredParametersException {
-        expectedException.expect(RequiredParametersException.class);
-        expectedException.expectMessage(
-                "Valid values for option choices do not contain defined default value x");
-
-        Option option = new Option("choices").defaultValue("x");
-        option.choices("a", "b");
-    }
-
-    @Test
     public void testIsCastableToDefinedTypeWithDefaultType() {
         Option option = new Option("name");
         Assert.assertTrue(option.isCastableToDefinedType("some value"));
