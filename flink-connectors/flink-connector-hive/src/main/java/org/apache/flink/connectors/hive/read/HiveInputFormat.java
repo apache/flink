@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.ArrayResultIterator;
+import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
@@ -34,7 +35,6 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.PartitionFieldExtractor;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
@@ -55,7 +55,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.file.src.util.CheckpointedPosition.NO_OFFSET;
-import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
+import static org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch.DEFAULT_SIZE;
 
 /**
  * A BulkFormat implementation for HiveSource. This implementation delegates reading to other
@@ -139,6 +139,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
             return ParquetColumnarRowInputFormat.createPartitionedFormat(
                     jobConfWrapper.conf(),
                     producedRowType,
+                    InternalTypeInfo.of(producedRowType),
                     partitionKeys,
                     partitionFieldExtractor,
                     DEFAULT_SIZE,
@@ -171,7 +172,8 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
                         partitionFieldExtractor,
                         computeSelectedFields(),
                         Collections.emptyList(),
-                        DEFAULT_SIZE)
+                        DEFAULT_SIZE,
+                        InternalTypeInfo::of)
                 : OrcColumnarRowInputFormat.createPartitionedFormat(
                         OrcShim.createShim(hiveVersion),
                         jobConfWrapper.conf(),
@@ -180,7 +182,8 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
                         partitionFieldExtractor,
                         computeSelectedFields(),
                         Collections.emptyList(),
-                        DEFAULT_SIZE);
+                        DEFAULT_SIZE,
+                        InternalTypeInfo::of);
     }
 
     private boolean useOrcVectorizedRead(HiveTablePartition partition) {

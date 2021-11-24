@@ -18,10 +18,10 @@
 package org.apache.flink.formats.parquet.vector.reader;
 
 import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
-import org.apache.flink.table.data.vector.writable.WritableBytesVector;
-import org.apache.flink.table.data.vector.writable.WritableColumnVector;
-import org.apache.flink.table.data.vector.writable.WritableIntVector;
-import org.apache.flink.table.data.vector.writable.WritableLongVector;
+import org.apache.flink.table.data.columnar.vector.writable.WritableBytesVector;
+import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
+import org.apache.flink.table.data.columnar.vector.writable.WritableIntVector;
+import org.apache.flink.table.data.columnar.vector.writable.WritableLongVector;
 
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReader;

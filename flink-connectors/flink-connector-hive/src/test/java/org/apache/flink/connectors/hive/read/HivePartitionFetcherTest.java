@@ -18,6 +18,7 @@
 package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions.PartitionOrder;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
@@ -28,7 +29,6 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.filesystem.FileSystemConnectorOptions.PartitionOrder;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_ORDER;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_ORDER;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for hive partition fetch implementations. */

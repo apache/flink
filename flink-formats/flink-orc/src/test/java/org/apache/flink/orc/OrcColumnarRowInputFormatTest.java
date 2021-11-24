@@ -23,6 +23,7 @@ import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
 import org.apache.flink.connector.file.src.util.Utils;
+import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcFilters.Between;
@@ -33,7 +34,7 @@ import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.PartitionFieldExtractor;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -354,7 +355,8 @@ public class OrcColumnarRowInputFormatTest {
                 PartitionFieldExtractor.forFileSystem(""),
                 selectedFields,
                 conjunctPredicates,
-                BATCH_SIZE);
+                BATCH_SIZE,
+                InternalTypeInfo::of);
     }
 
     protected OrcColumnarRowInputFormat<?, FileSourceSplit> createPartitionFormat(
@@ -367,7 +369,8 @@ public class OrcColumnarRowInputFormatTest {
                 PartitionFieldExtractor.forFileSystem(""),
                 selectedFields,
                 new ArrayList<>(),
-                BATCH_SIZE);
+                BATCH_SIZE,
+                InternalTypeInfo::of);
     }
 
     private BulkFormat.Reader<RowData> createReader(

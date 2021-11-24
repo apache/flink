@@ -18,16 +18,16 @@
 
 package org.apache.flink.orc.vector;
 
-import org.apache.flink.table.data.ColumnarMapData;
 import org.apache.flink.table.data.MapData;
-import org.apache.flink.table.data.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.ColumnarMapData;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.types.logical.MapType;
 
 import org.apache.hadoop.hive.ql.exec.vector.MapColumnVector;
 
 /** This column vector is used to adapt hive's MapColumnVector to Flink's MapColumnVector. */
 public class OrcMapColumnVector extends AbstractOrcColumnVector
-        implements org.apache.flink.table.data.vector.MapColumnVector {
+        implements org.apache.flink.table.data.columnar.vector.MapColumnVector {
 
     private final MapColumnVector hiveVector;
     private final ColumnVector keyFlinkVector;

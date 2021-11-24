@@ -19,7 +19,7 @@
 package org.apache.flink.orc.vector;
 
 import org.apache.flink.connector.file.src.FileSourceSplit;
-import org.apache.flink.table.data.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 
 import java.io.Serializable;
 

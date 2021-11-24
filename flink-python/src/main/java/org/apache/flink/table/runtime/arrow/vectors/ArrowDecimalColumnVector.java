@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.vector.DecimalColumnVector;
+import org.apache.flink.table.data.columnar.vector.DecimalColumnVector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.DecimalVector;
