@@ -820,6 +820,27 @@ function retry_times_with_backoff_and_cleanup() {
     return 1
 }
 
+function retry_times_with_exponential_backoff {
+  local retries=$1
+  shift
+
+  local count=0
+  echo "Executing command:" "$@"
+  until "$@"; do
+    exit=$?
+    wait=$((2 ** $count))
+    count=$(($count + 1))
+    if [ $count -lt $retries ]; then
+      echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
+      sleep $wait
+    else
+      echo "Retry $count/$retries exited $exit, no more retries left."
+      return $exit
+    fi
+  done
+  return 0
+}
+
 JOB_ID_REGEX_EXTRACTOR=".*JobID ([0-9,a-f]*)"
 
 function extract_job_id_from_job_submission_return() {
