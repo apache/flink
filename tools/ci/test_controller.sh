@@ -38,7 +38,7 @@ STAGE=$1
 # =============================================================================
 
 # check preconditions
-if [ -z "$DEBUG_FILES_OUTPUT_DIR" ] ; then
+if [ -z "${DEBUG_FILES_OUTPUT_DIR:-}" ] ; then
 	echo "ERROR: Environment variable 'DEBUG_FILES_OUTPUT_DIR' is not set but expected by test_controller.sh. Tests may use this location to store debugging files."
 	exit 1
 fi
@@ -48,7 +48,7 @@ if [ ! -d "$DEBUG_FILES_OUTPUT_DIR" ] ; then
 	exit 1
 fi
 
-if [ -z "$STAGE" ] ; then
+if [ -z "${STAGE:-}" ] ; then
 	echo "ERROR: Environment variable 'STAGE' is not set but expected by test_controller.sh. THe variable refers to the stage being executed."
 	exit 1
 fi
