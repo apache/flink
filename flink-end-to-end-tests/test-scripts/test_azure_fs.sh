@@ -25,21 +25,21 @@
 
 source "$(dirname "$0")"/common.sh
 
-if [[ -z "$IT_CASE_AZURE_ACCOUNT" ]]; then
+if [[ -z "${IT_CASE_AZURE_ACCOUNT:-}" ]]; then
     echo "Did not find Azure storage account environment variable, NOT running the e2e test."
     exit 0
 else
     echo "Found Azure storage account $IT_CASE_AZURE_ACCOUNT, running the e2e test."
 fi
 
-if [[ -z "$IT_CASE_AZURE_ACCESS_KEY" ]]; then
+if [[ -z "${IT_CASE_AZURE_ACCESS_KEY:-}" ]]; then
     echo "Did not find Azure storage access key environment variable, NOT running the e2e test."
     exit 0
 else
     echo "Found Azure storage access key $IT_CASE_AZURE_ACCESS_KEY, running the e2e test."
 fi
 
-if [[ -z "$IT_CASE_AZURE_CONTAINER" ]]; then
+if [[ -z "${IT_CASE_AZURE_CONTAINER:-}" ]]; then
     echo "Did not find Azure storage container environment variable, NOT running the e2e test."
     exit 0
 else
