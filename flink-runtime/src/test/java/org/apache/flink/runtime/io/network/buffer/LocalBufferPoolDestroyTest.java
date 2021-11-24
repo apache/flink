@@ -119,11 +119,16 @@ public class LocalBufferPoolDestroyTest {
      */
     public static boolean isInBlockingBufferRequest(StackTraceElement[] stackTrace) {
         if (stackTrace.length >= 8) {
-            return stackTrace[5].getMethodName().equals("get")
-                    && stackTrace[7].getClassName().equals(LocalBufferPool.class.getName());
-        } else {
-            return false;
+            for (int x = 0; x < stackTrace.length - 2; x++) {
+                if (stackTrace[x].getMethodName().equals("get")
+                        && stackTrace[x + 2]
+                                .getClassName()
+                                .equals(LocalBufferPool.class.getName())) {
+                    return true;
+                }
+            }
         }
+        return false;
     }
 
     /** Task triggering a blocking buffer request (the test assumes that no buffer is available). */
