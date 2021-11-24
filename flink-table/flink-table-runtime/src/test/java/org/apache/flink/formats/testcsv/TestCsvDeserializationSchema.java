@@ -16,24 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.filesystem;
+package org.apache.flink.formats.testcsv;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.conversion.DataStructureConverter;
-import org.apache.flink.table.data.conversion.DataStructureConverters;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * The {@link DeserializationSchema} that output {@link RowData}.
@@ -41,7 +39,7 @@ import java.util.List;
  * <p>NOTE: This is meant only for testing purpose and doesn't provide a feature complete stable csv
  * parser! If you need a feature complete CSV parser, check out the flink-csv package.
  */
-public class TestCsvDeserializationSchema implements DeserializationSchema<RowData> {
+class TestCsvDeserializationSchema implements DeserializationSchema<RowData> {
 
     private final List<DataType> physicalFieldTypes;
     private final int physicalFieldCount;
@@ -49,19 +47,33 @@ public class TestCsvDeserializationSchema implements DeserializationSchema<RowDa
     private final TypeInformation<RowData> typeInfo;
     private final int[] indexMapping;
 
-    @SuppressWarnings("rawtypes")
-    private transient DataStructureConverter[] csvRowToRowDataConverters;
+    private final DynamicTableSource.DataStructureConverter[] csvRowToRowDataConverters;
 
     private transient FieldParser<?>[] fieldParsers;
 
-    public TestCsvDeserializationSchema(DataType physicalDataType, List<String> orderedCsvColumns) {
+    public TestCsvDeserializationSchema(
+            DataType physicalDataType,
+            TypeInformation<RowData> typeInfo,
+            List<String> orderedCsvColumns,
+            Function<DataType, DynamicTableSource.DataStructureConverter> converterFactory) {
         this.physicalFieldTypes = DataType.getFieldDataTypes(physicalDataType);
         this.physicalFieldCount = physicalFieldTypes.size();
-        this.typeInfo = InternalTypeInfo.of((RowType) physicalDataType.getLogicalType());
+        this.typeInfo = typeInfo;
 
         List<String> physicalFieldNames = DataType.getFieldNames(physicalDataType);
         this.indexMapping =
                 orderedCsvColumns.stream().mapToInt(physicalFieldNames::indexOf).toArray();
+
+        // Init data converters
+        int csvRowLength = indexMapping.length;
+        this.csvRowToRowDataConverters =
+                new DynamicTableSource.DataStructureConverter[csvRowLength];
+        for (int csvColumn = 0; csvColumn < csvRowLength; csvColumn++) {
+            if (indexMapping[csvColumn] != -1) {
+                DataType fieldType = physicalFieldTypes.get(indexMapping[csvColumn]);
+                this.csvRowToRowDataConverters[csvColumn] = converterFactory.apply(fieldType);
+            }
+        }
 
         initFieldParsers();
     }
@@ -103,7 +115,6 @@ public class TestCsvDeserializationSchema implements DeserializationSchema<RowDa
     private void initFieldParsers() {
         int csvRowLength = indexMapping.length;
         this.fieldParsers = new FieldParser<?>[csvRowLength];
-        this.csvRowToRowDataConverters = new DataStructureConverter[csvRowLength];
         for (int csvColumn = 0; csvColumn < csvRowLength; csvColumn++) {
             if (indexMapping[csvColumn] == -1) {
                 // The output type doesn't include this field, so just assign a string parser to
@@ -125,8 +136,6 @@ public class TestCsvDeserializationSchema implements DeserializationSchema<RowDa
             FieldParser<?> p = InstantiationUtil.instantiate(parserType, FieldParser.class);
 
             this.fieldParsers[csvColumn] = p;
-            this.csvRowToRowDataConverters[csvColumn] =
-                    DataStructureConverters.getConverter(fieldType);
         }
     }
 
