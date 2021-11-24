@@ -21,7 +21,7 @@
 # includes testcontainer images, kafka, elasticearch, etc.
 #
 
-if [ -z "$DOCKER_IMAGES_CACHE_FOLDER" ]
+if [ -z "${DOCKER_IMAGES_CACHE_FOLDER:-}" ]
 then
     echo "\$DOCKER_IMAGES_CACHE_FOLDER must be set to cache the testing docker images. Exiting"
     exit 1
