@@ -797,7 +797,6 @@ json:
       对于空路径表达式或错误，可以将行为定义为返回 `null`、引发错误或返回定义的默认值。当省略时，默认为 `NULL ON EMPTY` 或
       `NULL ON ERROR`。默认值可以是文字或表达式。如果默认值本身引发错误，通过错误就会造成 `ON EMPTY` 的行为，并引发 `ON ERROR` 的错误。
 
-
       ```
       -- "true"
       JSON_VALUE('{"a": true}', '$.a')
