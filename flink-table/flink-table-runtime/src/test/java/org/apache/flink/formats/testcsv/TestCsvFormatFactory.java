@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.filesystem;
+package org.apache.flink.formats.testcsv;
 
-import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -30,25 +30,14 @@ import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.factories.SerializationFormatFactory;
+import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.types.Row;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-
-import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
-import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITER;
 
 /**
  * Factory for csv test format.
@@ -56,8 +45,8 @@ import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITE
  * <p>NOTE: This is meant only for testing purpose and doesn't provide a feature complete stable csv
  * parser! If you need a feature complete CSV parser, check out the flink-csv package.
  */
-public class TestCsvFileSystemFormatFactory
-        implements DeserializationFormatFactory, BulkWriterFormatFactory {
+public class TestCsvFormatFactory
+        implements DeserializationFormatFactory, SerializationFormatFactory {
 
     @Override
     public String factoryIdentifier() {
@@ -74,40 +63,17 @@ public class TestCsvFileSystemFormatFactory
         return new HashSet<>();
     }
 
-    private static void writeCsvToStream(DataType[] types, RowData rowData, OutputStream stream)
-            throws IOException {
-        LogicalType[] fieldTypes =
-                Arrays.stream(types).map(DataType::getLogicalType).toArray(LogicalType[]::new);
-        DataFormatConverters.DataFormatConverter converter =
-                DataFormatConverters.getConverterForDataType(
-                        TypeConversions.fromLogicalToDataType(RowType.of(fieldTypes)));
-
-        Row row = (Row) converter.toExternal(rowData);
-        StringBuilder builder = new StringBuilder();
-        Object o;
-        for (int i = 0; i < row.getArity(); i++) {
-            if (i > 0) {
-                builder.append(DEFAULT_FIELD_DELIMITER);
-            }
-            if ((o = row.getField(i)) != null) {
-                builder.append(o);
-            }
-        }
-        String str = builder.toString();
-        stream.write(str.getBytes(StandardCharsets.UTF_8));
-        stream.write(DEFAULT_LINE_DELIMITER.getBytes(StandardCharsets.UTF_8));
-    }
-
     @Override
-    public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
+    public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-        return new EncodingFormat<BulkWriter.Factory<RowData>>() {
+        return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
-            public BulkWriter.Factory<RowData> createRuntimeEncoder(
+            public SerializationSchema<RowData> createRuntimeEncoder(
                     DynamicTableSink.Context context, DataType consumedDataType) {
-                return out ->
-                        new CsvBulkWriter(
-                                consumedDataType.getChildren().toArray(new DataType[0]), out);
+                DynamicTableSink.DataStructureConverter converter =
+                        context.createDataStructureConverter(consumedDataType);
+
+                return new TestCsvSerializationSchema(converter);
             }
 
             @Override
@@ -129,7 +95,12 @@ public class TestCsvFileSystemFormatFactory
                 DataType projectedPhysicalDataType =
                         Projection.of(projections).project(physicalDataType);
                 return new TestCsvDeserializationSchema(
-                        projectedPhysicalDataType, DataType.getFieldNames(physicalDataType));
+                        projectedPhysicalDataType,
+                        context.createTypeInformation(projectedPhysicalDataType),
+                        DataType.getFieldNames(physicalDataType),
+                        // Check out the FileSystemTableSink#createSourceContext for more details on
+                        // why we need this
+                        ScanRuntimeProviderContext.INSTANCE::createDataStructureConverter);
             }
 
             @Override
@@ -137,27 +108,5 @@ public class TestCsvFileSystemFormatFactory
                 return ChangelogMode.insertOnly();
             }
         };
-    }
-
-    private static class CsvBulkWriter implements BulkWriter<RowData> {
-
-        private final DataType[] types;
-        private final OutputStream stream;
-
-        private CsvBulkWriter(DataType[] types, OutputStream stream) {
-            this.types = types;
-            this.stream = stream;
-        }
-
-        @Override
-        public void addElement(RowData element) throws IOException {
-            writeCsvToStream(types, element, stream);
-        }
-
-        @Override
-        public void flush() {}
-
-        @Override
-        public void finish() {}
     }
 }

@@ -343,7 +343,10 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             @Override
             public DynamicTableSource.DataStructureConverter createDataStructureConverter(
                     DataType producedDataType) {
-                throw new TableException("Compaction reader not support DataStructure converter.");
+                // This method cannot be implemented without changing the
+                // DynamicTableSink.DataStructureConverter interface
+                throw new UnsupportedOperationException(
+                        "Compaction reader not support DataStructure converter.");
             }
         };
     }
