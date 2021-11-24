@@ -255,6 +255,23 @@ public class SplitFetcherTest {
         assertThat(splitReader.isClosed()).isTrue();
     }
 
+    @Test
+    public void testCloseAfterPause() {
+        final FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
+                new FutureCompletingBlockingQueue<>();
+        final SplitFetcher<Object, TestingSourceSplit> fetcher =
+                createFetcherWithSplit(
+                        "test-split",
+                        queue,
+                        new TestingSplitReader<>(finishedSplitFetch("test-split")));
+
+        fetcher.pause();
+
+        new Thread(fetcher::shutdown).start();
+
+        fetcher.runOnce();
+    }
+
     // ------------------------------------------------------------------------
     //  testing utils
     // ------------------------------------------------------------------------
