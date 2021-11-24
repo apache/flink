@@ -19,6 +19,9 @@
 package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.connector.file.src.reader.BulkFormat;
+import org.apache.flink.connector.file.table.stream.compact.CompactBulkReader;
+import org.apache.flink.connector.file.table.stream.compact.CompactContext;
+import org.apache.flink.connector.file.table.stream.compact.CompactReader;
 import org.apache.flink.connectors.hive.CachedSerializedValue;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
@@ -30,9 +33,6 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.stream.compact.CompactBulkReader;
-import org.apache.flink.table.filesystem.stream.compact.CompactContext;
-import org.apache.flink.table.filesystem.stream.compact.CompactReader;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 

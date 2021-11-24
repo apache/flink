@@ -23,18 +23,18 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
+import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
+import org.apache.flink.connector.file.table.factories.BulkWriterFormatFactory;
+import org.apache.flink.connector.file.table.format.BulkDecodingFormat;
 import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
-import org.apache.flink.table.connector.format.BulkDecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.vector.VectorizedColumnBatch;
-import org.apache.flink.table.factories.BulkReaderFormatFactory;
-import org.apache.flink.table.factories.BulkWriterFormatFactory;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -130,6 +130,7 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
             return ParquetColumnarRowInputFormat.createPartitionedFormat(
                     getParquetConfiguration(formatOptions),
                     (RowType) Projection.of(projections).project(producedDataType).getLogicalType(),
+                    sourceContext.createTypeInformation(producedDataType),
                     Collections.emptyList(),
                     null,
                     VectorizedColumnBatch.DEFAULT_SIZE,

@@ -18,14 +18,16 @@
 
 package org.apache.flink.orc.nohive;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.file.src.FileSourceSplit;
+import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.orc.OrcColumnarRowInputFormat;
 import org.apache.flink.orc.OrcFilters;
 import org.apache.flink.orc.nohive.shim.OrcNoHiveShim;
 import org.apache.flink.orc.vector.ColumnBatchFactory;
-import org.apache.flink.table.data.vector.ColumnVector;
-import org.apache.flink.table.data.vector.VectorizedColumnBatch;
-import org.apache.flink.table.filesystem.PartitionFieldExtractor;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -34,6 +36,7 @@ import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.orc.OrcSplitReaderUtil.convertToOrcTypeWithPart;
@@ -58,7 +61,12 @@ public class OrcNoHiveColumnarRowInputFormat {
                     PartitionFieldExtractor<SplitT> extractor,
                     int[] selectedFields,
                     List<OrcFilters.Predicate> conjunctPredicates,
-                    int batchSize) {
+                    int batchSize,
+                    Function<RowType, TypeInformation<RowData>> rowTypeInfoFactory) {
+        // TODO FLINK-25113 all this partition keys code should be pruned from the orc format,
+        //  because now FileSystemTableSource uses FileInfoExtractorBulkFormat for reading partition
+        //  keys.
+
         String[] tableFieldNames = tableType.getFieldNames().toArray(new String[0]);
         LogicalType[] tableFieldTypes = tableType.getChildren().toArray(new LogicalType[0]);
         List<String> orcFieldNames = getNonPartNames(tableFieldNames, partitionKeys);
@@ -92,9 +100,10 @@ public class OrcNoHiveColumnarRowInputFormat {
                 conjunctPredicates,
                 batchSize,
                 batchGenerator,
-                new RowType(
-                        Arrays.stream(selectedFields)
-                                .mapToObj(i -> tableType.getFields().get(i))
-                                .collect(Collectors.toList())));
+                rowTypeInfoFactory.apply(
+                        new RowType(
+                                Arrays.stream(selectedFields)
+                                        .mapToObj(i -> tableType.getFields().get(i))
+                                        .collect(Collectors.toList()))));
     }
 }

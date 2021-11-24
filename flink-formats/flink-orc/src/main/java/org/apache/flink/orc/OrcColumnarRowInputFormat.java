@@ -21,16 +21,15 @@ package org.apache.flink.orc;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.util.Pool;
+import org.apache.flink.connector.file.table.ColumnarRowIterator;
+import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.orc.vector.ColumnBatchFactory;
 import org.apache.flink.orc.vector.OrcVectorizedBatchWrapper;
-import org.apache.flink.table.data.ColumnarRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.vector.ColumnVector;
-import org.apache.flink.table.data.vector.VectorizedColumnBatch;
-import org.apache.flink.table.filesystem.ColumnarRowIterator;
-import org.apache.flink.table.filesystem.PartitionFieldExtractor;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.data.columnar.ColumnarRowData;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -40,6 +39,7 @@ import org.apache.orc.TypeDescription;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.orc.OrcSplitReaderUtil.convertToOrcTypeWithPart;
@@ -61,7 +61,7 @@ public class OrcColumnarRowInputFormat<BatchT, SplitT extends FileSourceSplit>
     private static final long serialVersionUID = 1L;
 
     private final ColumnBatchFactory<BatchT, SplitT> batchFactory;
-    private final RowType projectedOutputType;
+    private final TypeInformation<RowData> producedTypeInfo;
 
     public OrcColumnarRowInputFormat(
             final OrcShim<BatchT> shim,
@@ -71,10 +71,10 @@ public class OrcColumnarRowInputFormat<BatchT, SplitT extends FileSourceSplit>
             final List<OrcFilters.Predicate> conjunctPredicates,
             final int batchSize,
             final ColumnBatchFactory<BatchT, SplitT> batchFactory,
-            final RowType projectedOutputType) {
+            TypeInformation<RowData> producedTypeInfo) {
         super(shim, hadoopConfig, schema, selectedFields, conjunctPredicates, batchSize);
         this.batchFactory = batchFactory;
-        this.projectedOutputType = projectedOutputType;
+        this.producedTypeInfo = producedTypeInfo;
     }
 
     @Override
@@ -91,7 +91,7 @@ public class OrcColumnarRowInputFormat<BatchT, SplitT extends FileSourceSplit>
 
     @Override
     public TypeInformation<RowData> getProducedType() {
-        return InternalTypeInfo.of(projectedOutputType);
+        return this.producedTypeInfo;
     }
 
     // ------------------------------------------------------------------------
@@ -138,7 +138,12 @@ public class OrcColumnarRowInputFormat<BatchT, SplitT extends FileSourceSplit>
                     PartitionFieldExtractor<SplitT> extractor,
                     int[] selectedFields,
                     List<OrcFilters.Predicate> conjunctPredicates,
-                    int batchSize) {
+                    int batchSize,
+                    Function<RowType, TypeInformation<RowData>> rowTypeInfoFactory) {
+        // TODO FLINK-25113 all this partition keys code should be pruned from the orc format,
+        //  because now FileSystemTableSource uses FileInfoExtractorBulkFormat for reading partition
+        //  keys.
+
         String[] tableFieldNames = tableType.getFieldNames().toArray(new String[0]);
         LogicalType[] tableFieldTypes = tableType.getChildren().toArray(new LogicalType[0]);
         List<String> orcFieldNames = getNonPartNames(tableFieldNames, partitionKeys);
@@ -172,9 +177,10 @@ public class OrcColumnarRowInputFormat<BatchT, SplitT extends FileSourceSplit>
                 conjunctPredicates,
                 batchSize,
                 batchGenerator,
-                new RowType(
-                        Arrays.stream(selectedFields)
-                                .mapToObj(i -> tableType.getFields().get(i))
-                                .collect(Collectors.toList())));
+                rowTypeInfoFactory.apply(
+                        new RowType(
+                                Arrays.stream(selectedFields)
+                                        .mapToObj(i -> tableType.getFields().get(i))
+                                        .collect(Collectors.toList()))));
     }
 }
