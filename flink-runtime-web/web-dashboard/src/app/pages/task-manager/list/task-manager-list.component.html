@@ -28,7 +28,7 @@
   >
     <thead>
       <tr>
-        <th nzLeft="0px" [nzWidth]="'280px'">Path, ID</th>
+        <th nzLeft="0px" [nzSortFn]="sortIdFn" [nzWidth]="'280px'">Path, ID</th>
         <th [nzSortFn]="sortDataPortFn" [nzWidth]="'100px'">Data Port</th>
         <th [nzSortFn]="sortHeartBeatFn" [nzWidth]="'160px'">Last Heartbeat</th>
         <th [nzSortFn]="sortSlotsNumberFn" [nzWidth]="'90px'">All Slots</th>
