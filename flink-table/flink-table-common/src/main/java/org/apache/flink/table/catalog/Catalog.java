@@ -218,7 +218,8 @@ public interface Catalog {
      * @throws CatalogException in case of any runtime exception
      */
     default void renameDatabase(String name, String newDatabaseName, boolean ignoreIfNotExists)
-            throws DatabaseNotExistException, DatabaseAlreadyExistException, CatalogException {
+            throws DatabaseNotExistException, DatabaseAlreadyExistException,
+                    DatabaseNotEmptyException, CatalogException {
         throw new UnsupportedOperationException("this operation is not supported");
     }
 
