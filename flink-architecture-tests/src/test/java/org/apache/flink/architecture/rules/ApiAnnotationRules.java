@@ -25,6 +25,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
@@ -151,8 +152,15 @@ public class ApiAnnotationRules {
                                                     + VisibleForTesting.class.getSimpleName()) {
                                         @Override
                                         public boolean apply(JavaMethodCall call) {
-                                            if (call.getOriginOwner()
-                                                    .equals(call.getTargetOwner())) {
+                                            final JavaClass targetOwner = call.getTargetOwner();
+                                            if (call.getOriginOwner().equals(targetOwner)) {
+                                                return false;
+                                            }
+                                            if (call.getOriginOwner().isInnerClass()
+                                                    && call.getOriginOwner()
+                                                            .getEnclosingClass()
+                                                            .map(targetOwner::equals)
+                                                            .orElse(false)) {
                                                 return false;
                                             }
 

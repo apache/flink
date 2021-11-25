@@ -929,11 +929,11 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
             extends CompositeTypeSerializerSnapshot<
                     State<TXN, CONTEXT>, StateSerializer<TXN, CONTEXT>> {
 
-        private static final int VERSION = 3;
+        private static final int VERSION = 4;
 
         private static final int FIRST_VERSION_SUPPORTING_NULL_TRANSACTIONS = 3;
 
-        private int readVersion = VERSION;
+        private boolean supportsNullTransaction = true;
 
         @SuppressWarnings("WeakerAccess")
         public StateSerializerSnapshot() {
@@ -942,6 +942,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
 
         StateSerializerSnapshot(StateSerializer<TXN, CONTEXT> serializerInstance) {
             super(serializerInstance);
+            this.supportsNullTransaction = serializerInstance.supportNullPendingTransaction;
         }
 
         @Override
@@ -953,13 +954,24 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
         protected void readOuterSnapshot(
                 int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader)
                 throws IOException {
-            readVersion = readOuterSnapshotVersion;
+            if (readOuterSnapshotVersion < FIRST_VERSION_SUPPORTING_NULL_TRANSACTIONS) {
+                supportsNullTransaction = false;
+            } else if (readOuterSnapshotVersion == FIRST_VERSION_SUPPORTING_NULL_TRANSACTIONS) {
+                supportsNullTransaction = true;
+            } else {
+                supportsNullTransaction = in.readBoolean();
+            }
+        }
+
+        @Override
+        protected void writeOuterSnapshot(DataOutputView out) throws IOException {
+            out.writeBoolean(supportsNullTransaction);
         }
 
         @Override
         protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
                 StateSerializer<TXN, CONTEXT> newSerializer) {
-            if (readVersion < FIRST_VERSION_SUPPORTING_NULL_TRANSACTIONS) {
+            if (supportsNullTransaction != newSerializer.supportNullPendingTransaction) {
                 return OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION;
             }
 
@@ -978,9 +990,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
                     (TypeSerializer<CONTEXT>) nestedSerializers[1];
 
             return new StateSerializer<>(
-                    transactionSerializer,
-                    contextSerializer,
-                    readVersion >= FIRST_VERSION_SUPPORTING_NULL_TRANSACTIONS);
+                    transactionSerializer, contextSerializer, supportsNullTransaction);
         }
 
         @Override
