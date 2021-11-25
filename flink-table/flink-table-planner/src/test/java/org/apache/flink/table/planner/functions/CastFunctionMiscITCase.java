@@ -180,14 +180,14 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                         .onFieldsWithData("foo")
                         .testSqlResult(
                                 "CAST(CAST(x'68656C6C6F20636F6465' AS BINARY) AS VARCHAR)",
-                                "hello code",
+                                "[104, 101, 108, 108, 111, 32, 99, 111, 100, 101]",
                                 STRING().notNull()),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "test the x'....' binary syntax")
                         .onFieldsWithData("foo")
                         .testSqlResult(
                                 "CAST(CAST(x'68656C6C6F2063617374' AS BINARY) AS VARCHAR)",
-                                "hello cast",
+                                "[104, 101, 108, 108, 111, 32, 99, 97, 115, 116]",
                                 STRING().notNull()));
     }
 
