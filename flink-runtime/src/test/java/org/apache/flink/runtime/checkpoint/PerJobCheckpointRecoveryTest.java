@@ -40,15 +40,12 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
         final CheckpointRecoveryFactory factory =
                 PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
                         maxCheckpoints -> store);
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-
         final JobID firstJobId = new JobID();
         assertSame(
                 store,
                 factory.createRecoveredCompletedCheckpointStore(
                         firstJobId,
                         1,
-                        classLoader,
                         SharedStateRegistry.DEFAULT_FACTORY,
                         Executors.directExecutor()));
         assertThrows(
@@ -57,7 +54,6 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
                         factory.createRecoveredCompletedCheckpointStore(
                                 firstJobId,
                                 1,
-                                classLoader,
                                 SharedStateRegistry.DEFAULT_FACTORY,
                                 Executors.directExecutor()));
 
@@ -67,7 +63,6 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
                 factory.createRecoveredCompletedCheckpointStore(
                         secondJobId,
                         1,
-                        classLoader,
                         SharedStateRegistry.DEFAULT_FACTORY,
                         Executors.directExecutor()));
         assertThrows(
@@ -76,7 +71,6 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
                         factory.createRecoveredCompletedCheckpointStore(
                                 secondJobId,
                                 1,
-                                classLoader,
                                 SharedStateRegistry.DEFAULT_FACTORY,
                                 Executors.directExecutor()));
     }
