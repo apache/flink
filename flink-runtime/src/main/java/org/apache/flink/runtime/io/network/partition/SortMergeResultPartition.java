@@ -362,6 +362,7 @@ public class SortMergeResultPartition extends ResultPartition {
     private void updateStatistics(Buffer buffer, boolean isBroadcast) {
         numBuffersOut.inc(isBroadcast ? numSubpartitions : 1);
         long readableBytes = buffer.readableBytes();
+        numBytesProduced.inc(readableBytes);
         numBytesOut.inc(isBroadcast ? readableBytes * numSubpartitions : readableBytes);
     }
 
