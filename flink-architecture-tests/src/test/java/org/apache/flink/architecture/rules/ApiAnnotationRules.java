@@ -35,8 +35,7 @@ import static com.tngtech.archunit.core.domain.properties.CanBeAnnotated.Predica
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
 import static org.apache.flink.architecture.common.Conditions.fulfill;
-import static org.apache.flink.architecture.common.Conditions.haveLeafArgumentTypes;
-import static org.apache.flink.architecture.common.Conditions.haveLeafReturnTypes;
+import static org.apache.flink.architecture.common.Conditions.haveLeafTypes;
 import static org.apache.flink.architecture.common.GivenJavaClasses.javaClassesThat;
 import static org.apache.flink.architecture.common.GivenJavaClasses.noJavaClassesThat;
 import static org.apache.flink.architecture.common.Predicates.areDirectlyAnnotatedWithAtLeastOneOf;
@@ -86,14 +85,7 @@ public class ApiAnnotationRules {
                             .and()
                             .areNotAnnotatedWith(Experimental.class)
                             .should(
-                                    haveLeafReturnTypes(
-                                            resideOutsideOfPackage("org.apache.flink..")
-                                                    .or(
-                                                            areDirectlyAnnotatedWithAtLeastOneOf(
-                                                                    Public.class,
-                                                                    Deprecated.class))))
-                            .andShould(
-                                    haveLeafArgumentTypes(
+                                    haveLeafTypes(
                                             resideOutsideOfPackage("org.apache.flink..")
                                                     .or(
                                                             areDirectlyAnnotatedWithAtLeastOneOf(
@@ -123,15 +115,7 @@ public class ApiAnnotationRules {
                             .and()
                             .areNotAnnotatedWith(Experimental.class)
                             .should(
-                                    haveLeafReturnTypes(
-                                            resideOutsideOfPackage("org.apache.flink..")
-                                                    .or(
-                                                            areDirectlyAnnotatedWithAtLeastOneOf(
-                                                                    Public.class,
-                                                                    PublicEvolving.class,
-                                                                    Deprecated.class))))
-                            .andShould(
-                                    haveLeafArgumentTypes(
+                                    haveLeafTypes(
                                             resideOutsideOfPackage("org.apache.flink..")
                                                     .or(
                                                             areDirectlyAnnotatedWithAtLeastOneOf(
