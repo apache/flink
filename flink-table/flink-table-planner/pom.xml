@@ -346,7 +346,6 @@ under the License.
 					<execution>
 						<id>shade-flink</id>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<filters>
 								<filter>
 									<artifact>*:*</artifact>
