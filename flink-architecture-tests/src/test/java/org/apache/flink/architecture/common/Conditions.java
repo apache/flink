@@ -55,15 +55,28 @@ public class Conditions {
     }
 
     /**
-     * Tests leaf return types of a method against the given predicate.
+     * Tests leaf types of a method against the given predicate.
      *
-     * <p>Given some {@link JavaType}, "leaf" types are recursively determined as follows:
+     * <p>Given some {@link JavaType}, "leaf" types are recursively determined as described below.
+     * Leaf types are taken from argument, return, and (declared) exception types.
      *
      * <ul>
      *   <li>If the type is an array type, check its base component type.
      *   <li>If the type is a generic type, check the type itself and all of its type arguments.
      *   <li>Otherwise, check just the type itself.
      * </ul>
+     */
+    public static ArchCondition<JavaMethod> haveLeafTypes(
+            DescribedPredicate<JavaClass> typePredicate) {
+        return haveLeafReturnTypes(typePredicate)
+                .and(haveLeafArgumentTypes(typePredicate))
+                .and(haveLeafExceptionTypes(typePredicate));
+    }
+
+    /**
+     * Tests leaf return types of a method against the given predicate.
+     *
+     * <p>See {@link #haveLeafTypes(DescribedPredicate)} for details.
      */
     public static ArchCondition<JavaMethod> haveLeafReturnTypes(
             DescribedPredicate<JavaClass> typePredicate) {
@@ -94,7 +107,7 @@ public class Conditions {
     /**
      * Tests leaf argument types of a method against the given predicate.
      *
-     * <p>See {@link #haveLeafReturnTypes(DescribedPredicate)} for details.
+     * <p>See {@link #haveLeafTypes(DescribedPredicate)} for details.
      */
     public static ArchCondition<JavaMethod> haveLeafArgumentTypes(
             DescribedPredicate<JavaClass> typePredicate) {
@@ -116,6 +129,42 @@ public class Conditions {
                         final String message =
                                 String.format(
                                         "%s: Argument leaf type %s does not satisfy: %s",
+                                        method.getFullName(),
+                                        leafType.getName(),
+                                        typePredicate.getDescription());
+
+                        events.add(SimpleConditionEvent.violated(method, message));
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * Tests leaf exception types of a method against the given predicate.
+     *
+     * <p>See {@link #haveLeafTypes(DescribedPredicate)} for details.
+     */
+    public static ArchCondition<JavaMethod> haveLeafExceptionTypes(
+            DescribedPredicate<JavaClass> typePredicate) {
+        return new ArchCondition<JavaMethod>(
+                "have leaf exception types" + typePredicate.getDescription()) {
+            @Override
+            public void check(JavaMethod method, ConditionEvents events) {
+                final List<JavaClass> leafArgumentTypes =
+                        method.getExceptionTypes().stream()
+                                .flatMap(argumentType -> getLeafTypes(argumentType).stream())
+                                .collect(Collectors.toList());
+
+                for (JavaClass leafType : leafArgumentTypes) {
+                    if (!isJavaClass(leafType)) {
+                        continue;
+                    }
+
+                    if (!typePredicate.apply(leafType)) {
+                        final String message =
+                                String.format(
+                                        "%s: Exception leaf type %s does not satisfy: %s",
                                         method.getFullName(),
                                         leafType.getName(),
                                         typePredicate.getDescription());
