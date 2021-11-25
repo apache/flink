@@ -348,6 +348,7 @@ public class StreamGraphGenerator {
         graph.setChaining(chaining);
         graph.setUserArtifacts(userArtifacts);
         graph.setTimeCharacteristic(timeCharacteristic);
+        graph.setVertexDescriptionMode(configuration.get(PipelineOptions.VERTEX_DESCRIPTION_MODE));
 
         if (shouldExecuteInBatchMode) {
             configureStreamGraphBatch(graph);
