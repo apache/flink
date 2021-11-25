@@ -1,6 +1,5 @@
 package org.apache.flink.mongodb.table.source;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.mongodb.table.sink.MongodbSinkConf;
@@ -12,7 +11,6 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.RowData;
 
-@Internal
 public class MongodbDynamicTableSource implements ScanTableSource {
     private final MongodbSinkConf mongodbSinkConf;
     private final ResolvedSchema tableSchema;
