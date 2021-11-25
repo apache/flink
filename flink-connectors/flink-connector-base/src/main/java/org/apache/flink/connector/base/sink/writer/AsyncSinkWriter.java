@@ -74,8 +74,9 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     private final int maxBatchSize;
     private final int maxInFlightRequests;
     private final int maxBufferedRequests;
-    private final long flushOnBufferSizeInBytes;
+    private final long maxBatchSizeInBytes;
     private final long maxTimeInBufferMS;
+    private final long maxRecordSizeInBytes;
 
     /**
      * The ElementConverter provides a mapping between for the elements of a stream to request
@@ -119,7 +120,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     /**
      * Tracks the cumulative size of all elements in {@code bufferedRequestEntries} to facilitate
-     * the criterion for flushing after {@code flushOnBufferSizeInBytes} is reached.
+     * the criterion for flushing after {@code maxBatchSizeInBytes} is reached.
      */
     private double bufferedRequestEntriesTotalSizeInBytes;
 
@@ -204,8 +205,9 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
             int maxBatchSize,
             int maxInFlightRequests,
             int maxBufferedRequests,
-            long flushOnBufferSizeInBytes,
-            long maxTimeInBufferMS) {
+            long maxBatchSizeInBytes,
+            long maxTimeInBufferMS,
+            long maxRecordSizeInBytes) {
         this.elementConverter = elementConverter;
         this.mailboxExecutor = context.getMailboxExecutor();
         this.timeService = context.getProcessingTimeService();
@@ -214,17 +216,23 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         Preconditions.checkArgument(maxBatchSize > 0);
         Preconditions.checkArgument(maxBufferedRequests > 0);
         Preconditions.checkArgument(maxInFlightRequests > 0);
-        Preconditions.checkArgument(flushOnBufferSizeInBytes > 0);
+        Preconditions.checkArgument(maxBatchSizeInBytes > 0);
         Preconditions.checkArgument(maxTimeInBufferMS > 0);
+        Preconditions.checkArgument(maxRecordSizeInBytes > 0);
         Preconditions.checkArgument(
                 maxBufferedRequests > maxBatchSize,
                 "The maximum number of requests that may be buffered should be strictly"
                         + " greater than the maximum number of requests per batch.");
+        Preconditions.checkArgument(
+                maxBatchSizeInBytes >= maxRecordSizeInBytes,
+                "The maximum allowed size in bytes per flush must be greater than or equal to the"
+                        + " maximum allowed size in bytes of a single record.");
         this.maxBatchSize = maxBatchSize;
         this.maxInFlightRequests = maxInFlightRequests;
         this.maxBufferedRequests = maxBufferedRequests;
-        this.flushOnBufferSizeInBytes = flushOnBufferSizeInBytes;
+        this.maxBatchSizeInBytes = maxBatchSizeInBytes;
         this.maxTimeInBufferMS = maxTimeInBufferMS;
+        this.maxRecordSizeInBytes = maxRecordSizeInBytes;
 
         this.inFlightRequestsCount = 0;
         this.bufferedRequestEntriesTotalSizeInBytes = 0;
@@ -269,7 +277,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     private void flushIfAble() {
         while (bufferedRequestEntries.size() >= maxBatchSize
-                || bufferedRequestEntriesTotalSizeInBytes >= flushOnBufferSizeInBytes) {
+                || bufferedRequestEntriesTotalSizeInBytes >= maxBatchSizeInBytes) {
             flush();
         }
     }
@@ -285,16 +293,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
             mailboxExecutor.tryYield();
         }
 
-        List<RequestEntryT> batch = new ArrayList<>(maxBatchSize);
-
-        int batchSize = Math.min(maxBatchSize, bufferedRequestEntries.size());
-        int batchSizeBytes = 0;
-        for (int i = 0; i < batchSize; i++) {
-            RequestEntryWrapper<RequestEntryT> elem = bufferedRequestEntries.remove();
-            batch.add(elem.getRequestEntry());
-            bufferedRequestEntriesTotalSizeInBytes -= elem.getSize();
-            batchSizeBytes += elem.getSize();
-        }
+        List<RequestEntryT> batch = createNextAvailableBatch();
 
         if (batch.size() == 0) {
             return;
@@ -310,8 +309,32 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
         inFlightRequestsCount++;
         submitRequestEntries(batch, requestResult);
-        numRecordsOutCounter.inc(batchSize);
+    }
+
+    /**
+     * Creates the next batch of request entries while respecting the {@code maxBatchSize} and
+     * {@code maxBatchSizeInBytes}. Also adds these to the metrics counters.
+     */
+    private List<RequestEntryT> createNextAvailableBatch() {
+        int batchSize = Math.min(maxBatchSize, bufferedRequestEntries.size());
+        List<RequestEntryT> batch = new ArrayList<>(batchSize);
+
+        int batchSizeBytes = 0;
+        for (int i = 0; i < batchSize; i++) {
+            long requestEntrySize = bufferedRequestEntries.peek().getSize();
+            if (batchSizeBytes + requestEntrySize > maxBatchSizeInBytes) {
+                break;
+            }
+            RequestEntryWrapper<RequestEntryT> elem = bufferedRequestEntries.remove();
+            batch.add(elem.getRequestEntry());
+            bufferedRequestEntriesTotalSizeInBytes -= requestEntrySize;
+            batchSizeBytes += requestEntrySize;
+        }
+
+        numRecordsOutCounter.inc(batch.size());
         numBytesOutCounter.inc(batchSizeBytes);
+
+        return batch;
     }
 
     /**
@@ -335,6 +358,13 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
         RequestEntryWrapper<RequestEntryT> wrappedEntry =
                 new RequestEntryWrapper<>(entry, getSizeInBytes(entry));
+
+        if (wrappedEntry.getSize() > maxRecordSizeInBytes) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "The request entry sent to the buffer was of size [%s], when the maxRecordSizeInBytes was set to [%s].",
+                            wrappedEntry.getSize(), maxRecordSizeInBytes));
+        }
 
         if (insertAtHead) {
             bufferedRequestEntries.addFirst(wrappedEntry);
