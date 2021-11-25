@@ -24,11 +24,14 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Metric group that contains shareable pre-defined IO-related metrics. The metrics registration is
@@ -52,6 +55,9 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final TimerGauge backPressuredTimePerSecond;
 
     private volatile boolean busyTimeEnabled;
+
+    private final Map<IntermediateResultPartitionID, Counter> numBytesProducedOfPartitions =
+            new HashMap<>();
 
     public TaskIOMetricGroup(TaskMetricGroup parent) {
         super(parent);
@@ -79,7 +85,12 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     }
 
     public IOMetrics createSnapshot() {
-        return new IOMetrics(numRecordsInRate, numRecordsOutRate, numBytesInRate, numBytesOutRate);
+        return new IOMetrics(
+                numRecordsInRate,
+                numRecordsOutRate,
+                numBytesInRate,
+                numBytesOutRate,
+                numBytesProducedOfPartitions);
     }
 
     // ============================================================================================
@@ -132,6 +143,11 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     public void reuseRecordsOutputCounter(Counter numRecordsOutCounter) {
         this.numRecordsOut.addCounter(numRecordsOutCounter);
+    }
+
+    public void registerNumBytesProducedCounterForPartition(
+            IntermediateResultPartitionID resultPartitionId, Counter numBytesProducedCounter) {
+        this.numBytesProducedOfPartitions.put(resultPartitionId, numBytesProducedCounter);
     }
 
     /**
