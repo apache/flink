@@ -42,6 +42,16 @@ public class OptionsTest {
     }
 
     @Test
+    public void testChoicesWithInvalidDefaultValue2() throws RequiredParametersException {
+    expectedException.expect(RequiredParametersException.class);
+        expectedException.expectMessage(
+                "Valid values for option choices do not contain defined default value x");
+
+        Option option = new Option("choices").defaultValue("x");
+        option.choices("a", "b");
+    }
+
+    @Test
     public void testChoicesWithValidDefaultValue() {
         Option option = null;
         try {
