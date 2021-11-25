@@ -1096,29 +1096,6 @@ object ScalarOperatorGens {
           operandTerm => s"$operandTerm.toBytes($serTerm)"
         }
 
-      // Note: SQL2003 $6.12 - casting is not allowed between boolean and numeric types.
-      //       Calcite does not allow it either.
-
-      // Boolean -> DECIMAL
-      case (BOOLEAN, DECIMAL) =>
-        val dt = targetType.asInstanceOf[DecimalType]
-        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-          operandTerm => s"$DECIMAL_UTIL.castFrom($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
-        }
-
-      // Boolean -> NUMERIC TYPE
-      case (BOOLEAN, _) if isNumeric(targetType) =>
-        val targetTypeTerm = primitiveTypeTermForType(targetType)
-        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-          operandTerm => s"($targetTypeTerm) ($operandTerm ? 1 : 0)"
-        }
-
-    // NUMERIC TYPE -> Boolean
-    case (_, BOOLEAN) if operand.resultType.is(LogicalTypeFamily.INTEGER_NUMERIC) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$operandTerm != 0"
-      }
-
       // Date -> Timestamp
       case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
         generateUnaryOperatorIfNotNull(ctx, targetType, operand) {

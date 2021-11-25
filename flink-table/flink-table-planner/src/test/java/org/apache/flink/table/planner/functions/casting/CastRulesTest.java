@@ -157,7 +157,9 @@ class CastRulesTest {
                         .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, (byte) 123)
                         .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, (byte) -123)
                         .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, (byte) 123)
-                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, (byte) -123),
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, (byte) -123)
+                        .fromCase(BOOLEAN(), true, (byte) 1)
+                        .fromCase(BOOLEAN(), false, (byte) 0),
                 CastTestSpecBuilder.testCastTo(SMALLINT())
                         .fromCase(SMALLINT(), null, null)
                         .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
@@ -200,7 +202,9 @@ class CastRulesTest {
                         .fromCase(FLOAT(), 123456.78f, (short) -7616)
                         .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, (short) 123)
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, (short) -123)
-                        .fromCase(DOUBLE(), 123456.7890d, (short) -7616),
+                        .fromCase(DOUBLE(), 123456.7890d, (short) -7616)
+                        .fromCase(BOOLEAN(), true, (short) 1)
+                        .fromCase(BOOLEAN(), false, (short) 0),
                 CastTestSpecBuilder.testCastTo(INT())
                         .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
                         .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
@@ -250,7 +254,9 @@ class CastRulesTest {
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123)
                         .fromCase(DOUBLE(), 9234567891.12345d, 2147483647)
                         .fromCase(INTERVAL(YEAR(), MONTH()), 123, 123)
-                        .fromCase(INTERVAL(DAY(), SECOND()), 123L, 123),
+                        .fromCase(INTERVAL(DAY(), SECOND()), 123L, 123)
+                        .fromCase(BOOLEAN(), true, 1)
+                        .fromCase(BOOLEAN(), false, 0),
                 CastTestSpecBuilder.testCastTo(BIGINT())
                         .fromCase(BIGINT(), null, null)
                         .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
@@ -294,7 +300,9 @@ class CastRulesTest {
                         .fromCase(FLOAT(), 9234567891.12f, 9234568192L)
                         .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123L)
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123L)
-                        .fromCase(DOUBLE(), 9234567891.12345d, 9234567891L),
+                        .fromCase(DOUBLE(), 9234567891.12345d, 9234567891L)
+                        .fromCase(BOOLEAN(), true, 1L)
+                        .fromCase(BOOLEAN(), false, 0L),
                 CastTestSpecBuilder.testCastTo(FLOAT())
                         .fromCase(FLOAT(), null, null)
                         .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
@@ -342,7 +350,9 @@ class CastRulesTest {
                         .fromCase(FLOAT(), 9234567891.12f, 9234567891.12f)
                         .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123.456789f)
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123.456789f)
-                        .fromCase(DOUBLE(), 1239234567891.1234567891234d, 1.23923451E12f),
+                        .fromCase(DOUBLE(), 1239234567891.1234567891234d, 1.23923451E12f)
+                        .fromCase(BOOLEAN(), true, 1.0f)
+                        .fromCase(BOOLEAN(), false, 0.0f),
                 CastTestSpecBuilder.testCastTo(DOUBLE())
                         .fromCase(DOUBLE(), null, null)
                         .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
@@ -395,7 +405,9 @@ class CastRulesTest {
                         .fromCase(FLOAT(), 9234567891.12f, 9.234568192E9)
                         .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, DEFAULT_POSITIVE_DOUBLE)
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, DEFAULT_NEGATIVE_DOUBLE)
-                        .fromCase(DOUBLE(), 1239234567891.1234567891234d, 1.2392345678911235E12d),
+                        .fromCase(DOUBLE(), 1239234567891.1234567891234d, 1.2392345678911235E12d)
+                        .fromCase(BOOLEAN(), true, 1.0d)
+                        .fromCase(BOOLEAN(), false, 0.0d),
                 CastTestSpecBuilder.testCastTo(DATE())
                         .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
                         .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
@@ -623,7 +635,19 @@ class CastRulesTest {
                         .fromCase(VARCHAR(5), StringData.fromString("FalsE"), false)
                         .fail(STRING(), StringData.fromString("Apache Flink"), TableException.class)
                         .fromCase(STRING(), StringData.fromString("TRUE"), true)
-                        .fail(STRING(), StringData.fromString(""), TableException.class),
+                        .fail(STRING(), StringData.fromString(""), TableException.class)
+                        .fromCase(TINYINT(), DEFAULT_POSITIVE_TINY_INT, true)
+                        .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, true)
+                        .fromCase(TINYINT(), (byte) 0, false)
+                        .fromCase(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT, true)
+                        .fromCase(SMALLINT(), DEFAULT_NEGATIVE_SMALL_INT, true)
+                        .fromCase(SMALLINT(), (short) 0, false)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, true)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, true)
+                        .fromCase(INT(), 0, false)
+                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, true)
+                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, true)
+                        .fromCase(BIGINT(), 0L, false),
                 CastTestSpecBuilder.testCastTo(BINARY(2))
                         .fromCase(CHAR(3), StringData.fromString("foo"), new byte[] {102, 111, 111})
                         .fromCase(
@@ -697,7 +721,12 @@ class CastRulesTest {
                         .fromCase(
                                 DOUBLE(),
                                 12.678d,
-                                DecimalData.fromBigDecimal(new BigDecimal("12.678"), 5, 3)),
+                                DecimalData.fromBigDecimal(new BigDecimal("12.678"), 5, 3))
+                        .fromCase(BOOLEAN(), true, DecimalData.fromBigDecimal(BigDecimal.ONE, 5, 3))
+                        .fromCase(
+                                BOOLEAN(),
+                                false,
+                                DecimalData.fromBigDecimal(BigDecimal.ZERO, 5, 3)),
                 CastTestSpecBuilder.testCastTo(ARRAY(STRING().nullable()))
                         .fromCase(
                                 ARRAY(TIMESTAMP().nullable()),
