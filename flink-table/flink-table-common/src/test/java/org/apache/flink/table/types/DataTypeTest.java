@@ -220,21 +220,4 @@ public class DataTypeTest {
         assertEquals(Collections.emptyList(), DataType.getFields(ARRAY(INT())));
         assertEquals(Collections.emptyList(), DataType.getFields(INT()));
     }
-
-    @Test
-    public void testExcludeFields() {
-        assertEquals(
-                ROW(FIELD("c0", BOOLEAN()), FIELD("c2", INT())),
-                DataType.excludeFields(
-                        ROW(FIELD("c0", BOOLEAN()), FIELD("c1", DOUBLE()), FIELD("c2", INT())),
-                        new int[] {1}));
-        assertEquals(
-                ROW(FIELD("c0", BOOLEAN())),
-                DataType.excludeFields(
-                        ROW(
-                                FIELD("c0", BOOLEAN()),
-                                FIELD("c1", ROW(FIELD("c11", BOOLEAN()), FIELD("c12", BOOLEAN()))),
-                                FIELD("c2", INT())),
-                        new int[] {1, 2}));
-    }
 }

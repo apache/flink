@@ -60,37 +60,6 @@ import static org.junit.Assert.fail;
 public class DataTypeUtilsTest {
 
     @Test
-    public void testProjectRow() {
-        final DataType thirdLevelRow =
-                ROW(FIELD("c0", BOOLEAN()), FIELD("c1", DOUBLE()), FIELD("c2", INT()));
-        final DataType secondLevelRow =
-                ROW(FIELD("b0", BOOLEAN()), FIELD("b1", thirdLevelRow), FIELD("b2", INT()));
-        final DataType topLevelRow =
-                ROW(FIELD("a0", INT()), FIELD("a1", secondLevelRow), FIELD("a1_b1_c0", INT()));
-
-        assertThat(
-                DataTypeUtils.projectRow(topLevelRow, new int[][] {{0}, {1, 1, 0}}),
-                equalTo(ROW(FIELD("a0", INT()), FIELD("a1_b1_c0", BOOLEAN()))));
-
-        assertThat(
-                DataTypeUtils.projectRow(topLevelRow, new int[][] {{1, 1}, {0}}),
-                equalTo(ROW(FIELD("a1_b1", thirdLevelRow), FIELD("a0", INT()))));
-
-        assertThat(
-                DataTypeUtils.projectRow(
-                        topLevelRow, new int[][] {{1, 1, 2}, {1, 1, 1}, {1, 1, 0}}),
-                equalTo(
-                        ROW(
-                                FIELD("a1_b1_c2", INT()),
-                                FIELD("a1_b1_c1", DOUBLE()),
-                                FIELD("a1_b1_c0", BOOLEAN()))));
-
-        assertThat(
-                DataTypeUtils.projectRow(topLevelRow, new int[][] {{1, 1, 0}, {2}}),
-                equalTo(ROW(FIELD("a1_b1_c0", BOOLEAN()), FIELD("a1_b1_c0_$0", INT()))));
-    }
-
-    @Test
     public void testAppendRowFields() {
         {
             final DataType row =
