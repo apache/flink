@@ -59,6 +59,7 @@ public interface Constraint {
      *       defined for a Table.
      * </ul>
      */
+    @PublicEvolving
     enum ConstraintType {
         PRIMARY_KEY,
         UNIQUE_KEY

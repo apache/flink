@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api;
+package org.apache.flink.table.planner.expressions;
+
+import org.apache.flink.annotation.Internal;
 
 /** Exception for unwanted method calling on unresolved expression. */
+@Internal
 public class UnresolvedException extends RuntimeException {
     public UnresolvedException(String msg) {
         super(msg);

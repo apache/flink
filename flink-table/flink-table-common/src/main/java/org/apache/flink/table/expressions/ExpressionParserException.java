@@ -16,22 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.exceptions;
+package org.apache.flink.table.expressions;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.annotation.Internal;
 
-/** Exception for trying to operate partition on a non-partitioned table. */
-@PublicEvolving
-public class TableNotPartitionedException extends Exception {
+/**
+ * Exception for all errors occurring during expression parsing.
+ *
+ * <p>This replaces the deprecated {@link org.apache.flink.table.api.ExpressionParserException}.
+ */
+@Internal
+public class ExpressionParserException
+        extends org.apache.flink.table.api.ExpressionParserException {
 
-    private static final String MSG = "Table %s in catalog %s is not partitioned.";
-
-    public TableNotPartitionedException(String catalogName, ObjectPath tablePath) {
-        this(catalogName, tablePath, null);
-    }
-
-    public TableNotPartitionedException(String catalogName, ObjectPath tablePath, Throwable cause) {
-        super(String.format(MSG, tablePath.getFullName(), catalogName), cause);
+    public ExpressionParserException(String msg) {
+        super(msg);
     }
 }

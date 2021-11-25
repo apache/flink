@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 
 /** A factory to create {@link FunctionDefinition}. */
+@PublicEvolving
 public interface FunctionDefinitionFactory {
 
     /**

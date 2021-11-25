@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.CatalogNotExistException;
@@ -334,17 +333,16 @@ public final class CatalogManager {
      * {@link CatalogBaseTable} with additional information such as if the table is a temporary
      * table or comes from the catalog.
      */
+    @Internal
     public static class TableLookupResult {
 
         private final @Nullable Catalog catalog;
         private final ResolvedCatalogBaseTable<?> resolvedTable;
 
-        @VisibleForTesting
         public static TableLookupResult temporary(ResolvedCatalogBaseTable<?> resolvedTable) {
             return new TableLookupResult(null, resolvedTable);
         }
 
-        @VisibleForTesting
         public static TableLookupResult permanent(
                 Catalog catalog, ResolvedCatalogBaseTable<?> resolvedTable) {
             return new TableLookupResult(Preconditions.checkNotNull(catalog), resolvedTable);

@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.catalog.exceptions;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /** Exception for trying to create a database that already exists. */
+@PublicEvolving
 public class DatabaseAlreadyExistException extends Exception {
     private static final String MSG = "Database %s already exists in Catalog %s.";
 
