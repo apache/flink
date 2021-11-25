@@ -19,7 +19,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { EMPTY, Subject } from 'rxjs';
-import { catchError, flatMap, takeUntil } from 'rxjs/operators';
+import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
 
 import { JobService, StatusService } from 'services';
 
@@ -30,29 +30,31 @@ import { JobService, StatusService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobComponent implements OnInit, OnDestroy {
-  destroy$ = new Subject();
-  isLoading = true;
-  isError = false;
-  errorDetails: string;
+  public isLoading = true;
+  public isError = false;
+  public errorDetails: string;
+
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
-    private cdr: ChangeDetectorRef,
-    private activatedRoute: ActivatedRoute,
-    private jobService: JobService,
-    private statusService: StatusService
+    private readonly cdr: ChangeDetectorRef,
+    private readonly activatedRoute: ActivatedRoute,
+    private readonly jobService: JobService,
+    private readonly statusService: StatusService
   ) {}
 
-  ngOnInit(): void {
+  public ngOnInit(): void {
     this.statusService.refresh$
       .pipe(
         takeUntil(this.destroy$),
-        flatMap(() =>
+        mergeMap(() =>
           this.jobService.loadJob(this.activatedRoute.snapshot.params.jid).pipe(
             catchError(() => {
               this.jobService.loadExceptions(this.activatedRoute.snapshot.params.jid, 10).subscribe(data => {
                 this.errorDetails = data['root-exception'];
                 this.cdr.markForCheck();
               });
+
               this.isError = true;
               this.isLoading = false;
               this.cdr.markForCheck();
@@ -68,7 +70,7 @@ export class JobComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

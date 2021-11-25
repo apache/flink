@@ -24,19 +24,19 @@ import { distinctUntilChanged, mergeMap, takeUntil, tap } from 'rxjs/operators';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
-import { ExceptionInfoInterface, RootExceptionInfoInterface } from 'interfaces';
+import { ExceptionInfo, RootExceptionInfo } from 'interfaces';
 import { JobService } from 'services';
 
 interface ExceptionHistoryItem {
   /**
    * List of concurrent exceptions that caused this failure.
    */
-  exceptions: ExceptionInfoInterface[];
+  exceptions: ExceptionInfo[];
 
   /**
    * An exception from the list, that is currently selected for rendering.
    */
-  selected: ExceptionInfoInterface;
+  selected: ExceptionInfo;
 
   /**
    * Should this failure be expanded in UI?
@@ -44,12 +44,12 @@ interface ExceptionHistoryItem {
   expand: boolean;
 }
 
-const stripConcurrentExceptions = function(rootException: RootExceptionInfoInterface): ExceptionInfoInterface {
+const stripConcurrentExceptions = function(rootException: RootExceptionInfo): ExceptionInfo {
   const { concurrentExceptions, ...mainException } = rootException;
   return mainException;
 };
 
-const markGlobalFailure = function(exception: ExceptionInfoInterface): ExceptionInfoInterface {
+const markGlobalFailure = function(exception: ExceptionInfo): ExceptionInfo {
   if (exception.taskName == null) {
     exception.taskName = '(global failure)';
   }
@@ -63,19 +63,30 @@ const markGlobalFailure = function(exception: ExceptionInfoInterface): Exception
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobExceptionsComponent implements OnInit, OnDestroy {
-  rootException = '';
-  exceptionHistory: ExceptionHistoryItem[] = [];
-  truncated = false;
-  isLoading = false;
-  maxExceptions = 0;
-  total = 0;
-  editorOptions: EditorOptions = flinkEditorOptions;
-  private destroy$ = new Subject<void>();
+  public readonly trackByTimestamp = (_: number, node: ExceptionInfo): number => node.timestamp;
 
-  trackExceptionBy(_: number, node: ExceptionInfoInterface): number {
-    return node.timestamp;
+  public rootException = '';
+  public exceptionHistory: ExceptionHistoryItem[] = [];
+  public truncated = false;
+  public isLoading = false;
+  public maxExceptions = 0;
+  public total = 0;
+  public editorOptions: EditorOptions = flinkEditorOptions;
+
+  private readonly destroy$ = new Subject<void>();
+
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
+    this.loadMore();
   }
-  loadMore(): void {
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public loadMore(): void {
     this.isLoading = true;
     this.maxExceptions += 10;
     this.jobService.jobDetail$
@@ -109,16 +120,5 @@ export class JobExceptionsComponent implements OnInit, OnDestroy {
           };
         });
       });
-  }
-
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit(): void {
-    this.loadMore();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

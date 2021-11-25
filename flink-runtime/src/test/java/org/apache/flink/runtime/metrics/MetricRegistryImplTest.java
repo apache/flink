@@ -27,10 +27,10 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.runtime.metrics.CollectingMetricsReporter.MetricGroupAndName;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
@@ -373,6 +373,7 @@ public class MetricRegistryImplTest extends TestLogger {
 
     @Test
     public void testConfigurableDelimiterForReportersInGroup() throws Exception {
+        String name = "C";
         MetricConfig config1 = new MetricConfig();
         config1.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "_");
 
@@ -394,7 +395,7 @@ public class MetricRegistryImplTest extends TestLogger {
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test1."
                         + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-                TestReporter8.class.getName());
+                CollectingMetricsReporter.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test2."
@@ -404,7 +405,7 @@ public class MetricRegistryImplTest extends TestLogger {
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test2."
                         + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-                TestReporter8.class.getName());
+                CollectingMetricsReporter.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test3."
@@ -414,38 +415,52 @@ public class MetricRegistryImplTest extends TestLogger {
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test3."
                         + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-                TestReporter8.class.getName());
+                CollectingMetricsReporter.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test4."
                         + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-                TestReporter8.class.getName());
+                CollectingMetricsReporter.class.getName());
 
+        List<ReporterSetup> reporterConfigurations =
+                Arrays.asList(
+                        ReporterSetup.forReporter(
+                                "test1", config1, new CollectingMetricsReporter()),
+                        ReporterSetup.forReporter(
+                                "test2", config2, new CollectingMetricsReporter()),
+                        ReporterSetup.forReporter(
+                                "test3", config3, new CollectingMetricsReporter()),
+                        ReporterSetup.forReporter("test4", new CollectingMetricsReporter()));
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryTestUtils.fromConfiguration(config),
-                        Arrays.asList(
-                                ReporterSetup.forReporter("test1", config1, new TestReporter8()),
-                                ReporterSetup.forReporter("test2", config2, new TestReporter8()),
-                                ReporterSetup.forReporter("test3", config3, new TestReporter8()),
-                                ReporterSetup.forReporter("test4", new TestReporter8())));
-
-        List<MetricReporter> reporters = registry.getReporters();
-        ((TestReporter8) reporters.get(0)).expectedDelimiter = '_'; // test1  reporter
-        ((TestReporter8) reporters.get(1)).expectedDelimiter = '-'; // test2 reporter
-        ((TestReporter8) reporters.get(2)).expectedDelimiter =
-                GLOBAL_DEFAULT_DELIMITER; // test3 reporter, because 'AA' - not correct delimiter
-        ((TestReporter8) reporters.get(3)).expectedDelimiter =
-                GLOBAL_DEFAULT_DELIMITER; // for test4 reporter use global delimiter
+                        MetricRegistryTestUtils.fromConfiguration(config), reporterConfigurations);
 
         TaskManagerMetricGroup group =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "host", new ResourceID("id"));
-        group.counter("C");
+        group.counter(name);
         group.close();
         registry.shutdown().get();
-        assertEquals(4, TestReporter8.numCorrectDelimitersForRegister);
-        assertEquals(4, TestReporter8.numCorrectDelimitersForUnregister);
+
+        for (ReporterSetup cfg : reporterConfigurations) {
+            String delimiter =
+                    cfg.getConfiguration()
+                            .getProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER);
+            if (delimiter == null || delimiter.equals("AA")) {
+                // test3 reporter: 'AA' - not correct
+                // for test4 reporter use global delimiter
+                delimiter = String.valueOf(GLOBAL_DEFAULT_DELIMITER);
+            }
+            String expected =
+                    (config.get(MetricOptions.SCOPE_NAMING_TM) + ".C").replaceAll("\\.", delimiter);
+            CollectingMetricsReporter reporter = (CollectingMetricsReporter) cfg.getReporter();
+
+            for (MetricGroupAndName groupAndName :
+                    Arrays.asList(reporter.findAdded(name), reporter.findRemoved(name))) {
+                assertEquals(expected, groupAndName.group.getMetricIdentifier(name));
+                assertEquals(expected, groupAndName.group.getMetricIdentifier(name, reporter));
+            }
+        }
     }
 
     /** Tests that the query actor will be stopped when the MetricRegistry is shut down. */
@@ -466,32 +481,6 @@ public class MetricRegistryImplTest extends TestLogger {
         registry.shutdown().get();
 
         queryService.getTerminationFuture().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-    }
-
-    /**
-     * Reporter that verifies that the configured delimiter is applied correctly when generating the
-     * metric identifier.
-     */
-    public static class TestReporter8 extends TestReporter {
-        char expectedDelimiter;
-        public static int numCorrectDelimitersForRegister = 0;
-        public static int numCorrectDelimitersForUnregister = 0;
-
-        @Override
-        public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-            String expectedMetric = "A" + expectedDelimiter + "B" + expectedDelimiter + "C";
-            assertEquals(expectedMetric, group.getMetricIdentifier(metricName, this));
-            assertEquals(expectedMetric, group.getMetricIdentifier(metricName));
-            numCorrectDelimitersForRegister++;
-        }
-
-        @Override
-        public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
-            String expectedMetric = "A" + expectedDelimiter + "B" + expectedDelimiter + "C";
-            assertEquals(expectedMetric, group.getMetricIdentifier(metricName, this));
-            assertEquals(expectedMetric, group.getMetricIdentifier(metricName));
-            numCorrectDelimitersForUnregister++;
-        }
     }
 
     @Test

@@ -15,9 +15,9 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { first, flatMap } from 'rxjs/operators';
+import { first, mergeMap } from 'rxjs/operators';
 
-import { TaskManagerLogItemInterface } from 'interfaces';
+import { TaskManagerLogItem } from 'interfaces';
 import { TaskManagerService } from 'services';
 
 import { typeDefinition } from '../../../utils/strong-type';
@@ -28,23 +28,23 @@ import { typeDefinition } from '../../../utils/strong-type';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerLogListComponent implements OnInit {
-  listOfLog: TaskManagerLogItemInterface[] = [];
-  isLoading = true;
+  public readonly trackByName = (_: number, log: TaskManagerLogItem): string => log.name;
+  public readonly narrowLogData = typeDefinition<TaskManagerLogItem>();
 
-  trackByName = (_: number, log: TaskManagerLogItemInterface): string => log.name;
-  readonly narrowLogData = typeDefinition<TaskManagerLogItemInterface>();
-
-  sortLastModifiedTimeFn = (pre: TaskManagerLogItemInterface, next: TaskManagerLogItemInterface): number =>
+  public readonly sortLastModifiedTimeFn = (pre: TaskManagerLogItem, next: TaskManagerLogItem): number =>
     pre.mtime - next.mtime;
-  sortSizeFn = (pre: TaskManagerLogItemInterface, next: TaskManagerLogItemInterface): number => pre.size - next.size;
+  public readonly sortSizeFn = (pre: TaskManagerLogItem, next: TaskManagerLogItem): number => pre.size - next.size;
 
-  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
+  public listOfLog: TaskManagerLogItem[] = [];
+  public isLoading = true;
 
-  ngOnInit(): void {
+  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
     this.taskManagerService.taskManagerDetail$
       .pipe(
         first(),
-        flatMap(data => this.taskManagerService.loadLogList(data.id))
+        mergeMap(data => this.taskManagerService.loadLogList(data.id))
       )
       .subscribe(
         data => {

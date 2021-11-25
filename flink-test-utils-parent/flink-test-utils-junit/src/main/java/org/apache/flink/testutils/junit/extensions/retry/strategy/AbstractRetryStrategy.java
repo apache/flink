@@ -16,8 +16,25 @@
  * limitations under the License.
  */
 
-import { SafeAny } from 'interfaces';
+package org.apache.flink.testutils.junit.extensions.retry.strategy;
 
-export function isNil(value: SafeAny): boolean {
-  return value == null;
+/** Retry strategy base class. */
+public abstract class AbstractRetryStrategy implements RetryStrategy {
+    protected final int totalTimes;
+    protected boolean hasNextAttempt;
+
+    public AbstractRetryStrategy(int totalTimes, boolean hasNextAttempt) {
+        this.totalTimes = totalTimes;
+        this.hasNextAttempt = hasNextAttempt;
+    }
+
+    @Override
+    public boolean hasNextAttempt() {
+        return hasNextAttempt;
+    }
+
+    @Override
+    public void stopFollowingAttempts() {
+        this.hasNextAttempt = false;
+    }
 }

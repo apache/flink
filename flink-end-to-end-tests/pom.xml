@@ -168,7 +168,7 @@ under the License.
 		<profile>
 			<id>java11</id>
 			<activation>
-				<jdk>11</jdk>
+				<jdk>[11,)</jdk>
 			</activation>
 			<properties>
 				<e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>true</e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>

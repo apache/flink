@@ -19,7 +19,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { finalize } from 'rxjs/operators';
 
-import { JobManagerLogItemInterface } from 'interfaces';
+import { JobManagerLogItem } from 'interfaces';
 import { JobManagerService } from 'services';
 
 import { typeDefinition } from '../../../utils/strong-type';
@@ -31,19 +31,19 @@ import { typeDefinition } from '../../../utils/strong-type';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerLogListComponent implements OnInit {
-  listOfLog: JobManagerLogItemInterface[] = [];
-  isLoading = true;
+  public readonly trackByName = (_: number, log: JobManagerLogItem): string => log.name;
+  public readonly narrowLogData = typeDefinition<JobManagerLogItem>();
 
-  trackByName = (_: number, log: JobManagerLogItemInterface): string => log.name;
-  readonly narrowLogData = typeDefinition<JobManagerLogItemInterface>();
-
-  sortLastModifiedTimeFn = (pre: JobManagerLogItemInterface, next: JobManagerLogItemInterface): number =>
+  public readonly sortLastModifiedTimeFn = (pre: JobManagerLogItem, next: JobManagerLogItem): number =>
     pre.mtime - next.mtime;
-  sortSizeFn = (pre: JobManagerLogItemInterface, next: JobManagerLogItemInterface): number => pre.size - next.size;
+  public readonly sortSizeFn = (pre: JobManagerLogItem, next: JobManagerLogItem): number => pre.size - next.size;
 
-  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
+  public listOfLog: JobManagerLogItem[] = [];
+  public isLoading = true;
 
-  ngOnInit(): void {
+  constructor(private readonly jobManagerService: JobManagerService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
     this.jobManagerService
       .loadLogList()
       .pipe(

@@ -82,6 +82,11 @@ under the License.
 					<groupId>com.google.uzaygezen</groupId>
 					<artifactId>uzaygezen-core</artifactId>
 				</exclusion>
+				<!-- Excluding org.apiguardian:apiguardian-api v1.1.0 because org.junit.jupiter:junit-jupiter contains newer version v1.1.2 -->
+				<exclusion>
+					<groupId>org.apiguardian</groupId>
+					<artifactId>apiguardian-api</artifactId>
+				</exclusion>
 			</exclusions>
 			<scope>test</scope>
 			<type>test-jar</type>

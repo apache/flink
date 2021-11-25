@@ -32,7 +32,6 @@ import {
 import { fromEvent, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { SafeAny } from 'interfaces';
 import { isNil } from 'utils';
 
 export enum ResizeModeEnums {
@@ -119,7 +118,7 @@ export class ResizeComponent implements OnInit, OnDestroy {
     return newLeft;
   }
 
-  constructor(@Inject(DOCUMENT) private document: SafeAny) {}
+  constructor(@Inject(DOCUMENT) private readonly document: Document) {}
 
   ngOnInit(): void {
     fromEvent<MouseEvent>(this.document, 'mouseup')
