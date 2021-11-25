@@ -544,4 +544,8 @@ object BuiltInMethods {
     classOf[DecimalDataUtils],
     "castFrom", classOf[Long], classOf[Int], classOf[Int])
 
+  val DECIMAL_ZERO = Types.lookupMethod(
+    classOf[DecimalData],
+    "zero", classOf[Int], classOf[Int])
+
 }

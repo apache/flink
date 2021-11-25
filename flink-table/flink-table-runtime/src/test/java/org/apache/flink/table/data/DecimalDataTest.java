@@ -25,7 +25,6 @@ import java.math.BigDecimal;
 import static org.apache.flink.table.data.DecimalDataUtils.abs;
 import static org.apache.flink.table.data.DecimalDataUtils.add;
 import static org.apache.flink.table.data.DecimalDataUtils.castFrom;
-import static org.apache.flink.table.data.DecimalDataUtils.castToBoolean;
 import static org.apache.flink.table.data.DecimalDataUtils.castToDecimal;
 import static org.apache.flink.table.data.DecimalDataUtils.castToIntegral;
 import static org.apache.flink.table.data.DecimalDataUtils.ceil;
@@ -98,7 +97,6 @@ public class DecimalDataTest {
                 divideToIntegralValue(decimal1, DecimalData.fromUnscaledLong(2, 5, 0), 5, 0)
                         .toUnscaledLong());
         assertEquals(10, castToIntegral(decimal1));
-        assertTrue(castToBoolean(decimal1));
         assertEquals(0, compare(decimal1, 10));
         assertTrue(compare(decimal1, 5) > 0);
         assertEquals(castFrom(1.0, 10, 5), sign(castFrom(5.556, 10, 5)));
@@ -111,7 +109,6 @@ public class DecimalDataTest {
         assertEquals(DecimalData.fromUnscaledLong(11, 5, 0), ceil(castFrom(10.5, 5, 1)));
         assertEquals("5.00", castToDecimal(castFrom(5.0, 10, 1), 10, 2).toString());
 
-        assertTrue(castToBoolean(castFrom(true, 5, 0)));
         assertEquals(5, castToIntegral(castFrom(5, 5, 0)));
         assertEquals(5, castToIntegral(castFrom("5", 5, 0)));
 
@@ -159,7 +156,6 @@ public class DecimalDataTest {
                         .toBigDecimal()
                         .longValue());
         assertEquals(10, castToIntegral(decimal1));
-        assertTrue(castToBoolean(decimal1));
         assertEquals(0, compare(decimal1, 10));
         assertTrue(compare(decimal1, 5) > 0);
         assertTrue(compare(DecimalData.fromBigDecimal(new BigDecimal("10.5"), 20, 2), 10) > 0);
