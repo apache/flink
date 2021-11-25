@@ -95,6 +95,7 @@ public final class FormatDescriptor {
     // ---------------------------------------------------------------------------------------------
 
     /** Builder for {@link FormatDescriptor}. */
+    @PublicEvolving
     public static class Builder {
         private final String format;
         private final Map<String, String> options = new HashMap<>();

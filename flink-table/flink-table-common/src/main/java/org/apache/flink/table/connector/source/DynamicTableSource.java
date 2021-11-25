@@ -88,6 +88,7 @@ public interface DynamicTableSource {
      * instances are {@link Serializable} and can be directly passed into the runtime implementation
      * class.
      */
+    @PublicEvolving
     interface Context {
 
         /**
@@ -130,6 +131,7 @@ public interface DynamicTableSource {
      *
      * @see LogicalType#supportsInputConversion(Class)
      */
+    @PublicEvolving
     interface DataStructureConverter extends RuntimeConverter {
 
         /** Converts the given object into an internal data structure. */

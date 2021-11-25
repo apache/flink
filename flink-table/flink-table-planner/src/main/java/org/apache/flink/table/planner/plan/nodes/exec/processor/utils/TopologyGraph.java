@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.exec.processor.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -158,7 +157,6 @@ class TopologyGraph {
         }
     }
 
-    @VisibleForTesting
     boolean canReach(ExecNode<?> from, ExecNode<?> to) {
         TopologyNode fromNode = getOrCreateTopologyNode(from);
         TopologyNode toNode = getOrCreateTopologyNode(to);

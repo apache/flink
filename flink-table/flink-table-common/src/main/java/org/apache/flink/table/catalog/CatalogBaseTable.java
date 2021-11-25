@@ -36,6 +36,7 @@ import java.util.Optional;
 public interface CatalogBaseTable {
 
     /** The kind of {@link CatalogBaseTable}. */
+    @PublicEvolving
     enum TableKind {
         TABLE,
         VIEW
