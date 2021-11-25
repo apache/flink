@@ -43,7 +43,7 @@ public interface ProjectableDecodingFormat<I> extends DecodingFormat<I> {
 
     /**
      * Creates runtime decoder implementation that is configured to produce data of type {@code
-     * DataType.projectFields(physicalDataType, projections)}. For more details on the usage, check
+     * Projection.of(projections).project(physicalDataType)}. For more details on the usage, check
      * {@link DecodingFormat} documentation.
      *
      * @param context the context provides several utilities required to instantiate the runtime

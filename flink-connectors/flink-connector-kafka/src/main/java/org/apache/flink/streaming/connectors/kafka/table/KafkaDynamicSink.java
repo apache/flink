@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -375,8 +376,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         if (format == null) {
             return null;
         }
-        DataType physicalFormatDataType =
-                DataTypeUtils.projectRow(this.physicalDataType, projection);
+        DataType physicalFormatDataType = Projection.of(projection).project(this.physicalDataType);
         if (prefix != null) {
             physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
         }

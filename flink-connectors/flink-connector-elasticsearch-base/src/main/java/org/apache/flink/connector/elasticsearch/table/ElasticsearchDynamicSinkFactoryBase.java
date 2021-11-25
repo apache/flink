@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
@@ -170,7 +171,7 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
         DataType physicalRowDataType = context.getPhysicalRowDataType();
         int[] primaryKeyIndexes = context.getPrimaryKeyIndexes();
         if (primaryKeyIndexes.length != 0) {
-            DataType pkDataType = DataType.projectFields(physicalRowDataType, primaryKeyIndexes);
+            DataType pkDataType = Projection.of(primaryKeyIndexes).project(physicalRowDataType);
 
             ElasticsearchValidationUtils.validatePrimaryKey(pkDataType);
         }
