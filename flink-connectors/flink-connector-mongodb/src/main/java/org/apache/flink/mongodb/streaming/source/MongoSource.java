@@ -1,6 +1,5 @@
 package org.apache.flink.mongodb.streaming.source;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -19,7 +18,6 @@ import org.apache.flink.mongodb.streaming.source.split.MongoSplitStrategy;
 
 import java.util.List;
 
-@PublicEvolving
 public class MongoSource<T> implements Source<T, MongoSplit, List<MongoSplit>> {
 
     private MongoClientProvider clientProvider;
