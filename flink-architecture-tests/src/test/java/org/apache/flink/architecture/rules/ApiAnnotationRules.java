@@ -141,11 +141,10 @@ public class ApiAnnotationRules {
                                             if (originOwner.equals(targetOwner)) {
                                                 return false;
                                             }
-                                            if (originOwner.isInnerClass()
-                                                    && originOwner
-                                                            .getEnclosingClass()
-                                                            .map(targetOwner::equals)
-                                                            .orElse(false)) {
+                                            if (originOwner
+                                                    .getEnclosingClass()
+                                                    .map(targetOwner::equals)
+                                                    .orElse(false)) {
                                                 return false;
                                             }
                                             if (targetOwner
