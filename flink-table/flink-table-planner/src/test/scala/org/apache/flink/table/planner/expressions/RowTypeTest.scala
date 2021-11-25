@@ -34,7 +34,7 @@ class RowTypeTest extends RowTypeTestBase {
       row(1, "foo", true),
       "row(1, 'foo', true)",
       "ROW(1, 'foo', true)",
-      "(1, foo, true)")
+      "(1,foo,true)")
 
     // special literal
     testTableApi(
@@ -46,25 +46,25 @@ class RowTypeTest extends RowTypeTestBase {
         array(1, 2, 3),
         map("foo", "bar"),
         row(1, true)),
-      "(1985-04-11, 14:15:16, 1985-04-11 14:15:16, 0.1, [1, 2, 3], {foo=bar}, (1, true))")
+      "(1985-04-11,14:15:16,1985-04-11 14:15:16,0.1,[1, 2, 3],{foo=bar},(1,true))")
     testSqlApi(
       "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
           "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
-      "(1985-04-11, 14:15:16, 1985-04-11 14:15:16, 0.1, [1, 2, 3], {foo=bar}, (1, true))")
+      "(1985-04-11,14:15:16,1985-04-11 14:15:16,0.1,[1, 2, 3],{foo=bar},(1,true))")
 
     testSqlApi(
       "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16.123456', " +
         "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
-      "(1985-04-11, 14:15:16, 1985-04-11 14:15:16.123456, 0.1, [1, 2, 3], {foo=bar}, (1, true))")
+      "(1985-04-11,14:15:16,1985-04-11 14:15:16.123456,0.1,[1, 2, 3],{foo=bar},(1,true))")
 
     testAllApis(
       row(1 + 1, 2 * 3, nullOf(DataTypes.STRING())),
       "row(1 + 1, 2 * 3, Null(STRING))",
       "ROW(1 + 1, 2 * 3, NULLIF(1, 1))",
-      "(2, 6, null)"
+      "(2,6,null)"
     )
 
-    testSqlApi("(1, 'foo', true)", "(1, foo, true)")
+    testSqlApi("(1, 'foo', true)", "(1,foo,true)")
   }
 
   @Test
@@ -73,35 +73,35 @@ class RowTypeTest extends RowTypeTestBase {
       row('f0, 'f1),
       "row(f0, f1)",
       "(f0, f1)",
-      "(null, 1)"
+      "(null,1)"
     )
 
     testAllApis(
       'f2,
       "f2",
       "f2",
-      "(2, foo, true)"
+      "(2,foo,true)"
     )
 
     testAllApis(
       row('f2, 'f5),
       "row(f2, f5)",
       "(f2, f5)",
-      "((2, foo, true), (foo, null))"
+      "((2,foo,true),(foo,null))"
     )
 
     testAllApis(
       'f4,
       "f4",
       "f4",
-      "(1984-03-12, 0.00000000, [1, 2, 3])"
+      "(1984-03-12,0.00000000,[1, 2, 3])"
     )
 
     testAllApis(
       row('f1, "foo", true),
       "row(f1, 'foo', true)",
       "(f1, 'foo',true)",
-      "(1, foo, true)"
+      "(1,foo,true)"
     )
   }
 
