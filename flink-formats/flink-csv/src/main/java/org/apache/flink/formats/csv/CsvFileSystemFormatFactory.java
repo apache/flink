@@ -146,9 +146,6 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
         options.getOptional(ARRAY_ELEMENT_DELIMITER)
                 .ifPresent(csvBuilder::setArrayElementSeparator);
 
-        options.getOptional(ARRAY_ELEMENT_DELIMITER)
-                .ifPresent(csvBuilder::setArrayElementSeparator);
-
         options.getOptional(ESCAPE_CHARACTER)
                 .map(s -> s.charAt(0))
                 .ifPresent(csvBuilder::setEscapeChar);
