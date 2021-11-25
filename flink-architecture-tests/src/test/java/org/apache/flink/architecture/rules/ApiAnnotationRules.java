@@ -137,11 +137,12 @@ public class ApiAnnotationRules {
                                         @Override
                                         public boolean apply(JavaMethodCall call) {
                                             final JavaClass targetOwner = call.getTargetOwner();
-                                            if (call.getOriginOwner().equals(targetOwner)) {
+                                            final JavaClass originOwner = call.getOriginOwner();
+                                            if (originOwner.equals(targetOwner)) {
                                                 return false;
                                             }
-                                            if (call.getOriginOwner().isInnerClass()
-                                                    && call.getOriginOwner()
+                                            if (originOwner.isInnerClass()
+                                                    && originOwner
                                                             .getEnclosingClass()
                                                             .map(targetOwner::equals)
                                                             .orElse(false)) {
