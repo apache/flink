@@ -283,6 +283,8 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<!-- required for the Kinesis e2e test -->
+							<shadeTestJar>true</shadeTestJar>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet combine.children="append">
 								<includes>
