@@ -36,6 +36,8 @@ import org.apache.flink.runtime.webmonitor.handlers.JarRunHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHeaders;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.SeparateThreadExecutor;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
@@ -63,6 +65,12 @@ public class WebSubmissionExtension implements WebMonitorExtension {
             throws Exception {
 
         webSubmissionHandlers = new ArrayList<>();
+
+        final Executor jarRunExecutor =
+                new SeparateThreadExecutor(
+                        new ExecutorThreadFactory.Builder()
+                                .setPoolName("flink-jar-runner")
+                                .build());
 
         final JarUploadHandler jarUploadHandler =
                 new JarUploadHandler(
@@ -92,7 +100,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
                         JarRunHeaders.getInstance(),
                         jarDir,
                         configuration,
-                        executor,
+                        jarRunExecutor,
                         () -> new DetachedApplicationRunner(true));
 
         final JarDeleteHandler jarDeleteHandler =
@@ -112,7 +120,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
                         JarPlanGetHeaders.getInstance(),
                         jarDir,
                         configuration,
-                        executor);
+                        jarRunExecutor);
 
         final JarPlanHandler postJarPlanHandler =
                 new JarPlanHandler(
