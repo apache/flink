@@ -148,6 +148,12 @@ public class ApiAnnotationRules {
                                                             .orElse(false)) {
                                                 return false;
                                             }
+                                            if (targetOwner
+                                                    .getEnclosingClass()
+                                                    .map(originOwner::equals)
+                                                    .orElse(false)) {
+                                                return false;
+                                            }
 
                                             return call.getTarget()
                                                     .isAnnotatedWith(VisibleForTesting.class);
