@@ -39,6 +39,7 @@ function createSortFn(selector: (item: TaskmanagersItem) => number): NzTableSort
 export class TaskManagerListComponent implements OnInit, OnDestroy {
   public readonly trackById = (_: number, node: TaskmanagersItem): string => node.id;
 
+  public readonly sortIdFn = createSortFn(item => item.id);
   public readonly sortDataPortFn = createSortFn(item => item.dataPort);
   public readonly sortHeartBeatFn = createSortFn(item => item.timeSinceLastHeartbeat);
   public readonly sortSlotsNumberFn = createSortFn(item => item.slotsNumber);
