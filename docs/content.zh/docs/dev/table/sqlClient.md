@@ -426,8 +426,8 @@ SET 'pipeline.name' = 'SqlJob';
 -- set the queue that the job submit to
 SET 'yarn.application.queue' = 'root';
 
--- set the job parallism
-SET 'parallism.default' = '100';
+-- set the job parallelism
+SET 'parallelism.default' = '100';
 
 -- restore from the specific savepoint path
 SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
