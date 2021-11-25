@@ -4359,6 +4359,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "2021-04-06 11:05:30")
     testSqlApi(s"IFNULL(CAST(INTERVAL '2' YEAR AS VARCHAR(20)), $str2)", "+2-00")
     testSqlApi(s"IFNULL(CAST(INTERVAL '2' DAY AS VARCHAR(20)), $str2)", "+2 00:00:00.000")
-    testSqlApi(s"IFNULL(CAST(f53 AS VARCHAR(100)), $str2)", "[104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]")
+    testSqlApi(
+      s"IFNULL(CAST(f53 AS VARCHAR(100)), $str2)",
+      "[104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]")
   }
 }
