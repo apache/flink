@@ -1,4 +1,4 @@
-package org.apache.flink.mongodb.connection;
+package org.apache.flink.mongodb.streaming.connection;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;

@@ -1,7 +1,7 @@
 package org.apache.flink.mongodb.streaming.sink;
 
 import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.mongodb.connection.MongoClientProvider;
+import org.apache.flink.mongodb.streaming.connection.MongoClientProvider;
 
 import com.mongodb.ReadConcern;
 import com.mongodb.ReadPreference;
@@ -14,7 +14,6 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +22,7 @@ import java.util.List;
  * MongoCommitter flushes data to MongoDB in a transaction. Due to MVCC implementation of MongoDB, a transaction is
  * not recommended to be large.
  **/
-public class MongoCommitter implements Committer<DocumentBulk>, Closeable {
+public class MongoCommitter implements Committer<DocumentBulk> {
 
     private final MongoClient client;
 
@@ -62,7 +61,7 @@ public class MongoCommitter implements Committer<DocumentBulk>, Closeable {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
         client.close();
     }
 }

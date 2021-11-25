@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Objects;
 
 @NotThreadSafe
-public class DocumentBulk{
+public class DocumentBulk implements Serializable {
 
     private List<Document> bufferedDocuments;
 

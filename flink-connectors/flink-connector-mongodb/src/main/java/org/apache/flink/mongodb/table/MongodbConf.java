@@ -50,8 +50,6 @@ public class MongodbConf implements Serializable {
 
     @Override
     public String toString() {
-        return "MongodbConf{database='" + this.database + '\'' + ", collection='" + this.collection
-                + '\'' + ", uri='" + this.uri + '\'' + ", maxConnectionIdleTime="
-                + this.maxConnectionIdleTime + '}';
+        return "MongodbConf{database='" + this.database + '\'' + ", collection='" + this.collection + '\'' + ", uri='" + this.uri + '\'' + ", maxConnectionIdleTime=" + this.maxConnectionIdleTime + '}';
     }
 }

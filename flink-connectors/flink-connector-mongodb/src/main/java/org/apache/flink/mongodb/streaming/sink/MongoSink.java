@@ -5,8 +5,8 @@ import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.mongodb.connection.MongoClientProvider;
-import org.apache.flink.mongodb.connection.MongoColloctionProviders;
+import org.apache.flink.mongodb.streaming.connection.MongoClientProvider;
+import org.apache.flink.mongodb.streaming.connection.MongoColloctionProviders;
 import org.apache.flink.mongodb.streaming.serde.DocumentSerializer;
 
 import com.mongodb.WriteConcern;
@@ -52,7 +52,7 @@ public class MongoSink<IN> implements Sink<IN, DocumentBulk, DocumentBulk, Void>
         private boolean isTransactional = false;
         private boolean retryWrites = true;
         private WriteConcern writeConcern = MAJORITY;
-        private long timeout = 30000L;
+        private long timeout = -1L;
         private long maxSize = 1024L;
         private long bulkFlushInterval = 1000L;
         private boolean flushOnCheckpoint = true;
@@ -165,7 +165,8 @@ public class MongoSink<IN> implements Sink<IN, DocumentBulk, DocumentBulk, Void>
 
 
     @Override
-    public SinkWriter<IN, DocumentBulk, DocumentBulk> createWriter(InitContext initContext, List<DocumentBulk> states) {
+    public SinkWriter<IN, DocumentBulk, DocumentBulk> createWriter(InitContext initContext, List<DocumentBulk> states)
+            throws IOException {
         MongoBulkWriter<IN> writer = new MongoBulkWriter<IN>(collection, serializer, maxSize, bulkFlushInterval, flushOnCheckpoint,model);
         writer.initializeState(states);
         return writer;

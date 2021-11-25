@@ -1,16 +1,15 @@
 package org.apache.flink.mongodb.table.sink;
 
-import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
-import org.apache.flink.table.types.DataType;
 
 public class MongodbDynamicTableSink implements DynamicTableSink {
     private final MongodbSinkConf mongodbSinkConf;
-    private final ResolvedSchema tableSchema;
+    private final TableSchema tableSchema;
 
-    public MongodbDynamicTableSink(MongodbSinkConf mongodbSinkConf, ResolvedSchema tableSchema) {
+    public MongodbDynamicTableSink(MongodbSinkConf mongodbSinkConf, TableSchema tableSchema) {
         this.mongodbSinkConf = mongodbSinkConf;
         this.tableSchema = tableSchema;
     }
@@ -22,12 +21,8 @@ public class MongodbDynamicTableSink implements DynamicTableSink {
 
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-        DataType dataType = tableSchema.toSinkRowDataType();
-        DataStructureConverter converter = context.createDataStructureConverter(dataType);
-        return SinkFunctionProvider.of(new MongodbUpsertSinkFunction(
-                this.mongodbSinkConf,
-                tableSchema.getColumnNames(),
-                converter));
+        DataStructureConverter converter = context.createDataStructureConverter(this.tableSchema.toRowDataType());
+        return SinkFunctionProvider.of(new MongodbUpsertSinkFunction(this.mongodbSinkConf, this.tableSchema.getFieldNames(), converter));
     }
 
     @Override
