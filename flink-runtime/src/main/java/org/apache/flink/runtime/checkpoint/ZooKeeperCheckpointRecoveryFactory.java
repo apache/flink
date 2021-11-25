@@ -50,7 +50,6 @@ public class ZooKeeperCheckpointRecoveryFactory implements CheckpointRecoveryFac
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobId,
             int maxNumberOfCheckpointsToRetain,
-            ClassLoader userClassLoader,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor)
             throws Exception {

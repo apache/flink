@@ -246,12 +246,7 @@ public class AdaptiveScheduler
         this.checkpointsCleaner = checkpointsCleaner;
         this.completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
-                        jobGraph,
-                        configuration,
-                        userCodeClassLoader,
-                        checkpointRecoveryFactory,
-                        ioExecutor,
-                        LOG);
+                        jobGraph, configuration, checkpointRecoveryFactory, ioExecutor, LOG);
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
                         jobGraph, checkpointRecoveryFactory);

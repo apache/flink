@@ -75,7 +75,6 @@ public class SchedulerUtilsTest extends TestLogger {
         final CompletedCheckpointStore completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStore(
                         jobManagerConfig,
-                        getClass().getClassLoader(),
                         new StandaloneCheckpointRecoveryFactory(),
                         Executors.directExecutor(),
                         log,
@@ -102,7 +101,6 @@ public class SchedulerUtilsTest extends TestLogger {
         CompletedCheckpointStore checkpointStore =
                 SchedulerUtils.createCompletedCheckpointStore(
                         new Configuration(),
-                        getClass().getClassLoader(),
                         recoveryFactory,
                         Executors.directExecutor(),
                         log,
@@ -123,7 +121,6 @@ public class SchedulerUtilsTest extends TestLogger {
             public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
                     JobID jobId,
                     int maxNumberOfCheckpointsToRetain,
-                    ClassLoader userClassLoader,
                     SharedStateRegistryFactory sharedStateRegistryFactory,
                     Executor ioExecutor) {
                 List<CompletedCheckpoint> checkpoints = singletonList(checkpoint);
