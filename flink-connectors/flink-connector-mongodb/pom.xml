@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>flink-connector-mongodb</artifactId>
-    <name>Flink : Connectors : Kafka</name>
+    <name>Flink : Connectors : Mongodb</name>
 
     <packaging>jar</packaging>
 
