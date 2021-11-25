@@ -259,4 +259,19 @@ public class PipelineOptions {
                                             TextElement.code(
                                                     "name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2`"))
                                     .build());
+
+    public static final ConfigOption<VertexDescriptionMode> VERTEX_DESCRIPTION_MODE =
+            key("pipeline.vertex-description-mode")
+                    .enumType(VertexDescriptionMode.class)
+                    .defaultValue(VertexDescriptionMode.TREE)
+                    .withDescription("The mode how we organize description of a job vertex.");
+
+    /** The mode how we organize description of a vertex. */
+    @PublicEvolving
+    public enum VertexDescriptionMode {
+        /** Organizes the description in a multi line tree mode. */
+        TREE,
+        /** Organizes the description in a single line cascading mode, which is similar to name. */
+        CASCADING
+    }
 }
