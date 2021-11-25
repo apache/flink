@@ -802,10 +802,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 new CollectModifyOperation(objectIdentifier, operation);
         List<Transformation<?>> transformations =
                 translate(Collections.singletonList(sinkOperation));
-        final String defaultJobName = "collect";
+        final String jobName =
+                operation.getQuerySql() == null ? "collect" : operation.getQuerySql();
         Pipeline pipeline =
-                execEnv.createPipeline(
-                        transformations, tableConfig.getConfiguration(), defaultJobName);
+                execEnv.createPipeline(transformations, tableConfig.getConfiguration(), jobName);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             ResultProvider resultProvider = sinkOperation.getSelectResultProvider();

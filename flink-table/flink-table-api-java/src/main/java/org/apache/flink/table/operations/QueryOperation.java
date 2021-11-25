@@ -53,4 +53,8 @@ public interface QueryOperation extends Operation {
     default <T> T accept(QueryOperationVisitor<T> visitor) {
         return visitor.visit(this);
     }
+
+    default String getQuerySql() {
+        return null;
+    }
 }

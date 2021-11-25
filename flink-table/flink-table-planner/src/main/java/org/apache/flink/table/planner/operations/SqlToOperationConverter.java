@@ -1084,6 +1084,6 @@ public class SqlToOperationConverter {
     private PlannerQueryOperation toQueryOperation(FlinkPlannerImpl planner, SqlNode validated) {
         // transform to a relational tree
         RelRoot relational = planner.rel(validated);
-        return new PlannerQueryOperation(relational.project());
+        return new PlannerQueryOperation(relational.project(), getQuotedSqlString(validated));
     }
 }

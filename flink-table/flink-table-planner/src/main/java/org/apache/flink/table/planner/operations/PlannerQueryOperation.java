@@ -40,8 +40,13 @@ public class PlannerQueryOperation implements QueryOperation {
 
     private final RelNode calciteTree;
     private final ResolvedSchema resolvedSchema;
+    private String querySql;
 
     public PlannerQueryOperation(RelNode calciteTree) {
+        this(calciteTree, null);
+    }
+
+    public PlannerQueryOperation(RelNode calciteTree, String querySql) {
         this.calciteTree = calciteTree;
 
         RelDataType rowType = calciteTree.getRowType();
@@ -55,6 +60,7 @@ public class PlannerQueryOperation implements QueryOperation {
                         .toArray(DataType[]::new);
 
         this.resolvedSchema = ResolvedSchema.physical(fieldNames, fieldTypes);
+        this.querySql = querySql;
     }
 
     public RelNode getCalciteTree() {
@@ -80,5 +86,10 @@ public class PlannerQueryOperation implements QueryOperation {
     @Override
     public <T> T accept(QueryOperationVisitor<T> visitor) {
         return visitor.visit(this);
+    }
+
+    @Override
+    public String getQuerySql() {
+        return querySql;
     }
 }
