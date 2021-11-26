@@ -18,7 +18,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -38,7 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -225,33 +223,15 @@ public final class RocksDBResourceContainer implements AutoCloseable {
      * worked in full bloom filter, not blocked based.
      */
     private boolean overwriteFilterIfExist(BlockBasedTableConfig blockBasedTableConfig) {
-        Filter filter = null;
-        try {
-            filter = getFilterFromBlockBasedTableConfig(blockBasedTableConfig);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            LOG.warn(
-                    "Reflection exception occurred when getting filter from BlockBasedTableConfig, disable partition index filters!");
-            return false;
-        }
-        if (filter != null) {
+        if (blockBasedTableConfig.filterPolicy() != null) {
             // TODO Can get filter's config in the future RocksDB version, and build new filter use
             // existing config.
             BloomFilter newFilter = new BloomFilter(10, false);
             LOG.info(
                     "Existing filter has been overwritten to full filters since partitioned index filters is enabled.");
-            blockBasedTableConfig.setFilter(newFilter);
+            blockBasedTableConfig.setFilterPolicy(newFilter);
             handlesToClose.add(newFilter);
         }
         return true;
-    }
-
-    @VisibleForTesting
-    static Filter getFilterFromBlockBasedTableConfig(BlockBasedTableConfig blockBasedTableConfig)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field filterField = blockBasedTableConfig.getClass().getDeclaredField("filterPolicy");
-        filterField.setAccessible(true);
-        Object filter = filterField.get(blockBasedTableConfig);
-        filterField.setAccessible(false);
-        return filter == null ? null : (Filter) filter;
     }
 }
