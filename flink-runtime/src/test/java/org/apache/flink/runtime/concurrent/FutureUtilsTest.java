@@ -21,7 +21,6 @@ package org.apache.flink.runtime.concurrent;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
@@ -752,10 +751,11 @@ public class FutureUtilsTest extends TestLogger {
 
     @Test
     public void testSupplyAsync() throws Exception {
-        final CompletableFuture<Acknowledge> future =
-                FutureUtils.supplyAsync(Acknowledge::get, TestingUtils.defaultExecutor());
+        final Object expectedResult = new Object();
+        final CompletableFuture<Object> future =
+                FutureUtils.supplyAsync(() -> expectedResult, TestingUtils.defaultExecutor());
 
-        assertThat(future.get(), is(Acknowledge.get()));
+        assertEquals(future.get(), expectedResult);
     }
 
     @Test
