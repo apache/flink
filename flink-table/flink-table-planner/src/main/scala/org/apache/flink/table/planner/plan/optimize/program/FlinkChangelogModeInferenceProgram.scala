@@ -758,6 +758,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       }
     }
 
+    /**
+     * Infer sink required traits by the sink node and its input. Sink required traits is based on
+     * the sink node's changelog mode, the only exception is when sink's pk(s) not exactly the same
+     * as the changeLogUpsertKeys and sink' changelog mode is ONLY_UPDATE_AFTER.
+     */
     private def inferSinkRequiredTraits(sink: StreamPhysicalSink): Seq[UpdateKindTrait] = {
       val childModifyKindSet = getModifyKindSet(sink.getInput)
       val onlyAfter = onlyAfterOrNone(childModifyKindSet)
@@ -779,8 +784,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           // fallback to beforeAndAfter.
           // Notice: even sink pk(s) contains input upsert key we cannot optimize to UA only,
           // this differs from batch job's unique key inference
-          if (changeLogUpsertKeys == null || changeLogUpsertKeys.size() == 0
-              || !changeLogUpsertKeys.exists {_.equals(sinkPks)}) {
+          if (changeLogUpsertKeys == null || !changeLogUpsertKeys.exists {_.equals(sinkPks)}) {
             requireBeforeAndAfter = true
           }
         }
@@ -797,6 +801,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       sinkRequiredTraits
     }
 
+    /**
+     *  Analyze whether to enable upsertMaterialize or not. In these case will return true:
+     *  1. when `TABLE_EXEC_SINK_UPSERT_MATERIALIZE` set to FORCE and sink's primary key nonempty.
+     *  2. when `TABLE_EXEC_SINK_UPSERT_MATERIALIZE` set to AUTO and sink's primary key doesn't
+     *  contain upsertKeys of the input update stream.
+     */
     private def analyzeUpsertMaterializeStrategy(sink: StreamPhysicalSink): Boolean = {
       val tableConfig = sink.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
           .getTableConfig
@@ -820,8 +830,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             // if input has update and primary key != upsert key (upsert key can be null) we should
             // enable upsertMaterialize. An optimize is: do not enable upsertMaterialize when sink
             // pk(s) contains input changeLogUpsertKeys
-            if (changeLogUpsertKeys == null || changeLogUpsertKeys.size() == 0 ||
-                !changeLogUpsertKeys.exists(pks.contains)) {
+            if (changeLogUpsertKeys == null || !changeLogUpsertKeys.exists(pks.contains)) {
               true
             } else {
               false
