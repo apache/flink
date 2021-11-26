@@ -58,7 +58,7 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .noDefaultValue()
                     .withDescription(
                             "The maximum number of concurrent background flush and compaction jobs (per stateful operator). "
-                                    + "RocksDB has default configuration as '1'.");
+                                    + "RocksDB has default configuration as '2'.");
 
     public static final ConfigOption<Integer> MAX_OPEN_FILES =
             key("state.backend.rocksdb.files.open")
