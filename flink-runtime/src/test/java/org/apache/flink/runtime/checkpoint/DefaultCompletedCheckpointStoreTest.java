@@ -143,7 +143,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
 
     /**
      * We have three completed checkpoints(1, 2, 3) in the state handle store. We expect that {@link
-     * DefaultCompletedCheckpointStoreUtils#retrieveCompletedCheckpoints(StateHandleStore,
+     * CompletedCheckpointStoreUtils#retrieveCompletedCheckpoints(StateHandleStore,
      * CheckpointStoreUtil)} should recover the sorted checkpoints by name.
      */
     @Test
@@ -394,7 +394,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                 toRetain,
                 stateHandleStore,
                 checkpointStoreUtil,
-                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                CompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         stateHandleStore, checkpointStoreUtil),
                 SharedStateRegistry.DEFAULT_FACTORY.create(
                         org.apache.flink.util.concurrent.Executors.directExecutor(), emptyList()),

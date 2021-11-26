@@ -89,7 +89,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
                 maxNumberOfCheckpointsToRetain,
                 checkpointsInZooKeeper,
                 checkpointStoreUtil,
-                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                CompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         checkpointsInZooKeeper, checkpointStoreUtil),
                 SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor(), emptyList()),
                 executor);

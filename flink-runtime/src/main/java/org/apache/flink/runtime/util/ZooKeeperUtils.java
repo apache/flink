@@ -26,8 +26,8 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStoreUtils;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStoreUtils;
 import org.apache.flink.runtime.checkpoint.DefaultLastStateConnectionStateListener;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointStoreUtil;
@@ -589,7 +589,7 @@ public class ZooKeeperUtils {
         final ZooKeeperStateHandleStore<CompletedCheckpoint> completedCheckpointStateHandleStore =
                 createZooKeeperStateHandleStore(client, getCheckpointsPath(), stateStorage);
         Collection<CompletedCheckpoint> completedCheckpoints =
-                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                CompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         completedCheckpointStateHandleStore, ZooKeeperCheckpointStoreUtil.INSTANCE);
         final CompletedCheckpointStore zooKeeperCompletedCheckpointStore =
                 new DefaultCompletedCheckpointStore<>(

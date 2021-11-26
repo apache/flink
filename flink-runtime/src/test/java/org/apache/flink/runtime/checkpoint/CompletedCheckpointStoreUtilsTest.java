@@ -20,6 +20,8 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.persistence.TestingStateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
@@ -27,6 +29,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -38,11 +42,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
-/** Tests related to {@link DefaultCompletedCheckpointStoreUtils}. */
-public class DefaultCompletedCheckpointStoreUtilsTest extends TestLogger {
+/** Tests related to {@link CompletedCheckpointStoreUtils}. */
+public class CompletedCheckpointStoreUtilsTest extends TestLogger {
 
     private static CompletedCheckpoint createCompletedCheckpoint(long checkpointId) {
         return new CompletedCheckpoint(
@@ -105,7 +110,7 @@ public class DefaultCompletedCheckpointStoreUtilsTest extends TestLogger {
                         .setGetAllSupplier(() -> handles)
                         .build();
         final Collection<CompletedCheckpoint> completedCheckpoints =
-                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                CompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         stateHandleStore, new SimpleCheckpointStoreUtil());
         // Make sure checkpoints are ordered from earliest to latest.
         assertEquals(
@@ -132,7 +137,19 @@ public class DefaultCompletedCheckpointStoreUtilsTest extends TestLogger {
         assertThrows(
                 FlinkException.class,
                 () ->
-                        DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                        CompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                                 stateHandleStore, new SimpleCheckpointStoreUtil()));
+    }
+
+    @ParameterizedTest(name = "actual: {0}; expected: {1}")
+    @CsvSource({"10,10", "0,1", "-1,1"})
+    public void testGetMaximumNumberOfRetainedCheckpoints(int actualValue, int expectedValue) {
+        final Configuration jobManagerConfig = new Configuration();
+        jobManagerConfig.setInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, actualValue);
+
+        assertThat(
+                        CompletedCheckpointStoreUtils.getMaximumNumberOfRetainedCheckpoints(
+                                jobManagerConfig, log))
+                .isEqualTo(expectedValue);
     }
 }

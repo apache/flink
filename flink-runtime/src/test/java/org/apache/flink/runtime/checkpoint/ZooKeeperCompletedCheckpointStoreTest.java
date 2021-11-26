@@ -104,7 +104,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
                 assertThrows(
                         Exception.class,
                         () ->
-                                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                                CompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                                         checkpointsInZooKeeper, zooKeeperCheckpointStoreUtil));
         assertThat(exception, FlinkMatchers.containsCause(ExpectedTestException.class));
     }
