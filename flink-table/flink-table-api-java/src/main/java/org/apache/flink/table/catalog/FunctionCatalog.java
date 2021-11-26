@@ -635,14 +635,13 @@ public final class FunctionCatalog {
         // it means it uses the old type inference. We assume that they have been validated before
         // being
         // wrapped.
-        if (function instanceof InlineCatalogFunction
-                && ((InlineCatalogFunction) function).getDefinition()
-                        instanceof UserDefinedFunction) {
-
-            FunctionDefinition definition = ((InlineCatalogFunction) function).getDefinition();
-            UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
-        } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA
-                && !(function instanceof InlineCatalogFunction)) {
+        if (function instanceof InlineCatalogFunction) {
+            // Skip validate if the input is not instance of UserDefinedFunction.
+            if (((InlineCatalogFunction) function).getDefinition() instanceof UserDefinedFunction) {
+                FunctionDefinition definition = ((InlineCatalogFunction) function).getDefinition();
+                UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
+            }
+        } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
             ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
             UserDefinedFunctionHelper.validateClass(
                     (Class<? extends UserDefinedFunction>)
