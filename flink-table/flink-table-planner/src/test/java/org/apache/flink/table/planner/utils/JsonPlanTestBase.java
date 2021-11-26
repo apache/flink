@@ -92,10 +92,7 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
             @Nullable String partitionFields,
             Map<String, String> extraProperties) {
         checkArgument(fieldNameAndTypes.length > 0);
-        String partitionedBy =
-                StringUtils.isNullOrWhitespaceOnly(partitionFields)
-                        ? ""
-                        : "\n partitioned by (" + partitionFields + ") \n";
+
         String dataId = TestValuesTableFactory.registerData(data);
         Map<String, String> properties = new HashMap<>();
         properties.put("connector", "values");
@@ -103,6 +100,19 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
         properties.put("bounded", "true");
         properties.put("disable-lookup", "true");
         properties.putAll(extraProperties);
+        createTestSourceTable(tableName, fieldNameAndTypes, partitionFields, properties);
+    }
+
+    protected void createTestSourceTable(
+            String tableName,
+            String[] fieldNameAndTypes,
+            @Nullable String partitionFields,
+            Map<String, String> properties) {
+        checkArgument(fieldNameAndTypes.length > 0);
+        String partitionedBy =
+                StringUtils.isNullOrWhitespaceOnly(partitionFields)
+                        ? ""
+                        : "\n partitioned by (" + partitionFields + ") \n";
         String ddl =
                 String.format(
                         "CREATE TABLE %s (\n" + "%s\n" + ") %s with (\n%s)",
@@ -140,15 +150,26 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
             String tableName,
             String[] fieldNameAndTypes,
             @Nullable String partitionFields,
-            Map<String, String> extraProperties) {
+            Map<String, String> properties) {
+
+        Map<String, String> extraProperties = new HashMap<>();
+        extraProperties.put("connector", "values");
+
+        properties.putAll(extraProperties);
+
+        createTestSinkTable(tableName, fieldNameAndTypes, partitionFields, properties);
+    }
+
+    protected void createTestSinkTable(
+            String tableName,
+            String[] fieldNameAndTypes,
+            @Nullable String partitionFields,
+            Map<String, String> properties) {
         checkArgument(fieldNameAndTypes.length > 0);
         String partitionedBy =
                 StringUtils.isNullOrWhitespaceOnly(partitionFields)
                         ? ""
                         : "\n partitioned by (" + partitionFields + ") \n";
-        Map<String, String> properties = new HashMap<>();
-        properties.put("connector", "values");
-        properties.putAll(extraProperties);
         String ddl =
                 String.format(
                         "CREATE TABLE %s (\n" + "%s\n" + ") %s with (\n%s)",

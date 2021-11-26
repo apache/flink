@@ -19,17 +19,23 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.api.common.serialization.BulkWriter.Factory;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.impl.StreamFormatAdapter;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
+import org.apache.flink.connector.file.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.connector.file.table.format.BulkDecodingFormat;
 import org.apache.flink.formats.common.Converter;
+import org.apache.flink.formats.csv.RowDataToCsvConverters.RowDataToCsvConverter;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource.Context;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableFactory;
@@ -37,6 +43,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
@@ -57,7 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** CSV format factory for file system. */
 @Internal
-public class CsvFileFormatFactory implements BulkReaderFormatFactory {
+public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
 
     @Override
     public String factoryIdentifier() {
@@ -129,6 +136,38 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory {
         public ChangelogMode getChangelogMode() {
             return ChangelogMode.insertOnly();
         }
+    }
+
+    @Override
+    public EncodingFormat<Factory<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        return new EncodingFormat<BulkWriter.Factory<RowData>>() {
+            @Override
+            public BulkWriter.Factory<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context context, DataType physicalDataType) {
+
+                final RowType rowType = (RowType) physicalDataType.getLogicalType();
+                final CsvSchema schema = buildCsvSchema(rowType, formatOptions);
+
+                final RowDataToCsvConverter converter =
+                        RowDataToCsvConverters.createRowConverter(rowType);
+
+                final CsvMapper mapper = new CsvMapper();
+                final ObjectNode container = mapper.createObjectNode();
+
+                final RowDataToCsvConverter.RowDataToCsvFormatConverterContext converterContext =
+                        new RowDataToCsvConverter.RowDataToCsvFormatConverterContext(
+                                mapper, container);
+
+                return out ->
+                        CsvBulkWriter.forSchema(mapper, schema, converter, converterContext, out);
+            }
+
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
     }
 
     private static CsvSchema buildCsvSchema(RowType rowType, ReadableConfig options) {
