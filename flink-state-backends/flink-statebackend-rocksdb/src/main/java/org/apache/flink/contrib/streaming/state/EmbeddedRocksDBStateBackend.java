@@ -24,6 +24,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
@@ -69,6 +71,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
@@ -121,6 +124,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
     /** The pre-configured option settings. */
     @Nullable private PredefinedOptions predefinedOptions;
+
+    /** The configurable options. */
+    @Nullable private ReadableConfig configurableOptions;
 
     /** The options factory to create the RocksDB options in the cluster. */
     @Nullable private RocksDBOptionsFactory rocksDbOptionsFactory;
@@ -255,6 +261,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         ? PredefinedOptions.valueOf(config.get(RocksDBOptions.PREDEFINED_OPTIONS))
                         : original.predefinedOptions;
         LOG.info("Using predefined options: {}.", predefinedOptions.name());
+
+        // configurable options
+        this.configurableOptions = mergeConfigurableOptions(original.configurableOptions, config);
 
         // configure RocksDB options factory
         try {
@@ -484,7 +493,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
     private RocksDBOptionsFactory configureOptionsFactory(
             @Nullable RocksDBOptionsFactory originalOptionsFactory,
-            String factoryClassName,
+            @Nullable String factoryClassName,
             ReadableConfig config,
             ClassLoader classLoader)
             throws DynamicCodeLoadingException {
@@ -500,15 +509,17 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
             return originalOptionsFactory;
         }
 
-        // if using DefaultConfigurableOptionsFactory by default, we could avoid reflection to speed
-        // up.
-        if (factoryClassName.equalsIgnoreCase(DefaultConfigurableOptionsFactory.class.getName())) {
-            DefaultConfigurableOptionsFactory optionsFactory =
-                    new DefaultConfigurableOptionsFactory();
-            optionsFactory.configure(config);
-            LOG.info("Using default options factory: {}.", optionsFactory);
-
-            return optionsFactory;
+        // From FLINK-24046, we deprecate the DefaultConfigurableOptionsFactory.
+        if (factoryClassName == null) {
+            return null;
+        } else if (factoryClassName.equalsIgnoreCase(
+                DefaultConfigurableOptionsFactory.class.getName())) {
+            LOG.warn(
+                    "{} is deprecated. Please remove this value from the configuration."
+                            + "It is safe to do so since the configurable options will be loaded "
+                            + "in other place. For more information, please refer to FLINK-24046.",
+                    DefaultConfigurableOptionsFactory.class.getName());
+            return null;
         } else {
             try {
                 Class<? extends RocksDBOptionsFactory> clazz =
@@ -521,6 +532,16 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                             ((ConfigurableRocksDBOptionsFactory) optionsFactory).configure(config);
                 }
                 LOG.info("Using configured options factory: {}.", optionsFactory);
+                if (DefaultConfigurableOptionsFactory.class.isAssignableFrom(clazz)) {
+                    LOG.warn(
+                            "{} is extending from {}, which is deprecated and will be removed in "
+                                    + "future. It is highly recommended to directly implement the "
+                                    + "ConfigurableRocksDBOptionsFactory without extending the {}. "
+                                    + "For more information, please refer to FLINK-24046.",
+                            optionsFactory,
+                            DefaultConfigurableOptionsFactory.class.getName(),
+                            DefaultConfigurableOptionsFactory.class.getName());
+                }
 
                 return optionsFactory;
             } catch (ClassNotFoundException e) {
@@ -717,9 +738,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * serializable and hold native code references, they must be specified through a factory.
      *
      * <p>The options created by the factory here are applied on top of the pre-defined options
-     * profile selected via {@link #setPredefinedOptions(PredefinedOptions)}. If the pre-defined
-     * options profile is the default ({@link PredefinedOptions#DEFAULT}), then the factory fully
-     * controls the RocksDB options.
+     * profile selected via {@link #setPredefinedOptions(PredefinedOptions)} and user-configured
+     * options from configuration set by {@link #configure(ReadableConfig, ClassLoader)} with keys
+     * in {@link RocksDBConfigurableOptions}.
      *
      * @param optionsFactory The options factory that lazily creates the RocksDB options.
      */
@@ -782,6 +803,24 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     //  utilities
     // ------------------------------------------------------------------------
 
+    private ReadableConfig mergeConfigurableOptions(ReadableConfig base, ReadableConfig onTop) {
+        if (base == null) {
+            base = new Configuration();
+        }
+        Configuration configuration = new Configuration();
+        for (ConfigOption<?> option : RocksDBConfigurableOptions.CANDIDATE_CONFIGS) {
+            Optional<?> baseValue = base.getOptional(option);
+            Optional<?> topValue = onTop.getOptional(option);
+
+            if (topValue.isPresent() || baseValue.isPresent()) {
+                Object validValue = topValue.isPresent() ? topValue.get() : baseValue.get();
+                RocksDBConfigurableOptions.checkArgumentValid(option, validValue);
+                configuration.setString(option.key(), validValue.toString());
+            }
+        }
+        return configuration;
+    }
+
     @VisibleForTesting
     RocksDBResourceContainer createOptionsAndResourceContainer() {
         return createOptionsAndResourceContainer(null);
@@ -792,6 +831,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
             @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources) {
 
         return new RocksDBResourceContainer(
+                configurableOptions != null ? configurableOptions : new Configuration(),
                 predefinedOptions != null ? predefinedOptions : PredefinedOptions.DEFAULT,
                 rocksDbOptionsFactory,
                 sharedResources);
