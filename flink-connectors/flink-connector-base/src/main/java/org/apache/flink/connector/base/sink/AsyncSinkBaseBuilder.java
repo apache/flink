@@ -40,8 +40,9 @@ public abstract class AsyncSinkBaseBuilder<
     private Integer maxBatchSize;
     private Integer maxInFlightRequests;
     private Integer maxBufferedRequests;
-    private Long flushOnBufferSizeInBytes;
+    private Long maxBatchSizeInBytes;
     private Long maxTimeInBufferMS;
+    private Long maxRecordSizeInBytes;
 
     /**
      * @param elementConverter the {@link ElementConverter} to be used for the sink
@@ -87,13 +88,15 @@ public abstract class AsyncSinkBaseBuilder<
     }
 
     /**
-     * @param flushOnBufferSizeInBytes a flush will be attempted if the most recent call to write
+     * @param maxBatchSizeInBytes a flush will be attempted if the most recent call to write
      *     introduces an element to the buffer such that the total size of the buffer is greater
-     *     than or equal to this threshold value.
+     *     than or equal to this threshold value. If this happens, the maximum number of elements
+     *     from the head of the buffer will be selected, that is smaller than {@code
+     *     maxBatchSizeInBytes} in size will be flushed.
      * @return {@link ConcreteBuilderT} itself
      */
-    public ConcreteBuilderT setFlushOnBufferSizeInBytes(long flushOnBufferSizeInBytes) {
-        this.flushOnBufferSizeInBytes = flushOnBufferSizeInBytes;
+    public ConcreteBuilderT setMaxBatchSizeInBytes(long maxBatchSizeInBytes) {
+        this.maxBatchSizeInBytes = maxBatchSizeInBytes;
         return (ConcreteBuilderT) this;
     }
 
@@ -108,6 +111,16 @@ public abstract class AsyncSinkBaseBuilder<
      */
     public ConcreteBuilderT setMaxTimeInBufferMS(long maxTimeInBufferMS) {
         this.maxTimeInBufferMS = maxTimeInBufferMS;
+        return (ConcreteBuilderT) this;
+    }
+
+    /**
+     * @param maxRecordSizeInBytes the maximum size of each records in bytes. If a record larger
+     *     than this is passed to the sink, it will throw an {@code IllegalArgumentException}.
+     * @return {@link ConcreteBuilderT} itself
+     */
+    public ConcreteBuilderT setMaxRecordSizeInBytes(long maxRecordSizeInBytes) {
+        this.maxRecordSizeInBytes = maxRecordSizeInBytes;
         return (ConcreteBuilderT) this;
     }
 
@@ -130,11 +143,15 @@ public abstract class AsyncSinkBaseBuilder<
         return maxBufferedRequests;
     }
 
-    protected Long getFlushOnBufferSizeInBytes() {
-        return flushOnBufferSizeInBytes;
+    protected Long getMaxBatchSizeInBytes() {
+        return maxBatchSizeInBytes;
     }
 
     protected Long getMaxTimeInBufferMS() {
         return maxTimeInBufferMS;
+    }
+
+    protected Long getMaxRecordSizeInBytes() {
+        return maxRecordSizeInBytes;
     }
 }

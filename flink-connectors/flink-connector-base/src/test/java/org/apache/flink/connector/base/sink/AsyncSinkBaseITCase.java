@@ -42,7 +42,7 @@ public class AsyncSinkBaseITCase {
     public void testFailuresOnPersistingToDestinationAreCaughtAndRaised() {
         env.fromSequence(999_999, 1_000_100)
                 .map(Object::toString)
-                .sinkTo(new ArrayListAsyncSink(1, 1, 2, 10, 1000));
+                .sinkTo(new ArrayListAsyncSink(1, 1, 2, 10, 1000, 10));
         Exception e =
                 assertThrows(
                         JobExecutionException.class,
