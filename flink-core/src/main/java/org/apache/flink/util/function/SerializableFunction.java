@@ -16,9 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.elasticsearch.table;
+package org.apache.flink.util.function;
+
+import org.apache.flink.annotation.Public;
 
 import java.io.Serializable;
 import java.util.function.Function;
 
-interface SerializableFunction<T, R> extends Function<T, R>, Serializable {}
+/** A {@link Function} that is also {@link Serializable}. */
+@Public
+@FunctionalInterface
+public interface SerializableFunction<T, R> extends Function<T, R>, Serializable {}
