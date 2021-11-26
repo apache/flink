@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.persistence.ResourceVersion;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
@@ -44,6 +46,35 @@ public class DefaultCompletedCheckpointStoreUtils {
 
     private DefaultCompletedCheckpointStoreUtils() {
         // No-op.
+    }
+
+    /**
+     * Extracts maximum number of retained checkpoints configuration from the passed {@link
+     * Configuration}. The default value is used as a fallback if the passed value is a value larger
+     * than {@code 0}.
+     *
+     * @param config The configuration that is accessed.
+     * @param logger The {@link Logger} used for exposing the warning if the configured value is
+     *     invalid.
+     * @return The maximum number of retained checkpoints based on the passed {@code Configuration}.
+     */
+    public static int getMaximumNumberOfRetainedCheckpoints(Configuration config, Logger logger) {
+        final int maxNumberOfCheckpointsToRetain =
+                config.getInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS);
+
+        if (maxNumberOfCheckpointsToRetain <= 0) {
+            // warning and use 1 as the default value if the setting in
+            // state.checkpoints.max-retained-checkpoints is not greater than 0.
+            logger.warn(
+                    "The setting for '{} : {}' is invalid. Using default value of {}",
+                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.key(),
+                    maxNumberOfCheckpointsToRetain,
+                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue());
+
+            return CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
+        }
+
+        return maxNumberOfCheckpointsToRetain;
     }
 
     /**
