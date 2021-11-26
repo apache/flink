@@ -20,17 +20,21 @@ package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.formats.common.Converter;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.FunctionWithException;
@@ -39,6 +43,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
+import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,9 +61,13 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -180,6 +189,61 @@ public class DataStreamCsvITCase {
         expected.add(POJOS[2]);
 
         assertThat(expected).isEqualTo(result);
+    }
+
+    @Test
+    public void testCustomBulkWriter() throws Exception {
+
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+
+        // fromCollection is not bounded, using fromSequence instead
+        final List<CityPojo> pojosList = Arrays.asList(POJOS); // needs to be Serializable
+        final DataStream<Integer> sequence =
+                env.fromSequence(0, POJOS.length - 1).map(Long::intValue);
+        final DataStream<CityPojo> stream = sequence.map(pojosList::get).returns(CityPojo.class);
+
+        FileSink<CityPojo> sink =
+                FileSink.forBulkFormat(new Path(outDir.toURI()), factoryForPojo(CityPojo.class))
+                        .withBucketAssigner(new BasePathBucketAssigner<>())
+                        .build();
+
+        stream.sinkTo(sink);
+        env.execute();
+
+        String[] result = getResultsFromSinkFiles(outDir);
+
+        assertThat(result).containsExactlyInAnyOrder(CSV_LINES);
+    }
+
+    @NotNull
+    private String[] getResultsFromSinkFiles(File outDir) throws IOException {
+        final Map<File, String> contents = getFileContentByPath(outDir);
+
+        List<String> resultList =
+                contents.entrySet().stream()
+                        .flatMap(e -> Arrays.stream(e.getValue().split("\n")))
+                        .collect(Collectors.toList());
+
+        String[] result = resultList.toArray(new String[0]);
+        return result;
+    }
+
+    private static <T> BulkWriter.Factory<T> factoryForPojo(Class<T> pojoClass) {
+        final Converter<T, T, Void> converter = (value, context) -> value;
+        final CsvMapper csvMapper = new CsvMapper();
+        final CsvSchema schema = csvMapper.schemaFor(pojoClass).withoutQuoteChar();
+        return (out) -> new CsvBulkWriter<>(csvMapper, schema, converter, null, out);
+    }
+
+    private static Map<File, String> getFileContentByPath(File directory) throws IOException {
+        Map<File, String> contents = new HashMap<>(4);
+
+        final Collection<File> filesInBucket = FileUtils.listFiles(directory, null, true);
+        for (File file : filesInBucket) {
+            contents.put(file, FileUtils.readFileToString(file));
+        }
+        return contents;
     }
 
     @JsonPropertyOrder({
