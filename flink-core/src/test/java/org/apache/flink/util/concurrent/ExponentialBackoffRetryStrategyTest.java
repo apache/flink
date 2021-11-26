@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.concurrent;
+package org.apache.flink.util.concurrent;
 
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
-import org.apache.flink.util.concurrent.RetryStrategy;
 
 import org.junit.Test;
 
