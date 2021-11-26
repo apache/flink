@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.util.function.SerializableFunction;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -37,7 +38,7 @@ import java.util.function.Function;
 
 /** An extractor for a Elasticsearch key from a {@link RowData}. */
 @Internal
-class KeyExtractor implements Function<RowData, String>, Serializable {
+class KeyExtractor implements SerializableFunction<RowData, String> {
     private final FieldFormatter[] fieldFormatters;
     private final String keyDelimiter;
 

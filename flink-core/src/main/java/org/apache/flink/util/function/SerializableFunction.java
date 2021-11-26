@@ -16,19 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.util.function;
 
 import org.apache.flink.annotation.Public;
 
 import java.io.Serializable;
 import java.util.function.Function;
 
-/**
- * A {@link Function} that is also {@link Serializable}.
- *
- * @deprecated Please use {@link org.apache.flink.util.function.SerializableFunction}
- */
-@Deprecated
+/** A {@link Function} that is also {@link Serializable}. */
 @Public
 @FunctionalInterface
 public interface SerializableFunction<T, R> extends Function<T, R>, Serializable {}
