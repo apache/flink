@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.concurrent;
-
-import org.apache.flink.util.concurrent.ScheduledExecutor;
+package org.apache.flink.util.concurrent;
 
 import javax.annotation.Nonnull;
 
