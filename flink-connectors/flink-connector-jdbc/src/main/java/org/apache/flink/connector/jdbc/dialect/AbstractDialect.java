@@ -19,6 +19,7 @@
 package org.apache.flink.connector.jdbc.dialect;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -119,7 +120,9 @@ public abstract class AbstractDialect implements JdbcDialect {
                         .map(this::quoteIdentifier)
                         .collect(Collectors.joining(", "));
         String placeholders =
-                Arrays.stream(fieldNames).map(f -> ":" + f).collect(Collectors.joining(", "));
+                Arrays.stream(fieldNames)
+                        .map(FieldNamedPreparedStatement::wrapNamedParameter)
+                        .collect(Collectors.joining(", "));
         return "INSERT INTO "
                 + quoteIdentifier(tableName)
                 + "("
@@ -144,11 +147,21 @@ public abstract class AbstractDialect implements JdbcDialect {
             String tableName, String[] fieldNames, String[] conditionFields) {
         String setClause =
                 Arrays.stream(fieldNames)
-                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
+                        .map(
+                                f ->
+                                        format(
+                                                "%s = %s",
+                                                quoteIdentifier(f),
+                                                FieldNamedPreparedStatement.wrapNamedParameter(f)))
                         .collect(Collectors.joining(", "));
         String conditionClause =
                 Arrays.stream(conditionFields)
-                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
+                        .map(
+                                f ->
+                                        format(
+                                                "%s = %s",
+                                                quoteIdentifier(f),
+                                                FieldNamedPreparedStatement.wrapNamedParameter(f)))
                         .collect(Collectors.joining(" AND "));
         return "UPDATE "
                 + quoteIdentifier(tableName)
@@ -170,7 +183,12 @@ public abstract class AbstractDialect implements JdbcDialect {
     public String getDeleteStatement(String tableName, String[] conditionFields) {
         String conditionClause =
                 Arrays.stream(conditionFields)
-                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
+                        .map(
+                                f ->
+                                        format(
+                                                "%s = %s",
+                                                quoteIdentifier(f),
+                                                FieldNamedPreparedStatement.wrapNamedParameter(f)))
                         .collect(Collectors.joining(" AND "));
         return "DELETE FROM " + quoteIdentifier(tableName) + " WHERE " + conditionClause;
     }
@@ -193,7 +211,12 @@ public abstract class AbstractDialect implements JdbcDialect {
                         .collect(Collectors.joining(", "));
         String fieldExpressions =
                 Arrays.stream(conditionFields)
-                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
+                        .map(
+                                f ->
+                                        format(
+                                                "%s = %s",
+                                                quoteIdentifier(f),
+                                                FieldNamedPreparedStatement.wrapNamedParameter(f)))
                         .collect(Collectors.joining(" AND "));
         return "SELECT "
                 + selectExpressions
@@ -215,7 +238,12 @@ public abstract class AbstractDialect implements JdbcDialect {
     public String getRowExistsStatement(String tableName, String[] conditionFields) {
         String fieldExpressions =
                 Arrays.stream(conditionFields)
-                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
+                        .map(
+                                f ->
+                                        format(
+                                                "%s = %s",
+                                                quoteIdentifier(f),
+                                                FieldNamedPreparedStatement.wrapNamedParameter(f)))
                         .collect(Collectors.joining(" AND "));
         return "SELECT 1 FROM " + quoteIdentifier(tableName) + " WHERE " + fieldExpressions;
     }

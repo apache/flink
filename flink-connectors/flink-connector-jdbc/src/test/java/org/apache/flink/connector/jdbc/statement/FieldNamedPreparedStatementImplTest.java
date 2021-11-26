@@ -36,7 +36,18 @@ public class FieldNamedPreparedStatementImplTest {
 
     private final JdbcDialect dialect = JdbcDialectLoader.load("jdbc:mysql://localhost:3306/test");
     private final String[] fieldNames =
-            new String[] {"id", "name", "email", "ts", "field1", "field_2", "__field_3__"};
+            new String[] {
+                "id",
+                "name",
+                "email",
+                "ts",
+                "field1",
+                "field_2",
+                "__field_3__",
+                "host:port",
+                ".version",
+                "{sign}"
+            };
     private final String[] keyFields = new String[] {"id", "__field_3__"};
     private final String tableName = "tbl";
 
@@ -44,12 +55,12 @@ public class FieldNamedPreparedStatementImplTest {
     public void testInsertStatement() {
         String insertStmt = dialect.getInsertIntoStatement(tableName, fieldNames);
         assertEquals(
-                "INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`) "
-                        + "VALUES (:id, :name, :email, :ts, :field1, :field_2, :__field_3__)",
+                "INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`, `host:port`, `.version`, `{sign}`) "
+                        + "VALUES (:{id}, :{name}, :{email}, :{ts}, :{field1}, :{field_2}, :{__field_3__}, :{host\\:port}, :{.version}, :{\\{sign\\}})",
                 insertStmt);
         NamedStatementMatcher.parsedSql(
-                        "INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`) "
-                                + "VALUES (?, ?, ?, ?, ?, ?, ?)")
+                        "INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`, `host:port`, `.version`, `{sign}`) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
                 .parameter("id", singletonList(1))
                 .parameter("name", singletonList(2))
                 .parameter("email", singletonList(3))
@@ -57,6 +68,9 @@ public class FieldNamedPreparedStatementImplTest {
                 .parameter("field1", singletonList(5))
                 .parameter("field_2", singletonList(6))
                 .parameter("__field_3__", singletonList(7))
+                .parameter("host:port", singletonList(8))
+                .parameter(".version", singletonList(9))
+                .parameter("{sign}", singletonList(10))
                 .matches(insertStmt);
     }
 
@@ -64,7 +78,8 @@ public class FieldNamedPreparedStatementImplTest {
     public void testDeleteStatement() {
         String deleteStmt = dialect.getDeleteStatement(tableName, keyFields);
         assertEquals(
-                "DELETE FROM `tbl` WHERE `id` = :id AND `__field_3__` = :__field_3__", deleteStmt);
+                "DELETE FROM `tbl` WHERE `id` = :{id} AND `__field_3__` = :{__field_3__}",
+                deleteStmt);
         NamedStatementMatcher.parsedSql("DELETE FROM `tbl` WHERE `id` = ? AND `__field_3__` = ?")
                 .parameter("id", singletonList(1))
                 .parameter("__field_3__", singletonList(2))
@@ -75,7 +90,7 @@ public class FieldNamedPreparedStatementImplTest {
     public void testRowExistsStatement() {
         String rowExistStmt = dialect.getRowExistsStatement(tableName, keyFields);
         assertEquals(
-                "SELECT 1 FROM `tbl` WHERE `id` = :id AND `__field_3__` = :__field_3__",
+                "SELECT 1 FROM `tbl` WHERE `id` = :{id} AND `__field_3__` = :{__field_3__}",
                 rowExistStmt);
         NamedStatementMatcher.parsedSql("SELECT 1 FROM `tbl` WHERE `id` = ? AND `__field_3__` = ?")
                 .parameter("id", singletonList(1))
@@ -87,20 +102,25 @@ public class FieldNamedPreparedStatementImplTest {
     public void testUpdateStatement() {
         String updateStmt = dialect.getUpdateStatement(tableName, fieldNames, keyFields);
         assertEquals(
-                "UPDATE `tbl` SET `id` = :id, `name` = :name, `email` = :email, `ts` = :ts, "
-                        + "`field1` = :field1, `field_2` = :field_2, `__field_3__` = :__field_3__ "
-                        + "WHERE `id` = :id AND `__field_3__` = :__field_3__",
+                "UPDATE `tbl` SET `id` = :{id}, `name` = :{name}, `email` = :{email}, `ts` = :{ts}, "
+                        + "`field1` = :{field1}, `field_2` = :{field_2}, `__field_3__` = :{__field_3__}, "
+                        + "`host:port` = :{host\\:port}, `.version` = :{.version}, `{sign}` = :{\\{sign\\}} "
+                        + "WHERE `id` = :{id} AND `__field_3__` = :{__field_3__}",
                 updateStmt);
         NamedStatementMatcher.parsedSql(
                         "UPDATE `tbl` SET `id` = ?, `name` = ?, `email` = ?, `ts` = ?, `field1` = ?, "
-                                + "`field_2` = ?, `__field_3__` = ? WHERE `id` = ? AND `__field_3__` = ?")
-                .parameter("id", asList(1, 8))
+                                + "`field_2` = ?, `__field_3__` = ?, `host:port` = ?, `.version` = ?, `{sign}` = ? "
+                                + "WHERE `id` = ? AND `__field_3__` = ?")
+                .parameter("id", asList(1, 11))
                 .parameter("name", singletonList(2))
                 .parameter("email", singletonList(3))
                 .parameter("ts", singletonList(4))
                 .parameter("field1", singletonList(5))
                 .parameter("field_2", singletonList(6))
-                .parameter("__field_3__", asList(7, 9))
+                .parameter("__field_3__", asList(7, 12))
+                .parameter("host:port", singletonList(8))
+                .parameter(".version", singletonList(9))
+                .parameter("{sign}", singletonList(10))
                 .matches(updateStmt);
     }
 
@@ -108,17 +128,20 @@ public class FieldNamedPreparedStatementImplTest {
     public void testUpsertStatement() {
         String upsertStmt = dialect.getUpsertStatement(tableName, fieldNames, keyFields).get();
         assertEquals(
-                "INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`) "
-                        + "VALUES (:id, :name, :email, :ts, :field1, :field_2, :__field_3__) "
+                "INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`, `host:port`, `.version`, `{sign}`) "
+                        + "VALUES (:{id}, :{name}, :{email}, :{ts}, :{field1}, :{field_2}, :{__field_3__}, :{host\\:port}, :{.version}, :{\\{sign\\}}) "
                         + "ON DUPLICATE KEY UPDATE `id`=VALUES(`id`), `name`=VALUES(`name`), "
-                        + "`email`=VALUES(`email`), `ts`=VALUES(`ts`), `field1`=VALUES(`field1`),"
-                        + " `field_2`=VALUES(`field_2`), `__field_3__`=VALUES(`__field_3__`)",
+                        + "`email`=VALUES(`email`), `ts`=VALUES(`ts`), `field1`=VALUES(`field1`), "
+                        + "`field_2`=VALUES(`field_2`), `__field_3__`=VALUES(`__field_3__`), "
+                        + "`host:port`=VALUES(`host:port`), `.version`=VALUES(`.version`), "
+                        + "`{sign}`=VALUES(`{sign}`)",
                 upsertStmt);
         NamedStatementMatcher.parsedSql(
-                        "INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`) "
-                                + "VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE "
-                                + "`id`=VALUES(`id`), `name`=VALUES(`name`), `email`=VALUES(`email`), `ts`=VALUES(`ts`),"
-                                + " `field1`=VALUES(`field1`), `field_2`=VALUES(`field_2`), `__field_3__`=VALUES(`__field_3__`)")
+                        "INSERT INTO `tbl`(`id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`, `host:port`, `.version`, `{sign}`) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE "
+                                + "`id`=VALUES(`id`), `name`=VALUES(`name`), `email`=VALUES(`email`), `ts`=VALUES(`ts`), "
+                                + "`field1`=VALUES(`field1`), `field_2`=VALUES(`field_2`), `__field_3__`=VALUES(`__field_3__`), "
+                                + "`host:port`=VALUES(`host:port`), `.version`=VALUES(`.version`), `{sign}`=VALUES(`{sign}`)")
                 .parameter("id", singletonList(1))
                 .parameter("name", singletonList(2))
                 .parameter("email", singletonList(3))
@@ -126,6 +149,9 @@ public class FieldNamedPreparedStatementImplTest {
                 .parameter("field1", singletonList(5))
                 .parameter("field_2", singletonList(6))
                 .parameter("__field_3__", singletonList(7))
+                .parameter("host:port", singletonList(8))
+                .parameter(".version", singletonList(9))
+                .parameter("{sign}", singletonList(10))
                 .matches(upsertStmt);
     }
 
@@ -133,11 +159,11 @@ public class FieldNamedPreparedStatementImplTest {
     public void testSelectStatement() {
         String selectStmt = dialect.getSelectFromStatement(tableName, fieldNames, keyFields);
         assertEquals(
-                "SELECT `id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__` FROM `tbl` "
-                        + "WHERE `id` = :id AND `__field_3__` = :__field_3__",
+                "SELECT `id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`, `host:port`, `.version`, `{sign}` FROM `tbl` "
+                        + "WHERE `id` = :{id} AND `__field_3__` = :{__field_3__}",
                 selectStmt);
         NamedStatementMatcher.parsedSql(
-                        "SELECT `id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__` FROM `tbl` "
+                        "SELECT `id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__`, `host:port`, `.version`, `{sign}` FROM `tbl` "
                                 + "WHERE `id` = ? AND `__field_3__` = ?")
                 .parameter("id", singletonList(1))
                 .parameter("__field_3__", singletonList(2))

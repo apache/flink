@@ -49,7 +49,7 @@ import java.sql.Timestamp;
  *
  * <pre>
  *   Connection con = getConnection();
- *   String query = "select * from my_table where first_name=:name or last_name=:name";
+ *   String query = "select * from my_table where first_name=:{name} or last_name=:{name}";
  *   FieldNamedPreparedStatement st = FieldNamedPreparedStatement.prepareStatement(con, query, new String[]{"name"});
  *   st.setString(0, "bob");
  *   ResultSet rs = st.executeQuery();
@@ -63,13 +63,21 @@ public interface FieldNamedPreparedStatement extends AutoCloseable {
      * to the database.
      *
      * @param connection the connection used to connect to database.
-     * @param sql an SQL statement that may contain one or more ':fieldName' as parameter
+     * @param sql an SQL statement that may contain one or more ':{fieldName}' as parameter
      *     placeholders
      * @param fieldNames the field names in schema order used as the parameter names
      */
     static FieldNamedPreparedStatement prepareStatement(
             Connection connection, String sql, String[] fieldNames) throws SQLException {
         return FieldNamedPreparedStatementImpl.prepareStatement(connection, sql, fieldNames);
+    }
+
+    static String wrapNamedParameter(String namedParameter) {
+        namedParameter = namedParameter.replace("\\", "\\\\}");
+        namedParameter = namedParameter.replace(":", "\\:");
+        namedParameter = namedParameter.replace("{", "\\{");
+        namedParameter = namedParameter.replace("}", "\\}");
+        return ":{" + namedParameter + "}";
     }
 
     /**

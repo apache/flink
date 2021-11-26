@@ -219,18 +219,36 @@ public class FieldNamedPreparedStatementImpl implements FieldNamedPreparedStatem
         for (int i = 0; i < length; i++) {
             char c = sql.charAt(i);
             if (':' == c) {
-                int j = i + 1;
-                while (j < length && Character.isJavaIdentifierPart(sql.charAt(j))) {
-                    j++;
+                int next = i + 1;
+                if (next < length && '{' == sql.charAt(next)) {
+                    StringBuilder parameterBuilder = new StringBuilder();
+                    int j = i + 2;
+                    while (j < length && '}' != sql.charAt(j)) {
+                        if ('\\' == sql.charAt(j)) {
+                            j++;
+                            checkArgument(
+                                    j < length,
+                                    "Escaped character is not found. This is a bug, please file an issue,");
+                        }
+                        parameterBuilder.append(sql.charAt(j));
+                        j++;
+                    }
+                    String parameterName = parameterBuilder.toString();
+
+                    checkArgument(
+                            j < length,
+                            "Named statement is broken, no right parentheses found for parameter: "
+                                    + parameterName);
+                    checkArgument(
+                            !parameterName.isEmpty(),
+                            "Named parameters in SQL statement must not be empty.");
+                    paramMap.computeIfAbsent(parameterName, n -> new ArrayList<>()).add(fieldIndex);
+                    fieldIndex++;
+                    i = j;
+                    parsedSql.append('?');
+                } else {
+                    parsedSql.append(c);
                 }
-                String parameterName = sql.substring(i + 1, j);
-                checkArgument(
-                        !parameterName.isEmpty(),
-                        "Named parameters in SQL statement must not be empty.");
-                paramMap.computeIfAbsent(parameterName, n -> new ArrayList<>()).add(fieldIndex);
-                fieldIndex++;
-                i = j - 1;
-                parsedSql.append('?');
             } else {
                 parsedSql.append(c);
             }
