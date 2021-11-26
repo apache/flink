@@ -19,9 +19,9 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.expressions.{Expression, ExpressionParser, TimeIntervalUnit, TimePointUnit}
+import org.apache.flink.table.delegation.ExpressionParser
+import org.apache.flink.table.expressions.{Expression, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
-
 import org.junit.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
@@ -112,7 +112,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
     cases.foreach(x => {
       testAllApis(
-        ExpressionParser.parseExpression(x._1),
+        ExpressionParser.INSTANCE.parseExpression(x._1),
         x._1,
         x._2,
         x._3
@@ -3959,7 +3959,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       val tableApiString = x._1.format(field)
       val sqlApiString = x._2.format(field)
       testAllApis(
-        ExpressionParser.parseExpression(tableApiString),
+        ExpressionParser.INSTANCE.parseExpression(tableApiString),
         tableApiString,
         sqlApiString,
         "null"
@@ -3985,7 +3985,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
           .format(x)
 
       testAllApis(
-        ExpressionParser.parseExpression(tableApiString),
+        ExpressionParser.INSTANCE.parseExpression(tableApiString),
         tableApiString,
         sqlApiString,
         "null"

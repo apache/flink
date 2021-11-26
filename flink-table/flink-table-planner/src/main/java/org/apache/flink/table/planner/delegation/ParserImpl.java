@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.ExpressionParserImpl;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
@@ -64,6 +65,7 @@ public class ParserImpl implements Parser {
     private final Supplier<CalciteParser> calciteParserSupplier;
     private final SqlExprToRexConverterFactory sqlExprToRexConverterFactory;
     private static final ExtendedParser EXTENDED_PARSER = ExtendedParser.INSTANCE;
+    private static final ExpressionParserImpl expressionParser = new ExpressionParserImpl();
 
     public ParserImpl(
             CatalogManager catalogManager,

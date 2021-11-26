@@ -19,32 +19,31 @@ package org.apache.flink.table.expressions
 
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
-import org.apache.flink.table.delegation.PlannerExpressionParser
 import ApiExpressionUtils._
+import org.apache.flink.table.delegation.ExpressionParser
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util.{List => JList}
-
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.language.implicitConversions
 import _root_.scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
 
 /**
-  * The implementation of a [[PlannerExpressionParser]] which parsers expressions inside a String.
+  * The implementation of a [[ExpressionParser]] which parsers expressions inside a String.
   *
   * <p><strong>WARNING</strong>: please keep this class in sync with PlannerExpressionParserImpl
   * variant in flink-table-planner module.
   */
-class PlannerExpressionParserImpl extends PlannerExpressionParser {
+class ExpressionParserImpl extends ExpressionParser {
 
-  def parseExpression(exprString: String): Expression = {
-    PlannerExpressionParserImpl.parseExpression(exprString)
+  override def parseExpression(exprString: String): Expression = {
+    ExpressionParserImpl.parseExpression(exprString)
   }
 
   override def parseExpressionList(expression: String): JList[Expression] = {
-    PlannerExpressionParserImpl.parseExpressionList(expression)
+    ExpressionParserImpl.parseExpressionList(expression)
   }
 }
 
@@ -56,9 +55,9 @@ class PlannerExpressionParserImpl extends PlannerExpressionParser {
  * available in the Scala Expression DSL. This parser must be kept in sync with the Scala DSL
  * lazy valined in the above files.
  */
-object PlannerExpressionParserImpl extends JavaTokenParsers
+object ExpressionParserImpl extends JavaTokenParsers
   with PackratParsers
-  with PlannerExpressionParser {
+  with ExpressionParser {
 
   case class Keyword(key: String)
 
@@ -140,7 +139,7 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val TRIM_MODE_BOTH: Keyword = Keyword("BOTH")
   lazy val TO: Keyword = Keyword("TO")
 
-  def functionIdent: PlannerExpressionParserImpl.Parser[String] = super.ident
+  def functionIdent: ExpressionParserImpl.Parser[String] = super.ident
 
   // symbols
 
