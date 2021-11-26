@@ -16,27 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.delegation.PlannerExpressionParser;
-
-import java.util.List;
+import org.apache.flink.table.factories.Factory;
+import org.apache.flink.table.factories.FactoryUtil;
 
 /**
- * Parser for expressions inside a String. This parses exactly the same expressions that would be
- * accepted by the Scala Expression DSL.
+ * Factory for {@link ExpressionParser}.
  *
- * <p>{@link ExpressionParser} use {@link PlannerExpressionParser} to parse expressions.
+ * @deprecated The Java String Expression DSL is deprecated.
  */
 @Internal
-public final class ExpressionParser {
+@Deprecated
+public interface ExpressionParserFactory extends Factory {
 
-    public static Expression parseExpression(String exprString) {
-        return PlannerExpressionParser.create().parseExpression(exprString);
-    }
+    /** {@link #factoryIdentifier()} for the default {@link ExpressionParserFactory}. */
+    String DEFAULT_IDENTIFIER = "default";
 
-    public static List<Expression> parseExpressionList(String expression) {
-        return PlannerExpressionParser.create().parseExpressionList(expression);
+    ExpressionParser create();
+
+    static ExpressionParserFactory getDefault() {
+        return FactoryUtil.discoverFactory(
+                Thread.currentThread().getContextClassLoader(),
+                ExpressionParserFactory.class,
+                DEFAULT_IDENTIFIER);
     }
 }

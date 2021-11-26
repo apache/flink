@@ -39,7 +39,8 @@ import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter
-import org.apache.flink.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.table.delegation.ExpressionParser
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -55,7 +56,6 @@ import org.junit.{After, Before, Rule}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 abstract class ExpressionTestBase {
 
@@ -276,7 +276,8 @@ abstract class ExpressionTestBase {
   }
 
   private def testTableApiTestExpr(tableApiString: String, expected: String): Unit = {
-    addTableApiTestExpr(ExpressionParser.parseExpression(tableApiString), expected, validExprs)
+    addTableApiTestExpr(
+      ExpressionParser.INSTANCE.parseExpression(tableApiString), expected, validExprs)
   }
 
   private def addSqlTestExpr(
