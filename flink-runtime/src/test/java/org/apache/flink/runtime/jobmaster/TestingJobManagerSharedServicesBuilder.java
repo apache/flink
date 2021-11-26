@@ -24,7 +24,7 @@ import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibrary
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
-import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 
 import java.util.concurrent.ScheduledExecutorService;
 
