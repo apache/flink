@@ -44,9 +44,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * {@link TypeInformation} for {@link Row}.
  *
- * <p>Note: The implementations of {@link #hashCode()} and {@link #equals(Object)} do not check
- * field names because those don't matter during serialization and runtime. This might change in
- * future versions. See FLINK-14438 for more information.
+ * <p>Note: The implementations of {@link #hashCode()} and {@link #equals(Object)} also check field
+ * names. See FLINK-14438 for more information.
  */
 @PublicEvolving
 public class RowTypeInfo extends TupleTypeInfoBase<Row> {
@@ -268,19 +267,21 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 
     @Override
     public int hashCode() {
-        return 31 * super.hashCode();
+        return 31 * super.hashCode() + Arrays.hashCode(fieldNames);
     }
 
     /**
-     * The equals method does only check for field types. Field names do not matter during runtime
-     * so we can consider rows with the same field types as equal. Use {@link
+     * The equals method checks for field types and field names. So we consider rows with the same
+     * field types but different field names as not equal. Use {@link
      * RowTypeInfo#schemaEquals(Object)} for checking schema-equivalence.
      */
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof RowTypeInfo) {
             final RowTypeInfo other = (RowTypeInfo) obj;
-            return other.canEqual(this) && super.equals(other);
+            return other.canEqual(this)
+                    && super.equals(other)
+                    && Arrays.equals(fieldNames, ((RowTypeInfo) obj).getFieldNames());
         } else {
             return false;
         }

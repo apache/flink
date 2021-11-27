@@ -30,6 +30,7 @@ import java.util.List;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /** Test for {@link RowTypeInfo}. */
@@ -156,5 +157,20 @@ public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
                         new String[] {"field1", "field2"});
         assertFalse(row1.schemaEquals(other1));
         assertFalse(row1.schemaEquals(other2));
+    }
+
+    @Test
+    public void testRowTypeInfoEquals() {
+        String[] fieldNames1 = new String[] {"int", "row", "string"};
+        String[] fieldNames2 = new String[] {"int", "row", "string"};
+        String[] fieldNames3 = new String[] {"int", "Row", "string"};
+
+        RowTypeInfo typeInfo1 = new RowTypeInfo(typeList, fieldNames1);
+        RowTypeInfo typeInfo2 = new RowTypeInfo(typeList, fieldNames2);
+        RowTypeInfo typeInfo3 = new RowTypeInfo(typeList, fieldNames3);
+
+        assertEquals(typeInfo1, typeInfo2);
+        // field names are different, not equal
+        assertNotEquals(typeInfo1, typeInfo3);
     }
 }
