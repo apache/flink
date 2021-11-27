@@ -473,7 +473,7 @@ public class RowTest {
         row.setField("e", "hello world");
         row.setField("f", new int[][] {{1}, null, {3, 4}});
         row.setField("g", new Boolean[][] {{true}, null, {false, false}});
-        final Map<String, Integer[]> map = new HashMap<>();
+        final Map<String, Integer[]> map = new LinkedHashMap<>();
         map.put("a", new Integer[] {1, 2, 3, 4});
         map.put("b", new Integer[] {});
         map.put("c", null);

@@ -25,7 +25,6 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -184,7 +183,7 @@ public final class Row implements Serializable {
      * @return a new row instance
      */
     public static Row withNames(RowKind kind) {
-        return new Row(kind, null, new HashMap<>(), null);
+        return new Row(kind, null, new LinkedHashMap<>(), null);
     }
 
     /**
@@ -500,7 +499,7 @@ public final class Row implements Serializable {
 
         final Map<String, Object> newFieldByName;
         if (row.fieldByName != null) {
-            newFieldByName = new HashMap<>(row.fieldByName);
+            newFieldByName = new LinkedHashMap<>(row.fieldByName);
         } else {
             newFieldByName = null;
         }
