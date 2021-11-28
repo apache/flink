@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -96,6 +97,20 @@ public class KafkaSinkBuilder<IN> {
      */
     public KafkaSinkBuilder<IN> setDeliverGuarantee(DeliveryGuarantee deliveryGuarantee) {
         this.deliveryGuarantee = checkNotNull(deliveryGuarantee, "deliveryGuarantee");
+        return this;
+    }
+
+    /**
+     * Sets the configuration which used to instantiate all used {@link
+     * org.apache.kafka.clients.producer.KafkaProducer}.
+     *
+     * @param settings
+     * @return {@link KafkaSinkBuilder}
+     */
+    public KafkaSinkBuilder<IN> setKafkaProducerConfig(Map<String, String> settings) {
+        Properties properties = new Properties();
+        properties.putAll(settings);
+        setKafkaProducerConfig(properties);
         return this;
     }
 
@@ -184,6 +199,14 @@ public class KafkaSinkBuilder<IN> {
      * @return {@link KafkaSink}
      */
     public KafkaSink<IN> build() {
+        if (kafkaProducerConfig == null) {
+            setKafkaProducerConfig(new Properties());
+        }
+        if (bootstrapServers == null
+                && this.kafkaProducerConfig.containsKey(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)) {
+            bootstrapServers =
+                    this.kafkaProducerConfig.getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG);
+        }
         checkNotNull(bootstrapServers);
         if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
             checkState(
