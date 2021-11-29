@@ -92,6 +92,10 @@ public class WindowTableFunctionOperator extends TableStreamOperator<RowData>
         RowData inputRow = element.getValue();
         long timestamp;
         if (windowAssigner.isEventTime()) {
+            if (inputRow.isNullAt(rowtimeIndex)) {
+                // null timestamp would be dropped
+                return;
+            }
             timestamp = inputRow.getTimestamp(rowtimeIndex, 3).getMillisecond();
         } else {
             timestamp = getProcessingTimeService().getCurrentProcessingTime();
