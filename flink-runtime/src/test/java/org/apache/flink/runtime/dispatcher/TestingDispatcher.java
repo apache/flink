@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 
@@ -40,6 +41,7 @@ class TestingDispatcher extends Dispatcher {
             RpcService rpcService,
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> recoveredDirtyJobResults,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices)
             throws Exception {
@@ -47,6 +49,7 @@ class TestingDispatcher extends Dispatcher {
                 rpcService,
                 fencingToken,
                 recoveredJobs,
+                recoveredDirtyJobResults,
                 dispatcherBootstrapFactory,
                 dispatcherServices);
 

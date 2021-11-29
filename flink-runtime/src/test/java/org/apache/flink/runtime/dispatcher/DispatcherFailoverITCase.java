@@ -231,7 +231,9 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
                         .setJobManagerRunnerFactory(
                                 JobMasterServiceLeadershipRunnerFactory.INSTANCE)
                         .setJobGraphWriter(haServices.getJobGraphStore())
+                        .setJobResultStore(haServices.getJobResultStore())
                         .setInitialJobGraphs(jobGraphs)
+                        .setDirtyJobResults(haServices.getJobResultStore().getDirtyResults())
                         .setFatalErrorHandler(
                                 fatalErrorHandler == null
                                         ? testingFatalErrorHandlerResource.getFatalErrorHandler()

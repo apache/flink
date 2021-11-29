@@ -35,9 +35,13 @@ import org.apache.flink.runtime.dispatcher.SingleJobJobGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.dispatcher.TestingJobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.TestingPartialDispatcherServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.TestingJobPersistenceComponentFactory;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -89,6 +93,8 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 
     private JobGraphStore jobGraphStore;
 
+    private JobResultStore jobResultStore;
+
     private PartialDispatcherServices partialDispatcherServices;
 
     private DefaultDispatcherRunnerFactory dispatcherRunnerFactory;
@@ -102,6 +108,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
         dispatcherLeaderElectionService = new TestingLeaderElectionService();
         fatalErrorHandler = new TestingFatalErrorHandler();
         jobGraphStore = TestingJobGraphStore.newBuilder().build();
+        jobResultStore = new EmbeddedJobResultStore();
 
         partialDispatcherServices =
                 TestingPartialDispatcherServices.builder()
@@ -224,6 +231,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
                 RpcService rpcService,
                 DispatcherId fencingToken,
                 Collection<JobGraph> recoveredJobs,
+                Collection<JobResult> recoveredDirtyJobResults,
                 DispatcherBootstrapFactory dispatcherBootstrapFactory,
                 PartialDispatcherServicesWithJobPersistenceComponents
                         partialDispatcherServicesWithJobPersistenceComponents)
@@ -232,6 +240,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
                     rpcService,
                     fencingToken,
                     recoveredJobs,
+                    recoveredDirtyJobResults,
                     dispatcherBootstrapFactory,
                     DispatcherServices.from(
                             partialDispatcherServicesWithJobPersistenceComponents,
@@ -247,7 +256,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
         return dispatcherRunnerFactory.createDispatcherRunner(
                 dispatcherLeaderElectionService,
                 fatalErrorHandler,
-                () -> jobGraphStore,
+                new TestingJobPersistenceComponentFactory(jobGraphStore, jobResultStore),
                 TestingUtils.defaultExecutor(),
                 rpcServiceResource.getTestingRpcService(),
                 partialDispatcherServices);

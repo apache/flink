@@ -90,6 +90,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -157,11 +158,13 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             RpcService rpcService,
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> recoveredDirtyJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices)
             throws Exception {
         super(rpcService, RpcServiceUtils.createRandomName(DISPATCHER_NAME), fencingToken);
         checkNotNull(dispatcherServices);
+        assertRecoveredJobsAndDirtyJobResults(recoveredJobs, recoveredDirtyJobs);
 
         this.configuration = dispatcherServices.getConfiguration();
         this.highAvailabilityServices = dispatcherServices.getHighAvailabilityServices();
@@ -171,6 +174,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.blobServer = dispatcherServices.getBlobServer();
         this.fatalErrorHandler = dispatcherServices.getFatalErrorHandler();
         this.jobGraphWriter = dispatcherServices.getJobGraphWriter();
+        this.jobResultStore = dispatcherServices.getJobResultStore();
         this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
         this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
         this.ioExecutor = dispatcherServices.getIoExecutor();
@@ -178,8 +182,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.jobManagerSharedServices =
                 JobManagerSharedServices.fromConfiguration(
                         configuration, blobServer, fatalErrorHandler);
-
-        this.jobResultStore = highAvailabilityServices.getJobResultStore();
 
         runningJobs = new HashMap<>(16);
 
@@ -196,6 +198,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.dispatcherBootstrapFactory = checkNotNull(dispatcherBootstrapFactory);
 
         this.recoveredJobs = new HashSet<>(recoveredJobs);
+
         this.blobServer.retainJobs(
                 recoveredJobs.stream().map(JobGraph::getJobID).collect(Collectors.toSet()));
 
@@ -244,6 +247,25 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         } catch (Exception e) {
             handleStartDispatcherServicesException(e);
         }
+    }
+
+    private static void assertRecoveredJobsAndDirtyJobResults(
+            Collection<JobGraph> recoveredJobs, Collection<JobResult> recoveredDirtyJobResults) {
+        final Set<JobID> jobIdsOfFinishedJobs =
+                recoveredDirtyJobResults.stream()
+                        .map(JobResult::getJobId)
+                        .collect(Collectors.toSet());
+
+        final boolean noRecoveredJobGraphHasDirtyJobResult =
+                recoveredJobs.stream()
+                        .noneMatch(
+                                recoveredJobGraph ->
+                                        jobIdsOfFinishedJobs.contains(
+                                                recoveredJobGraph.getJobID()));
+
+        Preconditions.checkArgument(
+                noRecoveredJobGraphHasDirtyJobResult,
+                "There should be no overlap between the recovered JobGraphs and the passed dirty JobResults based on their job ID.");
     }
 
     private void startRecoveredJobs() {

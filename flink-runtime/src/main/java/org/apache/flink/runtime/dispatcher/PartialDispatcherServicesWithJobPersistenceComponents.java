@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -36,6 +37,7 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
         extends PartialDispatcherServices {
 
     private final JobGraphWriter jobGraphWriter;
+    private final JobResultStore jobResultStore;
 
     private PartialDispatcherServicesWithJobPersistenceComponents(
             Configuration configuration,
@@ -50,7 +52,8 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
             @Nullable String metricQueryServiceAddress,
             Executor ioExecutor,
             DispatcherOperationCaches operationCaches,
-            JobGraphWriter jobGraphWriter) {
+            JobGraphWriter jobGraphWriter,
+            JobResultStore jobResultStore) {
         super(
                 configuration,
                 highAvailabilityServices,
@@ -65,14 +68,21 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
                 ioExecutor,
                 operationCaches);
         this.jobGraphWriter = jobGraphWriter;
+        this.jobResultStore = jobResultStore;
     }
 
     public JobGraphWriter getJobGraphWriter() {
         return jobGraphWriter;
     }
 
+    public JobResultStore getJobResultStore() {
+        return jobResultStore;
+    }
+
     public static PartialDispatcherServicesWithJobPersistenceComponents from(
-            PartialDispatcherServices partialDispatcherServices, JobGraphWriter jobGraphWriter) {
+            PartialDispatcherServices partialDispatcherServices,
+            JobGraphWriter jobGraphWriter,
+            JobResultStore jobResultStore) {
         return new PartialDispatcherServicesWithJobPersistenceComponents(
                 partialDispatcherServices.getConfiguration(),
                 partialDispatcherServices.getHighAvailabilityServices(),
@@ -86,6 +96,7 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
                 partialDispatcherServices.getMetricQueryServiceAddress(),
                 partialDispatcherServices.getIoExecutor(),
                 partialDispatcherServices.getOperationCaches(),
-                jobGraphWriter);
+                jobGraphWriter,
+                jobResultStore);
     }
 }
