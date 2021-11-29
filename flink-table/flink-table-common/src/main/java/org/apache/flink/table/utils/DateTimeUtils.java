@@ -59,8 +59,25 @@ import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
 import static java.time.temporal.ChronoField.YEAR;
 
 /**
- * Utility functions for datetime types: date, time, timestamp. Currently, it is a bit messy putting
- * date time functions in various classes because the runtime module does not depend on calcite..
+ * Utility functions for datetime types: date, time, timestamp.
+ *
+ * <p>These utils include:
+ *
+ * <ul>
+ *   <li>{@code parse[type]}: methods for parsing strings to date/time/timestamp
+ *   <li>{@code format[type]}: methods for formatting date/time/timestamp
+ *   <li>{@code to[externalTypeName]} and {@code toInternal}: methods for converting values from
+ *       internal date/time/timestamp types from/to java.sql or java.time types
+ *   <li>Various operations on timestamp, including floor, ceil and extract
+ *   <li>{@link TimeUnit} and {@link TimeUnitRange} enums
+ * </ul>
+ *
+ * Currently, this class is a bit messy because it includes a mix of functionalities both from
+ * common and planner. We should strive to reduce the number of functionalities here, eventually
+ * moving some methods closer to where they're needed. Connectors and formats should not use this
+ * class, but rather if a functionality is necessary, it should be part of the public APIs of our
+ * type system (e.g a new method in {@link TimestampData} or in {@link TimestampType}). Methods used
+ * only by the planner should live inside the planner whenever is possible.
  */
 @Internal
 public class DateTimeUtils {
