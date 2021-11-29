@@ -29,7 +29,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.JobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobPersistenceComponents;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.SingleJobJobGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
@@ -225,8 +225,8 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
                 DispatcherId fencingToken,
                 Collection<JobGraph> recoveredJobs,
                 DispatcherBootstrapFactory dispatcherBootstrapFactory,
-                PartialDispatcherServicesWithJobGraphStore
-                        partialDispatcherServicesWithJobGraphStore)
+                PartialDispatcherServicesWithJobPersistenceComponents
+                        partialDispatcherServicesWithJobPersistenceComponents)
                 throws Exception {
             return new StandaloneDispatcher(
                     rpcService,
@@ -234,7 +234,8 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
                     recoveredJobs,
                     dispatcherBootstrapFactory,
                     DispatcherServices.from(
-                            partialDispatcherServicesWithJobGraphStore, jobManagerRunnerFactory));
+                            partialDispatcherServicesWithJobPersistenceComponents,
+                            jobManagerRunnerFactory));
         }
     }
 

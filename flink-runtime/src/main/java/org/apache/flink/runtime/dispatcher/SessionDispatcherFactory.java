@@ -33,7 +33,8 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
-            PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore)
+            PartialDispatcherServicesWithJobPersistenceComponents
+                    partialDispatcherServicesWithJobPersistenceComponents)
             throws Exception {
         // create the default dispatcher
         return new StandaloneDispatcher(
@@ -42,7 +43,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
                 recoveredJobs,
                 dispatcherBootstrapFactory,
                 DispatcherServices.from(
-                        partialDispatcherServicesWithJobGraphStore,
+                        partialDispatcherServicesWithJobPersistenceComponents,
                         JobMasterServiceLeadershipRunnerFactory.INSTANCE));
     }
 }

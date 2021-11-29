@@ -32,6 +32,7 @@ public interface DispatcherFactory {
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
-            PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore)
+            PartialDispatcherServicesWithJobPersistenceComponents
+                    partialDispatcherServicesWithJobPersistenceComponents)
             throws Exception;
 }

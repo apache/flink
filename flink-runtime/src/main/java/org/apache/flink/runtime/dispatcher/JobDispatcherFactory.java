@@ -39,12 +39,13 @@ public enum JobDispatcherFactory implements DispatcherFactory {
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
-            PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore)
+            PartialDispatcherServicesWithJobPersistenceComponents
+                    partialDispatcherServicesWithJobPersistenceComponents)
             throws Exception {
         final JobGraph jobGraph = Iterables.getOnlyElement(recoveredJobs);
 
         final Configuration configuration =
-                partialDispatcherServicesWithJobGraphStore.getConfiguration();
+                partialDispatcherServicesWithJobPersistenceComponents.getConfiguration();
         final String executionModeValue = configuration.getString(INTERNAL_CLUSTER_EXECUTION_MODE);
         final ClusterEntrypoint.ExecutionMode executionMode =
                 ClusterEntrypoint.ExecutionMode.valueOf(executionModeValue);
@@ -53,7 +54,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
                 rpcService,
                 fencingToken,
                 DispatcherServices.from(
-                        partialDispatcherServicesWithJobGraphStore,
+                        partialDispatcherServicesWithJobPersistenceComponents,
                         JobMasterServiceLeadershipRunnerFactory.INSTANCE),
                 jobGraph,
                 dispatcherBootstrapFactory,
