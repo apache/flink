@@ -22,18 +22,19 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.util.FlinkRuntimeException;
 
 /**
- * {@link JobGraphStoreFactory} implementation which creates a {@link JobGraphStore} using the
- * provided {@link HighAvailabilityServices}.
+ * {@link JobPersistenceComponentFactory} implementation which creates a {@link JobGraphStore} using
+ * the provided {@link HighAvailabilityServices}.
  */
-public class HaServicesJobGraphStoreFactory implements JobGraphStoreFactory {
+public class HaServicesJobPersistenceComponentFactory implements JobPersistenceComponentFactory {
     private final HighAvailabilityServices highAvailabilityServices;
 
-    public HaServicesJobGraphStoreFactory(HighAvailabilityServices highAvailabilityServices) {
+    public HaServicesJobPersistenceComponentFactory(
+            HighAvailabilityServices highAvailabilityServices) {
         this.highAvailabilityServices = highAvailabilityServices;
     }
 
     @Override
-    public JobGraphStore create() {
+    public JobGraphStore createJobGraphStore() {
         try {
             return highAvailabilityServices.getJobGraphStore();
         } catch (Exception e) {
