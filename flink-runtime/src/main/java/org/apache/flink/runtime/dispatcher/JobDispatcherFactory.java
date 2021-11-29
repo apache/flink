@@ -21,7 +21,9 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
@@ -38,11 +40,18 @@ public enum JobDispatcherFactory implements DispatcherFactory {
             RpcService rpcService,
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> recoveredDirtyJobResults,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             PartialDispatcherServicesWithJobPersistenceComponents
                     partialDispatcherServicesWithJobPersistenceComponents)
             throws Exception {
-        final JobGraph jobGraph = Iterables.getOnlyElement(recoveredJobs);
+        final JobGraph recoveredJobGraph = Iterables.getOnlyElement(recoveredJobs, null);
+        final JobResult recoveredDirtyJob =
+                Iterables.getOnlyElement(recoveredDirtyJobResults, null);
+
+        Preconditions.checkArgument(
+                recoveredJobGraph == null ^ recoveredDirtyJob == null,
+                "Either the JobGraph or the recovered JobResult needs to be specified.");
 
         final Configuration configuration =
                 partialDispatcherServicesWithJobPersistenceComponents.getConfiguration();
@@ -56,7 +65,8 @@ public enum JobDispatcherFactory implements DispatcherFactory {
                 DispatcherServices.from(
                         partialDispatcherServicesWithJobPersistenceComponents,
                         JobMasterServiceLeadershipRunnerFactory.INSTANCE),
-                jobGraph,
+                recoveredJobGraph,
+                recoveredDirtyJob,
                 dispatcherBootstrapFactory,
                 executionMode);
     }

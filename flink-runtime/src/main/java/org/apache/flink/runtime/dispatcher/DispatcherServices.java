@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -60,6 +61,8 @@ public class DispatcherServices {
 
     private final JobGraphWriter jobGraphWriter;
 
+    private final JobResultStore jobResultStore;
+
     private final JobManagerRunnerFactory jobManagerRunnerFactory;
 
     private final Executor ioExecutor;
@@ -77,6 +80,7 @@ public class DispatcherServices {
             DispatcherOperationCaches operationCaches,
             JobManagerMetricGroup jobManagerMetricGroup,
             JobGraphWriter jobGraphWriter,
+            JobResultStore jobResultStore,
             JobManagerRunnerFactory jobManagerRunnerFactory,
             Executor ioExecutor) {
         this.configuration = Preconditions.checkNotNull(configuration, "Configuration");
@@ -97,6 +101,7 @@ public class DispatcherServices {
         this.jobManagerMetricGroup =
                 Preconditions.checkNotNull(jobManagerMetricGroup, "JobManagerMetricGroup");
         this.jobGraphWriter = Preconditions.checkNotNull(jobGraphWriter, "JobGraphWriter");
+        this.jobResultStore = Preconditions.checkNotNull(jobResultStore, "JobResultStore");
         this.jobManagerRunnerFactory =
                 Preconditions.checkNotNull(jobManagerRunnerFactory, "JobManagerRunnerFactory");
         this.ioExecutor = Preconditions.checkNotNull(ioExecutor, "IOExecutor");
@@ -151,6 +156,10 @@ public class DispatcherServices {
         return jobGraphWriter;
     }
 
+    public JobResultStore getJobResultStore() {
+        return jobResultStore;
+    }
+
     JobManagerRunnerFactory getJobManagerRunnerFactory() {
         return jobManagerRunnerFactory;
     }
@@ -181,6 +190,7 @@ public class DispatcherServices {
                         .getJobManagerMetricGroupFactory()
                         .create(),
                 partialDispatcherServicesWithJobPersistenceComponents.getJobGraphWriter(),
+                partialDispatcherServicesWithJobPersistenceComponents.getJobResultStore(),
                 jobManagerRunnerFactory,
                 partialDispatcherServicesWithJobPersistenceComponents.getIoExecutor());
     }

@@ -203,6 +203,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                         rpcService,
                         DispatcherId.generate(),
                         Collections.emptyList(),
+                        Collections.emptyList(),
                         (dispatcher, scheduledExecutor, errorHandler) ->
                                 new NoOpDispatcherBootstrap(),
                         new DispatcherServices(
@@ -218,6 +219,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                 new DispatcherOperationCaches(),
                                 UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
                                 jobGraphWriter,
+                                jobResultStore,
                                 jobManagerRunnerFactory,
                                 ForkJoinPool.commonPool()));
 

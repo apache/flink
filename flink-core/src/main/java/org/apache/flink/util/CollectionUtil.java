@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -53,6 +54,10 @@ public final class CollectionUtil {
 
     public static boolean isNullOrEmpty(Map<?, ?> map) {
         return map == null || map.isEmpty();
+    }
+
+    public static <T> Set<T> ofNullable(@Nullable T obj) {
+        return obj == null ? Collections.emptySet() : Collections.singleton(obj);
     }
 
     public static <T, R> Stream<R> mapWithIndex(

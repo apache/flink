@@ -181,6 +181,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         .setHeartbeatServices(heartbeatServices)
                         .setJobManagerRunnerFactory(jobManagerRunnerFactory)
                         .setJobGraphWriter(haServices.getJobGraphStore())
+                        .setJobResultStore(haServices.getJobResultStore())
                         .build();
         dispatcher.start();
         return dispatcher;
@@ -706,6 +707,18 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 is(true));
 
         fatalErrorHandler.clearError();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testThatDirtilyFinishedJobsNotBeingRetriggered() throws Exception {
+        final JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
+        final JobResult jobResult =
+                TestingJobResultStore.createSuccessfulJobResult(jobGraph.getJobID());
+        dispatcher =
+                new TestingDispatcherBuilder()
+                        .setInitialJobGraphs(Collections.singleton(jobGraph))
+                        .setDirtyJobResults(Collections.singleton(jobResult))
+                        .build();
     }
 
     /** Tests that a failing {@link JobManagerRunner} will be properly cleaned up. */

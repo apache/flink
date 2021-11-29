@@ -53,6 +53,7 @@ public class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderPr
                 leaderSessionID,
                 dispatcherGatewayServiceFactory,
                 jobPersistenceComponentFactory.createJobGraphStore(),
+                jobPersistenceComponentFactory.createJobResultStore(),
                 ioExecutor,
                 fatalErrorHandler);
     }

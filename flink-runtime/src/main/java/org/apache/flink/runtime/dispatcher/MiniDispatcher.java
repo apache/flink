@@ -29,9 +29,11 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 
-import java.util.Collections;
+import javax.annotation.Nullable;
+
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -55,14 +57,16 @@ public class MiniDispatcher extends Dispatcher {
             RpcService rpcService,
             DispatcherId fencingToken,
             DispatcherServices dispatcherServices,
-            JobGraph jobGraph,
+            @Nullable JobGraph jobGraph,
+            @Nullable JobResult recoveredDirtyJob,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             JobClusterEntrypoint.ExecutionMode executionMode)
             throws Exception {
         super(
                 rpcService,
                 fencingToken,
-                Collections.singleton(jobGraph),
+                CollectionUtil.ofNullable(jobGraph),
+                CollectionUtil.ofNullable(recoveredDirtyJob),
                 dispatcherBootstrapFactory,
                 dispatcherServices);
 
