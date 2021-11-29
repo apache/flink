@@ -19,11 +19,14 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
@@ -40,6 +43,7 @@ import java.net.URI;
 import java.time.Duration;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -733,7 +737,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
     /** Cleanup behaviour for externalized checkpoints when the job is cancelled. */
     @PublicEvolving
-    public enum ExternalizedCheckpointCleanup {
+    public enum ExternalizedCheckpointCleanup implements DescribedEnum {
 
         /**
          * Delete externalized checkpoints on job cancellation.
@@ -745,7 +749,10 @@ public class CheckpointConfig implements java.io.Serializable {
          * <p>Note that checkpoint state is always kept if the job terminates with state {@link
          * JobStatus#FAILED}.
          */
-        DELETE_ON_CANCELLATION,
+        DELETE_ON_CANCELLATION(
+                text(
+                        "Checkpoint state is only kept when the owning job fails. It is deleted if "
+                                + "the job is cancelled.")),
 
         /**
          * Retain externalized checkpoints on job cancellation.
@@ -756,10 +763,17 @@ public class CheckpointConfig implements java.io.Serializable {
          * <p>Note that checkpoint state is always kept if the job terminates with state {@link
          * JobStatus#FAILED}.
          */
-        RETAIN_ON_CANCELLATION,
+        RETAIN_ON_CANCELLATION(
+                text("Checkpoint state is kept when the owning job is cancelled or fails.")),
 
         /** Externalized checkpoints are disabled completely. */
-        NO_EXTERNALIZED_CHECKPOINTS;
+        NO_EXTERNALIZED_CHECKPOINTS(text("Externalized checkpoints are disabled."));
+
+        private final InlineElement description;
+
+        ExternalizedCheckpointCleanup(InlineElement description) {
+            this.description = description;
+        }
 
         /**
          * Returns whether persistent checkpoints shall be discarded on cancellation of the job.
@@ -769,6 +783,12 @@ public class CheckpointConfig implements java.io.Serializable {
          */
         public boolean deleteOnCancellation() {
             return this == DELETE_ON_CANCELLATION;
+        }
+
+        @Override
+        @Internal
+        public InlineElement getDescription() {
+            return description;
         }
     }
 
