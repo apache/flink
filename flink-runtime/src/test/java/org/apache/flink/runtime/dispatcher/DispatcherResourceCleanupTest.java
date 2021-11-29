@@ -149,8 +149,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob(
             TestingDispatcher.Builder dispatcherBuilder, int numBlockingJobManagerRunners)
             throws Exception {
-        final TestingJobManagerRunnerFactory testingJobManagerRunnerFactoryNG =
-                new TestingJobManagerRunnerFactory(numBlockingJobManagerRunners);
+        final TestingJobMasterServiceLeadershipRunnerFactory testingJobManagerRunnerFactoryNG =
+                new TestingJobMasterServiceLeadershipRunnerFactory(numBlockingJobManagerRunners);
         startDispatcher(dispatcherBuilder, testingJobManagerRunnerFactoryNG);
         submitJobAndWait();
 
@@ -652,7 +652,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     private static final class BlockingJobManagerRunnerFactory
-            extends TestingJobManagerRunnerFactory {
+            extends TestingJobMasterServiceLeadershipRunnerFactory {
 
         private final ThrowingRunnable<Exception> jobManagerRunnerCreationLatch;
         private TestingJobManagerRunner testingRunner;
