@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.runtime.dispatcher.cleanup.CheckpointResourcesCleanupRunnerFactory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -47,6 +48,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
                 dispatcherBootstrapFactory,
                 DispatcherServices.from(
                         partialDispatcherServicesWithJobPersistenceComponents,
-                        JobMasterServiceLeadershipRunnerFactory.INSTANCE));
+                        JobMasterServiceLeadershipRunnerFactory.INSTANCE,
+                        CheckpointResourcesCleanupRunnerFactory.INSTANCE));
     }
 }
