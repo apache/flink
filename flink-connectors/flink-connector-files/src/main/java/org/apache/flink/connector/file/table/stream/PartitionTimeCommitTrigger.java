@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -44,6 +45,7 @@ import java.util.TreeMap;
  * <p>Compares watermark, and watermark is related to records and checkpoint, so we need store
  * watermark information for checkpoint.
  */
+@Internal
 public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
 
     private static final ListStateDescriptor<List<String>> PENDING_PARTITIONS_STATE_DESC =

@@ -18,12 +18,14 @@
 
 package org.apache.flink.connector.file.table.stream.compact;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.core.fs.FileInputSplit;
 
 import java.io.IOException;
 
 /** The {@link CompactReader} to delegate {@link FileInputFormat}. */
+@Internal
 public class FileInputFormatCompactReader<T> implements CompactReader<T> {
 
     private final FileInputFormat<T> format;

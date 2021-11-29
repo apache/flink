@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
@@ -49,6 +50,7 @@ import java.util.List;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
 
 /** Helper for creating streaming file sink. */
+@Internal
 public class StreamingSink {
     private StreamingSink() {}
 

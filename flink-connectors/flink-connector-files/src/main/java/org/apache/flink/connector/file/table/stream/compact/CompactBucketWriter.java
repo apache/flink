@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream.compact;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter;
 import org.apache.flink.util.function.SupplierWithException;
@@ -25,6 +26,7 @@ import org.apache.flink.util.function.SupplierWithException;
 import java.io.IOException;
 
 /** The {@link CompactWriter} to delegate {@link BucketWriter}. */
+@Internal
 public class CompactBucketWriter<T> implements CompactWriter<T> {
 
     private final BucketWriter<T, String> bucketWriter;

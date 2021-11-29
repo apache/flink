@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
@@ -31,6 +32,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
 /** A {@link BulkFormat} that can limit output record number. */
+@Internal
 public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
         implements BulkFormat<T, SplitT> {
 

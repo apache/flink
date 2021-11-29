@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.connector.file.src.util.MutableRecordAndPosition;
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
  * A {@link BulkFormat.RecordIterator} that returns {@link RowData}s. The next row is set by {@link
  * ColumnarRowData#setRowId}.
  */
+@Internal
 public class ColumnarRowIterator extends RecyclableIterator<RowData> {
 
     private final ColumnarRowData rowData;

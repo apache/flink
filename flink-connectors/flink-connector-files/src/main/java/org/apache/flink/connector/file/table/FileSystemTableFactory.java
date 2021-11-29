@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
@@ -54,6 +55,7 @@ import static java.time.ZoneId.SHORT_IDS;
  * or a catalog table. 2.Support insert into (append) and insert overwrite. 3.Support static and
  * dynamic partition inserting.
  */
+@Internal
 public class FileSystemTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
     public static final String IDENTIFIER = "filesystem";

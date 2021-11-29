@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream.compact;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
@@ -66,6 +67,7 @@ import java.util.TreeMap;
  * successfully, We can ensure that these files will not be used again and they can be deleted from
  * the file system.
  */
+@Internal
 public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitInfo>
         implements OneInputStreamOperator<CoordinatorOutput, PartitionCommitInfo>, BoundedOneInput {
 

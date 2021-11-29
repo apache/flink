@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream.compact;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 
 import java.io.Serializable;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
  * <p>Because the end message is a kind of barrier of record messages, they can only be transmitted
  * in the way of full broadcast in the link from coordinator to compact operator.
  */
+@Internal
 public class CompactMessages {
     private CompactMessages() {}
 

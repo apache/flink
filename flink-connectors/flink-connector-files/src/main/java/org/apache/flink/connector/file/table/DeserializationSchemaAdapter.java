@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -44,6 +45,7 @@ import static org.apache.flink.connector.file.src.util.CheckpointedPosition.NO_O
 import static org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch.DEFAULT_SIZE;
 
 /** Adapter to turn a {@link DeserializationSchema} into a {@link BulkFormat}. */
+@Internal
 public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSourceSplit> {
 
     private static final int BATCH_SIZE = 100;

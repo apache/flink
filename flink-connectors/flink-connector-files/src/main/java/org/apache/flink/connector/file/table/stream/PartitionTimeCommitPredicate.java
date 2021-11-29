@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.PartitionTimeExtractor;
 import org.apache.flink.core.fs.Path;
@@ -37,6 +38,7 @@ import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionVa
  * Partition commit predicate by partition time and watermark, if 'watermark' > 'partition-time' +
  * 'delay', the partition is committable.
  */
+@Internal
 public class PartitionTimeCommitPredicate implements PartitionCommitPredicate {
 
     private final PartitionTimeExtractor extractor;

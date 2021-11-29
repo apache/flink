@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 
@@ -27,6 +28,7 @@ import java.util.List;
  * Partition commit predicate. See {@link PartitionTimeCommitPredicate}. See {@link
  * ProcTimeCommitPredicate}
  */
+@Internal
 public interface PartitionCommitPredicate {
 
     boolean isPartitionCommittable(PredicateContext predicateContext);

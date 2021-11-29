@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.file.table.TableMetaStoreFactory.TableMetaStore;
 
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import java.util.LinkedHashMap;
  * <p>If this is for file system table, the metastore is a empty implemantation. If this is for hive
  * table, the metastore is for connecting to hive metastore.
  */
+@Internal
 public class MetastoreCommitPolicy implements PartitionCommitPolicy {
 
     private static final Logger LOG = LoggerFactory.getLogger(MetastoreCommitPolicy.class);

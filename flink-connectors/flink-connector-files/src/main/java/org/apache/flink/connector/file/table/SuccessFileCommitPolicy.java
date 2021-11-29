@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
@@ -28,6 +29,7 @@ import org.slf4j.LoggerFactory;
  * Partition commit policy to add success file to directory. Success file is configurable and empty
  * file.
  */
+@Internal
 public class SuccessFileCommitPolicy implements PartitionCommitPolicy {
 
     private static final Logger LOG = LoggerFactory.getLogger(SuccessFileCommitPolicy.class);

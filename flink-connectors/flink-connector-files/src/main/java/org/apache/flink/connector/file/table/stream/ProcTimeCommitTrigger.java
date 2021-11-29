@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -39,6 +40,7 @@ import static org.apache.flink.connector.file.table.stream.PartitionCommitPredic
  * Partition commit trigger by creation time and processing time service. It'll commit the partition
  * predicated to be committable by {@link PartitionCommitPredicate}
  */
+@Internal
 public class ProcTimeCommitTrigger implements PartitionCommitTrigger {
 
     private static final ListStateDescriptor<Map<String, Long>> PENDING_PARTITIONS_STATE_DESC =

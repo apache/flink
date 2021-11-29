@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Serializable;
 import java.util.List;
 
@@ -27,6 +29,7 @@ import java.util.List;
  * <p>Need to ensure that the partitions are ready to commit. That is to say, the files in the
  * partition have become readable rather than temporary.
  */
+@Internal
 public class PartitionCommitInfo implements Serializable {
 
     private static final long serialVersionUID = 1L;

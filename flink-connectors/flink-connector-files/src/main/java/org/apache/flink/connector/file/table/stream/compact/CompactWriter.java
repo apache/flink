@@ -18,10 +18,13 @@
 
 package org.apache.flink.connector.file.table.stream.compact;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 import java.io.Serializable;
 
 /** Writer for compaction. */
+@Internal
 public interface CompactWriter<T> {
 
     void write(T record) throws IOException;

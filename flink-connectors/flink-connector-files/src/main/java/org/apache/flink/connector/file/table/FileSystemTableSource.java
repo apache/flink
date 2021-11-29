@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.io.CollectionInputFormat;
@@ -74,6 +75,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /** File system table source. */
+@Internal
 public class FileSystemTableSource extends AbstractFileSystemTable
         implements ScanTableSource,
                 SupportsProjectionPushDown,

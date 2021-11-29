@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.TimestampData;
 
 import javax.annotation.Nullable;
@@ -44,6 +45,7 @@ import static java.time.temporal.ChronoField.YEAR;
  * Default {@link PartitionTimeExtractor}. See {@link
  * FileSystemConnectorOptions#PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN}.
  */
+@Internal
 public class DefaultPartTimeExtractor implements PartitionTimeExtractor {
 
     private static final DateTimeFormatter TIMESTAMP_FORMATTER =

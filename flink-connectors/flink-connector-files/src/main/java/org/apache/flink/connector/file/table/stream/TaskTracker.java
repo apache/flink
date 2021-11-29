@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeMap;
@@ -26,6 +28,7 @@ import java.util.TreeMap;
  * Track the upstream tasks to determine whether all the upstream data of a checkpoint has been
  * received.
  */
+@Internal
 public class TaskTracker {
 
     private final int numberOfTasks;

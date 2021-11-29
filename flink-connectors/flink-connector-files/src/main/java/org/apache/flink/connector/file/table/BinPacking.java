@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedList;
@@ -25,6 +27,7 @@ import java.util.List;
 import java.util.function.Function;
 
 /** A bin packing implementation. */
+@Internal
 public class BinPacking {
     private BinPacking() {}
 

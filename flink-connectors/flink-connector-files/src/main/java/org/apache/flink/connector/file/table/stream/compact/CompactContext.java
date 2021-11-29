@@ -18,11 +18,13 @@
 
 package org.apache.flink.connector.file.table.stream.compact;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
 /** Context for {@link CompactReader} and {@link CompactWriter}. */
+@Internal
 public interface CompactContext {
 
     static CompactContext create(

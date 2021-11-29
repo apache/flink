@@ -18,11 +18,14 @@
 
 package org.apache.flink.connector.file.table.stream.compact;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 
 /** Reader for compaction. */
+@Internal
 public interface CompactReader<T> extends Closeable {
 
     /** Read a record, return null if no more record. */

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_DELAY;
@@ -26,6 +27,7 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.S
  * Partition commit trigger by creation time and processing time service, if 'current processing
  * time' > 'partition creation time' + 'delay', the partition is committable.
  */
+@Internal
 public class ProcTimeCommitPredicate implements PartitionCommitPredicate {
     private final long commitDelay;
 

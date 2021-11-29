@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -96,6 +97,7 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.S
 import static org.apache.flink.connector.file.table.stream.compact.CompactOperator.convertToUncompacted;
 
 /** File system {@link DynamicTableSink}. */
+@Internal
 public class FileSystemTableSink extends AbstractFileSystemTable
         implements DynamicTableSink, SupportsPartitioning, SupportsOverwrite {
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
@@ -32,6 +33,7 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.S
  * Partition commit trigger. See {@link PartitionTimeCommitTrigger}. See {@link
  * ProcTimeCommitTrigger}.
  */
+@Internal
 public interface PartitionCommitTrigger {
 
     /** Add a pending partition. */

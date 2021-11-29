@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream.compact;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
@@ -27,6 +28,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 /** The {@link CompactReader} to delegate {@link CompactBulkReader}. */
+@Internal
 public class CompactBulkReader<T> implements CompactReader<T> {
 
     private final BulkFormat.Reader<T> reader;

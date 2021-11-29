@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.PartitionPathUtils;
@@ -27,6 +28,7 @@ import java.util.LinkedHashMap;
 
 /** Interface to extract partition field from split. */
 @FunctionalInterface
+@Internal
 public interface PartitionFieldExtractor<T extends FileSourceSplit> extends Serializable {
 
     Object extract(T split, String fieldName, LogicalType fieldType);

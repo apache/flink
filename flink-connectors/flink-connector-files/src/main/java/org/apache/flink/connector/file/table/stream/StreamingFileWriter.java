@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -39,6 +40,7 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.S
 import static org.apache.flink.connector.file.table.stream.PartitionCommitPredicate.PredicateContext;
 
 /** Writer for emitting {@link PartitionCommitInfo} to downstream. */
+@Internal
 public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, PartitionCommitInfo> {
 
     private static final long serialVersionUID = 2L;
