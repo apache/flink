@@ -19,10 +19,8 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
 import org.junit.Test
 
@@ -879,6 +877,96 @@ class RankTest extends TableTestBase {
         |) WHERE rn < 3
         |""".stripMargin)
     util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testRankOutputUpsertKeyNotMatchSinkPk(): Unit = {
+    // test for FLINK-20370
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE sink (
+        | a INT,
+        | b VARCHAR,
+        | c BIGINT,
+        | PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'values'
+        | ,'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+
+    val sql =
+      """
+        |INSERT INTO sink
+        |SELECT a, b, c FROM (
+        |  SELECT *, ROW_NUMBER() OVER (PARTITION BY b ORDER BY c DESC) AS rn
+        |  FROM MyTable
+        |  )
+        |WHERE rn <= 100
+        |""".stripMargin
+    // verify UB should reserve and add upsertMaterialize if rank outputs' upsert keys differs from
+    // sink's pks
+    util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testRankOutputUpsertKeyInSinkPk(): Unit = {
+    // test for FLINK-20370
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE sink (
+        | a INT,
+        | b VARCHAR,
+        | c BIGINT,
+        | PRIMARY KEY (a, b) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'values'
+        | ,'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+
+    val sql =
+      """
+        |INSERT INTO sink
+        |SELECT a, b, c FROM (
+        |  SELECT *, ROW_NUMBER() OVER (PARTITION BY a ORDER BY c DESC) AS rn
+        |  FROM MyTable
+        |  )
+        |WHERE rn <= 100
+        |""".stripMargin
+
+    // verify UB should reserve and no upsertMaterialize if rank outputs' upsert keys are subset of
+    // sink's pks
+    util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testRankOutputLostUpsertKeyWithSinkPk(): Unit = {
+    // test for FLINK-20370
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE sink (
+        | a INT,
+        | c BIGINT,
+        | rn BIGINT,
+        | PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'values'
+        | ,'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+
+    val sql =
+      """
+        |INSERT INTO sink
+        |SELECT a, c, rn FROM (
+        |  SELECT *, ROW_NUMBER() OVER (PARTITION BY b ORDER BY c DESC) AS rn
+        |  FROM MyTable
+        |  )
+        |WHERE rn <= 100
+        |""".stripMargin
+    // verify UB should reserve and add upsertMaterialize if rank outputs' lost upsert keys
+    util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   // TODO add tests about multi-sinks and udf
