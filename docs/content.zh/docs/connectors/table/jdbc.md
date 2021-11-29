@@ -209,6 +209,13 @@ ON myTopic.key = MyUserTable.id;
       默认情况下，lookup cache 是未开启的。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
     </tr>
     <tr>
+      <td><h5>lookup.cache.caching-missing-key</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>标记缓存丢失的键，默认为true</td>
+    </tr>
+    <tr>
       <td><h5>lookup.max-retries</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">3</td>
@@ -279,6 +286,8 @@ lookup cache 的主要目的是用于提高时态表关联 JDBC 连接器的性�
 当 lookup cache 被启用时，每个进程（即 TaskManager）将维护一个缓存。Flink 将优先查找缓存，只有当缓存未查找到时才向外部数据库发送请求，并使用返回的数据更新缓存。
 当缓存命中最大缓存行 `lookup.cache.max-rows` 或当行超过最大存活时间 `lookup.cache.ttl` 时，缓存中最老的行将被设置为已过期。
 缓存中的记录可能不是最新的，用户可以将 `lookup.cache.ttl` 设置为一个更小的值以获得更好的刷新数据，但这可能会增加发送到数据库的请求数。所以要做好吞吐量和正确性之间的平衡。
+
+默认情况下，flink 会缓存主键的空查询结果，您可以通过将 `lookup.cache.caching-missing-key` 设置为 false 来切换行为。
 
 ### 幂等写入
 
