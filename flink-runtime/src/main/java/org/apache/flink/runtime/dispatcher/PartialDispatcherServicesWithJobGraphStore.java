@@ -27,7 +27,6 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
@@ -35,22 +34,22 @@ import java.util.concurrent.Executor;
 /** {@link DispatcherFactory} services container. */
 public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatcherServices {
 
-    @Nonnull private final JobGraphWriter jobGraphWriter;
+    private final JobGraphWriter jobGraphWriter;
 
     private PartialDispatcherServicesWithJobGraphStore(
-            @Nonnull Configuration configuration,
-            @Nonnull HighAvailabilityServices highAvailabilityServices,
-            @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            @Nonnull BlobServer blobServer,
-            @Nonnull HeartbeatServices heartbeatServices,
-            @Nonnull JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
-            @Nonnull ExecutionGraphInfoStore executionGraphInfoStore,
-            @Nonnull FatalErrorHandler fatalErrorHandler,
-            @Nonnull HistoryServerArchivist historyServerArchivist,
+            Configuration configuration,
+            HighAvailabilityServices highAvailabilityServices,
+            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            BlobServer blobServer,
+            HeartbeatServices heartbeatServices,
+            JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
+            ExecutionGraphInfoStore executionGraphInfoStore,
+            FatalErrorHandler fatalErrorHandler,
+            HistoryServerArchivist historyServerArchivist,
             @Nullable String metricQueryServiceAddress,
-            @Nonnull Executor ioExecutor,
-            @Nonnull DispatcherOperationCaches operationCaches,
-            @Nonnull JobGraphWriter jobGraphWriter) {
+            Executor ioExecutor,
+            DispatcherOperationCaches operationCaches,
+            JobGraphWriter jobGraphWriter) {
         super(
                 configuration,
                 highAvailabilityServices,
@@ -67,7 +66,6 @@ public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatche
         this.jobGraphWriter = jobGraphWriter;
     }
 
-    @Nonnull
     public JobGraphWriter getJobGraphWriter() {
         return jobGraphWriter;
     }
