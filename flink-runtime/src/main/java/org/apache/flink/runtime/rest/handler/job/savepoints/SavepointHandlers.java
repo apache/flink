@@ -151,8 +151,9 @@ public class SavepointHandlers {
                                 if (throwable == null) {
                                     return new TriggerResponse(operationKey.getTriggerId());
                                 } else {
-                                    throw getInternalServerError(
-                                            throwable, operationKey, "triggering");
+                                    throw new CompletionException(
+                                            createInternalServerError(
+                                                    throwable, operationKey, "triggering"));
                                 }
                             });
         }
@@ -300,24 +301,30 @@ public class SavepointHandlers {
                                                             + key);
                                     }
                                 } else {
-                                    maybeHandleUnknownOperation(throwable, key);
-                                    throw getInternalServerError(
-                                            throwable, key, "retrieving status of");
+                                    throw new CompletionException(
+                                            maybeCreateNotFoundError(throwable, key)
+                                                    .orElseGet(
+                                                            () ->
+                                                                    createInternalServerError(
+                                                                            throwable,
+                                                                            key,
+                                                                            "retrieving status of")));
                                 }
                             });
         }
 
-        private static void maybeHandleUnknownOperation(
+        private static Optional<RestHandlerException> maybeCreateNotFoundError(
                 Throwable throwable, AsynchronousJobOperationKey key) {
             if (ExceptionUtils.findThrowable(throwable, UnknownOperationKeyException.class)
                     .isPresent()) {
-                throw new CompletionException(
+                return Optional.of(
                         new RestHandlerException(
                                 String.format(
                                         "There is no savepoint operation with triggerId=%s for job %s.",
                                         key.getTriggerId(), key.getJobId()),
                                 HttpResponseStatus.NOT_FOUND));
             }
+            return Optional.empty();
         }
 
         protected AsynchronousJobOperationKey getOperationKey(
@@ -336,14 +343,13 @@ public class SavepointHandlers {
         }
     }
 
-    private static CompletionException getInternalServerError(
+    private static RestHandlerException createInternalServerError(
             Throwable throwable, AsynchronousJobOperationKey key, String errorMessageInfix) {
-        return new CompletionException(
-                new RestHandlerException(
-                        String.format(
-                                "Internal server error while %s savepoint operation with triggerId=%s for job %s.",
-                                errorMessageInfix, key.getTriggerId(), key.getJobId()),
-                        HttpResponseStatus.INTERNAL_SERVER_ERROR,
-                        throwable));
+        return new RestHandlerException(
+                String.format(
+                        "Internal server error while %s savepoint operation with triggerId=%s for job %s.",
+                        errorMessageInfix, key.getTriggerId(), key.getJobId()),
+                HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                throwable);
     }
 }
