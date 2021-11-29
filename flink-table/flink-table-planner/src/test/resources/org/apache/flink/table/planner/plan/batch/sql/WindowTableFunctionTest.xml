@@ -123,6 +123,40 @@ WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[15 min])])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProjectWTFTransposeRule">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  MAX(c)
+FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '3' SECOND))
+GROUP BY window_start, window_end, a
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$3])
++- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[MAX($3)])
+   +- LogicalProject(window_start=[$5], window_end=[$6], a=[$0], c=[$2])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[true], groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Final_MAX(max$0) AS EXPR$0])
+   +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
+      +- Exchange(distribution=[hash[window_start, window_end, a]])
+         +- LocalSortAggregate(groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Partial_MAX(c) AS max$0])
+            +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
+               +- Calc(select=[window_start, window_end, a, c])
+                  +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[3 s])])
+                     +- Calc(select=[a, c, ts])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testWindowAggregate">
     <Resource name="sql">
       <![CDATA[

@@ -195,4 +195,16 @@ class WindowTableFunctionTest extends TableTestBase {
       """.stripMargin
     util.verifyExecPlan(sql)
   }
+
+  @Test
+  def testProjectWTFTransposeRule(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  MAX(c)
+        |FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '3' SECOND))
+        |GROUP BY window_start, window_end, a
+        |""".stripMargin
+    util.verifyExecPlan(sql)
+  }
 }
