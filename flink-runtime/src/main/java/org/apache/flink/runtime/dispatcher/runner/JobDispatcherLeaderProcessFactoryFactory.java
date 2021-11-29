@@ -22,7 +22,7 @@ import org.apache.flink.runtime.dispatcher.JobDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.entrypoint.component.JobGraphRetriever;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
+import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkException;
@@ -42,7 +42,7 @@ public class JobDispatcherLeaderProcessFactoryFactory
 
     @Override
     public DispatcherLeaderProcessFactory createFactory(
-            JobGraphStoreFactory jobGraphStoreFactory,
+            JobPersistenceComponentFactory jobPersistenceComponentFactory,
             Executor ioExecutor,
             RpcService rpcService,
             PartialDispatcherServices partialDispatcherServices,

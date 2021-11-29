@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.jobmanager;
 
 /** Factory for {@link JobGraphStore}. */
-public interface JobGraphStoreFactory {
+public interface JobPersistenceComponentFactory {
 
     /**
      * Creates a {@link JobGraphStore}.
      *
      * @return a {@link JobGraphStore} instance
      */
-    JobGraphStore create();
+    JobGraphStore createJobGraphStore();
 }
