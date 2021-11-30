@@ -26,8 +26,11 @@ import java.util.List;
 /**
  * {@link Expression} parser used by Table API to parse strings in AST expression. This parses
  * exactly the same expressions that would be accepted by the Scala Expression DSL.
+ *
+ * @deprecated The Scala Expression DSL is deprecated
  */
 @Internal
+@Deprecated
 public interface ExpressionParser {
 
     /** Default instance of the {@link ExpressionParser}. */

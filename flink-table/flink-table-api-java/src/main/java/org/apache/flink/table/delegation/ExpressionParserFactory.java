@@ -22,8 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FactoryUtil;
 
-/** Factory for {@link ExpressionParser}. */
+/**
+ * Factory for {@link ExpressionParser}.
+ *
+ * @deprecated The Scala Expression DSL is deprecated
+ */
 @Internal
+@Deprecated
 public interface ExpressionParserFactory extends Factory {
 
     /** {@link #factoryIdentifier()} for the default {@link ExpressionParserFactory}. */
