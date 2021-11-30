@@ -483,7 +483,7 @@ public class ExampleIntegrationTest {
 class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter {
 
   val flinkCluster = new MiniClusterWithClientResource(new MiniClusterResourceConfiguration.Builder()
-    .setNumberSlotsPerTaskManager(1)
+    .setNumberSlotsPerTaskManager(2)
     .setNumberTaskManagers(1)
     .build)
 
@@ -507,7 +507,7 @@ class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndA
     CollectSink.values.clear()
 
     // create a stream of custom elements and apply transformations
-    env.fromElements(1, 21, 22)
+    env.fromElements(1L, 21L, 22L)
        .map(new IncrementMapFunction())
        .addSink(new CollectSink())
 
