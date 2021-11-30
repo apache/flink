@@ -45,7 +45,6 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
 
 import java.util
-import java.util.Set
 
 import scala.collection.JavaConversions._
 
