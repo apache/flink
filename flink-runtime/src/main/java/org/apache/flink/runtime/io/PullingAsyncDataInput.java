@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.io.network.api.EndOfData;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -62,17 +61,18 @@ public interface PullingAsyncDataInput<T> extends AvailabilityProvider {
     boolean isFinished();
 
     /**
-     * @return true if the input has seen all data. It might see only control events after that
-     *     point
-     */
-    boolean hasReceivedEndOfData();
-
-    /**
-     * Tells if we should drain all results in case we received {@link EndOfData} on all channels.
-     * If any of the upstream subtasks finished because of the stop-with-savepoint --no-drain, we
-     * should not drain the current task. See also {@code StopMode}.
+     * Tells if we consumed all available data.
      *
-     * <p>We should check the {@link #hasReceivedEndOfData()} first.
+     * <p>Moreover it tells us the reason why there is no more data incoming. If any of the upstream
+     * subtasks finished because of the stop-with-savepoint --no-drain, we should not drain the
+     * input. See also {@code StopMode}.
      */
-    boolean shouldDrainOnEndOfData();
+    EndOfDataStatus hasReceivedEndOfData();
+
+    /** Status for describing if we have reached the end of data. */
+    enum EndOfDataStatus {
+        NOT_END_OF_DATA,
+        DRAINED,
+        STOPPED
+    }
 }

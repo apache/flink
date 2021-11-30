@@ -168,13 +168,8 @@ public class AlignedCheckpointsMassiveRandomTest {
         }
 
         @Override
-        public boolean hasReceivedEndOfData() {
-            return false;
-        }
-
-        @Override
-        public boolean shouldDrainOnEndOfData() {
-            return false;
+        public EndOfDataStatus hasReceivedEndOfData() {
+            return EndOfDataStatus.NOT_END_OF_DATA;
         }
 
         @Override

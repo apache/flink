@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
@@ -733,7 +734,7 @@ public class SavepointITCase extends TestLogger {
     @Test
     public void testStopWithSavepointFailingAfterSnapshotCreation() throws Exception {
         // the trigger need to be reset in case the test is run multiple times
-        CancelFailingInfiniteTestSource.cancelTriggered = false;
+        CancelFailingInfiniteTestSource.checkpointCompleteTriggered = false;
         testStopWithFailingSourceInOnePipeline(
                 new CancelFailingInfiniteTestSource(),
                 folder.newFolder(),
@@ -1190,14 +1191,15 @@ public class SavepointITCase extends TestLogger {
      * An {@link InfiniteTestSource} implementation that fails when cancel is called for the first
      * time.
      */
-    private static class CancelFailingInfiniteTestSource extends InfiniteTestSource {
+    private static class CancelFailingInfiniteTestSource extends InfiniteTestSource
+            implements CheckpointListener {
 
-        private static volatile boolean cancelTriggered = false;
+        private static volatile boolean checkpointCompleteTriggered = false;
 
         @Override
-        public void cancel() {
-            if (!cancelTriggered) {
-                cancelTriggered = true;
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            if (!checkpointCompleteTriggered) {
+                checkpointCompleteTriggered = true;
                 throw new RuntimeException("Expected RuntimeException after snapshot creation.");
             }
             super.cancel();

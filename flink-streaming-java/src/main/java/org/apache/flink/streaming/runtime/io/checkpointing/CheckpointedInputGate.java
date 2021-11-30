@@ -223,13 +223,8 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
     }
 
     @Override
-    public boolean hasReceivedEndOfData() {
+    public EndOfDataStatus hasReceivedEndOfData() {
         return inputGate.hasReceivedEndOfData();
-    }
-
-    @Override
-    public boolean shouldDrainOnEndOfData() {
-        return inputGate.shouldDrainOnEndOfData();
     }
 
     /**

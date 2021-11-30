@@ -22,7 +22,6 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
-import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 
 import java.io.IOException;
@@ -98,17 +97,6 @@ public abstract class InputGate
     public abstract int getNumberOfInputChannels();
 
     public abstract boolean isFinished();
-
-    public abstract boolean hasReceivedEndOfData();
-
-    /**
-     * Tells if we should drain all results in case we received {@link EndOfData} on all channels.
-     * If any of the upstream subtasks finished because of the stop-with-savepoint --no-drain, we
-     * should not drain the current task. See also {@code StopMode}.
-     *
-     * <p>We should check the {@link #hasReceivedEndOfData()} first.
-     */
-    public abstract boolean shouldDrainOnEndOfData();
 
     /**
      * Blocking call waiting for next {@link BufferOrEvent}.

@@ -36,16 +36,16 @@ import java.util.Objects;
  */
 public class EndOfData extends RuntimeEvent {
 
-    private final boolean shouldDrain;
+    private final StopMode mode;
 
     // ------------------------------------------------------------------------
 
-    public EndOfData(boolean shouldDrain) {
-        this.shouldDrain = shouldDrain;
+    public EndOfData(StopMode mode) {
+        this.mode = mode;
     }
 
-    public boolean shouldDrain() {
-        return shouldDrain;
+    public StopMode getStopMode() {
+        return mode;
     }
 
     // ------------------------------------------------------------------------
@@ -77,16 +77,16 @@ public class EndOfData extends RuntimeEvent {
             return false;
         }
         EndOfData endOfData = (EndOfData) o;
-        return shouldDrain == endOfData.shouldDrain;
+        return mode == endOfData.mode;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(shouldDrain);
+        return Objects.hash(mode);
     }
 
     @Override
     public String toString() {
-        return "EndOfData{shouldDrain=" + shouldDrain + '}';
+        return "EndOfData{mode=" + mode + '}';
     }
 }
