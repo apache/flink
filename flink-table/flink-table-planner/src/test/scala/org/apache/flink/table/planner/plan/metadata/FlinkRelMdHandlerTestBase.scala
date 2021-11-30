@@ -40,7 +40,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, IntermediateRelTable}
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, IntermediateRelTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.Top3
@@ -170,6 +170,37 @@ class FlinkRelMdHandlerTestBase {
     createDataStreamScan(ImmutableList.of("emp"), batchPhysicalTraits)
   protected lazy val empStreamScan: StreamPhysicalDataStreamScan =
     createDataStreamScan(ImmutableList.of("emp"), streamPhysicalTraits)
+
+  protected lazy val tableSourceTableLogicalScan: LogicalTableScan =
+    createTableSourceTable(ImmutableList.of("TableSourceTable1"), logicalTraits)
+  protected lazy val tableSourceTableFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
+    createTableSourceTable(ImmutableList.of("TableSourceTable1"), flinkLogicalTraits)
+  protected lazy val tableSourceTableBatchScan: BatchPhysicalBoundedStreamScan =
+    createTableSourceTable(ImmutableList.of("TableSourceTable1"), batchPhysicalTraits)
+  protected lazy val tableSourceTableStreamScan: StreamPhysicalDataStreamScan =
+    createTableSourceTable(ImmutableList.of("TableSourceTable1"), streamPhysicalTraits)
+
+  protected lazy val tablePartiallyProjectedKeyLogicalScan: LogicalTableScan =
+    createTableSourceTable(ImmutableList.of("projected_table_source_table_with_partial_pk"),
+      logicalTraits)
+  protected lazy val tablePartiallyProjectedKeyFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
+    createTableSourceTable(ImmutableList.of("projected_table_source_table_with_partial_pk"),
+      flinkLogicalTraits)
+  protected lazy val tablePartiallyProjectedKeyBatchScan: BatchPhysicalBoundedStreamScan =
+    createTableSourceTable(ImmutableList.of("projected_table_source_table_with_partial_pk"),
+      batchPhysicalTraits)
+  protected lazy val tablePartiallyProjectedKeyStreamScan: StreamPhysicalDataStreamScan =
+    createTableSourceTable(ImmutableList.of("projected_table_source_table_with_partial_pk"),
+      streamPhysicalTraits)
+
+  protected lazy val tableSourceTableNonKeyLogicalScan: LogicalTableScan =
+    createTableSourceTable(ImmutableList.of("TableSourceTable3"), logicalTraits)
+  protected lazy val tableSourceTableNonKeyFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
+    createTableSourceTable(ImmutableList.of("TableSourceTable3"), flinkLogicalTraits)
+  protected lazy val tableSourceTableNonKeyBatchScan: BatchPhysicalBoundedStreamScan =
+    createTableSourceTable(ImmutableList.of("TableSourceTable3"), batchPhysicalTraits)
+  protected lazy val tableSourceTableNonKeyStreamScan: StreamPhysicalDataStreamScan =
+    createTableSourceTable(ImmutableList.of("TableSourceTable3"), streamPhysicalTraits)
 
   private lazy val valuesType = relBuilder.getTypeFactory
     .builder()
@@ -2727,6 +2758,51 @@ class FlinkRelMdHandlerTestBase {
     }
   }
 
+  // select * from TableSourceTable1
+  // left join TableSourceTable2 on TableSourceTable1.b = TableSourceTable2.b
+  protected lazy val logicalLeftJoinOnContainedUniqueKeys: RelNode = relBuilder
+    .scan("TableSourceTable1")
+    .scan("TableSourceTable2")
+    .join(
+      JoinRelType.LEFT,
+      relBuilder.call(
+        EQUALS,
+        relBuilder.field(2, 0, 1),
+        relBuilder.field(2, 1, 1)
+      )
+    )
+    .build
+
+  // select * from TableSourceTable1
+  // left join TableSourceTable2 on TableSourceTable1.a = TableSourceTable2.a
+  protected lazy val logicalLeftJoinOnDisjointUniqueKeys: RelNode = relBuilder
+    .scan("TableSourceTable1")
+    .scan("TableSourceTable2")
+    .join(
+      JoinRelType.LEFT,
+      relBuilder.call(
+        EQUALS,
+        relBuilder.field(2, 0, 0),
+        relBuilder.field(2, 1, 0)
+      )
+    )
+    .build
+
+  // select * from TableSourceTable1
+  // left join TableSourceTable3 on TableSourceTable1.a = TableSourceTable3.a
+  protected lazy val logicalLeftJoinWithNoneKeyTableUniqueKeys: RelNode = relBuilder
+    .scan("TableSourceTable1")
+    .scan("TableSourceTable3")
+    .join(
+      JoinRelType.LEFT,
+      relBuilder.call(
+        EQUALS,
+        relBuilder.field(2, 0, 0),
+        relBuilder.field(2, 1, 0)
+      )
+    )
+    .build
+
   protected def createDataStreamScan[T](
       tableNames: util.List[String], traitSet: RelTraitSet): T = {
     val table = relBuilder
@@ -2734,6 +2810,33 @@ class FlinkRelMdHandlerTestBase {
       .asInstanceOf[CalciteCatalogReader]
       .getTable(tableNames)
       .asInstanceOf[FlinkPreparingTableBase]
+    val conventionTrait = traitSet.getTrait(ConventionTraitDef.INSTANCE)
+    val scan = conventionTrait match {
+      case Convention.NONE =>
+        relBuilder.clear()
+        val scan = relBuilder.scan(tableNames).build()
+        scan.copy(traitSet, scan.getInputs)
+      case FlinkConventions.LOGICAL =>
+        new FlinkLogicalDataStreamTableScan(
+          cluster, traitSet, Collections.emptyList[RelHint](), table)
+      case FlinkConventions.BATCH_PHYSICAL =>
+        new BatchPhysicalBoundedStreamScan(
+          cluster, traitSet, Collections.emptyList[RelHint](), table, table.getRowType)
+      case FlinkConventions.STREAM_PHYSICAL =>
+        new StreamPhysicalDataStreamScan(
+          cluster, traitSet, Collections.emptyList[RelHint](), table, table.getRowType)
+      case _ => throw new TableException(s"Unsupported convention trait: $conventionTrait")
+    }
+    scan.asInstanceOf[T]
+  }
+
+  protected def createTableSourceTable[T](
+      tableNames: util.List[String], traitSet: RelTraitSet): T = {
+    val table = relBuilder
+      .getRelOptSchema
+      .asInstanceOf[CalciteCatalogReader]
+      .getTable(tableNames)
+      .asInstanceOf[TableSourceTable]
     val conventionTrait = traitSet.getTrait(ConventionTraitDef.INSTANCE)
     val scan = conventionTrait match {
       case Convention.NONE =>
