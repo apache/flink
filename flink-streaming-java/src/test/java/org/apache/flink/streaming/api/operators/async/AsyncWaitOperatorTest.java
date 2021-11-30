@@ -64,6 +64,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -1022,6 +1024,54 @@ public class AsyncWaitOperatorTest extends TestLogger {
                         .collect(Collectors.toList());
 
         assertThat(outputElements, Matchers.equalTo(expectedOutput));
+    }
+
+    @Test
+    public void testIgnoreAsyncOperatorRecordsOnDrain() throws Exception {
+        // given: Async wait operator which are able to collect result futures.
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        List<ResultFuture<?>> resultFutures = new ArrayList<>();
+        try (StreamTaskMailboxTestHarness<Integer> harness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        new CollectableFuturesAsyncFunction<>(resultFutures),
+                                        TIMEOUT,
+                                        5,
+                                        AsyncDataStream.OutputMode.ORDERED))
+                        .build()) {
+            // when: Processing at least two elements in reverse order to keep completed queue not
+            // empty.
+            harness.processElement(new StreamRecord<>(1));
+            harness.processElement(new StreamRecord<>(2));
+
+            for (ResultFuture<?> resultFuture : Lists.reverse(resultFutures)) {
+                resultFuture.complete(Collections.emptyList());
+            }
+
+            // then: All records from async operator should be ignored during drain since they will
+            // be processed on recovery.
+            harness.finishProcessing();
+            assertTrue(harness.getOutput().isEmpty());
+        }
+    }
+
+    private static class CollectableFuturesAsyncFunction<IN> implements AsyncFunction<IN, IN> {
+
+        private static final long serialVersionUID = -4214078239227288637L;
+
+        private static List<ResultFuture<?>> resultFutures;
+
+        private CollectableFuturesAsyncFunction(List<ResultFuture<?>> resultFutures) {
+            this.resultFutures = resultFutures;
+        }
+
+        @Override
+        public void asyncInvoke(IN input, ResultFuture<IN> resultFuture) throws Exception {
+            resultFutures.add(resultFuture);
+        }
     }
 
     private static class ControllableAsyncFunction<IN> implements AsyncFunction<IN, IN> {
