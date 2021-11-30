@@ -29,23 +29,22 @@ under the License.
 # Parquet format
 
 Flink supports reading [parquet](https://parquet.apache.org/) files and producing [Flink rows](https://nightlies.apache.org/flink/flink-docs-master/api/java/org/apache/flink/types/Row.html).
-To use that format you need to add the dependency below to your project:
+To use the format you need to add the Flink Parquet dependency to your project:
 
 ```xml
 {{< artifact flink-parquet >}}
 ```  
-
-The DataStream API is now compatible with both batch and streaming execution modes. 
-And this format is compatible with the new Source that can be used in both modes.
+ 
+This format is compatible with the new Source that can be used in both batch and streaming modes.
 Thus, you can use this format in two ways:
 - Bounded read for batch mode
 - Continuous read for streaming mode: monitors a directory for new files that appear 
 
 **Bounded read example**:
 
-In this example we create a DataStream containing parquet records as flink Rows. We project the schema to read only certain fields ("f7", "f4" and "f99").  
-We read records by batches of 500 records. The first boolean parameter specifies if timestamp columns need to be interpreted as UTC 
-and the second boolean tells the format if the projected parquet fields names are to be interpreted in a case sensitive way.
+In this example we create a DataStream containing Parquet records as Flink Rows. We project the schema to read only certain fields ("f7", "f4" and "f99").  
+We read records in batches of 500 records. The first boolean parameter specifies if timestamp columns need to be interpreted as UTC. 
+The second boolean instructs the application if the projected Parquet fields names are to be interpreted in a case sensitive way.
 There is no need for a watermark strategy as records do not contain event timestamps.
 
 ```java
@@ -70,11 +69,11 @@ final DataStream<RowData> stream =
 
 **Continuous read example**:
 
-In this example we create a DataStream containing parquet records as flink Rows that will infinitely grow
-as new files are added to the directory. We monitor for new files each second.
+In this example we create a DataStream containing parquet records as Flink Rows that will 
+infinitely grow as new files are added to the directory. We monitor for new files each second.
 We project the schema to read only certain fields ("f7", "f4" and "f99").  
-We read records by batches of 500 records. The first boolean parameter specifies if timestamp columns need to be interpreted as UTC
-and the second boolean tells the format if the projected parquet fields names are to be interpreted in a case sensitive way.
+We read records in batches of 500 records. The first boolean parameter specifies if timestamp columns need to be interpreted as UTC.
+The second boolean instructs the application if the projected Parquet fields names are to be interpreted in a case sensitive way.
 There is no need for a watermark strategy as records do not contain event timestamps.
 
 ```java
