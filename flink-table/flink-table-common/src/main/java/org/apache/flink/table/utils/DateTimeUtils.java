@@ -72,7 +72,7 @@ import static java.time.temporal.ChronoField.YEAR;
  *   <li>{@link TimeUnit} and {@link TimeUnitRange} enums
  * </ul>
  *
- * Currently, this class is a bit messy because it includes a mix of functionalities both from
+ * <p>Currently, this class is a bit messy because it includes a mix of functionalities both from
  * common and planner. We should strive to reduce the number of functionalities here, eventually
  * moving some methods closer to where they're needed. Connectors and formats should not use this
  * class, but rather if a functionality is necessary, it should be part of the public APIs of our
