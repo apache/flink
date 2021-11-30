@@ -140,7 +140,7 @@ public class OrcColumnarRowInputFormat<BatchT, SplitT extends FileSourceSplit>
                     List<OrcFilters.Predicate> conjunctPredicates,
                     int batchSize,
                     Function<RowType, TypeInformation<RowData>> rowTypeInfoFactory) {
-        // TODO all this partition keys code should be pruned from the orc format,
+        // TODO FLINK-25113 all this partition keys code should be pruned from the orc format,
         //  because now FileSystemTableSource uses FileInfoExtractorBulkFormat for reading partition
         //  keys.
 

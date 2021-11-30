@@ -151,7 +151,7 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
                     int batchSize,
                     boolean isUtcTimestamp,
                     boolean isCaseSensitive) {
-        // TODO all this partition keys code should be pruned from the parquet format,
+        // TODO FLINK-25113 all this partition keys code should be pruned from the parquet format,
         //  because now FileSystemTableSource uses FileInfoExtractorBulkFormat for reading partition
         //  keys.
 
