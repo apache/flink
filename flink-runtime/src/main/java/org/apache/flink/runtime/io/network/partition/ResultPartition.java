@@ -200,7 +200,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     // ------------------------------------------------------------------------
 
     @Override
-    public void notifyEndOfData() throws IOException {
+    public void notifyEndOfData(boolean shouldDrain) throws IOException {
         throw new UnsupportedOperationException();
     }
 

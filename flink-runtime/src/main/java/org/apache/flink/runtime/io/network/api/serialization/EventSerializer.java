@@ -94,7 +94,14 @@ public class EventSerializer {
         } else if (eventClass == EndOfChannelStateEvent.class) {
             return ByteBuffer.wrap(new byte[] {0, 0, 0, END_OF_CHANNEL_STATE_EVENT});
         } else if (eventClass == EndOfData.class) {
-            return ByteBuffer.wrap(new byte[] {0, 0, 0, END_OF_USER_RECORDS_EVENT});
+            return ByteBuffer.wrap(
+                    new byte[] {
+                        0,
+                        0,
+                        0,
+                        END_OF_USER_RECORDS_EVENT,
+                        ((EndOfData) event).shouldDrain() ? (byte) 1 : (byte) 0
+                    });
         } else if (eventClass == CancelCheckpointMarker.class) {
             CancelCheckpointMarker marker = (CancelCheckpointMarker) event;
 
@@ -157,7 +164,7 @@ public class EventSerializer {
             } else if (type == END_OF_CHANNEL_STATE_EVENT) {
                 return EndOfChannelStateEvent.INSTANCE;
             } else if (type == END_OF_USER_RECORDS_EVENT) {
-                return EndOfData.INSTANCE;
+                return new EndOfData(buffer.get() == 1);
             } else if (type == CANCEL_CHECKPOINT_MARKER_EVENT) {
                 long id = buffer.getLong();
                 return new CancelCheckpointMarker(id);

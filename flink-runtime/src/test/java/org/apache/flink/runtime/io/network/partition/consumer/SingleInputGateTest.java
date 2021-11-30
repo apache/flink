@@ -254,6 +254,52 @@ public class SingleInputGateTest extends InputGateTestBase {
         }
     }
 
+    @Test
+    public void testDrainFlagComputation() throws Exception {
+        // Setup
+        final SingleInputGate inputGate1 = createInputGate();
+        final SingleInputGate inputGate2 = createInputGate();
+
+        final TestInputChannel[] inputChannels1 =
+                new TestInputChannel[] {
+                    new TestInputChannel(inputGate1, 0), new TestInputChannel(inputGate1, 1)
+                };
+        inputGate1.setInputChannels(inputChannels1);
+        final TestInputChannel[] inputChannels2 =
+                new TestInputChannel[] {
+                    new TestInputChannel(inputGate2, 0), new TestInputChannel(inputGate2, 1)
+                };
+        inputGate2.setInputChannels(inputChannels2);
+
+        // Test
+        inputChannels1[1].readEndOfData(true);
+        inputChannels1[0].readEndOfData(false);
+
+        inputChannels2[1].readEndOfData(true);
+        inputChannels2[0].readEndOfData(true);
+
+        inputGate1.notifyChannelNonEmpty(inputChannels1[0]);
+        inputGate1.notifyChannelNonEmpty(inputChannels1[1]);
+        inputGate2.notifyChannelNonEmpty(inputChannels2[0]);
+        inputGate2.notifyChannelNonEmpty(inputChannels2[1]);
+
+        verifyBufferOrEvent(inputGate1, false, 0, true);
+        // we have received EndOfData on a single channel only
+        assertFalse(inputGate1.hasReceivedEndOfData());
+        verifyBufferOrEvent(inputGate1, false, 1, true);
+        assertTrue(inputGate1.hasReceivedEndOfData());
+        // one of the channels said we should not drain
+        assertFalse(inputGate1.shouldDrainOnEndOfData());
+
+        verifyBufferOrEvent(inputGate2, false, 0, true);
+        // we have received EndOfData on a single channel only
+        assertFalse(inputGate2.hasReceivedEndOfData());
+        verifyBufferOrEvent(inputGate2, false, 1, true);
+        assertTrue(inputGate2.hasReceivedEndOfData());
+        // both channels said we should drain
+        assertTrue(inputGate2.shouldDrainOnEndOfData());
+    }
+
     /**
      * Tests that the compressed buffer will be decompressed after calling {@link
      * SingleInputGate#getNext()}.

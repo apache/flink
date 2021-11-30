@@ -133,6 +133,49 @@ public class UnionInputGateTest extends InputGateTestBase {
     }
 
     @Test
+    public void testDrainFlagComputation() throws Exception {
+        // Setup
+        final SingleInputGate inputGate1 = createInputGate();
+        final SingleInputGate inputGate2 = createInputGate();
+
+        final TestInputChannel[] inputChannels1 =
+                new TestInputChannel[] {
+                    new TestInputChannel(inputGate1, 0), new TestInputChannel(inputGate1, 1)
+                };
+        inputGate1.setInputChannels(inputChannels1);
+        final TestInputChannel[] inputChannels2 =
+                new TestInputChannel[] {
+                    new TestInputChannel(inputGate2, 0), new TestInputChannel(inputGate2, 1)
+                };
+        inputGate2.setInputChannels(inputChannels2);
+
+        // Test
+        inputChannels1[1].readEndOfData(true);
+        inputChannels1[0].readEndOfData(false);
+
+        inputChannels2[1].readEndOfData(true);
+        inputChannels2[0].readEndOfData(true);
+
+        final UnionInputGate unionInputGate = new UnionInputGate(inputGate1, inputGate2);
+
+        inputGate1.notifyChannelNonEmpty(inputChannels1[0]);
+        inputGate1.notifyChannelNonEmpty(inputChannels1[1]);
+        inputGate2.notifyChannelNonEmpty(inputChannels2[0]);
+        inputGate2.notifyChannelNonEmpty(inputChannels2[1]);
+
+        verifyBufferOrEvent(unionInputGate, false, 0, true);
+        verifyBufferOrEvent(unionInputGate, false, 2, true);
+        // we have received EndOfData on a single input only
+        assertFalse(unionInputGate.hasReceivedEndOfData());
+
+        verifyBufferOrEvent(unionInputGate, false, 1, true);
+        verifyBufferOrEvent(unionInputGate, false, 3, true);
+        // both channels received EndOfData, one channel said we should not drain
+        assertTrue(unionInputGate.hasReceivedEndOfData());
+        assertFalse(unionInputGate.shouldDrainOnEndOfData());
+    }
+
+    @Test
     public void testIsAvailable() throws Exception {
         final SingleInputGate inputGate1 = createInputGate(1);
         TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);

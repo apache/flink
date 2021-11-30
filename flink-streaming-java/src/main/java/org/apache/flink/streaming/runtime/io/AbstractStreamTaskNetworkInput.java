@@ -152,7 +152,9 @@ public abstract class AbstractStreamTaskNetworkInput<
         final AbstractEvent event = bufferOrEvent.getEvent();
         if (event.getClass() == EndOfData.class) {
             if (checkpointedInputGate.hasReceivedEndOfData()) {
-                return DataInputStatus.END_OF_DATA;
+                return checkpointedInputGate.shouldDrainOnEndOfData()
+                        ? DataInputStatus.END_OF_DATA
+                        : DataInputStatus.STOPPED;
             }
         } else if (event.getClass() == EndOfPartitionEvent.class) {
             // release the record deserializer immediately,

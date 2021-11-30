@@ -69,8 +69,11 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
     /**
      * Notifies the downstream tasks that this {@code ResultPartitionWriter} have emitted all the
      * user records.
+     *
+     * @param shouldDrain tells if we should flush all records or not (it is false in case of
+     *     stop-with-savepoint (--no-drain))
      */
-    void notifyEndOfData() throws IOException;
+    void notifyEndOfData(boolean shouldDrain) throws IOException;
 
     /**
      * Gets the future indicating whether all the records has been processed by the downstream

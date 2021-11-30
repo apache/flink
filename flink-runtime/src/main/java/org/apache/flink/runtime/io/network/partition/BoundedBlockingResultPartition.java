@@ -66,9 +66,9 @@ public class BoundedBlockingResultPartition extends BufferWritingResultPartition
     }
 
     @Override
-    public void notifyEndOfData() throws IOException {
+    public void notifyEndOfData(boolean shouldDrain) throws IOException {
         if (!hasNotifiedEndOfUserRecords) {
-            broadcastEvent(EndOfData.INSTANCE, false);
+            broadcastEvent(new EndOfData(shouldDrain), false);
             hasNotifiedEndOfUserRecords = true;
         }
     }

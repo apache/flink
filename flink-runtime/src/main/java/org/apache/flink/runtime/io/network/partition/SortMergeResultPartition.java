@@ -398,10 +398,10 @@ public class SortMergeResultPartition extends ResultPartition {
     }
 
     @Override
-    public void notifyEndOfData() throws IOException {
+    public void notifyEndOfData(boolean shouldDrain) throws IOException {
         synchronized (lock) {
             if (!hasNotifiedEndOfUserRecords) {
-                broadcastEvent(EndOfData.INSTANCE, false);
+                broadcastEvent(new EndOfData(shouldDrain), false);
                 hasNotifiedEndOfUserRecords = true;
             }
         }

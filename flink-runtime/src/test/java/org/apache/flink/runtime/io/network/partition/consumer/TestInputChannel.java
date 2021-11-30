@@ -107,9 +107,13 @@ public class TestInputChannel extends InputChannel {
     }
 
     TestInputChannel readEndOfData() throws IOException {
+        return readEndOfData(true);
+    }
+
+    TestInputChannel readEndOfData(boolean shouldDrain) throws IOException {
         addBufferAndAvailability(
                 new BufferAndAvailability(
-                        EventSerializer.toBuffer(EndOfData.INSTANCE, false),
+                        EventSerializer.toBuffer(new EndOfData(shouldDrain), false),
                         Buffer.DataType.EVENT_BUFFER,
                         0,
                         sequenceNumber++));

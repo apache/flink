@@ -149,8 +149,8 @@ public class ConsumableNotifyingResultPartitionWriterDecorator {
         }
 
         @Override
-        public void notifyEndOfData() throws IOException {
-            partitionWriter.notifyEndOfData();
+        public void notifyEndOfData(boolean shouldDrain) throws IOException {
+            partitionWriter.notifyEndOfData(shouldDrain);
         }
 
         @Override
