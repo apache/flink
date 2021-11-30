@@ -548,9 +548,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
             }
         }
 
-        if (optionsFactory instanceof DefaultOperatorStateBackendBuilder) {
+        if (optionsFactory instanceof DefaultConfigurableOptionsFactory) {
             LOG.warn(
-                    "{} is extending from {}, which is deprecated and will be removed in "
+                    "{} is extending from {}, which is deprecated and will be removed in the "
                             + "future. It is highly recommended to directly implement the "
                             + "ConfigurableRocksDBOptionsFactory without extending the {}. "
                             + "For more information, please refer to FLINK-24046.",

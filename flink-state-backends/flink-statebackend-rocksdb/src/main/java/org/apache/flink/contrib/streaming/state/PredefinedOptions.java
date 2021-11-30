@@ -43,7 +43,7 @@ import java.util.Map;
  *
  * <p>The {@code PredefinedOptions} are designed to cope with different situations. If some
  * configurations should be enabled unconditionally, they are not included in any of the pre-defined
- * options. Please check {@link RocksDBResourceContainer#createDBOptions()} and {@link
+ * options. Please check {@link RocksDBResourceContainer#createBaseCommonDBOptions()} and {@link
  * RocksDBResourceContainer#createBaseCommonColumnOptions()} for common settings.
  */
 public enum PredefinedOptions {
@@ -86,7 +86,7 @@ public enum PredefinedOptions {
      */
     SPINNING_DISK_OPTIMIZED(
             new HashMap<ConfigOption<?>, Object>() {
-                private static final long serialVersionUID = 462493450763181265L;
+                private static final long serialVersionUID = 1L;
 
                 {
                     put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
@@ -126,7 +126,7 @@ public enum PredefinedOptions {
      */
     SPINNING_DISK_OPTIMIZED_HIGH_MEM(
             new HashMap<ConfigOption<?>, Object>() {
-                private static final long serialVersionUID = 462493450763181265L;
+                private static final long serialVersionUID = 1L;
 
                 {
                     put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
@@ -167,7 +167,7 @@ public enum PredefinedOptions {
      */
     FLASH_SSD_OPTIMIZED(
             new HashMap<ConfigOption<?>, Object>() {
-                private static final long serialVersionUID = 462493450763181265L;
+                private static final long serialVersionUID = 1L;
 
                 {
                     put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
