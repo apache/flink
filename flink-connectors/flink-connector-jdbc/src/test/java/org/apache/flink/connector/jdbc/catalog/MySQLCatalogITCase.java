@@ -333,9 +333,6 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
                                                 TEST_TABLE_SINK_FROM_GROUPED_BY))
                                 .execute()
                                 .collect());
-        assertEquals(
-                Lists.newArrayList(
-                        Row.ofKind(RowKind.INSERT, 1L, -1L), Row.ofKind(RowKind.INSERT, 2L, -1L)),
-                results);
+        assertEquals(Lists.newArrayList(Row.ofKind(RowKind.INSERT, 2L, -1L)), results);
     }
 }
