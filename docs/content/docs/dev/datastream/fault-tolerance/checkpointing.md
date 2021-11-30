@@ -146,14 +146,14 @@ env.getCheckpointConfig.setMinPauseBetweenCheckpoints(500)
 env.getCheckpointConfig.setCheckpointTimeout(60000)
 
 // only two consecutive checkpoint failures are tolerated
-env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2)
+env.getCheckpointConfig.setTolerableCheckpointFailureNumber(2)
 
 // allow only one checkpoint to be in progress at the same time
 env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 // enable externalized checkpoints which are retained 
 // after job cancellation
-env.getCheckpointConfig().enableExternalizedCheckpoints(
+env.getCheckpointConfig.enableExternalizedCheckpoints(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
 // enables the unaligned checkpoints
