@@ -19,16 +19,14 @@ package org.apache.flink.streaming.connectors.kinesis.config;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
-
 /** Configuration keys for AWS service usage. */
 @PublicEvolving
-public class AWSConfigConstants {
-
+public class AWSConfigConstants extends org.apache.flink.connector.aws.config.AWSConfigConstants {
     /**
      * Possible configuration values for the type of credential provider to use when accessing AWS
-     * Kinesis. Internally, a corresponding implementation of {@link AWSCredentialsProvider} will be
-     * used.
+     * Kinesis. Internally, a corresponding implementation of {@link AwsCredentialsProvider} will be
+     * used. Copy of org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider
+     * left for backwards compatibility
      */
     public enum CredentialProvider {
 
@@ -70,95 +68,5 @@ public class AWSConfigConstants {
          * ENV_VARS, SYS_PROPS, WEB_IDENTITY_TOKEN, PROFILE in the AWS instance metadata. *
          */
         AUTO,
-    }
-
-    /** The AWS region of the Kinesis streams to be pulled ("us-east-1" is used if not set). */
-    public static final String AWS_REGION = "aws.region";
-
-    /**
-     * The credential provider type to use when AWS credentials are required (BASIC is used if not
-     * set).
-     */
-    public static final String AWS_CREDENTIALS_PROVIDER = "aws.credentials.provider";
-
-    /** The AWS access key ID to use when setting credentials provider type to BASIC. */
-    public static final String AWS_ACCESS_KEY_ID = accessKeyId(AWS_CREDENTIALS_PROVIDER);
-
-    /** The AWS secret key to use when setting credentials provider type to BASIC. */
-    public static final String AWS_SECRET_ACCESS_KEY = secretKey(AWS_CREDENTIALS_PROVIDER);
-
-    /** Optional configuration for profile path if credential provider type is set to be PROFILE. */
-    public static final String AWS_PROFILE_PATH = profilePath(AWS_CREDENTIALS_PROVIDER);
-
-    /** Optional configuration for profile name if credential provider type is set to be PROFILE. */
-    public static final String AWS_PROFILE_NAME = profileName(AWS_CREDENTIALS_PROVIDER);
-
-    /**
-     * The role ARN to use when credential provider type is set to ASSUME_ROLE or
-     * WEB_IDENTITY_TOKEN.
-     */
-    public static final String AWS_ROLE_ARN = roleArn(AWS_CREDENTIALS_PROVIDER);
-
-    /**
-     * The role session name to use when credential provider type is set to ASSUME_ROLE or
-     * WEB_IDENTITY_TOKEN.
-     */
-    public static final String AWS_ROLE_SESSION_NAME = roleSessionName(AWS_CREDENTIALS_PROVIDER);
-
-    /** The external ID to use when credential provider type is set to ASSUME_ROLE. */
-    public static final String AWS_ROLE_EXTERNAL_ID = externalId(AWS_CREDENTIALS_PROVIDER);
-
-    /**
-     * The absolute path to the web identity token file that should be used if provider type is set
-     * to WEB_IDENTITY_TOKEN.
-     */
-    public static final String AWS_WEB_IDENTITY_TOKEN_FILE =
-            webIdentityTokenFile(AWS_CREDENTIALS_PROVIDER);
-
-    /**
-     * The credentials provider that provides credentials for assuming the role when credential
-     * provider type is set to ASSUME_ROLE. Roles can be nested, so AWS_ROLE_CREDENTIALS_PROVIDER
-     * can again be set to "ASSUME_ROLE"
-     */
-    public static final String AWS_ROLE_CREDENTIALS_PROVIDER =
-            roleCredentialsProvider(AWS_CREDENTIALS_PROVIDER);
-
-    /** The AWS endpoint for Kinesis (derived from the AWS region setting if not set). */
-    public static final String AWS_ENDPOINT = "aws.endpoint";
-
-    public static String accessKeyId(String prefix) {
-        return prefix + ".basic.accesskeyid";
-    }
-
-    public static String secretKey(String prefix) {
-        return prefix + ".basic.secretkey";
-    }
-
-    public static String profilePath(String prefix) {
-        return prefix + ".profile.path";
-    }
-
-    public static String profileName(String prefix) {
-        return prefix + ".profile.name";
-    }
-
-    public static String roleArn(String prefix) {
-        return prefix + ".role.arn";
-    }
-
-    public static String roleSessionName(String prefix) {
-        return prefix + ".role.sessionName";
-    }
-
-    public static String externalId(String prefix) {
-        return prefix + ".role.externalId";
-    }
-
-    public static String roleCredentialsProvider(String prefix) {
-        return prefix + ".role.provider";
-    }
-
-    public static String webIdentityTokenFile(String prefix) {
-        return prefix + ".webIdentityToken.file";
     }
 }
