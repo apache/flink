@@ -18,10 +18,18 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.util.Preconditions;
 
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -31,8 +39,7 @@ import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Tests for configuring {@link CheckpointConfig} via {@link
@@ -42,7 +49,7 @@ import static org.junit.Assert.assertThat;
 public class CheckpointConfigFromConfigurationTest {
 
     @Parameterized.Parameters(name = "{0}")
-    public static Collection<TestSpec> specs() {
+    public static Collection<TestSpec<?>> specs() {
         return Arrays.asList(
                 TestSpec.testValue(CheckpointingMode.AT_LEAST_ONCE)
                         .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
@@ -90,10 +97,82 @@ public class CheckpointConfigFromConfigurationTest {
                         .whenSetFromFile("execution.checkpointing.unaligned", "true")
                         .viaSetter(CheckpointConfig::enableUnalignedCheckpoints)
                         .getterVia(CheckpointConfig::isUnalignedCheckpointsEnabled)
-                        .nonDefaultValue(true));
+                        .nonDefaultValue(true),
+                TestSpec.testValue(
+                                (CheckpointStorage)
+                                        new FileSystemCheckpointStorage(
+                                                "file:///path/to/checkpoint/dir"))
+                        .whenSetFromFile(
+                                CheckpointingOptions.CHECKPOINTS_DIRECTORY.key(),
+                                "file:///path/to/checkpoint/dir")
+                        .viaSetter(CheckpointConfig::setCheckpointStorage)
+                        .getterVia(CheckpointConfig::getCheckpointStorage)
+                        .nonDefaultValue(
+                                new FileSystemCheckpointStorage("file:///path/to/checkpoint/dir"))
+                        .customMatcher(FileSystemCheckpointStorageMatcher::new));
     }
 
-    @Parameterized.Parameter public TestSpec spec;
+    /**
+     * {@code FileSystemCheckpointStorageMatcher} verifies that the set {@link CheckpointStorage} is
+     * of type {@link FileSystemCheckpointStorage} pointing to the same filesystem path.
+     */
+    private static class FileSystemCheckpointStorageMatcher
+            extends TypeSafeMatcher<CheckpointStorage> {
+        private static final Class<FileSystemCheckpointStorage> EXPECTED_CHECKPOINT_STORAGE_CLASS =
+                FileSystemCheckpointStorage.class;
+        private final FileSystemCheckpointStorage fileSystemCheckpointStorageFromSetter;
+
+        public FileSystemCheckpointStorageMatcher(CheckpointStorage checkpointStorageFromSetter) {
+            Preconditions.checkArgument(
+                    checkpointStorageFromSetter
+                            .getClass()
+                            .equals(EXPECTED_CHECKPOINT_STORAGE_CLASS));
+            this.fileSystemCheckpointStorageFromSetter =
+                    (FileSystemCheckpointStorage) checkpointStorageFromSetter;
+        }
+
+        @Override
+        public void describeTo(Description description) {
+            describeObject(fileSystemCheckpointStorageFromSetter, description);
+        }
+
+        @Override
+        protected void describeMismatchSafely(
+                CheckpointStorage checkpointStorageFromFile, Description description) {
+            if (!checkpointStorageFromFile.getClass().equals(EXPECTED_CHECKPOINT_STORAGE_CLASS)) {
+                description.appendText(
+                        "Passed object is not of type "
+                                + EXPECTED_CHECKPOINT_STORAGE_CLASS.getCanonicalName());
+            } else {
+                describeObject(
+                        (FileSystemCheckpointStorage) checkpointStorageFromFile, description);
+            }
+            super.describeMismatchSafely(checkpointStorageFromFile, description);
+        }
+
+        private static void describeObject(
+                FileSystemCheckpointStorage fileSystemCheckpointStorage, Description description) {
+            description
+                    .appendText(EXPECTED_CHECKPOINT_STORAGE_CLASS.getCanonicalName())
+                    .appendText("(")
+                    .appendText(fileSystemCheckpointStorage.getCheckpointPath().toString())
+                    .appendText(")");
+        }
+
+        @Override
+        protected boolean matchesSafely(CheckpointStorage checkpointStorageFromFile) {
+            if (!checkpointStorageFromFile.getClass().equals(EXPECTED_CHECKPOINT_STORAGE_CLASS)) {
+                return false;
+            }
+            final FileSystemCheckpointStorage fileSystemCheckpointStorageFromFile =
+                    (FileSystemCheckpointStorage) checkpointStorageFromFile;
+            return fileSystemCheckpointStorageFromFile
+                    .getCheckpointPath()
+                    .equals(fileSystemCheckpointStorageFromSetter.getCheckpointPath());
+        }
+    }
+
+    @Parameterized.Parameter public TestSpec<?> spec;
 
     @Test
     public void testLoadingFromConfiguration() {
@@ -127,6 +206,8 @@ public class CheckpointConfigFromConfigurationTest {
         private BiConsumer<CheckpointConfig, T> setter;
         private Function<CheckpointConfig, T> getter;
 
+        private Function<T, Matcher<T>> createMatcher = CoreMatchers::equalTo;
+
         private TestSpec(T value) {
             this.objectValue = value;
         }
@@ -156,6 +237,11 @@ public class CheckpointConfigFromConfigurationTest {
             return this;
         }
 
+        public TestSpec<T> customMatcher(Function<T, Matcher<T>> customMatcher) {
+            this.createMatcher = customMatcher;
+            return this;
+        }
+
         public void setValue(CheckpointConfig config) {
             setter.accept(config, objectValue);
         }
@@ -166,11 +252,13 @@ public class CheckpointConfigFromConfigurationTest {
 
         public void assertEqual(
                 CheckpointConfig configFromFile, CheckpointConfig configFromSetters) {
-            assertThat(getter.apply(configFromFile), equalTo(getter.apply(configFromSetters)));
+            assertThat(
+                    getter.apply(configFromFile),
+                    createMatcher.apply(getter.apply(configFromSetters)));
         }
 
         public void assertEqualNonDefault(CheckpointConfig configFromFile) {
-            assertThat(getter.apply(configFromFile), equalTo(nonDefaultValue));
+            assertThat(getter.apply(configFromFile), createMatcher.apply(nonDefaultValue));
         }
 
         @Override
