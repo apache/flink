@@ -205,7 +205,6 @@ under the License.
 		<dependency>
 			<groupId>org.assertj</groupId>
 			<artifactId>assertj-core</artifactId>
-			<version>${assertj.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -593,6 +592,13 @@ under the License.
 				<groupId>junit</groupId>
 				<artifactId>junit</artifactId>
 				<version>${junit4.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.assertj</groupId>
+				<artifactId>assertj-core</artifactId>
+				<version>${assertj.version}</version>
+				<scope>test</scope>
 			</dependency>
 
 			<!-- Make sure we use a consistent commons-cli version throughout the project -->
