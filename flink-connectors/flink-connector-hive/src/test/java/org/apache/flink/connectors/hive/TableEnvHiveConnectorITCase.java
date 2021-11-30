@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.IOUtils;
@@ -598,6 +599,36 @@ public class TableEnvHiveConnectorITCase {
             assertEquals("[+I[hehuiyuan, null, null]]", results.toString());
         } finally {
             tableEnv.executeSql("drop table if exists src_t");
+        }
+    }
+
+    @Test
+    public void testCodeGenFunctionArgumentType() throws Exception {
+        TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+        tableEnv.loadModule("hive", new HiveModule());
+        tableEnv.useModules("hive", "core");
+
+        tableEnv.executeSql("create database db1");
+        try {
+            tableEnv.useDatabase("db1");
+            tableEnv.executeSql("create table src1(key string, val string)");
+            HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "src1")
+                    .addRow(new Object[] {"1", "val1"})
+                    .addRow(new Object[] {"2", "val2"})
+                    .addRow(new Object[] {"3", "val3"})
+                    .commit();
+
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select t.key, count(case when t.num=1 then 1 else null end) from "
+                                                    + "(select key,count(case when key='1' then 1 else null end) as num from src1 group by key,val) t "
+                                                    + "group by t.key")
+                                    .collect());
+            assertEquals("[+I[1, 1], +I[2, 0], +I[3, 0]]", results.toString());
+        } finally {
+            tableEnv.useDatabase("default");
+            tableEnv.executeSql("drop database db1 cascade");
         }
     }
 
