@@ -42,6 +42,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.MultipleRecordWriters;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -277,8 +278,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     // ========================================================
     //  Final  checkpoint / savepoint
     // ========================================================
-    private Long syncSavepointWithoutDrain = null;
-    private Long syncSavepointWithDrain = null;
+    private Long syncSavepoint = null;
     private Long finalCheckpointMinId = null;
     private final CompletableFuture<Void> finalCheckpointCompleted = new CompletableFuture<>();
 
@@ -526,9 +526,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             case END_OF_RECOVERY:
                 throw new IllegalStateException("We should not receive this event here.");
             case STOPPED:
-                throw new UnsupportedOperationException("Not supported yet");
+                endData(StopMode.NO_DRAIN);
+                return;
             case END_OF_DATA:
-                endData();
+                endData(StopMode.DRAIN);
                 return;
             case END_OF_INPUT:
                 // Suspend the mailbox processor, it would be resumed in afterInvoke and finished
@@ -560,71 +561,40 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                         new ResumeWrapper(controller.suspendDefaultAction(timer), timer)));
     }
 
-    protected void endData() throws Exception {
+    protected void endData(StopMode mode) throws Exception {
 
-        if (syncSavepointWithoutDrain != null && areCheckpointsWithFinishedTasksEnabled()) {
-            throw new FlinkRuntimeException(
-                    "We run out of data to process while waiting for a synchronous savepoint"
-                            + " to be finished. This can lead to a deadlock waiting for a final"
-                            + " checkpoint after a synchronous savepoint, which will never be"
-                            + " triggered.");
+        if (mode == StopMode.DRAIN) {
+            advanceToEndOfEventTime();
         }
-
-        advanceToEndOfEventTime();
         // finish all operators in a chain effect way
-        operatorChain.finishOperators(actionExecutor);
+        operatorChain.finishOperators(actionExecutor, mode);
         this.finishedOperators = true;
 
         for (ResultPartitionWriter partitionWriter : getEnvironment().getAllWriters()) {
-            partitionWriter.notifyEndOfData(true);
+            partitionWriter.notifyEndOfData(mode);
         }
 
         this.endOfDataReceived = true;
     }
 
-    protected void setSynchronousSavepoint(long checkpointId, boolean isDrain) {
+    protected void setSynchronousSavepoint(long checkpointId) {
         checkState(
-                syncSavepointWithoutDrain == null
-                        && (syncSavepointWithDrain == null
-                                || (isDrain && syncSavepointWithDrain == checkpointId)),
+                syncSavepoint == null || syncSavepoint == checkpointId,
                 "at most one stop-with-savepoint checkpoint at a time is allowed");
-        if (isDrain) {
-            if (syncSavepointWithDrain == null) {
-                syncSavepointWithDrain = checkpointId;
-            }
-        } else {
-            syncSavepointWithoutDrain = checkpointId;
-        }
+        syncSavepoint = checkpointId;
     }
 
     @VisibleForTesting
     OptionalLong getSynchronousSavepointId() {
-        if (syncSavepointWithoutDrain != null) {
-            return OptionalLong.of(syncSavepointWithoutDrain);
-        } else if (syncSavepointWithDrain != null) {
-            return OptionalLong.of(syncSavepointWithDrain);
+        if (syncSavepoint != null) {
+            return OptionalLong.of(syncSavepoint);
         } else {
             return OptionalLong.empty();
         }
     }
 
-    private boolean isCurrentSavepointWithDrain(long checkpointId) {
-        return syncSavepointWithDrain != null && syncSavepointWithDrain == checkpointId;
-    }
-
-    private boolean isCurrentSavepointWithoutDrain(long checkpointId) {
-        return syncSavepointWithoutDrain != null && syncSavepointWithoutDrain == checkpointId;
-    }
-
-    private void runSynchronousSavepointMailboxLoop() throws Exception {
-        assert syncSavepointWithoutDrain != null;
-
-        MailboxExecutor mailboxExecutor =
-                mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY);
-
-        while (!canceled && syncSavepointWithoutDrain != null) {
-            mailboxExecutor.yield();
-        }
+    private boolean isCurrentSyncSavepoint(long checkpointId) {
+        return syncSavepoint != null && syncSavepoint == checkpointId;
     }
 
     /**
@@ -856,7 +826,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             terminationConditions.add(finalCheckpointCompleted);
         }
 
-        if (syncSavepointWithDrain != null) {
+        if (syncSavepoint != null) {
             terminationConditions.add(finalCheckpointCompleted);
         }
 
@@ -1228,11 +1198,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         try {
-            if (performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics)) {
-                if (isCurrentSavepointWithoutDrain(checkpointMetaData.getCheckpointId())) {
-                    runSynchronousSavepointMailboxLoop();
-                }
-            }
+            performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics);
         } catch (CancelTaskException e) {
             LOG.info(
                     "Operator {} was cancelled while performing checkpoint {}.",
@@ -1255,10 +1221,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     @Override
     public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause)
             throws IOException {
-        if (isCurrentSavepointWithoutDrain(checkpointId)) {
-            syncSavepointWithoutDrain = null;
-        } else if (isCurrentSavepointWithDrain(checkpointId)) {
-            throw new FlinkRuntimeException("Stop-with-savepoint --drain failed.");
+        if (isCurrentSyncSavepoint(checkpointId)) {
+            throw new FlinkRuntimeException("Stop-with-savepoint failed.");
         }
         subtaskCheckpointCoordinator.abortCheckpointOnBarrier(checkpointId, cause, operatorChain);
     }
@@ -1276,21 +1240,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 checkpointType,
                 getName());
 
-        if (checkpointType.isSynchronous()
-                && !checkpointType.shouldDrain()
-                && endOfDataReceived
-                && areCheckpointsWithFinishedTasksEnabled()) {
-            LOG.debug("Can not trigger a stop-with-savepoint w/o drain if a task is finishing.");
-            return false;
-        }
-
         if (isRunning) {
             actionExecutor.runThrowing(
                     () -> {
                         if (checkpointType.isSynchronous()) {
-                            setSynchronousSavepoint(
-                                    checkpointMetaData.getCheckpointId(),
-                                    checkpointType.shouldDrain());
+                            setSynchronousSavepoint(checkpointMetaData.getCheckpointId());
                         }
 
                         if (areCheckpointsWithFinishedTasksEnabled()
@@ -1357,10 +1311,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                         notifyCheckpointComplete(latestCompletedCheckpointId);
                     }
 
-                    if (isCurrentSavepointWithoutDrain(checkpointId)) {
-                        syncSavepointWithoutDrain = null;
-                    } else if (isCurrentSavepointWithDrain(checkpointId)) {
-                        throw new FlinkRuntimeException("Stop-with-savepoint --drain failed.");
+                    if (isCurrentSyncSavepoint(checkpointId)) {
+                        throw new FlinkRuntimeException("Stop-with-savepoint failed.");
                     }
                     subtaskCheckpointCoordinator.notifyCheckpointAborted(
                             checkpointId, operatorChain, this::isRunning);
@@ -1399,13 +1351,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         subtaskCheckpointCoordinator.notifyCheckpointComplete(
                 checkpointId, operatorChain, this::isRunning);
         if (isRunning) {
-            if (isCurrentSavepointWithoutDrain(checkpointId)) {
-                finishTask();
-                // Reset to "notify" the internal synchronous savepoint mailbox loop.
-                syncSavepointWithoutDrain = null;
-            } else if (isCurrentSavepointWithDrain(checkpointId)) {
+            if (isCurrentSyncSavepoint(checkpointId)) {
                 finalCheckpointCompleted.complete(null);
-            } else if (syncSavepointWithDrain == null
+            } else if (syncSavepoint == null
                     && finalCheckpointMinId != null
                     && checkpointId >= finalCheckpointMinId) {
                 finalCheckpointCompleted.complete(null);

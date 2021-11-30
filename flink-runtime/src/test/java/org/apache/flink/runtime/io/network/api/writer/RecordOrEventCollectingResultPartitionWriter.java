@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.api.writer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
@@ -89,9 +90,9 @@ public class RecordOrEventCollectingResultPartitionWriter<T>
     }
 
     @Override
-    public void notifyEndOfData(boolean shouldDrain) throws IOException {
+    public void notifyEndOfData(StopMode mode) throws IOException {
         if (collectNetworkEvents) {
-            broadcastEvent(new EndOfData(shouldDrain), false);
+            broadcastEvent(new EndOfData(mode), false);
         }
     }
 }

@@ -96,13 +96,8 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
-    public boolean hasReceivedEndOfData() {
+    public EndOfDataStatus hasReceivedEndOfData() {
         return inputGate.hasReceivedEndOfData();
-    }
-
-    @Override
-    public boolean shouldDrainOnEndOfData() {
-        return inputGate.shouldDrainOnEndOfData();
     }
 
     @Override

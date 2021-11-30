@@ -181,13 +181,14 @@ public class UnionInputGate extends InputGate {
     }
 
     @Override
-    public boolean hasReceivedEndOfData() {
-        return inputGatesWithRemainingUserData.isEmpty();
-    }
-
-    @Override
-    public boolean shouldDrainOnEndOfData() {
-        return shouldDrainOnEndOfData;
+    public EndOfDataStatus hasReceivedEndOfData() {
+        if (!inputGatesWithRemainingUserData.isEmpty()) {
+            return EndOfDataStatus.NOT_END_OF_DATA;
+        } else if (shouldDrainOnEndOfData) {
+            return EndOfDataStatus.DRAINED;
+        } else {
+            return EndOfDataStatus.STOPPED;
+        }
     }
 
     @Override
@@ -293,9 +294,9 @@ public class UnionInputGate extends InputGate {
     private void handleEndOfUserDataEvent(BufferOrEvent bufferOrEvent, InputGate inputGate) {
         if (bufferOrEvent.isEvent()
                 && bufferOrEvent.getEvent().getClass() == EndOfData.class
-                && inputGate.hasReceivedEndOfData()) {
+                && inputGate.hasReceivedEndOfData() != EndOfDataStatus.NOT_END_OF_DATA) {
 
-            shouldDrainOnEndOfData &= inputGate.shouldDrainOnEndOfData();
+            shouldDrainOnEndOfData &= inputGate.hasReceivedEndOfData() == EndOfDataStatus.DRAINED;
             if (!inputGatesWithRemainingUserData.remove(inputGate)) {
                 throw new IllegalStateException(
                         "Couldn't find input gate in set of remaining input gates.");

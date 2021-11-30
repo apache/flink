@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.io.PullingAsyncDataInput;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -114,12 +116,14 @@ public class UnionInputGateTest extends InputGateTestBase {
         verifyBufferOrEvent(union, false, 0, true); // gate 1, channel 0
         verifyBufferOrEvent(union, false, 4, true); // gate 1, channel 1
         verifyBufferOrEvent(union, false, 1, true); // gate 1, channel 1
-        assertFalse(union.hasReceivedEndOfData());
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA,
+                union.hasReceivedEndOfData());
         verifyBufferOrEvent(union, false, 5, true); // gate 2, channel 2
         verifyBufferOrEvent(union, false, 2, true); // gate 1, channel 2
         verifyBufferOrEvent(union, false, 6, true); // gate 2, channel 3
         verifyBufferOrEvent(union, false, 7, true); // gate 2, channel 4
-        assertTrue(union.hasReceivedEndOfData());
+        assertEquals(PullingAsyncDataInput.EndOfDataStatus.DRAINED, union.hasReceivedEndOfData());
         assertFalse(union.isFinished());
         verifyBufferOrEvent(union, false, 3, true); // gate 2, channel 0
         verifyBufferOrEvent(union, false, 4, true); // gate 2, channel 1
@@ -150,11 +154,11 @@ public class UnionInputGateTest extends InputGateTestBase {
         inputGate2.setInputChannels(inputChannels2);
 
         // Test
-        inputChannels1[1].readEndOfData(true);
-        inputChannels1[0].readEndOfData(false);
+        inputChannels1[1].readEndOfData(StopMode.DRAIN);
+        inputChannels1[0].readEndOfData(StopMode.NO_DRAIN);
 
-        inputChannels2[1].readEndOfData(true);
-        inputChannels2[0].readEndOfData(true);
+        inputChannels2[1].readEndOfData(StopMode.DRAIN);
+        inputChannels2[0].readEndOfData(StopMode.DRAIN);
 
         final UnionInputGate unionInputGate = new UnionInputGate(inputGate1, inputGate2);
 
@@ -166,13 +170,16 @@ public class UnionInputGateTest extends InputGateTestBase {
         verifyBufferOrEvent(unionInputGate, false, 0, true);
         verifyBufferOrEvent(unionInputGate, false, 2, true);
         // we have received EndOfData on a single input only
-        assertFalse(unionInputGate.hasReceivedEndOfData());
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA,
+                unionInputGate.hasReceivedEndOfData());
 
         verifyBufferOrEvent(unionInputGate, false, 1, true);
         verifyBufferOrEvent(unionInputGate, false, 3, true);
         // both channels received EndOfData, one channel said we should not drain
-        assertTrue(unionInputGate.hasReceivedEndOfData());
-        assertFalse(unionInputGate.shouldDrainOnEndOfData());
+        assertEquals(
+                PullingAsyncDataInput.EndOfDataStatus.STOPPED,
+                unionInputGate.hasReceivedEndOfData());
     }
 
     @Test
