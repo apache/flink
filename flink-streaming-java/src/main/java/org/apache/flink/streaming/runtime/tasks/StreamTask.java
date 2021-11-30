@@ -609,17 +609,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      */
     protected void advanceToEndOfEventTime() throws Exception {}
 
-    /**
-     * Instructs the task to go through its normal termination routine, i.e. exit the run-loop and
-     * call {@link StreamOperator#finish()} and {@link StreamOperator#close()} on its operators.
-     *
-     * <p>This is used by the source task to get out of the run-loop when the job is stopped with a
-     * savepoint.
-     *
-     * <p>For tasks other than the source task, this method does nothing.
-     */
-    protected void finishTask() throws Exception {}
-
     // ------------------------------------------------------------------------
     //  Core work methods of the Stream Task
     // ------------------------------------------------------------------------

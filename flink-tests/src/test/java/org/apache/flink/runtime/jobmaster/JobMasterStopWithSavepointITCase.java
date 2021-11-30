@@ -338,11 +338,6 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
                 long checkpointId, long latestCompletedCheckpointId) {
             return CompletableFuture.completedFuture(null);
         }
-
-        @Override
-        protected void finishTask() {
-            mailboxProcessor.allActionsCompleted();
-        }
     }
 
     /** A {@link StreamTask} that simply waits to be terminated normally. */
@@ -362,14 +357,6 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
             } else {
                 controller.suspendDefaultAction();
                 mailboxProcessor.suspend();
-            }
-        }
-
-        @Override
-        public void finishTask() throws Exception {
-            finishingLatch.await();
-            if (suspension != null) {
-                suspension.resume();
             }
         }
     }

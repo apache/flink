@@ -202,32 +202,19 @@ public class SourceStreamTask<
     @Override
     protected void cancelTask() {
         if (stopped.compareAndSet(false, true)) {
-            cancelOperator(true);
+            cancelOperator();
         }
     }
 
-    @Override
-    protected void finishTask() {
-        this.finishingReason = FinishingReason.STOP_WITH_SAVEPOINT_NO_DRAIN;
-        /**
-         * Currently stop with savepoint relies on the EndOfPartitionEvents propagation and performs
-         * clean shutdown after the stop with savepoint (which can produce some records to process
-         * after the savepoint while stopping). If we interrupt source thread, we might leave the
-         * network stack in an inconsistent state. So, if we want to relay on the clean shutdown, we
-         * can not interrupt the source thread.
-         */
-        cancelOperator(false);
-    }
-
-    private void cancelOperator(boolean interruptThread) {
+    private void cancelOperator() {
         try {
             if (mainOperator != null) {
                 mainOperator.cancel();
             }
         } finally {
-            if (sourceThread.isAlive() && interruptThread) {
+            if (sourceThread.isAlive()) {
                 interruptSourceThread();
-            } else if (!sourceThread.isAlive() && !sourceThread.getCompletionFuture().isDone()) {
+            } else if (!sourceThread.getCompletionFuture().isDone()) {
                 // sourceThread not alive and completion future not done means source thread
                 // didn't start and we need to manually complete the future
                 sourceThread.getCompletionFuture().complete(null);
