@@ -34,7 +34,7 @@ under the License.
 	<name>Flink : Connectors : Kinesis</name>
 	<properties>
 		<aws.sdk.version>1.12.7</aws.sdk.version>
-		<aws.sdkv2.version>2.16.86</aws.sdkv2.version>
+		<aws.sdkv2.version>2.17.52</aws.sdkv2.version>
 		<aws.kinesis-kcl.version>1.14.1</aws.kinesis-kcl.version>
 		<aws.kinesis-kpl.version>0.14.1</aws.kinesis-kpl.version>
 		<aws.dynamodbstreams-kinesis-adapter.version>1.5.3</aws.dynamodbstreams-kinesis-adapter.version>
@@ -140,6 +140,12 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- Flink Table API ecosystem -->
 		<!-- Projects depending on this project won't depend on flink-table-*. -->
 		<dependency>
@@ -187,6 +193,14 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-base</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -288,6 +302,7 @@ under the License.
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet combine.children="append">
 								<includes>
+									<include>org.apache.flink:flink-connector-aws-base:*</include>
 									<include>com.amazonaws:*</include>
 									<include>com.google.protobuf:*</include>
 									<include>org.apache.httpcomponents:*</include>
@@ -348,6 +363,12 @@ under the License.
 									<artifact>software.amazon.awssdk:*</artifact>
 									<excludes>
 										<exclude>META-INF/services/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.flink:flink-connector-aws-base:*</artifact>
+									<excludes>
+										<exclude>profile</exclude>
 									</excludes>
 								</filter>
 							</filters>
