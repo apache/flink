@@ -107,7 +107,7 @@ public class SourceTaskTerminationTest extends TestLogger {
                 // if we are in TERMINATE mode, we expect the source task
                 // to emit MAX_WM before the SYNC_SAVEPOINT barrier.
                 verifyWatermark(srcTaskTestHarness.getOutput(), Watermark.MAX_WATERMARK);
-                verifyEvent(srcTaskTestHarness.getOutput(), EndOfData.INSTANCE);
+                verifyEvent(srcTaskTestHarness.getOutput(), new EndOfData(true));
             }
 
             verifyCheckpointBarrier(srcTaskTestHarness.getOutput(), syncSavepointId);

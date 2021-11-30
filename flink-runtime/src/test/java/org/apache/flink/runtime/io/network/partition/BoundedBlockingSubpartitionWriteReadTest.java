@@ -256,7 +256,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 
     private void writeEndOfData(BoundedBlockingSubpartition subpartition) throws IOException {
         try (BufferConsumer eventBufferConsumer =
-                EventSerializer.toBufferConsumer(EndOfData.INSTANCE, false)) {
+                EventSerializer.toBufferConsumer(new EndOfData(true), false)) {
             // Retain the buffer so that it can be recycled by each channel of targetPartition
             subpartition.add(eventBufferConsumer.copy(), 0);
         }

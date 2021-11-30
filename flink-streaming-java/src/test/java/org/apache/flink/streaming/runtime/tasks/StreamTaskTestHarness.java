@@ -492,7 +492,7 @@ public class StreamTaskTestHarness<OUT> {
 
     public void endInput(int gateIndex, int channelIndex, boolean emitEndOfData) {
         if (emitEndOfData) {
-            inputGates[gateIndex].sendEvent(EndOfData.INSTANCE, channelIndex);
+            inputGates[gateIndex].sendEvent(new EndOfData(true), channelIndex);
         }
         inputGates[gateIndex].sendEvent(EndOfPartitionEvent.INSTANCE, channelIndex);
     }

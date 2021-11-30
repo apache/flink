@@ -124,7 +124,7 @@ public class StreamTestSingleInputGate<T> {
                         } else if (input != null && input.isDataEnd()) {
                             return Optional.of(
                                     new BufferAndAvailability(
-                                            EventSerializer.toBuffer(EndOfData.INSTANCE, false),
+                                            EventSerializer.toBuffer(new EndOfData(true), false),
                                             nextType,
                                             0,
                                             0));

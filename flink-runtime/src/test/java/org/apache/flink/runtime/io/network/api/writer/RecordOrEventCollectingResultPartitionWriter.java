@@ -89,9 +89,9 @@ public class RecordOrEventCollectingResultPartitionWriter<T>
     }
 
     @Override
-    public void notifyEndOfData() throws IOException {
+    public void notifyEndOfData(boolean shouldDrain) throws IOException {
         if (collectNetworkEvents) {
-            broadcastEvent(EndOfData.INSTANCE, false);
+            broadcastEvent(new EndOfData(shouldDrain), false);
         }
     }
 }

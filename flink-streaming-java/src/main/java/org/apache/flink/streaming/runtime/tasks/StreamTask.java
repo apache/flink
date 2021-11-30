@@ -526,6 +526,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 break;
             case END_OF_RECOVERY:
                 throw new IllegalStateException("We should not receive this event here.");
+            case STOPPED:
+                throw new UnsupportedOperationException("Not supported yet");
             case END_OF_DATA:
                 endData();
                 return;
@@ -575,7 +577,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         this.finishedOperators = true;
 
         for (ResultPartitionWriter partitionWriter : getEnvironment().getAllWriters()) {
-            partitionWriter.notifyEndOfData();
+            partitionWriter.notifyEndOfData(true);
         }
 
         this.endOfDataReceived = true;

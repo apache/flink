@@ -720,8 +720,9 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                                         output,
                                         new StreamElementSerializer<>(IntSerializer.INSTANCE)) {
                                     @Override
-                                    public void notifyEndOfData() throws IOException {
-                                        broadcastEvent(EndOfData.INSTANCE, false);
+                                    public void notifyEndOfData(boolean shouldDrain)
+                                            throws IOException {
+                                        broadcastEvent(new EndOfData(shouldDrain), false);
                                     }
                                 })
                         .setupOperatorChain(new StreamSource<>(testSource))
@@ -732,7 +733,7 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
             harness.processAll();
             harness.streamTask.getCompletionFuture().get();
 
-            assertThat(output, contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
+            assertThat(output, contains(Watermark.MAX_WATERMARK, new EndOfData(true)));
 
             LifeCycleMonitorSource source =
                     (LifeCycleMonitorSource)

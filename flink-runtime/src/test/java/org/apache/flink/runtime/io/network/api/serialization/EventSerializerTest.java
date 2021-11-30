@@ -49,7 +49,8 @@ public class EventSerializerTest {
     private final AbstractEvent[] events = {
         EndOfPartitionEvent.INSTANCE,
         EndOfSuperstepEvent.INSTANCE,
-        EndOfData.INSTANCE,
+        new EndOfData(true),
+        new EndOfData(false),
         new CheckpointBarrier(
                 1678L,
                 4623784L,

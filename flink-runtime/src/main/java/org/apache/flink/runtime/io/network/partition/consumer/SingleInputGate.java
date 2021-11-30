@@ -208,6 +208,7 @@ public class SingleInputGate extends IndexedInputGate {
 
     private final ThroughputCalculator throughputCalculator;
     private final BufferDebloater bufferDebloater;
+    private boolean shouldDrainOnEndOfData = true;
 
     public SingleInputGate(
             String owningTaskName,
@@ -671,6 +672,11 @@ public class SingleInputGate extends IndexedInputGate {
     }
 
     @Override
+    public boolean shouldDrainOnEndOfData() {
+        return shouldDrainOnEndOfData;
+    }
+
+    @Override
     public String toString() {
         return "SingleInputGate{"
                 + "owningTaskName='"
@@ -849,6 +855,7 @@ public class SingleInputGate extends IndexedInputGate {
                 channelsWithEndOfUserRecords.set(currentChannel.getChannelIndex());
                 hasReceivedEndOfData =
                         channelsWithEndOfUserRecords.cardinality() == numberOfInputChannels;
+                shouldDrainOnEndOfData &= ((EndOfData) event).shouldDrain();
             }
         }
 

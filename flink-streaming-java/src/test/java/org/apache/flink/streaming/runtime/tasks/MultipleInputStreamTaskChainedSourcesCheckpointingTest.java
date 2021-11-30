@@ -281,10 +281,10 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             CheckpointBarrier barrier = createStopWithSavepointDrainBarrier();
 
             testHarness.processElement(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP), 0);
-            testHarness.processEvent(EndOfData.INSTANCE, 0);
+            testHarness.processEvent(new EndOfData(true), 0);
             testHarness.processEvent(barrier, 0);
             testHarness.processElement(new StreamRecord<>(47d, TimestampAssigner.NO_TIMESTAMP), 1);
-            testHarness.processEvent(EndOfData.INSTANCE, 1);
+            testHarness.processEvent(new EndOfData(true), 1);
             testHarness.processEvent(barrier, 1);
 
             addSourceRecords(testHarness, 1, Boundedness.CONTINUOUS_UNBOUNDED, 1, 2);
@@ -311,7 +311,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                     containsInAnyOrder(expectedOutput.toArray()));
             assertThat(
                     actualOutput.subList(actualOutput.size() - 3, actualOutput.size()),
-                    contains(new StreamRecord<>("FINISH"), EndOfData.INSTANCE, barrier));
+                    contains(new StreamRecord<>("FINISH"), new EndOfData(true), barrier));
         }
     }
 
@@ -435,8 +435,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                 testHarness.processAll();
 
                 // The checkpoint 2 would be aligned after received all the EndOfPartitionEvent.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
-                testHarness.processEvent(EndOfData.INSTANCE, 1, 0);
+                testHarness.processEvent(new EndOfData(true), 0, 0);
+                testHarness.processEvent(new EndOfData(true), 1, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 1, 0);
                 testHarness.getTaskStateManager().getWaitForReportLatch().await();
@@ -493,8 +493,9 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                         output,
                                         new StreamElementSerializer<>(IntSerializer.INSTANCE)) {
                                     @Override
-                                    public void notifyEndOfData() throws IOException {
-                                        broadcastEvent(EndOfData.INSTANCE, false);
+                                    public void notifyEndOfData(boolean shouldDrain)
+                                            throws IOException {
+                                        broadcastEvent(new EndOfData(shouldDrain), false);
                                     }
                                 })
                         .addSourceInput(
@@ -522,7 +523,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             testHarness.processElement(Watermark.MAX_WATERMARK);
             assertThat(output, is(empty()));
             testHarness.waitForTaskCompletion();
-            assertThat(output, contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
+            assertThat(output, contains(Watermark.MAX_WATERMARK, new EndOfData(true)));
 
             for (StreamOperatorWrapper<?, ?> wrapper :
                     testHarness.getStreamTask().operatorChain.getAllOperators()) {

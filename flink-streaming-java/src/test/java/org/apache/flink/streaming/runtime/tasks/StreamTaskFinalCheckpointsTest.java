@@ -155,7 +155,7 @@ public class StreamTaskFinalCheckpointsTest {
                 assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
 
                 // Tests triggering checkpoint after some inputs have received EndOfPartition.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
+                testHarness.processEvent(new EndOfData(true), 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 4);
                 processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
@@ -163,8 +163,8 @@ public class StreamTaskFinalCheckpointsTest {
 
                 // Tests triggering checkpoint after received all the inputs have received
                 // EndOfPartition.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 1);
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 2);
+                testHarness.processEvent(new EndOfData(true), 0, 1);
+                testHarness.processEvent(new EndOfData(true), 0, 2);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 1);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 2);
                 checkpointFuture = triggerCheckpoint(testHarness, lastCheckpointId);
@@ -664,7 +664,7 @@ public class StreamTaskFinalCheckpointsTest {
                 assertArrayEquals(new int[] {0, 0, 0}, resumedCount);
 
                 // Tests triggering checkpoint after some inputs have received EndOfPartition.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
+                testHarness.processEvent(new EndOfData(true), 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 4, checkpointOptions);
                 processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
@@ -673,8 +673,8 @@ public class StreamTaskFinalCheckpointsTest {
 
                 // Tests triggering checkpoint after received all the inputs have received
                 // EndOfPartition.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 1);
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 2);
+                testHarness.processEvent(new EndOfData(true), 0, 1);
+                testHarness.processEvent(new EndOfData(true), 0, 2);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 1);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 2);
                 checkpointFuture = triggerCheckpoint(testHarness, 6, checkpointOptions);
@@ -759,7 +759,7 @@ public class StreamTaskFinalCheckpointsTest {
                 // The checkpoint is added to the mailbox and will be processed in the
                 // mailbox loop after call operators' finish method in the afterInvoke()
                 // method.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
+                testHarness.processEvent(new EndOfData(true), 0, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 4);
                 checkpointFuture.thenAccept(
                         (ignored) -> {
@@ -947,7 +947,7 @@ public class StreamTaskFinalCheckpointsTest {
                                     checkpointMetaData.getTimestamp(),
                                     checkpointOptions),
                             Watermark.MAX_WATERMARK,
-                            EndOfData.INSTANCE));
+                            new EndOfData(true)));
         }
     }
 

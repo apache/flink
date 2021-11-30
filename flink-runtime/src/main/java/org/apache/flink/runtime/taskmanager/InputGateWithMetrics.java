@@ -101,6 +101,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public boolean shouldDrainOnEndOfData() {
+        return inputGate.shouldDrainOnEndOfData();
+    }
+
+    @Override
     public void setup() throws IOException {
         inputGate.setup();
     }
