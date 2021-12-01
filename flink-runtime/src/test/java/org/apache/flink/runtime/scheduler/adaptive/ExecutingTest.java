@@ -899,10 +899,10 @@ public class ExecutingTest extends TestLogger {
                 boolean releasePartitions) {}
 
         @Override
-        public void vertexFinished() {}
+        public void jobVertexFinished() {}
 
         @Override
-        public void vertexUnFinished() {}
+        public void jobVertexUnFinished() {}
 
         @Override
         public ExecutionDeploymentListener getExecutionDeploymentListener() {
