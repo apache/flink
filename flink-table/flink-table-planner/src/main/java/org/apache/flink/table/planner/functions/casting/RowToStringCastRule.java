@@ -125,7 +125,7 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
 
             // Write the comma
             if (fieldIndex != 0) {
-                writer.stmt(methodCall(builderTerm, "append", strLiteral(",")));
+                writer.stmt(methodCall(builderTerm, "append", strLiteral(", ")));
             }
 
             writer

@@ -205,6 +205,11 @@ under the License.
 					<groupId>net.hydromatic</groupId>
 					<artifactId>aggdesigner-algorithm</artifactId>
 				</exclusion>
+				<!-- Excluding org.apiguardian:apiguardian-api v1.1.0 because org.junit.jupiter:junit-jupiter contains newer version v1.1.2 -->
+				<exclusion>
+					<groupId>org.apiguardian</groupId>
+					<artifactId>apiguardian-api</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -341,7 +346,6 @@ under the License.
 					<execution>
 						<id>shade-flink</id>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<filters>
 								<filter>
 									<artifact>*:*</artifact>

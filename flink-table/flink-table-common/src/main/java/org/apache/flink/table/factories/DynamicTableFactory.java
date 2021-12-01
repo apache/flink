@@ -46,6 +46,7 @@ import org.apache.flink.table.types.DataType;
 public interface DynamicTableFactory extends Factory {
 
     /** Provides catalog and session information describing the dynamic table to be accessed. */
+    @PublicEvolving
     interface Context {
 
         /** Returns the identifier of the table in the {@link Catalog}. */

@@ -50,7 +50,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.DataTypes.INT;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -93,7 +95,8 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                                     DynamicTableSink.Context context) {
                                         return SinkProvider.of(
                                                 TestSink.newBuilder()
-                                                        .setWriter(new TestWriter(timestamps))
+                                                        .setWriter(
+                                                                new TestTimestampWriter(timestamps))
                                                         .setCommittableSerializer(
                                                                 TestSink.StringCommittableSerializer
                                                                         .INSTANCE)
@@ -136,7 +139,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                                             public void invoke(
                                                                     RowData value,
                                                                     Context context) {
-                                                                addTimestamp(
+                                                                addElement(
                                                                         timestamps,
                                                                         context.timestamp());
                                                             }
@@ -150,6 +153,35 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         tableEnv.executeSql(sqlStmt).await();
         Collections.sort(timestamps.get());
         assertTimestampResults(timestamps, rows);
+    }
+
+    @Test
+    public void testUnifiedSinksAreUsableWithDataStreamSinkProvider()
+            throws ExecutionException, InterruptedException {
+        final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        final SharedReference<List<RowData>> fetched = sharedObjects.add(new ArrayList<>());
+        final List<Row> rows = Arrays.asList(Row.of(1), Row.of(2));
+
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(Schema.newBuilder().column("a", INT()).build())
+                        .source(new TimestampTestSource(rows))
+                        .sink(
+                                new TableFactoryHarness.SinkBase() {
+                                    @Override
+                                    public DataStreamSinkProvider getSinkRuntimeProvider(
+                                            DynamicTableSink.Context context) {
+                                        return buildRecordTestSinkProvider(fetched);
+                                    }
+                                })
+                        .build();
+        tableEnv.createTable("T1", sourceDescriptor);
+        String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
+        tableEnv.executeSql(sqlStmt).await();
+        final List<Integer> fetchedRows =
+                fetched.get().stream().map(r -> r.getInt(0)).sorted().collect(Collectors.toList());
+        assertEquals(fetchedRows.get(0).intValue(), 1);
+        assertEquals(fetchedRows.get(1).intValue(), 2);
     }
 
     @Test
@@ -175,7 +207,8 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                                     DynamicTableSink.Context context) {
                                         return SinkProvider.of(
                                                 TestSink.newBuilder()
-                                                        .setWriter(new TestWriter(timestamps))
+                                                        .setWriter(
+                                                                new TestTimestampWriter(timestamps))
                                                         .setCommittableSerializer(
                                                                 TestSink.StringCommittableSerializer
                                                                         .INSTANCE)
@@ -187,8 +220,19 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         assertPlan(tableEnv, "INSERT INTO T1 SELECT * FROM T1", false);
     }
 
-    private static void addTimestamp(SharedReference<List<Long>> timestamps, Long timestamp) {
-        timestamps.applySync(l -> l.add(timestamp));
+    private static DataStreamSinkProvider buildRecordTestSinkProvider(
+            SharedReference<List<RowData>> fetched) {
+        return dataStream ->
+                dataStream.sinkTo(
+                        TestSink.newBuilder()
+                                .setWriter(new RecordWriter(fetched))
+                                .setCommittableSerializer(
+                                        TestSink.StringCommittableSerializer.INSTANCE)
+                                .build());
+    }
+
+    private static <T> void addElement(SharedReference<List<T>> elements, T element) {
+        elements.applySync(l -> l.add(element));
     }
 
     private static void assertPlan(
@@ -261,17 +305,32 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         public void cancel() {}
     }
 
-    private static class TestWriter extends TestSink.DefaultSinkWriter<RowData> {
+    private static class TestTimestampWriter extends TestSink.DefaultSinkWriter<RowData> {
 
         private final SharedReference<List<Long>> timestamps;
 
-        private TestWriter(SharedReference<List<Long>> timestamps) {
+        private TestTimestampWriter(SharedReference<List<Long>> timestamps) {
             this.timestamps = timestamps;
         }
 
         @Override
         public void write(RowData element, Context context) {
-            addTimestamp(timestamps, context.timestamp());
+            addElement(timestamps, context.timestamp());
+            super.write(element, context);
+        }
+    }
+
+    private static class RecordWriter extends TestSink.DefaultSinkWriter<RowData> {
+
+        private final SharedReference<List<RowData>> rows;
+
+        private RecordWriter(SharedReference<List<RowData>> rows) {
+            this.rows = rows;
+        }
+
+        @Override
+        public void write(RowData element, Context context) {
+            addElement(rows, element);
             super.write(element, context);
         }
     }

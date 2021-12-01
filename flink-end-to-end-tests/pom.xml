@@ -62,7 +62,6 @@ under the License.
 		<module>flink-stream-stateful-job-upgrade-test</module>
 		<module>flink-queryable-state-test</module>
 		<module>flink-local-recovery-and-allocation-test</module>
-		<module>flink-elasticsearch5-test</module>
 		<module>flink-elasticsearch6-test</module>
 		<module>flink-quickstart-test</module>
 		<module>flink-confluent-schema-registry</module>
@@ -168,7 +167,7 @@ under the License.
 		<profile>
 			<id>java11</id>
 			<activation>
-				<jdk>11</jdk>
+				<jdk>[11,)</jdk>
 			</activation>
 			<properties>
 				<e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>true</e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>

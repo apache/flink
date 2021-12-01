@@ -35,9 +35,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.utils.DateTimeUtils.dateToInternal;
-import static org.apache.flink.table.utils.DateTimeUtils.timeToInternal;
-import static org.apache.flink.table.utils.DateTimeUtils.timestampToInternal;
+import static org.apache.flink.table.utils.DateTimeUtils.toInternal;
 
 /** Abstract IT case class for HBase. */
 public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
@@ -261,13 +259,11 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 
         // family 4
         put.addColumn(
-                Bytes.toBytes(FAMILY4),
-                Bytes.toBytes(F4COL1),
-                Bytes.toBytes(timestampToInternal(f4c1)));
+                Bytes.toBytes(FAMILY4), Bytes.toBytes(F4COL1), Bytes.toBytes(toInternal(f4c1)));
         put.addColumn(
-                Bytes.toBytes(FAMILY4), Bytes.toBytes(F4COL2), Bytes.toBytes(dateToInternal(f4c2)));
+                Bytes.toBytes(FAMILY4), Bytes.toBytes(F4COL2), Bytes.toBytes(toInternal(f4c2)));
         put.addColumn(
-                Bytes.toBytes(FAMILY4), Bytes.toBytes(F4COL3), Bytes.toBytes(timeToInternal(f4c3)));
+                Bytes.toBytes(FAMILY4), Bytes.toBytes(F4COL3), Bytes.toBytes(toInternal(f4c3)));
         put.addColumn(Bytes.toBytes(FAMILY4), Bytes.toBytes(F4COL4), Bytes.toBytes(f4c4));
         return put;
     }

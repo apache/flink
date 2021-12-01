@@ -121,6 +121,7 @@ public final class ChangelogMode {
     // --------------------------------------------------------------------------------------------
 
     /** Builder for configuring and creating instances of {@link ChangelogMode}. */
+    @PublicEvolving
     public static class Builder {
 
         private final Set<RowKind> kinds = EnumSet.noneOf(RowKind.class);

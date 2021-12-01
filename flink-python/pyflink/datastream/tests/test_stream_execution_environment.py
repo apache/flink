@@ -39,7 +39,6 @@ from pyflink.datastream.slot_sharing_group import MemorySize
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
-from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment, \
     EnvironmentSettings
 from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
@@ -554,14 +553,10 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, result)
 
-    @unittest.skipIf(on_windows(), "Symbolic link is not supported on Windows, skipping.")
     def test_set_stream_env(self):
         import sys
-        python_exec = sys.executable
-        tmp_dir = self.tempdir
         env = self.env
-        python_exec_link_path = os.path.join(tmp_dir, "py_exec")
-        os.symlink(python_exec, python_exec_link_path)
+        python_exec_link_path = sys.executable
         env.set_python_executable(python_exec_link_path)
 
         def check_python_exec(i):

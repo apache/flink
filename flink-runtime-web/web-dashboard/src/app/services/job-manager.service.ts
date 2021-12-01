@@ -22,53 +22,39 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { BASE_URL } from 'config';
-import { JobManagerLogItemInterface } from 'interfaces';
+import { JobManagerLogItem } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
 })
 export class JobManagerService {
-  /**
-   * Load JM config
-   */
-  loadConfig(): Observable<Array<{ key: string; value: string }>> {
+  constructor(private readonly httpClient: HttpClient) {}
+
+  public loadConfig(): Observable<Array<{ key: string; value: string }>> {
     return this.httpClient.get<Array<{ key: string; value: string }>>(`${BASE_URL}/jobmanager/config`);
   }
 
-  /**
-   * Load JM logs
-   */
-  loadLogs(): Observable<string> {
+  public loadLogs(): Observable<string> {
     return this.httpClient.get(`${BASE_URL}/jobmanager/log`, {
       responseType: 'text',
       headers: new HttpHeaders().append('Cache-Control', 'no-cache')
     });
   }
 
-  /**
-   * Load JM stdout
-   */
-  loadStdout(): Observable<string> {
+  public loadStdout(): Observable<string> {
     return this.httpClient.get(`${BASE_URL}/jobmanager/stdout`, {
       responseType: 'text',
       headers: new HttpHeaders().append('Cache-Control', 'no-cache')
     });
   }
-  /**
-   * Load JM log list
-   */
-  loadLogList(): Observable<JobManagerLogItemInterface[]> {
+
+  public loadLogList(): Observable<JobManagerLogItem[]> {
     return this.httpClient
-      .get<{ logs: JobManagerLogItemInterface[] }>(`${BASE_URL}/jobmanager/logs`)
+      .get<{ logs: JobManagerLogItem[] }>(`${BASE_URL}/jobmanager/logs`)
       .pipe(map(data => data.logs));
   }
 
-  /**
-   * Load JM log
-   *
-   * @param logName
-   */
-  loadLog(logName: string): Observable<{ data: string; url: string }> {
+  public loadLog(logName: string): Observable<{ data: string; url: string }> {
     const url = `${BASE_URL}/jobmanager/logs/${logName}`;
     return this.httpClient
       .get(url, { responseType: 'text', headers: new HttpHeaders().append('Cache-Control', 'no-cache') })
@@ -82,21 +68,13 @@ export class JobManagerService {
       );
   }
 
-  /**
-   * Get JM metric name
-   */
-  getMetricsName(): Observable<string[]> {
+  public getMetricsName(): Observable<string[]> {
     return this.httpClient
       .get<Array<{ id: string }>>(`${BASE_URL}/jobmanager/metrics`)
       .pipe(map(arr => arr.map(item => item.id)));
   }
 
-  /**
-   * Get JM metric
-   *
-   * @param listOfMetricName
-   */
-  getMetrics(listOfMetricName: string[]): Observable<{ [p: string]: number }> {
+  public getMetrics(listOfMetricName: string[]): Observable<{ [p: string]: number }> {
     const metricName = listOfMetricName.join(',');
     return this.httpClient
       .get<Array<{ id: string; value: string }>>(`${BASE_URL}/jobmanager/metrics?get=${metricName}`)
@@ -110,6 +88,4 @@ export class JobManagerService {
         })
       );
   }
-
-  constructor(private httpClient: HttpClient) {}
 }

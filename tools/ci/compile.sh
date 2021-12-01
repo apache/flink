@@ -47,7 +47,7 @@ echo "==========================================================================
 
 EXIT_CODE=0
 
-run_mvn clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR $MAVEN_OPTS -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 \
+run_mvn clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 \
     -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -U -DskipTests | tee $MVN_CLEAN_COMPILE_OUT
 
 EXIT_CODE=${PIPESTATUS[0]}
@@ -104,9 +104,9 @@ check_shaded_artifacts_s3_fs hadoop
 EXIT_CODE=$(($EXIT_CODE+$?))
 check_shaded_artifacts_s3_fs presto
 EXIT_CODE=$(($EXIT_CODE+$?))
-check_shaded_artifacts_connector_elasticsearch 5
-EXIT_CODE=$(($EXIT_CODE+$?))
 check_shaded_artifacts_connector_elasticsearch 6
+EXIT_CODE=$(($EXIT_CODE+$?))
+check_shaded_artifacts_connector_elasticsearch 7
 EXIT_CODE=$(($EXIT_CODE+$?))
 
 echo "============ Run license check ============"

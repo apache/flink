@@ -30,11 +30,11 @@ public class TimeTimeConverter implements DataStructureConverter<Integer, java.s
 
     @Override
     public Integer toInternal(java.sql.Time external) {
-        return DateTimeUtils.timeToInternal(external);
+        return DateTimeUtils.toInternal(external);
     }
 
     @Override
     public java.sql.Time toExternal(Integer internal) {
-        return DateTimeUtils.internalToTime(internal);
+        return DateTimeUtils.toSQLTime(internal);
     }
 }

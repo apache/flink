@@ -94,7 +94,7 @@ MAVEN_VERSIONED_DIR=${MAVEN_CACHE_DIR}/apache-maven-${MAVEN_VERSION}
 MAVEN_MIRROR_CONFIG_FILE=""
 set_mirror_config
 
-export MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR=""
+export MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR="$MAVEN_ARGS "
 # see https://developercommunity.visualstudio.com/content/problem/851041/microsoft-hosted-agents-run-into-maven-central-tim.html
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dmaven.wagon.http.pool=false "
 # logging 

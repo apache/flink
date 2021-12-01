@@ -92,15 +92,15 @@ class CompositeAccessTest extends CompositeTypeTestBase {
       'f1.get("objectField"),
       "f1.get('objectField')",
       "testTable.f1.objectField",
-      "(25,Timo,false)")
-    testSqlApi("f1.objectField", "(25,Timo,false)")
+      "(25, Timo, false)")
+    testSqlApi("f1.objectField", "(25, Timo, false)")
 
     testAllApis(
       'f0,
       "f0",
       "testTable.f0",
-      "(42,Bob,true)")
-    testSqlApi("f0", "(42,Bob,true)")
+      "(42, Bob, true)")
+    testSqlApi("f0", "(42, Bob, true)")
 
     // flattening (test base only returns first column)
     testAllApis(

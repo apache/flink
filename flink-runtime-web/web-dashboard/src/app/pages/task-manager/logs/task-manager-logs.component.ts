@@ -17,7 +17,7 @@
  */
 
 import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
-import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerDetail } from 'interfaces';
 import { first, takeUntil } from 'rxjs/operators';
 import { TaskManagerService } from 'services';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
@@ -31,13 +31,30 @@ import { Subject } from 'rxjs';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerLogsComponent implements OnInit, OnDestroy {
-  logs = '';
-  loading = true;
-  editorOptions: EditorOptions = flinkEditorOptions;
-  taskManagerDetail: TaskManagerDetailInterface;
-  private destroy$ = new Subject<void>();
+  public readonly editorOptions: EditorOptions = flinkEditorOptions;
 
-  reload() {
+  public logs = '';
+  public loading = true;
+  public taskManagerDetail: TaskManagerDetail;
+
+  private readonly destroy$ = new Subject<void>();
+
+  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit() {
+    this.taskManagerService.taskManagerDetail$.pipe(first(), takeUntil(this.destroy$)).subscribe(data => {
+      this.taskManagerDetail = data;
+      this.reload();
+      this.cdr.markForCheck();
+    });
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public reload() {
     this.loading = true;
     this.cdr.markForCheck();
     if (this.taskManagerDetail) {
@@ -55,20 +72,5 @@ export class TaskManagerLogsComponent implements OnInit, OnDestroy {
           }
         );
     }
-  }
-
-  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit() {
-    this.taskManagerService.taskManagerDetail$.pipe(first(), takeUntil(this.destroy$)).subscribe(data => {
-      this.taskManagerDetail = data;
-      this.reload();
-      this.cdr.markForCheck();
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

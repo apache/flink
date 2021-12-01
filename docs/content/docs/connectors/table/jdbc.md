@@ -208,6 +208,13 @@ Connector Options
       Lookup cache is disabled by default. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
     </tr>
     <tr>
+      <td><h5>lookup.cache.caching-missing-key</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>Flag to cache missing key, true by default</td>
+    </tr>
+    <tr>
       <td><h5>lookup.max-retries</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">3</td>
@@ -278,6 +285,8 @@ The lookup cache is used to improve performance of temporal join the JDBC connec
 When lookup cache is enabled, each process (i.e. TaskManager) will hold a cache. Flink will lookup the cache first, and only send requests to external database when cache missing, and update cache with the rows returned.
 The oldest rows in cache will be expired when the cache hit to the max cached rows `lookup.cache.max-rows` or when the row exceeds the max time to live `lookup.cache.ttl`.
 The cached rows might not be the latest, users can tune `lookup.cache.ttl` to a smaller value to have a better fresh data, but this may increase the number of requests send to database. So this is a balance between throughput and correctness.
+
+By default, flink will cache the empty query result for a Primary key, you can toggle the behaviour by setting `lookup.cache.caching-missing-key` to false. 
 
 ### Idempotent Writes
 

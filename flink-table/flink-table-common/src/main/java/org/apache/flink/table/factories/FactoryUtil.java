@@ -27,7 +27,6 @@ import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.FallbackKey;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
@@ -833,6 +832,7 @@ public final class FactoryUtil {
      *
      * @see #createCatalogFactoryHelper(CatalogFactory, CatalogFactory.Context)
      */
+    @PublicEvolving
     public static class CatalogFactoryHelper extends FactoryHelper<CatalogFactory> {
 
         public CatalogFactoryHelper(CatalogFactory catalogFactory, CatalogFactory.Context context) {
@@ -845,6 +845,7 @@ public final class FactoryUtil {
      *
      * @see #createModuleFactoryHelper(ModuleFactory, ModuleFactory.Context)
      */
+    @PublicEvolving
     public static class ModuleFactoryHelper extends FactoryHelper<ModuleFactory> {
         public ModuleFactoryHelper(ModuleFactory moduleFactory, ModuleFactory.Context context) {
             super(moduleFactory, context.getOptions(), PROPERTY_VERSION);
@@ -857,6 +858,7 @@ public final class FactoryUtil {
      *
      * @see #createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)
      */
+    @PublicEvolving
     public static class TableFactoryHelper extends FactoryHelper<DynamicTableFactory> {
 
         private final DynamicTableFactory.Context context;

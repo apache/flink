@@ -33,7 +33,7 @@ import {
 import { select } from 'd3-selection';
 import { zoomIdentity } from 'd3-zoom';
 
-import { NodesItemCorrectInterface, NodesItemLinkInterface, SafeAny } from 'interfaces';
+import { NodesItemCorrect, NodesItemLink } from 'interfaces';
 
 import { LayoutNode, NzGraph } from './graph';
 import { NodeComponent } from './node.component';
@@ -58,8 +58,8 @@ export class DagreComponent extends NzGraph {
   zoom = 1;
   cacheTransform = { x: 0, y: 0, k: 1 };
   oldTransform = { x: 0, y: 0, k: 1 };
-  cacheNodes: NodesItemCorrectInterface[] = [];
-  cacheLinks: NodesItemLinkInterface[] = [];
+  cacheNodes: NodesItemCorrect[] = [];
+  cacheLinks: NodesItemLink[] = [];
   @ViewChildren('nodeElement') nodeElements: QueryList<ElementRef>;
   @ViewChildren('linkElement') linkElements: QueryList<ElementRef>;
   @ViewChildren(NodeComponent) rectNodeComponents: QueryList<NodeComponent>;
@@ -76,7 +76,7 @@ export class DagreComponent extends NzGraph {
    * @param id
    * @param appendNode
    */
-  updateNode(id: string, appendNode: NodesItemCorrectInterface): void {
+  updateNode(id: string, appendNode: NodesItemCorrect): void {
     const nodes = this.rectNodeComponents;
     const node = nodes.find(n => n.id === id);
     if (node) {
@@ -91,7 +91,7 @@ export class DagreComponent extends NzGraph {
    * @param node
    * @param force
    */
-  focusNode(node: NodesItemCorrectInterface, force = false): void {
+  focusNode(node: NodesItemCorrect, force = false): void {
     const layoutNode = this.layoutNodes.find(n => n.id === node.id);
     this.clickNode(layoutNode, null, force, false);
   }
@@ -113,14 +113,14 @@ export class DagreComponent extends NzGraph {
       this.visibility = Visibility.Visible;
 
       const hostDims = this.elementRef.nativeElement.getBoundingClientRect();
-      const generatedGraph = this.graph.graph() as SafeAny;
+      const generatedGraph = this.graph.graph();
       this.cacheTransform.k = Math.min(
-        hostDims.height / (generatedGraph.height + 200),
-        hostDims.width / (generatedGraph.width + 120),
+        hostDims.height / (generatedGraph.height! + 200),
+        hostDims.width / (generatedGraph.width! + 120),
         1
       );
-      const width = generatedGraph.width * this.cacheTransform.k;
-      const height = generatedGraph.height * this.cacheTransform.k;
+      const width = generatedGraph.width! * this.cacheTransform.k;
+      const height = generatedGraph.height! * this.cacheTransform.k;
       let translateX = (hostDims.width - width) / 2;
       let translateY = (hostDims.height - height) / 2;
       if (width < 0 || height < 0) {
@@ -142,7 +142,7 @@ export class DagreComponent extends NzGraph {
    * @param links
    * @param isResizeNode
    */
-  flush(nodes: NodesItemCorrectInterface[], links: NodesItemLinkInterface[], isResizeNode = false): Promise<void> {
+  flush(nodes: NodesItemCorrect[], links: NodesItemLink[], isResizeNode = false): Promise<void> {
     return new Promise(resolve => {
       this.cacheNodes = [...nodes];
       this.cacheLinks = [...links];
@@ -173,11 +173,11 @@ export class DagreComponent extends NzGraph {
     });
   }
 
-  trackByLink(_: number, link: NodesItemLinkInterface): string {
+  trackByLink(_: number, link: NodesItemLink): string {
     return link.id;
   }
 
-  trackByNode(_: number, link: NodesItemCorrectInterface): string {
+  trackByNode(_: number, link: NodesItemCorrect): string {
     return link.id;
   }
 

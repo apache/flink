@@ -183,6 +183,17 @@ object WindowUtil {
     (program, calcFieldShifting.toArray, newTimeAttributeIndex, !containsTimeAttribute)
   }
 
+  def validateTimeFieldWithTimeAttribute(
+      windowCall: RexCall,
+      inputRowType: RelDataType): Unit = {
+    val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
+    val fieldType = inputRowType.getFieldList.get(timeIndex).getType
+    if (!FlinkTypeFactory.isTimeIndicatorType(fieldType)) {
+      throw new ValidationException(
+        s"The window function requires the timecol is a time attribute type, but is $fieldType.")
+    }
+  }
+
   /**
    * Converts a [[RexCall]] into [[TimeAttributeWindowingStrategy]], the [[RexCall]] must be a
    * window table-valued function call.
@@ -197,10 +208,6 @@ object WindowUtil {
 
     val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
-    if (!FlinkTypeFactory.isTimeIndicatorType(fieldType)) {
-      throw new ValidationException("Window can only be defined on a time attribute column, " +
-        "but is type of " + fieldType)
-    }
     val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
     if (!canBeTimeAttributeType(timeAttributeType)) {
       throw new ValidationException("The supported time indicator type are TIMESTAMP" +

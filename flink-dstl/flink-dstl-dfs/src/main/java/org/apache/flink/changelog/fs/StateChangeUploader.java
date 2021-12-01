@@ -68,7 +68,8 @@ interface StateChangeUploader extends AutoCloseable {
         }
     }
 
-    static StateChangeUploader fromConfig(ReadableConfig config) throws IOException {
+    static StateChangeUploader fromConfig(
+            ReadableConfig config, ChangelogStorageMetricGroup metricGroup) throws IOException {
         Path basePath = new Path(config.get(BASE_PATH));
         long bytes = config.get(UPLOAD_BUFFER_SIZE).getBytes();
         checkArgument(bytes <= Integer.MAX_VALUE);
@@ -78,7 +79,8 @@ interface StateChangeUploader extends AutoCloseable {
                         basePath,
                         basePath.getFileSystem(),
                         config.get(COMPRESSION_ENABLED),
-                        bufferSize);
+                        bufferSize,
+                        metricGroup);
         BatchingStateChangeUploader batchingStore =
                 new BatchingStateChangeUploader(
                         config.get(PERSIST_DELAY).toMillis(),
@@ -86,7 +88,8 @@ interface StateChangeUploader extends AutoCloseable {
                         RetryPolicy.fromConfig(config),
                         store,
                         config.get(NUM_UPLOAD_THREADS),
-                        config.get(IN_FLIGHT_DATA_LIMIT).getBytes());
+                        config.get(IN_FLIGHT_DATA_LIMIT).getBytes(),
+                        metricGroup);
         return batchingStore;
     }
 

@@ -346,7 +346,7 @@ under the License.
 								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing.class</include>
 								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing$*.class</include>
 								<include>org/apache/flink/streaming/examples/windowing/util/CarSource.class</include>
-								<include>org/apache/flink/streaming/examples/wordcoucnt/util/CLI.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/util/CLI.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>

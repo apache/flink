@@ -723,20 +723,6 @@ class FunctionGenerator private(config: TableConfig) {
     new HashCodeCallGen())
 
   INTEGRAL_TYPES foreach (
-    dt => addSqlFunctionMethod(TO_TIMESTAMP,
-      Seq(dt),
-      BuiltInMethods.LONG_TO_TIMESTAMP))
-
-  FRACTIONAL_TYPES foreach (
-    dt => addSqlFunctionMethod(TO_TIMESTAMP,
-      Seq(dt),
-      BuiltInMethods.DOUBLE_TO_TIMESTAMP))
-
-  addSqlFunctionMethod(TO_TIMESTAMP,
-    Seq(DECIMAL),
-    BuiltInMethods.DECIMAL_TO_TIMESTAMP)
-
-  INTEGRAL_TYPES foreach (
     dt => {
       addSqlFunctionMethod(
         TO_TIMESTAMP_LTZ,

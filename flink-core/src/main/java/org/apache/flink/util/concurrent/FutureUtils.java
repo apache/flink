@@ -677,7 +677,7 @@ public class FutureUtils {
 
     /**
      * Run the given action after the completion of the given future. The given future can be
-     * completed normally or exceptionally. In case of an exceptional completion the, the action's
+     * completed normally or exceptionally. In case of an exceptional completion the action's
      * exception will be added to the initial exception.
      *
      * @param future to wait for its completion

@@ -107,9 +107,9 @@ public class DataFormatConvertersTest {
                 new short[] {5, 1},
                 new byte[] {5, 1},
                 new char[] {5, 1},
-                DateTimeUtils.unixDateToLocalDate(5),
-                DateTimeUtils.unixTimeToLocalTime(11),
-                DateTimeUtils.unixTimestampToLocalDateTime(11),
+                DateTimeUtils.toLocalDate(5),
+                DateTimeUtils.toLocalTime(11),
+                DateTimeUtils.toLocalDateTime(11),
                 StringData.fromString("hahah")
             };
 

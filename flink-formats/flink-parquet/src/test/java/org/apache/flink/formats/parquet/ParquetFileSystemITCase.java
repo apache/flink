@@ -27,6 +27,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -115,6 +116,7 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
         }
     }
 
+    @Ignore
     @Test
     public void testLimitableBulkFormat() throws ExecutionException, InterruptedException {
         super.tableEnv()

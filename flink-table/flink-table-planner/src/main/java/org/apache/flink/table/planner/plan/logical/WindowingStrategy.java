@@ -78,4 +78,9 @@ public abstract class WindowingStrategy {
     public boolean isRowtime() {
         return isRowtime;
     }
+
+    @JsonIgnore
+    public boolean isProctime() {
+        return LogicalTypeChecks.isProctimeAttribute(timeAttributeType);
+    }
 }

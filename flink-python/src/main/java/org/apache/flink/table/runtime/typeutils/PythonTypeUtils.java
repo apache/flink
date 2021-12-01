@@ -56,7 +56,6 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
-import org.apache.flink.table.utils.DateTimeUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -101,40 +100,6 @@ public final class PythonTypeUtils {
             }
         }
         return bigDecimal;
-    }
-
-    /**
-     * Converts the internal representation of a SQL DATE (int) to the Java type used for UDF
-     * parameters ({@link java.sql.Date}).
-     *
-     * <p>Note: The implementation refers to {@link DateTimeUtils#internalToDate}.
-     */
-    public static java.sql.Date internalToDate(int v) {
-        // note that, in this case, can't handle Daylight Saving Time
-        final long t = v * MILLIS_PER_DAY;
-        return new java.sql.Date(t - LOCAL_TZ.getOffset(t));
-    }
-
-    /**
-     * Converts the Java type used for UDF parameters of SQL DATE type ({@link java.sql.Date}) to
-     * internal representation (int).
-     *
-     * <p>Note: The implementation refers to {@link DateTimeUtils#dateToInternal}.
-     */
-    public static int dateToInternal(java.sql.Date date) {
-        long ts = date.getTime() + LOCAL_TZ.getOffset(date.getTime());
-        return (int) (ts / MILLIS_PER_DAY);
-    }
-
-    /**
-     * Converts the Java type used for UDF parameters of SQL TIMESTAMP type ({@link
-     * java.sql.Timestamp}) to internal representation (long).
-     *
-     * <p>Note: The implementation refers to {@link DateTimeUtils#timestampToInternal}.
-     */
-    public static long timestampToInternal(java.sql.Timestamp ts) {
-        long time = ts.getTime();
-        return time + LOCAL_TZ.getOffset(time);
     }
 
     private static class LogicalTypetoInternalSerializerConverter

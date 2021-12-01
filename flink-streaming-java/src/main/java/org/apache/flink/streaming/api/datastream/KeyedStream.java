@@ -299,8 +299,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     @Override
     public DataStreamSink<T> addSink(SinkFunction<T> sinkFunction) {
         DataStreamSink<T> result = super.addSink(sinkFunction);
-        result.getTransformation().setStateKeySelector(keySelector);
-        result.getTransformation().setStateKeyType(keyType);
+        result.getLegacyTransformation().setStateKeySelector(keySelector);
+        result.getLegacyTransformation().setStateKeyType(keyType);
         return result;
     }
 

@@ -88,6 +88,7 @@ function verify_result_line_number {
         rm $TEST_DATA_DIR/output
     fi
 
+    local secondsPassed=0
     while : ; do
       curl "localhost:9200/${index}/_search?q=*&pretty&size=21" > $TEST_DATA_DIR/output || true
 
@@ -96,6 +97,11 @@ function verify_result_line_number {
           break
       else
           echo "Waiting for Elasticsearch records ..."
+          (( secondsPassed++ )) || true
+          if (( secondsPassed > 900 )); then
+              echo "Exceeded test timeout of 900 seconds."
+              exit 1
+          fi
           sleep 1
       fi
     done

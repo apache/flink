@@ -40,7 +40,7 @@ import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TestLegacyFilterableTableSource}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
-import org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
@@ -1127,7 +1127,7 @@ class CalcITCase extends BatchTestBase {
       Seq(row(true)))
 
     val d0 = LocalDateConverter.INSTANCE.toInternal(
-      unixTimestampToLocalDateTime(System.currentTimeMillis()).toLocalDate)
+      toLocalDateTime(System.currentTimeMillis()).toLocalDate)
 
     val table = parseQuery("SELECT CURRENT_DATE FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
@@ -1451,6 +1451,98 @@ class CalcITCase extends BatchTestBase {
         row(1.0f, 11.0f, 12.0f),
         row(2.0f, 21.0f, 22.0f),
         row(3.0f, 31.0f, 32.0f))
+    )
+  }
+
+  @Test
+  def testSearch(): Unit = {
+    val myTableDataId = TestValuesTableFactory.registerData(
+      Seq(row("HC809"), row("H389N     "))
+    )
+    val ddl =
+      s"""
+         |CREATE TABLE SimpleTable (
+         |  content STRING
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+    val sql =
+      """
+        |SELECT UPPER(content) from SimpleTable where UPPER(content) in (
+        |'CTNBSmokeSensor',
+        |'H388N',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N'
+        |)
+        |""".stripMargin
+    checkResult(
+      sql,
+      Seq(row("HC809"), row("H389N     "))
+    )
+  }
+
+  @Test
+  def testSearchWithNull(): Unit = {
+    runQueryWithIn(
+      """
+        |'CTNBSmokeSensor',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N',
+        | null""".stripMargin
+    )
+  }
+
+  @Test
+  def testSearchWithNull2(): Unit = {
+    runQueryWithIn(
+      """
+        | null,
+        |'CTNBSmokeSensor',
+        |'H389N     ',
+        |'GHL-IRD',
+        |'JY-BF-20YN',
+        |'HC809',
+        |'DH-9908N-AEP',
+        |'DH-9908N'
+        |""".stripMargin
+    )
+  }
+
+  private def runQueryWithIn(inParameter: String): Unit = {
+    val myTableDataId = TestValuesTableFactory.registerData(
+      Seq(row("HC809"), row(null)))
+    val ddl =
+      s"""
+         |CREATE TABLE SimpleTable (
+         |  content String
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+    val sql =
+      s"""
+         |SELECT content from SimpleTable where UPPER(content) in (
+         | $inParameter
+         |)
+         |""".stripMargin
+    checkResult(
+      sql,
+      Seq(row("HC809"))
     )
   }
 

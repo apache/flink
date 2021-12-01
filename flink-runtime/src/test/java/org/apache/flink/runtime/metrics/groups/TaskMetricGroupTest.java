@@ -178,18 +178,19 @@ public class TaskMetricGroupTest extends TestLogger {
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "localhost", new ResourceID("0"));
 
+        int initialMetricsCount = registry.getNumberRegisteredMetrics();
         TaskMetricGroup taskMetricGroup =
                 taskManagerMetricGroup
                         .addJob(new JobID(), "job")
                         .addTask(new JobVertexID(), new ExecutionAttemptID(), "task", 0, 0);
 
         // the io metric should have registered predefined metrics
-        assertTrue(registry.getNumberRegisteredMetrics() > 0);
+        assertTrue(registry.getNumberRegisteredMetrics() > initialMetricsCount);
 
         taskMetricGroup.close();
 
         // now all registered metrics should have been unregistered
-        assertEquals(0, registry.getNumberRegisteredMetrics());
+        assertEquals(initialMetricsCount, registry.getNumberRegisteredMetrics());
 
         registry.shutdown().get();
     }

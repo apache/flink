@@ -41,7 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.time.LocalDate;
 
-import static org.apache.flink.table.utils.DateTimeUtils.dateToInternal;
+import static org.apache.flink.table.utils.DateTimeUtils.toInternal;
 
 /** This column vector is used to adapt hive's ColumnVector to Flink's ColumnVector. */
 public abstract class AbstractOrcColumnVector
@@ -122,7 +122,7 @@ public abstract class AbstractOrcColumnVector
                 if (value instanceof LocalDate) {
                     value = Date.valueOf((LocalDate) value);
                 }
-                return createLongVector(batchSize, dateToInternal((Date) value));
+                return createLongVector(batchSize, toInternal((Date) value));
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 return TimestampUtil.createVectorFromConstant(batchSize, value);
             default:

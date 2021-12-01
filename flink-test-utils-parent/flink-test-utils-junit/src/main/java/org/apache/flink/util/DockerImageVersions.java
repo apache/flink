@@ -33,6 +33,9 @@ public class DockerImageVersions {
     public static final String ELASTICSEARCH_6 =
             "docker.elastic.co/elasticsearch/elasticsearch-oss:6.3.1";
 
+    public static final String ELASTICSEARCH_COMMERCIAL_6 =
+            "docker.elastic.co/elasticsearch/elasticsearch:6.3.1";
+
     public static final String KAFKA = "confluentinc/cp-kafka:6.2.1";
 
     public static final String RABBITMQ = "rabbitmq:3.9.8-management-alpine";

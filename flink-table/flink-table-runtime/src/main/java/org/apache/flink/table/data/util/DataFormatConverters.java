@@ -730,12 +730,12 @@ public class DataFormatConverters {
 
         @Override
         Integer toInternalImpl(LocalDate value) {
-            return DateTimeUtils.localDateToUnixDate(value);
+            return DateTimeUtils.toInternal(value);
         }
 
         @Override
         LocalDate toExternalImpl(Integer value) {
-            return DateTimeUtils.unixDateToLocalDate(value);
+            return DateTimeUtils.toLocalDate(value);
         }
 
         @Override
@@ -755,12 +755,12 @@ public class DataFormatConverters {
 
         @Override
         Integer toInternalImpl(LocalTime value) {
-            return DateTimeUtils.localTimeToUnixDate(value);
+            return DateTimeUtils.toInternal(value);
         }
 
         @Override
         LocalTime toExternalImpl(Integer value) {
-            return DateTimeUtils.unixTimeToLocalTime(value);
+            return DateTimeUtils.toLocalTime(value);
         }
 
         @Override
@@ -835,12 +835,12 @@ public class DataFormatConverters {
 
         @Override
         Integer toInternalImpl(Date value) {
-            return DateTimeUtils.dateToInternal(value);
+            return DateTimeUtils.toInternal(value);
         }
 
         @Override
         Date toExternalImpl(Integer value) {
-            return DateTimeUtils.internalToDate(value);
+            return DateTimeUtils.toSQLDate(value);
         }
 
         @Override
@@ -860,12 +860,12 @@ public class DataFormatConverters {
 
         @Override
         Integer toInternalImpl(Time value) {
-            return DateTimeUtils.timeToInternal(value);
+            return DateTimeUtils.toInternal(value);
         }
 
         @Override
         Time toExternalImpl(Integer value) {
-            return DateTimeUtils.internalToTime(value);
+            return DateTimeUtils.toSQLTime(value);
         }
 
         @Override

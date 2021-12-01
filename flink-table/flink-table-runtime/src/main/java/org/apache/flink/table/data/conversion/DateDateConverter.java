@@ -30,11 +30,11 @@ public class DateDateConverter implements DataStructureConverter<Integer, java.s
 
     @Override
     public Integer toInternal(java.sql.Date external) {
-        return DateTimeUtils.dateToInternal(external);
+        return DateTimeUtils.toInternal(external);
     }
 
     @Override
     public java.sql.Date toExternal(Integer internal) {
-        return DateTimeUtils.internalToDate(internal);
+        return DateTimeUtils.toSQLDate(internal);
     }
 }

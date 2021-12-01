@@ -54,7 +54,9 @@ function build_image() {
 
     echo "Building images"
     run_with_timeout 600 docker build --no-cache --network="host" -t ${image_name} dev/${image_name}-debian
+    local build_image_result=$?
     popd
+    return $build_image_result
 }
 
 function start_file_server() {

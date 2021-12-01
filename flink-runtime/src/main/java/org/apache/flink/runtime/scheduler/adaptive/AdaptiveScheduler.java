@@ -24,7 +24,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -71,7 +70,6 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -86,6 +84,7 @@ import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.scheduler.JobStatusStore;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
@@ -116,6 +115,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Optional;
@@ -167,9 +167,9 @@ public class AdaptiveScheduler
     private final ClassLoader userCodeClassLoader;
     private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
+    private final CheckpointsCleaner checkpointsCleaner;
     private final CompletedCheckpointStore completedCheckpointStore;
     private final CheckpointIDCounter checkpointIdCounter;
-    private final CheckpointsCleaner checkpointsCleaner;
 
     private final CompletableFuture<JobStatus> jobTerminationFuture = new CompletableFuture<>();
 
@@ -178,7 +178,7 @@ public class AdaptiveScheduler
     private final ComponentMainThreadExecutor componentMainThreadExecutor;
     private final FatalErrorHandler fatalErrorHandler;
 
-    private final JobStatusListener jobStatusListener;
+    private final Collection<JobStatusListener> jobStatusListeners;
 
     private final SlotAllocator slotAllocator;
 
@@ -210,6 +210,7 @@ public class AdaptiveScheduler
             SlotAllocator slotAllocator,
             Executor ioExecutor,
             ClassLoader userCodeClassLoader,
+            CheckpointsCleaner checkpointsCleaner,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
             Duration initialResourceAllocationTimeout,
             Duration resourceStabilizationTimeout,
@@ -238,6 +239,7 @@ public class AdaptiveScheduler
         this.restartBackoffTimeStrategy = restartBackoffTimeStrategy;
         this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
         this.fatalErrorHandler = fatalErrorHandler;
+        this.checkpointsCleaner = checkpointsCleaner;
         this.completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
                         jobGraph,
@@ -248,14 +250,16 @@ public class AdaptiveScheduler
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
                         jobGraph, checkpointRecoveryFactory);
-        this.checkpointsCleaner = new CheckpointsCleaner();
 
         this.slotAllocator = slotAllocator;
 
         declarativeSlotPool.registerNewSlotsListener(this::newResourcesAvailable);
 
         this.componentMainThreadExecutor = mainThreadExecutor;
-        this.jobStatusListener = Preconditions.checkNotNull(jobStatusListener);
+
+        final JobStatusStore jobStatusStore = new JobStatusStore(initializationTimestamp);
+        this.jobStatusListeners =
+                Arrays.asList(Preconditions.checkNotNull(jobStatusListener), jobStatusStore);
 
         this.scaleUpController = new ReactiveScaleUpController(configuration);
 
@@ -265,7 +269,8 @@ public class AdaptiveScheduler
 
         this.executionGraphFactory = executionGraphFactory;
 
-        registerMetrics();
+        SchedulerBase.registerJobMetrics(
+                jobManagerJobMetricGroup, jobStatusStore, () -> (long) numRestarts);
     }
 
     private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
@@ -392,12 +397,6 @@ public class AdaptiveScheduler
                 "newResourcesAvailable");
     }
 
-    private void registerMetrics() {
-        final Gauge<Integer> numRestartsMetric = () -> numRestarts;
-        jobManagerJobMetricGroup.gauge(MetricNames.NUM_RESTARTS, numRestartsMetric);
-        jobManagerJobMetricGroup.gauge(MetricNames.FULL_RESTARTS, numRestartsMetric);
-    }
-
     @Override
     public void startScheduling() {
         state.as(Created.class)
@@ -420,12 +419,12 @@ public class AdaptiveScheduler
 
         backgroundTask.abort();
         // wait for the background task to finish and then close services
-        return CompletableFuture.allOf(
+        return FutureUtils.composeAfterwards(
                 FutureUtils.runAfterwardsAsync(
                         backgroundTask.getTerminationFuture(),
                         () -> stopCheckpointServicesSafely(jobTerminationFuture.get()),
                         getMainThreadExecutor()),
-                checkpointsCleaner.closeAsync());
+                checkpointsCleaner::closeAsync);
     }
 
     private void stopCheckpointServicesSafely(JobStatus terminalState) {
@@ -1157,10 +1156,11 @@ public class AdaptiveScheduler
             final JobStatus newJobStatus = state.getJobStatus();
 
             if (previousJobStatus != newJobStatus) {
-                jobStatusListener.jobStatusChanges(
-                        jobInformation.getJobID(),
-                        state.getJobStatus(),
-                        System.currentTimeMillis());
+                final long timestamp = System.currentTimeMillis();
+                jobStatusListeners.forEach(
+                        listener ->
+                                listener.jobStatusChanges(
+                                        jobInformation.getJobID(), newJobStatus, timestamp));
             }
 
             return targetStateInstance;

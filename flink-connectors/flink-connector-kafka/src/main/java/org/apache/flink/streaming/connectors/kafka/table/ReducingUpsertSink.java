@@ -24,11 +24,11 @@ import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.function.SerializableFunction;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 
 /**
  * A wrapper of a {@link Sink}. It will buffer the data emitted by the wrapper {@link SinkWriter}
@@ -43,14 +43,14 @@ class ReducingUpsertSink<WriterState> implements Sink<RowData, Void, WriterState
     private final DataType physicalDataType;
     private final int[] keyProjection;
     private final SinkBufferFlushMode bufferFlushMode;
-    private final Function<RowData, RowData> valueCopyFunction;
+    private final SerializableFunction<RowData, RowData> valueCopyFunction;
 
     ReducingUpsertSink(
             Sink<RowData, ?, WriterState, ?> wrappedSink,
             DataType physicalDataType,
             int[] keyProjection,
             SinkBufferFlushMode bufferFlushMode,
-            Function<RowData, RowData> valueCopyFunction) {
+            SerializableFunction<RowData, RowData> valueCopyFunction) {
         this.wrappedSink = wrappedSink;
         this.physicalDataType = physicalDataType;
         this.keyProjection = keyProjection;

@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-import { SafeAny } from './safe-any';
-
-export interface JobStatusCountsInterface {
+export interface JobStatusCounts {
   CREATED: number;
   SCHEDULED: number;
   CANCELED: number;
@@ -44,7 +42,7 @@ interface TimestampsStatus {
   SUSPENDED: number;
 }
 
-export interface JobDetailInterface {
+export interface JobDetail {
   jid: string;
   name: string;
   isStoppable: boolean;
@@ -55,8 +53,8 @@ export interface JobDetailInterface {
   maxParallelism: number;
   now: number;
   timestamps: TimestampsStatus;
-  vertices: VerticesItemInterface[];
-  'status-counts': JobStatusCountsInterface;
+  vertices: VerticesItem[];
+  'status-counts': JobStatusCounts;
   plan: Plan;
 }
 
@@ -64,7 +62,7 @@ interface Plan {
   jid: string;
   name: string;
   type: string;
-  nodes: NodesItemInterface[];
+  nodes: NodesItem[];
 }
 
 interface InputsItem {
@@ -74,13 +72,13 @@ interface InputsItem {
   exchange: string;
 }
 
-export interface VerticesLinkInterface extends InputsItem {
+export interface VerticesLink extends InputsItem {
   source: string;
   target: string;
   id: string;
 }
 
-export interface VerticesItemInterface {
+export interface VerticesItem {
   id: string;
   name: string;
   parallelism: number;
@@ -93,7 +91,7 @@ export interface VerticesItemInterface {
   metrics: MetricsStatus;
 }
 
-export interface VerticesItemRangeInterface extends VerticesItemInterface {
+export interface VerticesItemRange extends VerticesItem {
   range: number[];
 }
 
@@ -121,26 +119,26 @@ interface MetricsStatus {
   'write-records-complete': boolean;
 }
 
-export interface NodesItemInterface {
+export interface NodesItem {
   id: string;
   parallelism: number;
   operator: string;
   operator_strategy: string;
   description: string;
   inputs?: InputsItem[];
-  optimizer_properties: SafeAny;
+  optimizer_properties: unknown;
   width?: number;
   height?: number;
 }
 
-export interface NodesItemCorrectInterface extends NodesItemInterface {
-  detail: VerticesItemInterface | undefined;
+export interface NodesItemCorrect extends NodesItem {
+  detail: VerticesItem | undefined;
   lowWatermark?: number;
   backPressuredPercentage?: number;
   busyPercentage?: number;
 }
 
-export interface NodesItemLinkInterface {
+export interface NodesItemLink {
   id: string;
   source: string;
   target: string;
@@ -149,12 +147,12 @@ export interface NodesItemLinkInterface {
   local_strategy?: string;
 }
 
-export interface JobDetailCorrectInterface extends JobDetailInterface {
+export interface JobDetailCorrect extends JobDetail {
   plan: {
     jid: string;
     name: string;
     type: string;
-    nodes: NodesItemCorrectInterface[];
-    links: NodesItemLinkInterface[];
+    nodes: NodesItemCorrect[];
+    links: NodesItemLink[];
   };
 }

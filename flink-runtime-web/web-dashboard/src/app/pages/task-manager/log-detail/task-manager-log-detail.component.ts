@@ -22,7 +22,7 @@ import { first, takeUntil } from 'rxjs/operators';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
-import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerDetail } from 'interfaces';
 import { TaskManagerService } from 'services';
 
 @Component({
@@ -35,22 +35,41 @@ import { TaskManagerService } from 'services';
   styleUrls: ['./task-manager-log-detail.component.less']
 })
 export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
-  logs = '';
-  logName = '';
-  downloadUrl = '';
-  isLoading = false;
-  taskManagerDetail: TaskManagerDetailInterface;
-  isFullScreen = false;
-  editorOptions: EditorOptions = flinkEditorOptions;
-  private destroy$ = new Subject<void>();
+  public readonly editorOptions: EditorOptions = flinkEditorOptions;
+
+  public logs = '';
+  public logName = '';
+  public downloadUrl = '';
+  public isLoading = false;
+  public taskManagerDetail?: TaskManagerDetail;
+  public isFullScreen = false;
+
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
-    private taskManagerService: TaskManagerService,
-    private cdr: ChangeDetectorRef,
-    private activatedRoute: ActivatedRoute
+    private readonly taskManagerService: TaskManagerService,
+    private readonly cdr: ChangeDetectorRef,
+    private readonly activatedRoute: ActivatedRoute
   ) {}
 
-  reloadLog(): void {
+  public ngOnInit(): void {
+    this.taskManagerService.taskManagerDetail$.pipe(first(), takeUntil(this.destroy$)).subscribe(data => {
+      this.taskManagerDetail = data;
+      this.logName = this.activatedRoute.snapshot.params.logName;
+      this.reloadLog();
+    });
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public reloadLog(): void {
+    if (!this.taskManagerDetail) {
+      return;
+    }
+
     this.isLoading = true;
     this.cdr.markForCheck();
     this.taskManagerService
@@ -70,20 +89,7 @@ export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
       );
   }
 
-  toggleFullScreen(fullScreen: boolean): void {
+  public toggleFullScreen(fullScreen: boolean): void {
     this.isFullScreen = fullScreen;
-  }
-
-  ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$.pipe(first(), takeUntil(this.destroy$)).subscribe(data => {
-      this.taskManagerDetail = data;
-      this.logName = this.activatedRoute.snapshot.params.logName;
-      this.reloadLog();
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.filesystem;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.FileSourceSplit;
@@ -41,6 +42,10 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
     /**
      * Limit the total number of records read by this format. When the limit is reached, subsequent
      * readers will no longer read data.
+     *
+     * <p>LIMIT N would produce a list of N records totally. But the source can produce more. There
+     * are limiters in the downstream operator. The globalNumberRead is just for the total limit, as
+     * soon as someone has reached its limit, the source can be ended.
      */
     @Nullable private transient AtomicLong globalNumberRead;
 
@@ -59,6 +64,11 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
     public Reader<T> restoreReader(Configuration config, SplitT split) throws IOException {
         Reader<T> reader = reachLimit() ? null : format.restoreReader(config, split);
         return wrapReader(reader);
+    }
+
+    @VisibleForTesting
+    AtomicLong globalNumberRead() {
+        return globalNumberRead;
     }
 
     private synchronized Reader<T> wrapReader(Reader<T> reader) {
@@ -105,8 +115,19 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
                 return null;
             }
 
-            RecordIterator<T> batch = reader.readBatch();
-            return batch == null ? null : new LimitableIterator(batch);
+            try {
+                RecordIterator<T> batch = reader.readBatch();
+                return batch == null ? null : new LimitableIterator(batch);
+            } catch (Exception e) {
+                // ignore any exception if someone reached limit
+                // Theoretically, once the limit bar is reached, whatever problems are encountered
+                // subsequently, the required task has been completed
+                if (reachLimit()) {
+                    return null;
+                } else {
+                    throw e;
+                }
+            }
         }
 
         @Override

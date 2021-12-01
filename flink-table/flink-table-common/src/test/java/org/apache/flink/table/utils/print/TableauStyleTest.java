@@ -254,7 +254,7 @@ public class TableauStyleTest {
             results[5] =
                     rowData.isNullAt(5)
                             ? PrintStyle.NULL_VALUE
-                            : DateTimeUtils.timestampToString(
+                            : DateTimeUtils.formatTimestamp(
                                     rowData.getTimestamp(5, 6), DateTimeUtils.UTC_ZONE, 6);
 
             return results;

@@ -26,12 +26,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.changelog.fs.ChangelogStorageMetricGroup;
 import org.apache.flink.changelog.fs.FsStateChangelogStorage;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -117,7 +119,12 @@ public class ChangelogStateBackendTestUtils {
         return TestTaskStateManager.builder()
                 .setStateChangelogStorage(
                         new FsStateChangelogStorage(
-                                Path.fromLocalFile(changelogStoragePath), false, 1024))
+                                Path.fromLocalFile(changelogStoragePath),
+                                false,
+                                1024,
+                                new ChangelogStorageMetricGroup(
+                                        UnregisteredMetricGroups
+                                                .createUnregisteredTaskManagerJobMetricGroup())))
                 .build();
     }
 
