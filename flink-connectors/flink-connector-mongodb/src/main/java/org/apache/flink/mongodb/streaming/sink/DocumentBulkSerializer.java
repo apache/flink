@@ -17,8 +17,12 @@ import org.bson.io.BasicOutputBuffer;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
-public class DocumentBulkSerializer implements SimpleVersionedSerializer<DocumentBulk>, Serializable {
+/** Perform serialization and deserialization operations. */
+public class DocumentBulkSerializer
+        implements SimpleVersionedSerializer<List<Document>>, Serializable {
 
     private static final int MAGIC_NUMBER = 0x2f35a24b;
 
@@ -26,7 +30,7 @@ public class DocumentBulkSerializer implements SimpleVersionedSerializer<Documen
 
     private static int version = 1;
 
-    private static Codec<Document> DOCUMENT_CODEC = new DocumentCodec();
+    private static Codec<Document> documentCodec = new DocumentCodec();
 
     @Override
     public int getVersion() {
@@ -34,7 +38,7 @@ public class DocumentBulkSerializer implements SimpleVersionedSerializer<Documen
     }
 
     @Override
-    public byte[] serialize(DocumentBulk documentBulk) throws IOException {
+    public byte[] serialize(List<Document> documentBulk) throws IOException {
         DataOutputSerializer out = new DataOutputSerializer(256);
         out.writeInt(MAGIC_NUMBER);
         serializeV1(documentBulk, out);
@@ -44,7 +48,7 @@ public class DocumentBulkSerializer implements SimpleVersionedSerializer<Documen
     }
 
     @Override
-    public DocumentBulk deserialize(int version, byte[] serialized) throws IOException {
+    public List<Document> deserialize(int version, byte[] serialized) throws IOException {
         DataInputDeserializer in = new DataInputDeserializer(serialized);
         switch (version) {
             case 1:
@@ -63,25 +67,29 @@ public class DocumentBulkSerializer implements SimpleVersionedSerializer<Documen
         }
     }
 
-    private void serializeV1(DocumentBulk documentBulk, DataOutputSerializer out) throws IOException {
-        for (Document document : documentBulk.getDocuments()) {
+    private void serializeV1(List<Document> documentBulk, DataOutputSerializer out)
+            throws IOException {
+        for (Document document : documentBulk) {
             BasicOutputBuffer outputBuffer = new BasicOutputBuffer();
             BsonBinaryWriter writer = new BsonBinaryWriter(outputBuffer);
-            DOCUMENT_CODEC.encode(writer, document, EncoderContext.builder().isEncodingCollectibleDocument(true).build());
+            documentCodec.encode(
+                    writer,
+                    document,
+                    EncoderContext.builder().isEncodingCollectibleDocument(true).build());
             byte[] documentBytes = outputBuffer.toByteArray();
             out.writeInt(documentBytes.length);
             out.write(documentBytes);
         }
     }
 
-    private DocumentBulk deserializeV1(DataInputDeserializer in) throws IOException {
-        DocumentBulk bulk = new DocumentBulk();
+    private List<Document> deserializeV1(DataInputDeserializer in) throws IOException {
+        List<Document> bulk = new ArrayList<>();
         int len;
         while ((len = in.readInt()) != END_OF_INPUT) {
             byte[] docBuffer = new byte[len];
             in.read(docBuffer);
             BsonBinaryReader bsonReader = new BsonBinaryReader(ByteBuffer.wrap(docBuffer));
-            bulk.add(DOCUMENT_CODEC.decode(bsonReader, DecoderContext.builder().build()));
+            bulk.add(documentCodec.decode(bsonReader, DecoderContext.builder().build()));
         }
         return bulk;
     }

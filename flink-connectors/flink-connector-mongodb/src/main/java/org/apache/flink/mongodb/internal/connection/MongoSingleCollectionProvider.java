@@ -1,29 +1,27 @@
-package org.apache.flink.mongodb.table.connection;
+package org.apache.flink.mongodb.internal.connection;
 
 import org.apache.flink.util.Preconditions;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.reactivestreams.client.MongoClient;
+import com.mongodb.reactivestreams.client.MongoClients;
+import com.mongodb.reactivestreams.client.MongoCollection;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** A simple implementation of {@link MongoClientProvider}. */
 public class MongoSingleCollectionProvider implements MongoClientProvider {
 
-    /**
-     * Connection string to MongoDB standalone instances, replica sets or sharded clusters.
-     */
+    /** Connection string to MongoDB standalone instances, replica sets or sharded clusters. */
     private final String connectionString;
 
-    /**
-     * The MongoDB defaultDatabase to write to.
-     */
+    /** The MongoDB defaultDatabase to write to. */
     private final String defaultDatabase;
 
     /**
-     * The defaultCollection to write to. Must be a existing defaultCollection for MongoDB 4.2 and earlier versions.
+     * The defaultCollection to write to. Must be a existing defaultCollection for MongoDB 4.2 and
+     * earlier versions.
      */
     private final String defaultCollection;
 
@@ -33,9 +31,11 @@ public class MongoSingleCollectionProvider implements MongoClientProvider {
 
     private transient MongoCollection<Document> collection;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MongoSingleCollectionProvider.class);
-
-    public MongoSingleCollectionProvider(String connectionString, String defaultDatabase, String defaultCollection) {
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(MongoSingleCollectionProvider.class);
+    /** */
+    public MongoSingleCollectionProvider(
+            String connectionString, String defaultDatabase, String defaultCollection) {
         Preconditions.checkNotNull(connectionString);
         Preconditions.checkNotNull(defaultDatabase);
         Preconditions.checkNotNull(defaultCollection);

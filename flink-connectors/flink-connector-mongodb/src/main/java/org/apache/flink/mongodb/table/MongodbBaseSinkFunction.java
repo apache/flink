@@ -1,34 +1,37 @@
-package org.apache.flink.mongodb.table.sink;
+package org.apache.flink.mongodb.table;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.mongodb.table.connection.MongoColloctionProviders;
-import org.apache.flink.mongodb.table.connection.MongoSingleCollectionProvider;
+import org.apache.flink.mongodb.internal.connection.MongoClientProvider;
+import org.apache.flink.mongodb.internal.connection.MongoColloctionProviders;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.reactivestreams.client.MongoClient;
+import com.mongodb.reactivestreams.client.MongoCollection;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.bson.Document;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class MongodbBaseSinkFunction<IN> extends RichSinkFunction<IN> implements CheckpointedFunction {
+/** */
+public abstract class MongodbBaseSinkFunction<IN> extends RichSinkFunction<IN>
+        implements CheckpointedFunction {
     private final MongodbSinkConf mongodbSinkConf;
     private transient MongoClient client;
     private transient List<Document> batch;
-    private final MongoSingleCollectionProvider clientProvider;
+    private final MongoClientProvider clientProvider;
 
     protected MongodbBaseSinkFunction(MongodbSinkConf mongodbSinkConf) {
         this.mongodbSinkConf = mongodbSinkConf;
-        this.clientProvider = MongoColloctionProviders
-                .getBuilder()
-                .connectionString(this.mongodbSinkConf.getUri())
-                .database(this.mongodbSinkConf.getDatabase())
-                .collection(this.mongodbSinkConf.getCollection()).build();
+        this.clientProvider =
+                MongoColloctionProviders.getBuilder()
+                        .connectionString(mongodbSinkConf.getUri())
+                        .database(mongodbSinkConf.getDatabase())
+                        .collection(mongodbSinkConf.getCollection())
+                        .build();
     }
 
     @Override
@@ -59,8 +62,7 @@ public abstract class MongodbBaseSinkFunction<IN> extends RichSinkFunction<IN> i
     }
 
     @Override
-    public void initializeState(FunctionInitializationContext functionInitializationContext) {
-    }
+    public void initializeState(FunctionInitializationContext functionInitializationContext) {}
 
     private void flush() {
         if (this.batch.isEmpty()) {
@@ -68,7 +70,8 @@ public abstract class MongodbBaseSinkFunction<IN> extends RichSinkFunction<IN> i
         }
         MongoDatabase mongoDatabase = this.client.getDatabase(this.mongodbSinkConf.getDatabase());
 
-        MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(this.mongodbSinkConf.getCollection());
+        MongoCollection<Document> mongoCollection =
+                mongoDatabase.getCollection(this.mongodbSinkConf.getCollection());
         mongoCollection.insertMany(this.batch);
 
         this.batch.clear();

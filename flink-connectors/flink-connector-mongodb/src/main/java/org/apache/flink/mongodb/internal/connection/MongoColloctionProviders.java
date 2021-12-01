@@ -1,16 +1,15 @@
-package org.apache.flink.mongodb.table.connection;
+package org.apache.flink.mongodb.internal.connection;
 
 import org.apache.flink.util.Preconditions;
 
-/**
- * A builder class for creating {@link MongoClientProvider}.
- **/
+/** A builder class for creating {@link MongoClientProvider}. */
 public class MongoColloctionProviders {
 
     public static Builder getBuilder() {
         return new Builder();
     }
 
+    /** */
     public static class Builder {
 
         private String connectionString;
@@ -34,7 +33,7 @@ public class MongoColloctionProviders {
             return this;
         }
 
-        public MongoSingleCollectionProvider build() {
+        public MongoClientProvider build() {
             Preconditions.checkNotNull(connectionString, "Connection string must not be null");
             Preconditions.checkNotNull(database, "Database must not be null");
             Preconditions.checkNotNull(collection, "Collection must not be null");

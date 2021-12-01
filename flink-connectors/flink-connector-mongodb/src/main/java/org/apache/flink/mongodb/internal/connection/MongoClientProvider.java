@@ -1,12 +1,16 @@
-package org.apache.flink.mongodb.streaming.connection;
+package org.apache.flink.mongodb.internal.connection;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
+import org.apache.flink.annotation.Internal;
+
+import com.mongodb.reactivestreams.client.MongoClient;
+import com.mongodb.reactivestreams.client.MongoCollection;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.bson.Document;
 
 import java.io.Serializable;
 
+/** Provided for initiate and recreate {@link MongoClient}. */
+@Internal
 public interface MongoClientProvider extends Serializable {
 
     /**
@@ -37,8 +41,6 @@ public interface MongoClientProvider extends Serializable {
      */
     MongoClient recreateClient();
 
-    /**
-     * Close the underlying MongoDB connection.
-     */
+    /** Close the underlying MongoDB connection. */
     void close();
 }

@@ -5,6 +5,7 @@ import org.bson.Document;
 import java.io.IOException;
 import java.io.Serializable;
 
+/** */
 public interface DocumentDeserializer<T> extends Serializable {
 
     /**
@@ -14,5 +15,4 @@ public interface DocumentDeserializer<T> extends Serializable {
      * @return The serialized object.
      */
     T deserialize(Document document) throws IOException;
-
 }

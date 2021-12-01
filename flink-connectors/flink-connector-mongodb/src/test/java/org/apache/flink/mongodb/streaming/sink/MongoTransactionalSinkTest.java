@@ -10,8 +10,9 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 
+/** */
 public class MongoTransactionalSinkTest extends MongoSinkTestBase {
 
     @Test
@@ -20,22 +21,25 @@ public class MongoTransactionalSinkTest extends MongoSinkTestBase {
         env.setParallelism(1);
         env.getCheckpointConfig().setCheckpointInterval(1000L);
 
-        // if these rows are not multiple times of rps, there would be the records remaining not flushed
+        // if these rows are not multiple times of rps, there would be the records remaining not
+        // flushed
         // after the last checkpoint
         long rps = 50;
         long rows = 1000L;
 
-        MongoSink mongoSink = MongoSink.BuilderClient("admin", "SM67q89izW4itH7%", CONNECT_STRING, new StringDocumentSerializer())
-                .isTransactional(true)
-                .isFlushOnCheckpoint(true)
-                .setDatabase(DATABASE_NAME)
-                .setCollection(COLLECTION)
-                .isRetryWrites(true).build();
-
         env.addSource(new DataGeneratorSource<>(new StringGenerator(), rps, rows))
                 .returns(String.class)
-
-                .sinkTo(mongoSink);
+                .sinkTo(
+                        new MongoAsyncSink<String>(
+                                25,
+                                1,
+                                100,
+                                100000,
+                                1000,
+                                connectString,
+                                databaseName,
+                                collection,
+                                new StringDocumentSerializer()));
         StreamGraph streamGraph = env.getStreamGraph();
 
         final Configuration config = new Configuration();
@@ -52,6 +56,7 @@ public class MongoTransactionalSinkTest extends MongoSinkTestBase {
             miniCluster.executeJobBlocking(streamGraph.getJobGraph());
         }
 
-        assertTrue(mongo.getDatabase(DATABASE_NAME).getCollection(COLLECTION).countDocuments() > 0);
+        assertEquals(
+                rows, mongo.getDatabase(databaseName).getCollection(collection).countDocuments());
     }
 }

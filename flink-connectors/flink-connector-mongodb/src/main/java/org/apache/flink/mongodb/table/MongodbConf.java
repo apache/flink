@@ -2,6 +2,7 @@ package org.apache.flink.mongodb.table;
 
 import java.io.Serializable;
 
+/** */
 public class MongodbConf implements Serializable {
     private static final long serialVersionUID = 1L;
     private String database;
@@ -50,6 +51,17 @@ public class MongodbConf implements Serializable {
 
     @Override
     public String toString() {
-        return "MongodbConf{database='" + this.database + '\'' + ", collection='" + this.collection + '\'' + ", uri='" + this.uri + '\'' + ", maxConnectionIdleTime=" + this.maxConnectionIdleTime + '}';
+        return "MongodbConf{database='"
+                + this.database
+                + '\''
+                + ", collection='"
+                + this.collection
+                + '\''
+                + ", uri='"
+                + this.uri
+                + '\''
+                + ", maxConnectionIdleTime="
+                + this.maxConnectionIdleTime
+                + '}';
     }
 }

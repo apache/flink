@@ -1,22 +1,16 @@
 package org.apache.flink.mongodb.streaming.sink;
 
-
 import org.apache.flink.mongodb.streaming.EmbeddedMongoTestBase;
 import org.apache.flink.mongodb.streaming.serde.DocumentSerializer;
 
 import org.bson.Document;
 
-/**
- * Base class for tests for MongoSink.
- **/
-
+/** Base class for tests for MongoSink. */
 public class MongoSinkTestBase extends EmbeddedMongoTestBase {
 
-    protected static String DATABASE_NAME = "bulkwrite";
-    protected static String COLLECTION = "transactional-4_0";
-
+    protected static String databaseName = "bulkwrite";
+    protected static String collection = "transactional-4_0";
 }
-
 
 class StringDocumentSerializer implements DocumentSerializer<String> {
 
@@ -29,4 +23,3 @@ class StringDocumentSerializer implements DocumentSerializer<String> {
         return document;
     }
 }
-
