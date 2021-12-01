@@ -189,6 +189,9 @@ object EnumValueSerializerCompatibilityTest {
 
     run.compile(List(file.getAbsolutePath))
 
-    reporter.printSummary()
+    if (reporter.hasWarnings || reporter.hasErrors) {
+      reporter.finish()
+      fail("Scala compiler reported warnings or errors")
+    }
   }
 }
