@@ -52,7 +52,7 @@ public class CastRuleProvider {
                 .addRule(NumericPrimitiveCastRule.INSTANCE)
                 // Boolean <-> numeric rules
                 .addRule(BooleanToNumericCastRule.INSTANCE)
-                .addRule(IntegerNumericToBooleanCastRule.INSTANCE)
+                .addRule(NumericToBooleanCastRule.INSTANCE)
                 // To string rules
                 .addRule(NumericToStringCastRule.INSTANCE)
                 .addRule(BooleanToStringCastRule.INSTANCE)

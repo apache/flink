@@ -633,6 +633,16 @@ class CastRulesTest {
                         .fail(STRING(), StringData.fromString("Apache Flink"), TableException.class)
                         .fromCase(STRING(), StringData.fromString("TRUE"), true)
                         .fail(STRING(), StringData.fromString(""), TableException.class)
+                        // Should fail when https://issues.apache.org/jira/browse/FLINK-24576 is
+                        // fixed
+                        .fromCase(
+                                DECIMAL(5, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("0.000"), 5, 3),
+                                false)
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("1.987"), 4, 3),
+                                true)
                         .fromCase(TINYINT(), DEFAULT_POSITIVE_TINY_INT, true)
                         .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, true)
                         .fromCase(TINYINT(), (byte) 0, false)
@@ -644,7 +654,13 @@ class CastRulesTest {
                         .fromCase(INT(), 0, false)
                         .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, true)
                         .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, true)
-                        .fromCase(BIGINT(), 0L, false),
+                        .fromCase(BIGINT(), 0L, false)
+                        // Should fail when https://issues.apache.org/jira/browse/FLINK-24576 is
+                        // fixed
+                        .fromCase(FLOAT(), 0f, false)
+                        .fromCase(FLOAT(), 1.1234f, true)
+                        .fromCase(DOUBLE(), 0.0d, false)
+                        .fromCase(DOUBLE(), -0.12345678d, true),
                 CastTestSpecBuilder.testCastTo(BINARY(2))
                         .fromCase(CHAR(3), StringData.fromString("foo"), new byte[] {102, 111, 111})
                         .fromCase(

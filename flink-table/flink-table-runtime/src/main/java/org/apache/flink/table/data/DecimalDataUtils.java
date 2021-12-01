@@ -193,6 +193,10 @@ public final class DecimalDataUtils {
         return fromBigDecimal(BigDecimal.valueOf(val), p, s);
     }
 
+    public static boolean castToBoolean(DecimalData dec) {
+        return dec.toBigDecimal().compareTo(BigDecimal.ZERO) != 0;
+    }
+
     /**
      * SQL <code>SIGN</code> operator applied to BigDecimal values. preserve precision and scale.
      */
