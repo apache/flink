@@ -78,7 +78,7 @@ Kafka source provide 3 ways of topic-partition subscription:
 - Topic pattern, subscribing messages from all topics whose name matches the provided regular
   expression. For example:
   ```java
-  KafkaSource.builder().setTopicPattern("topic.*")
+  KafkaSource.builder().setTopicPattern(Pattern.compile("topic.*"))
   ```
 - Partition set, subscribing partitions in the provided partition set. For example:
   ```java
@@ -359,9 +359,9 @@ KafkaSink<String> sink = KafkaSink.<String>builder()
         .setRecordSerializer(KafkaRecordSerializationSchema.builder()
             .setTopic("topic-name")
             .setValueSerializationSchema(new SimpleStringSchema())
-            .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
             .build()
         )
+        .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
         .build();
         
 stream.sinkTo(sink);
