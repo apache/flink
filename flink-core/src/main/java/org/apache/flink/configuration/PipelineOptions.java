@@ -274,4 +274,12 @@ public class PipelineOptions {
         /** Organizes the description in a single line cascading mode, which is similar to name. */
         CASCADING
     }
+
+    public static final ConfigOption<Boolean> VERTEX_NAME_INCLUDE_INDEX_PREFIX =
+            key("pipeline.vertex-name-include-index-prefix")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether name of vertex includes topological index or not. "
+                                    + "When it is true, the name will have a prefix of index of the vertex, like '[vertex-0]Source: source'. It is false by default");
 }
