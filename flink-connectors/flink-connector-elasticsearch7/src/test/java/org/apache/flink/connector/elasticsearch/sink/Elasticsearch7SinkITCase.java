@@ -33,8 +33,7 @@ class Elasticsearch7SinkITCase extends ElasticsearchSinkBaseITCase {
 
     @Container
     private static final ElasticsearchContainer ES_CONTAINER =
-            new ElasticsearchContainer(
-                            DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_COMMERCIAL_7))
+            new ElasticsearchContainer(DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_7))
                     .withPassword(ELASTICSEARCH_PASSWORD)
                     .withLogConsumer(new Slf4jLogConsumer(LOG));
 

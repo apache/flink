@@ -32,7 +32,6 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.action.DocWriteRequest;
-import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -43,9 +42,6 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.unit.ByteSizeUnit;
-import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.rest.RestStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,6 +80,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
      *     checkpoint
      * @param bulkProcessorConfig describing the flushing and failure handling of the used {@link
      *     BulkProcessor}
+     * @param bulkProcessorBuilderFactory configuring the {@link BulkProcessor}'s builder
      * @param networkClientConfig describing properties of the network connection used to connect to
      *     the elasticsearch cluster
      * @param metricGroup for the sink writer
@@ -94,6 +91,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
             ElasticsearchEmitter<? super IN> emitter,
             boolean flushOnCheckpoint,
             BulkProcessorConfig bulkProcessorConfig,
+            BulkProcessorBuilderFactory bulkProcessorBuilderFactory,
             NetworkClientConfig networkClientConfig,
             SinkWriterMetricGroup metricGroup,
             MailboxExecutor mailboxExecutor) {
@@ -105,12 +103,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
                         configureRestClientBuilder(
                                 RestClient.builder(hosts.toArray(new HttpHost[0])),
                                 networkClientConfig));
-        this.bulkProcessor =
-                configureBulkProcessor(
-                        BulkProcessor.builder(
-                                bulkProcessorConfig.getBulkRequestConsumerFactory().create(client),
-                                new BulkListener()),
-                        bulkProcessorConfig);
+        this.bulkProcessor = createBulkProcessor(bulkProcessorBuilderFactory, bulkProcessorConfig);
         this.requestIndexer = new DefaultRequestIndexer();
         checkNotNull(metricGroup);
         metricGroup.setCurrentSendTimeGauge(() -> ackTime - lastSendTime);
@@ -179,44 +172,15 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
         return builder;
     }
 
-    private static BulkProcessor configureBulkProcessor(
-            BulkProcessor.Builder builder, BulkProcessorConfig bulkProcessorConfig) {
+    private BulkProcessor createBulkProcessor(
+            BulkProcessorBuilderFactory bulkProcessorBuilderFactory,
+            BulkProcessorConfig bulkProcessorConfig) {
+
+        BulkProcessor.Builder builder =
+                bulkProcessorBuilderFactory.apply(client, bulkProcessorConfig, new BulkListener());
+
         // This makes flush() blocking
         builder.setConcurrentRequests(0);
-
-        if (bulkProcessorConfig.getBulkFlushMaxActions() != -1) {
-            builder.setBulkActions(bulkProcessorConfig.getBulkFlushMaxActions());
-        }
-
-        if (bulkProcessorConfig.getBulkFlushMaxMb() != -1) {
-            builder.setBulkSize(
-                    new ByteSizeValue(bulkProcessorConfig.getBulkFlushMaxMb(), ByteSizeUnit.MB));
-        }
-
-        if (bulkProcessorConfig.getBulkFlushInterval() != -1) {
-            builder.setFlushInterval(new TimeValue(bulkProcessorConfig.getBulkFlushInterval()));
-        }
-
-        BackoffPolicy backoffPolicy;
-        final TimeValue backoffDelay =
-                new TimeValue(bulkProcessorConfig.getBulkFlushBackOffDelay());
-        final int maxRetryCount = bulkProcessorConfig.getBulkFlushBackoffRetries();
-        switch (bulkProcessorConfig.getFlushBackoffType()) {
-            case CONSTANT:
-                backoffPolicy = BackoffPolicy.constantBackoff(backoffDelay, maxRetryCount);
-                break;
-            case EXPONENTIAL:
-                backoffPolicy = BackoffPolicy.exponentialBackoff(backoffDelay, maxRetryCount);
-                break;
-            case NONE:
-                backoffPolicy = BackoffPolicy.noBackoff();
-                break;
-            default:
-                throw new IllegalArgumentException(
-                        "Received unknown backoff policy type "
-                                + bulkProcessorConfig.getFlushBackoffType());
-        }
-        builder.setBackoffPolicy(backoffPolicy);
 
         return builder.build();
     }

@@ -217,7 +217,7 @@ public abstract class ElasticsearchSinkBuilderBase<
         return self();
     }
 
-    protected abstract BulkRequestConsumerFactory getBulkRequestConsumer();
+    protected abstract BulkProcessorBuilderFactory getBulkProcessorBuilderFactory();
 
     /**
      * Constructs the {@link ElasticsearchSink} with the properties configured this builder.
@@ -231,8 +231,17 @@ public abstract class ElasticsearchSinkBuilderBase<
         NetworkClientConfig networkClientConfig = buildNetworkClientConfig();
         BulkProcessorConfig bulkProcessorConfig = buildBulkProcessorConfig();
 
+        BulkProcessorBuilderFactory bulkProcessorBuilderFactory = getBulkProcessorBuilderFactory();
+        ClosureCleaner.clean(
+                bulkProcessorBuilderFactory, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+
         return new ElasticsearchSink<>(
-                hosts, emitter, deliveryGuarantee, bulkProcessorConfig, networkClientConfig);
+                hosts,
+                emitter,
+                deliveryGuarantee,
+                bulkProcessorBuilderFactory,
+                bulkProcessorConfig,
+                networkClientConfig);
     }
 
     private NetworkClientConfig buildNetworkClientConfig() {
@@ -242,19 +251,13 @@ public abstract class ElasticsearchSinkBuilderBase<
     }
 
     private BulkProcessorConfig buildBulkProcessorConfig() {
-        BulkRequestConsumerFactory bulkRequestConsumer = getBulkRequestConsumer();
-        ClosureCleaner.clean(
-                bulkRequestConsumer, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
-        checkNotNull(bulkRequestConsumer);
-
         return new BulkProcessorConfig(
                 bulkFlushMaxActions,
                 bulkFlushMaxMb,
                 bulkFlushInterval,
                 bulkFlushBackoffType,
                 bulkFlushBackoffRetries,
-                bulkFlushBackOffDelay,
-                bulkRequestConsumer);
+                bulkFlushBackOffDelay);
     }
 
     @Override
