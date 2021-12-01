@@ -131,6 +131,7 @@ public interface DynamicTableSink {
      * instances are {@link Serializable} and can be directly passed into the runtime implementation
      * class.
      */
+    @PublicEvolving
     interface Context {
 
         /**
@@ -178,6 +179,7 @@ public interface DynamicTableSink {
      *
      * @see LogicalType#supportsOutputConversion(Class)
      */
+    @PublicEvolving
     interface DataStructureConverter extends RuntimeConverter {
 
         /** Converts the given internal structure into an external object. */
@@ -198,6 +200,7 @@ public interface DynamicTableSink {
      *
      * @see SinkProvider
      */
+    @PublicEvolving
     interface SinkRuntimeProvider {
         // marker interface
     }

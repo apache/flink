@@ -70,7 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.utils.DateTimeUtils.dateToInternal;
+import static org.apache.flink.table.utils.DateTimeUtils.toInternal;
 import static org.apache.parquet.Preconditions.checkArgument;
 
 /** Util for generating {@link ParquetColumnarRowSplitReader}. */
@@ -243,9 +243,7 @@ public class ParquetSplitReaderUtil {
                     value = Date.valueOf((LocalDate) value);
                 }
                 return createVectorFromConstant(
-                        new IntType(),
-                        value == null ? null : dateToInternal((Date) value),
-                        batchSize);
+                        new IntType(), value == null ? null : toInternal((Date) value), batchSize);
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 HeapTimestampVector tv = new HeapTimestampVector(batchSize);
                 if (value == null) {

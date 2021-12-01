@@ -1157,6 +1157,18 @@ public class StreamTaskTest extends TestLogger {
                                 .build());
     }
 
+    @Test
+    public void testFailInEndOfConstructor() throws Exception {
+        Configuration conf = new Configuration();
+        // Set the wrong setting type for forcing the fail during read.
+        conf.setString(BUFFER_DEBLOAT_PERIOD.key(), "a");
+        testRecordWriterClosedOnError(
+                env ->
+                        taskBuilderWithConfiguredRecordWriter(env)
+                                .setTaskManagerConfig(conf)
+                                .build());
+    }
+
     private void testRecordWriterClosedOnError(
             FunctionWithException<NettyShuffleEnvironment, Task, Exception> taskProvider)
             throws Exception {

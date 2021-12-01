@@ -50,12 +50,12 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LogicalTypeMerging#findCommonType(List)}. */
 @RunWith(Parameterized.class)
@@ -298,11 +298,14 @@ public class LogicalCommonTypeTest {
     @Parameter public List<LogicalType> types;
 
     @Parameter(1)
-    public LogicalType commonType;
+    public @Nullable LogicalType commonType;
 
     @Test
     public void testCommonType() {
-        assertThat(
-                LogicalTypeMerging.findCommonType(types), equalTo(Optional.ofNullable(commonType)));
+        if (commonType == null) {
+            assertThat(LogicalTypeMerging.findCommonType(types)).isEmpty();
+        } else {
+            assertThat(LogicalTypeMerging.findCommonType(types)).contains(commonType);
+        }
     }
 }

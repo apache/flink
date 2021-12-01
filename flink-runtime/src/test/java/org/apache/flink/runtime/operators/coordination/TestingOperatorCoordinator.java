@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.util.SerializableFunction;
+import org.apache.flink.util.function.SerializableFunction;
 
 import javax.annotation.Nullable;
 

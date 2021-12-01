@@ -25,6 +25,7 @@ import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.BulkDecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
@@ -128,8 +129,7 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
 
             return ParquetColumnarRowInputFormat.createPartitionedFormat(
                     getParquetConfiguration(formatOptions),
-                    (RowType)
-                            DataType.projectFields(producedDataType, projections).getLogicalType(),
+                    (RowType) Projection.of(projections).project(producedDataType).getLogicalType(),
                     Collections.emptyList(),
                     null,
                     VectorizedColumnBatch.DEFAULT_SIZE,

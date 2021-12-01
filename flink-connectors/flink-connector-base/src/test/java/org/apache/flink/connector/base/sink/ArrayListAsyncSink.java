@@ -31,22 +31,24 @@ import java.util.function.Consumer;
 public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
 
     public ArrayListAsyncSink() {
-        this(25, 1, 100, 100000, 1000);
+        this(25, 1, 100, 100_000, 1000, 100_000);
     }
 
     public ArrayListAsyncSink(
             int maxBatchSize,
             int maxInFlightRequests,
             int maxBufferedRequests,
-            long flushOnBufferSizeInBytes,
-            long maxTimeInBufferMS) {
+            long maxBatchSizeInBytes,
+            long maxTimeInBufferMS,
+            long maxRecordSizeInBytes) {
         super(
                 (element, x) -> Integer.parseInt(element),
                 maxBatchSize,
                 maxInFlightRequests,
                 maxBufferedRequests,
-                flushOnBufferSizeInBytes,
-                maxTimeInBufferMS);
+                maxBatchSizeInBytes,
+                maxTimeInBufferMS,
+                maxRecordSizeInBytes);
     }
 
     @Override
@@ -61,8 +63,9 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
                 getMaxBatchSize(),
                 getMaxInFlightRequests(),
                 getMaxBufferedRequests(),
-                getFlushOnBufferSizeInBytes(),
-                getMaxTimeInBufferMS()) {
+                getMaxBatchSizeInBytes(),
+                getMaxTimeInBufferMS(),
+                getMaxRecordSizeInBytes()) {
 
             @Override
             protected void submitRequestEntries(

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
@@ -38,7 +38,7 @@ import java.util.stream.Stream;
  * cannot be used directly to access an object in a catalog manager, but has to be first fully
  * resolved into {@link ObjectIdentifier}.
  */
-@Internal
+@PublicEvolving
 public final class UnresolvedIdentifier {
 
     private final @Nullable String catalogName;

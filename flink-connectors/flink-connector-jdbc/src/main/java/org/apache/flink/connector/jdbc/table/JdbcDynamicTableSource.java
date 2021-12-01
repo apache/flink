@@ -25,6 +25,7 @@ import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.connector.jdbc.split.JdbcNumericBetweenParametersProvider;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
@@ -143,7 +144,7 @@ public class JdbcDynamicTableSource
 
     @Override
     public void applyProjection(int[][] projectedFields, DataType producedDataType) {
-        this.physicalRowDataType = DataType.projectFields(physicalRowDataType, projectedFields);
+        this.physicalRowDataType = Projection.of(projectedFields).project(physicalRowDataType);
     }
 
     @Override

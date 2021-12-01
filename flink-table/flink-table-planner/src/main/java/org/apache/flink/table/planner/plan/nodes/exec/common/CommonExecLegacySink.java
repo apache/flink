@@ -58,8 +58,8 @@ import java.util.List;
  *
  * @param <T> The return type of the {@link TableSink}.
  */
-public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
-        implements MultipleTransformationTranslator<Object> {
+public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
+        implements MultipleTransformationTranslator<T> {
     protected final TableSink<T> tableSink;
     protected final @Nullable String[] upsertKeys;
     protected final boolean needRetraction;
@@ -82,7 +82,7 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<Object> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<T> translateToPlanInternal(PlannerBase planner) {
         if (tableSink instanceof StreamTableSink) {
             final Transformation<T> transform;
             if (tableSink instanceof RetractStreamTableSink) {
@@ -121,8 +121,9 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
             }
 
             final DataStream<T> dataStream = new DataStream<T>(planner.getExecEnv(), transform);
-            final DataStreamSink<?> dsSink =
-                    ((StreamTableSink<T>) tableSink).consumeDataStream(dataStream);
+            final DataStreamSink<T> dsSink =
+                    (DataStreamSink<T>)
+                            ((StreamTableSink<T>) tableSink).consumeDataStream(dataStream);
             if (dsSink == null) {
                 throw new TableException(
                         String.format(
@@ -131,15 +132,14 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
                                         + "However, %s doesn't implement this method.",
                                 tableSink.getClass().getCanonicalName()));
             }
-            return dsSink.getTransformation();
+            return dsSink.getLegacyTransformation();
         } else if (tableSink instanceof DataStreamTableSink) {
             // In case of table to DataStream through
             // StreamTableEnvironment#toAppendStream/toRetractStream,
             // we insert a DataStreamTableSink that wraps the given DataStream as a LogicalSink. It
             // is no real table sink, so we just need translate its input to Transformation.
-            return (Transformation<Object>)
-                    translateToTransformation(
-                            planner, ((DataStreamTableSink<T>) tableSink).withChangeFlag());
+            return translateToTransformation(
+                    planner, ((DataStreamTableSink<T>) tableSink).withChangeFlag());
         } else {
             throw new TableException(
                     String.format(

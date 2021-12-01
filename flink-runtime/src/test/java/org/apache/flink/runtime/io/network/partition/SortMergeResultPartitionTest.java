@@ -423,6 +423,39 @@ public class SortMergeResultPartitionTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testNumBytesProducedCounterForUnicast() throws IOException {
+        testNumBytesProducedCounter(false);
+    }
+
+    @Test
+    public void testNumBytesProducedCounterForBroadcast() throws IOException {
+        testNumBytesProducedCounter(true);
+    }
+
+    private void testNumBytesProducedCounter(boolean isBroadcast) throws IOException {
+
+        int numSubpartitions = 10;
+
+        BufferPool bufferPool = globalPool.createBufferPool(10, 10);
+        SortMergeResultPartition partition =
+                createSortMergedPartition(numSubpartitions, bufferPool);
+
+        if (isBroadcast) {
+            partition.broadcastRecord(ByteBuffer.allocate(bufferSize));
+            partition.flushAll();
+
+            assertEquals(bufferSize, partition.numBytesProduced.getCount());
+            assertEquals(numSubpartitions * bufferSize, partition.numBytesOut.getCount());
+        } else {
+            partition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            partition.flushAll();
+
+            assertEquals(bufferSize, partition.numBytesProduced.getCount());
+            assertEquals(bufferSize, partition.numBytesOut.getCount());
+        }
+    }
+
     private SortMergeResultPartition createSortMergedPartition(
             int numSubpartitions, BufferPool bufferPool) throws IOException {
         return createSortMergedPartition(numSubpartitions, bufferPool, readBufferPool);

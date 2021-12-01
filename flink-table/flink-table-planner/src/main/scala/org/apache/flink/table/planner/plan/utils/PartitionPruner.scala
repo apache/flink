@@ -177,11 +177,11 @@ object PartitionPruner {
       case DECIMAL =>
         val decimalType = t.asInstanceOf[DecimalType]
         DecimalDataUtils.castFrom(v, decimalType.getPrecision, decimalType.getScale)
-      case DATE => DateTimeUtils.dateStringToUnixDate(v)
-      case TIME_WITHOUT_TIME_ZONE => DateTimeUtils.timeStringToUnixDate(v)
-      case TIMESTAMP_WITHOUT_TIME_ZONE => DateTimeUtils.toTimestampData(v)
+      case DATE => DateTimeUtils.parseDate(v)
+      case TIME_WITHOUT_TIME_ZONE => DateTimeUtils.parseTime(v)
+      case TIMESTAMP_WITHOUT_TIME_ZONE => DateTimeUtils.parseTimestampData(v)
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE => TimestampData.fromInstant(
-        DateTimeUtils.toTimestampData(v).toLocalDateTime.atZone(timeZone).toInstant)
+        DateTimeUtils.parseTimestampData(v).toLocalDateTime.atZone(timeZone).toInstant)
       case _ =>
         throw new TableException(s"$t is not supported in PartitionPruner")
     }

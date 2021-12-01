@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -56,7 +57,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -231,7 +231,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                                                                 context,
                                                                 dataStream.getExecutionConfig())
                                                         ::copy
-                                                : Function.identity());
+                                                : rowData -> rowData);
                         final DataStreamSink<RowData> end = dataStream.sinkTo(sink);
                         if (parallelism != null) {
                             end.setParallelism(parallelism);
@@ -376,8 +376,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         if (format == null) {
             return null;
         }
-        DataType physicalFormatDataType =
-                DataTypeUtils.projectRow(this.physicalDataType, projection);
+        DataType physicalFormatDataType = Projection.of(projection).project(this.physicalDataType);
         if (prefix != null) {
             physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
         }

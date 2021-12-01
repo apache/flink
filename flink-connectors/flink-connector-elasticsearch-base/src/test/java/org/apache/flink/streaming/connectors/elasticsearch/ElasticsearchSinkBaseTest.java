@@ -48,6 +48,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -675,6 +676,14 @@ public class ElasticsearchSinkBaseTest {
         @Override
         public void verifyClientConnection(Client client) {
             // no need for this in the test cases here
+        }
+
+        @Override
+        public RequestIndexer createBulkProcessorIndexer(
+                BulkProcessor bulkProcessor,
+                boolean flushOnCheckpoint,
+                AtomicLong numPendingRequestsRef) {
+            return new TestRequestIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequestsRef);
         }
     }
 

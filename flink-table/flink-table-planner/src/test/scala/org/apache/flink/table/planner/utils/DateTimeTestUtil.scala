@@ -29,7 +29,7 @@ object DateTimeTestUtil {
     if (s == null) {
       null
     } else {
-      LocalDateConverter.INSTANCE.toExternal(DateTimeUtils.dateStringToUnixDate(s))
+      LocalDateConverter.INSTANCE.toExternal(DateTimeUtils.parseDate(s))
     }
   }
 
@@ -37,7 +37,7 @@ object DateTimeTestUtil {
     if (s == null) {
       null
     } else {
-      LocalTimeConverter.INSTANCE.toExternal(DateTimeUtils.timeStringToUnixDate(s))
+      LocalTimeConverter.INSTANCE.toExternal(DateTimeUtils.parseTime(s))
     }
   }
 
@@ -45,7 +45,7 @@ object DateTimeTestUtil {
     if (s == null) {
       null
     } else {
-      DateTimeUtils.toTimestampData(s).toLocalDateTime
+      DateTimeUtils.parseTimestampData(s).toLocalDateTime
     }
   }
 

@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.catalog.exceptions;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectPath;
 
 /** Exception for trying to operate on a function that doesn't exist. */
+@PublicEvolving
 public class FunctionNotExistException extends Exception {
 
     private static final String MSG = "Function %s does not exist in Catalog %s.";

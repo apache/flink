@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.security.FlinkSecurityManager;
@@ -105,7 +106,6 @@ import org.apache.flink.util.WrappingRuntimeException;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -239,6 +239,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     /** The currently active background materialization threads. */
     private final CloseableRegistry cancelables = new CloseableRegistry();
 
+    private final AutoCloseableRegistry resourceCloser;
+
     private final StreamTaskAsyncExceptionHandler asyncExceptionHandler;
 
     /**
@@ -366,70 +368,100 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             StreamTaskActionExecutor actionExecutor,
             TaskMailbox mailbox)
             throws Exception {
-        this.environment = environment;
-        this.configuration = new StreamConfig(environment.getTaskConfiguration());
-        this.recordWriter = createRecordWriterDelegate(configuration, environment);
-        this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
-        this.mailboxProcessor = new MailboxProcessor(this::processInput, mailbox, actionExecutor);
-        this.mainMailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
-        this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
-        this.asyncOperationsThreadPool =
-                Executors.newCachedThreadPool(
-                        new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
+        // The registration of all closeable resources. The order of registration is important.
+        resourceCloser = new AutoCloseableRegistry();
+        try {
+            this.environment = environment;
+            this.configuration = new StreamConfig(environment.getTaskConfiguration());
+            this.mailboxProcessor =
+                    new MailboxProcessor(this::processInput, mailbox, actionExecutor);
+            // Should be closed last.
+            resourceCloser.registerCloseable(mailboxProcessor);
 
-        environment.setMainMailboxExecutor(mainMailboxExecutor);
-        environment.setAsyncOperationsThreadPool(asyncOperationsThreadPool);
+            this.channelIOExecutor =
+                    Executors.newSingleThreadExecutor(
+                            new ExecutorThreadFactory("channel-state-unspilling"));
+            resourceCloser.registerCloseable(channelIOExecutor::shutdown);
 
-        this.stateBackend = createStateBackend();
-        this.checkpointStorage = createCheckpointStorage(stateBackend);
-        this.changelogWriterAvailabilityProvider =
-                environment.getTaskStateManager().getStateChangelogStorage() == null
-                        ? null
-                        : environment
-                                .getTaskStateManager()
-                                .getStateChangelogStorage()
-                                .getAvailabilityProvider();
+            this.recordWriter = createRecordWriterDelegate(configuration, environment);
+            // Release the output resources. this method should never fail.
+            resourceCloser.registerCloseable(this::releaseOutputResources);
+            // If the operators won't be closed explicitly, register it to a hard close.
+            resourceCloser.registerCloseable(this::closeAllOperators);
+            resourceCloser.registerCloseable(this::cleanUpInternal);
 
-        CheckpointStorageAccess checkpointStorageAccess =
-                checkpointStorage.createCheckpointStorage(getEnvironment().getJobID());
+            this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
+            this.mainMailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
+            this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 
-        environment.setCheckpointStorageAccess(checkpointStorageAccess);
+            this.asyncOperationsThreadPool =
+                    Executors.newCachedThreadPool(
+                            new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
 
-        this.subtaskCheckpointCoordinator =
-                new SubtaskCheckpointCoordinatorImpl(
-                        checkpointStorageAccess,
-                        getName(),
-                        actionExecutor,
-                        getCancelables(),
-                        getAsyncOperationsThreadPool(),
-                        environment,
-                        this,
-                        configuration.isUnalignedCheckpointsEnabled(),
-                        configuration
-                                .getConfiguration()
-                                .get(
-                                        ExecutionCheckpointingOptions
-                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH),
-                        this::prepareInputSnapshot);
+            // Register all asynchronous checkpoint threads.
+            resourceCloser.registerCloseable(this::shutdownAsyncThreads);
+            resourceCloser.registerCloseable(cancelables);
 
-        // if the clock is not already set, then assign a default TimeServiceProvider
-        if (timerService == null) {
-            this.timerService = createTimerService("Time Trigger for " + getName());
-        } else {
-            this.timerService = timerService;
+            environment.setMainMailboxExecutor(mainMailboxExecutor);
+            environment.setAsyncOperationsThreadPool(asyncOperationsThreadPool);
+
+            this.stateBackend = createStateBackend();
+            this.checkpointStorage = createCheckpointStorage(stateBackend);
+            this.changelogWriterAvailabilityProvider =
+                    environment.getTaskStateManager().getStateChangelogStorage() == null
+                            ? null
+                            : environment
+                                    .getTaskStateManager()
+                                    .getStateChangelogStorage()
+                                    .getAvailabilityProvider();
+
+            CheckpointStorageAccess checkpointStorageAccess =
+                    checkpointStorage.createCheckpointStorage(getEnvironment().getJobID());
+
+            environment.setCheckpointStorageAccess(checkpointStorageAccess);
+
+            this.subtaskCheckpointCoordinator =
+                    new SubtaskCheckpointCoordinatorImpl(
+                            checkpointStorageAccess,
+                            getName(),
+                            actionExecutor,
+                            getCancelables(),
+                            getAsyncOperationsThreadPool(),
+                            environment,
+                            this,
+                            configuration.isUnalignedCheckpointsEnabled(),
+                            configuration
+                                    .getConfiguration()
+                                    .get(
+                                            ExecutionCheckpointingOptions
+                                                    .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH),
+                            this::prepareInputSnapshot);
+
+            // if the clock is not already set, then assign a default TimeServiceProvider
+            if (timerService == null) {
+                this.timerService = createTimerService("Time Trigger for " + getName());
+            } else {
+                this.timerService = timerService;
+            }
+
+            this.systemTimerService = createTimerService("System Time Trigger for " + getName());
+            // Register to stop all timers and threads. Should be closed first.
+            resourceCloser.registerCloseable(this::tryShutdownTimerService);
+
+            injectChannelStateWriterIntoChannels();
+
+            environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
+            Configuration taskManagerConf = environment.getTaskManagerInfo().getConfiguration();
+
+            this.bufferDebloatPeriod = taskManagerConf.get(BUFFER_DEBLOAT_PERIOD).toMillis();
+        } catch (Exception ex) {
+            try {
+                resourceCloser.close();
+            } catch (Throwable throwable) {
+                ex.addSuppressed(throwable);
+            }
+            throw ex;
         }
-
-        this.systemTimerService = createTimerService("System Time Trigger for " + getName());
-        this.channelIOExecutor =
-                Executors.newSingleThreadExecutor(
-                        new ExecutorThreadFactory("channel-state-unspilling"));
-
-        injectChannelStateWriterIntoChannels();
-
-        environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
-        Configuration taskManagerConf = environment.getTaskManagerInfo().getConfiguration();
-
-        this.bufferDebloatPeriod = taskManagerConf.get(BUFFER_DEBLOAT_PERIOD).toMillis();
     }
 
     private TimerService createTimerService(String timerThreadName) {
@@ -893,8 +925,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         failing = !canceled && throwable != null;
 
-        Exception suppressedException =
-                throwable == null ? null : runAndSuppressThrowable(this::cancelTask, null);
+        Exception cancelException = null;
+        if (throwable != null) {
+            try {
+                cancelTask();
+            } catch (Throwable t) {
+                cancelException = t instanceof Exception ? (Exception) t : new Exception(t);
+            }
+        }
 
         disableInterruptOnCancel();
 
@@ -907,32 +945,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // clear any previously issued interrupt for a more graceful shutdown
         Thread.interrupted();
 
-        // stop all timers and threads
-        suppressedException =
-                runAndSuppressThrowable(this::tryShutdownTimerService, suppressedException);
-
-        // stop all asynchronous checkpoint threads
-        suppressedException = runAndSuppressThrowable(cancelables::close, suppressedException);
-        suppressedException =
-                runAndSuppressThrowable(this::shutdownAsyncThreads, suppressedException);
-
-        // we must! perform this cleanup
-        suppressedException = runAndSuppressThrowable(this::cleanUpInternal, suppressedException);
-
-        // if the operators were not closed before, do a hard close
-        suppressedException = runAndSuppressThrowable(this::closeAllOperators, suppressedException);
-
-        // release the output resources. this method should never fail.
-        suppressedException =
-                runAndSuppressThrowable(this::releaseOutputResources, suppressedException);
-
-        suppressedException =
-                runAndSuppressThrowable(channelIOExecutor::shutdown, suppressedException);
-
-        suppressedException = runAndSuppressThrowable(mailboxProcessor::close, suppressedException);
-
-        if (suppressedException != null) {
-            throw suppressedException;
+        try {
+            resourceCloser.close();
+        } catch (Throwable t) {
+            Exception e = t instanceof Exception ? (Exception) t : new Exception(t);
+            throw firstOrSuppressed(e, cancelException);
         }
     }
 
@@ -1004,19 +1021,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             // failed to allocate operatorChain, clean up record writers
             recordWriter.close();
         }
-    }
-
-    private Exception runAndSuppressThrowable(
-            ThrowingRunnable<?> runnable, @Nullable Exception originalException) {
-        try {
-            runnable.run();
-        } catch (Throwable t) {
-            // TODO: investigate why Throwable instead of Exception is used here.
-            Exception e = t instanceof Exception ? (Exception) t : new Exception(t);
-            return firstOrSuppressed(e, originalException);
-        }
-
-        return originalException;
     }
 
     /** Closes all the operators if not closed before. */
