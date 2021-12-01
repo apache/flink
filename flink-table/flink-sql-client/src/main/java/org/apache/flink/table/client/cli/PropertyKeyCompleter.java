@@ -28,7 +28,7 @@ import org.jline.reader.ParsedLine;
 import java.util.List;
 import java.util.Set;
 
-/** tse. */
+/** Completer to complete property keys based on information from session config. */
 public class PropertyKeyCompleter implements Completer {
     private final String sessionId;
     private final Executor executor;
