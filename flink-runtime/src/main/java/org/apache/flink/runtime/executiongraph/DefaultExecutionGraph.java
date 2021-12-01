@@ -174,8 +174,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     /** Blob writer used to offload RPC messages. */
     private final BlobWriter blobWriter;
 
-    /** The total number of vertices currently in the execution graph. */
-    private int numVerticesTotal;
+    /** Number of total job vertices. */
+    private int numJobVerticesTotal;
 
     private final PartitionGroupReleaseStrategy.Factory partitionGroupReleaseStrategyFactory;
 
@@ -199,7 +199,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     // ------ Execution status and progress. These values are volatile, and accessed under the lock
     // -------
 
-    private int numFinishedVertices;
+    /** Number of finished job vertices. */
+    private int numFinishedJobVertices;
 
     /** Current status of the job execution. */
     private volatile JobStatus state = JobStatus.CREATED;
@@ -587,7 +588,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public int getNumFinishedVertices() {
-        return numFinishedVertices;
+        return IterableUtils.toStream(getVerticesTopologically())
+                .map(ExecutionJobVertex::getNumExecutionVertexFinished)
+                .mapToInt(Integer::intValue)
+                .sum();
     }
 
     @Override
@@ -809,7 +813,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             }
 
             this.verticesInCreationOrder.add(ejv);
-            this.numVerticesTotal += ejv.getParallelism();
+            this.numJobVerticesTotal++;
         }
 
         registerExecutionVerticesAndResultPartitions(this.verticesInCreationOrder);
@@ -1063,14 +1067,14 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     // ------------------------------------------------------------------------
 
     /**
-     * Called whenever a vertex reaches state FINISHED (completed successfully). Once all vertices
-     * are in the FINISHED state, the program is successfully done.
+     * Called whenever a job vertex reaches state FINISHED (completed successfully). Once all job
+     * vertices are in the FINISHED state, the program is successfully done.
      */
     @Override
-    public void vertexFinished() {
+    public void jobVertexFinished() {
         assertRunningInJobMasterMainThread();
-        final int numFinished = ++numFinishedVertices;
-        if (numFinished == numVerticesTotal) {
+        final int numFinished = ++numFinishedJobVertices;
+        if (numFinished == numJobVerticesTotal) {
             // done :-)
 
             // check whether we are still in "RUNNING" and trigger the final cleanup
@@ -1099,9 +1103,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public void vertexUnFinished() {
+    public void jobVertexUnFinished() {
         assertRunningInJobMasterMainThread();
-        numFinishedVertices--;
+        numFinishedJobVertices--;
     }
 
     /**
