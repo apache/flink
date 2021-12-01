@@ -22,16 +22,20 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-/** {@link LogicalTypeFamily#INTEGER_NUMERIC} to {@link LogicalTypeRoot#BOOLEAN} conversions. */
-class IntegerNumericToBooleanCastRule
-        extends AbstractExpressionCodeGeneratorCastRule<Number, Boolean> {
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.DECIMAL_TO_BOOLEAN;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
-    static final IntegerNumericToBooleanCastRule INSTANCE = new IntegerNumericToBooleanCastRule();
+// Should be changed to INTEGER_NUMERIC when https://issues.apache.org/jira/browse/FLINK-24576 is
+// fixed
+/** {@link LogicalTypeFamily#NUMERIC} to {@link LogicalTypeRoot#BOOLEAN} conversions. */
+class NumericToBooleanCastRule extends AbstractExpressionCodeGeneratorCastRule<Number, Boolean> {
 
-    private IntegerNumericToBooleanCastRule() {
+    static final NumericToBooleanCastRule INSTANCE = new NumericToBooleanCastRule();
+
+    private NumericToBooleanCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .input(LogicalTypeFamily.INTEGER_NUMERIC)
+                        .input(LogicalTypeFamily.NUMERIC)
                         .target(LogicalTypeRoot.BOOLEAN)
                         .build());
     }
@@ -42,6 +46,11 @@ class IntegerNumericToBooleanCastRule
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
+
+        // Should be removed when https://issues.apache.org/jira/browse/FLINK-24576 is fixed
+        if (inputLogicalType.is(LogicalTypeRoot.DECIMAL)) {
+            return staticCall(DECIMAL_TO_BOOLEAN(), inputTerm);
+        }
         return inputTerm + " != 0";
     }
 }
