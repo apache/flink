@@ -95,6 +95,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
@@ -214,9 +215,26 @@ public class StreamingJobGraphGenerator {
                             + "This indicates that non-serializable types (like custom serializers) were registered");
         }
 
+        addVertexIndexPrefixInVertexName();
+
         setVertexDescription();
 
         return jobGraph;
+    }
+
+    private void addVertexIndexPrefixInVertexName() {
+        if (!streamGraph.isVertexNameIncludeIndexPrefix()) {
+            return;
+        }
+        final AtomicInteger vertexIndexId = new AtomicInteger(0);
+        jobGraph.getVerticesSortedTopologicallyFromSources()
+                .forEach(
+                        vertex ->
+                                vertex.setName(
+                                        String.format(
+                                                "[vertex-%d]%s",
+                                                vertexIndexId.getAndIncrement(),
+                                                vertex.getName())));
     }
 
     private void setVertexDescription() {

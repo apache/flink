@@ -131,6 +131,7 @@ public class StreamGraph implements Pipeline {
     private Map<String, ResourceProfile> slotSharingGroupResources;
     private PipelineOptions.VertexDescriptionMode descriptionMode =
             PipelineOptions.VertexDescriptionMode.TREE;
+    private boolean vertexNameIncludeIndexPrefix = false;
 
     public StreamGraph(
             ExecutionConfig executionConfig,
@@ -1016,5 +1017,13 @@ public class StreamGraph implements Pipeline {
 
     public void setVertexDescriptionMode(PipelineOptions.VertexDescriptionMode mode) {
         this.descriptionMode = mode;
+    }
+
+    public void setVertexNameIncludeIndexPrefix(boolean includePrefix) {
+        this.vertexNameIncludeIndexPrefix = includePrefix;
+    }
+
+    public boolean isVertexNameIncludeIndexPrefix() {
+        return this.vertexNameIncludeIndexPrefix;
     }
 }
