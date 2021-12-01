@@ -20,6 +20,7 @@ package org.apache.flink.connector.elasticsearch.sink;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
+import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;

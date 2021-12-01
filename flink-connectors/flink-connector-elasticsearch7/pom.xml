@@ -91,6 +91,14 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Dependnecy for Table API integration -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-json</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- We need to include httpcore-nio again in the correct version due to the exclusion above -->
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
@@ -168,13 +176,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Elasticsearch table sink factory testing -->
+		<!-- Elasticsearch table sink factory testing TODO confirm this works
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-json</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
-		</dependency>
+		</dependency> -->
 
 		<!-- ArchUit test dependencies -->
 

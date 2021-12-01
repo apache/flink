@@ -16,13 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.elasticsearch.sink;
+package org.apache.flink.connector.elasticsearch.common;
+
+import org.apache.flink.annotation.Internal;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
-class NetworkClientConfig implements Serializable {
+/** This class encapsulates information on how to connect against an Elasticsearch cluster. */
+@Internal
+public class NetworkClientConfig implements Serializable {
 
     @Nullable private final String username;
     @Nullable private final String password;
@@ -31,7 +35,7 @@ class NetworkClientConfig implements Serializable {
     @Nullable private final Integer connectionTimeout;
     @Nullable private final Integer socketTimeout;
 
-    NetworkClientConfig(
+    public NetworkClientConfig(
             @Nullable String username,
             @Nullable String password,
             @Nullable String connectionPathPrefix,

@@ -21,16 +21,14 @@ package org.apache.flink.connector.elasticsearch.sink;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.connector.elasticsearch.common.ElasticsearchUtil;
+import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
@@ -40,7 +38,6 @@ import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.rest.RestStatus;
 import org.slf4j.Logger;
@@ -99,7 +96,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.client =
                 new RestHighLevelClient(
-                        configureRestClientBuilder(
+                        ElasticsearchUtil.configureRestClientBuilder(
                                 RestClient.builder(hosts.toArray(new HttpHost[0])),
                                 networkClientConfig));
         this.bulkProcessor = createBulkProcessor(bulkProcessorBuilderFactory, bulkProcessorConfig);
@@ -149,45 +146,6 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
         emitter.close();
         bulkProcessor.close();
         client.close();
-    }
-
-    private static RestClientBuilder configureRestClientBuilder(
-            RestClientBuilder builder, NetworkClientConfig networkClientConfig) {
-        if (networkClientConfig.getConnectionPathPrefix() != null) {
-            builder.setPathPrefix(networkClientConfig.getConnectionPathPrefix());
-        }
-        if (networkClientConfig.getPassword() != null
-                && networkClientConfig.getUsername() != null) {
-            final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-            credentialsProvider.setCredentials(
-                    AuthScope.ANY,
-                    new UsernamePasswordCredentials(
-                            networkClientConfig.getUsername(), networkClientConfig.getPassword()));
-            builder.setHttpClientConfigCallback(
-                    httpClientBuilder ->
-                            httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
-        }
-        if (networkClientConfig.getConnectionRequestTimeout() != null
-                || networkClientConfig.getConnectionTimeout() != null
-                || networkClientConfig.getSocketTimeout() != null) {
-            builder.setRequestConfigCallback(
-                    requestConfigBuilder -> {
-                        if (networkClientConfig.getConnectionRequestTimeout() != null) {
-                            requestConfigBuilder.setConnectionRequestTimeout(
-                                    networkClientConfig.getConnectionRequestTimeout());
-                        }
-                        if (networkClientConfig.getConnectionTimeout() != null) {
-                            requestConfigBuilder.setConnectTimeout(
-                                    networkClientConfig.getConnectionTimeout());
-                        }
-                        if (networkClientConfig.getSocketTimeout() != null) {
-                            requestConfigBuilder.setSocketTimeout(
-                                    networkClientConfig.getSocketTimeout());
-                        }
-                        return requestConfigBuilder;
-                    });
-        }
-        return builder;
     }
 
     private BulkProcessor createBulkProcessor(
