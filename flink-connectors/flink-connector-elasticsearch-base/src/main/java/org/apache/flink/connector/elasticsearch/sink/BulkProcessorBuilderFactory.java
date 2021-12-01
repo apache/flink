@@ -19,17 +19,18 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.function.TriFunction;
 
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.client.RestHighLevelClient;
 
-import java.util.function.BiConsumer;
+import java.io.Serializable;
 
-/**
- * {@link BulkRequestConsumerFactory} is used to bridge incompatible Elasticsearch Java API calls
- * across different Elasticsearch versions.
- */
 @Internal
-interface BulkRequestConsumerFactory
-        extends BiConsumer<BulkRequest, ActionListener<BulkResponse>> {}
+interface BulkProcessorBuilderFactory
+        extends Serializable,
+                TriFunction<
+                        RestHighLevelClient,
+                        BulkProcessorConfig,
+                        BulkProcessor.Listener,
+                        BulkProcessor.Builder> {}

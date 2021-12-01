@@ -31,7 +31,7 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.core.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,6 +90,12 @@ public class Elasticsearch7ApiCallBridge
         } else {
             return bulkItemResponse.getFailure().getCause();
         }
+    }
+
+    @Override
+    public void configureBulkProcessorFlushInterval(
+            BulkProcessor.Builder builder, long flushIntervalMillis) {
+        builder.setFlushInterval(TimeValue.timeValueMillis(flushIntervalMillis));
     }
 
     @Override
