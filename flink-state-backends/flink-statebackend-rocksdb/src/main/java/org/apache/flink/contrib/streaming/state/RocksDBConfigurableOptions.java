@@ -39,7 +39,7 @@ import static org.rocksdb.CompactionStyle.FIFO;
 import static org.rocksdb.CompactionStyle.LEVEL;
 import static org.rocksdb.CompactionStyle.NONE;
 import static org.rocksdb.CompactionStyle.UNIVERSAL;
-import static org.rocksdb.InfoLogLevel.HEADER_LEVEL;
+import static org.rocksdb.InfoLogLevel.INFO_LEVEL;
 
 /**
  * This class contains the configuration options for the {@link EmbeddedRocksDBStateBackend}.
@@ -73,18 +73,19 @@ public class RocksDBConfigurableOptions implements Serializable {
     public static final ConfigOption<MemorySize> LOG_MAX_FILE_SIZE =
             key("state.backend.rocksdb.log.max-file-size")
                     .memoryType()
-                    .defaultValue(MemorySize.ZERO)
+                    .defaultValue(MemorySize.parse("25mb"))
                     .withDescription(
                             "The maximum size of RocksDB's file used for information logging. "
                                     + "If the log files becomes larger than this, a new file will be created. "
-                                    + "If 0 (Flink default setting), all logs will be written to one log file.");
+                                    + "If 0, all logs will be written to one log file. "
+                                    + "The default maximum file size is '25MB'. ");
 
     public static final ConfigOption<Integer> LOG_FILE_NUM =
             key("state.backend.rocksdb.log.file-num")
                     .intType()
-                    .defaultValue(1000)
+                    .defaultValue(4)
                     .withDescription(
-                            "The maximum number of files RocksDB should keep for information logging (Default setting: 1000).");
+                            "The maximum number of files RocksDB should keep for information logging (Default setting: 4).");
 
     public static final ConfigOption<String> LOG_DIR =
             key("state.backend.rocksdb.log.dir")
@@ -98,13 +99,13 @@ public class RocksDBConfigurableOptions implements Serializable {
     public static final ConfigOption<InfoLogLevel> LOG_LEVEL =
             key("state.backend.rocksdb.log.level")
                     .enumType(InfoLogLevel.class)
-                    .defaultValue(HEADER_LEVEL)
+                    .defaultValue(INFO_LEVEL)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "The specified information logging level for RocksDB. "
                                                     + "If unset, Flink will use %s.",
-                                            code(HEADER_LEVEL.name()))
+                                            code(INFO_LEVEL.name()))
                                     .linebreak()
                                     .text(
                                             "Note: RocksDB info logs will not be written to the TaskManager logs and there "
