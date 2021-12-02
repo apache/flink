@@ -241,6 +241,11 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 
 该选项的默认值是 `DEFAULT` ，对应 `PredefinedOptions.DEFAULT` 。
 
+#### 从 flink-conf.yaml 中读取列族选项
+
+RocksDB State Backend 会将 [这里定义]({{< ref "docs/deployment/config" >}}#advanced-rocksdb-state-backends-options) 的所有配置项全部加载。
+因此您可以简单的通过关闭 RocksDB 使用托管内存的功能并将需要的设置选项加入配置文件来配置底层的列族选项。
+
 ### 通过 RocksDBOptionsFactory 配置 RocksDB 选项
 
 <span class="label label-info">注意</span> 在引入 [RocksDB 使用托管内存](#memory-management) 功能后，此机制应限于在*专家调优*或*故障处理*中使用。
@@ -258,13 +263,6 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 <span class="label label-info">注意</span> RocksDB是一个本地库，它直接从进程分配内存，
 而不是从JVM分配内存。分配给 RocksDB 的任何内存都必须被考虑在内，通常需要将这部分内存从任务管理器（`TaskManager`）的JVM堆中减去。
 不这样做可能会导致JVM进程由于分配的内存超过申请值而被 YARN 等资源管理框架终止。
-
-**从 flink-conf.yaml 中读取列族选项**
-
-一个实现了 `ConfigurableRocksDBOptionsFactory` 接口的 `RocksDBOptionsFactory` 可以直接从配置文件（`flink-conf.yaml`）中读取设定。
-
-`state.backend.rocksdb.options-factory` 的默认配置是 `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory`，它默认会将 [这里定义]({{< ref "docs/deployment/config" >}}#advanced-rocksdb-state-backends-options) 的所有配置项全部加载。
-因此您可以简单的通过关闭 RocksDB 使用托管内存的功能并将需要的设置选项加入配置文件来配置底层的列族选项。
 
 下面是自定义 `ConfigurableRocksDBOptionsFactory` 的一个示例 (开发完成后，请将您的实现类全名设置到 `state.backend.rocksdb.options-factory`).
 

@@ -220,6 +220,7 @@ public class EnvironmentSettings {
     }
 
     /** A builder for {@link EnvironmentSettings}. */
+    @PublicEvolving
     public static class Builder {
         private final String planner = PlannerFactory.DEFAULT_IDENTIFIER;
         private final String executor = ExecutorFactory.DEFAULT_IDENTIFIER;

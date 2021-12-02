@@ -178,6 +178,7 @@ public class TableDescriptor {
     // ---------------------------------------------------------------------------------------------
 
     /** Builder for {@link TableDescriptor}. */
+    @PublicEvolving
     public static class Builder {
 
         private @Nullable Schema schema;

@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
-import org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 
 import org.junit.{Before, Test}
 
@@ -105,7 +105,7 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
     registerCollection("T6",
       (0 until 50000).map(
         i => row(i, 1L, if (i % 500 == 0) null else s"Hello$i", "Hello world", 10,
-          unixTimestampToLocalDateTime(i + 1531820000000L).toLocalDate)),
+          toLocalDateTime(i + 1531820000000L).toLocalDate)),
       new RowTypeInfo(Types.INT, Types.LONG, Types.STRING,
         Types.STRING, Types.INT, Types.LOCAL_DATE),
       "a6, b6, c6, d6, e6, f6",

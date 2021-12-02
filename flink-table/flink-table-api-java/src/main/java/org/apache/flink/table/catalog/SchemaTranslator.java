@@ -27,6 +27,7 @@ import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPrimaryKey;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -36,7 +37,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 
 import javax.annotation.Nullable;
@@ -245,7 +245,7 @@ public final class SchemaTranslator {
         }
         // truncate last field
         final int[] indices = IntStream.range(0, columnCount - 1).toArray();
-        return DataTypeUtils.projectRow(dataType, indices);
+        return Projection.of(indices).project(dataType);
     }
 
     private static @Nullable List<String> extractProjections(

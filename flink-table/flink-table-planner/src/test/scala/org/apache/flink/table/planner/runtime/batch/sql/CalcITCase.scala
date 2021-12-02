@@ -40,7 +40,7 @@ import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TestLegacyFilterableTableSource}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
-import org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
@@ -1127,7 +1127,7 @@ class CalcITCase extends BatchTestBase {
       Seq(row(true)))
 
     val d0 = LocalDateConverter.INSTANCE.toInternal(
-      unixTimestampToLocalDateTime(System.currentTimeMillis()).toLocalDate)
+      toLocalDateTime(System.currentTimeMillis()).toLocalDate)
 
     val table = parseQuery("SELECT CURRENT_DATE FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)

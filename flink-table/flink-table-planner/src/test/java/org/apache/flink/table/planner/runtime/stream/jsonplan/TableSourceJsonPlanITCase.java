@@ -29,7 +29,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime;
+import static org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime;
 
 /** Test for table source json plan. */
 public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
@@ -126,9 +126,9 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
 
         assertResult(
                 Arrays.asList(
-                        "4,3," + unixTimestampToLocalDateTime(4000L),
-                        "5,3," + unixTimestampToLocalDateTime(5000L),
-                        "6,3," + unixTimestampToLocalDateTime(6000L)),
+                        "4,3," + toLocalDateTime(4000L),
+                        "5,3," + toLocalDateTime(5000L),
+                        "6,3," + toLocalDateTime(6000L)),
                 sinkPath);
     }
 
@@ -162,9 +162,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
         tableEnv.executeJsonPlan(jsonPlan).await();
 
         assertResult(
-                Arrays.asList(
-                        "5," + unixTimestampToLocalDateTime(5000L),
-                        "6," + unixTimestampToLocalDateTime(6000L)),
+                Arrays.asList("5," + toLocalDateTime(5000L), "6," + toLocalDateTime(6000L)),
                 sinkPath);
     }
 }

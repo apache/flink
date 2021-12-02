@@ -381,6 +381,7 @@ public class ExecutionConfigOptions {
     // ------------------------------------------------------------------------------------------
 
     /** The enforcer to guarantee NOT NULL column constraint when writing data into sink. */
+    @PublicEvolving
     public enum NotNullEnforcer {
         /** Throws runtime exception when writing null values into NOT NULL column. */
         ERROR,
@@ -389,6 +390,7 @@ public class ExecutionConfigOptions {
     }
 
     /** Upsert materialize strategy before sink. */
+    @PublicEvolving
     public enum UpsertMaterialize {
 
         /** In no case will materialize operator be added. */

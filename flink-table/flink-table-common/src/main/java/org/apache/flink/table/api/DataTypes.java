@@ -1088,6 +1088,7 @@ public final class DataTypes {
      *
      * @see #INTERVAL(Resolution)
      */
+    @PublicEvolving
     public static final class Resolution {
 
         private static final int EMPTY_PRECISION = -1;
@@ -1237,6 +1238,7 @@ public final class DataTypes {
      * @see #FIELD(String, AbstractDataType)
      * @see #FIELD(String, AbstractDataType, String)
      */
+    @PublicEvolving
     public abstract static class AbstractField {
 
         protected final String name;
@@ -1294,6 +1296,7 @@ public final class DataTypes {
      * @see #FIELD(String, DataType)
      * @see #FIELD(String, DataType, String)
      */
+    @PublicEvolving
     public static final class Field extends AbstractField {
 
         private final DataType dataType;
@@ -1341,6 +1344,7 @@ public final class DataTypes {
      * @see #FIELD(String, AbstractDataType)
      * @see #FIELD(String, AbstractDataType, String)
      */
+    @PublicEvolving
     public static final class UnresolvedField extends AbstractField {
 
         private final AbstractDataType<?> dataType;

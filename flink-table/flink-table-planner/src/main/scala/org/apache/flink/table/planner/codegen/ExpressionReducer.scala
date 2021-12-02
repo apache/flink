@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
-import org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime
+import org.apache.flink.table.planner.utils.TimestampStringUtils.fromLocalDateTime
 
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexExecutor, RexLiteral, RexNode, RexUtil}

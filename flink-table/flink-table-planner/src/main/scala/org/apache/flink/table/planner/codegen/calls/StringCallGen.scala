@@ -205,17 +205,17 @@ object StringCallGen {
       case DATE_FORMAT if operands.size == 2 &&
           isTimestamp(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_TIMESTAMP_STRING)
+        methodGen(BuiltInMethods.FORMAT_TIMESTAMP_DATA)
 
       case DATE_FORMAT if operands.size == 2 &&
           isTimestampWithLocalZone(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_TIMESTAMP_STRING_TIME_ZONE)
+        methodGen(BuiltInMethods.FORMAT_TIMESTAMP_DATA_WITH_TIME_ZONE)
 
       case DATE_FORMAT if operands.size == 2 &&
           isCharacterString(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_STIRNG_STRING)
+        methodGen(BuiltInMethods.FORMAT_TIMESTAMP_STRING_FORMAT_STRING_STRING)
 
       case CONVERT_TZ if operands.size == 3 &&
           isCharacterString(operands.head.resultType) &&

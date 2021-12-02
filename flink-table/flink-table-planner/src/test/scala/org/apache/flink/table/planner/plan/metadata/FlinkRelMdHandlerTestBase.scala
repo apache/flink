@@ -33,9 +33,10 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
-import org.apache.flink.table.planner.plan.logical.{LogicalWindow, TumblingGroupWindow}
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.logical.{CumulativeWindowSpec, HoppingWindowSpec, LogicalWindow, TimeAttributeWindowingStrategy, TumblingGroupWindow, TumblingWindowSpec, WindowSpec}
 import org.apache.flink.table.planner.plan.nodes.calcite._
+import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalWindowTableFunction
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -71,6 +72,7 @@ import org.apache.calcite.util._
 import org.junit.{Before, BeforeClass}
 
 import java.math.BigDecimal
+import java.time.Duration
 import java.util
 import java.util.Collections
 
@@ -2655,6 +2657,75 @@ class FlinkRelMdHandlerTestBase {
     .scan("MyTable1")
     .scan("MyTable2")
     .minus(false).build()
+
+  protected lazy val tumbleWindowSpec = new TumblingWindowSpec(
+    Duration.ofMinutes(10L), null)
+
+  protected lazy val hopWindowSpec = new HoppingWindowSpec(
+    Duration.ofHours(1L), Duration.ofMinutes(10L), null)
+
+  protected lazy val cumulateWindowSpec = new CumulativeWindowSpec(
+    Duration.ofHours(1L), Duration.ofMinutes(10L), null)
+
+  // equivalent SQL is
+  // SELECT * FROM
+  //   TABLE(TUMBLE(TABLE t, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE))
+  protected lazy val batchTumbleWindowTVFRel = createWindowTVFRel(false, tumbleWindowSpec)
+  protected lazy val streamTumbleWindowTVFRel = createWindowTVFRel(true, tumbleWindowSpec)
+
+  // equivalent SQL is
+  // SELECT * FROM
+  //   TABLE(HOP(TABLE t, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+  protected lazy val batchHopWindowTVFRel = createWindowTVFRel(false, hopWindowSpec)
+  protected lazy val streamHopWindowTVFRel = createWindowTVFRel(true, hopWindowSpec)
+
+  // equivalent SQL is
+  // SELECT * FROM
+  //   TABLE(CUMULATE(TABLE t, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+  protected lazy val batchCumulateWindowTVFRel = createWindowTVFRel(false, cumulateWindowSpec)
+  protected lazy val streamCumulateWindowTVFRel = createWindowTVFRel(true, cumulateWindowSpec)
+
+  protected def createWindowTVFRel(
+      isStreamingMode: Boolean,
+      windowSpec: WindowSpec): CommonPhysicalWindowTableFunction = {
+    val physicalTraits = if (isStreamingMode) {
+      streamPhysicalTraits
+    } else {
+      batchPhysicalTraits
+    }
+    val ts: TableScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable1"), physicalTraits)
+    val tsRowType = ts.getRowType
+    val timeFieldIdx = 4
+    val windowTVFRowType = typeFactory.builder.kind(tsRowType.getStructKind)
+      .addAll(tsRowType.getFieldList)
+      .add("window_start", SqlTypeName.TIMESTAMP, 3)
+      .add("window_end", SqlTypeName.TIMESTAMP, 3)
+      .add("window_time", tsRowType.getFieldList.get(timeFieldIdx).getType)
+      .build
+    if (isStreamingMode) {
+      new StreamPhysicalWindowTableFunction(
+        cluster,
+        physicalTraits,
+        ts,
+        windowTVFRowType,
+        new TimeAttributeWindowingStrategy(
+          windowSpec,
+          new TimestampType(true, TimestampKind.ROWTIME, 3),
+          timeFieldIdx),
+        false)
+    } else {
+      new BatchPhysicalWindowTableFunction(
+        cluster,
+        physicalTraits,
+        ts,
+        windowTVFRowType,
+        new TimeAttributeWindowingStrategy(
+          windowSpec,
+          new TimestampType(3),
+          timeFieldIdx))
+    }
+  }
 
   protected def createDataStreamScan[T](
       tableNames: util.List[String], traitSet: RelTraitSet): T = {

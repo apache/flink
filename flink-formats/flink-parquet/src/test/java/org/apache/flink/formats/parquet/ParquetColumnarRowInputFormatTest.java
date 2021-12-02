@@ -618,7 +618,7 @@ public class ParquetColumnarRowInputFormatTest {
                         assertEquals(13, row.getFloat(8), 0);
                         assertEquals(6.6, row.getDouble(9), 0);
                         assertEquals(
-                                DateTimeUtils.dateToInternal(Date.valueOf("2020-11-23")),
+                                DateTimeUtils.toInternal(Date.valueOf("2020-11-23")),
                                 row.getInt(10));
                         assertEquals(
                                 LocalDateTime.of(1999, 1, 1, 1, 1),

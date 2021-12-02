@@ -233,8 +233,42 @@ final class CastRuleUtils {
             return this;
         }
 
+        public CodeWriter tryCatchStmt(
+                Consumer<CodeWriter> bodyWriterConsumer,
+                BiConsumer<String, CodeWriter> catchConsumer) {
+            return tryCatchStmt(bodyWriterConsumer, Throwable.class, catchConsumer);
+        }
+
+        public CodeWriter tryCatchStmt(
+                Consumer<CodeWriter> bodyWriterConsumer,
+                Class<? extends Throwable> catchClass,
+                BiConsumer<String, CodeWriter> catchConsumer) {
+            final String exceptionTerm = newName("e");
+
+            final CodeWriter bodyWriter = new CodeWriter();
+            final CodeWriter catchWriter = new CodeWriter();
+
+            builder.append("try {\n");
+            bodyWriterConsumer.accept(bodyWriter);
+            builder.append(bodyWriter)
+                    .append("} catch (")
+                    .append(className(catchClass))
+                    .append(" ")
+                    .append(exceptionTerm)
+                    .append(") {\n");
+            catchConsumer.accept(exceptionTerm, catchWriter);
+            builder.append(catchWriter).append("}\n");
+
+            return this;
+        }
+
         public CodeWriter append(CastCodeBlock codeBlock) {
             builder.append(codeBlock.getCode());
+            return this;
+        }
+
+        public CodeWriter throwStmt(String expression) {
+            builder.append("throw ").append(expression).append(";");
             return this;
         }
 

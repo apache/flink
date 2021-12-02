@@ -22,7 +22,7 @@ import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
-import org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
 
 import org.junit.Test
@@ -151,7 +151,7 @@ class UnnestITCase extends BatchTestBase {
   @Test
   def testTumbleWindowAggregateWithCollectUnnest(): Unit = {
     val data = TestData.tupleData3.map {
-      case (i, l, s) => row(i, l, s, unixTimestampToLocalDateTime(i * 1000))
+      case (i, l, s) => row(i, l, s, toLocalDateTime(i * 1000))
     }
     registerCollection("T", data,
       new RowTypeInfo(Types.INT, Types.LONG, Types.STRING, Types.LOCAL_DATE_TIME),

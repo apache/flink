@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -43,10 +44,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -255,22 +252,17 @@ class YarnApplicationFileUploader implements AutoCloseable {
             } else {
                 final File file = new File(shipFile.toUri().getPath());
                 if (file.isDirectory()) {
-                    final java.nio.file.Path shipPath = file.toPath();
+                    final java.nio.file.Path shipPath = file.toPath().toRealPath();
                     final java.nio.file.Path parentPath = shipPath.getParent();
-                    Files.walkFileTree(
-                            shipPath,
-                            new SimpleFileVisitor<java.nio.file.Path>() {
-                                @Override
-                                public FileVisitResult visitFile(
-                                        java.nio.file.Path file, BasicFileAttributes attrs) {
-                                    localPaths.add(new Path(file.toUri()));
-                                    relativePaths.add(
-                                            new Path(
-                                                    localResourcesDirectory,
-                                                    parentPath.relativize(file).toString()));
-                                    return FileVisitResult.CONTINUE;
-                                }
-                            });
+                    Collection<java.nio.file.Path> paths =
+                            FileUtils.listFilesInDirectory(shipPath, path -> true);
+                    for (java.nio.file.Path javaPath : paths) {
+                        localPaths.add(new Path(javaPath.toUri()));
+                        relativePaths.add(
+                                new Path(
+                                        localResourcesDirectory,
+                                        parentPath.relativize(javaPath).toString()));
+                    }
                     continue;
                 }
             }

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
@@ -126,7 +127,7 @@ public class TestCsvFileSystemFormatFactory
                     DataType physicalDataType,
                     int[][] projections) {
                 DataType projectedPhysicalDataType =
-                        DataType.projectFields(physicalDataType, projections);
+                        Projection.of(projections).project(physicalDataType);
                 return new TestCsvDeserializationSchema(
                         projectedPhysicalDataType, DataType.getFieldNames(physicalDataType));
             }

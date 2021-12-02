@@ -28,8 +28,12 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 /** This class resolves {@link CastRule} using the input and the target type. */
 @Internal
@@ -46,6 +50,9 @@ public class CastRuleProvider {
                 .addRule(NumericPrimitiveToDecimalCastRule.INSTANCE)
                 .addRule(DecimalToNumericPrimitiveCastRule.INSTANCE)
                 .addRule(NumericPrimitiveCastRule.INSTANCE)
+                // Boolean <-> numeric rules
+                .addRule(BooleanToNumericCastRule.INSTANCE)
+                .addRule(IntegerNumericToBooleanCastRule.INSTANCE)
                 // To string rules
                 .addRule(NumericToStringCastRule.INSTANCE)
                 .addRule(BooleanToStringCastRule.INSTANCE)
@@ -167,47 +174,43 @@ public class CastRuleProvider {
     }
 
     private CastRule<?, ?> internalResolve(LogicalType inputType, LogicalType targetType) {
+        final Iterator<Object> targetTypeRootFamilyIterator =
+                Stream.<Object>concat(
+                                Stream.of(targetType.getTypeRoot()),
+                                targetType.getTypeRoot().getFamilies().stream())
+                        .iterator();
+
         // Try lookup by target type root/type families
-        final Map<Object, CastRule<?, ?>> inputTypeToCastRuleMap =
-                lookupTypeInMap(rules, targetType.getTypeRoot());
-        CastRule<?, ?> rule;
-        if (inputTypeToCastRuleMap != null) {
+        while (targetTypeRootFamilyIterator.hasNext()) {
+            final Object targetMapKey = targetTypeRootFamilyIterator.next();
+            final Map<Object, CastRule<?, ?>> inputTypeToCastRuleMap = rules.get(targetMapKey);
+
+            if (inputTypeToCastRuleMap == null) {
+                continue;
+            }
+
             // Try lookup by input type root/type families
-            rule = lookupTypeInMap(inputTypeToCastRuleMap, inputType.getTypeRoot());
-            if (rule != null) {
-                return rule;
+            Optional<? extends CastRule<?, ?>> rule =
+                    Stream.<Object>concat(
+                                    Stream.of(inputType.getTypeRoot()),
+                                    inputType.getTypeRoot().getFamilies().stream())
+                            .map(inputTypeToCastRuleMap::get)
+                            .filter(Objects::nonNull)
+                            .findFirst();
+
+            if (rule.isPresent()) {
+                return rule.get();
             }
         }
 
         // Try with the custom predicate rules
-        rule =
-                rulesWithCustomPredicate.stream()
-                        .filter(
-                                r ->
-                                        r.getPredicateDefinition()
-                                                .getCustomPredicate()
-                                                .test(inputType, targetType))
-                        .findFirst()
-                        .orElse(null);
-
-        return rule;
-    }
-
-    /**
-     * Function that performs a map lookup first based on the type root, then on any of its
-     * families.
-     */
-    private static <T> T lookupTypeInMap(Map<Object, T> map, LogicalTypeRoot type) {
-        T out = map.get(type);
-        if (out == null) {
-            /* lookup by any family matching */
-            for (LogicalTypeFamily family : type.getFamilies()) {
-                out = map.get(family);
-                if (out != null) {
-                    return out;
-                }
-            }
-        }
-        return out;
+        return rulesWithCustomPredicate.stream()
+                .filter(
+                        r ->
+                                r.getPredicateDefinition()
+                                        .getCustomPredicate()
+                                        .test(inputType, targetType))
+                .findFirst()
+                .orElse(null);
     }
 }
