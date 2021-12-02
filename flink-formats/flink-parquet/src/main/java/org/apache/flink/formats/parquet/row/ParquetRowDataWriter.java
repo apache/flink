@@ -19,11 +19,9 @@
 package org.apache.flink.formats.parquet.row;
 
 import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -55,11 +53,9 @@ import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnRead
 /** Writes a record to the Parquet API with the expected schema in order to be written to a file. */
 public class ParquetRowDataWriter {
 
+    private final RowWriter rowWriter;
     private final RecordConsumer recordConsumer;
     private final boolean utcTimestamp;
-
-    private final FieldWriter[] filedWriters;
-    private final String[] fieldNames;
 
     public ParquetRowDataWriter(
             RecordConsumer recordConsumer,
@@ -69,11 +65,7 @@ public class ParquetRowDataWriter {
         this.recordConsumer = recordConsumer;
         this.utcTimestamp = utcTimestamp;
 
-        this.filedWriters = new FieldWriter[rowType.getFieldCount()];
-        this.fieldNames = rowType.getFieldNames().toArray(new String[0]);
-        for (int i = 0; i < rowType.getFieldCount(); i++) {
-            this.filedWriters[i] = createWriter(rowType.getTypeAt(i), schema.getType(i));
-        }
+        rowWriter = new RowWriter(rowType, schema);
     }
 
     /**
@@ -83,16 +75,7 @@ public class ParquetRowDataWriter {
      */
     public void write(final RowData record) {
         recordConsumer.startMessage();
-        for (int i = 0; i < filedWriters.length; i++) {
-            if (!record.isNullAt(i)) {
-                String fieldName = fieldNames[i];
-                FieldWriter writer = filedWriters[i];
-
-                recordConsumer.startField(fieldName, i);
-                writer.write(record, i);
-                recordConsumer.endField(fieldName, i);
-            }
-        }
+        rowWriter.write(record);
         recordConsumer.endMessage();
     }
 
@@ -145,7 +128,7 @@ public class ParquetRowDataWriter {
                 return new MapWriter(
                         ((MapType) t).getKeyType(), ((MapType) t).getValueType(), groupType);
             } else if (t instanceof RowType && type instanceof GroupType) {
-                return new RowWriter(t, groupType);
+                return new RowWriter((RowType) t, groupType);
             } else {
                 throw new UnsupportedOperationException("Unsupported type: " + type);
             }
@@ -156,7 +139,7 @@ public class ParquetRowDataWriter {
 
         void write(RowData row, int ordinal);
 
-        void write(Object value);
+        void write(ArrayData arrayData, int ordinal);
     }
 
     private class BooleanWriter implements FieldWriter {
@@ -167,8 +150,8 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {
-            recordConsumer.addBoolean((boolean) value);
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.addBoolean(arrayData.getBoolean(ordinal));
         }
     }
 
@@ -180,8 +163,8 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {
-            recordConsumer.addInteger((byte) value);
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.addInteger(arrayData.getByte(ordinal));
         }
     }
 
@@ -193,8 +176,8 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {
-            recordConsumer.addInteger((short) value);
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.addInteger(arrayData.getShort(ordinal));
         }
     }
 
@@ -206,8 +189,8 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {
-            recordConsumer.addLong((long) value);
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.addLong(arrayData.getLong(ordinal));
         }
     }
 
@@ -219,8 +202,8 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {
-            recordConsumer.addFloat((float) value);
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.addFloat(arrayData.getFloat(ordinal));
         }
     }
 
@@ -232,8 +215,8 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {
-            recordConsumer.addDouble((double) value);
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.addDouble(arrayData.getDouble(ordinal));
         }
     }
 
@@ -245,8 +228,9 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {
-            recordConsumer.addBinary(Binary.fromReusedByteArray(((StringData) value).toBytes()));
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.addBinary(
+                    Binary.fromReusedByteArray(arrayData.getString(ordinal).toBytes()));
         }
     }
 
@@ -258,8 +242,8 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {
-            recordConsumer.addBinary(Binary.fromReusedByteArray((byte[]) value));
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.addBinary(Binary.fromReusedByteArray(arrayData.getBinary(ordinal)));
         }
     }
 
@@ -271,8 +255,8 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {
-            recordConsumer.addInteger((int) value);
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.addInteger(arrayData.getInt(ordinal));
         }
     }
 
@@ -295,20 +279,19 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {
-            recordConsumer.addBinary(timestampToInt96((TimestampData) value));
+        public void write(ArrayData arrayData, int ordinal) {
+            recordConsumer.addBinary(timestampToInt96(arrayData.getTimestamp(ordinal, precision)));
         }
     }
 
+    /** It writes a map field to parquet, both key and value are nullable. */
     private class MapWriter implements FieldWriter {
 
         private String repeatedGroupName;
         private String keyName, valueName;
         private FieldWriter keyWriter, valueWriter;
-        private ArrayData.ElementGetter keyElementGetter, valueElementGetter;
 
         private MapWriter(LogicalType keyType, LogicalType valueType, GroupType groupType) {
-
             // Get the internal map structure (MAP_KEY_VALUE)
             GroupType repeatedType = groupType.getType(0).asGroupType();
             this.repeatedGroupName = repeatedType.getName();
@@ -322,9 +305,6 @@ public class ParquetRowDataWriter {
             Type valuetype = repeatedType.getType(1);
             this.valueName = valuetype.getName();
             this.valueWriter = createWriter(valueType, valuetype);
-
-            this.keyElementGetter = ArrayData.createElementGetter(keyType);
-            this.valueElementGetter = ArrayData.createElementGetter(valueType);
         }
 
         @Override
@@ -339,23 +319,15 @@ public class ParquetRowDataWriter {
                 ArrayData keyArray = mapData.keyArray();
                 ArrayData valueArray = mapData.valueArray();
                 for (int i = 0; i < keyArray.size(); i++) {
-                    Object key = keyElementGetter.getElementOrNull(keyArray, i);
-                    Object value = valueElementGetter.getElementOrNull(valueArray, i);
-
                     recordConsumer.startGroup();
-                    if (key != null) {
-                        // write key element
-                        recordConsumer.startField(keyName, 0);
-                        keyWriter.write(key);
-                        recordConsumer.endField(keyName, 0);
-
-                        // write value element
-                        if (value != null) {
-                            recordConsumer.startField(valueName, 1);
-                            valueWriter.write(value);
-                            recordConsumer.endField(valueName, 1);
-                        }
-                    }
+                    // write key element
+                    recordConsumer.startField(keyName, 0);
+                    keyWriter.write(keyArray, i);
+                    recordConsumer.endField(keyName, 0);
+                    // write value element
+                    recordConsumer.startField(valueName, 1);
+                    valueWriter.write(valueArray, i);
+                    recordConsumer.endField(valueName, 1);
                     recordConsumer.endGroup();
                 }
 
@@ -365,15 +337,15 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {}
+        public void write(ArrayData arrayData, int ordinal) {}
     }
 
+    /** It writes an array type field to parquet. */
     private class ArrayWriter implements FieldWriter {
 
         private String elementName;
         private FieldWriter elementWriter;
         private String repeatedGroupName;
-        private ArrayData.ElementGetter elementGetter;
 
         private ArrayWriter(LogicalType t, GroupType groupType) {
 
@@ -385,7 +357,6 @@ public class ParquetRowDataWriter {
             this.elementName = elementType.getName();
 
             this.elementWriter = createWriter(t, elementType);
-            this.elementGetter = ArrayData.createElementGetter(t);
         }
 
         @Override
@@ -396,13 +367,11 @@ public class ParquetRowDataWriter {
 
             if (listLength > 0) {
                 recordConsumer.startField(repeatedGroupName, 0);
-
                 for (int i = 0; i < listLength; i++) {
-                    Object object = elementGetter.getElementOrNull(arrayData, i);
                     recordConsumer.startGroup();
-                    if (object != null) {
+                    if (!arrayData.isNullAt(i)) {
                         recordConsumer.startField(elementName, 0);
-                        elementWriter.write(object);
+                        elementWriter.write(arrayData, i);
                         recordConsumer.endField(elementName, 0);
                     }
                     recordConsumer.endGroup();
@@ -414,55 +383,47 @@ public class ParquetRowDataWriter {
         }
 
         @Override
-        public void write(Object value) {}
+        public void write(ArrayData arrayData, int ordinal) {}
     }
 
-    private class GroupTypeWriter implements FieldWriter {
-        private List<Type> types;
+    /** It writes a row type field to parquet. */
+    private class RowWriter implements FieldWriter {
         private List<LogicalType> logicalTypes;
         private FieldWriter[] fieldWriters;
+        private final String[] fieldNames;
 
-        public GroupTypeWriter(LogicalType t, GroupType groupType) {
-            this.types = groupType.getFields();
-            this.logicalTypes = t.getChildren();
-
-            this.fieldWriters = new FieldWriter[types.size()];
+        public RowWriter(RowType rowType, GroupType groupType) {
+            this.fieldNames = rowType.getFieldNames().toArray(new String[0]);
+            this.logicalTypes = rowType.getChildren();
+            this.fieldWriters = new FieldWriter[rowType.getFieldCount()];
             for (int i = 0; i < fieldWriters.length; i++) {
-                fieldWriters[i] = createWriter(logicalTypes.get(i), types.get(i));
+                fieldWriters[i] = createWriter(logicalTypes.get(i), groupType.getType(i));
             }
         }
 
-        @Override
-        public void write(RowData row, int ordinal) {
-            RowData rowData = row.getRow(ordinal, types.size());
-            for (int i = 0; i < types.size(); i++) {
-                Type type = types.get(i);
-                FieldWriter writer = fieldWriters[i];
+        public void write(RowData row) {
+            for (int i = 0; i < fieldWriters.length; i++) {
+                if (!row.isNullAt(i)) {
+                    String fieldName = fieldNames[i];
+                    FieldWriter writer = fieldWriters[i];
 
-                if (!rowData.isNullAt(i)) {
-                    String fieldName = type.getName();
                     recordConsumer.startField(fieldName, i);
-                    writer.write(rowData, i);
+                    writer.write(row, i);
                     recordConsumer.endField(fieldName, i);
                 }
             }
         }
 
         @Override
-        public void write(Object value) {}
-    }
-
-    private class RowWriter extends GroupTypeWriter implements FieldWriter {
-        public RowWriter(LogicalType t, GroupType groupType) {
-            super(t, groupType);
+        public void write(RowData row, int ordinal) {
+            recordConsumer.startGroup();
+            RowData rowData = row.getRow(ordinal, fieldWriters.length);
+            write(rowData);
+            recordConsumer.endGroup();
         }
 
         @Override
-        public void write(RowData row, int ordinal) {
-            recordConsumer.startGroup();
-            super.write(row, ordinal);
-            recordConsumer.endGroup();
-        }
+        public void write(ArrayData arrayData, int ordinal) {}
     }
 
     private Binary timestampToInt96(TimestampData timestampData) {
@@ -511,8 +472,9 @@ public class ParquetRowDataWriter {
             }
 
             @Override
-            public void write(Object value) {
-                long unscaledLong = ((DecimalData) value).toUnscaledLong();
+            public void write(ArrayData arrayData, int ordinal) {
+                long unscaledLong =
+                        (arrayData.getDecimal(ordinal, precision, scale)).toUnscaledLong();
                 addRecord(unscaledLong);
             }
 
@@ -545,8 +507,8 @@ public class ParquetRowDataWriter {
             }
 
             @Override
-            public void write(Object value) {
-                byte[] bytes = ((DecimalData) value).toUnscaledBytes();
+            public void write(ArrayData arrayData, int ordinal) {
+                byte[] bytes = (arrayData.getDecimal(ordinal, precision, scale)).toUnscaledBytes();
                 addRecord(bytes);
             }
 

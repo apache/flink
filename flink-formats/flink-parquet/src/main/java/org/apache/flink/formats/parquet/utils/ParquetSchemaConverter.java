@@ -38,6 +38,7 @@ import java.util.List;
 /** Schema converter converts Parquet schema to and from Flink internal types. */
 public class ParquetSchemaConverter {
 
+    static final String MAP_REPEATED_NAME = "key_value";
     static final String LIST_ELEMENT_NAME = "element";
 
     public static MessageType convertToParquetMessageType(String name, RowType rowType) {
@@ -118,8 +119,12 @@ public class ParquetSchemaConverter {
                         convertToParquetType(LIST_ELEMENT_NAME, arrayType.getElementType()));
             case MAP:
                 MapType mapType = (MapType) type;
-                return ConversionPatterns.stringKeyMapType(
-                        repetition, name, convertToParquetType("value", mapType.getValueType()));
+                return ConversionPatterns.mapType(
+                        repetition,
+                        name,
+                        MAP_REPEATED_NAME,
+                        convertToParquetType("key", mapType.getKeyType()),
+                        convertToParquetType("value", mapType.getValueType()));
             case ROW:
                 RowType rowType = (RowType) type;
                 return new GroupType(repetition, name, convertToParquetTypes(rowType));
