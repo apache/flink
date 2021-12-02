@@ -38,11 +38,15 @@ import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.udf.generic.Collector;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.objectinspector.StandardStructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -82,7 +86,9 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 
         ObjectInspector[] argumentInspectors =
                 HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
-        returnInspector = function.initialize(argumentInspectors);
+        StandardStructObjectInspector standardStructObjectInspector =
+                getStandardStructObjectInspector(argumentInspectors);
+        returnInspector = function.initialize(standardStructObjectInspector);
 
         isArgsSingleArray = HiveFunctionUtil.isSingleBoxedArray(argTypes);
 
@@ -140,8 +146,10 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
         try {
             ObjectInspector[] argumentInspectors =
                     HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
+            StandardStructObjectInspector standardStructObjectInspector =
+                    getStandardStructObjectInspector(argumentInspectors);
             return HiveTypeUtil.toFlinkType(
-                    hiveFunctionWrapper.createFunction().initialize(argumentInspectors));
+                    hiveFunctionWrapper.createFunction().initialize(standardStructObjectInspector));
         } catch (UDFArgumentException e) {
             throw new FlinkHiveUDFException(e);
         }
@@ -156,5 +164,17 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
     @Override
     public void close() throws Exception {
         function.close();
+    }
+
+    public static StandardStructObjectInspector getStandardStructObjectInspector(
+            ObjectInspector[] argumentInspectors) {
+        List<String> structFieldNames = new ArrayList<>();
+        for (int i = 0; i < argumentInspectors.length; i++) {
+            structFieldNames.add(String.valueOf(i));
+        }
+        StandardStructObjectInspector standardStructObjectInspector =
+                ObjectInspectorFactory.getStandardStructObjectInspector(
+                        structFieldNames, Arrays.asList(argumentInspectors));
+        return standardStructObjectInspector;
     }
 }
