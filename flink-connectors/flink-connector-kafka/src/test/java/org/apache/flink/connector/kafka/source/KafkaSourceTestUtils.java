@@ -20,6 +20,7 @@ package org.apache.flink.connector.kafka.source;
 
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.KafkaSourceReader;
 
 import java.util.Collection;
@@ -49,5 +50,10 @@ public class KafkaSourceTestUtils {
     /** Get configuration of KafkaSource. */
     public static Configuration getKafkaSourceConfiguration(KafkaSource<?> kafkaSource) {
         return kafkaSource.getConfiguration();
+    }
+
+    /** Get stopping offsets initializer. */
+    public static OffsetsInitializer getStoppingOffsetsInitializer(KafkaSource<?> kafkaSource) {
+        return kafkaSource.getStoppingOffsetsInitializer();
     }
 }

@@ -233,4 +233,9 @@ public class KafkaSource<OUT>
     KafkaSubscriber getKafkaSubscriber() {
         return subscriber;
     }
+
+    @VisibleForTesting
+    OffsetsInitializer getStoppingOffsetsInitializer() {
+        return stoppingOffsetsInitializer;
+    }
 }

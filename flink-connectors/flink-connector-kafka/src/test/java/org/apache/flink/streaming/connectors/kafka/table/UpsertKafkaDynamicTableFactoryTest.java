@@ -609,6 +609,9 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                 StartupMode.EARLIEST,
                 Collections.emptyMap(),
                 0,
+                null,
+                Collections.emptyMap(),
+                0,
                 true,
                 FactoryMocks.IDENTIFIER.asSummaryString());
     }
