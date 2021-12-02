@@ -24,7 +24,6 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.webmonitor.handlers.JarRunHandler;
@@ -98,7 +97,7 @@ class WebSubmissionExtensionTest {
 
     private static String uploadJar(
             WebSubmissionExtension extension, Path jarFile, DispatcherGateway dispatcherGateway)
-            throws RestHandlerException {
+            throws Exception {
         final JarUploadHandler jarUploadHandler = extension.getJarUploadHandler();
 
         final HandlerRequest<EmptyRequestBody> uploadRequest =
