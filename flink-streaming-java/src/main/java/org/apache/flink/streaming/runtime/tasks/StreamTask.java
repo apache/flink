@@ -102,7 +102,6 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
-import org.apache.flink.util.WrappingRuntimeException;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
@@ -1209,29 +1208,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         }
 
         return true;
-    }
-
-    protected final CompletableFuture<Boolean> assertTriggeringCheckpointExceptions(
-            CompletableFuture<Boolean> triggerFuture, long checkpointId) {
-        CompletableFuture<Boolean> checkpointTriggered =
-                triggerFuture.exceptionally(
-                        error -> {
-                            if (ExceptionUtils.findThrowable(
-                                            error, RejectedExecutionException.class)
-                                    .isPresent()) {
-                                // This may happen if the mailbox is closed. It means that
-                                // the task is shutting down, so we just ignore it.
-                                LOG.debug(
-                                        "Triggering checkpoint {} for {} was rejected by the mailbox",
-                                        checkpointId,
-                                        getTaskNameWithSubtaskAndId());
-                                return false;
-                            } else {
-                                throw new WrappingRuntimeException(error);
-                            }
-                        });
-        FutureUtils.assertNoException(checkpointTriggered);
-        return checkpointTriggered;
     }
 
     /**
