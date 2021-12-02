@@ -313,7 +313,7 @@ Connector Options
       <td>optional</td>
       <td>yes</td>
       <td style="word-wrap: break-word;">group-offsets</td>
-      <td>String</td>
+      <td>Enum</td>
       <td>Startup mode for Kafka consumer, valid values are <code>'earliest-offset'</code>, <code>'latest-offset'</code>, <code>'group-offsets'</code>, <code>'timestamp'</code> and <code>'specific-offsets'</code>.
        See the following <a href="#start-reading-position">Start Reading Position</a> for more details.</td>
     </tr>
@@ -333,6 +333,32 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>Long</td>
       <td>Start from the specified epoch timestamp (milliseconds) used in case of <code>'timestamp'</code> startup mode.</td>
+    </tr>
+    <tr>
+      <td><h5>scan.bounded.mode</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">unbounded</td>
+      <td>Enum</td>
+      <td>Bounded mode for Kafka consumer, valid values are <code>'latest-offset'</code>, <code>'group-offsets'</code>, <code>'timestamp'</code> and <code>'specific-offsets'</code>.
+       See the following <a href="#bounded-ending-position">Bounded Ending Position</a> for more details.</td>
+    </tr>
+    <tr>
+      <td><h5>scan.bounded.specific-offsets</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Specify offsets for each partition in case of <code>'specific-offsets'</code> bounded mode, e.g. <code>'partition:0,offset:42;partition:1,offset:300'. If an offset
+       for a partition is not provided it will not consume from that partition.</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>scan.bounded.timestamp-millis</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Long</td>
+      <td>End at the specified epoch timestamp (milliseconds) used in case of <code>'timestamp'</code> bounded mode.</td>
     </tr>
     <tr>
       <td><h5>scan.topic-partition-discovery.interval</h5></td>
@@ -534,6 +560,23 @@ If `timestamp` is specified, another config option `scan.startup.timestamp-milli
 
 If `specific-offsets` is specified, another config option `scan.startup.specific-offsets` is required to specify specific startup offsets for each partition,
 e.g. an option value `partition:0,offset:42;partition:1,offset:300` indicates offset `42` for partition `0` and offset `300` for partition `1`.
+
+### Bounded Ending Position
+
+The config option `scan.bounded.mode` specifies the bounded mode for Kafka consumer. The valid enumerations are:
+<ul>
+<li><span markdown="span">`group-offsets`</span>: bounded by committed offsets in ZooKeeper / Kafka brokers of a specific consumer group. This is evaluated at the start of consumption from a given partition.</li>
+<li><span markdown="span">`latest-offset`</span>: bounded by latest offsets. This is evaluated at the start of consumption from a given partition.</li>
+<li><span markdown="span">`timestamp`</span>: bounded by a user-supplied timestamp.</li>
+<li><span markdown="span">`specific-offsets`</span>: bounded by user-supplied specific offsets for each partition.</li>
+</ul>
+
+If config option value `scan.bounded.mode` is not set the default is an unbounded table.
+
+If `timestamp` is specified, another config option `scan.bounded.timestamp-millis` is required to specify a specific bounded timestamp in milliseconds since January 1, 1970 00:00:00.000 GMT.
+
+If `specific-offsets` is specified, another config option `scan.bounded.specific-offsets` is required to specify specific bounded offsets for each partition,
+e.g. an option value `partition:0,offset:42;partition:1,offset:300` indicates offset `42` for partition `0` and offset `300` for partition `1`. If an offset for a partition is not provided it will not consume from that partition.
 
 ### CDC Changelog Source
 
