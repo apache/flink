@@ -146,6 +146,7 @@ public class KafkaDynamicSource
     protected final boolean upsertMode;
 
     protected final String tableIdentifier;
+    protected final Map<TopicPartition, Long> setBounded;
 
     public KafkaDynamicSource(
             DataType physicalDataType,
@@ -161,7 +162,8 @@ public class KafkaDynamicSource
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
             boolean upsertMode,
-            String tableIdentifier) {
+            String tableIdentifier,
+            Map<TopicPartition, Long> setBounded) {
         // Format attributes
         this.physicalDataType =
                 Preconditions.checkNotNull(
@@ -195,6 +197,7 @@ public class KafkaDynamicSource
         this.startupTimestampMillis = startupTimestampMillis;
         this.upsertMode = upsertMode;
         this.tableIdentifier = tableIdentifier;
+        this.setBounded = setBounded;
     }
 
     @Override
@@ -304,7 +307,8 @@ public class KafkaDynamicSource
                         specificStartupOffsets,
                         startupTimestampMillis,
                         upsertMode,
-                        tableIdentifier);
+                        tableIdentifier,
+                        setBounded);
         copy.producedDataType = producedDataType;
         copy.metadataKeys = metadataKeys;
         copy.watermarkStrategy = watermarkStrategy;
@@ -341,7 +345,8 @@ public class KafkaDynamicSource
                 && startupTimestampMillis == that.startupTimestampMillis
                 && Objects.equals(upsertMode, that.upsertMode)
                 && Objects.equals(tableIdentifier, that.tableIdentifier)
-                && Objects.equals(watermarkStrategy, that.watermarkStrategy);
+                && Objects.equals(watermarkStrategy, that.watermarkStrategy)
+                && Objects.equals(setBounded, that.setBounded);
     }
 
     @Override
@@ -363,7 +368,8 @@ public class KafkaDynamicSource
                 startupTimestampMillis,
                 upsertMode,
                 tableIdentifier,
-                watermarkStrategy);
+                watermarkStrategy,
+                setBounded);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -408,6 +414,9 @@ public class KafkaDynamicSource
                 kafkaSourceBuilder.setStartingOffsets(
                         OffsetsInitializer.timestamp(startupTimestampMillis));
                 break;
+        }
+        if (setBounded != null) {
+            kafkaSourceBuilder.setBounded(OffsetsInitializer.offsets(setBounded));
         }
 
         kafkaSourceBuilder
