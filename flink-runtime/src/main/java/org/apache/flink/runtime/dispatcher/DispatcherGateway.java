@@ -101,4 +101,6 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
             @RpcTimeout final Time timeout) {
         throw new UnsupportedOperationException();
     }
+
+    void submitFailedJob(JobStartupFailedException exception);
 }

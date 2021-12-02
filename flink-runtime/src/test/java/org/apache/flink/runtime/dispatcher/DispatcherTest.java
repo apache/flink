@@ -117,6 +117,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
@@ -898,6 +899,41 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @Test
     public void testJobDataAreCleanedUpInCorrectOrderOnFailedJob() throws Exception {
         testJobDataAreCleanedUpInCorrectOrder(JobStatus.FAILED);
+    }
+
+    @Test
+    public void testRetrieveJobResultAfterSubmissionOfFailedJob() throws Exception {
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new ExpectedJobIdJobManagerRunnerFactory(
+                                jobId, createdJobManagerRunnerLatch));
+
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        final JobID failedJobId = new JobID();
+
+        final String jobName = "Failed Streaming Job";
+        dispatcherGateway.submitFailedJob(
+                new JobStartupFailedException(
+                        failedJobId, jobName, Collections.singletonList(() -> "")));
+
+        final ExecutionGraphInfo executionGraphInfo =
+                dispatcherGateway.requestExecutionGraphInfo(failedJobId, TIMEOUT).get();
+        assertEquals(executionGraphInfo.getJobId(), failedJobId);
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                executionGraphInfo.getArchivedExecutionGraph();
+        assertEquals(archivedExecutionGraph.getState(), JobStatus.FAILED);
+        assertEquals(archivedExecutionGraph.getJobName(), jobName);
+        assertThat(
+                archivedExecutionGraph
+                        .getFailureInfo()
+                        .getException()
+                        .deserializeError(ClassLoader.getSystemClassLoader())
+                        .toString(),
+                containsString(JobStartupFailedException.class.getName()));
     }
 
     private void testJobDataAreCleanedUpInCorrectOrder(JobStatus jobStatus) throws Exception {

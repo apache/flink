@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.JobStartupFailedException;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -48,6 +49,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -75,6 +77,10 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             DEFAULT_STOP_WITH_SAVEPOINT_AND_GET_LOCATION_FUNCTION =
                     (JobID jobId, String targetDirectory) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
+    private static final Consumer<JobStartupFailedException> DEFAULT_FAILED_SUBMISSION_FUNCTION =
+            (exception) -> {
+                throw new UnsupportedOperationException();
+            };
 
     private final Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
     private final Supplier<CompletableFuture<Collection<JobID>>> listFunction;
@@ -88,6 +94,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             triggerSavepointAndGetLocationFunction;
     private final BiFunction<JobID, String, CompletableFuture<String>>
             stopWithSavepointAndGetLocationFunction;
+    private final Consumer<JobStartupFailedException> failedSubmissionFunction;
 
     public TestingDispatcherGateway() {
         super();
@@ -101,6 +108,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 DEFAULT_TRIGGER_SAVEPOINT_AND_GET_LOCATION_FUNCTION;
         stopWithSavepointAndGetLocationFunction =
                 DEFAULT_STOP_WITH_SAVEPOINT_AND_GET_LOCATION_FUNCTION;
+        failedSubmissionFunction = DEFAULT_FAILED_SUBMISSION_FUNCTION;
     }
 
     public TestingDispatcherGateway(
@@ -141,7 +149,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                             OperatorID,
                             SerializedValue<CoordinationRequest>,
                             CompletableFuture<CoordinationResponse>>
-                    deliverCoordinationRequestToCoordinatorFunction) {
+                    deliverCoordinationRequestToCoordinatorFunction,
+            Consumer<JobStartupFailedException> failedSubmissionFunction) {
         super(
                 address,
                 hostname,
@@ -167,6 +176,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         this.clusterShutdownWithStatusFunction = clusterShutdownWithStatusFunction;
         this.triggerSavepointAndGetLocationFunction = triggerSavepointAndGetLocationFunction;
         this.stopWithSavepointAndGetLocationFunction = stopWithSavepointAndGetLocationFunction;
+        this.failedSubmissionFunction = failedSubmissionFunction;
     }
 
     @Override
@@ -211,6 +221,11 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         return stopWithSavepointAndGetLocationFunction.apply(jobId, targetDirectory);
     }
 
+    @Override
+    public void submitFailedJob(JobStartupFailedException exception) {
+        failedSubmissionFunction.accept(exception);
+    }
+
     /** Builder for the {@link TestingDispatcherGateway}. */
     public static final class Builder extends TestingRestfulGateway.AbstractBuilder<Builder> {
 
@@ -226,6 +241,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 triggerSavepointAndGetLocationFunction;
         private BiFunction<JobID, String, CompletableFuture<String>>
                 stopWithSavepointAndGetLocationFunction;
+        private Consumer<JobStartupFailedException> failedSubmissionFunction =
+                DEFAULT_FAILED_SUBMISSION_FUNCTION;
 
         public Builder setSubmitFunction(
                 Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction) {
@@ -249,6 +266,12 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 Function<ApplicationStatus, CompletableFuture<Acknowledge>>
                         clusterShutdownFunction) {
             this.clusterShutdownWithStatusFunction = clusterShutdownFunction;
+            return this;
+        }
+
+        public Builder setFailedSubmissionFunction(
+                Consumer<JobStartupFailedException> failedSubmissionFunction) {
+            this.failedSubmissionFunction = failedSubmissionFunction;
             return this;
         }
 
@@ -313,7 +336,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     requestArchivedJobFunction,
                     clusterShutdownSupplier,
                     clusterShutdownWithStatusFunction,
-                    deliverCoordinationRequestToCoordinatorFunction);
+                    deliverCoordinationRequestToCoordinatorFunction,
+                    failedSubmissionFunction);
         }
     }
 }

@@ -779,6 +779,19 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                                 operatorId, serializedRequest, timeout));
     }
 
+    @Override
+    public void submitFailedJob(JobStartupFailedException exception) {
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                ArchivedExecutionGraph.createFromInitializingJob(
+                        exception.getJobId(),
+                        exception.getJobName(),
+                        JobStatus.FAILED,
+                        exception,
+                        null,
+                        System.currentTimeMillis());
+        archiveExecutionGraph(new ExecutionGraphInfo(archivedExecutionGraph));
+    }
+
     private void registerJobManagerRunnerTerminationFuture(
             JobID jobId, CompletableFuture<Void> jobManagerRunnerTerminationFuture) {
         Preconditions.checkState(!jobManagerRunnerTerminationFutures.containsKey(jobId));
