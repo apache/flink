@@ -37,6 +37,8 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.functions.hive.HiveGenericUDTFTest;
+import org.apache.flink.table.functions.hive.util.TestSplitUDTFInitializeWithStructObjectInspector;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
@@ -727,6 +729,62 @@ public class HiveDialectITCase {
         functions = tableEnv.listUserDefinedFunctions();
         assertThat(functions).isEmpty();
         tableEnv.executeSql("drop temporary function if exists foo");
+    }
+
+    @Test
+    public void testTemporaryFunctionUDTFInitializeWithObjectInspector() throws Exception {
+        // create temp function
+        tableEnv.executeSql(
+                String.format(
+                        "create temporary function temp_split as '%s'",
+                        HiveGenericUDTFTest.TestSplitUDTF.class.getName()));
+        String[] functions = tableEnv.listUserDefinedFunctions();
+        assertArrayEquals(new String[] {"temp_split"}, functions);
+        // call the function
+        tableEnv.executeSql("create table src(x string)");
+        tableEnv.executeSql("insert into src values ('a,b,c')").await();
+        assertEquals(
+                "[+I[a], +I[b], +I[c]]",
+                queryResult(tableEnv.sqlQuery("select temp_split(x) from src")).toString());
+        // switch DB and the temp function can still be used
+        tableEnv.executeSql("create database db1");
+        tableEnv.useDatabase("db1");
+        assertEquals(
+                "[+I[a], +I[b], +I[c]]",
+                queryResult(tableEnv.sqlQuery("select temp_split(x) from `default`.src"))
+                        .toString());
+        // drop the function
+        tableEnv.executeSql("drop temporary function temp_split");
+        functions = tableEnv.listUserDefinedFunctions();
+        assertEquals(0, functions.length);
+    }
+
+    @Test
+    public void testTemporaryFunctionUDTFInitializeWithStructObjectInspector() throws Exception {
+        // create temp function
+        tableEnv.executeSql(
+                String.format(
+                        "create temporary function temp_split as '%s'",
+                        TestSplitUDTFInitializeWithStructObjectInspector.class.getName()));
+        String[] functions = tableEnv.listUserDefinedFunctions();
+        assertArrayEquals(new String[] {"temp_split"}, functions);
+        // call the function
+        tableEnv.executeSql("create table src(x string)");
+        tableEnv.executeSql("insert into src values ('a,b,c')").await();
+        assertEquals(
+                "[+I[a], +I[b], +I[c]]",
+                queryResult(tableEnv.sqlQuery("select temp_split(x) from src")).toString());
+        // switch DB and the temp function can still be used
+        tableEnv.executeSql("create database db1");
+        tableEnv.useDatabase("db1");
+        assertEquals(
+                "[+I[a], +I[b], +I[c]]",
+                queryResult(tableEnv.sqlQuery("select temp_split(x) from `default`.src"))
+                        .toString());
+        // drop the function
+        tableEnv.executeSql("drop temporary function temp_split");
+        functions = tableEnv.listUserDefinedFunctions();
+        assertEquals(0, functions.length);
     }
 
     @Test
