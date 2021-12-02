@@ -124,7 +124,7 @@ public abstract class SimpleTransformationTranslator<OUT, T extends Transformati
             streamNode.setManagedMemoryUseCaseWeights(
                     transformation.getManagedMemoryOperatorScopeUseCaseWeights(),
                     transformation.getManagedMemorySlotScopeUseCases());
-            streamNode.setOperatorDesc(transformation.getDescription());
+            streamNode.setOperatorDescription(transformation.getDescription());
         }
     }
 }

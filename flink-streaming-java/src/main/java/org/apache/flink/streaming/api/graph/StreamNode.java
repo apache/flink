@@ -65,7 +65,7 @@ public class StreamNode {
     private final Set<ManagedMemoryUseCase> managedMemorySlotScopeUseCases = new HashSet<>();
     private long bufferTimeout;
     private final String operatorName;
-    private @Nullable String operatorDesc;
+    private @Nullable String operatorDescription;
     private @Nullable String slotSharingGroup;
     private @Nullable String coLocationGroup;
     private KeySelector<?, ?>[] statePartitioners = new KeySelector[0];
@@ -243,12 +243,12 @@ public class StreamNode {
         return operatorName;
     }
 
-    public String getOperatorDesc() {
-        return null == operatorDesc ? operatorName : operatorDesc;
+    public String getOperatorDescription() {
+        return null == operatorDescription ? operatorName : operatorDescription;
     }
 
-    public void setOperatorDesc(String operatorDesc) {
-        this.operatorDesc = operatorDesc;
+    public void setOperatorDescription(String operatorDescription) {
+        this.operatorDescription = operatorDescription;
     }
 
     public void setSerializersIn(TypeSerializer<?>... typeSerializersIn) {

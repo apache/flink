@@ -119,7 +119,7 @@ public abstract class Transformation<T> {
 
     protected String name;
 
-    protected String desc;
+    protected String description;
 
     protected TypeInformation<T> outputType;
     // This is used to handle MissingTypeInfo. As long as the outputType has not been queried
@@ -207,13 +207,13 @@ public abstract class Transformation<T> {
 
     /** Changes the description of this {@code Transformation}. */
     public Transformation<T> setDescription(String desc) {
-        this.desc = desc;
+        this.description = desc;
         return this;
     }
 
     /** Returns the description of this {@code Transformation}. */
     public String getDescription() {
-        return desc;
+        return description;
     }
 
     /** Returns the parallelism of this {@code Transformation}. */
