@@ -19,6 +19,7 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.dispatcher.JobStartupFailedException;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -40,7 +41,7 @@ public class OptimizerPlanEnvironmentTest {
     }
 
     private void runOutputTest(boolean suppressOutput, String[] expectedCapturedOutput)
-            throws ProgramInvocationException {
+            throws ProgramInvocationException, JobStartupFailedException {
         PackagedProgram packagedProgram =
                 PackagedProgram.newBuilder().setEntryPointClassName(getClass().getName()).build();
 

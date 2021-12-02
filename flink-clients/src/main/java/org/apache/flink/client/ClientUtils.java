@@ -30,6 +30,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobInitializationException;
+import org.apache.flink.runtime.dispatcher.JobStartupFailedException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
@@ -85,7 +86,7 @@ public enum ClientUtils {
             PackagedProgram program,
             boolean enforceSingleJobExecution,
             boolean suppressSysout)
-            throws ProgramInvocationException {
+            throws ProgramInvocationException, JobStartupFailedException {
         checkNotNull(executorServiceLoader);
         final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
         final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();

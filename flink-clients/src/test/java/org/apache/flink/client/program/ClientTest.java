@@ -32,6 +32,7 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
+import org.apache.flink.client.testjar.ForbidConfigurationJob;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
@@ -49,6 +50,7 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.runtime.dispatcher.JobStartupFailedException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -72,6 +74,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -233,12 +236,12 @@ public class ClientTest extends TestLogger {
 
     @Test
     public void testMultiExecuteWithoutEnforcingSingleJobExecution()
-            throws ProgramInvocationException {
+            throws ProgramInvocationException, JobStartupFailedException {
         launchMultiExecuteJob(false);
     }
 
     private void launchMultiExecuteJob(final boolean enforceSingleJobExecution)
-            throws ProgramInvocationException {
+            throws ProgramInvocationException, JobStartupFailedException {
         try (final ClusterClient<?> clusterClient =
                 new MiniClusterClient(
                         new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster())) {
@@ -277,7 +280,9 @@ public class ClientTest extends TestLogger {
      * submitted through a client.
      */
     @Test
-    public void tryLocalExecution() throws ProgramInvocationException, ProgramMissingJobException {
+    public void tryLocalExecution()
+            throws ProgramInvocationException, ProgramMissingJobException,
+                    JobStartupFailedException {
         PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
 
         when(packagedProgramMock.getUserCodeClassLoader())
@@ -312,7 +317,8 @@ public class ClientTest extends TestLogger {
     }
 
     @Test
-    public void testGetExecutionPlan() throws ProgramInvocationException {
+    public void testGetExecutionPlan()
+            throws ProgramInvocationException, JobStartupFailedException {
         PackagedProgram prg =
                 PackagedProgram.newBuilder()
                         .setEntryPointClassName(TestOptimizerPlan.class.getName())
@@ -337,6 +343,32 @@ public class ClientTest extends TestLogger {
         String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
 
         assertEquals(-1, htmlEscaped.indexOf('\\'));
+    }
+
+    @Test
+    public void testFailOnForbiddenConfiguration() throws ProgramInvocationException {
+        try (final ClusterClient<?> clusterClient =
+                new MiniClusterClient(
+                        new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster())) {
+
+            final PackagedProgram program =
+                    PackagedProgram.newBuilder()
+                            .setEntryPointClassName(ForbidConfigurationJob.class.getName())
+                            .build();
+
+            final Configuration configuration = fromPackagedProgram(program, 1, false);
+            configuration.set(DeploymentOptions.ALLOW_CLIENT_JOB_CONFIGURATIONS, false);
+
+            assertThrows(
+                    JobStartupFailedException.class,
+                    () ->
+                            ClientUtils.executeProgram(
+                                    new TestExecutorServiceLoader(clusterClient, plan),
+                                    configuration,
+                                    program,
+                                    true,
+                                    false));
+        }
     }
 
     // --------------------------------------------------------------------------------------------

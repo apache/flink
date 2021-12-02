@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.runtime.dispatcher.JobStartupFailedException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -158,7 +159,7 @@ public class JarHandlerUtils {
             try {
                 return PackagedProgramUtils.createJobGraph(
                         packagedProgram, configuration, parallelism, jobId, suppressOutput);
-            } catch (final ProgramInvocationException e) {
+            } catch (final ProgramInvocationException | JobStartupFailedException e) {
                 throw new CompletionException(e);
             }
         }

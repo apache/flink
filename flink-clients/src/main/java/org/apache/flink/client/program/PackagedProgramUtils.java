@@ -24,6 +24,7 @@ import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.CompilerException;
+import org.apache.flink.runtime.dispatcher.JobStartupFailedException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -77,7 +78,7 @@ public enum PackagedProgramUtils {
             int defaultParallelism,
             @Nullable JobID jobID,
             boolean suppressOutput)
-            throws ProgramInvocationException {
+            throws ProgramInvocationException, JobStartupFailedException {
         final Pipeline pipeline =
                 getPipelineFromProgram(
                         packagedProgram, configuration, defaultParallelism, suppressOutput);
@@ -113,7 +114,7 @@ public enum PackagedProgramUtils {
             Configuration configuration,
             int defaultParallelism,
             boolean suppressOutput)
-            throws ProgramInvocationException {
+            throws ProgramInvocationException, JobStartupFailedException {
         return createJobGraph(
                 packagedProgram, configuration, defaultParallelism, null, suppressOutput);
     }
@@ -123,7 +124,7 @@ public enum PackagedProgramUtils {
             Configuration configuration,
             int parallelism,
             boolean suppressOutput)
-            throws CompilerException, ProgramInvocationException {
+            throws CompilerException, ProgramInvocationException, JobStartupFailedException {
         final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 
         Thread.currentThread().setContextClassLoader(program.getUserCodeClassLoader());

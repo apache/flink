@@ -32,6 +32,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.dispatcher.JobStartupFailedException;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
@@ -153,7 +154,8 @@ public class ClassLoaderITCase extends TestLogger {
     }
 
     @Test
-    public void testCustomSplitJobWithCustomClassLoaderJar() throws ProgramInvocationException {
+    public void testCustomSplitJobWithCustomClassLoaderJar()
+            throws ProgramInvocationException, JobStartupFailedException {
 
         PackagedProgram inputSplitTestProg =
                 PackagedProgram.newBuilder()
@@ -171,7 +173,7 @@ public class ClassLoaderITCase extends TestLogger {
 
     @Test
     public void testStreamingCustomSplitJobWithCustomClassLoader()
-            throws ProgramInvocationException {
+            throws ProgramInvocationException, JobStartupFailedException {
         PackagedProgram streamingInputSplitTestProg =
                 PackagedProgram.newBuilder()
                         .setJarFile(new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE))
@@ -188,7 +190,7 @@ public class ClassLoaderITCase extends TestLogger {
 
     @Test
     public void testCustomSplitJobWithCustomClassLoaderPath()
-            throws IOException, ProgramInvocationException {
+            throws IOException, ProgramInvocationException, JobStartupFailedException {
         URL classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL();
         PackagedProgram inputSplitTestProg2 =
                 PackagedProgram.newBuilder()
@@ -206,7 +208,7 @@ public class ClassLoaderITCase extends TestLogger {
 
     @Test
     public void testStreamingClassloaderJobWithCustomClassLoader()
-            throws ProgramInvocationException {
+            throws ProgramInvocationException, JobStartupFailedException {
         // regular streaming job
         PackagedProgram streamingProg =
                 PackagedProgram.newBuilder().setJarFile(new File(STREAMING_PROG_JAR_FILE)).build();
@@ -222,7 +224,7 @@ public class ClassLoaderITCase extends TestLogger {
 
     @Test
     public void testCheckpointedStreamingClassloaderJobWithCustomClassLoader()
-            throws ProgramInvocationException {
+            throws ProgramInvocationException, JobStartupFailedException {
         // checkpointed streaming job with custom classes for the checkpoint (FLINK-2543)
         // the test also ensures that user specific exceptions are serializable between JobManager
         // <--> JobClient.
@@ -271,7 +273,8 @@ public class ClassLoaderITCase extends TestLogger {
     }
 
     @Test
-    public void testKMeansJobWithCustomClassLoader() throws ProgramInvocationException {
+    public void testKMeansJobWithCustomClassLoader()
+            throws ProgramInvocationException, JobStartupFailedException {
         PackagedProgram kMeansProg =
                 PackagedProgram.newBuilder()
                         .setJarFile(new File(KMEANS_JAR_PATH))
@@ -291,7 +294,8 @@ public class ClassLoaderITCase extends TestLogger {
     }
 
     @Test
-    public void testUserCodeTypeJobWithCustomClassLoader() throws ProgramInvocationException {
+    public void testUserCodeTypeJobWithCustomClassLoader()
+            throws ProgramInvocationException, JobStartupFailedException {
         PackagedProgram userCodeTypeProg =
                 PackagedProgram.newBuilder().setJarFile(new File(USERCODETYPE_JAR_PATH)).build();
 
@@ -306,7 +310,7 @@ public class ClassLoaderITCase extends TestLogger {
 
     @Test
     public void testCheckpointingCustomKvStateJobWithCustomClassLoader()
-            throws IOException, ProgramInvocationException {
+            throws IOException, ProgramInvocationException, JobStartupFailedException {
         File checkpointDir = FOLDER.newFolder();
         File outputDir = FOLDER.newFolder();
 
@@ -370,7 +374,7 @@ public class ClassLoaderITCase extends TestLogger {
                         () -> {
                             try {
                                 program.invokeInteractiveModeForExecution();
-                            } catch (ProgramInvocationException ex) {
+                            } catch (ProgramInvocationException | JobStartupFailedException ex) {
                                 if (ex.getCause() == null
                                         || !(ex.getCause() instanceof JobCancellationException)) {
                                     ex.printStackTrace();
@@ -436,7 +440,7 @@ public class ClassLoaderITCase extends TestLogger {
 
     @Test
     public void testProgramWithChildFirstClassLoader()
-            throws IOException, ProgramInvocationException {
+            throws IOException, ProgramInvocationException, JobStartupFailedException {
         // We have two files named test-resource in src/resource (parent classloader classpath) and
         // tmp folders (child classloader classpath) respectively.
         String childResourceDirName = "child0";
@@ -475,7 +479,7 @@ public class ClassLoaderITCase extends TestLogger {
 
     @Test
     public void testProgramWithParentFirstClassLoader()
-            throws IOException, ProgramInvocationException {
+            throws IOException, ProgramInvocationException, JobStartupFailedException {
         // We have two files named test-resource in src/resource (parent classloader classpath) and
         // tmp folders (child classloader classpath) respectively.
         String childResourceDirName = "child1";

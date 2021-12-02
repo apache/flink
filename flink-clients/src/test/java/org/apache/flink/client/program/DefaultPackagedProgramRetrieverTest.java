@@ -29,6 +29,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.runtime.dispatcher.JobStartupFailedException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -199,7 +200,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
 
     @Test
     public void testJobGraphRetrieval()
-            throws IOException, FlinkException, ProgramInvocationException {
+            throws IOException, FlinkException, ProgramInvocationException,
+                    JobStartupFailedException {
         final int parallelism = 42;
         final JobID jobId = new JobID();
 
@@ -227,7 +229,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
 
     @Test
     public void testJobGraphRetrievalFromJar()
-            throws IOException, FlinkException, ProgramInvocationException {
+            throws IOException, FlinkException, ProgramInvocationException,
+                    JobStartupFailedException {
         final String expectedSuffix = "suffix";
         final PackagedProgramRetriever retrieverUnderTest =
                 DefaultPackagedProgramRetriever.create(
@@ -246,7 +249,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
 
     @Test
     public void testParameterConsiderationForMultipleJobsOnSystemClasspath()
-            throws IOException, FlinkException, ProgramInvocationException {
+            throws IOException, FlinkException, ProgramInvocationException,
+                    JobStartupFailedException {
         final String expectedSuffix = "suffix";
         final PackagedProgramRetriever retrieverUnderTest =
                 // Both a class name is specified and a JAR "is" on the class path
@@ -266,7 +270,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
 
     @Test
     public void testSavepointRestoreSettings()
-            throws FlinkException, IOException, ProgramInvocationException {
+            throws FlinkException, IOException, ProgramInvocationException,
+                    JobStartupFailedException {
         final Configuration configuration = new Configuration();
         final SavepointRestoreSettings savepointRestoreSettings =
                 SavepointRestoreSettings.forPath("foobar", true);
@@ -377,7 +382,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
 
     @Test
     public void testRetrieveCorrectUserClasspathsWithoutSpecifiedEntryClass()
-            throws IOException, FlinkException, ProgramInvocationException {
+            throws IOException, FlinkException, ProgramInvocationException,
+                    JobStartupFailedException {
         final PackagedProgramRetriever retrieverUnderTest =
                 DefaultPackagedProgramRetriever.create(
                         singleEntryClassClasspathProvider.getDirectory(),
@@ -399,7 +405,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
 
     @Test
     public void testRetrieveCorrectUserClasspathsWithSpecifiedEntryClass()
-            throws IOException, FlinkException, ProgramInvocationException {
+            throws IOException, FlinkException, ProgramInvocationException,
+                    JobStartupFailedException {
         final PackagedProgramRetriever retrieverUnderTest =
                 DefaultPackagedProgramRetriever.create(
                         singleEntryClassClasspathProvider.getDirectory(),
@@ -442,7 +449,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
 
     @Test
     public void testRetrieveFromJarFileWithoutUserLib()
-            throws IOException, FlinkException, ProgramInvocationException {
+            throws IOException, FlinkException, ProgramInvocationException,
+                    JobStartupFailedException {
         final PackagedProgramRetriever retrieverUnderTest =
                 DefaultPackagedProgramRetriever.create(
                         null,
@@ -462,7 +470,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
 
     @Test
     public void testRetrieveFromJarFileWithUserLib()
-            throws IOException, FlinkException, ProgramInvocationException {
+            throws IOException, FlinkException, ProgramInvocationException,
+                    JobStartupFailedException {
         final PackagedProgramRetriever retrieverUnderTest =
                 DefaultPackagedProgramRetriever.create(
                         singleEntryClassClasspathProvider.getDirectory(),
@@ -539,7 +548,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
 
     private JobGraph retrieveJobGraph(
             PackagedProgramRetriever retrieverUnderTest, Configuration configuration)
-            throws FlinkException, ProgramInvocationException, MalformedURLException {
+            throws FlinkException, ProgramInvocationException, MalformedURLException,
+                    JobStartupFailedException {
         final PackagedProgram packagedProgram = retrieverUnderTest.getPackagedProgram();
 
         final int defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);

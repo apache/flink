@@ -84,4 +84,13 @@ public class DeploymentOptions {
                     .withDescription(
                             "Whether a Flink Application cluster should shut down automatically after its application finishes"
                                     + " (either successfully or as result of a failure). Has no effect for other deployment modes.");
+
+    public static final ConfigOption<Boolean> ALLOW_CLIENT_JOB_CONFIGURATIONS =
+            ConfigOptions.key("execution.allow-client-job-configurations")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Determines whether configurations in the user program are "
+                                    + "allowed when running with Application mode. Has no effect for other "
+                                    + "deployment modes.");
 }

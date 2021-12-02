@@ -35,6 +35,7 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.dispatcher.JobStartupFailedException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -159,6 +160,17 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
                         })
                 .exceptionally(
                         t -> {
+                            final Optional<JobStartupFailedException> jobStartupFailedOpt =
+                                    ExceptionUtils.findThrowable(
+                                            t, JobStartupFailedException.class);
+                            if (jobStartupFailedOpt.isPresent()) {
+                                final JobStartupFailedException error = jobStartupFailedOpt.get();
+                                dispatcherGateway.submitFailedJob(error);
+                                LOG.info(
+                                        "Application failed during the conversation of the user program to a job graph: ",
+                                        error);
+                                return ApplicationStatus.FAILED;
+                            }
                             final Optional<ApplicationStatus> applicationStatusOptional =
                                     extractApplicationStatus(t);
 
@@ -282,6 +294,9 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
             } else {
                 jobIdsFuture.complete(applicationJobIds);
             }
+        } catch (JobStartupFailedException e) {
+            jobIdsFuture.completeExceptionally(e);
+
         } catch (Throwable t) {
             // If we're running in a single job execution mode, it's safe to consider re-submission
             // of an already finished a success.

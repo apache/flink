@@ -38,6 +38,7 @@ import javax.annotation.Nullable;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
@@ -788,5 +789,51 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(CheckpointingOptions.CHECKPOINTS_DIRECTORY)
                 .ifPresent(this::setCheckpointStorage);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CheckpointConfig that = (CheckpointConfig) o;
+        return checkpointInterval == that.checkpointInterval
+                && checkpointTimeout == that.checkpointTimeout
+                && minPauseBetweenCheckpoints == that.minPauseBetweenCheckpoints
+                && maxConcurrentCheckpoints == that.maxConcurrentCheckpoints
+                && forceCheckpointing == that.forceCheckpointing
+                && forceUnalignedCheckpoints == that.forceUnalignedCheckpoints
+                && unalignedCheckpointsEnabled == that.unalignedCheckpointsEnabled
+                && checkpointIdOfIgnoredInFlightData == that.checkpointIdOfIgnoredInFlightData
+                && approximateLocalRecovery == that.approximateLocalRecovery
+                && failOnCheckpointingErrors == that.failOnCheckpointingErrors
+                && tolerableCheckpointFailureNumber == that.tolerableCheckpointFailureNumber
+                && checkpointingMode == that.checkpointingMode
+                && alignedCheckpointTimeout.equals(that.alignedCheckpointTimeout)
+                && externalizedCheckpointCleanup == that.externalizedCheckpointCleanup
+                && Objects.equals(storage, that.storage);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                checkpointingMode,
+                checkpointInterval,
+                checkpointTimeout,
+                minPauseBetweenCheckpoints,
+                maxConcurrentCheckpoints,
+                forceCheckpointing,
+                forceUnalignedCheckpoints,
+                unalignedCheckpointsEnabled,
+                checkpointIdOfIgnoredInFlightData,
+                alignedCheckpointTimeout,
+                approximateLocalRecovery,
+                externalizedCheckpointCleanup,
+                failOnCheckpointingErrors,
+                tolerableCheckpointFailureNumber,
+                storage);
     }
 }

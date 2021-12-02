@@ -47,6 +47,7 @@ import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.dispatcher.JobStartupFailedException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -808,7 +809,7 @@ public class CliFrontend {
     // --------------------------------------------------------------------------------------------
 
     protected void executeProgram(final Configuration configuration, final PackagedProgram program)
-            throws ProgramInvocationException {
+            throws ProgramInvocationException, JobStartupFailedException {
         ClientUtils.executeProgram(
                 new DefaultExecutorServiceLoader(), configuration, program, false, false);
     }
