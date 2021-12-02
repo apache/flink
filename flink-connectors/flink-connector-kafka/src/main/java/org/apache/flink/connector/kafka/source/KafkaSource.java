@@ -27,7 +27,6 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -48,6 +47,8 @@ import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitSerializ
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import javax.annotation.Nullable;
 
@@ -131,8 +132,8 @@ public class KafkaSource<OUT>
     SourceReader<OUT, KafkaPartitionSplit> createReader(
             SourceReaderContext readerContext, Consumer<Collection<String>> splitFinishedHook)
             throws Exception {
-        FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<OUT, Long, Long>>> elementsQueue =
-                new FutureCompletingBlockingQueue<>();
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<ConsumerRecord<byte[], byte[]>>>
+                elementsQueue = new FutureCompletingBlockingQueue<>();
         deserializationSchema.open(
                 new DeserializationSchema.InitializationContext() {
                     @Override
@@ -148,18 +149,13 @@ public class KafkaSource<OUT>
         final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
                 new KafkaSourceReaderMetrics(readerContext.metricGroup());
 
-        Supplier<KafkaPartitionSplitReader<OUT>> splitReaderSupplier =
-                () ->
-                        new KafkaPartitionSplitReader<>(
-                                props,
-                                deserializationSchema,
-                                readerContext,
-                                kafkaSourceReaderMetrics);
-        KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>();
+        Supplier<KafkaPartitionSplitReader> splitReaderSupplier =
+                () -> new KafkaPartitionSplitReader(props, readerContext, kafkaSourceReaderMetrics);
+        KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>(deserializationSchema);
 
         return new KafkaSourceReader<>(
                 elementsQueue,
-                new KafkaSourceFetcherManager<>(
+                new KafkaSourceFetcherManager(
                         elementsQueue, splitReaderSupplier::get, splitFinishedHook),
                 recordEmitter,
                 toConfiguration(props),
