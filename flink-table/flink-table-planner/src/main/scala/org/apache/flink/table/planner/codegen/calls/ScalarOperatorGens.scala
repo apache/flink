@@ -937,6 +937,12 @@ object ScalarOperatorGens {
       operand: GeneratedExpression,
       targetType: LogicalType)
     : GeneratedExpression = {
+
+    ctx.addReusableHeaderComment(
+      s"Using option '${ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR.key()}':" +
+        s"'${isLegacyCastBehaviourEnabled(ctx)}'")
+    ctx.addReusableHeaderComment("Timezone: " + ctx.tableConfig.getLocalTimeZone)
+
     // Try to use the new cast rules
     val rule = CastRuleProvider.resolve(operand.resultType, targetType)
     rule match {
