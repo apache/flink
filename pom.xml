@@ -135,7 +135,7 @@ under the License.
 		<beam.version>2.27.0</beam.version>
 		<protoc.version>3.11.1</protoc.version>
 		<arrow.version>0.16.0</arrow.version>
-		<testcontainers.version>1.16.0</testcontainers.version>
+		<testcontainers.version>1.16.2</testcontainers.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
 		<!--
