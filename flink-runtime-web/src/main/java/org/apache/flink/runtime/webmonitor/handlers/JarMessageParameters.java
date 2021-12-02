@@ -29,7 +29,7 @@ import java.util.Collections;
 /** Base class of {@link MessageParameters} for {@link JarRunHandler} and {@link JarPlanHandler}. */
 abstract class JarMessageParameters extends MessageParameters {
 
-    final JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
+    public final JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
     final EntryClassQueryParameter entryClassQueryParameter = new EntryClassQueryParameter();
 
