@@ -251,12 +251,8 @@ public class MultipleInputStreamTask<OUT>
                 },
                 "stop chained Flip-27 source for stop-with-savepoint --drain");
 
-        return assertTriggeringCheckpointExceptions(
-                sourcesStopped.thenCompose(
-                        ignore ->
-                                triggerSourcesCheckpointAsync(
-                                        checkpointMetaData, checkpointOptions)),
-                checkpointMetaData.getCheckpointId());
+        return sourcesStopped.thenCompose(
+                ignore -> triggerSourcesCheckpointAsync(checkpointMetaData, checkpointOptions));
     }
 
     private void checkPendingCheckpointCompletedFuturesSize() {

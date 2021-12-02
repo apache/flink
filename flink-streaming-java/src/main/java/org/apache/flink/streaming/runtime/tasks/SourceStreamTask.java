@@ -286,14 +286,12 @@ public class SourceStreamTask<
                         stopOperatorForStopWithSavepointWithDrain(
                                 checkpointMetaData.getCheckpointId()),
                 "stop legacy source for stop-with-savepoint --drain");
-        return assertTriggeringCheckpointExceptions(
-                sourceThread
-                        .getCompletionFuture()
-                        .thenCompose(
-                                ignore ->
-                                        super.triggerCheckpointAsync(
-                                                checkpointMetaData, checkpointOptions)),
-                checkpointMetaData.getCheckpointId());
+        return sourceThread
+                .getCompletionFuture()
+                .thenCompose(
+                        ignore ->
+                                super.triggerCheckpointAsync(
+                                        checkpointMetaData, checkpointOptions));
     }
 
     private void stopOperatorForStopWithSavepointWithDrain(long checkpointId) {

@@ -137,12 +137,8 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
                 },
                 "stop Flip-27 source for stop-with-savepoint --drain");
 
-        return assertTriggeringCheckpointExceptions(
-                operatorFinished.thenCompose(
-                        (ignore) ->
-                                super.triggerCheckpointAsync(
-                                        checkpointMetaData, checkpointOptions)),
-                checkpointMetaData.getCheckpointId());
+        return operatorFinished.thenCompose(
+                (ignore) -> super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions));
     }
 
     @Override
