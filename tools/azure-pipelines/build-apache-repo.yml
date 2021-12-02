@@ -27,8 +27,6 @@ schedules:
   branches:
     include:
     - master
-    - release-1.14
-    - release-1.13
   always: true # run even if there were no changes to the mentioned branches
 
 trigger:
