@@ -26,6 +26,8 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -40,6 +42,7 @@ import javax.annotation.Nonnull;
 
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -142,10 +145,14 @@ public class JarRunHandler
                                                 request, SavepointPathQueryParameter.class)),
                         null,
                         log);
+        final RestoreMode restoreMode =
+                Optional.ofNullable(requestBody.getRestoreMode())
+                        .orElseGet(SavepointConfigOptions.RESTORE_MODE::defaultValue);
         final SavepointRestoreSettings savepointRestoreSettings;
         if (savepointPath != null) {
             savepointRestoreSettings =
-                    SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState);
+                    SavepointRestoreSettings.forPath(
+                            savepointPath, allowNonRestoredState, restoreMode);
         } else {
             savepointRestoreSettings = SavepointRestoreSettings.none();
         }
