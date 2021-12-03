@@ -31,7 +31,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.testcontainers.containers.ContainerLaunchException;
+import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
@@ -54,7 +54,6 @@ import static org.junit.Assert.assertThrows;
 /** IT cases for using Kinesis Data Streams Sink based on Kinesalite. */
 public class KinesisDataStreamsSinkITCase extends TestLogger {
 
-    private static final int CONTAINER_START_RETRIES = 5;
     private static final String DEFAULT_FIRST_SHARD_NAME = "shardId-000000000000";
 
     private final ElementConverter<String, PutRecordsRequestEntry> elementConverter =
@@ -65,26 +64,16 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
     private final ElementConverter<String, PutRecordsRequestEntry>
             partitionKeyTooLongElementConverter =
-                    KinesisDataStreamsSinkElementConverter.<String>builder()
-                            .setSerializationSchema(new SimpleStringSchema())
-                            .setPartitionKeyGenerator(element -> element)
-                            .build();
+            KinesisDataStreamsSinkElementConverter.<String>builder()
+                    .setSerializationSchema(new SimpleStringSchema())
+                    .setPartitionKeyGenerator(element -> element)
+                    .build();
 
-    @ClassRule public static KinesaliteContainer kinesalite = retryUntilSuccess();
-
-    private static KinesaliteContainer retryUntilSuccess() {
-        for (int i = 0; i < CONTAINER_START_RETRIES; i++) {
-            try {
-                return new KinesaliteContainer(
-                        DockerImageName.parse(DockerImageVersions.KINESALITE));
-            } catch (ContainerLaunchException ignored) {
-            }
-        }
-        throw new ContainerLaunchException(
-                String.format(
-                        "Could not start Kinesalite Container after %s retries!",
-                        CONTAINER_START_RETRIES));
-    }
+    @ClassRule
+    public static final KinesaliteContainer KINESALITE =
+            new KinesaliteContainer(DockerImageName.parse(DockerImageVersions.KINESALITE))
+                    .withNetwork(Network.newNetwork())
+                    .withNetworkAliases("kinesalite");
 
     private StreamExecutionEnvironment env;
     private KinesisAsyncClient kinesisClient;
@@ -96,7 +85,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        kinesisClient = kinesalite.getHostClient();
+        kinesisClient = KINESALITE.getHostClient();
     }
 
     @Test
@@ -190,7 +179,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                 KinesisDataStreamsSinkITCase.this.elementConverter;
 
         public void runScenario() throws Exception {
-            kinesalite.prepareStream(kinesaliteStreamName);
+            KINESALITE.prepareStream(kinesaliteStreamName);
 
             DataStream<String> stream =
                     env.addSource(
@@ -201,10 +190,10 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                             .returns(String.class);
 
             Properties prop = new Properties();
-            prop.setProperty(AWS_ENDPOINT, kinesalite.getHostEndpointUrl());
-            prop.setProperty(AWS_ACCESS_KEY_ID, kinesalite.getAccessKey());
-            prop.setProperty(AWS_SECRET_ACCESS_KEY, kinesalite.getSecretKey());
-            prop.setProperty(AWS_REGION, kinesalite.getRegion().toString());
+            prop.setProperty(AWS_ENDPOINT, KINESALITE.getHostEndpointUrl());
+            prop.setProperty(AWS_ACCESS_KEY_ID, KINESALITE.getAccessKey());
+            prop.setProperty(AWS_SECRET_ACCESS_KEY, KINESALITE.getSecretKey());
+            prop.setProperty(AWS_REGION, KINESALITE.getRegion().toString());
             prop.setProperty(TRUST_ALL_CERTIFICATES, "true");
             prop.setProperty(HTTP_PROTOCOL_VERSION, "HTTP1_1");
 
