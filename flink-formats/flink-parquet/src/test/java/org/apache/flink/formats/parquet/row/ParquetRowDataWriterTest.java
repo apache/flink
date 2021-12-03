@@ -48,7 +48,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.logging.log4j.util.Strings;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetOutputFormat;
 import org.apache.parquet.hadoop.ParquetReader;
@@ -236,8 +235,8 @@ public class ParquetRowDataWriterTest {
 
                 Map<String, String> c1 = new HashMap<>();
                 for (Utf8 key : map.keySet()) {
-                    String k = Strings.isEmpty(key) ? null : key.toString();
-                    String v = Strings.isEmpty(map.get(key)) ? null : map.get(key).toString();
+                    String k = key == null ? null : key.toString();
+                    String v = map.get(key) == null ? null : map.get(key).toString();
                     c1.put(k, v);
                 }
 
