@@ -73,6 +73,7 @@ public class TextLineInputFormat extends SimpleStreamFormat<String> {
     // ------------------------------------------------------------------------
 
     /** The actual reader for the {@code TextLineInputFormat}. */
+    @PublicEvolving
     public static final class Reader implements StreamFormat.Reader<String> {
 
         private final BufferedReader reader;
