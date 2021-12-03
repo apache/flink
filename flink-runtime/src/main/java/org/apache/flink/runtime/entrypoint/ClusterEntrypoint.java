@@ -39,6 +39,7 @@ import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
@@ -122,6 +123,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     private final CompletableFuture<ApplicationStatus> terminationFuture;
 
     private final AtomicBoolean isShutDown = new AtomicBoolean(false);
+
+    @GuardedBy("lock")
+    private ResourceID resourceId;
 
     @GuardedBy("lock")
     private DispatcherResourceManagerComponent clusterComponent;
@@ -253,6 +257,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             clusterComponent =
                     dispatcherResourceManagerComponentFactory.create(
                             configuration,
+                            resourceId,
                             ioExecutor,
                             commonRpcService,
                             haServices,
@@ -338,6 +343,17 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             executionGraphInfoStore =
                     createSerializableExecutionGraphStore(
                             configuration, commonRpcService.getScheduledExecutor());
+
+            resourceId =
+                    configuration
+                            .getOptional(JobManagerOptions.JOB_MANAGER_RESOURCE_ID)
+                            .map(ResourceID::new)
+                            .orElseGet(ResourceID::generate);
+
+            LOG.debug(
+                    "Initialize cluster entrypoint {} with resource id {}.",
+                    getClass().getSimpleName(),
+                    resourceId);
         }
     }
 

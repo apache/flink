@@ -547,6 +547,17 @@ public class JobManagerOptions {
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
 
+    /**
+     * The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<String> JOB_MANAGER_RESOURCE_ID =
+            key("jobmanager.resource-id")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.");
+
     // ---------------------------------------------------------------------------------------------
 
     private JobManagerOptions() {

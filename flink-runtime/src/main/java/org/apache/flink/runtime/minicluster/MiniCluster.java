@@ -482,6 +482,7 @@ public class MiniCluster implements AutoCloseableAsync {
         return Collections.singleton(
                 dispatcherResourceManagerComponentFactory.create(
                         configuration,
+                        ResourceID.generate(),
                         ioExecutor,
                         rpcServiceFactory.createRpcService(),
                         haServices,

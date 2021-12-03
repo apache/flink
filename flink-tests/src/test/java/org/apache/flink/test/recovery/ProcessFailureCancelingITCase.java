@@ -33,6 +33,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
@@ -140,6 +141,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
             dispatcherResourceManagerComponent =
                     resourceManagerComponentFactory.create(
                             config,
+                            ResourceID.generate(),
                             ioExecutor,
                             rpcService,
                             haServices,
