@@ -636,11 +636,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public int getTotalNumberOfVertices() {
-        return numVerticesTotal;
-    }
-
-    @Override
     public Map<IntermediateDataSetID, IntermediateResult> getAllIntermediateResults() {
         return Collections.unmodifiableMap(this.intermediateResults);
     }
