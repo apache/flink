@@ -19,6 +19,8 @@ package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -26,9 +28,12 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
@@ -38,18 +43,17 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.kafka.sink.KafkaUtil.createKafkaContainer;
 import static org.apache.flink.util.DockerImageVersions.KAFKA;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Testcontainers
 class FlinkKafkaInternalProducerITCase extends TestLogger {
 
-    private static final String TEST_TOPIC = "test-topic";
     private static final Logger LOG =
             LoggerFactory.getLogger(FlinkKafkaInternalProducerITCase.class);
 
@@ -59,7 +63,54 @@ class FlinkKafkaInternalProducerITCase extends TestLogger {
 
     private static final String TRANSACTION_PREFIX = "test-transaction-";
 
-    Properties getProperties() {
+    @Test
+    void testInitTransactionId() {
+        final String topic = "test-init-transactions";
+        try (FlinkKafkaInternalProducer<String, String> reuse =
+                new FlinkKafkaInternalProducer<>(getProperties(), "dummy")) {
+            int numTransactions = 20;
+            for (int i = 1; i <= numTransactions; i++) {
+                reuse.initTransactionId(TRANSACTION_PREFIX + i);
+                reuse.beginTransaction();
+                reuse.send(new ProducerRecord<>(topic, "test-value-" + i));
+                if (i % 2 == 0) {
+                    reuse.commitTransaction();
+                } else {
+                    reuse.flush();
+                    reuse.abortTransaction();
+                }
+                assertNumTransactions(i);
+                assertThat(readRecords(topic).count()).isEqualTo(i / 2);
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideTransactionsFinalizer")
+    void testResetInnerTransactionIfFinalizingTransactionFailed(
+            Consumer<FlinkKafkaInternalProducer<?, ?>> transactionFinalizer) {
+        final String topic = "reset-producer-internal-state";
+        try (FlinkKafkaInternalProducer<String, String> fenced =
+                new FlinkKafkaInternalProducer<>(getProperties(), "dummy")) {
+            fenced.initTransactions();
+            fenced.beginTransaction();
+            fenced.send(new ProducerRecord<>(topic, "test-value"));
+            // Start a second producer that fences the first one
+            try (FlinkKafkaInternalProducer<String, String> producer =
+                    new FlinkKafkaInternalProducer<>(getProperties(), "dummy")) {
+                producer.initTransactions();
+                producer.beginTransaction();
+                producer.send(new ProducerRecord<>(topic, "test-value"));
+                producer.commitTransaction();
+            }
+            assertThatThrownBy(() -> transactionFinalizer.accept(fenced))
+                    .isInstanceOf(ProducerFencedException.class);
+            // Internal transaction should be reset and setting a new transactional id is possible
+            fenced.setTransactionId("dummy2");
+        }
+    }
+
+    private static Properties getProperties() {
         Properties properties = new Properties();
         properties.put(
                 CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG,
@@ -72,25 +123,10 @@ class FlinkKafkaInternalProducerITCase extends TestLogger {
         return properties;
     }
 
-    @Test
-    void testInitTransactionId() {
-        try (FlinkKafkaInternalProducer<String, String> reuse =
-                new FlinkKafkaInternalProducer<>(getProperties(), "dummy")) {
-            int numTransactions = 20;
-            for (int i = 1; i <= numTransactions; i++) {
-                reuse.initTransactionId(TRANSACTION_PREFIX + i);
-                reuse.beginTransaction();
-                reuse.send(new ProducerRecord<>(TEST_TOPIC, "test-value-" + i));
-                if (i % 2 == 0) {
-                    reuse.commitTransaction();
-                } else {
-                    reuse.flush();
-                    reuse.abortTransaction();
-                }
-                assertNumTransactions(i);
-                assertThat(readRecords(TEST_TOPIC).count(), equalTo(i / 2));
-            }
-        }
+    private static List<Consumer<FlinkKafkaInternalProducer<?, ?>>> provideTransactionsFinalizer() {
+        return Lists.newArrayList(
+                FlinkKafkaInternalProducer::commitTransaction,
+                FlinkKafkaInternalProducer::abortTransaction);
     }
 
     private void assertNumTransactions(int numTransactions) {
@@ -98,10 +134,10 @@ class FlinkKafkaInternalProducerITCase extends TestLogger {
                 new KafkaTransactionLog(getProperties())
                         .getTransactions(id -> id.startsWith(TRANSACTION_PREFIX));
         assertThat(
-                transactions.stream()
-                        .map(KafkaTransactionLog.TransactionRecord::getTransactionId)
-                        .collect(Collectors.toSet()),
-                hasSize(numTransactions));
+                        transactions.stream()
+                                .map(KafkaTransactionLog.TransactionRecord::getTransactionId)
+                                .collect(Collectors.toSet()))
+                .hasSize(numTransactions);
     }
 
     private ConsumerRecords<String, String> readRecords(String topic) {
