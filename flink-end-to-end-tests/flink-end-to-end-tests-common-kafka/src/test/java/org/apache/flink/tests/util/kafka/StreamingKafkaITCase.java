@@ -21,8 +21,6 @@ package org.apache.flink.tests.util.kafka;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.categories.PreCommit;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
@@ -52,7 +50,7 @@ import java.util.stream.Collectors;
 
 /** End-to-end test for the kafka connectors. */
 @RunWith(Parameterized.class)
-@Category(value = {TravisGroup1.class, PreCommit.class, FailsOnJava11.class})
+@Category(value = {FailsOnJava11.class})
 @Ignore("FLINK-25266")
 public class StreamingKafkaITCase extends TestLogger {
 

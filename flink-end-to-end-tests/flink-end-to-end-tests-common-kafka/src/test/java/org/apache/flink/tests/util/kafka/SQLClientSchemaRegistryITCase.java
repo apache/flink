@@ -20,7 +20,6 @@ package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.tests.util.flink.container.FlinkContainers;
 import org.apache.flink.tests.util.kafka.containers.SchemaRegistryContainer;
@@ -40,7 +39,6 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +59,6 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /** End-to-end test for SQL client using Avro Confluent Registry format. */
-@Category(value = {TravisGroup1.class})
 @Ignore("FLINK-25209")
 public class SQLClientSchemaRegistryITCase {
     private static final Logger LOG = LoggerFactory.getLogger(SQLClientSchemaRegistryITCase.class);
