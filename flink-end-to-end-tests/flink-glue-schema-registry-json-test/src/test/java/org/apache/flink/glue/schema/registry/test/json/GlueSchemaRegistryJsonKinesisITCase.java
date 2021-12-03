@@ -26,7 +26,6 @@ import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -37,7 +36,6 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
@@ -54,7 +52,6 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_POSITION;
 
 /** End-to-end test for Glue Schema Registry Json format using Kinesalite. */
-@Category(value = {TravisGroup1.class})
 public class GlueSchemaRegistryJsonKinesisITCase extends TestLogger {
     private static final String INPUT_STREAM = "gsr_json_input_stream";
     private static final String OUTPUT_STREAM = "gsr_json_output_stream";

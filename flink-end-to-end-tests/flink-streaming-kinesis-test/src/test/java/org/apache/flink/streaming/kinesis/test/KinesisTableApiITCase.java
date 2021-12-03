@@ -23,7 +23,6 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContain
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
 import org.apache.flink.streaming.kinesis.test.model.Order;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.tests.util.flink.container.FlinkContainers;
 import org.apache.flink.util.DockerImageVersions;
@@ -39,7 +38,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +56,6 @@ import java.util.stream.Collectors;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /** End-to-end test for Kinesis Table API using Kinesalite. */
-@Category(value = {TravisGroup1.class})
 public class KinesisTableApiITCase extends TestLogger {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KinesisTableApiITCase.class);
