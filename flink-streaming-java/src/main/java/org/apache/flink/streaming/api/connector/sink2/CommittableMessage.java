@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,18 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.util.function;
+package org.apache.flink.streaming.api.connector.sink2;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Experimental;
 
-import java.io.Serializable;
-import java.util.function.Supplier;
+import java.util.OptionalLong;
 
-/**
- * A serializable {@link Supplier}.
- *
- * @param <T> the type of results supplied by this supplier
- */
-@PublicEvolving
-@FunctionalInterface
-public interface SerializableSupplier<T> extends Supplier<T>, Serializable {}
+/** The message send from {@link SinkWriter} to {@link Committer}. */
+@Experimental
+public interface CommittableMessage<CommT> {
+    /** The subtask that created this committable. */
+    int getSubtaskId();
+
+    /**
+     * Returns the checkpoint id or empty if the message does not belong to a checkpoint. In that
+     * case, the committable was created at the end of input (e.g., in batch mode).
+     */
+    OptionalLong getCheckpointId();
+}
