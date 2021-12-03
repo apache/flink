@@ -166,7 +166,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
         SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
         assertTrue(savepointSettings.restoreSavepoint());
-        assertEquals(RestoreMode.NO_CLAIM, savepointSettings.getRestoreMode());
+        assertEquals(RestoreMode.LEGACY, savepointSettings.getRestoreMode());
         assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
         assertTrue(savepointSettings.allowNonRestoredState());
     }
