@@ -95,7 +95,7 @@ class CastRulesTest {
     private static final ZoneId CET = ZoneId.of("CET");
 
     private static final CastRule.Context CET_CONTEXT =
-            CastRule.Context.create(CET, Thread.currentThread().getContextClassLoader());
+            CastRule.Context.create(false, CET, Thread.currentThread().getContextClassLoader());
 
     private static final byte DEFAULT_POSITIVE_TINY_INT = (byte) 5;
     private static final byte DEFAULT_NEGATIVE_TINY_INT = (byte) -5;
@@ -614,7 +614,14 @@ class CastRulesTest {
                                 ROW(FIELD("f0", STRING()), FIELD("f1", STRING())),
                                 GenericRowData.of(
                                         StringData.fromString("abc"), StringData.fromString("def")),
-                                StringData.fromString("(abc, def)"))
+                                StringData.fromString("(abc, def)"),
+                                false)
+                        .fromCase(
+                                ROW(FIELD("f0", STRING()), FIELD("f1", STRING())),
+                                GenericRowData.of(
+                                        StringData.fromString("abc"), StringData.fromString("def")),
+                                StringData.fromString("(abc,def)"),
+                                true)
                         .fromCase(
                                 ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
                                 GenericRowData.of(null, StringData.fromString("abc")),
@@ -860,9 +867,15 @@ class CastRulesTest {
         }
 
         private CastTestSpecBuilder fromCase(DataType dataType, Object src, Object target) {
+            return fromCase(dataType, src, target, false);
+        }
+
+        private CastTestSpecBuilder fromCase(
+                DataType dataType, Object src, Object target, boolean legacyBehaviour) {
             return fromCase(
                     dataType,
                     CastRule.Context.create(
+                            legacyBehaviour,
                             DateTimeUtils.UTC_ZONE.toZoneId(),
                             Thread.currentThread().getContextClassLoader()),
                     src,
@@ -900,6 +913,7 @@ class CastRulesTest {
             return fail(
                     dataType,
                     CastRule.Context.create(
+                            false,
                             DateTimeUtils.UTC_ZONE.toZoneId(),
                             Thread.currentThread().getContextClassLoader()),
                     src,

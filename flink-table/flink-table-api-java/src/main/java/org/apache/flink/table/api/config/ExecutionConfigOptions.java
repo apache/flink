@@ -386,6 +386,15 @@ public class ExecutionConfigOptions {
                                                     + "Pipelined shuffle means data will be sent to consumer tasks once produced.")
                                     .build());
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<LegacyCastBehaviour> TABLE_EXEC_LEGACY_CAST_BEHAVIOUR =
+            key("table.exec.sink.legacy-cast-behaviour")
+                    .enumType(LegacyCastBehaviour.class)
+                    .defaultValue(LegacyCastBehaviour.ENABLED)
+                    .withDescription(
+                            "Determines whether CAST will operate following the legacy behaviour "
+                                    + "or the new one that introduces various fixes and improvements.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------
@@ -452,5 +461,30 @@ public class ExecutionConfigOptions {
 
         /** Add materialize operator in any case. */
         FORCE
+    }
+
+    /** Determine if CAST operates using the legacy behaviour or the new one. */
+    @Deprecated
+    public enum LegacyCastBehaviour implements DescribedEnum {
+        ENABLED(true, text("CAST will operate following the legacy behaviour.")),
+        DISABLED(false, text("CAST will operate following the new correct behaviour."));
+
+        private final boolean enabled;
+        private final InlineElement description;
+
+        LegacyCastBehaviour(boolean enabled, InlineElement description) {
+            this.enabled = enabled;
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
     }
 }

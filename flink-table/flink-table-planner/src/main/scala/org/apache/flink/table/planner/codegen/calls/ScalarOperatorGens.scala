@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.binary.BinaryArrayData
 import org.apache.flink.table.data.util.MapDataUtil
 import org.apache.flink.table.data.utils.CastExecutor
@@ -2162,6 +2163,7 @@ object ScalarOperatorGens {
 
   def toCodegenCastContext(ctx: CodeGeneratorContext): CodeGeneratorCastRule.Context = {
     new CodeGeneratorCastRule.Context {
+      override def legacyBehaviour(): Boolean = isLegacyCastBehaviourEnabled(ctx)
       override def getSessionTimeZoneTerm: String = ctx.addReusableSessionTimeZone()
       override def declareVariable(ty: String, variablePrefix: String): String =
         ctx.addReusableLocalVariable(ty, variablePrefix)
@@ -2176,10 +2178,16 @@ object ScalarOperatorGens {
 
   def toCastContext(ctx: CodeGeneratorContext): CastRule.Context = {
     new CastRule.Context {
+      override def legacyBehaviour(): Boolean = isLegacyCastBehaviourEnabled(ctx)
+
       override def getSessionZoneId: ZoneId = ctx.tableConfig.getLocalTimeZone
 
       override def getClassLoader: ClassLoader = Thread.currentThread().getContextClassLoader
     }
   }
 
+  private def isLegacyCastBehaviourEnabled(ctx: CodeGeneratorContext) = {
+    ctx.tableConfig
+      .getConfiguration.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR).isEnabled
+  }
 }
