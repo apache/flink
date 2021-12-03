@@ -22,6 +22,7 @@ import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -146,12 +147,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.addBoolean(row.getBoolean(ordinal));
+            writeBoolean(row.getBoolean(ordinal));
         }
 
         @Override
         public void write(ArrayData arrayData, int ordinal) {
-            recordConsumer.addBoolean(arrayData.getBoolean(ordinal));
+            writeBoolean(arrayData.getBoolean(ordinal));
+        }
+
+        private void writeBoolean(boolean value) {
+            recordConsumer.addBoolean(value);
         }
     }
 
@@ -159,12 +164,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.addInteger(row.getByte(ordinal));
+            writeByte(row.getByte(ordinal));
         }
 
         @Override
         public void write(ArrayData arrayData, int ordinal) {
-            recordConsumer.addInteger(arrayData.getByte(ordinal));
+            writeByte(arrayData.getByte(ordinal));
+        }
+
+        private void writeByte(byte value) {
+            recordConsumer.addInteger(value);
         }
     }
 
@@ -172,12 +181,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.addInteger(row.getShort(ordinal));
+            writeShort(row.getShort(ordinal));
         }
 
         @Override
         public void write(ArrayData arrayData, int ordinal) {
-            recordConsumer.addInteger(arrayData.getShort(ordinal));
+            writeShort(arrayData.getShort(ordinal));
+        }
+
+        private void writeShort(short value) {
+            recordConsumer.addInteger(value);
         }
     }
 
@@ -185,12 +198,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.addLong(row.getLong(ordinal));
+            writeLong(row.getLong(ordinal));
         }
 
         @Override
         public void write(ArrayData arrayData, int ordinal) {
-            recordConsumer.addLong(arrayData.getLong(ordinal));
+            writeLong(arrayData.getLong(ordinal));
+        }
+
+        private void writeLong(long value) {
+            recordConsumer.addLong(value);
         }
     }
 
@@ -198,12 +215,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.addFloat(row.getFloat(ordinal));
+            writeFloat(row.getFloat(ordinal));
         }
 
         @Override
         public void write(ArrayData arrayData, int ordinal) {
-            recordConsumer.addFloat(arrayData.getFloat(ordinal));
+            writeFloat(arrayData.getFloat(ordinal));
+        }
+
+        private void writeFloat(float value) {
+            recordConsumer.addFloat(value);
         }
     }
 
@@ -211,12 +232,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.addDouble(row.getDouble(ordinal));
+            writeDouble(row.getDouble(ordinal));
         }
 
         @Override
         public void write(ArrayData arrayData, int ordinal) {
-            recordConsumer.addDouble(arrayData.getDouble(ordinal));
+            writeDouble(arrayData.getDouble(ordinal));
+        }
+
+        private void writeDouble(double value) {
+            recordConsumer.addDouble(value);
         }
     }
 
@@ -224,13 +249,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.addBinary(Binary.fromReusedByteArray(row.getString(ordinal).toBytes()));
+            writeString(row.getString(ordinal));
         }
 
         @Override
         public void write(ArrayData arrayData, int ordinal) {
-            recordConsumer.addBinary(
-                    Binary.fromReusedByteArray(arrayData.getString(ordinal).toBytes()));
+            writeString(arrayData.getString(ordinal));
+        }
+
+        private void writeString(StringData value) {
+            recordConsumer.addBinary(Binary.fromReusedByteArray(value.toBytes()));
         }
     }
 
@@ -238,12 +266,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.addBinary(Binary.fromReusedByteArray(row.getBinary(ordinal)));
+            writeBinary(row.getBinary(ordinal));
         }
 
         @Override
         public void write(ArrayData arrayData, int ordinal) {
-            recordConsumer.addBinary(Binary.fromReusedByteArray(arrayData.getBinary(ordinal)));
+            writeBinary(arrayData.getBinary(ordinal));
+        }
+
+        private void writeBinary(byte[] value) {
+            recordConsumer.addBinary(Binary.fromReusedByteArray(value));
         }
     }
 
@@ -251,12 +283,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.addInteger(row.getInt(ordinal));
+            writeInt(row.getInt(ordinal));
         }
 
         @Override
         public void write(ArrayData arrayData, int ordinal) {
-            recordConsumer.addInteger(arrayData.getInt(ordinal));
+            writeInt(arrayData.getInt(ordinal));
+        }
+
+        private void writeInt(int value) {
+            recordConsumer.addInteger(value);
         }
     }
 
@@ -275,12 +311,16 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.addBinary(timestampToInt96(row.getTimestamp(ordinal, precision)));
+            writeTimestamp(row.getTimestamp(ordinal, precision));
         }
 
         @Override
         public void write(ArrayData arrayData, int ordinal) {
-            recordConsumer.addBinary(timestampToInt96(arrayData.getTimestamp(ordinal, precision)));
+            writeTimestamp(arrayData.getTimestamp(ordinal, precision));
+        }
+
+        private void writeTimestamp(TimestampData value) {
+            recordConsumer.addBinary(timestampToInt96(value));
         }
     }
 
@@ -320,14 +360,19 @@ public class ParquetRowDataWriter {
                 ArrayData valueArray = mapData.valueArray();
                 for (int i = 0; i < keyArray.size(); i++) {
                     recordConsumer.startGroup();
-                    // write key element
-                    recordConsumer.startField(keyName, 0);
-                    keyWriter.write(keyArray, i);
-                    recordConsumer.endField(keyName, 0);
-                    // write value element
-                    recordConsumer.startField(valueName, 1);
-                    valueWriter.write(valueArray, i);
-                    recordConsumer.endField(valueName, 1);
+                    if (!keyArray.isNullAt(i)) {
+                        // write key element
+                        recordConsumer.startField(keyName, 0);
+                        keyWriter.write(keyArray, i);
+                        recordConsumer.endField(keyName, 0);
+                    }
+
+                    if (!valueArray.isNullAt(i)) {
+                        // write value element
+                        recordConsumer.startField(valueName, 1);
+                        valueWriter.write(valueArray, i);
+                        recordConsumer.endField(valueName, 1);
+                    }
                     recordConsumer.endGroup();
                 }
 
