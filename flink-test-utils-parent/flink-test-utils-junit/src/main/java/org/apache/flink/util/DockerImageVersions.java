@@ -29,10 +29,7 @@ public class DockerImageVersions {
             "docker.elastic.co/elasticsearch/elasticsearch:7.15.2";
 
     public static final String ELASTICSEARCH_6 =
-            "docker.elastic.co/elasticsearch/elasticsearch-oss:6.3.1";
-
-    public static final String ELASTICSEARCH_COMMERCIAL_6 =
-            "docker.elastic.co/elasticsearch/elasticsearch:6.3.1";
+            "docker.elastic.co/elasticsearch/elasticsearch:6.8.20";
 
     public static final String KAFKA = "confluentinc/cp-kafka:6.2.1";
 
