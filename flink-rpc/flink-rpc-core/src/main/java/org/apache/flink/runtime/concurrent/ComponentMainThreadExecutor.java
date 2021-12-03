@@ -30,10 +30,14 @@ import java.util.concurrent.TimeUnit;
  * Interface for an executor that runs tasks in the main thread of an {@link
  * org.apache.flink.runtime.rpc.RpcEndpoint}.
  */
-public interface ComponentMainThreadExecutor extends ScheduledExecutor {
+public interface ComponentMainThreadExecutor extends ScheduledExecutor, AutoCloseable {
 
     /** Returns true if the method was called in the thread of this executor. */
     void assertRunningInMainThread();
+
+    /** Close the executor. */
+    @Override
+    void close();
 
     /** Dummy implementation of ComponentMainThreadExecutor. */
     final class DummyComponentMainThreadExecutor implements ComponentMainThreadExecutor {
@@ -80,5 +84,8 @@ public interface ComponentMainThreadExecutor extends ScheduledExecutor {
         private UnsupportedOperationException createException() {
             return new UnsupportedOperationException(exceptionMessageOnInvocation);
         }
+
+        @Override
+        public void close() {}
     }
 }
