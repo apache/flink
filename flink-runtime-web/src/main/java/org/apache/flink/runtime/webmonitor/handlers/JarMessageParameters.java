@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
@@ -29,6 +30,7 @@ import java.util.Collections;
 /** Base class of {@link MessageParameters} for {@link JarRunHandler} and {@link JarPlanHandler}. */
 abstract class JarMessageParameters extends MessageParameters {
 
+    @VisibleForTesting
     public final JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
     final EntryClassQueryParameter entryClassQueryParameter = new EntryClassQueryParameter();
