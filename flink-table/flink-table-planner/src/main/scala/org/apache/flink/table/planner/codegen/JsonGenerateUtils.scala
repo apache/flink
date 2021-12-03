@@ -26,6 +26,7 @@ import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isCharacterString
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
@@ -78,6 +79,7 @@ object JsonGenerateUtils {
       case DECIMAL => s"$nodeFactoryTerm.numberNode($term.toBigDecimal())"
       case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE =>
         s"$nodeFactoryTerm.numberNode($term)"
+
       case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val formatter = s"${typeTerm(classOf[DateTimeFormatter])}.ISO_LOCAL_DATE_TIME"
         val isoTerm = s"$term.toLocalDateTime().format($formatter)"
@@ -85,29 +87,35 @@ object JsonGenerateUtils {
           case TIMESTAMP_WITHOUT_TIME_ZONE => s"$nodeFactoryTerm.textNode($isoTerm)"
           case TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"""$nodeFactoryTerm.textNode($isoTerm + "Z")"""
         }
+
       case TIMESTAMP_WITH_TIME_ZONE =>
         throw new CodeGenException(s"'TIMESTAMP WITH TIME ZONE' is not yet supported.")
+
       case BINARY | VARBINARY =>
         s"$nodeFactoryTerm.binaryNode($term)"
+
       case ARRAY =>
         val converterName = generateArrayConverter(ctx,
           logicalType.asInstanceOf[ArrayType].getElementType)
-
         s"$converterName($term)"
-      case ROW =>
-        val converterName = generateRowConverter(ctx, logicalType.asInstanceOf[RowType])
 
+      case ROW | STRUCTURED_TYPE=>
+        val converterName = generateRowConverter(ctx, logicalType)
         s"$converterName($term)"
+
       case MAP =>
         val mapType = logicalType.asInstanceOf[MapType]
         val converterName = generateMapConverter(ctx, mapType.getKeyType, mapType.getValueType)
-
         s"$converterName($term)"
+
       case MULTISET =>
         val converterName = generateMapConverter(ctx,
           logicalType.asInstanceOf[MultisetType].getElementType, DataTypes.INT().getLogicalType)
-
         s"$converterName($term)"
+
+      case DISTINCT_TYPE =>
+        createNodeTerm(ctx, term, logicalType.asInstanceOf[DistinctType].getSourceType)
+
       case _ => throw new CodeGenException(
         s"Type '$logicalType' is not scalar or cannot be converted into JSON.")
     }
@@ -176,11 +184,13 @@ object JsonGenerateUtils {
   /** Generates a method to convert rows into [[ObjectNode]]. */
   private def generateRowConverter(
       ctx: CodeGeneratorContext,
-      rowType: RowType): String = {
+      rowType: LogicalType): String = {
+    val fieldNames = toScala(LogicalTypeChecks.getFieldNames(rowType))
+    val fieldTypes = toScala(LogicalTypeChecks.getFieldTypes(rowType))
 
-    val populateObjectCode = toScala(rowType.getFieldNames).zipWithIndex.map {
+    val populateObjectCode = fieldNames.zipWithIndex.map {
       case (fieldName, idx) =>
-        val fieldType = rowType.getTypeAt(idx)
+        val fieldType = fieldTypes(idx)
         val fieldAccessCode = toExternalTypeTerm(
           rowFieldReadAccess(idx.toString, "rowData", fieldType), fieldType)
 
