@@ -182,6 +182,11 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
         }
 
         @Override
+        public boolean legacyBehaviour() {
+            return castRuleCtx.legacyBehaviour();
+        }
+
+        @Override
         public String getSessionTimeZoneTerm() {
             return "java.util.TimeZone.getTimeZone(\""
                     + castRuleCtx.getSessionZoneId().getId()

@@ -125,7 +125,8 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
 
             // Write the comma
             if (fieldIndex != 0) {
-                writer.stmt(methodCall(builderTerm, "append", strLiteral(", ")));
+                final String comma = getDelimiter(context);
+                writer.stmt(methodCall(builderTerm, "append", comma));
             }
 
             writer
@@ -166,5 +167,15 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
                                 methodCall(builderTerm, "toString")));
 
         return writer.toString();
+    }
+
+    private String getDelimiter(CodeGeneratorCastRule.Context context) {
+        final String comma;
+        if (context.legacyBehaviour()) {
+            comma = strLiteral(",");
+        } else {
+            comma = strLiteral(", ");
+        }
+        return comma;
     }
 }

@@ -58,6 +58,11 @@ By default no operator is disabled.</td>
             <td><p>Enum</p></td>
             <td>Determines whether string values for columns with CHAR(&lt;precision&gt;)/VARCHAR(&lt;precision&gt;) types will be trimmed or padded (only for CHAR(&lt;precision&gt;)), so that their length will match the one defined by the precision of their respective CHAR/VARCHAR column type.<br /><br />Possible values:<ul><li>"IGNORE": Don't apply any trimming and padding, and instead ignore the CHAR/VARCHAR precision directive.</li><li>"TRIM_PAD": Trim and pad string values to match the length defined by the CHAR/VARCHAR precision.</li></ul></td>
         </tr>
+            <td><h5>table.exec.sink.legacy-cast-behaviour</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">ENABLED</td>
+            <td><p>Enum</p></td>
+            <td>Determines whether CAST will operate following the legacy behaviour or the new one that introduces various fixes and improvements.<br /><br />Possible values:<ul><li>"ENABLED": CAST will operate following the legacy behaviour.</li><li>"DISABLED": CAST will operate following the new correct behaviour.</li></ul></td>
+        </tr>
         <tr>
             <td><h5>table.exec.sink.not-null-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">ERROR</td>

@@ -49,13 +49,21 @@ public interface CastRule<IN, OUT> {
 
     /** Casting context. */
     interface Context {
+        @Deprecated
+        boolean legacyBehaviour();
+
         ZoneId getSessionZoneId();
 
         ClassLoader getClassLoader();
 
         /** Create a casting context. */
-        static Context create(ZoneId zoneId, ClassLoader classLoader) {
+        static Context create(boolean legacyBehaviour, ZoneId zoneId, ClassLoader classLoader) {
             return new Context() {
+                @Override
+                public boolean legacyBehaviour() {
+                    return legacyBehaviour;
+                }
+
                 @Override
                 public ZoneId getSessionZoneId() {
                     return zoneId;

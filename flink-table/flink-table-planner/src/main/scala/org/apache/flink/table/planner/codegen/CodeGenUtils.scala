@@ -54,6 +54,8 @@ object CodeGenUtils {
 
   // ------------------------------- DEFAULT TERMS ------------------------------------------
 
+  val DEFAULT_LEGACY_CAST_BEHAVIOUR = "legacyCastBehaviour"
+
   val DEFAULT_TIMEZONE_TERM = "timeZone"
 
   val DEFAULT_INPUT1_TERM = "in1"
