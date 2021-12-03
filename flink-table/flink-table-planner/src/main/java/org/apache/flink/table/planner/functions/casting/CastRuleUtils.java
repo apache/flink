@@ -144,6 +144,25 @@ final class CastRuleUtils {
         return term;
     }
 
+    static String binaryWriterWriteField(
+            CodeGeneratorCastRule.Context context,
+            String writerTerm,
+            LogicalType logicalType,
+            String indexTerm,
+            String fieldValTerm) {
+        return CodeGenUtils.binaryWriterWriteField(
+                context::declareTypeSerializer,
+                String.valueOf(indexTerm),
+                fieldValTerm,
+                writerTerm,
+                logicalType);
+    }
+
+    static String binaryWriterWriteNull(
+            String writerTerm, LogicalType logicalType, String indexTerm) {
+        return CodeGenUtils.binaryWriterWriteNull(indexTerm, writerTerm, logicalType);
+    }
+
     static final class CodeWriter {
         StringBuilder builder = new StringBuilder();
 

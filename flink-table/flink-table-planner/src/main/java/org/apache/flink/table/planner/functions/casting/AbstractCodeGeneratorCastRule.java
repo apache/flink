@@ -76,13 +76,14 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
         // Class fields can contain type serializers
         final String classFieldDecls =
                 Stream.concat(
-                                ctx.getDeclaredTypeSerializers().stream()
+                                ctx.typeSerializers.values().stream()
                                         .map(
-                                                name ->
+                                                entry ->
                                                         "private final "
-                                                                + className(TypeSerializer.class)
+                                                                + className(
+                                                                        entry.getValue().getClass())
                                                                 + " "
-                                                                + name
+                                                                + entry.getKey()
                                                                 + ";"),
                                 ctx.getClassFields().stream())
                         .collect(Collectors.joining("\n"));
@@ -91,8 +92,12 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
                 "public "
                         + castExecutorClassName
                         + "("
-                        + ctx.getDeclaredTypeSerializers().stream()
-                                .map(name -> className(TypeSerializer.class) + " " + name)
+                        + ctx.typeSerializers.values().stream()
+                                .map(
+                                        entry ->
+                                                className(entry.getValue().getClass())
+                                                        + " "
+                                                        + entry.getKey())
                                 .collect(Collectors.joining(", "))
                         + ")";
         final String constructorBody =
@@ -144,7 +149,7 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
                         + constructorBody
                         + "}\n"
                         + functionSignature
-                        + "{\n"
+                        + " {\n"
                         + bodyWriter
                         + "}\n}";
 

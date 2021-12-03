@@ -75,6 +75,7 @@ public class CastRuleProvider {
                 .addRule(StringToBinaryCastRule.INSTANCE)
                 // Collection rules
                 .addRule(ArrayToArrayCastRule.INSTANCE)
+                .addRule(RowToRowCastRule.INSTANCE)
                 // Special rules
                 .addRule(IdentityCastRule.INSTANCE);
     }

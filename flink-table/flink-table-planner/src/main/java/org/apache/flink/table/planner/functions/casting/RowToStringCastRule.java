@@ -22,10 +22,9 @@ import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
@@ -36,7 +35,10 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.con
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 
-/** {@link LogicalTypeRoot#ROW} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+/**
+ * {@link LogicalTypeRoot#ROW} and {@link LogicalTypeRoot#STRUCTURED_TYPE} to {@link
+ * LogicalTypeFamily#CHARACTER_STRING} cast rule.
+ */
 class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
 
     static final RowToStringCastRule INSTANCE = new RowToStringCastRule();
@@ -46,12 +48,10 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
     }
 
     private static boolean matches(LogicalType input, LogicalType target) {
-        return input.is(LogicalTypeRoot.ROW)
+        return (input.is(LogicalTypeRoot.ROW) || input.is(LogicalTypeRoot.STRUCTURED_TYPE))
                 && target.is(LogicalTypeFamily.CHARACTER_STRING)
-                && ((RowType) input)
-                        .getFields().stream()
-                                .allMatch(
-                                        field -> CastRuleProvider.exists(field.getType(), target));
+                && LogicalTypeChecks.getFieldTypes(input).stream()
+                        .allMatch(fieldType -> CastRuleProvider.exists(fieldType, target));
     }
 
     /* Example generated code for ROW<`f0` INT, `f1` STRING>:
@@ -92,11 +92,7 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final List<LogicalType> fields =
-                ((RowType) inputLogicalType)
-                        .getFields().stream()
-                                .map(RowType.RowField::getType)
-                                .collect(Collectors.toList());
+        final List<LogicalType> fields = LogicalTypeChecks.getFieldTypes(inputLogicalType);
 
         final String builderTerm = newName("builder");
         context.declareClassField(

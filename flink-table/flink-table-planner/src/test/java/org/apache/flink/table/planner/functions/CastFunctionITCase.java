@@ -26,6 +26,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.types.Row;
 
 import org.junit.runners.Parameterized;
 
@@ -57,6 +58,7 @@ import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.MONTH;
+import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SECOND;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
@@ -114,6 +116,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         specs.addAll(allTypesBasic());
         specs.addAll(decimalCasts());
         specs.addAll(numericBounds());
+        specs.addAll(constructedTypes());
         return specs;
     }
 
@@ -1049,51 +1052,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // .fromCase(INTERVAL(DAY()), Duration.ofDays(300), Period.of(0, 0, 0))
                         // .fromCase(INTERVAL(DAY()), Duration.ofDays(400), Period.of(1, 0, 0))
                         // .fromCase(INTERVAL(HOUR()), Duration.ofDays(400), Period.of(1, 0, 0))
-                        .build(),
+                        .build()
                 // CastTestSpecBuilder
                 // .testCastTo(INTERVAL(DAY()))
                 // https://issues.apache.org/jira/browse/FLINK-24426 allow cast from string
                 // .fromCase(STRING(), "+41 10:17:36.789", Duration.of(...))
                 // https://issues.apache.org/jira/browse/FLINK-24428
                 // .build()
-                CastTestSpecBuilder.testCastTo(ARRAY(INT()))
-                        .fromCase(ARRAY(INT()), null, null)
-                        // https://issues.apache.org/jira/browse/FLINK-17321
-                        // .fromCase(ARRAY(STRING()), new String[] {'1', '2', '3'}, new Integer[]
-                        // {1, 2, 3})
-                        // https://issues.apache.org/jira/browse/FLINK-24425 Cast from corresponding
-                        // single type
-                        // .fromCase(INT(), DEFAULT_POSITIVE_INT, new int[] {DEFAULT_POSITIVE_INT})
-                        .fromCase(ARRAY(INT()), new int[] {1, 2, 3}, new Integer[] {1, 2, 3})
-                        .build(),
-                CastTestSpecBuilder.testCastTo(ARRAY(STRING().nullable()))
-                        .fromCase(
-                                ARRAY(TIMESTAMP(4).nullable()),
-                                new LocalDateTime[] {
-                                    LocalDateTime.parse("2021-09-24T12:34:56.123456"),
-                                    null,
-                                    LocalDateTime.parse("2021-09-24T14:34:56.123456")
-                                },
-                                new String[] {
-                                    "2021-09-24 12:34:56.1234", null, "2021-09-24 14:34:56.1234"
-                                })
-                        .build(),
-                CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().nullable()))
-                        .fromCase(
-                                ARRAY(INT().nullable()),
-                                new Integer[] {1, null, 2},
-                                new Long[] {1L, null, 2L})
-                        .build(),
-                CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().notNull()))
-                        .fromCase(ARRAY(INT().notNull()), new Integer[] {1, 2}, new Long[] {1L, 2L})
-                        .build()
                 //
-                // Cast to structuredTypes
-                // https://issues.apache.org/jira/browse/FLINK-17321
-                // MULTISET
-                // MAP
-                // RAW
-                // ROW
                 );
     }
 
@@ -1163,6 +1129,50 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(FLOAT(), Float.MAX_VALUE, null)
                         .fromCase(DOUBLE(), -Double.MAX_VALUE, null)
                         .fromCase(DOUBLE(), Double.MAX_VALUE, null)
+                        .build());
+    }
+
+    public static List<TestSpec> constructedTypes() {
+        return Arrays.asList(
+                // https://issues.apache.org/jira/browse/FLINK-17321
+                // MULTISET
+                // MAP
+                CastTestSpecBuilder.testCastTo(ARRAY(INT()))
+                        .fromCase(ARRAY(INT()), null, null)
+                        // https://issues.apache.org/jira/browse/FLINK-17321
+                        // .fromCase(ARRAY(STRING()), new String[] {'1', '2', '3'}, new Integer[]
+                        // {1, 2, 3})
+                        // https://issues.apache.org/jira/browse/FLINK-24425 Cast from corresponding
+                        // single type
+                        // .fromCase(INT(), DEFAULT_POSITIVE_INT, new int[] {DEFAULT_POSITIVE_INT})
+                        .fromCase(ARRAY(INT()), new int[] {1, 2, 3}, new Integer[] {1, 2, 3})
+                        .build(),
+                CastTestSpecBuilder.testCastTo(ARRAY(STRING().nullable()))
+                        .fromCase(
+                                ARRAY(TIMESTAMP(4).nullable()),
+                                new LocalDateTime[] {
+                                    LocalDateTime.parse("2021-09-24T12:34:56.123456"),
+                                    null,
+                                    LocalDateTime.parse("2021-09-24T14:34:56.123456")
+                                },
+                                new String[] {
+                                    "2021-09-24 12:34:56.1234", null, "2021-09-24 14:34:56.1234"
+                                })
+                        .build(),
+                CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().nullable()))
+                        .fromCase(
+                                ARRAY(INT().nullable()),
+                                new Integer[] {1, null, 2},
+                                new Long[] {1L, null, 2L})
+                        .build(),
+                CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().notNull()))
+                        .fromCase(ARRAY(INT().notNull()), new Integer[] {1, 2}, new Long[] {1L, 2L})
+                        .build(),
+                CastTestSpecBuilder.testCastTo(ROW(BIGINT(), BIGINT(), STRING(), ARRAY(STRING())))
+                        .fromCase(
+                                ROW(INT(), INT(), TIME(), ARRAY(CHAR(1))),
+                                Row.of(10, null, DEFAULT_TIME, new String[] {"a", "b", "c"}),
+                                Row.of(10L, null, "12:34:56", new String[] {"a", "b", "c"}))
                         .build());
     }
 

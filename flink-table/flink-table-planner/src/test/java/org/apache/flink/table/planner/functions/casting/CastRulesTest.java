@@ -20,14 +20,16 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.functions.CastFunctionITCase;
 import org.apache.flink.table.types.DataType;
@@ -74,6 +76,7 @@ import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SECOND;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.STRUCTURED;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
@@ -81,9 +84,9 @@ import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.apache.flink.table.data.DecimalData.fromBigDecimal;
+import static org.apache.flink.table.data.StringData.fromString;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -112,35 +115,41 @@ class CastRulesTest {
 
     private static final int DATE = DateTimeUtils.toInternal(LocalDate.parse("2021-09-24"));
     private static final int TIME = DateTimeUtils.toInternal(LocalTime.parse("12:34:56.123"));
-    private static final StringData DATE_STRING = StringData.fromString("2021-09-24");
-    private static final StringData TIME_STRING = StringData.fromString("12:34:56.123");
+    private static final StringData DATE_STRING = fromString("2021-09-24");
+    private static final StringData TIME_STRING = fromString("12:34:56.123");
 
     private static final TimestampData TIMESTAMP =
             TimestampData.fromLocalDateTime(LocalDateTime.parse("2021-09-24T12:34:56.123456"));
-    private static final StringData TIMESTAMP_STRING =
-            StringData.fromString("2021-09-24 12:34:56.123456");
-    private static final StringData TIMESTAMP_STRING_CET =
-            StringData.fromString("2021-09-24 14:34:56.123456");
+    private static final StringData TIMESTAMP_STRING = fromString("2021-09-24 12:34:56.123456");
+    private static final StringData TIMESTAMP_STRING_CET = fromString("2021-09-24 14:34:56.123456");
+
+    private static final DataType MY_STRUCTURED_TYPE =
+            STRUCTURED(
+                    MyStructuredType.class,
+                    FIELD("a", BIGINT().notNull()),
+                    FIELD("b", BIGINT()),
+                    FIELD("c", STRING()),
+                    FIELD("d", ARRAY(STRING())));
 
     Stream<CastTestSpecBuilder> testCases() {
         return Stream.of(
                 CastTestSpecBuilder.testCastTo(TINYINT())
                         .fromCase(TINYINT(), null, null)
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
-                        .fail(STRING(), StringData.fromString("Apache"), TableException.class)
-                        .fromCase(STRING(), StringData.fromString("1.234"), (byte) 1)
-                        .fromCase(STRING(), StringData.fromString("123"), (byte) 123)
-                        .fail(STRING(), StringData.fromString("-130"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
+                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fromCase(STRING(), fromString("1.234"), (byte) 1)
+                        .fromCase(STRING(), fromString("123"), (byte) 123)
+                        .fail(STRING(), fromString("-130"), TableException.class)
                         .fromCase(
                                 DECIMAL(4, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                fromBigDecimal(new BigDecimal("9.87"), 4, 3),
                                 (byte) 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
                         // instead of overflow
                         .fromCase(
                                 DECIMAL(10, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("9123.87"), 10, 3),
+                                fromBigDecimal(new BigDecimal("9123.87"), 10, 3),
                                 (byte) -93)
                         .fromCase(TINYINT(), DEFAULT_POSITIVE_TINY_INT, DEFAULT_POSITIVE_TINY_INT)
                         .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, DEFAULT_NEGATIVE_TINY_INT)
@@ -160,21 +169,21 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), false, (byte) 0),
                 CastTestSpecBuilder.testCastTo(SMALLINT())
                         .fromCase(SMALLINT(), null, null)
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
-                        .fail(STRING(), StringData.fromString("Apache"), TableException.class)
-                        .fromCase(STRING(), StringData.fromString("1.234"), (short) 1)
-                        .fromCase(STRING(), StringData.fromString("123"), (short) 123)
-                        .fail(STRING(), StringData.fromString("-32769"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
+                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fromCase(STRING(), fromString("1.234"), (short) 1)
+                        .fromCase(STRING(), fromString("123"), (short) 123)
+                        .fail(STRING(), fromString("-32769"), TableException.class)
                         .fromCase(
                                 DECIMAL(4, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                fromBigDecimal(new BigDecimal("9.87"), 4, 3),
                                 (short) 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
                         // instead of overflow
                         .fromCase(
                                 DECIMAL(10, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("91235.87"), 10, 3),
+                                fromBigDecimal(new BigDecimal("91235.87"), 10, 3),
                                 (short) 25699)
                         .fromCase(
                                 TINYINT(),
@@ -204,25 +213,18 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), true, (short) 1)
                         .fromCase(BOOLEAN(), false, (short) 0),
                 CastTestSpecBuilder.testCastTo(INT())
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
-                        .fail(STRING(), StringData.fromString("Apache"), TableException.class)
-                        .fromCase(STRING(), StringData.fromString("1.234"), 1)
-                        .fromCase(STRING(), StringData.fromString("123"), 123)
-                        .fail(
-                                STRING(),
-                                StringData.fromString("-3276913443134"),
-                                TableException.class)
-                        .fromCase(
-                                DECIMAL(4, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
-                                9)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
+                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fromCase(STRING(), fromString("1.234"), 1)
+                        .fromCase(STRING(), fromString("123"), 123)
+                        .fail(STRING(), fromString("-3276913443134"), TableException.class)
+                        .fromCase(DECIMAL(4, 3), fromBigDecimal(new BigDecimal("9.87"), 4, 3), 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
                         // instead of overflow
                         .fromCase(
                                 DECIMAL(20, 3),
-                                DecimalData.fromBigDecimal(
-                                        new BigDecimal("3276913443134.87"), 20, 3),
+                                fromBigDecimal(new BigDecimal("3276913443134.87"), 20, 3),
                                 -146603714)
                         .fromCase(
                                 TINYINT(),
@@ -257,21 +259,16 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), false, 0),
                 CastTestSpecBuilder.testCastTo(BIGINT())
                         .fromCase(BIGINT(), null, null)
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
-                        .fail(STRING(), StringData.fromString("Apache"), TableException.class)
-                        .fromCase(STRING(), StringData.fromString("1.234"), 1L)
-                        .fromCase(STRING(), StringData.fromString("123"), 123L)
-                        .fromCase(
-                                STRING(), StringData.fromString("-3276913443134"), -3276913443134L)
-                        .fromCase(
-                                DECIMAL(4, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
-                                9L)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
+                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fromCase(STRING(), fromString("1.234"), 1L)
+                        .fromCase(STRING(), fromString("123"), 123L)
+                        .fromCase(STRING(), fromString("-3276913443134"), -3276913443134L)
+                        .fromCase(DECIMAL(4, 3), fromBigDecimal(new BigDecimal("9.87"), 4, 3), 9L)
                         .fromCase(
                                 DECIMAL(20, 3),
-                                DecimalData.fromBigDecimal(
-                                        new BigDecimal("3276913443134.87"), 20, 3),
+                                fromBigDecimal(new BigDecimal("3276913443134.87"), 20, 3),
                                 3276913443134L)
                         .fromCase(
                                 TINYINT(),
@@ -303,23 +300,19 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), false, 0L),
                 CastTestSpecBuilder.testCastTo(FLOAT())
                         .fromCase(FLOAT(), null, null)
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
-                        .fail(STRING(), StringData.fromString("Apache"), TableException.class)
-                        .fromCase(STRING(), StringData.fromString("1.234"), 1.234f)
-                        .fromCase(STRING(), StringData.fromString("123"), 123.0f)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
+                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fromCase(STRING(), fromString("1.234"), 1.234f)
+                        .fromCase(STRING(), fromString("123"), 123.0f)
+                        .fromCase(STRING(), fromString("-3276913443134"), -3.27691351E12f)
                         .fromCase(
-                                STRING(), StringData.fromString("-3276913443134"), -3.27691351E12f)
-                        .fromCase(
-                                DECIMAL(4, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
-                                9.87f)
+                                DECIMAL(4, 3), fromBigDecimal(new BigDecimal("9.87"), 4, 3), 9.87f)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
                         // instead of overflow
                         .fromCase(
                                 DECIMAL(20, 3),
-                                DecimalData.fromBigDecimal(
-                                        new BigDecimal("3276913443134.87"), 20, 3),
+                                fromBigDecimal(new BigDecimal("3276913443134.87"), 20, 3),
                                 3.27691351E12f)
                         .fromCase(
                                 TINYINT(),
@@ -353,27 +346,21 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), false, 0.0f),
                 CastTestSpecBuilder.testCastTo(DOUBLE())
                         .fromCase(DOUBLE(), null, null)
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
-                        .fail(STRING(), StringData.fromString("Apache"), TableException.class)
-                        .fromCase(STRING(), StringData.fromString("1.234"), 1.234d)
-                        .fromCase(STRING(), StringData.fromString("123"), 123.0d)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
+                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fromCase(STRING(), fromString("1.234"), 1.234d)
+                        .fromCase(STRING(), fromString("123"), 123.0d)
+                        .fromCase(STRING(), fromString("-3276913443134"), -3.276913443134E12d)
                         .fromCase(
-                                STRING(),
-                                StringData.fromString("-3276913443134"),
-                                -3.276913443134E12d)
-                        .fromCase(
-                                DECIMAL(4, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
-                                9.87d)
+                                DECIMAL(4, 3), fromBigDecimal(new BigDecimal("9.87"), 4, 3), 9.87d)
                         .fromCase(
                                 DECIMAL(20, 3),
-                                DecimalData.fromBigDecimal(
-                                        new BigDecimal("3276913443134.87"), 20, 3),
+                                fromBigDecimal(new BigDecimal("3276913443134.87"), 20, 3),
                                 3.27691344313487E12d)
                         .fromCase(
                                 DECIMAL(30, 20),
-                                DecimalData.fromBigDecimal(
+                                fromBigDecimal(
                                         new BigDecimal("123456789.123456789123456789"), 30, 20),
                                 1.2345678912345679E8d)
                         .fromCase(
@@ -407,68 +394,65 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), true, 1.0d)
                         .fromCase(BOOLEAN(), false, 0.0d),
                 CastTestSpecBuilder.testCastTo(DATE())
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("123"),
+                                fromString("123"),
                                 DateTimeUtils.toInternal(LocalDate.of(123, 1, 1)))
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("2021-09-27"),
+                                fromString("2021-09-27"),
                                 DateTimeUtils.toInternal(LocalDate.of(2021, 9, 27)))
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("2021-09-27 12:34:56.123456789"),
+                                fromString("2021-09-27 12:34:56.123456789"),
                                 DateTimeUtils.toInternal(LocalDate.of(2021, 9, 27)))
-                        .fail(STRING(), StringData.fromString("2021/09/27"), TableException.class),
+                        .fail(STRING(), fromString("2021/09/27"), TableException.class),
                 CastTestSpecBuilder.testCastTo(TIME())
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("23"),
+                                fromString("23"),
                                 DateTimeUtils.toInternal(LocalTime.of(23, 0, 0)))
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("23:45"),
+                                fromString("23:45"),
                                 DateTimeUtils.toInternal(LocalTime.of(23, 45, 0)))
-                        .fail(STRING(), StringData.fromString("2021-09-27"), TableException.class)
-                        .fail(
-                                STRING(),
-                                StringData.fromString("2021-09-27 12:34:56"),
-                                TableException.class)
+                        .fail(STRING(), fromString("2021-09-27"), TableException.class)
+                        .fail(STRING(), fromString("2021-09-27 12:34:56"), TableException.class)
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("12:34:56.123456789"),
+                                fromString("12:34:56.123456789"),
                                 DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 123_000_000)))
                         .fail(
                                 STRING(),
-                                StringData.fromString("2021-09-27 12:34:56.123456789"),
+                                fromString("2021-09-27 12:34:56.123456789"),
                                 TableException.class),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP(9))
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
-                        .fail(STRING(), StringData.fromString("123"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
+                        .fail(STRING(), fromString("123"), TableException.class)
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("2021-09-27"),
+                                fromString("2021-09-27"),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.of(2021, 9, 27, 0, 0, 0, 0)))
-                        .fail(STRING(), StringData.fromString("2021/09/27"), TableException.class)
+                        .fail(STRING(), fromString("2021/09/27"), TableException.class)
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("2021-09-27 12:34:56.123456789"),
+                                fromString("2021-09-27 12:34:56.123456789"),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123456789))),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
-                        .fail(STRING(), StringData.fromString("123"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
+                        .fail(STRING(), fromString("123"), TableException.class)
                         .fromCase(
                                 STRING(),
                                 CET_CONTEXT,
-                                StringData.fromString("2021-09-27"),
+                                fromString("2021-09-27"),
                                 TimestampData.fromInstant(
                                         LocalDateTime.of(2021, 9, 27, 0, 0, 0, 0)
                                                 .atZone(CET)
@@ -476,7 +460,7 @@ class CastRulesTest {
                         .fromCase(
                                 STRING(),
                                 CET_CONTEXT,
-                                StringData.fromString("2021-09-27 12:34:56.123"),
+                                fromString("2021-09-27 12:34:56.123"),
                                 TimestampData.fromInstant(
                                         LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123000000)
                                                 .atZone(CET)
@@ -486,170 +470,153 @@ class CastRulesTest {
                         .fromCase(
                                 STRING(),
                                 CET_CONTEXT,
-                                StringData.fromString("2021-09-27 12:34:56.123456789"),
+                                fromString("2021-09-27 12:34:56.123456789"),
                                 TimestampData.fromInstant(
                                         LocalDateTime.of(2021, 9, 27, 12, 34, 56, 0)
                                                 .atZone(CET)
                                                 .toInstant())),
                 CastTestSpecBuilder.testCastTo(STRING())
                         .fromCase(STRING(), null, null)
-                        .fromCase(
-                                CHAR(3), StringData.fromString("foo"), StringData.fromString("foo"))
-                        .fromCase(
-                                VARCHAR(5),
-                                StringData.fromString("Flink"),
-                                StringData.fromString("Flink"))
-                        .fromCase(
-                                VARCHAR(10),
-                                StringData.fromString("Flink"),
-                                StringData.fromString("Flink"))
-                        .fromCase(
-                                STRING(),
-                                StringData.fromString("Apache Flink"),
-                                StringData.fromString("Apache Flink"))
-                        .fromCase(BOOLEAN(), true, StringData.fromString("true"))
-                        .fromCase(BOOLEAN(), false, StringData.fromString("false"))
-                        .fromCase(
-                                BINARY(2), new byte[] {0, 1}, StringData.fromString("\u0000\u0001"))
+                        .fromCase(CHAR(3), fromString("foo"), fromString("foo"))
+                        .fromCase(VARCHAR(5), fromString("Flink"), fromString("Flink"))
+                        .fromCase(VARCHAR(10), fromString("Flink"), fromString("Flink"))
+                        .fromCase(STRING(), fromString("Apache Flink"), fromString("Apache Flink"))
+                        .fromCase(BOOLEAN(), true, fromString("true"))
+                        .fromCase(BOOLEAN(), false, fromString("false"))
+                        .fromCase(BINARY(2), new byte[] {0, 1}, fromString("\u0000\u0001"))
                         .fromCase(
                                 VARBINARY(3),
                                 new byte[] {0, 1, 2},
-                                StringData.fromString("\u0000\u0001\u0002"))
+                                fromString("\u0000\u0001\u0002"))
                         .fromCase(
                                 VARBINARY(5),
                                 new byte[] {0, 1, 2},
-                                StringData.fromString("\u0000\u0001\u0002"))
+                                fromString("\u0000\u0001\u0002"))
                         .fromCase(
                                 BYTES(),
                                 new byte[] {0, 1, 2, 3, 4},
-                                StringData.fromString("\u0000\u0001\u0002\u0003\u0004"))
+                                fromString("\u0000\u0001\u0002\u0003\u0004"))
                         .fromCase(
                                 DECIMAL(4, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
-                                StringData.fromString("9.870"))
+                                fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                fromString("9.870"))
                         .fromCase(
                                 DECIMAL(5, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 5, 3),
-                                StringData.fromString("9.870"))
-                        .fromCase(TINYINT(), (byte) -125, StringData.fromString("-125"))
-                        .fromCase(SMALLINT(), (short) 32767, StringData.fromString("32767"))
-                        .fromCase(INT(), -12345678, StringData.fromString("-12345678"))
-                        .fromCase(BIGINT(), 1234567891234L, StringData.fromString("1234567891234"))
-                        .fromCase(FLOAT(), -123.456f, StringData.fromString("-123.456"))
-                        .fromCase(DOUBLE(), 12345.678901d, StringData.fromString("12345.678901"))
+                                fromBigDecimal(new BigDecimal("9.87"), 5, 3),
+                                fromString("9.870"))
+                        .fromCase(TINYINT(), (byte) -125, fromString("-125"))
+                        .fromCase(SMALLINT(), (short) 32767, fromString("32767"))
+                        .fromCase(INT(), -12345678, fromString("-12345678"))
+                        .fromCase(BIGINT(), 1234567891234L, fromString("1234567891234"))
+                        .fromCase(FLOAT(), -123.456f, fromString("-123.456"))
+                        .fromCase(DOUBLE(), 12345.678901d, fromString("12345.678901"))
                         .fromCase(
                                 FLOAT(),
                                 Float.MAX_VALUE,
-                                StringData.fromString(String.valueOf(Float.MAX_VALUE)))
+                                fromString(String.valueOf(Float.MAX_VALUE)))
                         .fromCase(
                                 DOUBLE(),
                                 Double.MAX_VALUE,
-                                StringData.fromString(String.valueOf(Double.MAX_VALUE)))
-                        .fromCase(
-                                STRING(),
-                                StringData.fromString("Hello"),
-                                StringData.fromString("Hello"))
+                                fromString(String.valueOf(Double.MAX_VALUE)))
+                        .fromCase(STRING(), fromString("Hello"), fromString("Hello"))
                         .fromCase(TIMESTAMP(), TIMESTAMP, TIMESTAMP_STRING)
                         .fromCase(TIMESTAMP_LTZ(), CET_CONTEXT, TIMESTAMP, TIMESTAMP_STRING_CET)
                         .fromCase(DATE(), DATE, DATE_STRING)
                         .fromCase(TIME(5), TIME, TIME_STRING)
-                        .fromCase(INTERVAL(YEAR()), 84, StringData.fromString("+7-00"))
-                        .fromCase(INTERVAL(MONTH()), 5, StringData.fromString("+0-05"))
-                        .fromCase(INTERVAL(MONTH()), 123, StringData.fromString("+10-03"))
-                        .fromCase(INTERVAL(MONTH()), 12334, StringData.fromString("+1027-10"))
-                        .fromCase(INTERVAL(DAY()), 10L, StringData.fromString("+0 00:00:00.010"))
-                        .fromCase(
-                                INTERVAL(DAY()),
-                                123456789L,
-                                StringData.fromString("+1 10:17:36.789"))
+                        .fromCase(INTERVAL(YEAR()), 84, fromString("+7-00"))
+                        .fromCase(INTERVAL(MONTH()), 5, fromString("+0-05"))
+                        .fromCase(INTERVAL(MONTH()), 123, fromString("+10-03"))
+                        .fromCase(INTERVAL(MONTH()), 12334, fromString("+1027-10"))
+                        .fromCase(INTERVAL(DAY()), 10L, fromString("+0 00:00:00.010"))
+                        .fromCase(INTERVAL(DAY()), 123456789L, fromString("+1 10:17:36.789"))
                         .fromCase(
                                 INTERVAL(DAY()),
                                 Duration.ofHours(36).toMillis(),
-                                StringData.fromString("+1 12:00:00.000"))
+                                fromString("+1 12:00:00.000"))
                         .fromCase(
                                 ARRAY(INTERVAL(MONTH())),
                                 new GenericArrayData(new int[] {-123, 123}),
-                                StringData.fromString("[-10-03, +10-03]"))
+                                fromString("[-10-03, +10-03]"))
                         .fromCase(
                                 ARRAY(INT()),
                                 new GenericArrayData(new int[] {-123, 456}),
-                                StringData.fromString("[-123, 456]"))
+                                fromString("[-123, 456]"))
                         .fromCase(
                                 ARRAY(INT().nullable()),
                                 new GenericArrayData(new Integer[] {null, 456}),
-                                StringData.fromString("[null, 456]"))
+                                fromString("[null, 456]"))
                         .fromCase(
                                 ARRAY(INT()),
                                 new GenericArrayData(new Integer[] {}),
-                                StringData.fromString("[]"))
+                                fromString("[]"))
                         .fromCase(
                                 MAP(STRING(), INTERVAL(MONTH())),
-                                mapData(
-                                        entry(StringData.fromString("a"), -123),
-                                        entry(StringData.fromString("b"), 123)),
-                                StringData.fromString("{a=-10-03, b=+10-03}"))
+                                mapData(entry(fromString("a"), -123), entry(fromString("b"), 123)),
+                                fromString("{a=-10-03, b=+10-03}"))
                         .fromCase(
                                 MULTISET(STRING()),
-                                mapData(
-                                        entry(StringData.fromString("a"), 1),
-                                        entry(StringData.fromString("b"), 1)),
-                                StringData.fromString("{a=1, b=1}"))
+                                mapData(entry(fromString("a"), 1), entry(fromString("b"), 1)),
+                                fromString("{a=1, b=1}"))
                         .fromCase(
                                 MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
-                                mapData(entry(null, -123), entry(StringData.fromString("b"), null)),
-                                StringData.fromString("{null=-10-03, b=null}"))
+                                mapData(entry(null, -123), entry(fromString("b"), null)),
+                                fromString("{null=-10-03, b=null}"))
                         .fromCase(
                                 MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
                                 mapData(entry(null, null)),
-                                StringData.fromString("{null=null}"))
-                        .fromCase(
-                                MAP(STRING(), INTERVAL(MONTH())),
-                                mapData(),
-                                StringData.fromString("{}"))
+                                fromString("{null=null}"))
+                        .fromCase(MAP(STRING(), INTERVAL(MONTH())), mapData(), fromString("{}"))
                         .fromCase(
                                 ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
-                                GenericRowData.of(123, StringData.fromString("abc")),
-                                StringData.fromString("(123, abc)"))
+                                GenericRowData.of(123, fromString("abc")),
+                                fromString("(123, abc)"))
                         .fromCase(
                                 ROW(FIELD("f0", STRING()), FIELD("f1", STRING())),
-                                GenericRowData.of(
-                                        StringData.fromString("abc"), StringData.fromString("def")),
-                                StringData.fromString("(abc, def)"),
+                                GenericRowData.of(fromString("abc"), fromString("def")),
+                                fromString("(abc, def)"),
                                 false)
                         .fromCase(
                                 ROW(FIELD("f0", STRING()), FIELD("f1", STRING())),
-                                GenericRowData.of(
-                                        StringData.fromString("abc"), StringData.fromString("def")),
-                                StringData.fromString("(abc,def)"),
+                                GenericRowData.of(fromString("abc"), fromString("def")),
+                                fromString("(abc,def)"),
                                 true)
                         .fromCase(
                                 ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
-                                GenericRowData.of(null, StringData.fromString("abc")),
-                                StringData.fromString("(null, abc)"))
-                        .fromCase(ROW(), GenericRowData.of(), StringData.fromString("()"))
+                                GenericRowData.of(null, fromString("abc")),
+                                fromString("(null, abc)"))
+                        .fromCase(ROW(), GenericRowData.of(), fromString("()"))
                         .fromCase(
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
                                 RawValueData.fromObject(
                                         LocalDateTime.parse("2020-11-11T18:08:01.123")),
-                                StringData.fromString("2020-11-11T18:08:01.123")),
+                                fromString("2020-11-11T18:08:01.123"))
+                        .fromCase(
+                                MY_STRUCTURED_TYPE,
+                                GenericRowData.of(
+                                        10L,
+                                        null,
+                                        TIME_STRING,
+                                        new GenericArrayData(
+                                                new Object[] {
+                                                    fromString("a"),
+                                                    fromString("b"),
+                                                    fromString("c")
+                                                })),
+                                fromString("(10, null, 12:34:56.123, [a, b, c])")),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(BOOLEAN(), null, null)
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fromCase(CHAR(4), StringData.fromString("true"), true)
-                        .fromCase(VARCHAR(5), StringData.fromString("FalsE"), false)
-                        .fail(STRING(), StringData.fromString("Apache Flink"), TableException.class)
-                        .fromCase(STRING(), StringData.fromString("TRUE"), true)
-                        .fail(STRING(), StringData.fromString(""), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fromCase(CHAR(4), fromString("true"), true)
+                        .fromCase(VARCHAR(5), fromString("FalsE"), false)
+                        .fail(STRING(), fromString("Apache Flink"), TableException.class)
+                        .fromCase(STRING(), fromString("TRUE"), true)
+                        .fail(STRING(), fromString(""), TableException.class)
                         // Should fail when https://issues.apache.org/jira/browse/FLINK-24576 is
                         // fixed
                         .fromCase(
-                                DECIMAL(5, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("0.000"), 5, 3),
-                                false)
+                                DECIMAL(5, 3), fromBigDecimal(new BigDecimal("0.000"), 5, 3), false)
                         .fromCase(
-                                DECIMAL(4, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("1.987"), 4, 3),
-                                true)
+                                DECIMAL(4, 3), fromBigDecimal(new BigDecimal("1.987"), 4, 3), true)
                         .fromCase(TINYINT(), DEFAULT_POSITIVE_TINY_INT, true)
                         .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, true)
                         .fromCase(TINYINT(), (byte) 0, false)
@@ -669,84 +636,70 @@ class CastRulesTest {
                         .fromCase(DOUBLE(), 0.0d, false)
                         .fromCase(DOUBLE(), -0.12345678d, true),
                 CastTestSpecBuilder.testCastTo(BINARY(2))
-                        .fromCase(CHAR(3), StringData.fromString("foo"), new byte[] {102, 111, 111})
+                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
                         .fromCase(
                                 VARCHAR(5),
-                                StringData.fromString("Flink"),
+                                fromString("Flink"),
                                 new byte[] {70, 108, 105, 110, 107})
                         // https://issues.apache.org/jira/browse/FLINK-24419 - not trimmed to 2
                         // bytes
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("Apache"),
+                                fromString("Apache"),
                                 new byte[] {65, 112, 97, 99, 104, 101}),
                 CastTestSpecBuilder.testCastTo(VARBINARY(4))
-                        .fromCase(CHAR(3), StringData.fromString("foo"), new byte[] {102, 111, 111})
+                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
                         .fromCase(
                                 VARCHAR(5),
-                                StringData.fromString("Flink"),
+                                fromString("Flink"),
                                 new byte[] {70, 108, 105, 110, 107})
                         // https://issues.apache.org/jira/browse/FLINK-24419 - not trimmed to 2
                         // bytes
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("Apache"),
+                                fromString("Apache"),
                                 new byte[] {65, 112, 97, 99, 104, 101}),
                 CastTestSpecBuilder.testCastTo(BYTES())
-                        .fromCase(CHAR(3), StringData.fromString("foo"), new byte[] {102, 111, 111})
+                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
                         .fromCase(
                                 VARCHAR(5),
-                                StringData.fromString("Flink"),
+                                fromString("Flink"),
                                 new byte[] {70, 108, 105, 110, 107})
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("Apache"),
+                                fromString("Apache"),
                                 new byte[] {65, 112, 97, 99, 104, 101}),
                 CastTestSpecBuilder.testCastTo(DECIMAL(5, 3))
-                        .fail(CHAR(3), StringData.fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), StringData.fromString("Flink"), TableException.class)
-                        .fail(STRING(), StringData.fromString("Apache"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
+                        .fail(STRING(), fromString("Apache"), TableException.class)
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("1.234"),
-                                DecimalData.fromBigDecimal(new BigDecimal("1.234"), 5, 3))
+                                fromString("1.234"),
+                                fromBigDecimal(new BigDecimal("1.234"), 5, 3))
                         .fromCase(
                                 STRING(),
-                                StringData.fromString("1.2"),
-                                DecimalData.fromBigDecimal(new BigDecimal("1.200"), 5, 3))
+                                fromString("1.2"),
+                                fromBigDecimal(new BigDecimal("1.200"), 5, 3))
                         .fromCase(
                                 DECIMAL(4, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("9.87"), 4, 3),
-                                DecimalData.fromBigDecimal(new BigDecimal("9.870"), 5, 3))
+                                fromBigDecimal(new BigDecimal("9.87"), 4, 3),
+                                fromBigDecimal(new BigDecimal("9.870"), 5, 3))
                         .fromCase(
                                 TINYINT(),
                                 (byte) -1,
-                                DecimalData.fromBigDecimal(new BigDecimal("-1.000"), 5, 3))
+                                fromBigDecimal(new BigDecimal("-1.000"), 5, 3))
                         .fromCase(
                                 SMALLINT(),
                                 (short) 3,
-                                DecimalData.fromBigDecimal(new BigDecimal("3.000"), 5, 3))
+                                fromBigDecimal(new BigDecimal("3.000"), 5, 3))
+                        .fromCase(INT(), 42, fromBigDecimal(new BigDecimal("42.000"), 5, 3))
+                        .fromCase(BIGINT(), 8L, fromBigDecimal(new BigDecimal("8.000"), 5, 3))
                         .fromCase(
-                                INT(),
-                                42,
-                                DecimalData.fromBigDecimal(new BigDecimal("42.000"), 5, 3))
-                        .fromCase(
-                                BIGINT(),
-                                8L,
-                                DecimalData.fromBigDecimal(new BigDecimal("8.000"), 5, 3))
-                        .fromCase(
-                                FLOAT(),
-                                -12.345f,
-                                DecimalData.fromBigDecimal(new BigDecimal("-12.345"), 5, 3))
-                        .fromCase(
-                                DOUBLE(),
-                                12.678d,
-                                DecimalData.fromBigDecimal(new BigDecimal("12.678"), 5, 3))
-                        .fromCase(BOOLEAN(), true, DecimalData.fromBigDecimal(BigDecimal.ONE, 5, 3))
-                        .fromCase(
-                                BOOLEAN(),
-                                false,
-                                DecimalData.fromBigDecimal(BigDecimal.ZERO, 5, 3)),
+                                FLOAT(), -12.345f, fromBigDecimal(new BigDecimal("-12.345"), 5, 3))
+                        .fromCase(DOUBLE(), 12.678d, fromBigDecimal(new BigDecimal("12.678"), 5, 3))
+                        .fromCase(BOOLEAN(), true, fromBigDecimal(BigDecimal.ONE, 5, 3))
+                        .fromCase(BOOLEAN(), false, fromBigDecimal(BigDecimal.ZERO, 5, 3)),
                 CastTestSpecBuilder.testCastTo(ARRAY(STRING().nullable()))
                         .fromCase(
                                 ARRAY(TIMESTAMP().nullable()),
@@ -762,7 +715,7 @@ class CastRulesTest {
                                         new Object[] {
                                             TIMESTAMP_STRING,
                                             null,
-                                            StringData.fromString("2021-09-24 14:34:56.123456")
+                                            fromString("2021-09-24 14:34:56.123456")
                                         })),
                 CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().nullable()))
                         .fromCase(
@@ -782,7 +735,69 @@ class CastRulesTest {
                                             new GenericArrayData(new Integer[] {1, 2, null}),
                                             new GenericArrayData(new Integer[] {3})
                                         }),
-                                NullPointerException.class));
+                                NullPointerException.class),
+                CastTestSpecBuilder.testCastTo(
+                                ROW(BIGINT().notNull(), BIGINT(), STRING(), ARRAY(STRING())))
+                        .fromCase(
+                                ROW(INT().notNull(), INT(), TIME(5), ARRAY(TIMESTAMP())),
+                                GenericRowData.of(
+                                        10,
+                                        null,
+                                        TIME,
+                                        new GenericArrayData(
+                                                new Object[] {TIMESTAMP, TIMESTAMP, TIMESTAMP})),
+                                GenericRowData.of(
+                                        10L,
+                                        null,
+                                        TIME_STRING,
+                                        new GenericArrayData(
+                                                new Object[] {
+                                                    TIMESTAMP_STRING,
+                                                    TIMESTAMP_STRING,
+                                                    TIMESTAMP_STRING
+                                                })))
+                        .fromCase(
+                                ROW(INT().notNull(), INT(), DATE(), ARRAY(STRING()), TIME(5)),
+                                GenericRowData.of(
+                                        10,
+                                        100,
+                                        DATE,
+                                        new GenericArrayData(
+                                                new Object[] {
+                                                    fromString("a"),
+                                                    fromString("b"),
+                                                    fromString("c")
+                                                }),
+                                        TIME),
+                                GenericRowData.of(
+                                        10L,
+                                        100L,
+                                        DATE_STRING,
+                                        new GenericArrayData(
+                                                new Object[] {
+                                                    fromString("a"),
+                                                    fromString("b"),
+                                                    fromString("c")
+                                                }))),
+                CastTestSpecBuilder.testCastTo(MY_STRUCTURED_TYPE)
+                        .fromCase(
+                                ROW(INT().notNull(), INT(), TIME(5), ARRAY(TIMESTAMP())),
+                                GenericRowData.of(
+                                        10,
+                                        null,
+                                        TIME,
+                                        new GenericArrayData(
+                                                new Object[] {TIMESTAMP, TIMESTAMP, TIMESTAMP})),
+                                GenericRowData.of(
+                                        10L,
+                                        null,
+                                        TIME_STRING,
+                                        new GenericArrayData(
+                                                new Object[] {
+                                                    TIMESTAMP_STRING,
+                                                    TIMESTAMP_STRING,
+                                                    TIMESTAMP_STRING
+                                                }))));
     }
 
     @TestFactory
@@ -807,6 +822,13 @@ class CastRulesTest {
             map.put(entry.getKey(), entry.getValue());
         }
         return new GenericMapData(map);
+    }
+
+    public static class MyStructuredType {
+        public long a;
+        public Long b;
+        public String c;
+        public String[] d;
     }
 
     @SuppressWarnings({"rawtypes"})
@@ -836,12 +858,13 @@ class CastRulesTest {
                             this.castContext,
                             this.inputType.getLogicalType(),
                             this.targetType.getLogicalType());
-            assertNotNull(
-                    executor,
-                    "Cannot resolve an executor for input "
-                            + this.inputType
-                            + " and target "
-                            + this.targetType);
+            assertThat(executor)
+                    .as(
+                            "Cannot resolve an executor for input "
+                                    + this.inputType
+                                    + " and target "
+                                    + this.targetType)
+                    .isNotNull();
 
             this.assertionExecutor.accept(executor);
         }
@@ -871,9 +894,9 @@ class CastRulesTest {
         }
 
         private CastTestSpecBuilder fromCase(
-                DataType dataType, Object src, Object target, boolean legacyBehaviour) {
+                DataType srcDataType, Object src, Object target, boolean legacyBehaviour) {
             return fromCase(
-                    dataType,
+                    srcDataType,
                     CastRule.Context.create(
                             legacyBehaviour,
                             DateTimeUtils.UTC_ZONE.toZoneId(),
@@ -883,25 +906,18 @@ class CastRulesTest {
         }
 
         private CastTestSpecBuilder fromCase(
-                DataType dataType, CastRule.Context castContext, Object src, Object target) {
-            this.inputTypes.add(dataType);
+                DataType srcDataType, CastRule.Context castContext, Object src, Object target) {
+            this.inputTypes.add(srcDataType);
             this.assertionExecutors.add(
                     executor -> {
-                        if (target instanceof byte[]) {
-                            assertArrayEquals((byte[]) target, (byte[]) executor.cast(src));
-                            // Run twice to make sure rules are reusable without causing issues
-                            assertArrayEquals(
-                                    (byte[]) target,
-                                    (byte[]) executor.cast(src),
-                                    "Error when reusing the rule. Perhaps there is some state that needs to be reset");
-                        } else {
-                            assertEquals(target, executor.cast(src));
-                            // Run twice to make sure rules are reusable without causing issues
-                            assertEquals(
-                                    target,
-                                    executor.cast(src),
-                                    "Error when reusing the rule. Perhaps there is some state that needs to be reset");
-                        }
+                        Object expected = sanitizeTestData(targetType, target);
+
+                        assertThat(sanitizeTestData(targetType, executor.cast(src)))
+                                .isEqualTo(expected);
+                        assertThat(sanitizeTestData(targetType, executor.cast(src)))
+                                .as(
+                                        "Error when reusing the rule. Perhaps there is some state that needs to be reset")
+                                .isEqualTo(expected);
                     });
             this.descriptions.add("{" + src + " => " + target + "}");
             this.castContexts.add(castContext);
@@ -945,6 +961,18 @@ class CastRulesTest {
                                 castContexts.get(i));
             }
             return Arrays.stream(testSpecs);
+        }
+
+        // This method makes sure that we can correctly compare rows
+        private Object sanitizeTestData(DataType dataType, Object value) {
+            if (value instanceof RowData) {
+                // Convert to GenericRowData using the DataStructureConverter
+                DataStructureConverter<Object, Object> converter =
+                        DataStructureConverters.getConverter(dataType);
+                converter.open(Thread.currentThread().getContextClassLoader());
+                return converter.toInternalOrNull(converter.toExternalOrNull(value));
+            }
+            return value;
         }
     }
 }

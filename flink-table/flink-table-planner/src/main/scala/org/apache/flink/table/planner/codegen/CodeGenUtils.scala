@@ -703,16 +703,26 @@ object CodeGenUtils {
       fieldValTerm: String,
       writerTerm: String,
       fieldType: LogicalType): String =
-    binaryWriterWriteField(ctx, index.toString, fieldValTerm, writerTerm, fieldType)
+    binaryWriterWriteField(
+      t => ctx.addReusableTypeSerializer(t), index.toString, fieldValTerm, writerTerm, fieldType)
 
-  @tailrec
   def binaryWriterWriteField(
       ctx: CodeGeneratorContext,
       indexTerm: String,
       fieldValTerm: String,
       writerTerm: String,
+      t: LogicalType): String =
+    binaryWriterWriteField(
+      t => ctx.addReusableTypeSerializer(t), indexTerm, fieldValTerm, writerTerm, t)
+
+  @tailrec
+  def binaryWriterWriteField(
+      addSerializer: LogicalType => String,
+      indexTerm: String,
+      fieldValTerm: String,
+      writerTerm: String,
       t: LogicalType)
-    : String = t.getTypeRoot match {
+  : String = t.getTypeRoot match {
     // ordered by type root definition
     case CHAR | VARCHAR =>
       s"$writerTerm.writeString($indexTerm, $fieldValTerm)"
@@ -739,23 +749,23 @@ object CodeGenUtils {
     case TIMESTAMP_WITH_TIME_ZONE =>
       throw new UnsupportedOperationException("Unsupported type: " + t)
     case ARRAY =>
-      val ser = ctx.addReusableTypeSerializer(t)
+      val ser = addSerializer(t)
       s"$writerTerm.writeArray($indexTerm, $fieldValTerm, $ser)"
     case MULTISET | MAP =>
-      val ser = ctx.addReusableTypeSerializer(t)
+      val ser = addSerializer(t)
       s"$writerTerm.writeMap($indexTerm, $fieldValTerm, $ser)"
     case ROW | STRUCTURED_TYPE =>
-      val ser = ctx.addReusableTypeSerializer(t)
+      val ser = addSerializer(t)
       s"$writerTerm.writeRow($indexTerm, $fieldValTerm, $ser)"
     case DISTINCT_TYPE =>
       binaryWriterWriteField(
-        ctx,
+        addSerializer,
         indexTerm,
         fieldValTerm,
         writerTerm,
         t.asInstanceOf[DistinctType].getSourceType)
     case RAW =>
-      val ser = ctx.addReusableTypeSerializer(t)
+      val ser = addSerializer(t)
       s"$writerTerm.writeRawValue($indexTerm, $fieldValTerm, $ser)"
     case NULL | SYMBOL | UNRESOLVED =>
       throw new IllegalArgumentException("Illegal type: " + t);
