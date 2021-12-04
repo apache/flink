@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.application.ApplicationRunner;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
@@ -82,7 +83,8 @@ public class JarRunHandler
     }
 
     @Override
-    protected CompletableFuture<JarRunResponseBody> handleRequest(
+    @VisibleForTesting
+    public CompletableFuture<JarRunResponseBody> handleRequest(
             @Nonnull final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request,
             @Nonnull final DispatcherGateway gateway)
             throws RestHandlerException {
