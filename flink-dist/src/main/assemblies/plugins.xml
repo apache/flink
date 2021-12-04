@@ -74,6 +74,13 @@
 		</file>
 
 		<file>
+			<source>../flink-metrics/flink-metrics-dogstatsd/target/flink-metrics-dogstatsd-${project.version}.jar</source>
+			<outputDirectory>plugins/metrics-dogstatsd/</outputDirectory>
+			<destName>flink-metrics-dogstatsd-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
 			<source>../flink-metrics/flink-metrics-slf4j/target/flink-metrics-slf4j-${project.version}.jar</source>
 			<outputDirectory>plugins/metrics-slf4j/</outputDirectory>
 			<destName>flink-metrics-slf4j-${project.version}.jar</destName>

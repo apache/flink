@@ -113,6 +113,7 @@ flink-metrics/flink-metrics-influxdb,\
 flink-metrics/flink-metrics-prometheus,\
 flink-metrics/flink-metrics-statsd,\
 flink-metrics/flink-metrics-datadog,\
+flink-metrics/flink-metrics-dogstatsd,\
 flink-metrics/flink-metrics-slf4j,\
 flink-queryable-state/flink-queryable-state-runtime,\
 flink-queryable-state/flink-queryable-state-client-java"

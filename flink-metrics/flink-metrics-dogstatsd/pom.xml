@@ -24,47 +24,56 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent</artifactId>
+		<artifactId>flink-metrics</artifactId>
 		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-metrics</artifactId>
-	<name>Flink : Metrics : </name>
-	<packaging>pom</packaging>
-
-	<properties>
-		<dropwizard.version>3.2.6</dropwizard.version>
-	</properties>
-
-	<modules>
-		<module>flink-metrics-core</module>
-		<module>flink-metrics-dropwizard</module>
-		<module>flink-metrics-graphite</module>
-		<module>flink-metrics-influxdb</module>
-		<module>flink-metrics-jmx</module>
-		<module>flink-metrics-prometheus</module>
-		<module>flink-metrics-statsd</module>
-		<module>flink-metrics-datadog</module>
-		<module>flink-metrics-dogstatsd</module>
-		<module>flink-metrics-slf4j</module>
-	</modules>
-
-	<!-- override these root dependencies as 'provided', so they don't end up
-		in the jars-with-dependencies. They are already contained
-		in the flink-dist build -->
+	<artifactId>flink-metrics-dogstatsd</artifactId>
+	<name>Flink : Metrics : DogStatsD</name>
 
 	<dependencies>
 		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-annotations</artifactId>
+			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
 		<dependency>
-			<groupId>com.google.code.findbugs</groupId>
-			<artifactId>jsr305</artifactId>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-core</artifactId>
+			<version>${project.version}</version>
 			<scope>provided</scope>
+		</dependency>
+
+		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 	</dependencies>
-
 </project>
