@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager.ClassLoaderFactory;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import javax.annotation.Nullable;
 
