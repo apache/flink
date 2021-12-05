@@ -318,6 +318,14 @@ under the License.
 								<!-- Do not relocate guava because it is exposed in the Kinesis API (KinesisProducer#addUserRecord).
 								 	Users may be using other affected API's, so relocations may break user-code -->
 								<relocation>
+									<pattern>org.apache.flink.connector.aws.config</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.flink.connector.aws.config</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.flink.connector.aws.util</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.flink.connector.aws.util</shadedPattern>
+								</relocation>
+								<relocation>
 									<pattern>com.google.protobuf</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.google.protobuf</shadedPattern>
 								</relocation>
