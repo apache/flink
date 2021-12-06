@@ -219,6 +219,7 @@ public class PackagedProgram implements AutoCloseable {
     public void invokeInteractiveModeForExecution() throws ProgramInvocationException {
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         try {
+            // todo 执行main方法
             callMainMethod(mainClass, args);
         } finally {
             FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
@@ -320,6 +321,12 @@ public class PackagedProgram implements AutoCloseable {
                 && Modifier.isPublic(mainMethod.getModifiers());
     }
 
+    /**
+     * 执行main 方法
+     * @param entryClass 启动类
+     * @param args 参数
+     * @throws ProgramInvocationException
+     */
     private static void callMainMethod(Class<?> entryClass, String[] args)
             throws ProgramInvocationException {
         Method mainMethod;
@@ -329,6 +336,7 @@ public class PackagedProgram implements AutoCloseable {
         }
 
         try {
+            // todo  反射的方式进行的调用
             mainMethod = entryClass.getMethod("main", String[].class);
         } catch (NoSuchMethodException e) {
             throw new ProgramInvocationException(
@@ -352,6 +360,7 @@ public class PackagedProgram implements AutoCloseable {
         }
 
         try {
+            // 方法调用
             mainMethod.invoke(null, (Object) args);
         } catch (IllegalArgumentException e) {
             throw new ProgramInvocationException(

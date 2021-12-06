@@ -230,6 +230,7 @@ public class CliFrontend {
             return;
         }
 
+        // todo 获取用户 指定的命令行
         final CustomCommandLine activeCommandLine =
                 validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
@@ -237,6 +238,7 @@ public class CliFrontend {
 
         final List<URL> jobJars = getJobJarAndDependencies(programOptions);
 
+        //
         final Configuration effectiveConfiguration =
                 getEffectiveConfiguration(activeCommandLine, commandLine, programOptions, jobJars);
 
@@ -250,6 +252,7 @@ public class CliFrontend {
     /** Get all provided libraries needed to run the program from the ProgramOptions. */
     private List<URL> getJobJarAndDependencies(ProgramOptions programOptions)
             throws CliArgsException {
+        // todo 指定的运行类名称  -c
         String entryPointClass = programOptions.getEntryPointClassName();
         String jarFilePath = programOptions.getJarFilePath();
 
@@ -807,8 +810,15 @@ public class CliFrontend {
     //  Interaction with programs and JobManager
     // --------------------------------------------------------------------------------------------
 
+    /**
+     * 执行程序
+     * @param configuration 配置参数
+     * @param program 程序
+     * @throws ProgramInvocationException
+     */
     protected void executeProgram(final Configuration configuration, final PackagedProgram program)
             throws ProgramInvocationException {
+        // todo
         ClientUtils.executeProgram(
                 new DefaultExecutorServiceLoader(), configuration, program, false, false);
     }
@@ -1028,7 +1038,7 @@ public class CliFrontend {
 
     /**
      * Parses the command line arguments and starts the requested action.
-     *
+     * 解析参数 并 运行
      * @param args command line arguments of the client.
      * @return The return code of the program
      */
@@ -1046,7 +1056,7 @@ public class CliFrontend {
 
         // remove action from parameters
         final String[] params = Arrays.copyOfRange(args, 1, args.length);
-
+        // todo 根据action 实现具体的动作
         try {
             // do action
             switch (action) {
@@ -1110,17 +1120,19 @@ public class CliFrontend {
     }
 
     /** Submits the job based on the arguments. */
+    // todo   启动命令
     public static void main(final String[] args) {
         EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
         // 1. find the configuration directory
+        // todo FLINK_CONF_DIR 配置目录地址
         final String configurationDirectory = getConfigurationDirectoryFromEnv();
 
-        // 2. load the global configuration
+        // 2. load the global configuration todo 加载全局配置信息
         final Configuration configuration =
                 GlobalConfiguration.loadConfiguration(configurationDirectory);
 
-        // 3. load the custom command lines
+        // 3. load the custom command lines  todo 获取命令行的参数
         final List<CustomCommandLine> customCommandLines =
                 loadCustomCommandLines(configuration, configurationDirectory);
 
@@ -1185,6 +1197,12 @@ public class CliFrontend {
         config.setInteger(RestOptions.PORT, address.getPort());
     }
 
+    /**
+     * 用户命令行配置 1.GenericCLI   2.FlinkYarnSessionCli  3.DefaultCLI
+     * @param configuration 配置
+     * @param configurationDirectory 配置目录
+     * @return
+     */
     public static List<CustomCommandLine> loadCustomCommandLines(
             Configuration configuration, String configurationDirectory) {
         List<CustomCommandLine> customCommandLines = new ArrayList<>();
@@ -1225,7 +1243,7 @@ public class CliFrontend {
 
     /**
      * Gets the custom command-line for the arguments.
-     *
+     * 获取命令行
      * @param commandLine The input to the command-line.
      * @return custom command-line which is active (may only be one at a time)
      */

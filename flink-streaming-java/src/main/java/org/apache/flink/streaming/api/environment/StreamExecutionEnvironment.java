@@ -1980,6 +1980,8 @@ public class StreamExecutionEnvironment {
      */
     @Internal
     public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+
+        // todo 将流图 转化为  job执行图
         final JobClient jobClient = executeAsync(streamGraph);
 
         try {

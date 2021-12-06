@@ -54,6 +54,7 @@ public class DefaultExecutorServiceLoader implements PipelineExecutorServiceLoad
     public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
         checkNotNull(configuration);
 
+        // todo  spi 模式下获取 ServiceLoader
         final ServiceLoader<PipelineExecutorFactory> loader =
                 ServiceLoader.load(PipelineExecutorFactory.class);
 

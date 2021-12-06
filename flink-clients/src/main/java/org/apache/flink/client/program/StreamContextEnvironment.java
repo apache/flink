@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
+ * todo 用户代码中流上下文环境，启动逻辑
  * Special {@link StreamExecutionEnvironment} that will be used in cases where the CLI client or
  * testing utilities create a {@link StreamExecutionEnvironment} that should be used when {@link
  * StreamExecutionEnvironment#getExecutionEnvironment()} is called.

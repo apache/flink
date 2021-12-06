@@ -79,6 +79,15 @@ public enum ClientUtils {
                 checkClassloaderLeak);
     }
 
+    /**
+     *
+     * @param executorServiceLoader 执行服务
+     * @param configuration 配置
+     * @param program 程序打包程序
+     * @param enforceSingleJobExecution  enforceSingleJobExecution
+     * @param suppressSysout suppressSysout
+     * @throws ProgramInvocationException
+     */
     public static void executeProgram(
             PipelineExecutorServiceLoader executorServiceLoader,
             Configuration configuration,
@@ -96,13 +105,14 @@ public enum ClientUtils {
                     "Starting program (detached: {})",
                     !configuration.getBoolean(DeploymentOptions.ATTACHED));
 
+            //todo 环境上下文
             ContextEnvironment.setAsContext(
                     executorServiceLoader,
                     configuration,
                     userCodeClassLoader,
                     enforceSingleJobExecution,
                     suppressSysout);
-
+            // todo 流上下文
             StreamContextEnvironment.setAsContext(
                     executorServiceLoader,
                     configuration,
@@ -111,6 +121,7 @@ public enum ClientUtils {
                     suppressSysout);
 
             try {
+                //todo 启动交互式模式，执行器
                 program.invokeInteractiveModeForExecution();
             } finally {
                 ContextEnvironment.unsetAsContext();
