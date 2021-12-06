@@ -407,6 +407,13 @@ class MergeTableLikeUtil {
                                     name, TypeConversions.fromLogicalToDataType(logicalType));
                 } else if (derivedColumn instanceof SqlComputedColumn) {
                     final SqlComputedColumn computedColumn = (SqlComputedColumn) derivedColumn;
+                    if (physicalFieldNamesToTypes.containsKey(name)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "A column named '%s' already exists in the table. "
+                                                + "Duplicate columns exist in the compute column and regular column. ",
+                                        name));
+                    }
                     if (columns.containsKey(name)) {
                         if (!(columns.get(name) instanceof ComputedColumn)) {
                             throw new ValidationException(
@@ -443,6 +450,13 @@ class MergeTableLikeUtil {
                     computedFieldNamesToTypes.put(name, validatedType);
                 } else if (derivedColumn instanceof SqlMetadataColumn) {
                     final SqlMetadataColumn metadataColumn = (SqlMetadataColumn) derivedColumn;
+                    if (physicalFieldNamesToTypes.containsKey(name)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "A column named '%s' already exists in the table. "
+                                                + "Duplicate columns exist in the metadata column and regular column. ",
+                                        name));
+                    }
                     if (columns.containsKey(name)) {
                         if (!(columns.get(name) instanceof MetadataColumn)) {
                             throw new ValidationException(
@@ -494,7 +508,13 @@ class MergeTableLikeUtil {
                     boolean nullable = type.getNullable() == null ? true : type.getNullable();
                     RelDataType relType = type.deriveType(sqlValidator, nullable);
                     // add field name and field type to physical field list
-                    physicalFieldNamesToTypes.put(name, relType);
+                    RelDataType oldType = physicalFieldNamesToTypes.put(name, relType);
+                    if (oldType != null) {
+                        throw new ValidationException(
+                                String.format(
+                                        "A regular Column named '%s' already exists in the table.",
+                                        name));
+                    }
                 }
             }
         }
