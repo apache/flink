@@ -494,7 +494,12 @@ class MergeTableLikeUtil {
                     boolean nullable = type.getNullable() == null ? true : type.getNullable();
                     RelDataType relType = type.deriveType(sqlValidator, nullable);
                     // add field name and field type to physical field list
-                    physicalFieldNamesToTypes.put(name, relType);
+                    RelDataType oldType = physicalFieldNamesToTypes.put(name, relType);
+                    if (oldType != null) {
+                        throw new ValidationException(
+                                String.format( "A column named '%s' already exists in the physical field list.",
+                                        name));
+                    }
                 }
             }
         }
