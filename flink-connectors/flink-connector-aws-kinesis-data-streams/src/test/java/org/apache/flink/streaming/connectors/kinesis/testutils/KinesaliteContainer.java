@@ -25,6 +25,7 @@ import org.rnorth.ducttape.unreliables.Unreliables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -178,10 +179,25 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
                 throws ExecutionException, InterruptedException, URISyntaxException {
             startContainer();
             LOG.trace(" *** LOGGING CONTAINER OUTPUT TO TRACE SLFJ *** ");
+            LOG.trace(" * SOUT * ");
+            LOG.trace(getLogs(OutputFrame.OutputType.STDOUT));
+            LOG.trace(" * SERR * ");
+            LOG.trace(getLogs(OutputFrame.OutputType.STDERR));
+            LOG.trace(" * COMBINED * ");
             LOG.trace(getLogs());
             System.out.println(" *** LOGGING CONTAINER OUTPUT TO S.OUT *** ");
+            System.out.println(" * SOUT * ");
+            System.out.println(getLogs(OutputFrame.OutputType.STDOUT));
+            System.out.println(" * SERR * ");
+            System.out.println(getLogs(OutputFrame.OutputType.STDERR));
+            System.out.println(" * COMBINED * ");
             System.out.println(getLogs());
             System.err.println(" *** LOGGING CONTAINER OUTPUT TO S.ERR *** ");
+            System.err.println(" * SOUT * ");
+            System.err.println(getLogs(OutputFrame.OutputType.STDOUT));
+            System.err.println(" * SERR * ");
+            System.err.println(getLogs(OutputFrame.OutputType.STDERR));
+            System.err.println(" * COMBINED * ");
             System.err.println(getLogs());
             return getContainerClient().listStreams().get();
         }
