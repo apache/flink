@@ -690,7 +690,7 @@ public final class FactoryUtil {
     static List<Factory> discoverFactories(ClassLoader classLoader) {
         final List<Factory> result = new LinkedList<>();
         ServiceLoaderUtil.load(Factory.class, classLoader)
-                .forEachRemaining(
+                .forEach(
                         loadResult -> {
                             if (loadResult.hasFailed()) {
                                 if (loadResult.getError() instanceof NoClassDefFoundError) {
