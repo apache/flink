@@ -38,6 +38,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
@@ -61,6 +62,7 @@ import static org.junit.Assert.assertThat;
 
 /** End-to-end test for SQL client using Avro Confluent Registry format. */
 @Category(value = {TravisGroup1.class})
+@Ignore("FLINK-25209")
 public class SQLClientSchemaRegistryITCase {
     private static final Logger LOG = LoggerFactory.getLogger(SQLClientSchemaRegistryITCase.class);
     private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
