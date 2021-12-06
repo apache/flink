@@ -43,6 +43,8 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.SdkSystemSetting;
 
 import java.io.IOException;
@@ -55,6 +57,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ACCESS_KEY_ID;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_SECRET_ACCESS_KEY;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_POSITION;
 
 /** End-to-end test for Glue Schema Registry AVRO format using Kinesalite. */
@@ -87,9 +91,13 @@ public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
                 "Secret key not configured, skipping test...",
                 !StringUtils.isNullOrWhitespaceOnly(SECRET_KEY));
 
+        StaticCredentialsProvider gsrCredentialsProvider =
+                StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY));
+
         Properties properties = KINESALITE.getContainerProperties();
 
-        kinesisClient = new GSRKinesisPubsubClient(properties);
+        kinesisClient = new GSRKinesisPubsubClient(properties, gsrCredentialsProvider);
         kinesisClient.createStream(INPUT_STREAM, 2, properties);
         kinesisClient.createStream(OUTPUT_STREAM, 2, properties);
 
@@ -137,13 +145,10 @@ public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
         properties.setProperty(
                 STREAM_INITIAL_POSITION,
                 ConsumerConfigConstants.InitialPosition.TRIM_HORIZON.name());
-        FlinkKinesisConsumer<GenericRecord> consumer =
-                new FlinkKinesisConsumer<>(
-                        INPUT_STREAM,
-                        GlueSchemaRegistryAvroDeserializationSchema.forGeneric(
-                                getSchema(), getConfigs()),
-                        properties);
-        return consumer;
+        return new FlinkKinesisConsumer<>(
+                INPUT_STREAM,
+                GlueSchemaRegistryAvroDeserializationSchema.forGeneric(getSchema(), getConfigs()),
+                properties);
     }
 
     private FlinkKinesisProducer<GenericRecord> createSink() throws Exception {
@@ -158,7 +163,7 @@ public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
     }
 
     private Properties getProducerProperties() throws Exception {
-        Properties producerProperties = new Properties(KINESALITE.getContainerProperties());
+        Properties producerProperties = KINESALITE.getContainerProperties();
         // producer needs region even when URL is specified
         producerProperties.put(ConsumerConfigConstants.AWS_REGION, "ca-central-1");
         // test driver does not deaggregate
@@ -185,7 +190,9 @@ public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
     }
 
     private Map<String, Object> getConfigs() {
-        Map<String, Object> configs = new HashMap();
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(AWS_ACCESS_KEY_ID, ACCESS_KEY);
+        configs.put(AWS_SECRET_ACCESS_KEY, SECRET_KEY);
         configs.put(AWSSchemaRegistryConstants.AWS_REGION, "ca-central-1");
         configs.put(AWSSchemaRegistryConstants.SCHEMA_AUTO_REGISTRATION_SETTING, true);
         configs.put(
