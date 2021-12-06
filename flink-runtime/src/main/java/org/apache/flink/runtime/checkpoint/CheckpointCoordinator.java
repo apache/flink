@@ -218,6 +218,7 @@ public class CheckpointCoordinator {
     private final ExecutionAttemptMappingProvider attemptMappingProvider;
 
     private boolean baseLocationsForCheckpointInitialized = false;
+    private boolean forceFullSnapshot;
 
     // --------------------------------------------------------------------------------------------
 
@@ -684,9 +685,16 @@ public class CheckpointCoordinator {
         // no exception, no discarding, everything is OK
         final long checkpointId = checkpoint.getCheckpointID();
 
+        final CheckpointType type;
+        if (this.forceFullSnapshot && !request.props.isSavepoint()) {
+            type = CheckpointType.FULL_CHECKPOINT;
+        } else {
+            type = request.props.getCheckpointType();
+        }
+
         final CheckpointOptions checkpointOptions =
                 CheckpointOptions.forConfig(
-                        request.props.getCheckpointType(),
+                        type,
                         checkpoint.getCheckpointStorageLocation().getLocationReference(),
                         isExactlyOnceMode,
                         unalignedCheckpointsEnabled,
@@ -1333,8 +1341,13 @@ public class CheckpointCoordinator {
             List<ExecutionVertex> tasksToAbort)
             throws CheckpointException {
         try {
-            return completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
-                    completedCheckpoint, checkpointsCleaner, this::scheduleTriggerRequest);
+            final CompletedCheckpoint subsumedCheckpoint =
+                    completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
+                            completedCheckpoint, checkpointsCleaner, this::scheduleTriggerRequest);
+            // reset the force full snapshot flag, we should've completed at least one full
+            // snapshot by now
+            this.forceFullSnapshot = false;
+            return subsumedCheckpoint;
         } catch (Exception exception) {
             if (exception instanceof PossibleInconsistentStateException) {
                 LOG.warn(
@@ -1591,6 +1604,8 @@ public class CheckpointCoordinator {
 
             LOG.info("Restoring job {} from {}.", job, latest);
 
+            this.forceFullSnapshot = latest.getProperties().isUnclaimed();
+
             // re-assign the task states
             final Map<OperatorID, OperatorState> operatorStates = extractOperatorStates(latest);
 
@@ -1694,6 +1709,9 @@ public class CheckpointCoordinator {
                 break;
             case LEGACY:
                 checkpointProperties = CheckpointProperties.forSavepoint(false);
+                break;
+            case NO_CLAIM:
+                checkpointProperties = CheckpointProperties.forUnclaimedSnapshot();
                 break;
             default:
                 throw new IllegalArgumentException("Unknown snapshot restore mode");

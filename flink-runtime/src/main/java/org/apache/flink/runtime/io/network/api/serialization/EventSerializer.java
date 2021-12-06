@@ -80,6 +80,8 @@ public class EventSerializer {
 
     private static final int CHECKPOINT_TYPE_SAVEPOINT_TERMINATE = 3;
 
+    private static final int CHECKPOINT_TYPE_FULL_CHECKPOINT = 4;
+
     // ------------------------------------------------------------------------
     //  Serialization Logic
     // ------------------------------------------------------------------------
@@ -229,6 +231,8 @@ public class EventSerializer {
         final int typeInt;
         if (checkpointType == CheckpointType.CHECKPOINT) {
             typeInt = CHECKPOINT_TYPE_CHECKPOINT;
+        } else if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
+            typeInt = CHECKPOINT_TYPE_FULL_CHECKPOINT;
         } else if (checkpointType == CheckpointType.SAVEPOINT) {
             typeInt = CHECKPOINT_TYPE_SAVEPOINT;
         } else if (checkpointType == CheckpointType.SAVEPOINT_SUSPEND) {
@@ -268,6 +272,8 @@ public class EventSerializer {
         final CheckpointType checkpointType;
         if (checkpointTypeCode == CHECKPOINT_TYPE_CHECKPOINT) {
             checkpointType = CheckpointType.CHECKPOINT;
+        } else if (checkpointTypeCode == CHECKPOINT_TYPE_FULL_CHECKPOINT) {
+            checkpointType = CheckpointType.FULL_CHECKPOINT;
         } else if (checkpointTypeCode == CHECKPOINT_TYPE_SAVEPOINT) {
             checkpointType = CheckpointType.SAVEPOINT;
         } else if (checkpointTypeCode == CHECKPOINT_TYPE_SAVEPOINT_SUSPEND) {

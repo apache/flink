@@ -171,6 +171,26 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         assertTrue(savepointSettings.allowNonRestoredState());
     }
 
+    @Test
+    public void testNoClaimRestoreModeParsing() throws Exception {
+        // test configure savepoint with claim mode
+        String[] parameters = {
+            "-s", "expectedSavepointPath", "-n", "-restoreMode", "no_claim", getTestJarPath()
+        };
+
+        CommandLine commandLine =
+                CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+        ProgramOptions programOptions = ProgramOptions.create(commandLine);
+        ExecutionConfigAccessor executionOptions =
+                ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
+
+        SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
+        assertTrue(savepointSettings.restoreSavepoint());
+        assertEquals(RestoreMode.NO_CLAIM, savepointSettings.getRestoreMode());
+        assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+        assertTrue(savepointSettings.allowNonRestoredState());
+    }
+
     @Test(expected = CliArgsException.class)
     public void testUnrecognizedOption() throws Exception {
         // test unrecognized option

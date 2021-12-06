@@ -54,6 +54,7 @@ import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.runtime.jobgraph.tasks.CoordinatedTask;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
@@ -706,6 +707,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                     }
                 });
 
+        // We wait for all input channel state to recover before we go into RUNNING state, and thus
+        // start checkpointing. If we implement incremental checkpointing of input channel state
+        // we must make sure it supports CheckpointType#FULL_CHECKPOINT
         List<CompletableFuture<?>> recoveredFutures = new ArrayList<>(inputGates.length);
         for (InputGate inputGate : inputGates) {
             recoveredFutures.add(inputGate.getStateConsumedFuture());
@@ -1063,6 +1067,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     @Override
     public CompletableFuture<Boolean> triggerCheckpointAsync(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+        checkForcedFullSnapshotSupport(checkpointOptions);
 
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         mainMailboxExecutor.execute(
@@ -1268,6 +1273,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                     });
 
             return false;
+        }
+    }
+
+    private void checkForcedFullSnapshotSupport(CheckpointOptions checkpointOptions) {
+        if (checkpointOptions.getCheckpointType() == CheckpointType.FULL_CHECKPOINT
+                && !stateBackend.supportsNoClaimRestoreMode()) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Configured state backend (%s) does not support enforcing a full"
+                                    + " snapshot. If you are restoring in %s mode, please"
+                                    + " consider choosing either %s or %s restore mode.",
+                            stateBackend,
+                            RestoreMode.NO_CLAIM,
+                            RestoreMode.CLAIM,
+                            RestoreMode.LEGACY));
         }
     }
 
