@@ -206,9 +206,8 @@ public abstract class Transformation<T> {
     }
 
     /** Changes the description of this {@code Transformation}. */
-    public Transformation<T> setDescription(String description) {
-        this.description = description;
-        return this;
+    public void setDescription(String description) {
+        this.description = Preconditions.checkNotNull(description);
     }
 
     /** Returns the description of this {@code Transformation}. */
