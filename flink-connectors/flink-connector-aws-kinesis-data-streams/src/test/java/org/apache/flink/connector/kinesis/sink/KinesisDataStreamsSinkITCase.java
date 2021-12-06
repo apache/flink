@@ -64,10 +64,10 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
     private final ElementConverter<String, PutRecordsRequestEntry>
             partitionKeyTooLongElementConverter =
-            KinesisDataStreamsSinkElementConverter.<String>builder()
-                    .setSerializationSchema(new SimpleStringSchema())
-                    .setPartitionKeyGenerator(element -> element)
-                    .build();
+                    KinesisDataStreamsSinkElementConverter.<String>builder()
+                            .setSerializationSchema(new SimpleStringSchema())
+                            .setPartitionKeyGenerator(element -> element)
+                            .build();
 
     @ClassRule
     public static final KinesaliteContainer KINESALITE =
