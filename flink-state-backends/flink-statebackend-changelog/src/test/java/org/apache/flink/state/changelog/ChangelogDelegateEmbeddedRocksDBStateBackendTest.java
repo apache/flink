@@ -57,7 +57,7 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
     }
 
     @Override
-    protected boolean isSafeToReuseState() {
+    protected boolean isSafeToReuseKVState() {
         return true;
     }
 

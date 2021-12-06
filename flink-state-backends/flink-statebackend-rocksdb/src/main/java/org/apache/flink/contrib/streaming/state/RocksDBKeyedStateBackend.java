@@ -873,7 +873,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     @Override
-    public boolean isSafeToReuseState() {
+    public boolean isSafeToReuseKVState() {
         return true;
     }
 

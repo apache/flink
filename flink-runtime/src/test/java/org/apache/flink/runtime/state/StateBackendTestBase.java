@@ -318,7 +318,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
-            Assert.assertEquals(isSafeToReuseState(), backend.isSafeToReuseState());
+            Assert.assertEquals(isSafeToReuseKVState(), backend.isSafeToReuseKVState());
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -5627,7 +5627,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     /** @return true if state backend is safe to reuse state. */
-    protected boolean isSafeToReuseState() {
+    protected boolean isSafeToReuseKVState() {
         return false;
     }
 }

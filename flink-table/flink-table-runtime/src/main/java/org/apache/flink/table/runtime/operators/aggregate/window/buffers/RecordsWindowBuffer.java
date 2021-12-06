@@ -160,7 +160,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             RecordsCombiner combiner =
                     factory.createRecordsCombiner(
                             runtimeContext, timerService, stateBackend, windowState, isEventTime);
-            boolean requiresCopy = !stateBackend.isSafeToReuseState();
+            boolean requiresCopy = !stateBackend.isSafeToReuseKVState();
             return new RecordsWindowBuffer(
                     operatorOwner,
                     memoryManager,

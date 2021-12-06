@@ -420,8 +420,8 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     @Override
-    public boolean isSafeToReuseState() {
-        return keyedStateBackend.isSafeToReuseState();
+    public boolean isSafeToReuseKVState() {
+        return keyedStateBackend.isSafeToReuseKVState();
     }
 
     @Nonnull

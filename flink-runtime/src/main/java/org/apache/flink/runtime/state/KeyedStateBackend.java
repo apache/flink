@@ -143,16 +143,16 @@ public interface KeyedStateBackend<K>
     }
 
     /**
-     * Whether it's safe to reuse key-value from the state-backend, e.g for the purpose of
+     * Whether it's safe to reuse key-values from the state-backend, e.g for the purpose of
      * optimization.
      *
      * <p>NOTE: this method should not be used to check for {@link InternalPriorityQueue}, as the
      * priority queue could be stored on different locations, e.g RocksDB state-backend could store
      * that on JVM heap if configuring HEAP as the time-service factory.
      *
-     * @return returns ture if safe to reuse the key-value from the state-backend.
+     * @return returns ture if safe to reuse the key-values from the state-backend.
      */
-    default boolean isSafeToReuseState() {
+    default boolean isSafeToReuseKVState() {
         return false;
     }
 

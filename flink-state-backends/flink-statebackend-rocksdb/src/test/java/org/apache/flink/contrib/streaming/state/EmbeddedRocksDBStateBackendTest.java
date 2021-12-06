@@ -187,7 +187,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @Override
-    protected boolean isSafeToReuseState() {
+    protected boolean isSafeToReuseKVState() {
         return true;
     }
 
