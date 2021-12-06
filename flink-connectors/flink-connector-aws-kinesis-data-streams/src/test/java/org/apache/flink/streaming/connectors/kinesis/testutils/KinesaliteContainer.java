@@ -22,6 +22,8 @@ import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.rnorth.ducttape.ratelimits.RateLimiter;
 import org.rnorth.ducttape.ratelimits.RateLimiterBuilder;
 import org.rnorth.ducttape.unreliables.Unreliables;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
@@ -57,6 +59,8 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
     private static final int PORT = 4567;
     private static final Region REGION = Region.US_EAST_1;
     private static final String URL_FORMAT = "https://%s:%s";
+
+    private static final Logger LOG = LoggerFactory.getLogger(KinesaliteContainer.class);
 
     public KinesaliteContainer(DockerImageName imageName) {
         super(imageName);
@@ -173,6 +177,12 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
         private ListStreamsResponse list()
                 throws ExecutionException, InterruptedException, URISyntaxException {
             startContainer();
+            LOG.trace(" *** LOGGING CONTAINER OUTPUT TO TRACE SLFJ *** ");
+            LOG.trace(getLogs());
+            System.out.println(" *** LOGGING CONTAINER OUTPUT TO S.OUT *** ");
+            System.out.println(getLogs());
+            System.err.println(" *** LOGGING CONTAINER OUTPUT TO S.ERR *** ");
+            System.err.println(getLogs());
             return getContainerClient().listStreams().get();
         }
     }
