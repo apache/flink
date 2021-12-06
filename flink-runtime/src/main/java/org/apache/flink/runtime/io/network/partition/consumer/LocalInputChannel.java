@@ -340,8 +340,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     void announceBufferSize(int newBufferSize) {
         checkState(!isReleased, "Channel released.");
 
-        ResultSubpartitionView subpartitionView = checkNotNull(this.subpartitionView);
-        subpartitionView.notifyNewBufferSize(newBufferSize);
+        ResultSubpartitionView view = this.subpartitionView;
+        if (view != null) {
+            view.notifyNewBufferSize(newBufferSize);
+        }
     }
 
     @Override

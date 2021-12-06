@@ -46,6 +46,7 @@ import org.apache.flink.table.types.DataType;
 public interface DynamicTableFactory extends Factory {
 
     /** Provides catalog and session information describing the dynamic table to be accessed. */
+    @PublicEvolving
     interface Context {
 
         /** Returns the identifier of the table in the {@link Catalog}. */
@@ -95,12 +96,12 @@ public interface DynamicTableFactory extends Factory {
          *
          * <pre>{@code
          * // Project some fields into a new data type
-         * DataType projectedDataType = DataType.projectFields(
-         *      context.getPhysicalRowDataType(), projectedIndexes);
+         * DataType projectedDataType = Projection.of(projectedIndexes)
+         *     .project(context.getPhysicalRowDataType());
          *
          * // Create key data type
-         * DataType keyDataType = DataType.projectFields(
-         *      context.getPhysicalRowDataType(), context.getPrimaryKeyIndexes());
+         * DataType keyDataType = Projection.of(context.getPrimaryKeyIndexes())
+         *     .project(context.getPhysicalRowDataType());
          *
          * // Create a new data type filtering columns of the original data type
          * DataType myOwnDataType = DataTypes.ROW(
@@ -120,8 +121,8 @@ public interface DynamicTableFactory extends Factory {
 
         /**
          * Returns the primary key indexes, if any, otherwise returns an empty array. A factory can
-         * use it to compute the schema projection of the key fields with {@link
-         * DataType#projectFields(DataType, int[])}.
+         * use it to compute the schema projection of the key fields with {@code
+         * Projection.of(ctx.getPrimaryKeyIndexes()).project(dataType)}.
          *
          * <p>Shortcut for {@code getCatalogTable().getResolvedSchema().getPrimaryKeyIndexes()}.
          *

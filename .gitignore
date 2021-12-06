@@ -41,6 +41,7 @@ flink-python/.eggs/
 flink-python/apache-flink-*.dev0/
 flink-python/apache-flink-libraries/apache_flink_libraries-*.dev0/
 flink-python/**/*.c
+flink-python/.idea/
 flink-python/**/*.so
 atlassian-ide-plugin.xml
 out/

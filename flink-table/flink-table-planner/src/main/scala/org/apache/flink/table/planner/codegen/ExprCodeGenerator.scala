@@ -823,16 +823,21 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             operands.foreach { operand =>
               requireComparable(operand)
             }
-            generateGreatestLeast(resultType, operands)
+            generateGreatestLeast(ctx, resultType, operands)
 
           case BuiltInFunctionDefinitions.LEAST =>
             operands.foreach { operand =>
               requireComparable(operand)
             }
-            generateGreatestLeast(resultType, operands, greatest = false)
+            generateGreatestLeast(ctx, resultType, operands, greatest = false)
 
           case BuiltInFunctionDefinitions.JSON_STRING =>
             new JsonStringCallGen(call).generate(ctx, operands, resultType)
+
+          case BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS =>
+            val left = operands.head
+            val right = operands(1)
+            generateBinaryArithmeticOperator(ctx, "+", resultType, left, right)
 
           case _ =>
             new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)

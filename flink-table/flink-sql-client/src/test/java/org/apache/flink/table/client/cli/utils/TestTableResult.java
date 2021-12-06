@@ -28,6 +28,8 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
+import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -114,5 +116,10 @@ public class TestTableResult implements TableResultInternal {
                         .map(row -> (RowData) converter.toInternalOrNull(row))
                         .iterator(),
                 data);
+    }
+
+    @Override
+    public RowDataToStringConverter getRowDataToStringConverter() {
+        return new RowDataToStringConverterImpl(resolvedSchema.toPhysicalRowDataType());
     }
 }

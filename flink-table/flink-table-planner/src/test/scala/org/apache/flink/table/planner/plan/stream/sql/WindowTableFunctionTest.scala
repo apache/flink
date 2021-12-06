@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.stream.sql
 
+import org.apache.flink.core.testutils.FlinkMatchers.containsCause
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.Test
@@ -99,8 +100,10 @@ class WindowTableFunctionTest extends TableTestBase {
         |FROM TABLE(
         | TUMBLE(TABLE v1, DESCRIPTOR(cur_time), INTERVAL '15' MINUTE))
         |""".stripMargin
-    thrown.expectMessage("requires the timecol is a time attribute type, but is TIMESTAMP(3)")
-    thrown.expect(classOf[ValidationException])
+    thrown.expectCause(containsCause(
+      new ValidationException(
+        "The window function requires the timecol is a time attribute type, but is TIMESTAMP(3).")
+    ))
     util.verifyRelPlan(sql)
   }
 

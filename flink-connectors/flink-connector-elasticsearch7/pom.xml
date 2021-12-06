@@ -121,6 +121,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-testing</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!--
    			 Including elasticsearch transport dependency for tests. Netty3 is not here anymore in 7.x
 		-->

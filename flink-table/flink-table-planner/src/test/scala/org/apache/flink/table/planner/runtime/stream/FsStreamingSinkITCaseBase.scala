@@ -24,8 +24,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.Expressions.$
-import org.apache.flink.table.filesystem.DefaultPartTimeExtractor.{toLocalDateTime, toMills}
-import org.apache.flink.table.filesystem.FileSystemConnectorOptions._
+import org.apache.flink.connector.file.table.DefaultPartTimeExtractor.{toLocalDateTime, toMills}
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions._
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
@@ -46,7 +46,7 @@ import scala.collection.Seq
 abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
 
   @Rule
-  def timeoutPerTest: Timeout = Timeout.seconds(20)
+  def timeoutPerTest: Timeout = Timeout.seconds(240)
 
   protected var resultPath: String = _
 

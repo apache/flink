@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.parquet.row;
 
+import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.MapData;
@@ -581,8 +582,8 @@ public class ParquetRowDataWriter {
 
         // 1 <= precision <= 18, writes as FIXED_LEN_BYTE_ARRAY
         // optimizer for UnscaledBytesWriter
-        if (DecimalDataUtils.is32BitDecimal(precision)
-                || DecimalDataUtils.is64BitDecimal(precision)) {
+        if (ParquetSchemaConverter.is32BitDecimal(precision)
+                || ParquetSchemaConverter.is64BitDecimal(precision)) {
             return new LongUnscaledBytesWriter();
         }
 

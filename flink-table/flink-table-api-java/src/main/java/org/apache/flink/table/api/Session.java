@@ -19,8 +19,8 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionParser;
 
 /**
  * Helper class for creating a session window. The boundary of session windows are defined by
@@ -53,7 +53,7 @@ public final class Session {
      */
     @Deprecated
     public static SessionWithGap withGap(String gap) {
-        return withGap(ExpressionParser.parseExpression(gap));
+        return withGap(ExpressionParser.INSTANCE.parseExpression(gap));
     }
 
     /**

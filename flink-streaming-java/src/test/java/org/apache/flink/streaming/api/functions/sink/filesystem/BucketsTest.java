@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -128,7 +129,7 @@ public class BucketsTest {
 
         final RollingPolicy<String, String> onCheckpointRP =
                 DefaultRollingPolicy.builder()
-                        .withMaxPartSize(7L) // roll with 2 elements
+                        .withMaxPartSize(new MemorySize(7L)) // roll with 2 elements
                         .build();
 
         final MockListState<byte[]> bucketStateContainerOne = new MockListState<>();

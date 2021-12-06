@@ -43,7 +43,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let task of table.data; trackBy: trackTaskBy">
+    <tr *ngFor="let task of table.data; trackBy: trackBySubtask">
       <td nzLeft="0">
         {{ task.subtask }}
       </td>

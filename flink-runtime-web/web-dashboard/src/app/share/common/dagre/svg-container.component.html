@@ -25,7 +25,7 @@
       class="background"
       (click)="clickBgEvent.emit($event)"
     ></svg:rect>
-    <svg:g #svgInner [attr.transform]="transform">
+    <svg:g [attr.transform]="transform">
       <ng-content></ng-content>
     </svg:g>
   </svg>

@@ -229,9 +229,7 @@
         </tr>
       </thead>
       <tbody>
-        <ng-container
-          *ngFor="let checkpoint of checkPointStats['history']; trackBy: trackHistoryBy"
-        >
+        <ng-container *ngFor="let checkpoint of checkPointStats['history']; trackBy: trackById">
           <tr>
             <td nzShowExpand [(nzExpand)]="checkpoint.expand"></td>
             <td>{{ checkpoint['id'] }}</td>

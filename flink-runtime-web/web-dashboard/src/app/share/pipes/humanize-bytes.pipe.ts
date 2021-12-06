@@ -18,17 +18,17 @@
 
 import { Pipe, PipeTransform } from '@angular/core';
 
-import { SafeAny } from 'interfaces';
 import { isNil } from 'utils';
 
 @Pipe({
   name: 'humanizeBytes'
 })
 export class HumanizeBytesPipe implements PipeTransform {
-  transform(value: number): SafeAny {
-    if (isNil(value) || value < 0) {
-      return '-';
+  public transform(value: number): string {
+    if (isNil(value) || isNaN(value) || value < 0) {
+      return '–';
     }
+
     const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
     const converter = (v: number, p: number): string => {
       const base = Math.pow(1024, p);
@@ -40,6 +40,7 @@ export class HumanizeBytesPipe implements PipeTransform {
         return converter(v, p + 1);
       }
     };
+
     if (value < 1000) {
       return `${value} B`;
     } else {

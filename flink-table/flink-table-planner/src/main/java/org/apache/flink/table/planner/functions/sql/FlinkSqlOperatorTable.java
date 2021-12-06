@@ -53,7 +53,7 @@ import java.util.List;
 
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.ARG0_VARCHAR_FORCE_NULLABLE;
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.STR_MAP_NULLABLE;
-import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_2000_NULLABLE;
+import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_FORCE_NULLABLE;
 
 /** Operator table that contains only Flink-specific functions and operators. */
 public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
@@ -307,7 +307,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "CHR",
                     SqlKind.OTHER_FUNCTION,
-                    VARCHAR_2000_NULLABLE,
+                    VARCHAR_FORCE_NULLABLE,
                     null,
                     OperandTypes.family(SqlTypeFamily.INTEGER),
                     SqlFunctionCategory.STRING);
@@ -351,7 +351,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "REVERSE",
                     SqlKind.OTHER_FUNCTION,
-                    VARCHAR_2000_NULLABLE,
+                    VARCHAR_FORCE_NULLABLE,
                     null,
                     OperandTypes.family(SqlTypeFamily.STRING),
                     SqlFunctionCategory.STRING);
@@ -372,7 +372,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "SPLIT_INDEX",
                     SqlKind.OTHER_FUNCTION,
-                    VARCHAR_2000_NULLABLE,
+                    VARCHAR_FORCE_NULLABLE,
                     null,
                     OperandTypes.or(
                             OperandTypes.family(
@@ -401,9 +401,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "REGEXP_EXTRACT",
                     SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.cascade(
-                            ReturnTypes.explicit(SqlTypeName.VARCHAR),
-                            SqlTypeTransforms.FORCE_NULLABLE),
+                    VARCHAR_FORCE_NULLABLE,
                     null,
                     OperandTypes.or(OperandTypes.STRING_STRING_INTEGER, OperandTypes.STRING_STRING),
                     SqlFunctionCategory.STRING);
@@ -507,9 +505,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "DATE_FORMAT",
                     SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.cascade(
-                            ReturnTypes.explicit(SqlTypeName.VARCHAR),
-                            SqlTypeTransforms.FORCE_NULLABLE),
+                    VARCHAR_FORCE_NULLABLE,
                     InferTypes.RETURN_TYPE,
                     OperandTypes.or(
                             OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING),
@@ -529,7 +525,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "PARSE_URL",
                     SqlKind.OTHER_FUNCTION,
-                    VARCHAR_2000_NULLABLE,
+                    VARCHAR_FORCE_NULLABLE,
                     null,
                     OperandTypes.or(
                             OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
@@ -604,7 +600,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "FROM_UNIXTIME",
                     SqlKind.OTHER_FUNCTION,
-                    VARCHAR_2000_NULLABLE,
+                    VARCHAR_FORCE_NULLABLE,
                     null,
                     OperandTypes.or(
                             OperandTypes.family(SqlTypeFamily.INTEGER),
@@ -781,9 +777,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "CONVERT_TZ",
                     SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.cascade(
-                            ReturnTypes.explicit(SqlTypeName.VARCHAR),
-                            SqlTypeTransforms.FORCE_NULLABLE),
+                    VARCHAR_FORCE_NULLABLE,
                     null,
                     OperandTypes.family(
                             SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
@@ -827,7 +821,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "DECODE",
                     SqlKind.OTHER_FUNCTION,
-                    VARCHAR_2000_NULLABLE,
+                    VARCHAR_FORCE_NULLABLE,
                     null,
                     OperandTypes.family(SqlTypeFamily.BINARY, SqlTypeFamily.STRING),
                     SqlFunctionCategory.STRING);
@@ -1145,13 +1139,13 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     // JSON FUNCTIONS
     public static final SqlFunction JSON_EXISTS = SqlStdOperatorTable.JSON_EXISTS;
     public static final SqlFunction JSON_VALUE = SqlStdOperatorTable.JSON_VALUE;
-    public static final SqlFunction JSON_QUERY = SqlStdOperatorTable.JSON_QUERY;
-    public static final SqlFunction JSON_OBJECT = new SqlJsonObjectFunction();
+    public static final SqlFunction JSON_QUERY = new SqlJsonQueryFunctionWrapper();
+    public static final SqlFunction JSON_OBJECT = new SqlJsonObjectFunctionWrapper();
     public static final SqlAggFunction JSON_OBJECTAGG_NULL_ON_NULL =
             SqlStdOperatorTable.JSON_OBJECTAGG;
     public static final SqlAggFunction JSON_OBJECTAGG_ABSENT_ON_NULL =
             SqlStdOperatorTable.JSON_OBJECTAGG.with(SqlJsonConstructorNullClause.ABSENT_ON_NULL);
-    public static final SqlFunction JSON_ARRAY = SqlStdOperatorTable.JSON_ARRAY;
+    public static final SqlFunction JSON_ARRAY = new SqlJsonArrayFunctionWrapper();
     public static final SqlAggFunction JSON_ARRAYAGG_NULL_ON_NULL =
             SqlStdOperatorTable.JSON_ARRAYAGG.with(SqlJsonConstructorNullClause.NULL_ON_NULL);
     public static final SqlAggFunction JSON_ARRAYAGG_ABSENT_ON_NULL =

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -93,10 +94,10 @@ public abstract class AbstractHBaseDynamicTableSource
     }
 
     @Override
-    public void applyProjection(int[][] projectedFields) {
+    public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.hbaseSchema =
                 HBaseTableSchema.fromDataType(
-                        DataType.projectFields(hbaseSchema.convertToDataType(), projectedFields));
+                        Projection.of(projectedFields).project(hbaseSchema.convertToDataType()));
     }
 
     @Override

@@ -53,9 +53,12 @@ public class BlockSplittingRecursiveEnumeratorTest extends NonSplittingRecursive
 
         final Collection<FileSourceSplit> expected =
                 Arrays.asList(
-                        new FileSourceSplit("ignoredId", testPath, 0L, 100L, "host1", "host2"),
-                        new FileSourceSplit("ignoredId", testPath, 100L, 520L, "host1", "host2"),
-                        new FileSourceSplit("ignoredId", testPath, 620L, 380L, "host1", "host2"));
+                        new FileSourceSplit(
+                                "ignoredId", testPath, 0L, 100L, 0, 1000L, "host1", "host2"),
+                        new FileSourceSplit(
+                                "ignoredId", testPath, 100L, 520L, 0, 1000L, "host1", "host2"),
+                        new FileSourceSplit(
+                                "ignoredId", testPath, 620L, 380L, 0, 1000L, "host1", "host2"));
 
         assertSplitsEqual(expected, splits);
     }

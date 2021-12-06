@@ -55,6 +55,11 @@ under the License.
 		<!-- Table connectors and formats -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-csv</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -82,6 +87,24 @@ under the License.
 
 	<build>
 		<plugins>
+			<!-- Fail compilation on deprecation warnings to prevent from showing users outdated examples. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>compile</id>
+						<phase>process-sources</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<compilerArgument>-Xlint:deprecation</compilerArgument>
+							<failOnWarning>true</failOnWarning>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
 				<artifactId>scala-maven-plugin</artifactId>
@@ -93,6 +116,11 @@ under the License.
 							<goal>add-source</goal>
 							<goal>compile</goal>
 						</goals>
+						<configuration>
+							<args>
+								<arg>-Xfatal-warnings</arg>
+							</args>
+						</configuration>
 					</execution>
 					<execution>
 						<id>scala-test-compile</id>

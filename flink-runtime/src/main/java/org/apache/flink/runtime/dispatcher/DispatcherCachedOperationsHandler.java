@@ -23,11 +23,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
-import org.apache.flink.runtime.rest.handler.async.OperationResultStatus;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -101,26 +99,10 @@ public class DispatcherCachedOperationsHandler {
     private CompletableFuture<Acknowledge> registerOperationIdempotently(
             AsynchronousJobOperationKey operationKey,
             Supplier<CompletableFuture<String>> operation) {
-        Optional<OperationResult<String>> resultOptional = savepointTriggerCache.get(operationKey);
-        if (resultOptional.isPresent()) {
-            return convertToFuture(resultOptional.get());
+        if (!savepointTriggerCache.containsOperation(operationKey)) {
+            savepointTriggerCache.registerOngoingOperation(operationKey, operation.get());
         }
 
-        savepointTriggerCache.registerOngoingOperation(operationKey, operation.get());
-
-        return savepointTriggerCache
-                .get(operationKey)
-                .map(DispatcherCachedOperationsHandler::convertToFuture)
-                // This shouldn't happen as we just registered the operation. We assume it is a
-                // temporary issue with the cache
-                .orElse(CompletableFuture.completedFuture(Acknowledge.get()));
-    }
-
-    private static CompletableFuture<Acknowledge> convertToFuture(OperationResult<String> result) {
-        if (result.getStatus() == OperationResultStatus.FAILURE) {
-            return FutureUtils.completedExceptionally(
-                    new OperationAlreadyFailedException(result.getThrowable()));
-        }
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 }

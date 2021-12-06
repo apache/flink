@@ -27,6 +27,7 @@ import java.util.OptionalInt;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -163,6 +164,54 @@ public class BufferDebloaterTest extends TestLogger {
         bufferDebloater.recalculateBufferSize(40, numberOfBuffersInUse);
     }
 
+    @Test
+    public void testSkipUpdate() {
+        int maxBufferSize = 32768;
+        int minBufferSize = 256;
+        double threshold = 0.3;
+        BufferDebloater bufferDebloater =
+                testBufferDebloater()
+                        .withDebloatTarget(1000)
+                        .withBufferSize(minBufferSize, maxBufferSize)
+                        // 30 % Threshold.
+                        .withThresholdPercentages((int) (threshold * 100))
+                        .getBufferDebloater();
+
+        int currentBufferSize = maxBufferSize / 2;
+
+        OptionalInt optionalInt = bufferDebloater.recalculateBufferSize(currentBufferSize, 1);
+        assertTrue(optionalInt.isPresent());
+        assertEquals(currentBufferSize, optionalInt.getAsInt());
+
+        // It is true because less than threshold.
+        assertTrue(bufferDebloater.skipUpdate(currentBufferSize));
+        assertTrue(bufferDebloater.skipUpdate(currentBufferSize - 1));
+        assertTrue(bufferDebloater.skipUpdate(currentBufferSize + 1));
+
+        assertTrue(
+                bufferDebloater.skipUpdate(
+                        currentBufferSize - (int) (currentBufferSize * threshold) + 1));
+        assertTrue(
+                bufferDebloater.skipUpdate(
+                        currentBufferSize + (int) (currentBufferSize * threshold) - 1));
+
+        // It is false because it reaches threshold.
+        assertFalse(
+                bufferDebloater.skipUpdate(
+                        currentBufferSize - (int) (currentBufferSize * threshold)));
+        assertFalse(
+                bufferDebloater.skipUpdate(
+                        currentBufferSize + (int) (currentBufferSize * threshold)));
+        assertFalse(bufferDebloater.skipUpdate(minBufferSize + 1));
+        assertFalse(bufferDebloater.skipUpdate(minBufferSize));
+        assertFalse(bufferDebloater.skipUpdate(maxBufferSize - 1));
+        assertFalse(bufferDebloater.skipUpdate(maxBufferSize));
+
+        // Beyond the min and max size is always false.
+        assertFalse(bufferDebloater.skipUpdate(maxBufferSize + 1));
+        assertFalse(bufferDebloater.skipUpdate(minBufferSize - 1));
+    }
+
     public static BufferDebloaterTestBuilder testBufferDebloater() {
         return new BufferDebloaterTestBuilder();
     }
@@ -173,6 +222,7 @@ public class BufferDebloaterTest extends TestLogger {
         private int minBufferSize;
         private int maxBufferSize;
         private int debloatTarget;
+        private int thresholdPercentages = BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES.defaultValue();
 
         public BufferDebloaterTestBuilder withNumberOfBuffersInUse(Integer numberOfBuffersInUse) {
             this.numberOfBuffersInUse = numberOfBuffersInUse;
@@ -192,6 +242,11 @@ public class BufferDebloaterTest extends TestLogger {
 
         public BufferDebloaterTestBuilder withDebloatTarget(int debloatTarget) {
             this.debloatTarget = debloatTarget;
+            return this;
+        }
+
+        public BufferDebloaterTestBuilder withThresholdPercentages(int thresholdPercentages) {
+            this.thresholdPercentages = thresholdPercentages;
             return this;
         }
 
@@ -219,11 +274,7 @@ public class BufferDebloaterTest extends TestLogger {
 
         private BufferDebloater getBufferDebloater() {
             return new BufferDebloater(
-                    debloatTarget,
-                    maxBufferSize,
-                    minBufferSize,
-                    BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES.defaultValue(),
-                    1);
+                    0, debloatTarget, maxBufferSize, minBufferSize, thresholdPercentages, 1);
         }
     }
 }

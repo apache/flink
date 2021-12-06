@@ -95,7 +95,7 @@ public class MessageSerializationTest extends TestLogger {
 
     /**
      * Tests that a remote rpc call with a non-serializable argument fails with an {@link
-     * IOException} (or an {@link java.lang.reflect.UndeclaredThrowableException} if the the method
+     * IOException} (or an {@link java.lang.reflect.UndeclaredThrowableException} if the method
      * declaration does not include the {@link IOException} as throwable).
      */
     @Test(expected = IOException.class)

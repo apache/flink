@@ -50,23 +50,6 @@ LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testNestedProjectFieldAccessWithITEMWithConstantIndex">
-    <Resource name="sql">
-      <![CDATA[SELECT `Result`.`Mid`.data_arr[2].`value`, `Result`.`Mid`.data_arr FROM NestedItemTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[ITEM($2.Mid.data_arr, 2).value], data_arr=[$2.Mid.data_arr])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(EXPR$0=[ITEM($0, 2).value], data_arr=[$0])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable, project=[Result_Mid_data_arr], metadata=[]]])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testComplicatedNestedProject">
     <Resource name="sql">
       <![CDATA[SELECT id,    deepNested.nested1.name AS nestedName,
@@ -209,6 +192,23 @@ LogicalProject(EXPR$0=[ITEM($0.data_arr, 2).value], EXPR$1=[ITEM($0.data_arr, $1
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNestedProjectFieldAccessWithITEMWithConstantIndex">
+    <Resource name="sql">
+      <![CDATA[SELECT `Result`.`Mid`.data_arr[2].`value`, `Result`.`Mid`.data_arr FROM NestedItemTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($2.Mid.data_arr, 2).value], data_arr=[$2.Mid.data_arr])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($0, 2).value], data_arr=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable, project=[Result_Mid_data_arr], metadata=[]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNestProjectWithMetadata">
     <Resource name="sql">
       <![CDATA[SELECT id,    deepNested.nested1 AS nested1,
@@ -224,7 +224,7 @@ LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], nested1=[$1], results=[+(+($1.value, $2), $3)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, project=[id, deepNested_nested1, deepNested_nested2_num, metadata_1], metadata=[metadata_1]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, project=[id, deepNested_nested1, deepNested_nested2_num], metadata=[metadata_1]]])
 ]]>
     </Resource>
   </TestCase>
@@ -243,7 +243,57 @@ LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], nested1=[$1], results=[+(+($1.value, $2), $3)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, project=[id, deepNested_nested1, deepNested_nested2_num, metadata_1], metadata=[metadata_1]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, project=[id, deepNested_nested1, deepNested_nested2_num], metadata=[metadata_1]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectFieldAccessWithITEM">
+    <Resource name="sql">
+      <![CDATA[SELECT `Result`.data_arr[ID].`value`, `Result`.data_map['item'].`value`, `outer_array`[1], `outer_array`[ID], `outer_map`['item'] FROM ItemTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _UTF-16LE'item').value], EXPR$2=[ITEM($3, 1)], EXPR$3=[ITEM($3, $0)], EXPR$4=[ITEM($4, _UTF-16LE'item')])
++- LogicalTableScan(table=[[default_catalog, default_database, ItemTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($0.data_arr, $1).value], EXPR$1=[ITEM($0.data_map, _UTF-16LE'item').value], EXPR$2=[ITEM($2, 1)], EXPR$3=[ITEM($2, $1)], EXPR$4=[ITEM($3, _UTF-16LE'item')])
++- LogicalTableScan(table=[[default_catalog, default_database, ItemTable, project=[Result, ID, outer_array, outer_map], metadata=[]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectionWithMetadataAndPhysicalFields">
+    <Resource name="sql">
+      <![CDATA[SELECT metadata, f1 FROM T5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(metadata=[$1], f1=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, T5]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(metadata=[$1], f1=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, T5, project=[f1], metadata=[m2]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectionIncludingOnlyMetadata">
+    <Resource name="sql">
+      <![CDATA[SELECT metadata FROM T5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(metadata=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, T5]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalTableScan(table=[[default_catalog, default_database, T5, project=[], metadata=[m2]]])
 ]]>
     </Resource>
   </TestCase>
@@ -262,23 +312,6 @@ LogicalProject(id=[$0], EXPR$1=[ITEM($5, _UTF-16LE'e')])
       <![CDATA[
 LogicalProject(id=[$0], EXPR$1=[ITEM($1, _UTF-16LE'e')])
 +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, testMap], metadata=[]]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testProjectFieldAccessWithITEM">
-    <Resource name="sql">
-      <![CDATA[SELECT `Result`.data_arr[ID].`value`, `Result`.data_map['item'].`value`, `outer_array`[1], `outer_array`[ID], `outer_map`['item'] FROM ItemTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _UTF-16LE'item').value], EXPR$2=[ITEM($3, 1)], EXPR$3=[ITEM($3, $0)], EXPR$4=[ITEM($4, _UTF-16LE'item')])
-+- LogicalTableScan(table=[[default_catalog, default_database, ItemTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(EXPR$0=[ITEM($0.data_arr, $1).value], EXPR$1=[ITEM($0.data_map, _UTF-16LE'item').value], EXPR$2=[ITEM($2, 1)], EXPR$3=[ITEM($2, $1)], EXPR$4=[ITEM($3, _UTF-16LE'item')])
-+- LogicalTableScan(table=[[default_catalog, default_database, ItemTable, project=[Result, ID, outer_array, outer_map], metadata=[]]])
 ]]>
     </Resource>
   </TestCase>

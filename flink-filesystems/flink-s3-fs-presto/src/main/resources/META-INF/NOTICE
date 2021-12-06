@@ -21,11 +21,11 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.facebook.presto:presto-hive:0.257
 - com.facebook.presto:presto-hive-common:0.257
 - com.facebook.presto:presto-hive-metastore:0.257
-- com.facebook.presto.hadoop:hadoop-apache2:2.7.3-1
-- com.fasterxml.jackson.core:jackson-annotations:2.12.1
-- com.fasterxml.jackson.core:jackson-core:2.12.1
-- com.fasterxml.jackson.core:jackson-databind:2.12.1
-- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.12.1
+- com.facebook.presto.hadoop:hadoop-apache2:2.7.4-9
+- com.fasterxml.jackson.core:jackson-annotations:2.13.0
+- com.fasterxml.jackson.core:jackson-core:2.13.0
+- com.fasterxml.jackson.core:jackson-databind:2.13.0
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.13.0
 - com.fasterxml.woodstox:woodstox-core:5.0.3
 - com.google.guava:guava:26.0-jre
 - com.google.inject:guice:4.2.2

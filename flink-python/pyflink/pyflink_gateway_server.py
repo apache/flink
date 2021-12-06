@@ -240,7 +240,7 @@ def download_apache_avro():
                         avro_version_output)
     check_output(
         [mvn,
-         "org.apache.maven.plugins:maven-dependency-plugin:2.10:copy",
+         "org.apache.maven.plugins:maven-dependency-plugin:3.2.0:copy",
          "-Dartifact=org.apache.avro:avro:%s:jar" % avro_version,
          "-DoutputDirectory=%s/flink-formats/flink-avro/target" % flink_source_root],
         cwd=flink_source_root)
@@ -256,6 +256,8 @@ def construct_test_classpath():
         "flink-formats/flink-json/target/flink-json*.jar",
         "flink-python/target/artifacts/testDataStream.jar",
         "flink-python/target/flink-python*-tests.jar",
+        ("flink-state-backends/flink-statebackend-rocksdb/target/"
+         "flink-statebackend-rocksdb*tests.jar"),
     ]
     test_jars = []
     flink_source_root = _find_flink_source_root()

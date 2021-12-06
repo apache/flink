@@ -56,11 +56,11 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
-									<include>org.apache.kafka:*</include>
+									<include>org.apache.flink:flink-connector-base</include>
 									<include>org.apache.flink:flink-connector-kafka</include>
+									<include>org.apache.kafka:*</include>
 								</includes>
 							</artifactSet>
 							<filters>

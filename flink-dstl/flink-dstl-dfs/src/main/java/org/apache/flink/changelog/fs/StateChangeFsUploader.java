@@ -25,6 +25,8 @@ import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
@@ -56,14 +58,22 @@ class StateChangeFsUploader implements StateChangeUploader {
     private final StateChangeFormat format;
     private final boolean compression;
     private final int bufferSize;
+    private final ChangelogStorageMetricGroup metrics;
+    private final Clock clock;
 
     public StateChangeFsUploader(
-            Path basePath, FileSystem fileSystem, boolean compression, int bufferSize) {
+            Path basePath,
+            FileSystem fileSystem,
+            boolean compression,
+            int bufferSize,
+            ChangelogStorageMetricGroup metrics) {
         this.basePath = basePath;
         this.fileSystem = fileSystem;
         this.format = new StateChangeFormat();
         this.compression = compression;
         this.bufferSize = bufferSize;
+        this.metrics = metrics;
+        this.clock = SystemClock.getInstance();
     }
 
     @Override
@@ -77,10 +87,11 @@ class StateChangeFsUploader implements StateChangeUploader {
         Path path = new Path(basePath, fileName);
 
         try {
-            LocalResult result = upload(path, tasks);
+            LocalResult result = uploadWithMetrics(path, tasks);
             result.tasksOffsets.forEach(
                     (task, offsets) -> task.complete(buildResults(result.handle, offsets)));
         } catch (IOException e) {
+            metrics.getUploadFailuresCounter().inc();
             try (Closer closer = Closer.create()) {
                 closer.register(
                         () -> {
@@ -90,6 +101,16 @@ class StateChangeFsUploader implements StateChangeUploader {
                 closer.register(() -> fileSystem.delete(path, true));
             }
         }
+    }
+
+    private LocalResult uploadWithMetrics(Path path, Collection<UploadTask> tasks)
+            throws IOException {
+        metrics.getUploadsCounter().inc();
+        long start = clock.relativeTimeNanos();
+        LocalResult result = upload(path, tasks);
+        metrics.getUploadLatenciesNanos().update(clock.relativeTimeNanos() - start);
+        metrics.getUploadSizes().update(result.handle.getStateSize());
+        return result;
     }
 
     private LocalResult upload(Path path, Collection<UploadTask> tasks) throws IOException {

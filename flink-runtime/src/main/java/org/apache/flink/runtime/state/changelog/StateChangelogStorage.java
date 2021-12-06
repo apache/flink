@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
 /**
@@ -35,4 +36,8 @@ public interface StateChangelogStorage<Handle extends ChangelogStateHandle> exte
 
     @Override
     default void close() throws Exception {}
+
+    default AvailabilityProvider getAvailabilityProvider() {
+        return () -> AvailabilityProvider.AVAILABLE;
+    }
 }

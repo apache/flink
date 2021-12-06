@@ -42,7 +42,7 @@
       </tr>
     </thead>
     <tbody>
-      <ng-container *ngFor="let manager of table.data; trackBy: trackManagerBy">
+      <ng-container *ngFor="let manager of table.data; trackBy: trackById">
         <tr class="clickable" (click)="navigateTo(manager)">
           <td nzLeft="0px">
             <em class="break-word">

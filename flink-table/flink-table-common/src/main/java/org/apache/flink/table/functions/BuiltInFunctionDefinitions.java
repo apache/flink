@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
@@ -33,6 +34,7 @@ import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
@@ -757,6 +759,24 @@ public final class BuiltInFunctionDefinitions {
                                             SpecificTypeStrategies.DECIMAL_PLUS,
                                             COMMON,
                                             explicit(DataTypes.STRING()))))
+                    .build();
+
+    /**
+     * Special "+" operator used internally by {@code SumAggFunction} to implement SUM aggregation
+     * on a Decimal type. Uses the {@link LogicalTypeMerging#findSumAggType(LogicalType)} to avoid
+     * the normal {@link #PLUS} override the special calculation for precision and scale needed by
+     * SUM.
+     */
+    public static final BuiltInFunctionDefinition AGG_DECIMAL_PLUS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("AGG_DECIMAL_PLUS")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeRoot.DECIMAL),
+                                    logical(LogicalTypeRoot.DECIMAL)))
+                    .outputTypeStrategy(SpecificTypeStrategies.AGG_DECIMAL_PLUS)
+                    .runtimeProvided()
                     .build();
 
     /** Combines numeric subtraction and "datetime - interval" arithmetic. */
@@ -1704,6 +1724,7 @@ public final class BuiltInFunctionDefinitions {
 
     public static final List<FunctionDefinition> ORDERING = Arrays.asList(ORDER_ASC, ORDER_DESC);
 
+    @Internal
     public static List<BuiltInFunctionDefinition> getDefinitions() {
         final Field[] fields = BuiltInFunctionDefinitions.class.getFields();
         final List<BuiltInFunctionDefinition> list = new ArrayList<>(fields.length);

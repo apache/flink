@@ -173,16 +173,22 @@ object FlinkBatchRuleSets {
   )
 
   /**
-    * RuleSet to do push predicate/partition into table scan
-    */
-  val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
-    // push a filter down into the table scan
-    PushFilterIntoTableSourceScanRule.INSTANCE,
-    PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
+   * RuleSet to push down partitions into table source
+   */
+  val PUSH_PARTITION_DOWN_RULES: RuleSet = RuleSets.ofList(
     // push partition into the table scan
     PushPartitionIntoLegacyTableSourceScanRule.INSTANCE,
     // push partition into the dynamic table scan
     PushPartitionIntoTableSourceScanRule.INSTANCE
+  )
+
+  /**
+   * RuleSet to push down filters into table source
+   */
+  val PUSH_FILTER_DOWN_RULES: RuleSet = RuleSets.ofList(
+    // push a filter down into the table scan
+    PushFilterIntoTableSourceScanRule.INSTANCE,
+    PushFilterIntoLegacyTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -217,7 +223,9 @@ object FlinkBatchRuleSets {
     //removes constant keys from an Agg
     CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
     // push project through a Union
-    CoreRules.PROJECT_SET_OP_TRANSPOSE
+    CoreRules.PROJECT_SET_OP_TRANSPOSE,
+    // push a projection to the child of a WindowTableFunctionScan
+    ProjectWindowTableFunctionTransposeRule.INSTANCE
   )
 
   val JOIN_COND_EQUAL_TRANSFER_RULES: RuleSet = RuleSets.ofList((
@@ -425,6 +433,8 @@ object FlinkBatchRuleSets {
     // window agg
     BatchPhysicalWindowAggregateRule.INSTANCE,
     BatchPhysicalPythonWindowAggregateRule.INSTANCE,
+    // window tvf
+    BatchPhysicalWindowTableFunctionRule.INSTANCE,
     // join
     BatchPhysicalHashJoinRule.INSTANCE,
     BatchPhysicalSortMergeJoinRule.INSTANCE,

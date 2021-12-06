@@ -107,6 +107,7 @@ public interface ScanTableSource extends DynamicTableSource {
      * instances are {@link Serializable} and can be directly passed into the runtime implementation
      * class.
      */
+    @PublicEvolving
     interface ScanContext extends DynamicTableSource.Context {
         // may introduce scan specific methods in the future
     }
@@ -122,6 +123,7 @@ public interface ScanTableSource extends DynamicTableSource {
      * in {@code flink-table-api-java-bridge} and {@link InputFormatProvider} are available for
      * backwards compatibility.
      */
+    @PublicEvolving
     interface ScanRuntimeProvider {
 
         /** Returns whether the data is bounded or not. */

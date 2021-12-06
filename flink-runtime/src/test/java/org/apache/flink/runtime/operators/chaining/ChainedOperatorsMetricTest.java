@@ -84,9 +84,8 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
                                                 NoOpMetricRegistry.INSTANCE,
                                                 "host",
                                                 ResourceID.generate())
-                                        .addTaskForJob(
-                                                new JobID(),
-                                                "jobName",
+                                        .addJob(new JobID(), "jobName")
+                                        .addTask(
                                                 new JobVertexID(),
                                                 new ExecutionAttemptID(),
                                                 "task",

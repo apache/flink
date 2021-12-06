@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphCheckpointPlanCalculatorContext;
@@ -28,6 +27,7 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -89,7 +89,8 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
                                 new ExecutionGraphCheckpointPlanCalculatorContext(graph),
                                 graph.getVerticesTopologically(),
                                 false),
-                        new ExecutionAttemptMappingProvider(graph.getAllExecutionVertices()));
+                        new ExecutionAttemptMappingProvider(graph.getAllExecutionVertices()),
+                        mock(CheckpointStatsTracker.class));
 
         // switch current execution's state to running to allow checkpoint could be triggered.
         graph.transitionToRunning();

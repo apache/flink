@@ -83,7 +83,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
-import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -738,7 +738,7 @@ public class StreamTaskTest extends TestLogger {
                         new JobID(1L, 2L),
                         new ExecutionAttemptID(),
                         mock(TaskLocalStateStoreImpl.class),
-                        mock(StateChangelogStorage.class),
+                        new InMemoryStateChangelogStorage(),
                         null,
                         checkpointResponder);
 
@@ -931,7 +931,7 @@ public class StreamTaskTest extends TestLogger {
                         new JobID(1L, 2L),
                         new ExecutionAttemptID(),
                         mock(TaskLocalStateStoreImpl.class),
-                        mock(StateChangelogStorage.class),
+                        new InMemoryStateChangelogStorage(),
                         null,
                         checkpointResponder);
 
@@ -1154,6 +1154,18 @@ public class StreamTaskTest extends TestLogger {
                 env ->
                         taskBuilderWithConfiguredRecordWriter(env)
                                 .setTaskManagerActions(taskManagerActions)
+                                .build());
+    }
+
+    @Test
+    public void testFailInEndOfConstructor() throws Exception {
+        Configuration conf = new Configuration();
+        // Set the wrong setting type for forcing the fail during read.
+        conf.setString(BUFFER_DEBLOAT_PERIOD.key(), "a");
+        testRecordWriterClosedOnError(
+                env ->
+                        taskBuilderWithConfiguredRecordWriter(env)
+                                .setTaskManagerConfig(conf)
                                 .build());
     }
 

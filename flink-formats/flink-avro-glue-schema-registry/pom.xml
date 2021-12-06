@@ -96,6 +96,13 @@ under the License.
 			<groupId>software.amazon.glue</groupId>
 			<artifactId>schema-registry-serde</artifactId>
 			<version>${glue.schema.registry.version}</version>
+			<exclusions>
+				<!-- Testcontainers dependency includes a newer version -->
+				<exclusion>
+					<groupId>org.jetbrains</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>

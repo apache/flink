@@ -37,7 +37,7 @@ under the License.
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<rabbitmq.version>5.9.0</rabbitmq.version>
+		<rabbitmq.version>5.13.1</rabbitmq.version>
 	</properties>
 
 	<dependencies>

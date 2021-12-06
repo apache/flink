@@ -62,7 +62,7 @@ public class CassandraSink<IN> {
     }
 
     private LegacySinkTransformation<IN> getSinkTransformation() {
-        return sink1.getTransformation();
+        return sink1.getLegacyTransformation();
     }
 
     private Transformation<IN> getTransformation() {

@@ -22,15 +22,15 @@ import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static java.util.stream.Collectors.toList;
 
 class TestingStateChangeUploader implements StateChangeUploader {
-    private final Collection<StateChangeSet> uploaded = new ArrayList<>();
-    private final List<UploadTask> tasks = new ArrayList<>();
+    private final Collection<StateChangeSet> uploaded = new CopyOnWriteArrayList<>();
+    private final List<UploadTask> tasks = new CopyOnWriteArrayList<>();
     private boolean closed;
 
     @Override

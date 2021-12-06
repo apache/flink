@@ -96,7 +96,14 @@ public class BlockSplittingRecursiveEnumerator extends NonSplittingRecursiveEnum
 
         final BlockLocation[] blocks = getBlockLocationsForFile(file, fs);
         if (blocks == null) {
-            target.add(new FileSourceSplit(getNextId(), file.getPath(), 0L, file.getLen()));
+            target.add(
+                    new FileSourceSplit(
+                            getNextId(),
+                            file.getPath(),
+                            0L,
+                            file.getLen(),
+                            file.getModificationTime(),
+                            file.getLen()));
         } else {
             for (BlockLocation block : blocks) {
                 target.add(
@@ -105,6 +112,8 @@ public class BlockSplittingRecursiveEnumerator extends NonSplittingRecursiveEnum
                                 file.getPath(),
                                 block.getOffset(),
                                 block.getLength(),
+                                file.getModificationTime(),
+                                file.getLen(),
                                 block.getHosts()));
             }
         }

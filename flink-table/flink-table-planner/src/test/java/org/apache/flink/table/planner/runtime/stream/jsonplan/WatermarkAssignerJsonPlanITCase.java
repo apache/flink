@@ -28,7 +28,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
 
-import static org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime;
+import static org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime;
 
 /** Test for watermark assigner json plan. */
 public class WatermarkAssignerJsonPlanITCase extends JsonPlanTestBase {
@@ -59,9 +59,9 @@ public class WatermarkAssignerJsonPlanITCase extends JsonPlanTestBase {
 
         assertResult(
                 Arrays.asList(
-                        "4,3," + unixTimestampToLocalDateTime(4000L),
-                        "5,3," + unixTimestampToLocalDateTime(5000L),
-                        "6,3," + unixTimestampToLocalDateTime(6000L)),
+                        "4,3," + toLocalDateTime(4000L),
+                        "5,3," + toLocalDateTime(5000L),
+                        "6,3," + toLocalDateTime(6000L)),
                 sinkPath);
     }
 }

@@ -20,7 +20,9 @@ package org.apache.flink.runtime.rest.handler.job.savepoints;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.dispatcher.UnknownOperationKeyException;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.rest.RestMatchers;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -40,11 +42,14 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -57,6 +62,7 @@ import static org.apache.flink.runtime.rest.handler.job.savepoints.SavepointTest
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -208,20 +214,79 @@ public class SavepointHandlersTest extends TestLogger {
         assertThat(savepointError, instanceOf(RuntimeException.class));
     }
 
+    @Test
+    public void testProvidedTriggerId() throws Exception {
+        final OperationResult<String> successfulResult =
+                OperationResult.success(COMPLETED_SAVEPOINT_EXTERNAL_POINTER);
+        AtomicReference<AsynchronousJobOperationKey> keyReference = new AtomicReference<>();
+        final TestingRestfulGateway testingRestfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setTriggerSavepointFunction(setReferenceToOperationKey(keyReference))
+                        .setGetSavepointStatusFunction(
+                                getResultIfKeyMatches(successfulResult, keyReference))
+                        .build();
+
+        final TriggerId providedTriggerId = new TriggerId();
+
+        final TriggerId returnedTriggerId =
+                savepointTriggerHandler
+                        .handleRequest(
+                                triggerSavepointRequest(
+                                        DEFAULT_REQUESTED_SAVEPOINT_TARGET_DIRECTORY,
+                                        providedTriggerId),
+                                testingRestfulGateway)
+                        .get()
+                        .getTriggerId();
+
+        assertEquals(providedTriggerId, returnedTriggerId);
+
+        AsynchronousOperationResult<SavepointInfo> savepointResponseBody;
+        savepointResponseBody =
+                savepointStatusHandler
+                        .handleRequest(
+                                savepointStatusRequest(providedTriggerId), testingRestfulGateway)
+                        .get();
+
+        assertThat(savepointResponseBody.queueStatus().getId(), equalTo(QueueStatus.Id.COMPLETED));
+        assertThat(savepointResponseBody.resource(), notNullValue());
+        assertThat(
+                savepointResponseBody.resource().getLocation(),
+                equalTo(COMPLETED_SAVEPOINT_EXTERNAL_POINTER));
+    }
+
+    @Test
+    public void testQueryStatusOfUnknownOperationReturnsError()
+            throws HandlerRequestException, RestHandlerException {
+        final TestingRestfulGateway testingRestfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setGetSavepointStatusFunction(
+                                key ->
+                                        FutureUtils.completedExceptionally(
+                                                new UnknownOperationKeyException(key)))
+                        .build();
+
+        final CompletableFuture<AsynchronousOperationResult<SavepointInfo>> statusFuture =
+                savepointStatusHandler.handleRequest(
+                        savepointStatusRequest(new TriggerId()), testingRestfulGateway);
+
+        assertThat(statusFuture, RestMatchers.respondsWithError(HttpResponseStatus.NOT_FOUND));
+    }
+
     private static HandlerRequest<SavepointTriggerRequestBody> triggerSavepointRequest()
             throws HandlerRequestException {
-        return triggerSavepointRequest(DEFAULT_REQUESTED_SAVEPOINT_TARGET_DIRECTORY);
+        return triggerSavepointRequest(DEFAULT_REQUESTED_SAVEPOINT_TARGET_DIRECTORY, null);
     }
 
     private static HandlerRequest<SavepointTriggerRequestBody>
             triggerSavepointRequestWithDefaultDirectory() throws HandlerRequestException {
-        return triggerSavepointRequest(null);
+        return triggerSavepointRequest(null, null);
     }
 
     private static HandlerRequest<SavepointTriggerRequestBody> triggerSavepointRequest(
-            final String targetDirectory) throws HandlerRequestException {
+            @Nullable final String targetDirectory, @Nullable TriggerId triggerId)
+            throws HandlerRequestException {
         return HandlerRequest.resolveParametersAndCreate(
-                new SavepointTriggerRequestBody(targetDirectory, false),
+                new SavepointTriggerRequestBody(targetDirectory, false, triggerId),
                 new SavepointTriggerMessageParameters(),
                 Collections.singletonMap(JobIDPathParameter.KEY, JOB_ID.toString()),
                 Collections.emptyMap(),

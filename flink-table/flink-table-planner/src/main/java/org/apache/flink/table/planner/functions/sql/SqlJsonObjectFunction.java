@@ -30,7 +30,6 @@ import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlWriter;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
@@ -46,8 +45,8 @@ import static org.apache.calcite.util.Static.RESOURCE;
 /**
  * This class has been copied from Calcite to backport the fix made during CALCITE-4394.
  *
- * <p>TODO Remove this class with Calcite 1.27 and replace it with {@link
- * SqlStdOperatorTable#JSON_OBJECT}.
+ * <p>TODO Remove this class with Calcite 1.27 and replace the {@link SqlJsonObjectFunction} in the
+ * {@link SqlJsonObjectFunctionWrapper} using the {@code VARCHAR_NOT_NULL} return type inference.
  */
 public class SqlJsonObjectFunction extends SqlFunction {
     public SqlJsonObjectFunction() {

@@ -53,8 +53,7 @@ import org.junit.runners.Parameterized.Parameters;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LogicalTypeCasts}. */
 @RunWith(Parameterized.class)
@@ -281,15 +280,13 @@ public class LogicalTypeCastsTest {
 
     @Test
     public void testImplicitCasting() {
-        assertThat(
-                LogicalTypeCasts.supportsImplicitCast(sourceType, targetType),
-                equalTo(supportsImplicit));
+        assertThat(LogicalTypeCasts.supportsImplicitCast(sourceType, targetType))
+                .isEqualTo(supportsImplicit);
     }
 
     @Test
     public void testExplicitCasting() {
-        assertThat(
-                LogicalTypeCasts.supportsExplicitCast(sourceType, targetType),
-                equalTo(supportsExplicit));
+        assertThat(LogicalTypeCasts.supportsExplicitCast(sourceType, targetType))
+                .isEqualTo(supportsExplicit);
     }
 }

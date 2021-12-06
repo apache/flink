@@ -18,6 +18,7 @@
 package org.apache.flink.test.streaming.api.functions.source;
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -53,7 +54,9 @@ public class ContinuousFileReaderOperatorITCase {
                                 new SimpleStringEncoder<String>())
                         .withOutputFileConfig(OutputFileConfig.builder().build())
                         .withRollingPolicy(
-                                DefaultRollingPolicy.builder().withMaxPartSize(1024 * 1024).build())
+                                DefaultRollingPolicy.builder()
+                                        .withMaxPartSize(MemorySize.ofMebiBytes(1))
+                                        .build())
                         .build();
         stream.sinkTo(sink);
         env.execute("test");

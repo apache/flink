@@ -136,18 +136,6 @@ public class UnregisteredMetricGroups {
         protected UnregisteredTaskManagerMetricGroup() {
             super(NoOpMetricRegistry.INSTANCE, DEFAULT_HOST_NAME, DEFAULT_TASKMANAGER_ID);
         }
-
-        @Override
-        public TaskMetricGroup addTaskForJob(
-                final JobID jobId,
-                final String jobName,
-                final JobVertexID jobVertexId,
-                final ExecutionAttemptID executionAttemptId,
-                final String taskName,
-                final int subtaskIndex,
-                final int attemptNumber) {
-            return createUnregisteredTaskMetricGroup();
-        }
     }
 
     /** A safe drop-in replacement for {@link TaskManagerJobMetricGroup}s. */

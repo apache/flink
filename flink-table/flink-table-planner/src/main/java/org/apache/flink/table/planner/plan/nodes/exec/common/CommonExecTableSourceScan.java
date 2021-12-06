@@ -79,7 +79,8 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         final String operatorName = getDescription();
         final InternalTypeInfo<RowData> outputTypeInfo =
                 InternalTypeInfo.of((RowType) getOutputType());
-        final ScanTableSource tableSource = tableSourceSpec.getScanTableSource(planner);
+        final ScanTableSource tableSource =
+                tableSourceSpec.getScanTableSource(planner.getFlinkContext());
         ScanTableSource.ScanRuntimeProvider provider =
                 tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         if (provider instanceof SourceFunctionProvider) {

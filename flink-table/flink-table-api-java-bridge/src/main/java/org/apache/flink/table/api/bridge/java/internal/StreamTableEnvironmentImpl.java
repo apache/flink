@@ -49,10 +49,10 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
+import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionParser;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -458,7 +458,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
 
     @Override
     public <T> Table fromDataStream(DataStream<T> dataStream, String fields) {
-        List<Expression> expressions = ExpressionParser.parseExpressionList(fields);
+        List<Expression> expressions = ExpressionParser.INSTANCE.parseExpressionList(fields);
         return fromDataStream(dataStream, expressions.toArray(new Expression[0]));
     }
 

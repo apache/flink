@@ -120,6 +120,13 @@ under the License.
 			<groupId>com.kjetland</groupId>
 			<artifactId>mbknor-jackson-jsonschema_${scala.binary.version}</artifactId>
 			<version>1.0.39</version>
+			<exclusions>
+				<!-- Testcontainers dependency includes a newer version -->
+				<exclusion>
+					<groupId>org.jetbrains</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>

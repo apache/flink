@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +83,8 @@ public class StateChangelogStorageLoader {
     }
 
     @Nullable
-    public static StateChangelogStorage<?> load(Configuration configuration) throws IOException {
+    public static StateChangelogStorage<?> load(
+            Configuration configuration, TaskManagerJobMetricGroup metricGroup) throws IOException {
         final String identifier =
                 configuration
                         .getString(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE)
@@ -94,7 +96,7 @@ public class StateChangelogStorageLoader {
             return null;
         } else {
             LOG.info("Creating a changelog storage with name '{}'.", identifier);
-            return factory.createStorage(configuration);
+            return factory.createStorage(configuration, metricGroup);
         }
     }
 }

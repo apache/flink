@@ -104,9 +104,9 @@ val sink: StreamingFileSink[String] = StreamingFileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(TimeUnit.MINUTES.toMillis(15))
-            .withInactivityInterval(TimeUnit.MINUTES.toMillis(5))
-            .withMaxPartSize(1024 * 1024 * 1024)
+            .withRolloverInterval(Duration.ofSeconds(10))
+            .withInactivityInterval(Duration.ofSeconds(10))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1))
             .build())
     .build()
 

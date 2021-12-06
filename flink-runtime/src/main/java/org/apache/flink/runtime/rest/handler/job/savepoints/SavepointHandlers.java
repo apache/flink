@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
+import org.apache.flink.runtime.dispatcher.UnknownOperationKeyException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -46,6 +47,7 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepo
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -54,7 +56,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * HTTP handlers for asynchronous triggering of savepoints.
@@ -130,8 +134,11 @@ public class SavepointHandlers {
 
         protected AsynchronousJobOperationKey createOperationKey(final HandlerRequest<B> request) {
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-            return AsynchronousJobOperationKey.of(new TriggerId(), jobId);
+            return AsynchronousJobOperationKey.of(
+                    extractTriggerId(request.getRequestBody()).orElseGet(TriggerId::new), jobId);
         }
+
+        protected abstract Optional<TriggerId> extractTriggerId(B request);
 
         public CompletableFuture<TriggerResponse> handleRequest(
                 @Nonnull HandlerRequest<B> request, @Nonnull RestfulGateway gateway)
@@ -139,7 +146,16 @@ public class SavepointHandlers {
             final AsynchronousJobOperationKey operationKey = createOperationKey(request);
 
             return triggerOperation(request, operationKey, gateway)
-                    .thenApply(acknowledge -> new TriggerResponse(operationKey.getTriggerId()));
+                    .handle(
+                            (acknowledge, throwable) -> {
+                                if (throwable == null) {
+                                    return new TriggerResponse(operationKey.getTriggerId());
+                                } else {
+                                    throw new CompletionException(
+                                            createInternalServerError(
+                                                    throwable, operationKey, "triggering"));
+                                }
+                            });
         }
 
         protected abstract CompletableFuture<Acknowledge> triggerOperation(
@@ -165,14 +181,20 @@ public class SavepointHandlers {
         }
 
         @Override
+        protected Optional<TriggerId> extractTriggerId(StopWithSavepointRequestBody request) {
+            return request.getTriggerId();
+        }
+
+        @Override
         protected CompletableFuture<Acknowledge> triggerOperation(
                 final HandlerRequest<StopWithSavepointRequestBody> request,
                 AsynchronousJobOperationKey operationKey,
                 final RestfulGateway gateway)
                 throws RestHandlerException {
-            final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+            final Optional<String> requestedTargetDirectory =
+                    request.getRequestBody().getTargetDirectory();
 
-            if (requestedTargetDirectory == null && defaultSavepointDir == null) {
+            if (!requestedTargetDirectory.isPresent() && defaultSavepointDir == null) {
                 throw new RestHandlerException(
                         String.format(
                                 "Config key [%s] is not set. Property [%s] must be provided.",
@@ -185,10 +207,7 @@ public class SavepointHandlers {
                     request.getRequestBody().shouldDrain()
                             ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
                             : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT;
-            final String targetDirectory =
-                    requestedTargetDirectory != null
-                            ? requestedTargetDirectory
-                            : defaultSavepointDir;
+            final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
             return gateway.stopWithSavepoint(
                     operationKey, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }
@@ -205,14 +224,20 @@ public class SavepointHandlers {
         }
 
         @Override
+        protected Optional<TriggerId> extractTriggerId(SavepointTriggerRequestBody request) {
+            return request.getTriggerId();
+        }
+
+        @Override
         protected CompletableFuture<Acknowledge> triggerOperation(
                 HandlerRequest<SavepointTriggerRequestBody> request,
                 AsynchronousJobOperationKey operationKey,
                 RestfulGateway gateway)
                 throws RestHandlerException {
-            final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+            final Optional<String> requestedTargetDirectory =
+                    request.getRequestBody().getTargetDirectory();
 
-            if (requestedTargetDirectory == null && defaultSavepointDir == null) {
+            if (!requestedTargetDirectory.isPresent() && defaultSavepointDir == null) {
                 throw new RestHandlerException(
                         String.format(
                                 "Config key [%s] is not set. Property [%s] must be provided.",
@@ -225,10 +250,7 @@ public class SavepointHandlers {
                     request.getRequestBody().isCancelJob()
                             ? TriggerSavepointMode.CANCEL_WITH_SAVEPOINT
                             : TriggerSavepointMode.SAVEPOINT;
-            final String targetDirectory =
-                    requestedTargetDirectory != null
-                            ? requestedTargetDirectory
-                            : defaultSavepointDir;
+            final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
             return gateway.triggerSavepoint(
                     operationKey, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
         }
@@ -257,27 +279,52 @@ public class SavepointHandlers {
             final AsynchronousJobOperationKey key = getOperationKey(request);
 
             return gateway.getTriggeredSavepointStatus(key)
-                    .thenApply(
-                            (operationResult) -> {
-                                switch (operationResult.getStatus()) {
-                                    case SUCCESS:
-                                        return AsynchronousOperationResult.completed(
-                                                operationResultResponse(
-                                                        operationResult.getResult()));
-                                    case FAILURE:
-                                        return AsynchronousOperationResult.completed(
-                                                exceptionalOperationResultResponse(
-                                                        operationResult.getThrowable()));
-                                    case IN_PROGRESS:
-                                        return AsynchronousOperationResult.inProgress();
-                                    default:
-                                        throw new IllegalStateException(
-                                                "No handler for operation status "
-                                                        + operationResult.getStatus()
-                                                        + ", encountered for key "
-                                                        + key);
+                    .handle(
+                            (operationResult, throwable) -> {
+                                if (throwable == null) {
+                                    switch (operationResult.getStatus()) {
+                                        case SUCCESS:
+                                            return AsynchronousOperationResult.completed(
+                                                    operationResultResponse(
+                                                            operationResult.getResult()));
+                                        case FAILURE:
+                                            return AsynchronousOperationResult.completed(
+                                                    exceptionalOperationResultResponse(
+                                                            operationResult.getThrowable()));
+                                        case IN_PROGRESS:
+                                            return AsynchronousOperationResult.inProgress();
+                                        default:
+                                            throw new IllegalStateException(
+                                                    "No handler for operation status "
+                                                            + operationResult.getStatus()
+                                                            + ", encountered for key "
+                                                            + key);
+                                    }
+                                } else {
+                                    throw new CompletionException(
+                                            maybeCreateNotFoundError(throwable, key)
+                                                    .orElseGet(
+                                                            () ->
+                                                                    createInternalServerError(
+                                                                            throwable,
+                                                                            key,
+                                                                            "retrieving status of")));
                                 }
                             });
+        }
+
+        private static Optional<RestHandlerException> maybeCreateNotFoundError(
+                Throwable throwable, AsynchronousJobOperationKey key) {
+            if (ExceptionUtils.findThrowable(throwable, UnknownOperationKeyException.class)
+                    .isPresent()) {
+                return Optional.of(
+                        new RestHandlerException(
+                                String.format(
+                                        "There is no savepoint operation with triggerId=%s for job %s.",
+                                        key.getTriggerId(), key.getJobId()),
+                                HttpResponseStatus.NOT_FOUND));
+            }
+            return Optional.empty();
         }
 
         protected AsynchronousJobOperationKey getOperationKey(
@@ -294,5 +341,15 @@ public class SavepointHandlers {
         protected SavepointInfo operationResultResponse(String operationResult) {
             return new SavepointInfo(operationResult, null);
         }
+    }
+
+    private static RestHandlerException createInternalServerError(
+            Throwable throwable, AsynchronousJobOperationKey key, String errorMessageInfix) {
+        return new RestHandlerException(
+                String.format(
+                        "Internal server error while %s savepoint operation with triggerId=%s for job %s.",
+                        errorMessageInfix, key.getTriggerId(), key.getJobId()),
+                HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                throwable);
     }
 }

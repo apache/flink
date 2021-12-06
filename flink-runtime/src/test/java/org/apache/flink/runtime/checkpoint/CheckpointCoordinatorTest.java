@@ -27,7 +27,6 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -71,6 +70,7 @@ import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.TriFunctionWithException;
@@ -189,16 +189,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
         ExecutionVertex lateReportVertex =
                 executionGraph.getJobVertex(lateReportVertexID).getTaskVertices()[0];
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(
-                        Integer.MAX_VALUE,
-                        CheckpointCoordinatorConfiguration.builder().build(),
-                        new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
         CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
                         .setExecutionGraph(executionGraph)
                         .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointStatsTracker(statsTracker)
                         .build();
-        coordinator.setCheckpointStatsTracker(statsTracker);
 
         CompletableFuture<CompletedCheckpoint> result = coordinator.triggerCheckpoint(false);
         manuallyTriggeredScheduledExecutor.triggerAll();
@@ -429,19 +426,15 @@ public class CheckpointCoordinatorTest extends TestLogger {
         jobVertex1.getTaskVertices()[1].getCurrentExecutionAttempt().markFinished();
         jobVertex2.getTaskVertices()[1].getCurrentExecutionAttempt().markFinished();
 
+        CheckpointStatsTracker statsTracker =
+                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
                         .setExecutionGraph(graph)
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .setAllowCheckpointsAfterTasksFinished(true)
+                        .setCheckpointStatsTracker(statsTracker)
                         .build();
-
-        CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(
-                        Integer.MAX_VALUE,
-                        CheckpointCoordinatorConfiguration.builder().build(),
-                        new UnregisteredMetricsGroup());
-        checkpointCoordinator.setCheckpointStatsTracker(statsTracker);
 
         // nothing should be happening
         assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
@@ -2737,13 +2730,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testCheckpointStatsTrackerPendingCheckpointCallback() throws Exception {
         // set up the coordinator and validate the initial state
+        CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
                         .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointStatsTracker(tracker)
                         .build();
-
-        CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-        checkpointCoordinator.setCheckpointStatsTracker(tracker);
 
         when(tracker.reportPendingCheckpoint(
                         anyLong(), anyLong(), any(CheckpointProperties.class), any(Map.class)))
@@ -2771,10 +2763,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
         StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(1);
 
         // set up the coordinator and validate the initial state
+        CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
                         .setCompletedCheckpointStore(store)
                         .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointStatsTracker(tracker)
                         .build();
 
         store.addCheckpoint(
@@ -2790,9 +2784,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         new TestCompletedCheckpointStorageLocation()),
                 new CheckpointsCleaner(),
                 () -> {});
-
-        CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-        checkpointCoordinator.setCheckpointStatsTracker(tracker);
 
         assertTrue(
                 checkpointCoordinator.restoreLatestCheckpointedStateToAll(

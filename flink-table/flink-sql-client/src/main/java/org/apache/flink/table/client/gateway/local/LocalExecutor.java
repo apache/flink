@@ -237,7 +237,11 @@ public class LocalExecutor implements Executor {
         // store the result under the JobID
         resultStore.storeResult(jobId, result);
         return new ResultDescriptor(
-                jobId, tableResult.getResolvedSchema(), result.isMaterialized(), config);
+                jobId,
+                tableResult.getResolvedSchema(),
+                result.isMaterialized(),
+                config,
+                tableResult.getRowDataToStringConverter());
     }
 
     @Override

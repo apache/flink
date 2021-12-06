@@ -21,6 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -29,7 +30,6 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -37,8 +37,8 @@ import org.apache.hadoop.mapred.JobConf;
 
 import java.util.Set;
 
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
 
 /** A dynamic table factory implementation for Hive catalog. */
 public class HiveDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {

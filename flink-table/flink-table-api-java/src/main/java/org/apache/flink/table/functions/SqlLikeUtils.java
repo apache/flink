@@ -111,7 +111,7 @@ public class SqlLikeUtils {
             return;
         }
         if (SQL_SIMILAR_SPECIALS.indexOf(escapeChar) >= 0) {
-            // The the escape character is a special character
+            // The escape character is a special character
             // SQL 2003 Part 2 Section 8.6 General Rule 3.b
             for (int i = 0; i < sqlPattern.length(); i++) {
                 if (sqlPattern.charAt(i) == escapeChar) {

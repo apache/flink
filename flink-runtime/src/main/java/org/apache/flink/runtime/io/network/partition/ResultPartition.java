@@ -111,6 +111,14 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 
     protected Counter numBuffersOut = new SimpleCounter();
 
+    /**
+     * The difference with {@link #numBytesOut} : numBytesProduced represents the number of bytes
+     * actually produced, and numBytesOut represents the number of bytes sent to downstream tasks.
+     * In unicast scenarios, these two values should be equal. In broadcast scenarios, numBytesOut
+     * should be (N * numBytesProduced), where N refers to the number of subpartitions.
+     */
+    protected Counter numBytesProduced = new SimpleCounter();
+
     public ResultPartition(
             String owningTaskName,
             int partitionIndex,
@@ -281,6 +289,8 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         numBytesOut = metrics.getNumBytesOutCounter();
         numBuffersOut = metrics.getNumBuffersOutCounter();
+        metrics.registerNumBytesProducedCounterForPartition(
+                partitionId.getPartitionId(), numBytesProduced);
     }
 
     /**

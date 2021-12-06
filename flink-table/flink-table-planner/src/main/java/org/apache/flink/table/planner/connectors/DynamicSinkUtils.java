@@ -19,12 +19,13 @@
 package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
@@ -62,6 +63,7 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -87,7 +89,7 @@ public final class DynamicSinkUtils {
             FlinkRelBuilder relBuilder,
             RelNode input,
             CollectModifyOperation collectModifyOperation,
-            Configuration configuration,
+            ReadableConfig configuration,
             ClassLoader classLoader) {
         final DataTypeFactory dataTypeFactory =
                 unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
@@ -100,14 +102,22 @@ public final class DynamicSinkUtils {
 
         final DataType consumedDataType = fixCollectDataType(dataTypeFactory, schema);
 
+        final String zone = configuration.get(TableConfigOptions.LOCAL_TIME_ZONE);
+        final ZoneId zoneId =
+                TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
+                        ? ZoneId.systemDefault()
+                        : ZoneId.of(zone);
+
         final CollectDynamicSink tableSink =
                 new CollectDynamicSink(
                         collectModifyOperation.getTableIdentifier(),
                         consumedDataType,
                         configuration.get(CollectSinkOperatorFactory.MAX_BATCH_SIZE),
                         configuration.get(CollectSinkOperatorFactory.SOCKET_TIMEOUT),
-                        classLoader);
+                        classLoader,
+                        zoneId);
         collectModifyOperation.setSelectResultProvider(tableSink.getSelectResultProvider());
+        collectModifyOperation.setConsumedDataType(consumedDataType);
         return convertSinkToRel(
                 relBuilder,
                 input,

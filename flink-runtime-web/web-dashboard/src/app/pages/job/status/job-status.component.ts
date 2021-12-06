@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy
 import { Subject } from 'rxjs';
 import { distinctUntilKeyChanged, takeUntil } from 'rxjs/operators';
 
-import { JobDetailCorrectInterface } from 'interfaces';
+import { JobDetailCorrect } from 'interfaces';
 import { JobService, StatusService } from 'services';
 
 @Component({
@@ -30,11 +30,10 @@ import { JobService, StatusService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobStatusComponent implements OnInit, OnDestroy {
-  @Input() isLoading = true;
-  private destroy$ = new Subject();
-  statusTips: string;
-  jobDetail: JobDetailCorrectInterface;
-  listOfNavigation = [
+  @Input() public isLoading = true;
+  public statusTips: string;
+  public jobDetail: JobDetailCorrect;
+  public readonly listOfNavigation = [
     {
       path: 'overview',
       title: 'Overview'
@@ -56,20 +55,19 @@ export class JobStatusComponent implements OnInit, OnDestroy {
       title: 'Configuration'
     }
   ];
-  checkpointIndexOfNavigation = this.checkpointIndexOfNav();
 
-  webCancelEnabled = this.statusService.configuration.features['web-cancel'];
+  public checkpointIndexOfNavigation = this.checkpointIndexOfNav();
+  public webCancelEnabled = this.statusService.configuration.features['web-cancel'];
 
-  cancelJob(): void {
-    this.jobService.cancelJob(this.jobDetail.jid).subscribe(() => {
-      this.statusTips = 'Cancelling...';
-      this.cdr.markForCheck();
-    });
-  }
+  private readonly destroy$ = new Subject<void>();
 
-  constructor(private jobService: JobService, public statusService: StatusService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly jobService: JobService,
+    public readonly statusService: StatusService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
-  ngOnInit(): void {
+  public ngOnInit(): void {
     const jobDetail$ = this.jobService.jobDetail$.pipe(takeUntil(this.destroy$));
     jobDetail$.subscribe(data => {
       this.jobDetail = data;
@@ -89,12 +87,19 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  checkpointIndexOfNav(): number {
+  public cancelJob(): void {
+    this.jobService.cancelJob(this.jobDetail.jid).subscribe(() => {
+      this.statusTips = 'Cancelling...';
+      this.cdr.markForCheck();
+    });
+  }
+
+  public checkpointIndexOfNav(): number {
     return this.listOfNavigation.findIndex(item => item.path === 'checkpoints');
   }
 }

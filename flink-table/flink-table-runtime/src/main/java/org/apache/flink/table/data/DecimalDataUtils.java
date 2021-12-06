@@ -173,36 +173,8 @@ public final class DecimalDataUtils {
         return bd.longValue();
     }
 
-    public static long castToLong(DecimalData dec) {
-        return castToIntegral(dec);
-    }
-
-    public static int castToInt(DecimalData dec) {
-        return (int) castToIntegral(dec);
-    }
-
-    public static short castToShort(DecimalData dec) {
-        return (short) castToIntegral(dec);
-    }
-
-    public static byte castToByte(DecimalData dec) {
-        return (byte) castToIntegral(dec);
-    }
-
-    public static float castToFloat(DecimalData dec) {
-        return (float) doubleValue(dec);
-    }
-
-    public static double castToDouble(DecimalData dec) {
-        return doubleValue(dec);
-    }
-
     public static DecimalData castToDecimal(DecimalData dec, int precision, int scale) {
         return fromBigDecimal(dec.toBigDecimal(), precision, scale);
-    }
-
-    public static boolean castToBoolean(DecimalData dec) {
-        return dec.toBigDecimal().compareTo(BigDecimal.ZERO) != 0;
     }
 
     public static DecimalData castFrom(DecimalData dec, int precision, int scale) {
@@ -221,8 +193,8 @@ public final class DecimalDataUtils {
         return fromBigDecimal(BigDecimal.valueOf(val), p, s);
     }
 
-    public static DecimalData castFrom(boolean val, int p, int s) {
-        return fromBigDecimal(BigDecimal.valueOf((val ? 1 : 0)), p, s);
+    public static boolean castToBoolean(DecimalData dec) {
+        return dec.toBigDecimal().compareTo(BigDecimal.ZERO) != 0;
     }
 
     /**

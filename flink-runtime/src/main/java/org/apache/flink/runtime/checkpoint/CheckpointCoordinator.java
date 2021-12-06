@@ -198,7 +198,7 @@ public class CheckpointCoordinator {
     private volatile boolean shutdown;
 
     /** Optional tracker for checkpoint statistics. */
-    @Nullable private CheckpointStatsTracker statsTracker;
+    private final CheckpointStatsTracker statsTracker;
 
     /** A factory for SharedStateRegistry objects. */
     private final SharedStateRegistryFactory sharedStateRegistryFactory;
@@ -241,7 +241,8 @@ public class CheckpointCoordinator {
             SharedStateRegistryFactory sharedStateRegistryFactory,
             CheckpointFailureManager failureManager,
             CheckpointPlanCalculator checkpointPlanCalculator,
-            ExecutionAttemptMappingProvider attemptMappingProvider) {
+            ExecutionAttemptMappingProvider attemptMappingProvider,
+            CheckpointStatsTracker statsTracker) {
 
         this(
                 job,
@@ -257,7 +258,8 @@ public class CheckpointCoordinator {
                 failureManager,
                 checkpointPlanCalculator,
                 attemptMappingProvider,
-                SystemClock.getInstance());
+                SystemClock.getInstance(),
+                statsTracker);
     }
 
     @VisibleForTesting
@@ -275,7 +277,8 @@ public class CheckpointCoordinator {
             CheckpointFailureManager failureManager,
             CheckpointPlanCalculator checkpointPlanCalculator,
             ExecutionAttemptMappingProvider attemptMappingProvider,
-            Clock clock) {
+            Clock clock,
+            CheckpointStatsTracker statsTracker) {
 
         // sanity checks
         checkNotNull(checkpointStorage);
@@ -351,6 +354,7 @@ public class CheckpointCoordinator {
                         this.minPauseBetweenCheckpoints,
                         this.pendingCheckpoints::size,
                         this.checkpointsCleaner::getNumberOfCheckpointsToClean);
+        this.statsTracker = checkNotNull(statsTracker, "Statistic tracker can not be null");
     }
 
     // --------------------------------------------------------------------------------------------
@@ -387,15 +391,6 @@ public class CheckpointCoordinator {
         synchronized (lock) {
             return masterHooks.size();
         }
-    }
-
-    /**
-     * Sets the checkpoint stats tracker.
-     *
-     * @param statsTracker The checkpoint stats tracker.
-     */
-    public void setCheckpointStatsTracker(@Nullable CheckpointStatsTracker statsTracker) {
-        this.statsTracker = statsTracker;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1598,17 +1593,15 @@ public class CheckpointCoordinator {
 
             // update metrics
 
-            if (statsTracker != null) {
-                long restoreTimestamp = System.currentTimeMillis();
-                RestoredCheckpointStats restored =
-                        new RestoredCheckpointStats(
-                                latest.getCheckpointID(),
-                                latest.getProperties(),
-                                restoreTimestamp,
-                                latest.getExternalPointer());
+            long restoreTimestamp = System.currentTimeMillis();
+            RestoredCheckpointStats restored =
+                    new RestoredCheckpointStats(
+                            latest.getCheckpointID(),
+                            latest.getProperties(),
+                            restoreTimestamp,
+                            latest.getExternalPointer());
 
-                statsTracker.reportRestoredCheckpoint(restored);
-            }
+            statsTracker.reportRestoredCheckpoint(restored);
 
             return OptionalLong.of(latest.getCheckpointID());
         }
@@ -1881,11 +1874,9 @@ public class CheckpointCoordinator {
 
     public void reportStats(long id, ExecutionAttemptID attemptId, CheckpointMetrics metrics)
             throws CheckpointException {
-        if (statsTracker != null) {
-            attemptMappingProvider
-                    .getVertex(attemptId)
-                    .ifPresent(ev -> statsTracker.reportIncompleteStats(id, ev, metrics));
-        }
+        attemptMappingProvider
+                .getVertex(attemptId)
+                .ifPresent(ev -> statsTracker.reportIncompleteStats(id, ev, metrics));
     }
 
     // ------------------------------------------------------------------------
@@ -2101,9 +2092,6 @@ public class CheckpointCoordinator {
     }
 
     private void trackPendingCheckpointStats(PendingCheckpoint checkpoint) {
-        if (statsTracker == null) {
-            return;
-        }
         Map<JobVertexID, Integer> vertices =
                 Stream.concat(
                                 checkpoint.getCheckpointPlan().getTasksToWaitFor().stream(),
@@ -2139,8 +2127,6 @@ public class CheckpointCoordinator {
 
     @Nullable
     private PendingCheckpointStats getStatsCallback(PendingCheckpoint pendingCheckpoint) {
-        return statsTracker == null
-                ? null
-                : statsTracker.getPendingCheckpointStats(pendingCheckpoint.getCheckpointID());
+        return statsTracker.getPendingCheckpointStats(pendingCheckpoint.getCheckpointID());
     }
 }

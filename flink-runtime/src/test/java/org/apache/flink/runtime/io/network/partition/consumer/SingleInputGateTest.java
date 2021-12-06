@@ -79,6 +79,8 @@ import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedNoTimeout;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultSubpartitionView;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.runtime.io.network.partition.InputGateFairnessTest.setupInputGate;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
@@ -854,6 +856,37 @@ public class SingleInputGateTest extends InputGateTestBase {
         } catch (PartitionNotFoundException notFound) {
             assertThat(partitionId, is(notFound.getPartitionId()));
         }
+    }
+
+    @Test
+    public void testAnnounceBufferSize() throws Exception {
+        final SingleInputGate inputGate = createSingleInputGate(2);
+        final LocalInputChannel localChannel =
+                createLocalInputChannel(
+                        inputGate,
+                        new TestingResultPartitionManager(createResultSubpartitionView()));
+        RemoteInputChannel remoteInputChannel = createRemoteInputChannel(inputGate, 1);
+
+        inputGate.setInputChannels(localChannel, remoteInputChannel);
+        inputGate.requestPartitions();
+
+        inputGate.announceBufferSize(10);
+
+        // Release all channels and gate one by one.
+
+        localChannel.releaseAllResources();
+
+        inputGate.announceBufferSize(11);
+
+        remoteInputChannel.releaseAllResources();
+
+        inputGate.announceBufferSize(12);
+
+        inputGate.close();
+
+        inputGate.announceBufferSize(13);
+
+        // No exceptions should happen.
     }
 
     @Test

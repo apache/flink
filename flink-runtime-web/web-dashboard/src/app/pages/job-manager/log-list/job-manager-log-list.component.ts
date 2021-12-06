@@ -19,7 +19,10 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { finalize } from 'rxjs/operators';
 
+import { JobManagerLogItem } from 'interfaces';
 import { JobManagerService } from 'services';
+
+import { typeDefinition } from '../../../utils/strong-type';
 
 @Component({
   selector: 'flink-job-manager-log-list',
@@ -28,14 +31,19 @@ import { JobManagerService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerLogListComponent implements OnInit {
-  listOfLog: Array<{ name: string; size: number }> = [];
-  isLoading = true;
+  public readonly trackByName = (_: number, log: JobManagerLogItem): string => log.name;
+  public readonly narrowLogData = typeDefinition<JobManagerLogItem>();
 
-  trackByName = (_: number, log: { name: string; size: number }): string => log.name;
+  public readonly sortLastModifiedTimeFn = (pre: JobManagerLogItem, next: JobManagerLogItem): number =>
+    pre.mtime - next.mtime;
+  public readonly sortSizeFn = (pre: JobManagerLogItem, next: JobManagerLogItem): number => pre.size - next.size;
 
-  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
+  public listOfLog: JobManagerLogItem[] = [];
+  public isLoading = true;
 
-  ngOnInit(): void {
+  constructor(private readonly jobManagerService: JobManagerService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
     this.jobManagerService
       .loadLogList()
       .pipe(

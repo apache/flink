@@ -26,14 +26,16 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase._
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.types.Row
-
-import org.junit.Assert.assertTrue
+import org.junit.Assert.{assertEquals, assertNotNull, assertTrue}
 import org.junit.rules.TemporaryFolder
 import org.junit.{Rule, Test}
 
 import java.io.File
-
+import java.net.URI
+import java.nio.file.Paths
+import java.time.Instant
 import scala.collection.{JavaConverters, Seq}
 
 /**
@@ -51,12 +53,16 @@ trait FileSystemITCaseBase {
 
   def tableEnv: TableEnvironment
 
+  def checkPredicate(sqlQuery: String, checkFunc: Row => Unit): Unit
+
   def check(sqlQuery: String, expectedResult: Seq[Row]): Unit
 
   def check(sqlQuery: String, expectedResult: java.util.List[Row]): Unit = {
     check(sqlQuery,
       JavaConverters.asScalaIteratorConverter(expectedResult.iterator()).asScala.toSeq)
   }
+
+  def supportsReadingMetadata: Boolean = true
 
   def open(): Unit = {
     resultPath = fileTmpFolder.newFolder().toURI.toString
@@ -81,6 +87,24 @@ trait FileSystemITCaseBase {
          |)
        """.stripMargin
     )
+    if (supportsReadingMetadata) {
+      tableEnv.executeSql(
+        s"""
+           |create table partitionedTableWithMetadata (
+           |  x string,
+           |  y int,
+           |  a int,
+           |  b bigint,
+           |  c as b + 1,
+           |  f string metadata from 'file.path'
+           |) partitioned by (a, b) with (
+           |  'connector' = 'filesystem',
+           |  'path' = '$resultPath',
+           |  ${formatProperties().mkString(",\n")}
+           |)
+           """.stripMargin
+      )
+    }
     tableEnv.executeSql(
       s"""
          |create table nonPartitionedTable (
@@ -95,6 +119,23 @@ trait FileSystemITCaseBase {
          |)
        """.stripMargin
     )
+    if (supportsReadingMetadata) {
+      tableEnv.executeSql(
+        s"""
+           |create table nonPartitionedTableWithMetadata (
+           |  x string,
+           |  y int,
+           |  a int,
+           |  f string metadata from 'file.path',
+           |  b bigint
+           |) with (
+           |  'connector' = 'filesystem',
+           |  'path' = '$resultPath',
+           |  ${formatProperties().mkString(",\n")}
+           |)
+         """.stripMargin
+      )
+    }
 
     tableEnv.executeSql(
       s"""
@@ -180,6 +221,40 @@ trait FileSystemITCaseBase {
     check(
       "select x, y from partitionedTable",
       data_partition_2_1
+    )
+  }
+
+  @Test
+  def testAllStaticPartitionsWithMetadata(): Unit = {
+    if (!supportsReadingMetadata) {
+      return
+    }
+
+    tableEnv.executeSql("insert into partitionedTable " +
+      "partition(a='1', b='1') select x, y from originalT where a=1 and b=1").await()
+
+    checkPredicate(
+      "select x, f, y from partitionedTableWithMetadata where a=1 and b=1",
+      row => {
+        assertEquals(3, row.getArity)
+        assertNotNull(row.getField("f"))
+        assertNotNull(row.getField(1))
+        assertTrue(
+          "The filepath value should begin with the temporary test path",
+          row.getFieldAs[String](1).contains(fileTmpFolder.getRoot.getPath))
+      }
+    )
+
+    checkPredicate(
+      "select x, f, y from partitionedTableWithMetadata",
+      row => {
+        assertEquals(3, row.getArity)
+        assertNotNull(row.getField("f"))
+        assertNotNull(row.getField(1))
+        assertTrue(
+          "The filepath value should begin with the temporary test path",
+          row.getFieldAs[String](1).contains(fileTmpFolder.getRoot.getPath))
+      }
     )
   }
 
@@ -273,6 +348,83 @@ trait FileSystemITCaseBase {
       "select x, y from nonPartitionedTable where a=1 and b=1",
       data_partition_1_1
     )
+  }
+
+  @Test
+  def testNonPartitionWithMetadata(): Unit = {
+    if (!supportsReadingMetadata) {
+      return
+    }
+
+    tableEnv.executeSql("insert into nonPartitionedTable " +
+      "select x, y, a, b from originalT where a=1 and b=1").await()
+
+    checkPredicate(
+      "select x, f, y from nonPartitionedTableWithMetadata where a=1 and b=1",
+      row => {
+        assertEquals(3, row.getArity)
+        assertNotNull(row.getField("f"))
+        assertNotNull(row.getField(1))
+        assertTrue(
+          "The filepath value should begin with the temporary test path",
+          row.getFieldAs[String](1).contains(fileTmpFolder.getRoot.getPath))
+      }
+    )
+  }
+
+  @Test
+  def testReadAllMetadata(): Unit = {
+    if (!supportsReadingMetadata) {
+      return
+    }
+
+    tableEnv.executeSql(
+      s"""
+         |CREATE TABLE metadataTable (
+         |  x STRING,
+         |  `file.path` STRING METADATA,
+         |  `file.name` STRING METADATA,
+         |  `file.size` BIGINT METADATA,
+         |  `file.modification-time` TIMESTAMP_LTZ(3) METADATA
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+         """.stripMargin
+    )
+
+    tableEnv.executeSql(
+      "INSERT INTO nonPartitionedTable (x) SELECT x FROM originalT LIMIT 1").await()
+
+    checkPredicate(
+      "SELECT * FROM metadataTable",
+      row => {
+        assertEquals(5, row.getArity)
+
+        // Only one file, because we don't have partitions
+        val file = new File(URI.create(resultPath).getPath).listFiles()(0)
+        val filename = Paths.get(file.toURI).getFileName.toString
+
+        assertTrue(
+          row.getFieldAs[String](1).contains(filename)
+        )
+        assertEquals(
+          filename,
+          row.getFieldAs[String](2)
+        )
+        assertEquals(
+          file.length(),
+          row.getFieldAs[Long](3)
+        )
+        assertEquals(
+          // Note: It's TIMESTAMP_LTZ
+          Instant.ofEpochMilli(file.lastModified()),
+          row.getFieldAs[Instant](4)
+        )
+      }
+    )
+
   }
 
   @Test

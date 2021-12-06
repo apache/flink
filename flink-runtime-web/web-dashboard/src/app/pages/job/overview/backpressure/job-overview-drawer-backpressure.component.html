@@ -60,7 +60,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let subtask of listOfSubTaskBackpressure; trackBy: trackBackPressureBy">
+    <tr *ngFor="let subtask of listOfSubTaskBackpressure; trackBy: trackBySubtask">
       <td>{{ subtask['subtask'] }}</td>
       <td>
         {{ this.prettyPrint(subtask['ratio']) }} / {{ this.prettyPrint(subtask['idleRatio']) }} /

@@ -148,4 +148,13 @@ public class ParquetSchemaConverter {
         }
         return numBytes;
     }
+
+    // From DecimalDataUtils
+    public static boolean is32BitDecimal(int precision) {
+        return precision <= 9;
+    }
+
+    public static boolean is64BitDecimal(int precision) {
+        return precision <= 18 && precision > 9;
+    }
 }

@@ -66,9 +66,9 @@ under the License.
 									<file>hbase-default.xml</file>
 								</transformer>
 							</transformers>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
+									<include>org.apache.flink:flink-connector-base</include>
 									<include>org.apache.flink:flink-connector-hbase-base</include>
 									<include>org.apache.flink:flink-connector-hbase-1.4</include>
 									<include>org.apache.hbase:hbase-*</include>

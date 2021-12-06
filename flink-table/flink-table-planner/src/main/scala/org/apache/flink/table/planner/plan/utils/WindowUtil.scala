@@ -70,6 +70,20 @@ object WindowUtil {
   }
 
   /**
+   * Excludes window_start, window_end and window_time properties from grouping keys.
+   */
+  def groupingExcludeWindowStartEndTimeColumns(
+      grouping: ImmutableBitSet,
+      windowProperties: RelWindowProperties): (
+    ImmutableBitSet, ImmutableBitSet, ImmutableBitSet, ImmutableBitSet) = {
+    val startColumns = windowProperties.getWindowStartColumns.intersect(grouping)
+    val endColumns = windowProperties.getWindowEndColumns.intersect(grouping)
+    val timeColumns = windowProperties.getWindowTimeColumns.intersect(grouping)
+    val newGrouping = grouping.except(startColumns).except(endColumns).except(timeColumns)
+    (startColumns, endColumns, timeColumns, newGrouping)
+  }
+
+  /**
    * Returns true if the [[RexNode]] is a window table-valued function call.
    */
   def isWindowTableFunctionCall(node: RexNode): Boolean = node match {
@@ -169,6 +183,17 @@ object WindowUtil {
     (program, calcFieldShifting.toArray, newTimeAttributeIndex, !containsTimeAttribute)
   }
 
+  def validateTimeFieldWithTimeAttribute(
+      windowCall: RexCall,
+      inputRowType: RelDataType): Unit = {
+    val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
+    val fieldType = inputRowType.getFieldList.get(timeIndex).getType
+    if (!FlinkTypeFactory.isTimeIndicatorType(fieldType)) {
+      throw new ValidationException(
+        s"The window function requires the timecol is a time attribute type, but is $fieldType.")
+    }
+  }
+
   /**
    * Converts a [[RexCall]] into [[TimeAttributeWindowingStrategy]], the [[RexCall]] must be a
    * window table-valued function call.
@@ -183,10 +208,6 @@ object WindowUtil {
 
     val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
-    if (!FlinkTypeFactory.isTimeIndicatorType(fieldType)) {
-      throw new ValidationException("Window can only be defined on a time attribute column, " +
-        "but is type of " + fieldType)
-    }
     val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
     if (!canBeTimeAttributeType(timeAttributeType)) {
       throw new ValidationException("The supported time indicator type are TIMESTAMP" +

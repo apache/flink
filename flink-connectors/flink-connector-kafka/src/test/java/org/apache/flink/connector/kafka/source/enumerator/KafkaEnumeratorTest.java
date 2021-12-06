@@ -310,7 +310,8 @@ public class KafkaEnumeratorTest {
             assertNotNull(clientId);
             assertTrue(clientId.startsWith(clientIdPrefix));
             assertEquals(
-                    defaultTimeoutMs, Whitebox.getInternalState(adminClient, "defaultTimeoutMs"));
+                    defaultTimeoutMs,
+                    Whitebox.getInternalState(adminClient, "defaultApiTimeoutMs"));
 
             KafkaConsumer<?, ?> consumer =
                     (KafkaConsumer<?, ?>) Whitebox.getInternalState(enumerator, "consumer");

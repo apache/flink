@@ -222,7 +222,7 @@ LogicalProject(EXPR$0=[$2], EXPR$1=[$3], name=[$0], type=[$1])
 Calc(select=[EXPR$0, EXPR$1, name, type])
 +- HashAggregate(isMerge=[true], groupBy=[name, type], select=[name, type, Final_SUM(sum$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1])
    +- Exchange(distribution=[hash[name, type]])
-      +- TableSourceScan(table=[[default_catalog, default_database, inventory_meta, filter=[=(id, 123:BIGINT)], project=[name, type, amount, metadata_1], metadata=[metadata_1], aggregates=[grouping=[name,type], aggFunctions=[LongSumAggFunction(amount),LongMaxAggFunction(metadata_1)]]]], fields=[name, type, sum$0, max$1])
+      +- TableSourceScan(table=[[default_catalog, default_database, inventory_meta, filter=[=(id, 123:BIGINT)], project=[name, type, amount], metadata=[metadata_1], aggregates=[grouping=[name,type], aggFunctions=[LongSumAggFunction(amount),LongMaxAggFunction(metadata_1)]]]], fields=[name, type, sum$0, max$1])
 ]]>
     </Resource>
   </TestCase>
@@ -250,7 +250,7 @@ LogicalProject(EXPR$0=[$2], type=[$0], name=[$1])
 Calc(select=[EXPR$0, type, name])
 +- HashAggregate(isMerge=[true], groupBy=[type, name], select=[type, name, Final_SUM(sum$0) AS EXPR$0])
    +- Exchange(distribution=[hash[type, name]])
-      +- TableSourceScan(table=[[default_catalog, default_database, inventory_part, filter=[=(id, 123:BIGINT)], partitions=[{type=a}, {type=b}], project=[type, name, amount], metadata=[], aggregates=[grouping=[type,name], aggFunctions=[LongSumAggFunction(amount)]]]], fields=[type, name, sum$0])
+      +- TableSourceScan(table=[[default_catalog, default_database, inventory_part, partitions=[{type=a}, {type=b}], filter=[=(id, 123:BIGINT)], project=[type, name, amount], metadata=[], aggregates=[grouping=[type,name], aggFunctions=[LongSumAggFunction(amount)]]]], fields=[type, name, sum$0])
 ]]>
     </Resource>
   </TestCase>

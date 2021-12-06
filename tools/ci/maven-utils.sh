@@ -56,8 +56,17 @@ function set_mirror_config {
 		exit 0;
 	fi
 
-	echo "Using Google mirror"
-	MAVEN_MIRROR_CONFIG_FILE="$CI_DIR/google-mirror-settings.xml"
+	echo "Checking for availability of CI Maven mirror"
+	# test if alibaba mirror is available
+	curl --silent --max-time 10 http://mavenmirror.alicloud.dak8s.net:8888/repository/maven-central/ | grep "Nexus Repository Manager"
+
+	if [[ "$?" == "0" ]]; then
+		echo "Using Alibaba mirror"
+		MAVEN_MIRROR_CONFIG_FILE="$CI_DIR/alibaba-mirror-settings.xml"
+	else
+		echo "Using Google mirror"
+		MAVEN_MIRROR_CONFIG_FILE="$CI_DIR/google-mirror-settings.xml"
+	fi
 }
 
 function collect_coredumps {
@@ -85,7 +94,7 @@ MAVEN_VERSIONED_DIR=${MAVEN_CACHE_DIR}/apache-maven-${MAVEN_VERSION}
 MAVEN_MIRROR_CONFIG_FILE=""
 set_mirror_config
 
-export MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR=""
+export MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR="$MAVEN_ARGS "
 # see https://developercommunity.visualstudio.com/content/problem/851041/microsoft-hosted-agents-run-into-maven-central-tim.html
 MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dmaven.wagon.http.pool=false "
 # logging 

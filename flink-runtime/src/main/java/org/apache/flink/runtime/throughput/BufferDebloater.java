@@ -18,6 +18,11 @@
 
 package org.apache.flink.runtime.throughput;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Duration;
 import java.util.OptionalInt;
 
@@ -26,30 +31,43 @@ import java.util.OptionalInt;
  * configuration.
  */
 public class BufferDebloater {
+    private static final Logger LOG = LoggerFactory.getLogger(BufferDebloater.class);
     private static final long MILLIS_IN_SECOND = 1000;
 
+    private final int gateIndex;
     private final long targetTotalBufferSize;
     private final int maxBufferSize;
     private final int minBufferSize;
-    private final int bufferDebloatThresholdPercentages;
+    private final double bufferDebloatThresholdFactor;
     private final BufferSizeEMA bufferSizeEMA;
 
     private Duration lastEstimatedTimeToConsumeBuffers = Duration.ZERO;
     private int lastBufferSize;
 
     public BufferDebloater(
+            int gateIndex,
             long targetTotalBufferSize,
             int maxBufferSize,
             int minBufferSize,
             int bufferDebloatThresholdPercentages,
             long numberOfSamples) {
+        this.gateIndex = gateIndex;
         this.targetTotalBufferSize = targetTotalBufferSize;
         this.maxBufferSize = maxBufferSize;
         this.minBufferSize = minBufferSize;
-        this.bufferDebloatThresholdPercentages = bufferDebloatThresholdPercentages;
+        this.bufferDebloatThresholdFactor = bufferDebloatThresholdPercentages / 100.0;
 
         this.lastBufferSize = maxBufferSize;
         bufferSizeEMA = new BufferSizeEMA(maxBufferSize, minBufferSize, numberOfSamples);
+
+        LOG.debug(
+                "Buffer debloater init settings: gateIndex={}, targetTotalBufferSize={}, maxBufferSize={}, minBufferSize={}, bufferDebloatThresholdPercentages={}, numberOfSamples={}",
+                gateIndex,
+                targetTotalBufferSize,
+                maxBufferSize,
+                minBufferSize,
+                bufferDebloatThresholdPercentages,
+                numberOfSamples);
     }
 
     public OptionalInt recalculateBufferSize(long currentThroughput, int buffersInUse) {
@@ -68,11 +86,18 @@ public class BufferDebloater {
                                 * MILLIS_IN_SECOND
                                 / Math.max(1, currentThroughput));
 
-        boolean skipUpdate =
-                newSize == lastBufferSize
-                        || (newSize > minBufferSize && newSize < maxBufferSize)
-                                && Math.abs(1 - ((double) lastBufferSize) / newSize) * 100
-                                        < bufferDebloatThresholdPercentages;
+        boolean skipUpdate = skipUpdate(newSize);
+
+        LOG.debug(
+                "Buffer size recalculation: gateIndex={}, currentSize={}, newSize={}, instantThroughput={}, desiredBufferSize={}, buffersInUse={}, estimatedTimeToConsumeBuffers={}, announceNewSize={}",
+                gateIndex,
+                lastBufferSize,
+                newSize,
+                currentThroughput,
+                desiredTotalBufferSizeInBytes,
+                buffersInUse,
+                lastEstimatedTimeToConsumeBuffers,
+                !skipUpdate);
 
         // Skip update if the new value pretty close to the old one.
         if (skipUpdate) {
@@ -81,6 +106,23 @@ public class BufferDebloater {
 
         lastBufferSize = newSize;
         return OptionalInt.of(newSize);
+    }
+
+    @VisibleForTesting
+    boolean skipUpdate(int newSize) {
+        if (newSize == lastBufferSize) {
+            return true;
+        }
+
+        // According to logic of this class newSize can not be less than min or greater than max
+        // buffer size but if considering this method independently the behaviour for the small or
+        // big value should be the same as for min and max buffer size correspondingly.
+        if (newSize <= minBufferSize || newSize >= maxBufferSize) {
+            return false;
+        }
+
+        int delta = (int) (lastBufferSize * bufferDebloatThresholdFactor);
+        return Math.abs(newSize - lastBufferSize) < delta;
     }
 
     public int getLastBufferSize() {

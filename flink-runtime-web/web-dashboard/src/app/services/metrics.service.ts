@@ -27,15 +27,9 @@ import { BASE_URL, LONG_MIN_VALUE } from 'config';
   providedIn: 'root'
 })
 export class MetricsService {
-  constructor(private httpClient: HttpClient) {}
+  constructor(private readonly httpClient: HttpClient) {}
 
-  /**
-   * Get available metric list
-   *
-   * @param jobId
-   * @param vertexId
-   */
-  getAllAvailableMetrics(jobId: string, vertexId: string): Observable<Array<{ id: string; value: string }>> {
+  public getAllAvailableMetrics(jobId: string, vertexId: string): Observable<Array<{ id: string; value: string }>> {
     return this.httpClient
       .get<Array<{ id: string; value: string }>>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics`)
       .pipe(
@@ -55,14 +49,7 @@ export class MetricsService {
       );
   }
 
-  /**
-   * Get metric data
-   *
-   * @param jobId
-   * @param vertexId
-   * @param listOfMetricName
-   */
-  getMetrics(
+  public getMetrics(
     jobId: string,
     vertexId: string,
     listOfMetricName: string[]
@@ -86,15 +73,8 @@ export class MetricsService {
       );
   }
 
-  /**
-   * Get aggregated metric data from all subtasks of the given vertexId
-   *
-   * @param jobId
-   * @param vertexId
-   * @param listOfMetricName
-   * @param aggregate
-   */
-  getAggregatedMetrics(
+  /** Get aggregated metric data from all subtasks of the given vertexId. */
+  public getAggregatedMetrics(
     jobId: string,
     vertexId: string,
     listOfMetricName: string[],
@@ -131,13 +111,7 @@ export class MetricsService {
       );
   }
 
-  /**
-   * Gets the watermarks for a given vertex id.
-   *
-   * @param jobId
-   * @param vertexId
-   */
-  getWatermarks(
+  public getWatermarks(
     jobId: string,
     vertexId: string
   ): Observable<{ lowWatermark: number; watermarks: { [p: string]: number } }> {

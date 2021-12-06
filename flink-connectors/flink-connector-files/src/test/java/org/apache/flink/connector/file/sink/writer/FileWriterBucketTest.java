@@ -46,6 +46,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -200,7 +201,7 @@ public class FileWriterBucketTest {
         Path path = new Path(outDir.toURI());
 
         RollingPolicy<String, String> onProcessingTimeRollingPolicy =
-                DefaultRollingPolicy.builder().withRolloverInterval(10).build();
+                DefaultRollingPolicy.builder().withRolloverInterval(Duration.ofMillis(10)).build();
 
         TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
         FileWriterBucket<String> bucket =

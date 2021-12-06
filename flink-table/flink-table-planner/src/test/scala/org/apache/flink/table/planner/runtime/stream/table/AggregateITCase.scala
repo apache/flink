@@ -24,6 +24,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.DataTypes.DECIMAL
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
@@ -394,5 +395,27 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
     val expected = mutable.MutableList("1,1", "2,3", "3,6", "4,10", "5,15", "6,21")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testPrecisionForSumAggregationOnDecimal(): Unit = {
+    val data = new mutable.MutableList[(Double, Double, Double, Double)]
+    data.+=((1.03520274, 12345.035202748654, 12.345678901234567, 1.11111111))
+    data.+=((0, 0, 0, 1.11111111))
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
+
+    val results = t
+      .select('a.cast(DECIMAL(32, 8)).sum as 'a,
+        'b.cast(DECIMAL(30, 20)).sum as 'b,
+        'c.cast(DECIMAL(25, 20)).sum as 'c,
+        'd.cast(DECIMAL(32, 8)).sum as 'd)
+      .toRetractStream[Row]
+
+    val sink = new TestingRetractSink
+    results.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List("1.03520274,12345.03520274865300000000,12.34567890123456700000,2.22222222")
+    assertEquals(expected, sink.getRetractResults)
   }
 }

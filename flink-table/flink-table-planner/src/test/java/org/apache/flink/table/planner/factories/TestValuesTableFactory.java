@@ -855,6 +855,9 @@ public final class TestValuesTableFactory
                 }
             }
             this.filterPredicates = acceptedFilters;
+
+            this.data = filterAllData(this.data);
+
             return Result.of(acceptedFilters, remainingFilters);
         }
 
@@ -893,13 +896,8 @@ public final class TestValuesTableFactory
 
         protected Collection<RowData> convertToRowData(DataStructureConverter converter) {
             List<RowData> result = new ArrayList<>();
-            List<Map<String, String>> keys =
-                    allPartitions.isEmpty()
-                            ? Collections.singletonList(Collections.emptyMap())
-                            : allPartitions;
-
             int numSkipped = 0;
-            for (Map<String, String> partition : keys) {
+            for (Map<String, String> partition : data.keySet()) {
                 Collection<Row> rowsInPartition = data.get(partition);
 
                 // handle element skipping
@@ -910,14 +908,13 @@ public final class TestValuesTableFactory
                 }
                 numSkipped += numToSkipInPartition;
 
-                // handle predicates and projection
+                // handle projection
+                // Now we don't do it in applyProjections and applyReadableMetadata like
+                // applyPartitions and applyFilters, Because in periods before we can't confirm the
+                // final fields.
                 List<Row> rowsRetained =
                         rowsInPartition.stream()
                                 .skip(numToSkipInPartition)
-                                .filter(
-                                        row ->
-                                                FilterUtils.isRetainedAfterApplyingFilterPredicates(
-                                                        filterPredicates, getValueGetter(row)))
                                 .map(
                                         row -> {
                                             Row projectedRow = projectRow(row);
@@ -1024,6 +1021,25 @@ public final class TestValuesTableFactory
             return result;
         }
 
+        private Map<Map<String, String>, Collection<Row>> filterAllData(
+                Map<Map<String, String>, Collection<Row>> allData) {
+            final Map<Map<String, String>, Collection<Row>> result = new HashMap<>();
+
+            for (Map<String, String> partition : allData.keySet()) {
+                List<Row> remainData = new ArrayList<>();
+                for (Row row : allData.get(partition)) {
+                    boolean isRetained =
+                            FilterUtils.isRetainedAfterApplyingFilterPredicates(
+                                    filterPredicates, getValueGetter(row));
+                    if (isRetained) {
+                        remainData.add(row);
+                    }
+                }
+                result.put(partition, remainData);
+            }
+            return result;
+        }
+
         private Row projectRow(Row row) {
             if (projectedPhysicalFields == null) {
                 return row;
@@ -1075,14 +1091,28 @@ public final class TestValuesTableFactory
                 } else {
                     // we will read data from Collections.emptyList() if allPartitions is empty.
                     // therefore, we should clear all data manually.
+                    remainingPartitions = (List<Map<String, String>>) Collections.emptyMap();
                     this.data.put(Collections.emptyMap(), Collections.emptyList());
                 }
+
             } else {
                 this.allPartitions = remainingPartitions;
                 if (remainingPartitions.isEmpty()) {
-                    this.data.put(Collections.emptyMap(), Collections.emptyList());
+                    remainingPartitions = (List<Map<String, String>>) Collections.emptyMap();
                 }
             }
+            // only keep the data in the remaining partitions
+            this.data = pruneDataByRemainingPartitions(remainingPartitions, this.data);
+        }
+
+        private Map<Map<String, String>, Collection<Row>> pruneDataByRemainingPartitions(
+                List<Map<String, String>> remainingPartitions,
+                Map<Map<String, String>, Collection<Row>> allData) {
+            Map<Map<String, String>, Collection<Row>> result = new HashMap<>();
+            for (Map<String, String> remainingPartition : remainingPartitions) {
+                result.put(remainingPartition, allData.get(remainingPartition));
+            }
+            return result;
         }
 
         @Override
@@ -1216,9 +1246,11 @@ public final class TestValuesTableFactory
         }
 
         @Override
-        public void applyProjection(int[][] projectedFields) {
-            this.producedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
+        public void applyProjection(int[][] projectedFields, DataType producedDataType) {
+            this.producedDataType = producedDataType;
             this.projectedPhysicalFields = projectedFields;
+            // we can't immediately project the data here,
+            // because ReadingMetadataSpec may bring new fields
         }
     }
 

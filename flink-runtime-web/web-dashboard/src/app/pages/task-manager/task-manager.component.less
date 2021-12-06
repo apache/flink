@@ -18,11 +18,23 @@
 
 @import "theme";
 
-.content {
-  margin-top: @margin-md;
-}
-
-.router {
-  width: 100%;
+:host {
+  display: flex;
+  flex-flow: column nowrap;
   height: 100%;
+
+  .content {
+    display: flex;
+    flex: 1;
+    margin-top: @margin-md;
+
+    .router {
+      display: flex;
+      flex: 1;
+
+      &.hide {
+        display: none;
+      }
+    }
+  }
 }

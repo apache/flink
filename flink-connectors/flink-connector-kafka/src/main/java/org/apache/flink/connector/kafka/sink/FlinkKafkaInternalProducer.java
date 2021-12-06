@@ -33,7 +33,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -121,12 +120,6 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
     public void close(Duration timeout) {
         closed = true;
         super.close(timeout);
-    }
-
-    @Override
-    public void close(long timeout, TimeUnit unit) {
-        closed = true;
-        super.close(timeout, unit);
     }
 
     public boolean isClosed() {

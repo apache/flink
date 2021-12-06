@@ -29,6 +29,8 @@ import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.validate.SqlValidatorUtil
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
@@ -450,15 +452,26 @@ object IntervalJoinUtil {
    *         else false.
    */
   def satisfyIntervalJoin(join: FlinkLogicalJoin): Boolean = {
+    satisfyIntervalJoin(join, join.getLeft, join.getRight)
+  }
+
+  def satisfyIntervalJoin(join: FlinkLogicalJoin, newLeft: RelNode, newRight: RelNode): Boolean = {
     // TODO support SEMI/ANTI joinSplitAggregateRuleTest
     if (!join.getJoinType.projectsRight) {
       return false
     }
+    val newJoinRowType = SqlValidatorUtil.deriveJoinRowType(
+      newLeft.getRowType,
+      newRight.getRowType,
+      join.getJoinType,
+      join.getCluster.getTypeFactory,
+      null,
+      join.getSystemFieldList)
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
     val (windowBounds, _) = extractWindowBoundsFromPredicate(
       join.getCondition,
-      join.getLeft.getRowType.getFieldCount,
-      join.getRowType,
+      newLeft.getRowType.getFieldCount,
+      newJoinRowType,
       join.getCluster.getRexBuilder,
       tableConfig)
     windowBounds.nonEmpty

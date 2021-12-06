@@ -274,7 +274,7 @@ function install_tox() {
     # tox 3.14.0 depends on both 0.19 and 0.23 of importlib_metadata at the same time and
     # conda will try to install both these two versions and it will cause problems occasionally.
     # Using pip as the package manager could avoid this problem.
-    $CURRENT_DIR/install_command.sh -q virtualenv==16.0.0 tox==3.14.0 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q virtualenv==20.10.0 tox==3.14.0 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install tox failed \
         please try to exec the script again.\

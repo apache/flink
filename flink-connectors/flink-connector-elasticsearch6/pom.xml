@@ -74,6 +74,10 @@ under the License.
 					<groupId>org.elasticsearch</groupId>
 					<artifactId>elasticsearch</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.elasticsearch.client</groupId>
+					<artifactId>elasticsearch-rest-high-level-client</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -118,8 +122,19 @@ under the License.
 					<groupId>org.elasticsearch</groupId>
 					<artifactId>elasticsearch</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.elasticsearch.client</groupId>
+					<artifactId>elasticsearch-rest-high-level-client</artifactId>
+				</exclusion>
 			</exclusions>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-testing</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
