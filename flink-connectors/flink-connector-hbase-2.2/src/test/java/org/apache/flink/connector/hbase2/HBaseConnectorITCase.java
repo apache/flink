@@ -25,6 +25,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase.util.PlannerType;
 import org.apache.flink.connector.hbase2.source.AbstractTableInputFormat;
@@ -33,19 +34,21 @@ import org.apache.flink.connector.hbase2.source.HBaseRowDataInputFormat;
 import org.apache.flink.connector.hbase2.source.HBaseRowInputFormat;
 import org.apache.flink.connector.hbase2.source.HBaseTableSource;
 import org.apache.flink.connector.hbase2.util.HBaseTestBase;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.descriptors.HBase;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -57,6 +60,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -76,6 +80,13 @@ import static org.junit.Assert.assertNull;
 /** IT cases for HBase connector (including HBaseTableSource and HBaseTableSink). */
 @RunWith(Parameterized.class)
 public class HBaseConnectorITCase extends HBaseTestBase {
+
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(new Configuration())
+                            .build());
 
     @Parameterized.Parameter public PlannerType planner;
 
@@ -436,8 +447,6 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                                 + " AS h");
 
         TableResult tableResult2 = table.execute();
-        // wait to finish
-        tableResult2.getJobClient().get().getJobExecutionResult().get();
 
         List<Row> results = CollectionUtil.iteratorToList(tableResult2.collect());
 
@@ -529,8 +538,6 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                         + " AS h";
 
         TableResult tableResult3 = batchEnv.executeSql(query);
-        // wait to finish
-        tableResult3.getJobClient().get().getJobExecutionResult().get();
 
         List<String> result =
                 Lists.newArrayList(tableResult3.collect()).stream()
