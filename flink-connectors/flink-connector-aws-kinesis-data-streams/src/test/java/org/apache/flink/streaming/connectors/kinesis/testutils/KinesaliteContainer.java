@@ -166,6 +166,7 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
         @Override
         protected void waitUntilReady() {
             retryUntilSuccessRunner(() -> list());
+            logOutput("169");
         }
 
         protected <T> void retryUntilSuccessRunner(final Callable<T> lambda) {
@@ -173,33 +174,19 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
                     (int) this.startupTimeout.getSeconds() * TIMEOUT_PER_RETRY,
                     TimeUnit.SECONDS,
                     () -> rateLimiter.getWhenReady(() -> lambda.call()));
+            logOutput("177");
         }
 
         private ListStreamsResponse list()
                 throws ExecutionException, InterruptedException, URISyntaxException {
             startContainer();
-            LOG.trace(" *** LOGGING CONTAINER OUTPUT TO TRACE SLFJ *** ");
-            LOG.trace(" * SOUT * ");
-            LOG.trace(getLogs(OutputFrame.OutputType.STDOUT));
-            LOG.trace(" * SERR * ");
-            LOG.trace(getLogs(OutputFrame.OutputType.STDERR));
-            LOG.trace(" * COMBINED * ");
-            LOG.trace(getLogs());
-            System.out.println(" *** LOGGING CONTAINER OUTPUT TO S.OUT *** ");
-            System.out.println(" * SOUT * ");
-            System.out.println(getLogs(OutputFrame.OutputType.STDOUT));
-            System.out.println(" * SERR * ");
-            System.out.println(getLogs(OutputFrame.OutputType.STDERR));
-            System.out.println(" * COMBINED * ");
-            System.out.println(getLogs());
-            System.err.println(" *** LOGGING CONTAINER OUTPUT TO S.ERR *** ");
-            System.err.println(" * SOUT * ");
-            System.err.println(getLogs(OutputFrame.OutputType.STDOUT));
-            System.err.println(" * SERR * ");
-            System.err.println(getLogs(OutputFrame.OutputType.STDERR));
-            System.err.println(" * COMBINED * ");
-            System.err.println(getLogs());
-            return getContainerClient().listStreams().get();
+            logOutput("183");
+            try {
+                return getContainerClient().listStreams().get();
+            } catch (Exception e) {
+                logOutput("187");
+                throw e;
+            }
         }
     }
 
@@ -231,6 +218,30 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
             } while (describeStream.streamDescription().streamStatus() != StreamStatus.ACTIVE);
             return describeStream;
         }
+    }
+
+    private void logOutput(String location) {
+        LOG.trace(" *** LOGGING CONTAINER OUTPUT TO TRACE SLFJ @ " + location + " *** ");
+        LOG.trace(" * SOUT * ");
+        LOG.trace(getLogs(OutputFrame.OutputType.STDOUT));
+        LOG.trace(" * SERR * ");
+        LOG.trace(getLogs(OutputFrame.OutputType.STDERR));
+        LOG.trace(" * COMBINED * ");
+        LOG.trace(getLogs());
+        System.out.println(" *** LOGGING CONTAINER OUTPUT TO S.OUT @ " + location + " *** ");
+        System.out.println(" * SOUT * ");
+        System.out.println(getLogs(OutputFrame.OutputType.STDOUT));
+        System.out.println(" * SERR * ");
+        System.out.println(getLogs(OutputFrame.OutputType.STDERR));
+        System.out.println(" * COMBINED * ");
+        System.out.println(getLogs());
+        System.err.println(" *** LOGGING CONTAINER OUTPUT TO S.ERR @ " + location + " *** ");
+        System.err.println(" * SOUT * ");
+        System.err.println(getLogs(OutputFrame.OutputType.STDOUT));
+        System.err.println(" * SERR * ");
+        System.err.println(getLogs(OutputFrame.OutputType.STDERR));
+        System.err.println(" * COMBINED * ");
+        System.err.println(getLogs());
     }
 
     private SdkAsyncHttpClient buildSdkAsyncHttpClient() {
