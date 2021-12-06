@@ -242,28 +242,4 @@ public class HiveGenericUDTFTest {
         @Override
         public void close() {}
     }
-
-    /** Test split udtf initialize with StructObjectInspector. */
-    public static class TestSplitUDTFInitializeWithStructObjectInspector extends GenericUDTF {
-
-        @Override
-        public StructObjectInspector initialize(StructObjectInspector argOIs)
-                throws UDFArgumentException {
-            return ObjectInspectorFactory.getStandardStructObjectInspector(
-                    Collections.singletonList("col1"),
-                    Collections.singletonList(
-                            PrimitiveObjectInspectorFactory.javaStringObjectInspector));
-        }
-
-        @Override
-        public void process(Object[] args) throws HiveException {
-            String str = (String) args[0];
-            for (String s : str.split(",")) {
-                forward(s);
-            }
-        }
-
-        @Override
-        public void close() {}
-    }
 }

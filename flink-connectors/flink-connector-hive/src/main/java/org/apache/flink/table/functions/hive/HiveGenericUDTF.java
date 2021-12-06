@@ -168,13 +168,14 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 
     public static StandardStructObjectInspector getStandardStructObjectInspector(
             ObjectInspector[] argumentInspectors) {
-        List<String> structFieldNames = new ArrayList<>();
+        List<String> dummyStructFieldNames = new ArrayList<>();
         for (int i = 0; i < argumentInspectors.length; i++) {
-            structFieldNames.add(String.valueOf(i));
+            // dummy column name just for place holder
+            dummyStructFieldNames.add("dummy_col_" + i);
         }
         StandardStructObjectInspector standardStructObjectInspector =
                 ObjectInspectorFactory.getStandardStructObjectInspector(
-                        structFieldNames, Arrays.asList(argumentInspectors));
+                        dummyStructFieldNames, Arrays.asList(argumentInspectors));
         return standardStructObjectInspector;
     }
 }
