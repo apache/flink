@@ -43,11 +43,14 @@ import software.amazon.awssdk.services.glue.model.DataFormat;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ACCESS_KEY_ID;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_SECRET_ACCESS_KEY;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
@@ -99,6 +102,39 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
         assertThat(
                 glueSchemaRegistryInputStreamDeserializer,
                 instanceOf(GlueSchemaRegistryInputStreamDeserializer.class));
+    }
+
+    @Test
+    public void testDefaultAwsCredentialsProvider() throws Exception {
+        GlueSchemaRegistryInputStreamDeserializer glueSchemaRegistryInputStreamDeserializer =
+                new GlueSchemaRegistryInputStreamDeserializer(configs);
+
+        GlueSchemaRegistryDeserializationFacade facade =
+                getField(
+                        "glueSchemaRegistryDeserializationFacade",
+                        glueSchemaRegistryInputStreamDeserializer);
+
+        AwsCredentialsProvider credentialsProvider = facade.getCredentialsProvider();
+        assertThat(credentialsProvider, instanceOf(DefaultCredentialsProvider.class));
+    }
+
+    @Test
+    public void testAwsCredentialsProviderFromConfig() throws Exception {
+        Map<String, Object> config = new HashMap<>(configs);
+        config.put(AWS_ACCESS_KEY_ID, "ak");
+        config.put(AWS_SECRET_ACCESS_KEY, "sk");
+
+        GlueSchemaRegistryInputStreamDeserializer glueSchemaRegistryInputStreamDeserializer =
+                new GlueSchemaRegistryInputStreamDeserializer(config);
+
+        GlueSchemaRegistryDeserializationFacade facade =
+                getField(
+                        "glueSchemaRegistryDeserializationFacade",
+                        glueSchemaRegistryInputStreamDeserializer);
+
+        AwsCredentialsProvider credentialsProvider = facade.getCredentialsProvider();
+        assertThat(credentialsProvider.resolveCredentials().accessKeyId(), equalTo("ak"));
+        assertThat(credentialsProvider.resolveCredentials().secretAccessKey(), equalTo("sk"));
     }
 
     /** Test whether constructor works with AWS de-serializer input. */
@@ -286,5 +322,11 @@ public class GlueSchemaRegistryInputStreamDeserializerTest extends TestLogger {
         public byte[] getActualData(byte[] data) {
             return bytes;
         }
+    }
+
+    private <T> T getField(final String fieldName, final Object instance) throws Exception {
+        Field field = instance.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return (T) field.get(instance);
     }
 }

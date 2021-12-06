@@ -46,7 +46,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 /** Tests for {@link GlueSchemaRegistryJsonDeserializationSchema}. */
 public class GlueSchemaRegistryJsonDeserializationSchemaTest {
     private static final String testTopic = "Test-Topic";
-    private static Map<String, Object> configs = new HashMap<>();
+    private static final Map<String, Object> configs = new HashMap<>();
     private static AwsCredentialsProvider credentialsProvider =
             DefaultCredentialsProvider.builder().build();
     private static final byte[] serializedBytes =
@@ -127,9 +127,10 @@ public class GlueSchemaRegistryJsonDeserializationSchemaTest {
                 new GlueSchemaRegistryJsonSchemaCoder(
                         testTopic, configs, null, mockDeserializationFacadeForSpecific);
 
-        GlueSchemaRegistryJsonDeserializationSchema glueSchemaRegistryJsonDeserializationSchema =
-                new GlueSchemaRegistryJsonDeserializationSchema(
-                        Car.class, glueSchemaRegistryJsonSchemaCoder);
+        GlueSchemaRegistryJsonDeserializationSchema<Car>
+                glueSchemaRegistryJsonDeserializationSchema =
+                        new GlueSchemaRegistryJsonDeserializationSchema<>(
+                                Car.class, glueSchemaRegistryJsonSchemaCoder);
 
         Object deserializedObject =
                 glueSchemaRegistryJsonDeserializationSchema.deserialize(serializedBytes);
@@ -144,9 +145,10 @@ public class GlueSchemaRegistryJsonDeserializationSchemaTest {
                 new GlueSchemaRegistryJsonSchemaCoder(
                         testTopic, configs, null, mockDeserializationFacadeForGeneric);
 
-        GlueSchemaRegistryJsonDeserializationSchema glueSchemaRegistryJsonDeserializationSchema =
-                new GlueSchemaRegistryJsonDeserializationSchema(
-                        Car.class, glueSchemaRegistryJsonSchemaCoder);
+        GlueSchemaRegistryJsonDeserializationSchema<Car>
+                glueSchemaRegistryJsonDeserializationSchema =
+                        new GlueSchemaRegistryJsonDeserializationSchema<>(
+                                Car.class, glueSchemaRegistryJsonSchemaCoder);
 
         Object deserializedObject =
                 glueSchemaRegistryJsonDeserializationSchema.deserialize(serializedBytes);
@@ -157,8 +159,10 @@ public class GlueSchemaRegistryJsonDeserializationSchemaTest {
     /** Test whether deserialize method returns null when input byte array is null. */
     @Test
     public void testDeserialize_withNullObject_returnNull() {
-        GlueSchemaRegistryJsonDeserializationSchema glueSchemaRegistryJsonDeserializationSchema =
-                new GlueSchemaRegistryJsonDeserializationSchema(Car.class, testTopic, configs);
+        GlueSchemaRegistryJsonDeserializationSchema<Car>
+                glueSchemaRegistryJsonDeserializationSchema =
+                        new GlueSchemaRegistryJsonDeserializationSchema<>(
+                                Car.class, testTopic, configs);
         assertThat(glueSchemaRegistryJsonDeserializationSchema.deserialize(null), nullValue());
     }
 
