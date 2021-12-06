@@ -43,11 +43,11 @@ of the Elasticsearch installation:
   </thead>
   <tbody>
     <tr>
-        <td><= 6.3.1</td>
+        <td>6.x</td>
         <td>{{< artifact flink-connector-elasticsearch6 >}}</td>
     </tr>
     <tr>
-        <td><= 7.5.1</td>
+        <td>7.x</td>
         <td>{{< artifact flink-connector-elasticsearch7 >}}</td>
     </tr>
   </tbody>

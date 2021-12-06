@@ -81,7 +81,7 @@ Connector Options
       <td>Specify what connector to use, valid values are:
       <ul>
       <li><code>elasticsearch-6</code>: connect to Elasticsearch 6.x cluster.</li>
-      <li><code>elasticsearch-7</code>: connect to Elasticsearch 7.x and later versions cluster.</li>
+      <li><code>elasticsearch-7</code>: connect to Elasticsearch 7.x cluster.</li>
       </ul></td>
     </tr>
     <tr>
