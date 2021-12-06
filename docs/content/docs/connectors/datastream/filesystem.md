@@ -1090,5 +1090,5 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
 Watermarking doesn't work particularly well for large backlogs of files, because watermarks eagerly advance within a file, and the next file might contain data later than the watermark again. 
 We are looking at ways to generate the watermarks more based on global information.
 
-For Unbounded File Sources, the enumerator currently remembers paths of all already processed files, which is a state that can in come cases grow rather large. 
-We plan to add a compressed form of tracking already processed files in the future (for example by keeping modification timestamps lower boundaries).
+For Unbounded File Sources, the enumerator currently remembers paths of all already processed files, which is a state that can in come cases grow rather large.
+The future will be planned to add a compressed form of tracking already processed files in the future (for example by keeping modification timestamps lower boundaries).
