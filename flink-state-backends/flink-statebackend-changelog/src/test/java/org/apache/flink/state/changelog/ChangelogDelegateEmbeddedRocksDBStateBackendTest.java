@@ -56,6 +56,11 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
         return false;
     }
 
+    @Override
+    protected boolean isSafeToReuseKVState() {
+        return true;
+    }
+
     @Test
     @Ignore("The type of handle returned from snapshot() is not incremental")
     public void testSharedIncrementalStateDeRegistration() {}
