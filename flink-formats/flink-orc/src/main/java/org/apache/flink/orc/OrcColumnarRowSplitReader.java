@@ -20,9 +20,9 @@ package org.apache.flink.orc;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.shim.OrcShim;
-import org.apache.flink.table.data.ColumnarRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.columnar.ColumnarRowData;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.orc.TypeDescription;

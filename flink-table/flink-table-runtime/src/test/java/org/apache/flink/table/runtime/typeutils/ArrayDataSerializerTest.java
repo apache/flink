@@ -21,11 +21,11 @@ package org.apache.flink.table.runtime.typeutils;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.ColumnarArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
-import org.apache.flink.table.data.vector.heap.HeapBytesVector;
+import org.apache.flink.table.data.columnar.ColumnarArrayData;
+import org.apache.flink.table.data.columnar.vector.heap.HeapBytesVector;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 

@@ -186,6 +186,11 @@ public class EmbeddedRocksDBStateBackendTest
         return true;
     }
 
+    @Override
+    protected boolean isSafeToReuseKVState() {
+        return true;
+    }
+
     // small safety net for instance cleanups, so that no native objects are left
     @After
     public void cleanupRocksDB() {

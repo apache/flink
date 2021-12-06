@@ -420,8 +420,8 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     @Override
-    public boolean isStateImmutableInStateBackend(CheckpointType checkpointOptions) {
-        return keyedStateBackend.isStateImmutableInStateBackend(checkpointOptions);
+    public boolean isSafeToReuseKVState() {
+        return keyedStateBackend.isSafeToReuseKVState();
     }
 
     @Nonnull

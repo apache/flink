@@ -38,7 +38,7 @@ import java.util.concurrent.CompletableFuture;
  * ResultPartitionWriter#fail(Throwable)} or {@link ResultPartitionWriter#finish()}, it abruptly
  * triggers failure and cancellation of production. In this case {@link
  * ResultPartitionWriter#fail(Throwable)} still needs to be called afterwards to fully release all
- * resources associated the the partition and propagate failure cause to the consumer if possible.
+ * resources associated the partition and propagate failure cause to the consumer if possible.
  */
 public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvider {
 

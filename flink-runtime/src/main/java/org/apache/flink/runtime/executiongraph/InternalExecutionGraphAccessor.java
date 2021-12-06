@@ -73,9 +73,9 @@ public interface InternalExecutionGraphAccessor {
 
     PartitionGroupReleaseStrategy getPartitionGroupReleaseStrategy();
 
-    void vertexFinished();
+    void jobVertexFinished();
 
-    void vertexUnFinished();
+    void jobVertexUnFinished();
 
     ExecutionDeploymentListener getExecutionDeploymentListener();
 

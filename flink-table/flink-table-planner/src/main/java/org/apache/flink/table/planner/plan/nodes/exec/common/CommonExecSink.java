@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -58,20 +57,25 @@ import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.sink.SinkNotNullEnforcer;
+import org.apache.flink.table.runtime.operators.sink.ConstraintEnforcer;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
 import org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializer;
 import org.apache.flink.table.runtime.operators.sink.StreamRecordTimestampInserter;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -129,7 +133,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);
 
         Transformation<RowData> sinkTransform =
-                applyNotNullEnforcer(inputTransform, planner.getTableConfig(), physicalRowType);
+                applyConstraintValidations(
+                        inputTransform, planner.getTableConfig(), physicalRowType);
 
         sinkTransform =
                 applyKeyBy(
@@ -161,28 +166,48 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     /**
      * Apply an operator to filter or report error to process not-null values for not-null fields.
      */
-    private Transformation<RowData> applyNotNullEnforcer(
+    private Transformation<RowData> applyConstraintValidations(
             Transformation<RowData> inputTransform, TableConfig config, RowType physicalRowType) {
-        final ExecutionConfigOptions.NotNullEnforcer notNullEnforcer =
-                config.getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER);
-        final int[] notNullFieldIndices = getNotNullFieldIndices(physicalRowType);
+        final ConstraintEnforcer.Builder validatorBuilder = ConstraintEnforcer.newBuilder();
         final String[] fieldNames = physicalRowType.getFieldNames().toArray(new String[0]);
 
+        // Build NOT NULL enforcer
+        final int[] notNullFieldIndices = getNotNullFieldIndices(physicalRowType);
         if (notNullFieldIndices.length > 0) {
-            final SinkNotNullEnforcer enforcer =
-                    new SinkNotNullEnforcer(notNullEnforcer, notNullFieldIndices, fieldNames);
+            final ExecutionConfigOptions.NotNullEnforcer notNullEnforcer =
+                    config.getConfiguration()
+                            .get(ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER);
             final List<String> notNullFieldNames =
                     Arrays.stream(notNullFieldIndices)
                             .mapToObj(idx -> fieldNames[idx])
                             .collect(Collectors.toList());
-            final String operatorName =
-                    String.format(
-                            "NotNullEnforcer(fields=[%s])", String.join(", ", notNullFieldNames));
+
+            validatorBuilder.addNotNullConstraint(
+                    notNullEnforcer, notNullFieldIndices, notNullFieldNames, fieldNames);
+        }
+
+        // Build CHAR/VARCHAR precision enforcer
+        final List<ConstraintEnforcer.CharFieldInfo> charFieldInfo =
+                getCharFieldInfo(physicalRowType);
+        if (!charFieldInfo.isEmpty()) {
+            final ExecutionConfigOptions.CharPrecisionEnforcer charPrecisionEnforcer =
+                    config.getConfiguration()
+                            .get(ExecutionConfigOptions.TABLE_EXEC_SINK_CHAR_PRECISION_ENFORCER);
+            final List<String> charFieldNames =
+                    charFieldInfo.stream()
+                            .map(cfi -> fieldNames[cfi.fieldIdx()])
+                            .collect(Collectors.toList());
+
+            validatorBuilder.addCharPrecisionConstraint(
+                    charPrecisionEnforcer, charFieldInfo, charFieldNames, fieldNames);
+        }
+
+        ConstraintEnforcer constraintEnforcer = validatorBuilder.build();
+        if (constraintEnforcer != null) {
             return new OneInputTransformation<>(
                     inputTransform,
-                    operatorName,
-                    new StreamFilter<>(enforcer),
+                    constraintEnforcer.getOperatorName(),
+                    validatorBuilder.build(),
                     getInputTypeInfo(),
                     inputTransform.getParallelism());
         } else {
@@ -195,6 +220,29 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         return IntStream.range(0, physicalType.getFieldCount())
                 .filter(pos -> !physicalType.getTypeAt(pos).isNullable())
                 .toArray();
+    }
+
+    /**
+     * Returns a List of {@link ConstraintEnforcer.CharFieldInfo}, each containing the info needed
+     * to determine whether a string value needs trimming and/or padding.
+     */
+    private List<ConstraintEnforcer.CharFieldInfo> getCharFieldInfo(RowType physicalType) {
+        final List<ConstraintEnforcer.CharFieldInfo> charFieldsAndLengths = new ArrayList<>();
+        for (int i = 0; i < physicalType.getFieldCount(); i++) {
+            LogicalType type = physicalType.getTypeAt(i);
+            boolean isChar = type.is(LogicalTypeRoot.CHAR);
+            // Should trim and possibly pad
+            if ((isChar && (LogicalTypeChecks.getLength(type) < CharType.MAX_LENGTH))
+                    || (type.is(LogicalTypeRoot.VARCHAR)
+                            && (LogicalTypeChecks.getLength(type) < VarCharType.MAX_LENGTH))) {
+                charFieldsAndLengths.add(
+                        new ConstraintEnforcer.CharFieldInfo(
+                                i, LogicalTypeChecks.getLength(type), isChar));
+            } else if (isChar) { // Should pad
+                charFieldsAndLengths.add(new ConstraintEnforcer.CharFieldInfo(i, null, isChar));
+            }
+        }
+        return charFieldsAndLengths;
     }
 
     /**

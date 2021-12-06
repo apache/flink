@@ -104,6 +104,11 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
             CastRule.Context ctx) {
         return new CodeGeneratorCastRule.Context() {
             @Override
+            public boolean legacyBehaviour() {
+                return ctx.legacyBehaviour();
+            }
+
+            @Override
             public String getSessionTimeZoneTerm() {
                 return "java.util.TimeZone.getTimeZone(\"" + ctx.getSessionZoneId().getId() + "\")";
             }

@@ -682,9 +682,9 @@ Sink(table=[default_catalog.default_database.orders2], fields=[user, product, am
     } ]
   }, {
     "id" : ,
-    "type" : "NotNullEnforcer(fields=[user])",
+    "type" : "ConstraintEnforcer[NotNullEnforcer(fields=[user])]",
     "pact" : "Operator",
-    "contents" : "NotNullEnforcer(fields=[user])",
+    "contents" : "ConstraintEnforcer[NotNullEnforcer(fields=[user])]",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

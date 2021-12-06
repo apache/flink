@@ -30,6 +30,7 @@ This connector provides access to partitioned files in filesystems
 supported by the [Flink FileSystem abstraction]({{< ref "docs/deployment/filesystems/overview" >}}).
 
 The file system connector itself is included in Flink and does not require an additional dependency.
+The corresponding jar can be found in the Flink distribution inside the `/lib` directory.
 A corresponding format needs to be specified for reading and writing rows from and to a file system.
 
 The file system connector allows for reading and writing from a local or distributed filesystem. A filesystem table can be defined as:

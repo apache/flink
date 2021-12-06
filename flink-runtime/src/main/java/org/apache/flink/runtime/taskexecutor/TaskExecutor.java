@@ -1526,7 +1526,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 //   This can happen when the resource requirements of a job increases between
                 //   offers.
                 //   In this case the first response MUST be ignored, so that
-                //   the the slot can be properly activated when the second response arrives.
+                //   the slot can be properly activated when the second response arrives.
                 // 2) initially accepted, later rejected
                 //   This can happen when the resource requirements of a job decrease between
                 //   offers.

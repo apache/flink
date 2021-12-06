@@ -88,7 +88,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
      * rescaled. The key is the partition id and the value contains all subtask indexes of the
      * output operator before rescaling. Note that this field is only set by {@link
      * StateAssignmentOperation} and will not be persisted in the checkpoint itself as it can only
-     * be calculated if the the post-recovery scale factor is known.
+     * be calculated if the post-recovery scale factor is known.
      */
     private final InflightDataRescalingDescriptor inputRescalingDescriptor;
 
@@ -96,8 +96,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
      * The input channel mappings per input set when the input operator for a gate was rescaled. The
      * key is the gate index and the value contains all subtask indexes of the input operator before
      * rescaling. Note that this field is only set by {@link StateAssignmentOperation} and will not
-     * be persisted in the checkpoint itself as it can only be calculated if the the post-recovery
-     * scale factor is known.
+     * be persisted in the checkpoint itself as it can only be calculated if the post-recovery scale
+     * factor is known.
      */
     private final InflightDataRescalingDescriptor outputRescalingDescriptor;
 

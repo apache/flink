@@ -30,7 +30,6 @@ import org.apache.flink.table.types.logical.RowType
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollationTraitDef, RelCollations, RelNode}
-import org.apache.flink.table.filesystem.FileSystemConnectorOptions
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -68,12 +67,14 @@ class BatchPhysicalSinkRule extends ConverterRule(
             val dynamicPartIndices =
               dynamicPartFields.map(fieldNames.indexOf(_))
 
+            // TODO This option is hardcoded to remove the dependency of planner from
+            //  flink-connector-files. We should move this option out of FileSystemConnectorOptions
             val shuffleEnable = sink
-                .catalogTable
-                .getOptions
-                .get(FileSystemConnectorOptions.SINK_SHUFFLE_BY_PARTITION.key())
+              .catalogTable
+              .getOptions
+              .getOrDefault("sink.shuffle-by-partition.enable", "false")
 
-            if (shuffleEnable != null && shuffleEnable.toBoolean) {
+            if (shuffleEnable.toBoolean) {
               requiredTraitSet = requiredTraitSet.plus(
                 FlinkRelDistribution.hash(dynamicPartIndices
                     .map(Integer.valueOf), requireStrict = false))

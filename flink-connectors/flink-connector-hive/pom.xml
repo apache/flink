@@ -183,7 +183,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-orc_${scala.binary.version}</artifactId>
+			<artifactId>flink-orc</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>
@@ -195,7 +195,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-orc-nohive_${scala.binary.version}</artifactId>
+			<artifactId>flink-orc-nohive</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>
@@ -207,7 +207,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-parquet_${scala.binary.version}</artifactId>
+			<artifactId>flink-parquet</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -928,10 +928,10 @@ under the License.
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.flink:flink-hadoop-fs</include>
-									<include>org.apache.flink:flink-orc_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-orc-nohive_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-orc</include>
+									<include>org.apache.flink:flink-orc-nohive</include>
 									<include>org.apache.flink:flink-hadoop-compatibility_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-parquet_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-parquet</include>
 									<include>org.apache.flink:flink-hadoop-bulk</include>
 									<include>org.apache.parquet:parquet-hadoop</include>
 									<include>org.apache.parquet:parquet-format</include>
@@ -966,14 +966,14 @@ under the License.
 							</relocations>
 							<filters>
 								<filter>
-									<artifact>org.apache.flink:flink-orc_${scala.binary.version}</artifact>
+									<artifact>org.apache.flink:flink-orc</artifact>
 									<excludes>
 										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
 										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
 									</excludes>
 								</filter>
 								<filter>
-									<artifact>org.apache.flink:flink-parquet_${scala.binary.version}</artifact>
+									<artifact>org.apache.flink:flink-parquet</artifact>
 									<excludes>
 										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
 										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>

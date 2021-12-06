@@ -95,7 +95,7 @@ class CastRulesTest {
     private static final ZoneId CET = ZoneId.of("CET");
 
     private static final CastRule.Context CET_CONTEXT =
-            CastRule.Context.create(CET, Thread.currentThread().getContextClassLoader());
+            CastRule.Context.create(false, CET, Thread.currentThread().getContextClassLoader());
 
     private static final byte DEFAULT_POSITIVE_TINY_INT = (byte) 5;
     private static final byte DEFAULT_NEGATIVE_TINY_INT = (byte) -5;
@@ -614,7 +614,14 @@ class CastRulesTest {
                                 ROW(FIELD("f0", STRING()), FIELD("f1", STRING())),
                                 GenericRowData.of(
                                         StringData.fromString("abc"), StringData.fromString("def")),
-                                StringData.fromString("(abc, def)"))
+                                StringData.fromString("(abc, def)"),
+                                false)
+                        .fromCase(
+                                ROW(FIELD("f0", STRING()), FIELD("f1", STRING())),
+                                GenericRowData.of(
+                                        StringData.fromString("abc"), StringData.fromString("def")),
+                                StringData.fromString("(abc,def)"),
+                                true)
                         .fromCase(
                                 ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
                                 GenericRowData.of(null, StringData.fromString("abc")),
@@ -633,6 +640,16 @@ class CastRulesTest {
                         .fail(STRING(), StringData.fromString("Apache Flink"), TableException.class)
                         .fromCase(STRING(), StringData.fromString("TRUE"), true)
                         .fail(STRING(), StringData.fromString(""), TableException.class)
+                        // Should fail when https://issues.apache.org/jira/browse/FLINK-24576 is
+                        // fixed
+                        .fromCase(
+                                DECIMAL(5, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("0.000"), 5, 3),
+                                false)
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                DecimalData.fromBigDecimal(new BigDecimal("1.987"), 4, 3),
+                                true)
                         .fromCase(TINYINT(), DEFAULT_POSITIVE_TINY_INT, true)
                         .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, true)
                         .fromCase(TINYINT(), (byte) 0, false)
@@ -644,7 +661,13 @@ class CastRulesTest {
                         .fromCase(INT(), 0, false)
                         .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, true)
                         .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, true)
-                        .fromCase(BIGINT(), 0L, false),
+                        .fromCase(BIGINT(), 0L, false)
+                        // Should fail when https://issues.apache.org/jira/browse/FLINK-24576 is
+                        // fixed
+                        .fromCase(FLOAT(), 0f, false)
+                        .fromCase(FLOAT(), 1.1234f, true)
+                        .fromCase(DOUBLE(), 0.0d, false)
+                        .fromCase(DOUBLE(), -0.12345678d, true),
                 CastTestSpecBuilder.testCastTo(BINARY(2))
                         .fromCase(CHAR(3), StringData.fromString("foo"), new byte[] {102, 111, 111})
                         .fromCase(
@@ -844,9 +867,15 @@ class CastRulesTest {
         }
 
         private CastTestSpecBuilder fromCase(DataType dataType, Object src, Object target) {
+            return fromCase(dataType, src, target, false);
+        }
+
+        private CastTestSpecBuilder fromCase(
+                DataType dataType, Object src, Object target, boolean legacyBehaviour) {
             return fromCase(
                     dataType,
                     CastRule.Context.create(
+                            legacyBehaviour,
                             DateTimeUtils.UTC_ZONE.toZoneId(),
                             Thread.currentThread().getContextClassLoader()),
                     src,
@@ -884,6 +913,7 @@ class CastRulesTest {
             return fail(
                     dataType,
                     CastRule.Context.create(
+                            false,
                             DateTimeUtils.UTC_ZONE.toZoneId(),
                             Thread.currentThread().getContextClassLoader()),
                     src,

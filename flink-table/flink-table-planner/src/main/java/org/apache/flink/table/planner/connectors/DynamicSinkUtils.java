@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFacto
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
@@ -115,7 +116,10 @@ public final class DynamicSinkUtils {
                         configuration.get(CollectSinkOperatorFactory.MAX_BATCH_SIZE),
                         configuration.get(CollectSinkOperatorFactory.SOCKET_TIMEOUT),
                         classLoader,
-                        zoneId);
+                        zoneId,
+                        configuration
+                                .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
+                                .isEnabled());
         collectModifyOperation.setSelectResultProvider(tableSink.getSelectResultProvider());
         collectModifyOperation.setConsumedDataType(consumedDataType);
         return convertSinkToRel(
