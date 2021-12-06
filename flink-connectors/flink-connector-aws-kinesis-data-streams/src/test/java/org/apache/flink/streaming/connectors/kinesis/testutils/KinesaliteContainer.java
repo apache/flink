@@ -52,7 +52,7 @@ import java.util.concurrent.TimeUnit;
  * A testcontainer based on Kinesalite.
  *
  * <p>Note that the more obvious localstack container with Kinesis took 1 minute to start vs 10
- * seconds of Kinesalite....
+ * seconds of Kinesalite.....
  */
 public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
     private static final String ACCESS_KEY = "access key";
