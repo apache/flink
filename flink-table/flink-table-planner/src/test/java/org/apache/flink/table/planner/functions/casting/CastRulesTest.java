@@ -76,6 +76,7 @@ import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SECOND;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.STRUCTURED;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
@@ -121,6 +122,14 @@ class CastRulesTest {
             TimestampData.fromLocalDateTime(LocalDateTime.parse("2021-09-24T12:34:56.123456"));
     private static final StringData TIMESTAMP_STRING = fromString("2021-09-24 12:34:56.123456");
     private static final StringData TIMESTAMP_STRING_CET = fromString("2021-09-24 14:34:56.123456");
+
+    private static final DataType MY_STRUCTURED_TYPE =
+            STRUCTURED(
+                    MyStructuredType.class,
+                    FIELD("a", BIGINT().notNull()),
+                    FIELD("b", BIGINT()),
+                    FIELD("c", STRING()),
+                    FIELD("d", ARRAY(STRING())));
 
     Stream<CastTestSpecBuilder> testCases() {
         return Stream.of(
@@ -580,7 +589,20 @@ class CastRulesTest {
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
                                 RawValueData.fromObject(
                                         LocalDateTime.parse("2020-11-11T18:08:01.123")),
-                                fromString("2020-11-11T18:08:01.123")),
+                                fromString("2020-11-11T18:08:01.123"))
+                        .fromCase(
+                                MY_STRUCTURED_TYPE,
+                                GenericRowData.of(
+                                        10L,
+                                        null,
+                                        TIME_STRING,
+                                        new GenericArrayData(
+                                                new Object[] {
+                                                    fromString("a"),
+                                                    fromString("b"),
+                                                    fromString("c")
+                                                })),
+                                fromString("(10, null, 12:34:56.123, [a, b, c])")),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(BOOLEAN(), null, null)
                         .fail(CHAR(3), fromString("foo"), TableException.class)
@@ -756,6 +778,25 @@ class CastRulesTest {
                                                     fromString("a"),
                                                     fromString("b"),
                                                     fromString("c")
+                                                }))),
+                CastTestSpecBuilder.testCastTo(MY_STRUCTURED_TYPE)
+                        .fromCase(
+                                ROW(INT().notNull(), INT(), TIME(5), ARRAY(TIMESTAMP())),
+                                GenericRowData.of(
+                                        10,
+                                        null,
+                                        TIME,
+                                        new GenericArrayData(
+                                                new Object[] {TIMESTAMP, TIMESTAMP, TIMESTAMP})),
+                                GenericRowData.of(
+                                        10L,
+                                        null,
+                                        TIME_STRING,
+                                        new GenericArrayData(
+                                                new Object[] {
+                                                    TIMESTAMP_STRING,
+                                                    TIMESTAMP_STRING,
+                                                    TIMESTAMP_STRING
                                                 }))));
     }
 
@@ -781,6 +822,45 @@ class CastRulesTest {
             map.put(entry.getKey(), entry.getValue());
         }
         return new GenericMapData(map);
+    }
+
+    public static class MyStructuredType {
+        private long a;
+        private Long b;
+        private String c;
+        private String[] d;
+
+        public long getA() {
+            return a;
+        }
+
+        public void setA(long a) {
+            this.a = a;
+        }
+
+        public Long getB() {
+            return b;
+        }
+
+        public void setB(Long b) {
+            this.b = b;
+        }
+
+        public String getC() {
+            return c;
+        }
+
+        public void setC(String c) {
+            this.c = c;
+        }
+
+        public String[] getD() {
+            return d;
+        }
+
+        public void setD(String[] d) {
+            this.d = d;
+        }
     }
 
     @SuppressWarnings({"rawtypes"})
