@@ -1048,14 +1048,43 @@ reduce the thread-to-thread handover overhead.
 For the `BulkFormat`, one batch (as returned by `BulkFormat.Reader#readBatch()`)
 is handed over as one.
 
-## Stream format And Batch Format Interchange
-
-
 ## Customizing File Enumeration
 
-Implement custom SplitEnumerator and Splits.
+```java
+/**
+ * A FileEnumerator implementation for hive source, which generates splits based on 
+ * HiveTablePartition.
+ */
+public class HiveSourceFileEnumerator implements FileEnumerator {
+    ...
 
-## Error Tolerance
+    /***
+     * Generates all file splits for the relevant files under the given paths. The {@code
+     * minDesiredSplits} is an optional hint indicating how many splits would be necessary to
+     * exploit parallelism properly.
+     */
+    @Override
+    public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
+            throws IOException {
+        return new ArrayList<>(createInputSplits(minDesiredSplits, partitions, jobConf));
+    }
+
+    ...
+
+    /***
+     * A factory to create HiveSourceFileEnumerator.
+     */
+    public static class Provider implements FileEnumerator.Provider {
+
+        ...
+        @Override
+        public FileEnumerator create() {
+            return new HiveSourceFileEnumerator(partitions, jobConfWrapper.conf());
+        }
+    }
+}
+```
+
 
 ## Current Limitations
 Watermarking doesn't work particularly well for large backlogs of files, because watermarks eagerly advance within a file, and the next file might contain data later than the watermark again. 
