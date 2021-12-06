@@ -833,6 +833,24 @@ params.getDiscoveryInterval().ifPresent(builder::monitorContinuously);
 env.fromSource(builder.build(),WatermarkStrategy.noWatermarks(),"file-input");
 ```
 
+## Bounded And Unbounded
+
+### Bounded File Source
+
+The source has the URI/Path of a directory to read, and a Format that defines how to parse the files.
+
+A Split is a file, or a region of a file (if the data format supports splitting the file).
+The SplitEnumerator lists all files under the given directory path. It assigns Splits to the next reader 
+that requests a Split. Once all Splits are assigned, it responds to requests with NoMoreSplits.
+The SourceReader requests a Split and reads the assigned Split (file or file region) and parses it using the given Format. 
+If it does not get another Split, but a NoMoreSplits message, it finishes.
+
+### Unbounded Streaming File Source
+
+This source works the same way as described above, except that the SplitEnumerator never responds with NoMoreSplits and 
+periodically lists the contents under the given URI/Path to check for new files. 
+Once it finds new files, it generates new Splits for them and can assign them to the available SourceReaders.
+
 ## Format Type
 
 StreamFormat reads the contents of a file from a file stream. It is the simplest
@@ -868,6 +886,7 @@ final StreamExecutionEnvironment env=StreamExecutionEnvironment.getExecutionEnvi
 final DataStream<String> stream=
         env.fromSource(source,WatermarkStrategy.noWatermarks(),"file-source");
 ```
+
 #### SimpleStreamFormat Abstract Class
 
 A simple version of `StreamFormat` for indivisible formats that are not splittable.
@@ -1003,7 +1022,9 @@ final DataStream<String> stream=
 ```
 
 ## BulkFormat Internals
+
 ### Splitting
+
 File splitting means dividing a file into multiple regions that can be read independently.
 Whether a format supports splitting is indicated via the `isSplittable() method.
 
@@ -1014,6 +1035,7 @@ block start or a sync marker). This is not necessarily possible for all formats,
 splitting is optional.
 
 ### Checkpointing
+
 The bulk reader returns an iterator per batch that it reads. The iterator produces records
 together with a position. That position is stored in the checkpointed state atomically with the
 processing of the record. That means it must be the position from where the reading can be
@@ -1036,11 +1058,13 @@ down) filters may want to avoid a skip-record-count all together, so that they d
 wrong records when the filter gets updated around a checkpoint/savepoint.
 
 ### Serializable
+
 Like many other API classes in Flink, the outer class is serializable to support sending
 instances to distributed workers for parallel execution. This is purely short-term serialization
 for RPC and no instance of this will be long-term persisted in a serialized form.
 
 ### Record Batching
+
 Internally in the file source, the readers pass batches of records from the reading threads
 (that perform the typically blocking I/O operations) to the async mailbox threads that do the
 streaming and batch data processing. Passing records in batches (rather than one-at-a-time) much
@@ -1085,8 +1109,8 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
 }
 ```
 
-
 ## Current Limitations
+
 Watermarking doesn't work particularly well for large backlogs of files, because watermarks eagerly advance within a file, and the next file might contain data later than the watermark again. 
 We are looking at ways to generate the watermarks more based on global information.
 
