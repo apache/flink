@@ -20,7 +20,6 @@ package org.apache.flink.formats.parquet.row;
 
 import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
 import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
