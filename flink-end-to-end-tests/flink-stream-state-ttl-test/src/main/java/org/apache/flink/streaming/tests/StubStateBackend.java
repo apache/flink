@@ -94,4 +94,9 @@ final class StubStateBackend implements StateBackend {
         return backend.createOperatorStateBackend(
                 env, operatorIdentifier, stateHandles, cancelStreamRegistry);
     }
+
+    @Override
+    public boolean supportsNoClaimRestoreMode() {
+        return backend.supportsNoClaimRestoreMode();
+    }
 }

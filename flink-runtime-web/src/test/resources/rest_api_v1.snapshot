@@ -438,7 +438,7 @@
         },
         "restoreMode" : {
           "type" : "string",
-          "enum" : [ "CLAIM", "LEGACY" ]
+          "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
         }
       }
     },

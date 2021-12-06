@@ -366,7 +366,9 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
     public void testTriggerUnalignedCheckpointWithFinishedChannelsAndSourceChain()
             throws Exception {
         testTriggerCheckpointWithFinishedChannelsAndSourceChain(
-                CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault()));
+                CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault()));
     }
 
     @Test
@@ -374,7 +376,9 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             throws Exception {
         testTriggerCheckpointWithFinishedChannelsAndSourceChain(
                 CheckpointOptions.alignedWithTimeout(
-                        CheckpointStorageLocationReference.getDefault(), 10L));
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault(),
+                        10L));
     }
 
     private void testTriggerCheckpointWithFinishedChannelsAndSourceChain(

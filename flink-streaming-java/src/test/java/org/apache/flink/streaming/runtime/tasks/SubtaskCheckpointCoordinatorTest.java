@@ -114,7 +114,7 @@ public class SubtaskCheckpointCoordinatorTest {
         coordinator.initInputsCheckpoint(
                 1L,
                 unalignedCheckpointEnabled
-                        ? CheckpointOptions.unaligned(locationReference)
+                        ? CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, locationReference)
                         : CheckpointOptions.alignedNoTimeout(checkpointType, locationReference));
         return writer.started;
     }
@@ -216,7 +216,9 @@ public class SubtaskCheckpointCoordinatorTest {
                     };
 
             CheckpointOptions forcedAlignedOptions =
-                    CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault())
+                    CheckpointOptions.unaligned(
+                                    CheckpointType.CHECKPOINT,
+                                    CheckpointStorageLocationReference.getDefault())
                             .withUnalignedUnsupported();
             coordinator.checkpointState(
                     new CheckpointMetaData(checkpointId, 0),

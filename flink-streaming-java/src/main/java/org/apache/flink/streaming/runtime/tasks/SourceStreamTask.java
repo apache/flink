@@ -258,6 +258,12 @@ public class SourceStreamTask<
             } else {
                 return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
             }
+        } else if (checkpointOptions.getCheckpointType() == CheckpointType.FULL_CHECKPOINT) {
+            // see FLINK-25256
+            throw new IllegalStateException(
+                    "Using externally induced sources, we can not enforce taking a full checkpoint."
+                            + "If you are restoring from a snapshot in NO_CLAIM mode, please use"
+                            + " either CLAIM or LEGACY mode.");
         } else {
             // we do not trigger checkpoints here, we simply state whether we can trigger them
             synchronized (lock) {

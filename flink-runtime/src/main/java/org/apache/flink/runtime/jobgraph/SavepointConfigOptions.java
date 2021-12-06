@@ -52,7 +52,7 @@ public class SavepointConfigOptions {
     public static final ConfigOption<RestoreMode> RESTORE_MODE =
             key("execution.savepoint-restore-mode")
                     .enumType(RestoreMode.class)
-                    .defaultValue(RestoreMode.LEGACY)
+                    .defaultValue(RestoreMode.NO_CLAIM)
                     .withDescription(
                             "Describes the mode how Flink should restore from the given"
                                     + " savepoint or retained checkpoint.");

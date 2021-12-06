@@ -33,7 +33,7 @@ public class SavepointRestoreSettings implements Serializable {
 
     /** No restore should happen. */
     private static final SavepointRestoreSettings NONE =
-            new SavepointRestoreSettings(null, false, RestoreMode.LEGACY);
+            new SavepointRestoreSettings(null, false, RestoreMode.NO_CLAIM);
 
     /** Savepoint restore path. */
     private final String restorePath;

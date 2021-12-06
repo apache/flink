@@ -507,14 +507,18 @@ public class StreamTaskFinalCheckpointsTest {
     @Test
     public void testTriggeringUnalignedCheckpointWithFinishedChannels() throws Exception {
         testTriggeringCheckpointWithFinishedChannels(
-                CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault()));
+                CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault()));
     }
 
     @Test
     public void testTriggeringAlignedWithTimeoutCheckpointWithFinishedChannels() throws Exception {
         testTriggeringCheckpointWithFinishedChannels(
                 CheckpointOptions.alignedWithTimeout(
-                        CheckpointStorageLocationReference.getDefault(), 10L));
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault(),
+                        10L));
     }
 
     private void testTriggeringCheckpointWithFinishedChannels(CheckpointOptions checkpointOptions)

@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -64,6 +65,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -191,11 +193,27 @@ public class RocksIncrementalSnapshotStrategy<K>
             return registry -> SnapshotResult.empty();
         }
 
+        final PreviousSnapshot previousSnapshot;
+        final CheckpointType.SharingFilesStrategy sharingFilesStrategy =
+                checkpointOptions.getCheckpointType().getSharingFilesStrategy();
+        switch (sharingFilesStrategy) {
+            case FORWARD_BACKWARD:
+                previousSnapshot = snapshotResources.previousSnapshot;
+                break;
+            case FORWARD:
+                previousSnapshot = EMPTY_PREVIOUS_SNAPSHOT;
+                break;
+            case NO_SHARING:
+            default:
+                throw new IllegalArgumentException(
+                        "Unsupported sharing files strategy: " + sharingFilesStrategy);
+        }
+
         return new RocksDBIncrementalSnapshotOperation(
                 checkpointId,
                 checkpointStreamFactory,
                 snapshotResources.snapshotDirectory,
-                snapshotResources.previousSnapshot,
+                previousSnapshot,
                 snapshotResources.stateMetaInfoSnapshots);
     }
 
@@ -588,6 +606,9 @@ public class RocksIncrementalSnapshotStrategy<K>
             }
         }
     }
+
+    private static final PreviousSnapshot EMPTY_PREVIOUS_SNAPSHOT =
+            new PreviousSnapshot(Collections.emptySet(), Collections.emptyMap());
 
     private static class PreviousSnapshot {
 

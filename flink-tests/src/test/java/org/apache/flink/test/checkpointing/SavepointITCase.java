@@ -25,6 +25,8 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
@@ -39,6 +41,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -67,7 +70,9 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
@@ -82,7 +87,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -106,6 +114,7 @@ import java.net.URISyntaxException;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -352,6 +361,107 @@ public class SavepointITCase extends TestLogger {
                             "Savepoint unexpectedly cleaned up.",
                             new File(new URI(savepointPath)).exists());
                 });
+    }
+
+    @Rule public SharedObjects sharedObjects = SharedObjects.create();
+
+    @Test
+    public void testTriggerSavepointAndResumeWithNoClaim() throws Exception {
+        final int numTaskManagers = 2;
+        final int numSlotsPerTaskManager = 2;
+        final int parallelism = numTaskManagers * numSlotsPerTaskManager;
+
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(new EmbeddedRocksDBStateBackend(true));
+        env.getCheckpointConfig()
+                .enableExternalizedCheckpoints(
+                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+        env.getCheckpointConfig().setCheckpointStorage(folder.newFolder().toURI());
+        env.setParallelism(parallelism);
+
+        final SharedReference<CountDownLatch> counter =
+                sharedObjects.add(new CountDownLatch(10_000));
+        env.fromSequence(1, Long.MAX_VALUE)
+                .keyBy(i -> i % parallelism)
+                .process(
+                        new KeyedProcessFunction<Long, Long, Long>() {
+                            private ListState<Long> last;
+
+                            @Override
+                            public void open(Configuration parameters) {
+                                // we use list state here to create sst files of a significant size
+                                // if sst files do not reach certain thresholds they are not stored
+                                // in files, but as a byte stream in checkpoints metadata
+                                last =
+                                        getRuntimeContext()
+                                                .getListState(
+                                                        new ListStateDescriptor<>(
+                                                                "last",
+                                                                BasicTypeInfo.LONG_TYPE_INFO));
+                            }
+
+                            @Override
+                            public void processElement(
+                                    Long value,
+                                    KeyedProcessFunction<Long, Long, Long>.Context ctx,
+                                    Collector<Long> out)
+                                    throws Exception {
+                                last.add(value);
+                                out.collect(value);
+                            }
+                        })
+                .addSink(
+                        new SinkFunction<Long>() {
+                            @Override
+                            public void invoke(Long value) {
+                                counter.consumeSync(CountDownLatch::countDown);
+                            }
+                        })
+                .setParallelism(1);
+
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+
+        MiniClusterWithClientResource cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setNumberTaskManagers(numTaskManagers)
+                                .setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
+                                .build());
+        cluster.before();
+        try {
+            final JobID jobID1 = new JobID();
+            jobGraph.setJobID(jobID1);
+            cluster.getClusterClient().submitJob(jobGraph).get();
+            CommonTestUtils.waitForAllTaskRunning(cluster.getMiniCluster(), jobID1, false);
+            // wait for some records to be processed before taking the checkpoint
+            counter.get().await();
+            final String firstCheckpoint = cluster.getMiniCluster().triggerCheckpoint(jobID1).get();
+
+            cluster.getClusterClient().cancel(jobID1).get();
+            jobGraph.setSavepointRestoreSettings(
+                    SavepointRestoreSettings.forPath(firstCheckpoint, false, RestoreMode.NO_CLAIM));
+            final JobID jobID2 = new JobID();
+            jobGraph.setJobID(jobID2);
+            cluster.getClusterClient().submitJob(jobGraph).get();
+            CommonTestUtils.waitForAllTaskRunning(cluster.getMiniCluster(), jobID2, false);
+            String secondCheckpoint = cluster.getMiniCluster().triggerCheckpoint(jobID2).get();
+            cluster.getClusterClient().cancel(jobID2).get();
+
+            // delete the checkpoint we restored from
+            FileUtils.deleteDirectory(Paths.get(new URI(firstCheckpoint)).getParent().toFile());
+
+            // we should be able to restore from the second checkpoint even though it has been built
+            // on top of the first checkpoint
+            jobGraph.setSavepointRestoreSettings(
+                    SavepointRestoreSettings.forPath(
+                            secondCheckpoint, false, RestoreMode.NO_CLAIM));
+            final JobID jobID3 = new JobID();
+            jobGraph.setJobID(jobID3);
+            cluster.getClusterClient().submitJob(jobGraph).get();
+            CommonTestUtils.waitForAllTaskRunning(cluster.getMiniCluster(), jobID3, false);
+        } finally {
+            cluster.after();
+        }
     }
 
     @Test

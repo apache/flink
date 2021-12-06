@@ -37,5 +37,7 @@ public class CheckpointTypeTest {
         assertEquals(0, CheckpointType.CHECKPOINT.ordinal());
         assertEquals(1, CheckpointType.SAVEPOINT.ordinal());
         assertEquals(2, CheckpointType.SAVEPOINT_SUSPEND.ordinal());
+        assertEquals(3, CheckpointType.SAVEPOINT_TERMINATE.ordinal());
+        assertEquals(4, CheckpointType.FULL_CHECKPOINT.ordinal());
     }
 }
