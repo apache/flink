@@ -206,6 +206,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         previousAttemptUnregisteredWorkers.remove(resourceId);
         if (workerResourceSpec != null) {
             final int count = pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
+            resourceManagerMetricGroup.gauge(
+                    MetricNames.NUM_PENDING_TASK_MANAGERS, () -> (long) count);
             log.info(
                     "Worker {} with resource spec {} was requested in current attempt."
                             + " Current pending count after registering: {}.",
