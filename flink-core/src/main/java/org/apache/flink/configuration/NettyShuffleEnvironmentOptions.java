@@ -76,7 +76,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Boolean> BLOCKING_SHUFFLE_COMPRESSION_ENABLED =
             key("taskmanager.network.blocking-shuffle.compression.enabled")
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             "Boolean flag indicating whether the shuffle data will be compressed "
                                     + "for blocking shuffle mode. Note that data is compressed per "
@@ -201,7 +201,7 @@ public class NettyShuffleEnvironmentOptions {
     public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_BUFFERS =
             key("taskmanager.network.sort-shuffle.min-buffers")
                     .intType()
-                    .defaultValue(64)
+                    .defaultValue(512)
                     .withDescription(
                             "Minimum number of network buffers required per sort-merge blocking "
                                     + "result partition. For production usage, it is suggested to "
@@ -222,7 +222,7 @@ public class NettyShuffleEnvironmentOptions {
     public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_PARALLELISM =
             key("taskmanager.network.sort-shuffle.min-parallelism")
                     .intType()
-                    .defaultValue(Integer.MAX_VALUE)
+                    .defaultValue(1)
                     .withDescription(
                             String.format(
                                     "Parallelism threshold to switch between sort-merge blocking "

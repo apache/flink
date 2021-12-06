@@ -587,7 +587,7 @@ public class TaskManagerOptions {
     public static final ConfigOption<MemorySize> NETWORK_BATCH_SHUFFLE_READ_MEMORY =
             key("taskmanager.memory.framework.off-heap.batch-shuffle.size")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("32m"))
+                    .defaultValue(MemorySize.parse("64m"))
                     .withDescription(
                             String.format(
                                     "Size of memory used by blocking shuffle for shuffle data read "
