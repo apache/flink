@@ -127,6 +127,75 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
+    public void mergeWithIncludeFailsOnDuplicateRegularColumn() {
+        TableSchema sourceSchema =
+                TableSchema.builder().add(TableColumn.physical("one", DataTypes.INT())).build();
+
+        List<SqlNode> derivedColumns =
+                Arrays.asList(
+                        regularColumn("two", DataTypes.INT()),
+                        regularColumn("two", DataTypes.INT()),
+                        regularColumn("four", DataTypes.STRING()));
+
+        thrown.expect(ValidationException.class);
+        thrown.expectMessage("A regular Column named 'two' already exists in the table.");
+        util.mergeTables(
+                getDefaultMergingStrategies(),
+                sourceSchema,
+                derivedColumns,
+                Collections.emptyList(),
+                null);
+    }
+
+    @Test
+    public void mergeWithIncludeFailsOnDuplicateRegularColumnAndComputeColumn() {
+        TableSchema sourceSchema =
+                TableSchema.builder().add(TableColumn.physical("one", DataTypes.INT())).build();
+
+        List<SqlNode> derivedColumns =
+                Arrays.asList(
+                        regularColumn("two", DataTypes.INT()),
+                        computedColumn("three", plus("two", "3")),
+                        regularColumn("three", DataTypes.INT()),
+                        regularColumn("four", DataTypes.STRING()));
+
+        thrown.expect(ValidationException.class);
+        thrown.expectMessage(
+                "A column named 'three' already exists in the table. "
+                        + "Duplicate columns exist in the compute column and regular column. ");
+        util.mergeTables(
+                getDefaultMergingStrategies(),
+                sourceSchema,
+                derivedColumns,
+                Collections.emptyList(),
+                null);
+    }
+
+    @Test
+    public void mergeWithIncludeFailsOnDuplicateRegularColumnAndMetadataColumn() {
+        TableSchema sourceSchema =
+                TableSchema.builder().add(TableColumn.physical("one", DataTypes.INT())).build();
+
+        List<SqlNode> derivedColumns =
+                Arrays.asList(
+                        metadataColumn("two", DataTypes.INT(), true),
+                        computedColumn("three", plus("two", "3")),
+                        regularColumn("two", DataTypes.INT()),
+                        regularColumn("four", DataTypes.STRING()));
+
+        thrown.expect(ValidationException.class);
+        thrown.expectMessage(
+                "A column named 'two' already exists in the table. "
+                        + "Duplicate columns exist in the metadata column and regular column. ");
+        util.mergeTables(
+                getDefaultMergingStrategies(),
+                sourceSchema,
+                derivedColumns,
+                Collections.emptyList(),
+                null);
+    }
+
+    @Test
     public void mergeGeneratedColumns() {
         TableSchema sourceSchema =
                 TableSchema.builder()
@@ -378,8 +447,8 @@ public class MergeTableLikeUtilTest {
 
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
-                "A column named 'two' already exists in the base table."
-                        + " Computed columns can only overwrite other computed columns.");
+                "A column named 'two' already exists in the table. "
+                        + "Duplicate columns exist in the compute column and regular column. ");
         util.mergeTables(
                 mergingStrategies, sourceSchema, derivedColumns, Collections.emptyList(), null);
     }
