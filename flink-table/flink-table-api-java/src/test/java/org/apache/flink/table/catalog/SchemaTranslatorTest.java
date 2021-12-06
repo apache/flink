@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.SchemaTranslator.ConsumingResult;
@@ -38,6 +37,15 @@ import java.util.Arrays;
 import java.util.Optional;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.DECIMAL;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -55,16 +63,11 @@ public class SchemaTranslatorTest {
 
         assertThat(result.getPhysicalDataType())
                 .isEqualTo(
-                        DataTypes.ROW(
-                                        DataTypes.FIELD(
+                        ROW(
+                                        FIELD(
                                                 "f0",
-                                                DataTypes.ROW(
-                                                        DataTypes.FIELD("f0", DataTypes.INT()),
-                                                        DataTypes.FIELD(
-                                                                "f1", DataTypes.BOOLEAN()))),
-                                        DataTypes.FIELD(
-                                                "f1",
-                                                DataTypeFactoryMock.dummyRaw(DayOfWeek.class)))
+                                                ROW(FIELD("f0", INT()), FIELD("f1", BOOLEAN()))),
+                                        FIELD("f1", DataTypeFactoryMock.dummyRaw(DayOfWeek.class)))
                                 .notNull());
 
         assertThat(result.isTopLevelRecord()).isTrue();
@@ -72,11 +75,7 @@ public class SchemaTranslatorTest {
         assertThat(result.getSchema())
                 .isEqualTo(
                         Schema.newBuilder()
-                                .column(
-                                        "f0",
-                                        DataTypes.ROW(
-                                                DataTypes.FIELD("f0", DataTypes.INT()),
-                                                DataTypes.FIELD("f1", DataTypes.BOOLEAN())))
+                                .column("f0", ROW(FIELD("f0", INT()), FIELD("f1", BOOLEAN())))
                                 .column("f1", DataTypeFactoryMock.dummyRaw(DayOfWeek.class))
                                 .build());
 
@@ -87,15 +86,12 @@ public class SchemaTranslatorTest {
     public void testOutputToRowDataType() {
         final ResolvedSchema inputSchema =
                 ResolvedSchema.of(
-                        Column.physical("c", DataTypes.INT()),
-                        Column.physical("a", DataTypes.BOOLEAN()),
-                        Column.physical("B", DataTypes.DOUBLE())); // case-insensitive mapping
+                        Column.physical("c", INT()),
+                        Column.physical("a", BOOLEAN()),
+                        Column.physical("B", DOUBLE())); // case-insensitive mapping
 
         final DataType physicalDataType =
-                DataTypes.ROW(
-                        DataTypes.FIELD("a", DataTypes.BOOLEAN()),
-                        DataTypes.FIELD("b", DataTypes.DOUBLE()),
-                        DataTypes.FIELD("c", DataTypes.INT()));
+                ROW(FIELD("a", BOOLEAN()), FIELD("b", DOUBLE()), FIELD("c", INT()));
 
         final ProducingResult result =
                 SchemaTranslator.createProducingResult(
@@ -106,9 +102,9 @@ public class SchemaTranslatorTest {
         assertThat(result.getSchema())
                 .isEqualTo(
                         Schema.newBuilder()
-                                .column("a", DataTypes.BOOLEAN())
-                                .column("b", DataTypes.DOUBLE())
-                                .column("c", DataTypes.INT())
+                                .column("a", BOOLEAN())
+                                .column("b", DOUBLE())
+                                .column("c", INT())
                                 .build());
 
         assertThat(result.getPhysicalDataType()).hasValue(physicalDataType);
@@ -137,18 +133,16 @@ public class SchemaTranslatorTest {
 
     @Test
     public void testOutputToAtomicDataType() {
-        final ResolvedSchema inputSchema = ResolvedSchema.of(Column.physical("a", DataTypes.INT()));
+        final ResolvedSchema inputSchema = ResolvedSchema.of(Column.physical("a", INT()));
 
         final ProducingResult result =
-                SchemaTranslator.createProducingResult(
-                        dataTypeFactory(), inputSchema, DataTypes.INT());
+                SchemaTranslator.createProducingResult(dataTypeFactory(), inputSchema, INT());
 
         assertThat(result.getProjections()).isEmpty();
 
-        assertThat(result.getSchema())
-                .isEqualTo(Schema.newBuilder().column("f0", DataTypes.INT()).build());
+        assertThat(result.getSchema()).isEqualTo(Schema.newBuilder().column("f0", INT()).build());
 
-        assertThat(result.getPhysicalDataType()).hasValue(DataTypes.INT());
+        assertThat(result.getPhysicalDataType()).hasValue(INT());
     }
 
     @Test
@@ -166,21 +160,15 @@ public class SchemaTranslatorTest {
                                 .build());
 
         assertThat(result.getPhysicalDataType())
-                .isEqualTo(
-                        DataTypes.ROW(
-                                        DataTypes.FIELD("f0", DataTypes.INT()),
-                                        DataTypes.FIELD("f1", DataTypes.BIGINT()))
-                                .notNull());
+                .isEqualTo(ROW(FIELD("f0", INT()), FIELD("f1", BIGINT())).notNull());
 
         assertThat(result.isTopLevelRecord()).isTrue();
 
         assertThat(result.getSchema())
                 .isEqualTo(
                         Schema.newBuilder()
-                                .column(
-                                        "f0",
-                                        DataTypes.INT().notNull()) // not null due to primary key
-                                .column("f1", DataTypes.BIGINT())
+                                .column("f0", INT().notNull()) // not null due to primary key
+                                .column("f1", BIGINT())
                                 .columnByExpression("computed", "f1 + 42")
                                 .columnByExpression("computed2", "f1 - 1")
                                 .primaryKeyNamed("pk", "f0")
@@ -200,20 +188,20 @@ public class SchemaTranslatorTest {
                         inputTypeInfo,
                         Schema.newBuilder()
                                 .primaryKeyNamed("pk", "f0")
-                                .column("f1", DataTypes.BIGINT()) // reordered
-                                .column("f0", DataTypes.INT())
+                                .column("f1", BIGINT()) // reordered
+                                .column("f0", INT())
                                 .columnByExpression("computed", "f1 + 42")
-                                .column("f2", DataTypes.DECIMAL(10, 2)) // enriches
+                                .column("f2", DECIMAL(10, 2)) // enriches
                                 .columnByExpression("computed2", "f1 - 1")
                                 .build());
 
         assertThat(result.getPhysicalDataType())
                 .isEqualTo(
-                        DataTypes.ROW(
-                                        DataTypes.FIELD("f0", DataTypes.INT()),
-                                        DataTypes.FIELD("f1", DataTypes.BIGINT()),
-                                        DataTypes.FIELD("f2", DataTypes.DECIMAL(10, 2)),
-                                        DataTypes.FIELD("f3", DataTypes.BOOLEAN()))
+                        ROW(
+                                        FIELD("f0", INT()),
+                                        FIELD("f1", BIGINT()),
+                                        FIELD("f2", DECIMAL(10, 2)),
+                                        FIELD("f3", BOOLEAN()))
                                 .notNull());
 
         assertThat(result.isTopLevelRecord()).isTrue();
@@ -221,10 +209,10 @@ public class SchemaTranslatorTest {
         assertThat(result.getSchema())
                 .isEqualTo(
                         Schema.newBuilder()
-                                .column("f0", DataTypes.INT())
-                                .column("f1", DataTypes.BIGINT())
-                                .column("f2", DataTypes.DECIMAL(10, 2))
-                                .column("f3", DataTypes.BOOLEAN())
+                                .column("f0", INT())
+                                .column("f1", BIGINT())
+                                .column("f2", DECIMAL(10, 2))
+                                .column("f3", BOOLEAN())
                                 .columnByExpression("computed", "f1 + 42")
                                 .columnByExpression("computed2", "f1 - 1")
                                 .primaryKeyNamed("pk", "f0")
@@ -244,30 +232,19 @@ public class SchemaTranslatorTest {
                         inputTypeInfo,
                         Schema.newBuilder()
                                 .columnByExpression("f0_0", "f0.f0_0")
-                                .column(
-                                        "f0",
-                                        DataTypes.ROW(
-                                                DataTypes.FIELD("f0_0", DataTypes.INT()),
-                                                DataTypes.FIELD("f0_1", DataTypes.BOOLEAN())))
+                                .column("f0", ROW(FIELD("f0_0", INT()), FIELD("f0_1", BOOLEAN())))
                                 .columnByExpression("f0_1", "f0.f0_1")
                                 .build());
 
         assertThat(result.getPhysicalDataType())
-                .isEqualTo(
-                        DataTypes.ROW(
-                                DataTypes.FIELD("f0_0", DataTypes.INT()),
-                                DataTypes.FIELD("f0_1", DataTypes.BOOLEAN())));
+                .isEqualTo(ROW(FIELD("f0_0", INT()), FIELD("f0_1", BOOLEAN())));
 
         assertThat(result.isTopLevelRecord()).isFalse();
 
         assertThat(result.getSchema())
                 .isEqualTo(
                         Schema.newBuilder()
-                                .column(
-                                        "f0",
-                                        DataTypes.ROW(
-                                                DataTypes.FIELD("f0_0", DataTypes.INT()),
-                                                DataTypes.FIELD("f0_1", DataTypes.BOOLEAN())))
+                                .column("f0", ROW(FIELD("f0_0", INT()), FIELD("f0_1", BOOLEAN())))
                                 .columnByExpression("f0_0", "f0.f0_0")
                                 .columnByExpression("f0_1", "f0.f0_1")
                                 .build());
@@ -284,9 +261,7 @@ public class SchemaTranslatorTest {
                                 SchemaTranslator.createConsumingResult(
                                         dataTypeFactory(),
                                         inputTypeInfo,
-                                        Schema.newBuilder()
-                                                .column("INVALID", DataTypes.BIGINT())
-                                                .build()))
+                                        Schema.newBuilder().column("INVALID", BIGINT()).build()))
                 .satisfies(
                         anyCauseMatches(
                                 ValidationException.class,
@@ -297,9 +272,9 @@ public class SchemaTranslatorTest {
     public void testOutputToNoSchema() {
         final ResolvedSchema tableSchema =
                 ResolvedSchema.of(
-                        Column.physical("id", DataTypes.BIGINT()),
-                        Column.metadata("rowtime", DataTypes.TIMESTAMP_LTZ(3), null, false),
-                        Column.physical("name", DataTypes.STRING()));
+                        Column.physical("id", BIGINT()),
+                        Column.metadata("rowtime", TIMESTAMP_LTZ(3), null, false),
+                        Column.physical("name", STRING()));
 
         final ProducingResult result = SchemaTranslator.createProducingResult(tableSchema, null);
 
@@ -308,9 +283,9 @@ public class SchemaTranslatorTest {
         assertThat(result.getSchema())
                 .isEqualTo(
                         Schema.newBuilder()
-                                .column("id", DataTypes.BIGINT())
-                                .column("rowtime", DataTypes.TIMESTAMP_LTZ(3)) // becomes physical
-                                .column("name", DataTypes.STRING())
+                                .column("id", BIGINT())
+                                .column("rowtime", TIMESTAMP_LTZ(3)) // becomes physical
+                                .column("name", STRING())
                                 .build());
 
         assertThat(result.getPhysicalDataType()).isEmpty();
@@ -320,9 +295,9 @@ public class SchemaTranslatorTest {
     public void testOutputToEmptySchema() {
         final ResolvedSchema tableSchema =
                 ResolvedSchema.of(
-                        Column.physical("id", DataTypes.BIGINT()),
-                        Column.metadata("rowtime", DataTypes.TIMESTAMP_LTZ(3), null, false),
-                        Column.physical("name", DataTypes.STRING()));
+                        Column.physical("id", BIGINT()),
+                        Column.metadata("rowtime", TIMESTAMP_LTZ(3), null, false),
+                        Column.physical("name", STRING()));
 
         final ProducingResult result =
                 SchemaTranslator.createProducingResult(tableSchema, Schema.derived());
@@ -332,9 +307,9 @@ public class SchemaTranslatorTest {
         assertThat(result.getSchema())
                 .isEqualTo(
                         Schema.newBuilder()
-                                .column("id", DataTypes.BIGINT())
-                                .column("rowtime", DataTypes.TIMESTAMP_LTZ(3)) // becomes physical
-                                .column("name", DataTypes.STRING())
+                                .column("id", BIGINT())
+                                .column("rowtime", TIMESTAMP_LTZ(3)) // becomes physical
+                                .column("name", STRING())
                                 .build());
 
         assertThat(result.getPhysicalDataType()).isEmpty();
@@ -344,27 +319,26 @@ public class SchemaTranslatorTest {
     public void testOutputToPartialSchema() {
         final ResolvedSchema tableSchema =
                 ResolvedSchema.of(
-                        Column.physical("id", DataTypes.BIGINT().notNull()),
-                        Column.physical("name", DataTypes.STRING()),
-                        Column.metadata("rowtime", DataTypes.TIMESTAMP_LTZ(3), null, false));
+                        Column.physical("id", BIGINT().notNull()),
+                        Column.physical("name", STRING()),
+                        Column.metadata("rowtime", TIMESTAMP_LTZ(3), null, false));
 
         final ProducingResult result =
                 SchemaTranslator.createProducingResult(
                         tableSchema,
                         Schema.newBuilder()
                                 .columnByExpression("computed", "f1 + 42")
-                                .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
+                                .columnByMetadata("rowtime", TIMESTAMP_LTZ(3))
                                 .primaryKey("id")
                                 .build());
 
         assertThat(result.getSchema())
                 .isEqualTo(
                         Schema.newBuilder()
-                                .column("id", DataTypes.BIGINT().notNull())
-                                .column("name", DataTypes.STRING())
+                                .column("id", BIGINT().notNull())
+                                .column("name", STRING())
                                 .columnByExpression("computed", "f1 + 42")
-                                .columnByMetadata(
-                                        "rowtime", DataTypes.TIMESTAMP_LTZ(3)) // becomes metadata
+                                .columnByMetadata("rowtime", TIMESTAMP_LTZ(3)) // becomes metadata
                                 .primaryKey("id")
                                 .build());
     }
@@ -373,25 +347,25 @@ public class SchemaTranslatorTest {
     public void testOutputToDeclaredSchema() {
         final ResolvedSchema tableSchema =
                 ResolvedSchema.of(
-                        Column.physical("id", DataTypes.BIGINT()),
-                        Column.physical("rowtime", DataTypes.TIMESTAMP_LTZ(3)),
-                        Column.physical("name", DataTypes.STRING()));
+                        Column.physical("id", BIGINT()),
+                        Column.physical("rowtime", TIMESTAMP_LTZ(3)),
+                        Column.physical("name", STRING()));
 
         final ProducingResult result =
                 SchemaTranslator.createProducingResult(
                         tableSchema,
                         Schema.newBuilder()
-                                .column("id", DataTypes.BIGINT())
-                                .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
-                                .column("name", DataTypes.STRING().bridgedTo(StringData.class))
+                                .column("id", BIGINT())
+                                .columnByMetadata("rowtime", TIMESTAMP_LTZ(3))
+                                .column("name", STRING().bridgedTo(StringData.class))
                                 .build());
 
         assertThat(result.getSchema())
                 .isEqualTo(
                         Schema.newBuilder()
-                                .column("id", DataTypes.BIGINT())
-                                .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
-                                .column("name", DataTypes.STRING().bridgedTo(StringData.class))
+                                .column("id", BIGINT())
+                                .columnByMetadata("rowtime", TIMESTAMP_LTZ(3))
+                                .column("name", STRING().bridgedTo(StringData.class))
                                 .build());
     }
 
