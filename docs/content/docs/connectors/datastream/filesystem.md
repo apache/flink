@@ -1045,7 +1045,7 @@ Internally in the file source, the readers pass batches of records from the read
 (that perform the typically blocking I/O operations) to the async mailbox threads that do the
 streaming and batch data processing. Passing records in batches (rather than one-at-a-time) much
 reduce the thread-to-thread handover overhead.
-For the {@code BulkFormat}, one batch (as returned by `BulkFormat.Reader#readBatch()`)
+For the `BulkFormat`, one batch (as returned by `BulkFormat.Reader#readBatch()`)
 is handed over as one.
 
 ## Stream format And Batch Format Interchange
