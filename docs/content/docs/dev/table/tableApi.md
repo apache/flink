@@ -1608,7 +1608,7 @@ Tumbling windows are defined by using the `Tumble` class as follows:
   <tbody>
     <tr>
       <td><code>over</code></td>
-      <td>Defines the length the window, either as time or row-count interval.</td>
+      <td>Defines the length of the window, either as time or row-count interval.</td>
     </tr>
     <tr>
       <td><code>on</code></td>
