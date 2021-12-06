@@ -90,7 +90,7 @@ public class SchemaTranslatorTest {
                 ResolvedSchema.of(
                         Column.physical("c", DataTypes.INT()),
                         Column.physical("a", DataTypes.BOOLEAN()),
-                        Column.physical("b", DataTypes.DOUBLE()));
+                        Column.physical("B", DataTypes.DOUBLE())); // case-insensitive mapping
 
         final DataType physicalDataType =
                 DataTypes.ROW(
@@ -102,7 +102,7 @@ public class SchemaTranslatorTest {
                 SchemaTranslator.createProducingResult(
                         dataTypeFactory(), inputSchema, physicalDataType);
 
-        assertEquals(Optional.of(Arrays.asList("a", "b", "c")), result.getProjections());
+        assertEquals(Optional.of(Arrays.asList("a", "B", "c")), result.getProjections());
 
         assertEquals(
                 Schema.newBuilder()
