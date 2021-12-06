@@ -31,9 +31,19 @@ under the License.
 	<name>Flink : E2E Tests : Common Kafka</name>
 
 	<repositories>
+<!--		<repository>-->
+<!--			<id>confluent</id>-->
+<!--			<url>https://packages.confluent.io/maven/</url>-->
+<!--		</repository>-->
 		<repository>
 			<id>confluent</id>
-			<url>https://packages.confluent.io/maven/</url>
+			<url>http://packages.confluent.io/maven/</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
 		</repository>
 	</repositories>
 
@@ -148,6 +158,8 @@ under the License.
 		</dependency>
 	</dependencies>
 
+
+
 	<build>
 		<plugins>
 			<plugin>
@@ -226,4 +238,7 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+
+
 </project>

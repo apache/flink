@@ -146,7 +146,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-elasticsearch5</artifactId>
+			<artifactId>flink-connector-elasticsearch7</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -160,7 +160,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-elasticsearch7</artifactId>
+			<artifactId>flink-connector-elasticsearch6</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>

@@ -78,6 +78,7 @@ public interface ModuleFactory extends TableFactory, Factory {
         ClassLoader getClassLoader();
     }
 
+    @Override
     default String factoryIdentifier() {
         if (requiredContext() == null || supportedProperties() == null) {
             throw new ModuleException("Module factories must implement factoryIdentifier()");
@@ -86,6 +87,7 @@ public interface ModuleFactory extends TableFactory, Factory {
         return null;
     }
 
+    @Override
     default Set<ConfigOption<?>> requiredOptions() {
         if (requiredContext() == null || supportedProperties() == null) {
             throw new ModuleException("Module factories must implement requiredOptions()");
@@ -94,6 +96,7 @@ public interface ModuleFactory extends TableFactory, Factory {
         return null;
     }
 
+    @Override
     default Set<ConfigOption<?>> optionalOptions() {
         if (requiredContext() == null || supportedProperties() == null) {
             throw new ModuleException("Module factories must implement optionalOptions()");

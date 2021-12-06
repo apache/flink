@@ -86,6 +86,7 @@ public interface CatalogFactory extends TableFactory, Factory {
         ClassLoader getClassLoader();
     }
 
+    @Override
     default String factoryIdentifier() {
         if (requiredContext() == null || supportedProperties() == null) {
             throw new CatalogException("Catalog factories must implement factoryIdentifier()");
@@ -94,6 +95,7 @@ public interface CatalogFactory extends TableFactory, Factory {
         return null;
     }
 
+    @Override
     default Set<ConfigOption<?>> requiredOptions() {
         if (requiredContext() == null || supportedProperties() == null) {
             throw new CatalogException("Catalog factories must implement requiredOptions()");
@@ -102,6 +104,7 @@ public interface CatalogFactory extends TableFactory, Factory {
         return null;
     }
 
+    @Override
     default Set<ConfigOption<?>> optionalOptions() {
         if (requiredContext() == null || supportedProperties() == null) {
             throw new CatalogException("Catalog factories must implement optionalOptions()");

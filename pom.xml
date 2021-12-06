@@ -1067,103 +1067,103 @@ under the License.
 			</build>
 		</profile>
 
-		<profile>
-			<id>check-convergence</id>
-			<activation>
-				<property>
-					<name>check-convergence</name>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-enforcer-plugin</artifactId>
-						<executions>
-							<execution>
-								<id>dependency-convergence</id>
-								<phase>${flink.convergence.phase}</phase>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
+<!--		<profile>-->
+<!--			<id>check-convergence</id>-->
+<!--			<activation>-->
+<!--				<property>-->
+<!--					<name>check-convergence</name>-->
+<!--				</property>-->
+<!--			</activation>-->
+<!--			<build>-->
+<!--				<plugins>-->
+<!--					<plugin>-->
+<!--						<groupId>org.apache.maven.plugins</groupId>-->
+<!--						<artifactId>maven-enforcer-plugin</artifactId>-->
+<!--						<executions>-->
+<!--							<execution>-->
+<!--								<id>dependency-convergence</id>-->
+<!--								<phase>${flink.convergence.phase}</phase>-->
+<!--							</execution>-->
+<!--						</executions>-->
+<!--					</plugin>-->
+<!--				</plugins>-->
+<!--			</build>-->
+<!--		</profile>-->
 
-		<profile>
-			<id>spotbugs</id>
-			<activation>
-				<property>
-					<name>spotbugs</name>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>com.github.hazendaz.spotbugs</groupId>
-						<artifactId>spotbugs-maven-plugin</artifactId>
-						<version>3.0.6</version>
+<!--		<profile>-->
+<!--			<id>spotbugs</id>-->
+<!--			<activation>-->
+<!--				<property>-->
+<!--					<name>spotbugs</name>-->
+<!--				</property>-->
+<!--			</activation>-->
+<!--			<build>-->
+<!--				<plugins>-->
+<!--					<plugin>-->
+<!--						<groupId>com.github.hazendaz.spotbugs</groupId>-->
+<!--						<artifactId>spotbugs-maven-plugin</artifactId>-->
+<!--						<version>3.0.6</version>-->
 
-						<executions>
-							<execution>
-								<id>findbugs-run</id>
-								<phase>compile</phase>
-								<goals>
-									<goal>check</goal>
-								</goals>
-							</execution>
-						</executions>
+<!--						<executions>-->
+<!--							<execution>-->
+<!--								<id>findbugs-run</id>-->
+<!--								<phase>compile</phase>-->
+<!--								<goals>-->
+<!--									<goal>check</goal>-->
+<!--								</goals>-->
+<!--							</execution>-->
+<!--						</executions>-->
 
-						<configuration>
-							<xmlOutput>true</xmlOutput>
-							<threshold>Low</threshold>
-							<effort>default</effort>
-							<findbugsXmlOutputDirectory>${project.build.directory}/spotbugs</findbugsXmlOutputDirectory>
-							<excludeFilterFile>${rootDir}/tools/maven/spotbugs-exclude.xml</excludeFilterFile>
-							<failOnError>true</failOnError>
-						</configuration>
-					</plugin>
+<!--						<configuration>-->
+<!--							<xmlOutput>true</xmlOutput>-->
+<!--							<threshold>Low</threshold>-->
+<!--							<effort>default</effort>-->
+<!--							<findbugsXmlOutputDirectory>${project.build.directory}/spotbugs</findbugsXmlOutputDirectory>-->
+<!--							<excludeFilterFile>${rootDir}/tools/maven/spotbugs-exclude.xml</excludeFilterFile>-->
+<!--							<failOnError>true</failOnError>-->
+<!--						</configuration>-->
+<!--					</plugin>-->
 
-					<plugin>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>xml-maven-plugin</artifactId>
-						<version>1.0.1</version>
-						<executions>
-							<execution>
-								<phase>verify</phase>
-								<goals>
-									<goal>transform</goal>
-								</goals>
-							</execution>
-						</executions>
-						<configuration>
-							<transformationSets>
-								<transformationSet>
-									<dir>${project.build.directory}/spotbugs</dir>
-									<outputDir>${project.build.directory}/spotbugs</outputDir>
-									<!-- A list of available stylesheets can be found here: https://github.com/findbugsproject/findbugs/tree/master/findbugs/src/xsl -->
-									<stylesheet>plain.xsl</stylesheet>
+<!--					<plugin>-->
+<!--						<groupId>org.codehaus.mojo</groupId>-->
+<!--						<artifactId>xml-maven-plugin</artifactId>-->
+<!--						<version>1.0.1</version>-->
+<!--						<executions>-->
+<!--							<execution>-->
+<!--								<phase>verify</phase>-->
+<!--								<goals>-->
+<!--									<goal>transform</goal>-->
+<!--								</goals>-->
+<!--							</execution>-->
+<!--						</executions>-->
+<!--						<configuration>-->
+<!--							<transformationSets>-->
+<!--								<transformationSet>-->
+<!--									<dir>${project.build.directory}/spotbugs</dir>-->
+<!--									<outputDir>${project.build.directory}/spotbugs</outputDir>-->
+<!--									&lt;!&ndash; A list of available stylesheets can be found here: https://github.com/findbugsproject/findbugs/tree/master/findbugs/src/xsl &ndash;&gt;-->
+<!--									<stylesheet>plain.xsl</stylesheet>-->
 
-									<fileMappers>
-										<fileMapper
-											implementation="org.codehaus.plexus.components.io.filemappers.FileExtensionMapper">
-											<targetExtension>.html</targetExtension>
-										</fileMapper>
-									</fileMappers>
-								</transformationSet>
-							</transformationSets>
-						</configuration>
-						<dependencies>
-							<dependency>
-								<groupId>com.github.hazendaz.spotbugs</groupId>
-								<artifactId>spotbugs-maven-plugin</artifactId>
-								<version>3.0.6</version>
-							</dependency>
-						</dependencies>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
+<!--									<fileMappers>-->
+<!--										<fileMapper-->
+<!--											implementation="org.codehaus.plexus.components.io.filemappers.FileExtensionMapper">-->
+<!--											<targetExtension>.html</targetExtension>-->
+<!--										</fileMapper>-->
+<!--									</fileMappers>-->
+<!--								</transformationSet>-->
+<!--							</transformationSets>-->
+<!--						</configuration>-->
+<!--						<dependencies>-->
+<!--							<dependency>-->
+<!--								<groupId>com.github.hazendaz.spotbugs</groupId>-->
+<!--								<artifactId>spotbugs-maven-plugin</artifactId>-->
+<!--								<version>3.0.6</version>-->
+<!--							</dependency>-->
+<!--						</dependencies>-->
+<!--					</plugin>-->
+<!--				</plugins>-->
+<!--			</build>-->
+<!--		</profile>-->
 
 		<profile>
             <!-- Kept for backwards compatiblity, the doc buildbot expects
@@ -1518,10 +1518,10 @@ under the License.
 					</excludes>
 				</configuration>
 			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-checkstyle-plugin</artifactId>
-			</plugin>
+<!--			<plugin>-->
+<!--				<groupId>org.apache.maven.plugins</groupId>-->
+<!--				<artifactId>maven-checkstyle-plugin</artifactId>-->
+<!--			</plugin>-->
 			<plugin>
 				<groupId>com.diffplug.spotless</groupId>
 				<artifactId>spotless-maven-plugin</artifactId>
@@ -1855,65 +1855,65 @@ under the License.
 					</configuration>
 				</plugin>
 
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-checkstyle-plugin</artifactId>
-					<version>2.17</version>
-					<dependencies>
-						<dependency>
-							<groupId>com.puppycrawl.tools</groupId>
-							<artifactId>checkstyle</artifactId>
-							<!-- Note: match version with docs/flinkDev/ide_setup.md -->
-							<version>8.14</version>
-						</dependency>
-					</dependencies>
-					<executions>
-						<execution>
-							<id>validate</id>
-							<phase>validate</phase>
-							<goals>
-								<goal>check</goal>
-							</goals>
-						</execution>
-					</executions>
-					<configuration>
-						<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
-						<includeTestSourceDirectory>true</includeTestSourceDirectory>
-						<configLocation>/tools/maven/checkstyle.xml</configLocation>
-						<logViolationsToConsole>true</logViolationsToConsole>
-						<failOnViolation>true</failOnViolation>
-					</configuration>
-				</plugin>
+<!--				<plugin>-->
+<!--					<groupId>org.apache.maven.plugins</groupId>-->
+<!--					<artifactId>maven-checkstyle-plugin</artifactId>-->
+<!--					<version>2.17</version>-->
+<!--					<dependencies>-->
+<!--						<dependency>-->
+<!--							<groupId>com.puppycrawl.tools</groupId>-->
+<!--							<artifactId>checkstyle</artifactId>-->
+<!--							&lt;!&ndash; Note: match version with docs/flinkDev/ide_setup.md &ndash;&gt;-->
+<!--							<version>8.14</version>-->
+<!--						</dependency>-->
+<!--					</dependencies>-->
+<!--					<executions>-->
+<!--						<execution>-->
+<!--							<id>validate</id>-->
+<!--							<phase>validate</phase>-->
+<!--							<goals>-->
+<!--								<goal>check</goal>-->
+<!--							</goals>-->
+<!--						</execution>-->
+<!--					</executions>-->
+<!--					<configuration>-->
+<!--						<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>-->
+<!--						<includeTestSourceDirectory>true</includeTestSourceDirectory>-->
+<!--						<configLocation>/tools/maven/checkstyle.xml</configLocation>-->
+<!--						<logViolationsToConsole>true</logViolationsToConsole>-->
+<!--						<failOnViolation>true</failOnViolation>-->
+<!--					</configuration>-->
+<!--				</plugin>-->
 
-				<plugin>
-					<groupId>com.diffplug.spotless</groupId>
-					<artifactId>spotless-maven-plugin</artifactId>
-					<version>${spotless.version}</version>
-					<configuration>
-						<java>
-							<googleJavaFormat>
-								<version>1.7</version>
-								<style>AOSP</style>
-							</googleJavaFormat>
+<!--				<plugin>-->
+<!--					<groupId>com.diffplug.spotless</groupId>-->
+<!--					<artifactId>spotless-maven-plugin</artifactId>-->
+<!--					<version>${spotless.version}</version>-->
+<!--					<configuration>-->
+<!--						<java>-->
+<!--							<googleJavaFormat>-->
+<!--								<version>1.7</version>-->
+<!--								<style>AOSP</style>-->
+<!--							</googleJavaFormat>-->
 
-							<!-- \# refers to the static imports -->
-							<importOrder>
-								<order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#</order>
-							</importOrder>
+<!--							&lt;!&ndash; \# refers to the static imports &ndash;&gt;-->
+<!--							<importOrder>-->
+<!--								<order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#</order>-->
+<!--							</importOrder>-->
 
-							<removeUnusedImports />
-						</java>
-					</configuration>
-					<executions>
-						<execution>
-							<id>spotless-check</id>
-							<phase>validate</phase>
-							<goals>
-								<goal>check</goal>
-							</goals>
-						</execution>
-					</executions>
-				</plugin>
+<!--							<removeUnusedImports />-->
+<!--						</java>-->
+<!--					</configuration>-->
+<!--					<executions>-->
+<!--						<execution>-->
+<!--							<id>spotless-check</id>-->
+<!--							<phase>validate</phase>-->
+<!--							<goals>-->
+<!--								<goal>check</goal>-->
+<!--							</goals>-->
+<!--						</execution>-->
+<!--					</executions>-->
+<!--				</plugin>-->
 
 
 				<plugin>

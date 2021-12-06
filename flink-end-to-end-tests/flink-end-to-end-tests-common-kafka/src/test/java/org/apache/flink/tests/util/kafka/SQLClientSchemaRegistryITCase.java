@@ -119,10 +119,10 @@ public class SQLClientSchemaRegistryITCase {
         registryClient.register(categorySubject, new AvroSchema(categoryRecord));
         GenericRecordBuilder categoryBuilder = new GenericRecordBuilder(categoryRecord);
         KafkaAvroSerializer valueSerializer = new KafkaAvroSerializer(registryClient);
-        kafkaClient.sendMessages(
+        /*kafkaClient.sendMessages(
                 testCategoryTopic,
                 valueSerializer,
-                categoryBuilder.set("category_id", 1L).set("name", "electronics").build());
+                categoryBuilder.set("category_id", 1L).set("name", "electronics").build());*/
 
         List<String> sqlLines =
                 Arrays.asList(
