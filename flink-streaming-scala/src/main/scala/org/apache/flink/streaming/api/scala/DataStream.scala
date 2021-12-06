@@ -1227,14 +1227,19 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
-   * Sets the description of the current data stream. This description is in json plan,
-   * is expected to provide more detailed information about the operation than name.
+   * Sets the description of this data stream.
+   *
+   * <p>Description is used in json plan and web ui, but not in logging and metrics where only
+   * name is available. Description is expected to provide detailed information about
+   * this operation, while name is expected to be more simple, providing summary information only,
+   * so that we can have more user-friendly logging messages and metric tags
+   * without losing useful messages for debugging.
    *
    * @return The operator with new description
    */
   @PublicEvolving
-  def setDescription(desc: String) : DataStream[T] = stream match {
-    case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.setDescription(desc))
+  def setDescription(description: String) : DataStream[T] = stream match {
+    case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.setDescription(description))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
       this
   }
