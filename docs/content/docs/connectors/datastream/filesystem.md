@@ -802,11 +802,12 @@ pending part-files are no longer there and Flink will fail with an exception as 
 
 This section describes the implementation of `File Source` based on the new `Source API`, a unified data source that can handle data reading files in batch mode or stream mode.
 The source supports all (distributed) file systems and object stores.
-A File Source is started by one of the following calls.
+A File Source is started by one of the following calls:
 
 ```java
 // Stream mode
 FileSource.forRecordStreamFormat(StreamFormat,Path...)
+        
 // Batch mode
 FileSource.forBulkFileFormat(BulkFormat,Path...)
 ```
@@ -820,6 +821,7 @@ FileSource.FileSourceBuilder
 The source supports bounded/batch and continuous/streaming data input. For the bounded/batch case, the file source processes all files under a given path. In the continuous/flow case, the file source periodically checks for new files in the path and starts reading them.
 When you start creating a file source, created via `FileSource.FileSourceBuilder`, the file source defaults to bounded/batch mode.
 Call `FileSource.FileSourceBuilder.monitorContinuously(Duration)` to put the source into continuous stream mode:
+
 ```java
 // Create a new file source that will read files from a given set of directories.
 // Each file will be processed as plain text and split based on newlines.
@@ -841,13 +843,20 @@ BulkFormat reads batches of records from a file at a time. It is the most "low
 level" format to implement, but offers the greatest flexibility to optimize the
 implementation.
 
-
 ### StreamFormat
 
 Reads the contents of a file from a file stream.
 The following are some examples of use:
 
 #### TextLine format
+
+A reader format that text lines from a file.
+The reader uses Java's built-in InputStreamReader to decode the byte stream using
+various supported charset encodings.
+This format does not support optimized recovery from checkpoints. On recovery, it will re-read
+and discard the number of lined that were processed before the last checkpoint. That is due to
+the fact that the offsets of lines in the file cannot be tracked through the charset decoders
+with their internal buffering of stream input and charset decoder state.
 
 ```java
 final FileSource<String> source=
@@ -861,7 +870,7 @@ final DataStream<String> stream=
 ```
 #### SimpleStreamFormat Abstract Class
 
-A simple version of `StreamFormat` for indivisible formats.
+A simple version of `StreamFormat` for indivisible formats that are not splittable.
 Custom reads of Array or File can be done by implementing `SimpleStreamFormat`:
 
 ##### ArrayReader Format
