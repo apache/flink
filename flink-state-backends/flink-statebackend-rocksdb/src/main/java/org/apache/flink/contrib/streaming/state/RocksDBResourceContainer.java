@@ -288,7 +288,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
     @SuppressWarnings("ConstantConditions")
     private DBOptions setDBOptionsFromConfigurableOptions(DBOptions currentOptions) {
 
-        currentOptions.setIncreaseParallelism(
+        currentOptions.setMaxBackgroundJobs(
                 internalGetOption(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS));
 
         currentOptions.setMaxOpenFiles(
