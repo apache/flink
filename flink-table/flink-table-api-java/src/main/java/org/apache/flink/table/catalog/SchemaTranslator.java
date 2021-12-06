@@ -116,13 +116,13 @@ public final class SchemaTranslator {
         final List<String> inputFieldNames = inputSchema.getColumnNames();
         final List<String> inputFieldNamesNormalized =
                 inputFieldNames.stream()
-                        .map(n -> n.toUpperCase(Locale.ROOT))
+                        .map(n -> n.toLowerCase(Locale.ROOT))
                         .collect(Collectors.toList());
         final DataType resolvedDataType = dataTypeFactory.createDataType(targetDataType);
         final List<String> targetFieldNames = flattenToNames(resolvedDataType);
         final List<String> targetFieldNamesNormalized =
                 targetFieldNames.stream()
-                        .map(n -> n.toUpperCase(Locale.ROOT))
+                        .map(n -> n.toLowerCase(Locale.ROOT))
                         .collect(Collectors.toList());
         final List<DataType> targetFieldDataTypes = flattenToDataTypes(resolvedDataType);
 
