@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.source.reader.split;
+package org.apache.flink.connector.pulsar.source.reader.source;
 
 import org.apache.flink.connector.pulsar.testutils.extension.SubType;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
-/** Unit tests for {@link PulsarUnorderedPartitionSplitReaderTest}. */
-class PulsarUnorderedPartitionSplitReaderTest extends PulsarPartitionSplitReaderTestBase {
+class PulsarUnorderedSourceReaderTest extends PulsarSourceReaderTestBase {
     @SubType SubscriptionType subscriptionType = SubscriptionType.Shared;
 }
