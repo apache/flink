@@ -64,6 +64,7 @@ import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnec
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.PASSWORD_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.SOCKET_TIMEOUT;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.USERNAME_OPTION;
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.elasticsearch.common.Strings.capitalize;
 
@@ -218,7 +219,8 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
                         FORMAT_OPTION,
                         DELIVERY_GUARANTEE_OPTION,
                         PASSWORD_OPTION,
-                        USERNAME_OPTION)
+                        USERNAME_OPTION,
+                        SINK_PARALLELISM)
                 .collect(Collectors.toSet());
     }
 

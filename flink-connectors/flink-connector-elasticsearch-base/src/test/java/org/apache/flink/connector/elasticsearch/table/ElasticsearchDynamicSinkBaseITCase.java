@@ -19,8 +19,8 @@
 package org.apache.flink.connector.elasticsearch.table;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
 import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
@@ -35,8 +35,6 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 
 import org.apache.http.HttpHost;
@@ -117,7 +115,7 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
                 sinkFactory
                         .createDynamicTableSink(
                                 getPrefilledTestContext(index).withSchema(schema).build())
-                        .getSinkRuntimeProvider(new MockContext());
+                        .getSinkRuntimeProvider(new ElasticsearchUtil.MockContext());
 
         final SinkProvider sinkProvider = (SinkProvider) runtimeProvider;
         final Sink<RowData, ?, ?, ?> sink = sinkProvider.createSink();
@@ -300,28 +298,5 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
         expectedMap.put("a", 1);
         expectedMap.put("b", "2012-12-12 12:12:12");
         Assertions.assertEquals(response, expectedMap);
-    }
-
-    private static class MockContext implements DynamicTableSink.Context {
-        @Override
-        public boolean isBounded() {
-            return false;
-        }
-
-        @Override
-        public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
-            return null;
-        }
-
-        @Override
-        public TypeInformation<?> createTypeInformation(LogicalType consumedLogicalType) {
-            return null;
-        }
-
-        @Override
-        public DynamicTableSink.DataStructureConverter createDataStructureConverter(
-                DataType consumedDataType) {
-            return null;
-        }
     }
 }
