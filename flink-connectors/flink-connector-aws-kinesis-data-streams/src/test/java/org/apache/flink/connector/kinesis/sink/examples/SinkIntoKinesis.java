@@ -24,8 +24,11 @@ import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConv
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
+import software.amazon.awssdk.utils.ImmutableMap;
 
 /**
  * An example application demonstrating how to use the {@link KinesisDataStreamsSink} to sink into
@@ -37,8 +40,6 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
  */
 public class SinkIntoKinesis {
 
-    private static final String JSON_PAYLOAD_TEMPLATE = "{\"data\": \"%s\"}";
-
     private static final ElementConverter<String, PutRecordsRequestEntry> elementConverter =
             KinesisDataStreamsSinkElementConverter.<String>builder()
                     .setSerializationSchema(new SimpleStringSchema())
@@ -46,6 +47,7 @@ public class SinkIntoKinesis {
                     .build();
 
     public static void main(String[] args) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(10_000);
 
@@ -53,7 +55,7 @@ public class SinkIntoKinesis {
                 env.fromSequence(1, 10_000_000L)
                         .map(Object::toString)
                         .returns(String.class)
-                        .map(data -> String.format(JSON_PAYLOAD_TEMPLATE, data));
+                        .map(data -> mapper.writeValueAsString(ImmutableMap.of("data", data)));
 
         KinesisDataStreamsSink<String> kdsSink =
                 KinesisDataStreamsSink.<String>builder()

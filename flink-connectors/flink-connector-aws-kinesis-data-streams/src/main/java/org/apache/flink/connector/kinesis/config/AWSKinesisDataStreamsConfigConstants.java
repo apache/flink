@@ -18,15 +18,16 @@
 package org.apache.flink.connector.kinesis.config;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.kinesis.util.AWSKinesisDataStreamsUtil;
 
 /** Defaults for {@link AWSKinesisDataStreamsUtil}. */
 @PublicEvolving
-public class AWSKinesisDataStreamsConfigConstants extends AWSConfigConstants {
+public class AWSKinesisDataStreamsConfigConstants {
 
-    public static final boolean DEFAULT_LEGACY_CONNECTOR = false;
+    public static final String BASE_KINESIS_USER_AGENT_PREFIX_FORMAT =
+            "Apache Flink %s (%s) Kinesis Connector";
 
-    /** The identifier of the legacy connector. */
-    public static final String LEGACY_CONNECTOR = "aws.kinesis.legacy";
+    /** Identifier for user agent prefix. */
+    public static final String KINESIS_CLIENT_USER_AGENT_PREFIX =
+            "aws.kinesis.client.user-agent-prefix";
 }

@@ -38,25 +38,24 @@ import java.net.URI;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.apache.flink.connector.kinesis.config.AWSKinesisDataStreamsConfigConstants.DEFAULT_LEGACY_CONNECTOR;
-
 /** Some utilities specific to Amazon Web Service. */
 @Internal
 public class AWSKinesisDataStreamsUtil extends AWSGeneralUtil {
-    /** Used for formatting Flink-specific user agent string when creating Kinesis client. */
-    private static final String LEGACY_USER_AGENT_FORMAT = "Apache Flink %s (%s) Kinesis Connector";
 
-    private static final String USER_AGENT_FORMAT = LEGACY_USER_AGENT_FORMAT + " V2";
+    /** Used for formatting Flink-specific user agent string when creating Kinesis client. */
+    private static final String USER_AGENT_FORMAT =
+            AWSKinesisDataStreamsConfigConstants.BASE_KINESIS_USER_AGENT_PREFIX_FORMAT + " V2";
 
     /**
      * Creates a user agent prefix for Flink. This can be used by HTTP Clients.
      *
-     * @param isLegacyConnector flag to use appropriate user agent for the connector
+     * @param userAgentFormat flink user agent prefix format with placeholders for version and
+     *     commit id.
      * @return a user agent prefix for Flink
      */
-    public static String formatFlinkUserAgentPrefix(boolean isLegacyConnector) {
+    public static String formatFlinkUserAgentPrefix(String userAgentFormat) {
         return String.format(
-                isLegacyConnector ? LEGACY_USER_AGENT_FORMAT : USER_AGENT_FORMAT,
+                userAgentFormat,
                 EnvironmentInformation.getVersion(),
                 EnvironmentInformation.getRevisionInformation().commitId);
     }
@@ -82,18 +81,18 @@ public class AWSKinesisDataStreamsUtil extends AWSGeneralUtil {
             final Properties configProps,
             final SdkClientConfiguration clientConfiguration,
             final SdkAsyncHttpClient httpClient) {
-        boolean isLegacyConnector =
+        String flinkUserAgentPrefix =
                 Optional.ofNullable(
                                 configProps.getProperty(
-                                        AWSKinesisDataStreamsConfigConstants.LEGACY_CONNECTOR))
-                        .map(Boolean::parseBoolean)
-                        .orElse(DEFAULT_LEGACY_CONNECTOR);
+                                        AWSKinesisDataStreamsConfigConstants
+                                                .KINESIS_CLIENT_USER_AGENT_PREFIX))
+                        .orElse(formatFlinkUserAgentPrefix(USER_AGENT_FORMAT));
 
         final ClientOverrideConfiguration overrideConfiguration =
                 createClientOverrideConfiguration(
                         clientConfiguration,
                         ClientOverrideConfiguration.builder(),
-                        isLegacyConnector);
+                        flinkUserAgentPrefix);
         final KinesisAsyncClientBuilder clientBuilder = KinesisAsyncClient.builder();
 
         return createKinesisAsyncClient(
@@ -103,13 +102,21 @@ public class AWSKinesisDataStreamsUtil extends AWSGeneralUtil {
     @VisibleForTesting
     static ClientOverrideConfiguration createClientOverrideConfiguration(
             final SdkClientConfiguration config,
+            final ClientOverrideConfiguration.Builder overrideConfigurationBuilder) {
+        return createClientOverrideConfiguration(
+                config,
+                overrideConfigurationBuilder,
+                formatFlinkUserAgentPrefix(USER_AGENT_FORMAT));
+    }
+
+    @VisibleForTesting
+    static ClientOverrideConfiguration createClientOverrideConfiguration(
+            final SdkClientConfiguration config,
             final ClientOverrideConfiguration.Builder overrideConfigurationBuilder,
-            boolean isLegacyConnector) {
+            String flinkUserAgentPrefix) {
 
         overrideConfigurationBuilder
-                .putAdvancedOption(
-                        SdkAdvancedClientOption.USER_AGENT_PREFIX,
-                        formatFlinkUserAgentPrefix(isLegacyConnector))
+                .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, flinkUserAgentPrefix)
                 .putAdvancedOption(
                         SdkAdvancedClientOption.USER_AGENT_SUFFIX,
                         config.option(SdkAdvancedClientOption.USER_AGENT_SUFFIX));
