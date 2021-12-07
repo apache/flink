@@ -26,16 +26,13 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.core.SdkSystemSetting;
 import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
 import software.amazon.awssdk.services.kinesis.model.ListStreamsResponse;
-import software.amazon.awssdk.services.kinesis.model.StreamStatus;
 import software.amazon.awssdk.utils.AttributeMap;
 
 import java.net.URI;
@@ -43,7 +40,8 @@ import java.net.URISyntaxException;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * A testcontainer based on Kinesalite.
@@ -60,6 +58,8 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
 
     public KinesaliteContainer(DockerImageName imageName) {
         super(imageName);
+
+        System.setProperty(SdkSystemSetting.CBOR_ENABLED.property(), "false");
 
         withExposedPorts(PORT);
         waitingFor(new ListStreamsWaitStrategy());
@@ -118,16 +118,6 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
                 .build();
     }
 
-    public void prepareStream(String streamName)
-            throws ExecutionException, InterruptedException, URISyntaxException {
-        KinesisAsyncClient kinesisClient = getHostClient();
-        kinesisClient
-                .createStream(
-                        CreateStreamRequest.builder().streamName(streamName).shardCount(1).build())
-                .get();
-        waitingFor(new ActiveStreamWaitStrategy(kinesisClient, streamName));
-    }
-
     private void startContainer() {
         withCreateContainerCmdModifier(
                 cmd ->
@@ -150,60 +140,35 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
     }
 
     private class ListStreamsWaitStrategy extends AbstractWaitStrategy {
-        private static final int TIMEOUT_PER_RETRY = 15;
+        private static final int TRANSACTIONS_PER_SECOND = 1;
 
         private final RateLimiter rateLimiter =
                 RateLimiterBuilder.newBuilder()
-                        .withRate(TIMEOUT_PER_RETRY, TimeUnit.SECONDS)
+                        .withRate(TRANSACTIONS_PER_SECOND, SECONDS)
                         .withConstantThroughput()
                         .build();
 
         @Override
         protected void waitUntilReady() {
-            retryUntilSuccessRunner(() -> list());
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            retryUntilSuccessRunner(this::list);
         }
 
         protected <T> void retryUntilSuccessRunner(final Callable<T> lambda) {
             Unreliables.retryUntilSuccess(
-                    (int) this.startupTimeout.getSeconds() * TIMEOUT_PER_RETRY,
-                    TimeUnit.SECONDS,
-                    () -> rateLimiter.getWhenReady(() -> lambda.call()));
+                    (int) startupTimeout.getSeconds(),
+                    SECONDS,
+                    () -> rateLimiter.getWhenReady(lambda));
         }
 
         private ListStreamsResponse list()
                 throws ExecutionException, InterruptedException, URISyntaxException {
-            startContainer();
             return getContainerClient().listStreams().get();
-        }
-    }
-
-    private class ActiveStreamWaitStrategy extends ListStreamsWaitStrategy {
-        private KinesisAsyncClient kinesisClient;
-        private String streamName;
-
-        protected ActiveStreamWaitStrategy(KinesisAsyncClient kinesisClient, String streamName) {
-            this.kinesisClient = kinesisClient;
-            this.streamName = streamName;
-        }
-
-        @Override
-        protected void waitUntilReady() {
-            retryUntilSuccessRunner(() -> waitForStream());
-        }
-
-        private DescribeStreamResponse waitForStream()
-                throws ExecutionException, InterruptedException {
-            DescribeStreamResponse describeStream;
-            do {
-                describeStream =
-                        kinesisClient
-                                .describeStream(
-                                        DescribeStreamRequest.builder()
-                                                .streamName(streamName)
-                                                .build())
-                                .get();
-            } while (describeStream.streamDescription().streamStatus() != StreamStatus.ACTIVE);
-            return describeStream;
         }
     }
 
