@@ -536,7 +536,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |ON MyLookupTable.a = D.id AND D.age = 10
       """.stripMargin
 
-    verifyTranslationSuccess(sql)
+    util.verifyExecPlan(sql)
   }
 
     // ==========================================================================================

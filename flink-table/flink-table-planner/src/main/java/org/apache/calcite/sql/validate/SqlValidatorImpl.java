@@ -4712,8 +4712,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                                 dataType.getSqlTypeName().getName()));
             }
             if (ns instanceof IdentifierNamespace && ns.resolve() instanceof WithItemNamespace) {
-                // If the snapshot is used over a CTE, and then we don't have a concrete underlying
-                // table to operate on.
+                // If the snapshot is used over a CTE, then we don't have a concrete underlying
+                // table to operate on. This will be rechecked later in the planner rules.
                 return;
             }
             if (!ns.getTable().isTemporal()) {
