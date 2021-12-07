@@ -28,6 +28,7 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.data.utils.CastExecutor;
@@ -71,6 +72,7 @@ import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.MONTH;
 import static org.apache.flink.table.api.DataTypes.MULTISET;
+import static org.apache.flink.table.api.DataTypes.NULL;
 import static org.apache.flink.table.api.DataTypes.RAW;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SECOND;
@@ -477,6 +479,7 @@ class CastRulesTest {
                                                 .toInstant())),
                 CastTestSpecBuilder.testCastTo(STRING())
                         .fromCase(STRING(), null, null)
+                        .fromCase(NULL(), null, BinaryStringDataUtil.NULL_STRING)
                         .fromCase(CHAR(3), fromString("foo"), fromString("foo"))
                         .fromCase(VARCHAR(5), fromString("Flink"), fromString("Flink"))
                         .fromCase(VARCHAR(10), fromString("Flink"), fromString("Flink"))
