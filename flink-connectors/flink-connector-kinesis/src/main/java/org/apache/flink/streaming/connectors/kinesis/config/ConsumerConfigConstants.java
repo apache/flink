@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.connectors.kinesis.config;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumer;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
