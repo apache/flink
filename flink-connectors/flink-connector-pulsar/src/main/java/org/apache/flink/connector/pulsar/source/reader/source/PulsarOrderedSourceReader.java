@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.source.reader.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
@@ -61,7 +62,7 @@ import java.util.function.Supplier;
 public class PulsarOrderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT> {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarOrderedSourceReader.class);
 
-    private final SortedMap<Long, Map<TopicPartition, MessageId>> cursorsToCommit;
+    @VisibleForTesting final SortedMap<Long, Map<TopicPartition, MessageId>> cursorsToCommit;
     private final ConcurrentMap<TopicPartition, MessageId> cursorsOfFinishedSplits;
     private final AtomicReference<Throwable> cursorCommitThrowable = new AtomicReference<>();
     private ScheduledExecutorService cursorScheduler;
