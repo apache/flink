@@ -29,7 +29,6 @@ harness of Apache Beam.
 """
 import argparse
 import os
-from subprocess import call
 
 import grpc
 import logging
@@ -97,5 +96,6 @@ if __name__ == "__main__":
     if "FLINK_BOOT_TESTING" in os.environ and os.environ["FLINK_BOOT_TESTING"] == "1":
         exit(0)
 
-    call([python_exec, "-m", "pyflink.fn_execution.beam.beam_sdk_worker_main"],
-         stdout=sys.stdout, stderr=sys.stderr, env=env)
+    from pyflink.fn_execution.beam import beam_sdk_worker_main
+
+    beam_sdk_worker_main.main()
