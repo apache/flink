@@ -18,6 +18,7 @@
 package org.apache.flink.connector.kinesis.sink;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -35,11 +36,15 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
+import software.amazon.awssdk.services.kinesis.model.StreamStatus;
 
+import java.time.Duration;
 import java.util.Properties;
 
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ACCESS_KEY_ID;
@@ -179,7 +184,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                 KinesisDataStreamsSinkITCase.this.elementConverter;
 
         public void runScenario() throws Exception {
-            KINESALITE.prepareStream(kinesaliteStreamName);
+            prepareStream(kinesaliteStreamName);
 
             DataStream<String> stream =
                     env.addSource(
@@ -286,6 +291,42 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                 ElementConverter<String, PutRecordsRequestEntry> elementConverter) {
             this.elementConverter = elementConverter;
             return this;
+        }
+
+        private void prepareStream(String streamName) throws Exception {
+            KinesisAsyncClient kinesisClient = KINESALITE.getHostClient();
+            kinesisClient
+                    .createStream(
+                            CreateStreamRequest.builder()
+                                    .streamName(streamName)
+                                    .shardCount(1)
+                                    .build())
+                    .get();
+
+            Deadline deadline = Deadline.fromNow(Duration.ofMinutes(1));
+            while (!streamExists(streamName)) {
+                if (deadline.isOverdue()) {
+                    throw new RuntimeException("Failed to create stream within time");
+                }
+
+                Thread.sleep(1000);
+            }
+        }
+
+        private boolean streamExists(final String streamName) {
+            try {
+                return kinesisClient
+                                .describeStream(
+                                        DescribeStreamRequest.builder()
+                                                .streamName(streamName)
+                                                .build())
+                                .get()
+                                .streamDescription()
+                                .streamStatus()
+                        == StreamStatus.ACTIVE;
+            } catch (Exception e) {
+                return false;
+            }
         }
     }
 
