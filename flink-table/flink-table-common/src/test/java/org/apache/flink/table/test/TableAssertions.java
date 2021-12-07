@@ -28,7 +28,7 @@ public class TableAssertions {
 
     private TableAssertions() {}
 
-    // --- Internal data types
+    // --- Internal data structures
 
     public static RowDataAssert assertThat(RowData actual) {
         return new RowDataAssert(actual);

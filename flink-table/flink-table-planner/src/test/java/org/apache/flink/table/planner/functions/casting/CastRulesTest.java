@@ -825,42 +825,10 @@ class CastRulesTest {
     }
 
     public static class MyStructuredType {
-        private long a;
-        private Long b;
-        private String c;
-        private String[] d;
-
-        public long getA() {
-            return a;
-        }
-
-        public void setA(long a) {
-            this.a = a;
-        }
-
-        public Long getB() {
-            return b;
-        }
-
-        public void setB(Long b) {
-            this.b = b;
-        }
-
-        public String getC() {
-            return c;
-        }
-
-        public void setC(String c) {
-            this.c = c;
-        }
-
-        public String[] getD() {
-            return d;
-        }
-
-        public void setD(String[] d) {
-            this.d = d;
-        }
+        public long a;
+        public Long b;
+        public String c;
+        public String[] d;
     }
 
     @SuppressWarnings({"rawtypes"})

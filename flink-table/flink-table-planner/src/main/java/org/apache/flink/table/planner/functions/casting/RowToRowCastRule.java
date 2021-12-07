@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -40,7 +40,7 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.met
  * {@link LogicalTypeRoot#ROW} and {@link LogicalTypeRoot#STRUCTURED_TYPE} to {@link
  * LogicalTypeRoot#ROW} and {@link LogicalTypeRoot#STRUCTURED_TYPE} cast rule.
  */
-class RowToRowCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
+class RowToRowCastRule extends AbstractNullAwareCodeGeneratorCastRule<RowData, RowData> {
 
     static final RowToRowCastRule INSTANCE = new RowToRowCastRule();
 

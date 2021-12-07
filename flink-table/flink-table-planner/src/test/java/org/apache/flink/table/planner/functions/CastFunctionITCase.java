@@ -116,7 +116,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         specs.addAll(allTypesBasic());
         specs.addAll(decimalCasts());
         specs.addAll(numericBounds());
-        specs.addAll(structuredTypes());
+        specs.addAll(collectionTypes());
         return specs;
     }
 
@@ -1132,13 +1132,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build());
     }
 
-    public static List<TestSpec> structuredTypes() {
+    public static List<TestSpec> collectionTypes() {
         return Arrays.asList(
-                // Cast to structuredTypes
+                // Cast to collection Types
                 // https://issues.apache.org/jira/browse/FLINK-17321
                 // MULTISET
                 // MAP
-                // RAW
                 CastTestSpecBuilder.testCastTo(ARRAY(INT()))
                         .fromCase(ARRAY(INT()), null, null)
                         // https://issues.apache.org/jira/browse/FLINK-17321
