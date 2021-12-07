@@ -34,8 +34,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.rnorth.ducttape.ratelimits.RateLimiter;
 import org.rnorth.ducttape.ratelimits.RateLimiterBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
@@ -64,7 +62,6 @@ import static org.junit.Assert.assertThrows;
 /** IT cases for using Kinesis Data Streams Sink based on Kinesalite. */
 public class KinesisDataStreamsSinkITCase extends TestLogger {
 
-    private static final Logger LOG = LoggerFactory.getLogger(KinesisDataStreamsSinkITCase.class);
     private static final String DEFAULT_FIRST_SHARD_NAME = "shardId-000000000000";
 
     private final ElementConverter<String, PutRecordsRequestEntry> elementConverter =
@@ -102,7 +99,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     @Test
     public void elementsMaybeWrittenSuccessfullyToLocalInstanceWhenBatchSizeIsReached()
             throws Exception {
-        LOG.info("Running elementsMaybeWrittenSuccessfullyToLocalInstanceWhenBatchSizeIsReached");
+        log("Running elementsMaybeWrittenSuccessfullyToLocalInstanceWhenBatchSizeIsReached");
 
         new Scenario()
                 .withKinesaliteStreamName("test-stream-name-1")
@@ -113,7 +110,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     @Test
     public void elementsBufferedAndTriggeredByTimeBasedFlushShouldBeFlushedIfSourcedIsKeptAlive()
             throws Exception {
-        LOG.info(
+        log(
                 "Running elementsBufferedAndTriggeredByTimeBasedFlushShouldBeFlushedIfSourcedIsKeptAlive");
 
         new Scenario()
@@ -127,7 +124,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
     @Test
     public void veryLargeMessagesSucceedInBeingPersisted() throws Exception {
-        LOG.info("Running veryLargeMessagesSucceedInBeingPersisted");
+        log("Running veryLargeMessagesSucceedInBeingPersisted");
 
         new Scenario()
                 .withNumberOfElementsToSend(5)
@@ -142,7 +139,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     @Test
     public void multipleInFlightRequestsResultsInCorrectNumberOfElementsPersisted()
             throws Exception {
-        LOG.info("Running multipleInFlightRequestsResultsInCorrectNumberOfElementsPersisted");
+        log("Running multipleInFlightRequestsResultsInCorrectNumberOfElementsPersisted");
 
         new Scenario()
                 .withNumberOfElementsToSend(150)
@@ -158,19 +155,19 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
     @Test
     public void nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOn() {
-        LOG.info("Running nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOn");
+        log("Running nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOn");
         testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(true, "test-stream-name-5");
     }
 
     @Test
     public void nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOff() {
-        LOG.info("Running nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOff");
+        log("Running nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOff");
         testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(false, "test-stream-name-6");
     }
 
     @Test
     public void veryLargeMessagesFailGracefullyWithBrokenElementConverter() {
-        LOG.info("Running veryLargeMessagesFailGracefullyWithBrokenElementConverter");
+        log("Running veryLargeMessagesFailGracefullyWithBrokenElementConverter");
         Throwable thrown =
                 assertThrows(
                         JobExecutionException.class,
@@ -365,5 +362,10 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                                         .runScenario());
         assertEquals(
                 "Encountered non-recoverable exception", thrown.getCause().getCause().getMessage());
+    }
+
+    private void log(String message) {
+        System.out.println("out - " + message);
+        System.err.println("err - " + message);
     }
 }
