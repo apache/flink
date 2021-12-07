@@ -29,5 +29,9 @@ import apache_beam.runners.worker.sdk_worker_main
 from apache_beam.runners.worker import sdk_worker
 sdk_worker.DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 86400 * 365 * 100
 
-if __name__ == '__main__':
+
+def main():
+    import logging
+    # Remove all the built-in log handles
+    logging.getLogger().handlers = []
     apache_beam.runners.worker.sdk_worker_main.main(sys.argv)
