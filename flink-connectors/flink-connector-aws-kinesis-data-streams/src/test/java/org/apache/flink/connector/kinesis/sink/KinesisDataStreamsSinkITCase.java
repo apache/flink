@@ -32,6 +32,10 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.rnorth.ducttape.ratelimits.RateLimiter;
+import org.rnorth.ducttape.ratelimits.RateLimiterBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
@@ -47,6 +51,7 @@ import software.amazon.awssdk.services.kinesis.model.StreamStatus;
 import java.time.Duration;
 import java.util.Properties;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ACCESS_KEY_ID;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ENDPOINT;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_REGION;
@@ -59,6 +64,7 @@ import static org.junit.Assert.assertThrows;
 /** IT cases for using Kinesis Data Streams Sink based on Kinesalite. */
 public class KinesisDataStreamsSinkITCase extends TestLogger {
 
+    private static final Logger LOG = LoggerFactory.getLogger(KinesisDataStreamsSinkITCase.class);
     private static final String DEFAULT_FIRST_SHARD_NAME = "shardId-000000000000";
 
     private final ElementConverter<String, PutRecordsRequestEntry> elementConverter =
@@ -96,6 +102,8 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     @Test
     public void elementsMaybeWrittenSuccessfullyToLocalInstanceWhenBatchSizeIsReached()
             throws Exception {
+        LOG.info("Running elementsMaybeWrittenSuccessfullyToLocalInstanceWhenBatchSizeIsReached");
+
         new Scenario()
                 .withKinesaliteStreamName("test-stream-name-1")
                 .withSinkConnectionStreamName("test-stream-name-1")
@@ -105,6 +113,9 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     @Test
     public void elementsBufferedAndTriggeredByTimeBasedFlushShouldBeFlushedIfSourcedIsKeptAlive()
             throws Exception {
+        LOG.info(
+                "Running elementsBufferedAndTriggeredByTimeBasedFlushShouldBeFlushedIfSourcedIsKeptAlive");
+
         new Scenario()
                 .withNumberOfElementsToSend(10)
                 .withMaxBatchSize(100)
@@ -116,6 +127,8 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
     @Test
     public void veryLargeMessagesSucceedInBeingPersisted() throws Exception {
+        LOG.info("Running veryLargeMessagesSucceedInBeingPersisted");
+
         new Scenario()
                 .withNumberOfElementsToSend(5)
                 .withSizeOfMessageBytes(2500)
@@ -129,6 +142,8 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
     @Test
     public void multipleInFlightRequestsResultsInCorrectNumberOfElementsPersisted()
             throws Exception {
+        LOG.info("Running multipleInFlightRequestsResultsInCorrectNumberOfElementsPersisted");
+
         new Scenario()
                 .withNumberOfElementsToSend(150)
                 .withSizeOfMessageBytes(2500)
@@ -143,16 +158,19 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
     @Test
     public void nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOn() {
+        LOG.info("Running nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOn");
         testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(true, "test-stream-name-5");
     }
 
     @Test
     public void nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOff() {
+        LOG.info("Running nonExistentStreamNameShouldResultInFailureInFailOnErrorIsOff");
         testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(false, "test-stream-name-6");
     }
 
     @Test
     public void veryLargeMessagesFailGracefullyWithBrokenElementConverter() {
+        LOG.info("Running veryLargeMessagesFailGracefullyWithBrokenElementConverter");
         Throwable thrown =
                 assertThrows(
                         JobExecutionException.class,
@@ -294,6 +312,12 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         }
 
         private void prepareStream(String streamName) throws Exception {
+            final RateLimiter rateLimiter =
+                    RateLimiterBuilder.newBuilder()
+                            .withRate(1, SECONDS)
+                            .withConstantThroughput()
+                            .build();
+
             KinesisAsyncClient kinesisClient = KINESALITE.getHostClient();
             kinesisClient
                     .createStream(
@@ -304,12 +328,10 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                     .get();
 
             Deadline deadline = Deadline.fromNow(Duration.ofMinutes(1));
-            while (!streamExists(streamName)) {
+            while (!rateLimiter.getWhenReady(() -> streamExists(streamName))) {
                 if (deadline.isOverdue()) {
                     throw new RuntimeException("Failed to create stream within time");
                 }
-
-                Thread.sleep(1000);
             }
         }
 
