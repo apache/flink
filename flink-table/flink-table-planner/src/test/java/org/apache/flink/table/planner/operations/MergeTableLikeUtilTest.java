@@ -127,6 +127,27 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
+    public void mergeWithIncludeFailsOnDuplicateDerivedColumn() {
+        TableSchema sourceSchema =
+                TableSchema.builder().add(TableColumn.physical("one", DataTypes.INT())).build();
+
+        List<SqlNode> derivedColumns =
+                Arrays.asList(
+                        regularColumn("two", DataTypes.INT()),
+                        regularColumn("two", DataTypes.INT()),
+                        regularColumn("four", DataTypes.STRING()));
+
+        thrown.expect(ValidationException.class);
+        thrown.expectMessage("A column named 'two' already exists in the derived table.");
+        util.mergeTables(
+                getDefaultMergingStrategies(),
+                sourceSchema,
+                derivedColumns,
+                Collections.emptyList(),
+                null);
+    }
+
+    @Test
     public void mergeGeneratedColumns() {
         TableSchema sourceSchema =
                 TableSchema.builder()
