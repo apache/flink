@@ -369,6 +369,7 @@ function check_logs_for_errors {
       | grep -v "error_prone_annotations" \
       | grep -v "Error sending fetch request" \
       | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
+      | grep -v "Options.*error_*" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files; printing first 500 lines; see full logs for details:"

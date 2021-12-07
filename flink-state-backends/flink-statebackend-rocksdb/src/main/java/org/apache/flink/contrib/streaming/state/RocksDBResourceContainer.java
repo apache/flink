@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -297,7 +298,9 @@ public final class RocksDBResourceContainer implements AutoCloseable {
         currentOptions.setInfoLogLevel(internalGetOption(RocksDBConfigurableOptions.LOG_LEVEL));
 
         String logDir = internalGetOption(RocksDBConfigurableOptions.LOG_DIR);
-        if (logDir != null && !logDir.isEmpty()) {
+        if (logDir == null || logDir.isEmpty()) {
+            relocateDefaultDbLogDir(currentOptions);
+        } else {
             currentOptions.setDbLogDir(logDir);
         }
 
@@ -370,5 +373,32 @@ public final class RocksDBResourceContainer implements AutoCloseable {
         }
 
         return currentOptions.setTableFormatConfig(blockBasedTableConfig);
+    }
+
+    /**
+     * Relocates the default log directory of RocksDB with the Flink log directory. Finds the Flink
+     * log directory using log.file Java property that is set during startup.
+     *
+     * @param dbOptions The RocksDB {@link DBOptions}.
+     */
+    private void relocateDefaultDbLogDir(DBOptions dbOptions) {
+        String logFilePath = System.getProperty("log.file");
+        if (logFilePath != null) {
+            File logFile = resolveFileLocation(logFilePath);
+            if (logFile != null && resolveFileLocation(logFile.getParent()) != null) {
+                dbOptions.setDbLogDir(logFile.getParent());
+            }
+        }
+    }
+
+    /**
+     * Verify log file location.
+     *
+     * @param logFilePath Path to log file
+     * @return File or null if not a valid log file
+     */
+    private File resolveFileLocation(String logFilePath) {
+        File logFile = new File(logFilePath);
+        return (logFile.exists() && logFile.canRead()) ? logFile : null;
     }
 }
