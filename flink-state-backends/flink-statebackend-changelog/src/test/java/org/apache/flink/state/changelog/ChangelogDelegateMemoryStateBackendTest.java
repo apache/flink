@@ -89,4 +89,12 @@ public class ChangelogDelegateMemoryStateBackendTest extends MemoryStateBackendT
         ChangelogStateBackendTestUtils.testMaterializedRestore(
                 getStateBackend(), env, streamFactory);
     }
+
+    @Test
+    public void testMaterializedRestorePriorityQueue() throws Exception {
+        CheckpointStreamFactory streamFactory = createStreamFactory();
+
+        ChangelogStateBackendTestUtils.testMaterializedRestoreForPriorityQueue(
+                getStateBackend(), env, streamFactory);
+    }
 }

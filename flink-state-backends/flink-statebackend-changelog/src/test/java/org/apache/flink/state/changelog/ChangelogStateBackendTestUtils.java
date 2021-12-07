@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
@@ -49,6 +50,8 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.testutils.statemigration.TestType;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -56,11 +59,17 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.state.StateBackendTestBase.runSnapshot;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** Test Utilities for Changelog StateBackend. */
 public class ChangelogStateBackendTestUtils {
@@ -143,14 +152,7 @@ public class ChangelogStateBackendTestUtils {
 
         CompletableFuture<Void> asyncComplete = new CompletableFuture<>();
         PeriodicMaterializationManager periodicMaterializationManager =
-                new PeriodicMaterializationManager(
-                        new SyncMailboxExecutor(),
-                        Executors.newDirectExecutorService(),
-                        env.getTaskInfo().getTaskNameWithSubtasks(),
-                        (message, exception) -> asyncComplete.completeExceptionally(exception),
-                        keyedBackend,
-                        10,
-                        1);
+                periodicMaterializationManager(keyedBackend, asyncComplete);
 
         try {
             ValueState<StateBackendTestBase.TestPojo> state =
@@ -225,6 +227,106 @@ public class ChangelogStateBackendTestUtils {
             IOUtils.closeQuietly(keyedBackend);
             keyedBackend.dispose();
         }
+    }
+
+    public static void testMaterializedRestoreForPriorityQueue(
+            StateBackend stateBackend, Environment env, CheckpointStreamFactory streamFactory)
+            throws Exception {
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        String fieldName = "key-grouped-priority-queue";
+        ChangelogKeyedStateBackend<Integer> keyedBackend =
+                (ChangelogKeyedStateBackend<Integer>) createKeyedBackend(stateBackend, env);
+
+        CompletableFuture<Void> asyncComplete = new CompletableFuture<>();
+        PeriodicMaterializationManager periodicMaterializationManager =
+                periodicMaterializationManager(keyedBackend, asyncComplete);
+
+        try {
+            KeyGroupedInternalPriorityQueue<TestType> priorityQueue =
+                    keyedBackend.create(fieldName, new TestType.V1TestTypeSerializer());
+
+            TestType elementA100 = new TestType("a", 100);
+            TestType elementA10 = new TestType("a", 10);
+            TestType elementA20 = new TestType("a", 20);
+
+            assertTrue(priorityQueue.add(elementA100));
+            assertTrue(priorityQueue.add(elementA10));
+            assertFalse(priorityQueue.add(elementA20));
+            assertFalse(priorityQueue.add(elementA10));
+
+            List<TestType> actualList = new ArrayList<>();
+            try (CloseableIterator<TestType> iterator = priorityQueue.iterator()) {
+                iterator.forEachRemaining(actualList::add);
+            }
+
+            assertThat(actualList, containsInAnyOrder(elementA100, elementA10, elementA20));
+
+            periodicMaterializationManager.triggerMaterialization();
+
+            TestType elementB9 = new TestType("b", 9);
+            assertTrue(priorityQueue.add(elementB9));
+
+            periodicMaterializationManager.triggerMaterialization();
+
+            TestType elementC9 = new TestType("c", 9);
+            TestType elementC8 = new TestType("c", 8);
+            assertFalse(priorityQueue.add(elementC9));
+            assertTrue(priorityQueue.add(elementC8));
+
+            KeyedStateHandle snapshot =
+                    runSnapshot(
+                            keyedBackend.snapshot(
+                                    682375462378L,
+                                    2,
+                                    streamFactory,
+                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            sharedStateRegistry);
+            IOUtils.closeQuietly(keyedBackend);
+            keyedBackend.dispose();
+
+            // make sure the asycn phase completes successfully
+            if (asyncComplete.isCompletedExceptionally()) {
+                asyncComplete.get();
+            }
+
+            // ============================ restore snapshot ===============================
+
+            keyedBackend =
+                    (ChangelogKeyedStateBackend<Integer>)
+                            restoreKeyedBackend(stateBackend, snapshot, env);
+            snapshot.discardState();
+
+            KeyGroupedInternalPriorityQueue<TestType> priorityQueueRestored =
+                    keyedBackend.create(fieldName, new TestType.V1TestTypeSerializer());
+
+            List<TestType> actualListRestore = new ArrayList<>();
+            try (CloseableIterator<TestType> iterator = priorityQueueRestored.iterator()) {
+                iterator.forEachRemaining(actualListRestore::add);
+            }
+
+            assertThat(
+                    actualListRestore,
+                    containsInAnyOrder(
+                            elementA100, elementA10, elementA20, elementB9, elementC9, elementC8));
+
+            assertFalse(priorityQueueRestored.add(new TestType("d", 11)));
+        } finally {
+            IOUtils.closeQuietly(keyedBackend);
+            keyedBackend.dispose();
+        }
+    }
+
+    private static PeriodicMaterializationManager periodicMaterializationManager(
+            ChangelogKeyedStateBackend<Integer> keyedBackend,
+            CompletableFuture<Void> asyncComplete) {
+        return new PeriodicMaterializationManager(
+                new SyncMailboxExecutor(),
+                Executors.newDirectExecutorService(),
+                "testTask",
+                (message, exception) -> asyncComplete.completeExceptionally(exception),
+                keyedBackend,
+                10,
+                1);
     }
 
     static class DummyCheckpointingStorageAccess implements CheckpointStorageAccess {
