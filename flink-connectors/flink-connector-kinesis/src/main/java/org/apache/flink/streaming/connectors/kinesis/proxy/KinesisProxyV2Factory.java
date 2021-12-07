@@ -63,7 +63,10 @@ public class KinesisProxyV2Factory {
 
         Properties legacyConfigProps = new Properties(configProps);
         legacyConfigProps.setProperty(
-                AWSKinesisDataStreamsConfigConstants.LEGACY_CONNECTOR, Boolean.toString(true));
+                AWSKinesisDataStreamsConfigConstants.KINESIS_CLIENT_USER_AGENT_PREFIX,
+                AWSKinesisDataStreamsUtil.formatFlinkUserAgentPrefix(
+                        AWSKinesisDataStreamsConfigConstants
+                                .BASE_KINESIS_USER_AGENT_PREFIX_FORMAT));
 
         final KinesisAsyncClient client =
                 AWSKinesisDataStreamsUtil.createKinesisAsyncClient(legacyConfigProps, httpClient);

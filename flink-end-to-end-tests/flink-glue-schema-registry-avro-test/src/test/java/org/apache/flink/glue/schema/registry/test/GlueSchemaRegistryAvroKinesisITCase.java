@@ -18,6 +18,7 @@
 package org.apache.flink.glue.schema.registry.test;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroDeserializationSchema;
 import org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroSerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -25,7 +26,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;

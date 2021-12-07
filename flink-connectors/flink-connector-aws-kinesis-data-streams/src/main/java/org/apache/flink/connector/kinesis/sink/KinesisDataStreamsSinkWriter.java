@@ -18,7 +18,6 @@
 package org.apache.flink.connector.kinesis.sink;
 
 import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
@@ -28,31 +27,22 @@ import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.http.Protocol;
-import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
-import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
-import software.amazon.awssdk.utils.AttributeMap;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
-
-import static org.apache.flink.connector.kinesis.config.AsyncProducerConfigConstants.HTTP_CLIENT_MAX_CONCURRENCY;
-import static org.apache.flink.connector.kinesis.config.AsyncProducerConfigConstants.HTTP_CLIENT_READ_TIMEOUT_MILLIS;
 
 /**
  * Sink writer created by {@link KinesisDataStreamsSink} to write to Kinesis Data Streams. More
@@ -111,45 +101,9 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
     }
 
     private KinesisAsyncClient buildClient(Properties kinesisClientProperties) {
-        final AttributeMap.Builder clientConfiguration =
-                AttributeMap.builder().put(SdkHttpConfigurationOption.TCP_KEEPALIVE, true);
-
-        Optional.ofNullable(kinesisClientProperties.getProperty(HTTP_CLIENT_MAX_CONCURRENCY))
-                .map(Integer::parseInt)
-                .ifPresent(
-                        integer ->
-                                clientConfiguration.put(
-                                        SdkHttpConfigurationOption.MAX_CONNECTIONS, integer));
-
-        Optional.ofNullable(kinesisClientProperties.getProperty(HTTP_CLIENT_READ_TIMEOUT_MILLIS))
-                .map(Integer::parseInt)
-                .map(Duration::ofMillis)
-                .ifPresent(
-                        timeout ->
-                                clientConfiguration.put(
-                                        SdkHttpConfigurationOption.READ_TIMEOUT, timeout));
-
-        Optional.ofNullable(
-                        kinesisClientProperties.getProperty(
-                                AWSConfigConstants.TRUST_ALL_CERTIFICATES))
-                .map(Boolean::parseBoolean)
-                .ifPresent(
-                        bool ->
-                                clientConfiguration.put(
-                                        SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, bool));
-
-        Optional.ofNullable(
-                        kinesisClientProperties.getProperty(
-                                AWSConfigConstants.HTTP_PROTOCOL_VERSION))
-                .map(Protocol::valueOf)
-                .ifPresent(
-                        protocol ->
-                                clientConfiguration.put(
-                                        SdkHttpConfigurationOption.PROTOCOL, protocol));
 
         final SdkAsyncHttpClient httpClient =
-                AWSGeneralUtil.createAsyncHttpClient(
-                        clientConfiguration.build(), NettyNioAsyncHttpClient.builder());
+                AWSGeneralUtil.createAsyncHttpClient(kinesisClientProperties);
 
         return AWSKinesisDataStreamsUtil.createKinesisAsyncClient(
                 kinesisClientProperties, httpClient);
