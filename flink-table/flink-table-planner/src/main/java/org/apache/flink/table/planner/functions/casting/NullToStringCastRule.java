@@ -46,7 +46,7 @@ class NullToStringCastRule extends AbstractCodeGeneratorCastRule<Object, StringD
             String inputIsNullTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return new CastCodeBlock(
-                "", accessStaticField(BinaryStringDataUtil.class, "NULL_STR"), "false");
+        return CastCodeBlock.withoutCode(
+                accessStaticField(BinaryStringDataUtil.class, "NULL_STRING"), "false");
     }
 }
