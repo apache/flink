@@ -80,4 +80,12 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
         ChangelogStateBackendTestUtils.testMaterializedRestore(
                 getStateBackend(), env, streamFactory);
     }
+
+    @Test
+    public void testMaterializedRestorePriorityQueue() throws Exception {
+        CheckpointStreamFactory streamFactory = createStreamFactory();
+
+        ChangelogStateBackendTestUtils.testMaterializedRestoreForPriorityQueue(
+                getStateBackend(), env, streamFactory);
+    }
 }
