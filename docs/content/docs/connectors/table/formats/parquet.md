@@ -174,9 +174,24 @@ The following table lists the type mapping from Flink type to Parquet type.
       <td>INT96</td>
       <td></td>
     </tr>
+    <tr>
+      <td>ARRAY</td>
+      <td></td>
+      <td>LIST</td>
+    </tr>
+    <tr>
+      <td>MAP</td>
+      <td></td>
+      <td>MAP</td>
+    </tr>
+    <tr>
+      <td>ROW</td>
+      <td></td>
+      <td>STRUCT</td>
+    </tr>
     </tbody>
 </table>
 
 {{< hint warning >}}
-Composite data type: Array, Map and Row are not supported.
+Composite data type: Array, Map and Row are currently only supported when writing, not reading.
 {{< /hint >}}
