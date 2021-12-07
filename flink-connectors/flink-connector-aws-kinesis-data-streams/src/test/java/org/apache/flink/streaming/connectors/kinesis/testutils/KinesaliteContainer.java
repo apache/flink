@@ -18,12 +18,11 @@
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.rnorth.ducttape.ratelimits.RateLimiter;
 import org.rnorth.ducttape.ratelimits.RateLimiterBuilder;
 import org.rnorth.ducttape.unreliables.Unreliables;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
@@ -56,7 +55,6 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
     private static final int PORT = 4567;
     private static final Region REGION = Region.US_EAST_1;
     private static final String URL_FORMAT = "https://%s:%s";
-    private static final Logger LOG = LoggerFactory.getLogger(KinesaliteContainer.class);
 
     public KinesaliteContainer(DockerImageName imageName) {
         super(imageName);
@@ -128,7 +126,7 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
                                 "--path",
                                 "/var/lib/kinesalite",
                                 "--ssl"));
-        LOG.info("Starting container");
+        System.out.println("Starting container");
     }
 
     private Properties getProperties(String endpointUrl) {
@@ -164,12 +162,12 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
         private ListStreamsResponse list()
                 throws ExecutionException, InterruptedException, URISyntaxException {
             try {
-                LOG.info("Trying to list stream");
+                log("Trying to list stream");
                 ListStreamsResponse listStreamsResponse = getContainerClient().listStreams().get();
-                LOG.info("List Stream success {}", listStreamsResponse.streamNames());
+                log("List Stream success: " + listStreamsResponse.streamNames());
                 return listStreamsResponse;
             } catch (Exception e) {
-                LOG.error("Failed to list stream", e);
+                log("Failed to list stream: " + ExceptionUtils.stringifyException(e));
                 throw e;
             }
         }
@@ -181,5 +179,10 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
                         AttributeMap.builder()
                                 .put(SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, true)
                                 .build());
+    }
+
+    private void log(String message) {
+        System.out.println("out - " + message);
+        System.err.println("err - " + message);
     }
 }
