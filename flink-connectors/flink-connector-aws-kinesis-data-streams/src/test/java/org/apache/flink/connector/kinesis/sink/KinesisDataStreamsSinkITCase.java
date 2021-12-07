@@ -20,15 +20,17 @@ package org.apache.flink.connector.kinesis.sink;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
 import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
-import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Assertions;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -56,8 +58,6 @@ import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_REGIO
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_SECRET_ACCESS_KEY;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.HTTP_PROTOCOL_VERSION;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.TRUST_ALL_CERTIFICATES;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
 
 /** IT cases for using Kinesis Data Streams Sink based on Kinesalite. */
 public class KinesisDataStreamsSinkITCase extends TestLogger {
@@ -94,6 +94,11 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         env.setParallelism(1);
 
         kinesisClient = KINESALITE.getHostClient();
+    }
+
+    @After
+    public void teardown() {
+        System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
     }
 
     @Test
@@ -160,9 +165,8 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
     @Test
     public void veryLargeMessagesFailGracefullyWithBrokenElementConverter() {
-        Throwable thrown =
-                assertThrows(
-                        JobExecutionException.class,
+        Assertions.assertThatExceptionOfType(JobExecutionException.class)
+                .isThrownBy(
                         () ->
                                 new Scenario()
                                         .withNumberOfElementsToSend(5)
@@ -171,10 +175,11 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                                         .withKinesaliteStreamName("test-stream-name-7")
                                         .withSinkConnectionStreamName("test-stream-name-7")
                                         .withElementConverter(partitionKeyTooLongElementConverter)
-                                        .runScenario());
-        assertEquals(
-                "Encountered an exception while persisting records, not retrying due to {failOnError} being set.",
-                thrown.getCause().getCause().getMessage());
+                                        .runScenario())
+                .havingCause()
+                .havingCause()
+                .withMessageContaining(
+                        "Encountered an exception while persisting records, not retrying due to {failOnError} being set.");
     }
 
     private class Scenario {
@@ -237,16 +242,16 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                             .get()
                             .shardIterator();
 
-            assertEquals(
-                    expectedElements,
-                    kinesisClient
-                            .getRecords(
-                                    GetRecordsRequest.builder()
-                                            .shardIterator(shardIterator)
-                                            .build())
-                            .get()
-                            .records()
-                            .size());
+            Assertions.assertThat(
+                            kinesisClient
+                                    .getRecords(
+                                            GetRecordsRequest.builder()
+                                                    .shardIterator(shardIterator)
+                                                    .build())
+                                    .get()
+                                    .records()
+                                    .size())
+                    .isEqualTo(expectedElements);
         }
 
         public Scenario withNumberOfElementsToSend(int numberOfElementsToSend) {
@@ -343,16 +348,16 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
 
     private void testJobFatalFailureTerminatesCorrectlyWithFailOnErrorFlagSetTo(
             boolean failOnError, String streamName) {
-        Throwable thrown =
-                assertThrows(
-                        JobExecutionException.class,
+        Assertions.assertThatExceptionOfType(JobExecutionException.class)
+                .isThrownBy(
                         () ->
                                 new Scenario()
                                         .withKinesaliteStreamName(streamName)
                                         .withSinkConnectionStreamName("non-existent-stream")
                                         .withFailOnError(failOnError)
-                                        .runScenario());
-        assertEquals(
-                "Encountered non-recoverable exception", thrown.getCause().getCause().getMessage());
+                                        .runScenario())
+                .havingCause()
+                .havingCause()
+                .withMessageContaining("Encountered non-recoverable exception");
     }
 }

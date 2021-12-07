@@ -18,6 +18,7 @@
 package org.apache.flink.glue.schema.registry.test.json;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.formats.json.glue.schema.registry.GlueSchemaRegistryJsonDeserializationSchema;
 import org.apache.flink.formats.json.glue.schema.registry.GlueSchemaRegistryJsonSerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -25,12 +26,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
 
 import com.amazonaws.services.schemaregistry.serializers.json.JsonDataWithSchema;
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
@@ -39,6 +40,7 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.core.SdkSystemSetting;
 
 import java.net.URL;
 import java.time.Duration;
@@ -86,6 +88,13 @@ public class GlueSchemaRegistryJsonKinesisITCase extends TestLogger {
         kinesisClient = new GSRKinesisPubsubClient(properties);
         kinesisClient.createStream(INPUT_STREAM, 2, properties);
         kinesisClient.createStream(OUTPUT_STREAM, 2, properties);
+
+        System.setProperty(SdkSystemSetting.CBOR_ENABLED.property(), "false");
+    }
+
+    @After
+    public void teardown() {
+        System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
     }
 
     @Test

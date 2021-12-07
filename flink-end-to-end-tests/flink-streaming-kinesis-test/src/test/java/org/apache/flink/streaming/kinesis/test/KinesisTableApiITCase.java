@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.kinesis.test;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
+import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
 import org.apache.flink.streaming.kinesis.test.model.Order;
 import org.apache.flink.tests.util.TestUtils;
@@ -33,6 +33,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hamcrest.Matchers;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -43,6 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.core.SdkSystemSetting;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -107,6 +109,13 @@ public class KinesisTableApiITCase extends TestLogger {
         kinesisClient = new KinesisPubsubClient(properties);
         kinesisClient.createTopic(ORDERS_STREAM, 1, properties);
         kinesisClient.createTopic(LARGE_ORDERS_STREAM, 1, properties);
+
+        System.setProperty(SdkSystemSetting.CBOR_ENABLED.property(), "false");
+    }
+
+    @After
+    public void teardown() {
+        System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
     }
 
     @Test

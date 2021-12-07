@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
-import org.apache.flink.connector.aws.config.AWSConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 
 import com.amazonaws.auth.AWSCredentials;

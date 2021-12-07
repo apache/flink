@@ -22,6 +22,7 @@ import org.apache.flink.connector.base.sink.AsyncSinkBaseBuilder;
 
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 
+import java.util.Optional;
 import java.util.Properties;
 
 /**
@@ -47,11 +48,12 @@ import java.util.Properties;
  * <p>If the following parameters are not set in this builder, the following defaults will be used:
  *
  * <ul>
- *   <li>{@code maxBatchSize} will be 200
+ *   <li>{@code maxBatchSize} will be 500
  *   <li>{@code maxInFlightRequests} will be 16
  *   <li>{@code maxBufferedRequests} will be 10000
- *   <li>{@code flushOnBufferSizeInBytes} will be 64MB i.e. {@code 64 * 1024 * 1024}
+ *   <li>{@code maxBatchSizeInBytes} will be 5 MB i.e. {@code 5 * 1024 * 1024}
  *   <li>{@code maxTimeInBufferMS} will be 5000ms
+ *   <li>{@code maxRecordSizeInBytes} will be 1 MB i.e. {@code 1 * 1024 * 1024}
  *   <li>{@code failOnError} will be false
  * </ul>
  *
@@ -104,24 +106,15 @@ public class KinesisDataStreamsSinkBuilder<InputT>
     public KinesisDataStreamsSink<InputT> build() {
         return new KinesisDataStreamsSink<>(
                 getElementConverter(),
-                getMaxBatchSize() == null ? DEFAULT_MAX_BATCH_SIZE : getMaxBatchSize(),
-                getMaxInFlightRequests() == null
-                        ? DEFAULT_MAX_IN_FLIGHT_REQUESTS
-                        : getMaxInFlightRequests(),
-                getMaxBufferedRequests() == null
-                        ? DEFAULT_MAX_BUFFERED_REQUESTS
-                        : getMaxBufferedRequests(),
-                getMaxBatchSizeInBytes() == null
-                        ? DEFAULT_MAX_BATCH_SIZE_IN_B
-                        : getMaxBatchSizeInBytes(),
-                getMaxTimeInBufferMS() == null
-                        ? DEFAULT_MAX_TIME_IN_BUFFER_MS
-                        : getMaxTimeInBufferMS(),
-                getMaxRecordSizeInBytes() == null
-                        ? DEFAULT_MAX_RECORD_SIZE_IN_B
-                        : getMaxRecordSizeInBytes(),
-                failOnError == null ? DEFAULT_FAIL_ON_ERROR : failOnError,
+                Optional.ofNullable(getMaxBatchSize()).orElse(DEFAULT_MAX_BATCH_SIZE),
+                Optional.ofNullable(getMaxInFlightRequests())
+                        .orElse(DEFAULT_MAX_IN_FLIGHT_REQUESTS),
+                Optional.ofNullable(getMaxBufferedRequests()).orElse(DEFAULT_MAX_BUFFERED_REQUESTS),
+                Optional.ofNullable(getMaxBatchSizeInBytes()).orElse(DEFAULT_MAX_BATCH_SIZE_IN_B),
+                Optional.ofNullable(getMaxTimeInBufferMS()).orElse(DEFAULT_MAX_TIME_IN_BUFFER_MS),
+                Optional.ofNullable(getMaxRecordSizeInBytes()).orElse(DEFAULT_MAX_RECORD_SIZE_IN_B),
+                Optional.ofNullable(failOnError).orElse(DEFAULT_FAIL_ON_ERROR),
                 streamName,
-                kinesisClientProperties == null ? new Properties() : kinesisClientProperties);
+                Optional.ofNullable(kinesisClientProperties).orElse(new Properties()));
     }
 }
