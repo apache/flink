@@ -76,13 +76,13 @@ class OracleDialect extends AbstractDialect {
 
         String sourceFields =
                 Arrays.stream(fieldNames)
-                        .map(f -> "? " + quoteIdentifier(f))
+                        .map(f -> ":" + f + " " + quoteIdentifier(f))
                         .collect(Collectors.joining(", "));
 
         String onClause =
                 Arrays.stream(uniqueKeyFields)
                         .map(f -> "t." + quoteIdentifier(f) + "=s." + quoteIdentifier(f))
-                        .collect(Collectors.joining(", "));
+                        .collect(Collectors.joining(" and "));
 
         final Set<String> uniqueKeyFieldsSet =
                 Arrays.stream(uniqueKeyFields).collect(Collectors.toSet());
@@ -108,9 +108,9 @@ class OracleDialect extends AbstractDialect {
                 " MERGE INTO "
                         + tableName
                         + " t "
-                        + " USING (SELECT"
+                        + " USING (SELECT "
                         + sourceFields
-                        + "FROM DUAL) s "
+                        + " FROM DUAL) s "
                         + " ON ("
                         + onClause
                         + ") "
