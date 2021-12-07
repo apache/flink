@@ -18,6 +18,7 @@
 package org.apache.flink.connector.kinesis.util;
 
 import org.apache.flink.connector.aws.util.TestUtil;
+import org.apache.flink.connector.kinesis.config.AWSKinesisDataStreamsConfigConstants;
 
 import org.junit.Test;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -49,7 +50,8 @@ import static org.mockito.Mockito.when;
 
 /** Tests for {@link AWSKinesisDataStreamsUtil}. */
 public class AWSKinesisDataStreamsUtilTest {
-    private static final boolean LEGACY_CONNECTOR_PLACEHOLDER = false;
+    private static final String DEFAULT_USER_AGENT_PREFIX_FORMAT =
+            AWSKinesisDataStreamsConfigConstants.BASE_KINESIS_USER_AGENT_PREFIX_FORMAT + " V2";
 
     @Test
     public void testCreateKinesisAsyncClient() {
@@ -92,14 +94,14 @@ public class AWSKinesisDataStreamsUtilTest {
 
         ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(
-                clientConfiguration, builder, LEGACY_CONNECTOR_PLACEHOLDER);
+        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(clientConfiguration, builder);
 
         verify(builder).build();
         verify(builder)
                 .putAdvancedOption(
                         SdkAdvancedClientOption.USER_AGENT_PREFIX,
-                        AWSKinesisDataStreamsUtil.formatFlinkUserAgentPrefix(false));
+                        AWSKinesisDataStreamsUtil.formatFlinkUserAgentPrefix(
+                                DEFAULT_USER_AGENT_PREFIX_FORMAT));
         verify(builder).putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_SUFFIX, null);
         verify(builder, never()).apiCallAttemptTimeout(any());
         verify(builder, never()).apiCallTimeout(any());
@@ -114,8 +116,7 @@ public class AWSKinesisDataStreamsUtilTest {
 
         ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(
-                clientConfiguration, builder, LEGACY_CONNECTOR_PLACEHOLDER);
+        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(clientConfiguration, builder);
 
         verify(builder).putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_SUFFIX, "suffix");
     }
@@ -129,8 +130,7 @@ public class AWSKinesisDataStreamsUtilTest {
 
         ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(
-                clientConfiguration, builder, LEGACY_CONNECTOR_PLACEHOLDER);
+        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(clientConfiguration, builder);
 
         verify(builder).apiCallAttemptTimeout(Duration.ofMillis(500));
     }
@@ -144,8 +144,7 @@ public class AWSKinesisDataStreamsUtilTest {
 
         ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(
-                clientConfiguration, builder, LEGACY_CONNECTOR_PLACEHOLDER);
+        AWSKinesisDataStreamsUtil.createClientOverrideConfiguration(clientConfiguration, builder);
 
         verify(builder).apiCallTimeout(Duration.ofMillis(600));
     }

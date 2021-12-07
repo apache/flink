@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider;
+import org.apache.flink.connector.kinesis.config.AWSKinesisDataStreamsConfigConstants;
 import org.apache.flink.connector.kinesis.util.AWSKinesisDataStreamsUtil;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -82,7 +83,9 @@ public class AWSUtil {
             Properties configProps, ClientConfiguration awsClientConfig) {
         // set a Flink-specific user agent
         awsClientConfig.setUserAgentPrefix(
-                AWSKinesisDataStreamsUtil.formatFlinkUserAgentPrefix(true));
+                AWSKinesisDataStreamsUtil.formatFlinkUserAgentPrefix(
+                        AWSKinesisDataStreamsConfigConstants
+                                .BASE_KINESIS_USER_AGENT_PREFIX_FORMAT));
 
         // utilize automatic refreshment of credentials by directly passing the
         // AWSCredentialsProvider

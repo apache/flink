@@ -20,6 +20,7 @@ package org.apache.flink.connector.aws.config;
 import org.apache.flink.annotation.PublicEvolving;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 
 /** Configuration keys for AWS service usage. */
 @PublicEvolving
@@ -130,6 +131,12 @@ public class AWSConfigConstants {
 
     /** The HTTP protocol version to use. */
     public static final String HTTP_PROTOCOL_VERSION = "aws.http.protocol.version";
+
+    /** Maximum request concurrency for {@link SdkAsyncHttpClient}. */
+    public static final String HTTP_CLIENT_MAX_CONCURRENCY = "aws.http-client.max-concurrency";
+
+    /** Read Request timeout for {@link SdkAsyncHttpClient}. */
+    public static final String HTTP_CLIENT_READ_TIMEOUT_MILLIS = "aws.http-client.read-timeout";
 
     public static String accessKeyId(String prefix) {
         return prefix + ".basic.accesskeyid";
