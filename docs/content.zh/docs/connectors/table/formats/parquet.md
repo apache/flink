@@ -174,7 +174,22 @@ Parquet 格式也支持 [ParquetOutputFormat](https://www.javadoc.io/doc/org.apa
       <td>INT96</td>
       <td></td>
     </tr>
+    <tr>
+      <td>ARRAY</td>
+      <td></td>
+      <td>LIST</td>
+    </tr>
+    <tr>
+      <td>MAP</td>
+      <td></td>
+      <td>MAP</td>
+    </tr>
+    <tr>
+      <td>ROW</td>
+      <td></td>
+      <td>STRUCT</td>
+    </tr>
     </tbody>
 </table>
 
-<span class="label label-danger">注意</span> 暂不支持复合数据类型（Array、Map 与 Row）。
+<span class="label label-danger">注意</span> 复合数据类型暂只支持写不支持读（Array、Map 与 Row）。
