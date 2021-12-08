@@ -23,7 +23,6 @@ import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
@@ -401,7 +400,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
                 // ignore
             }
         }
-        super.shutdown();
     }
 
     protected KafkaServer getKafkaServer(int brokerId, File tmpFolder) throws Exception {
@@ -429,11 +427,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         for (int i = 1; i <= numTries; i++) {
             int kafkaPort = NetUtils.getAvailablePort();
             kafkaProperties.put("port", Integer.toString(kafkaPort));
-
-            if (config.isHideKafkaBehindProxy()) {
-                NetworkFailuresProxy proxy = createProxy(KAFKA_HOST, kafkaPort);
-                kafkaProperties.put("advertised.port", proxy.getLocalPort());
-            }
 
             // to support secure kafka cluster
             if (config.isSecureMode()) {
