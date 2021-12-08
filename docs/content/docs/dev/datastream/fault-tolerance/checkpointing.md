@@ -83,7 +83,7 @@ Other parameters for checkpointing include:
 
   - *unaligned checkpoints*: You can enable [unaligned checkpoints]({{< ref "docs/ops/state/checkpointing_under_backpressure" >}}#unaligned-checkpoints) to greatly reduce checkpointing times under backpressure. This only works for exactly-once checkpoints and with one concurrent checkpoint.
 
-  - *checkpoints with finished tasks*: You can enable an experimental feature to continue performing checkpoints even if parts of the DAG have finished processing all of their records. Before doing so, please read through some [important considerations](#checkpointing-with-parts-of-the-graph-finished).
+  - *checkpoints with finished tasks*: By default Flink could continue performing checkpoints even if parts of the DAG have finished processing all of their records. Please refer to [important considerations](#checkpointing-with-parts-of-the-graph-finished) for details.
 
 {{< tabs "4b9c6a74-8a45-4ad2-9e80-52fe44a85991" >}}
 {{< tab "Java" >}}
@@ -230,11 +230,11 @@ Flink currently only provides processing guarantees for jobs without iterations.
 
 Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
 
-## Checkpointing with parts of the graph finished *(BETA)*
+## Checkpointing with parts of the graph finished
 
 Starting from Flink 1.14 it is possible to continue performing checkpoints even if parts of the job
-graph have finished processing all data, which might happen if it contains bounded sources. This
-feature must be enabled via a feature flag:
+graph have finished processing all data, which might happen if it contains bounded sources. This feature
+is enabled by default since 1.15, and it could be configured by
 
 ```java
 Configuration config = new Configuration();
@@ -242,7 +242,7 @@ config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, 
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 
-Once the tasks/subtasks are finished, they do not contribute to the checkpoints any longer. This is an
+Once the tasks/subtasks are finished, they do not contribute to the checkpoints any longer. This is 
 an important consideration when implementing any custom operators or UDFs (User-Defined Functions).
 
 In order to support checkpointing with tasks that finished, we adjusted the [task lifecycle]({{<ref "docs/internals/task_lifecycle" >}}) 

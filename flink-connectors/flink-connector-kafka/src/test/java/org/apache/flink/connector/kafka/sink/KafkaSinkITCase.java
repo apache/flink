@@ -285,7 +285,6 @@ public class KafkaSinkITCase extends TestLogger {
             Configuration config,
             @Nullable String transactionalIdPrefix)
             throws Exception {
-        config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
         final StreamExecutionEnvironment env = new LocalStreamEnvironment(config);
         env.enableCheckpointing(100L);
         env.setRestartStrategy(RestartStrategies.noRestart());
@@ -314,9 +313,7 @@ public class KafkaSinkITCase extends TestLogger {
             int maxConcurrentCheckpoints,
             java.util.function.Consumer<List<Long>> recordsAssertion)
             throws Exception {
-        Configuration config = new Configuration();
-        config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
-        final StreamExecutionEnvironment env = new LocalStreamEnvironment(config);
+        final StreamExecutionEnvironment env = new LocalStreamEnvironment();
         env.enableCheckpointing(300L);
         env.getCheckpointConfig().setMaxConcurrentCheckpoints(maxConcurrentCheckpoints);
         DataStreamSource<Long> source = env.fromSequence(1, 10);
@@ -345,9 +342,7 @@ public class KafkaSinkITCase extends TestLogger {
     private void writeRecordsToKafka(
             DeliveryGuarantee deliveryGuarantee, SharedReference<AtomicLong> expectedRecords)
             throws Exception {
-        Configuration config = new Configuration();
-        config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
-        final StreamExecutionEnvironment env = new LocalStreamEnvironment(config);
+        final StreamExecutionEnvironment env = new LocalStreamEnvironment();
         env.enableCheckpointing(100L);
         final DataStream<Long> source =
                 env.addSource(

@@ -99,7 +99,6 @@ import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -1598,15 +1597,7 @@ public class StreamTaskTest extends TestLogger {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
-                                })
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                         .setupOutputForSingletonOperatorChain(
                                 new CheckpointCompleteRecordOperator())
                         .build()) {
@@ -1632,15 +1623,7 @@ public class StreamTaskTest extends TestLogger {
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
                         .setTaskStateSnapshot(3, new TaskStateSnapshot())
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
-                                })
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                         .setupOutputForSingletonOperatorChain(
                                 new CheckpointCompleteRecordOperator())
                         .build()) {
