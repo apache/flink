@@ -27,6 +27,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.core.SdkSystemSetting;
 import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
@@ -58,6 +59,8 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
 
     public KinesaliteContainer(DockerImageName imageName) {
         super(imageName);
+
+        System.setProperty(SdkSystemSetting.CBOR_ENABLED.property(), "false");
 
         withExposedPorts(PORT);
         waitingFor(new ListStreamsWaitStrategy());
