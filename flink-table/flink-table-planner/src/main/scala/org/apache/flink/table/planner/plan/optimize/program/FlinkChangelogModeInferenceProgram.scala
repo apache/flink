@@ -771,10 +771,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // if sink's pk(s) are not exactly match input changeLogUpsertKeys then it will fallback
         // to beforeAndAfter mode for the correctness
         var requireBeforeAndAfter: Boolean = false
-        val sinkDefinedPks = sink.catalogTable.getResolvedSchema.getPrimaryKeyIndexes
+        val sinkDefinedPks = toScala(sink.catalogTable.getResolvedSchema
+            .getPrimaryKey).map(_.getColumns).map(toScala[String]).getOrElse(Seq())
 
         if (sinkDefinedPks.nonEmpty) {
-          val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
+          val sinkColumns = sink.catalogTable.getResolvedSchema.getColumnNames
+          val sinkPks = ImmutableBitSet.of(sinkDefinedPks.map(sinkColumns.indexOf): _*)
           val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
           val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
           // if input is UA only, primary key != upsert key (upsert key can be null) we should
@@ -810,7 +812,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       val inputChangelogMode = ChangelogPlanUtils.getChangelogMode(
         sink.getInput.asInstanceOf[StreamPhysicalRel]).get
       val catalogTable = sink.catalogTable
-      val primaryKeys = catalogTable.getResolvedSchema.getPrimaryKeyIndexes
+      val primaryKeys = toScala(catalogTable.getResolvedSchema
+          .getPrimaryKey).map(_.getColumns).map(toScala[String]).getOrElse(Seq())
       val upsertMaterialize = tableConfig.getConfiguration.get(
         ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE) match {
         case UpsertMaterialize.FORCE => primaryKeys.nonEmpty
@@ -821,7 +824,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           val inputInsertOnly = inputChangelogMode.containsOnly(RowKind.INSERT)
 
           if (!sinkAcceptInsertOnly && !inputInsertOnly && primaryKeys.nonEmpty) {
-            val pks = ImmutableBitSet.of(primaryKeys: _*)
+            val columnNames = catalogTable.getResolvedSchema.getColumnNames
+            val pks = ImmutableBitSet.of(primaryKeys.map(columnNames.indexOf): _*)
             val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
             val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
             // if input has update and primary key != upsert key (upsert key can be null) we should
