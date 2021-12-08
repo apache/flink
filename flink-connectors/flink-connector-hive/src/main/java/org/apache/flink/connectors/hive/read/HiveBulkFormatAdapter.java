@@ -27,7 +27,7 @@ import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.formats.parquet.ParquetColumnarRowInputFormat;
-import org.apache.flink.orc.OrcColumnarRowInputFormat;
+import org.apache.flink.orc.OrcColumnarRowFileInputFormat;
 import org.apache.flink.orc.nohive.OrcNoHiveColumnarRowInputFormat;
 import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
@@ -62,11 +62,11 @@ import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_S
  * BulkFormat instances, because different hive partitions may need different BulkFormat to do the
  * reading.
  */
-public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
+public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSplit> {
 
     private static final long serialVersionUID = 1L;
 
-    private static final Logger LOG = LoggerFactory.getLogger(HiveInputFormat.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HiveBulkFormatAdapter.class);
 
     // schema evolution configs are not available in older versions of IOConstants, let's define
     // them ourselves
@@ -83,7 +83,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
     private final boolean useMapRedReader;
     private final PartitionFieldExtractor<HiveSourceSplit> partitionFieldExtractor;
 
-    public HiveInputFormat(
+    public HiveBulkFormatAdapter(
             JobConfWrapper jobConfWrapper,
             List<String> partitionKeys,
             String[] fieldNames,
@@ -162,7 +162,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
         }
     }
 
-    private OrcColumnarRowInputFormat<?, HiveSourceSplit> createOrcFormat() {
+    private OrcColumnarRowFileInputFormat<?, HiveSourceSplit> createOrcFormat() {
         return hiveVersion.startsWith("1.")
                 ? OrcNoHiveColumnarRowInputFormat.createPartitionedFormat(
                         jobConfWrapper.conf(),
@@ -172,7 +172,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
                         computeSelectedFields(),
                         Collections.emptyList(),
                         DEFAULT_SIZE)
-                : OrcColumnarRowInputFormat.createPartitionedFormat(
+                : OrcColumnarRowFileInputFormat.createPartitionedFormat(
                         OrcShim.createShim(hiveVersion),
                         jobConfWrapper.conf(),
                         tableRowType(),
