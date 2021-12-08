@@ -47,7 +47,6 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -233,11 +232,6 @@ public class StreamTaskFinalCheckpointsTest {
                                     config.setCheckpointingEnabled(true);
                                     config.setUnalignedCheckpointsEnabled(
                                             enableUnalignedCheckpoint);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
                                 })
                         .setCheckpointResponder(checkpointResponder)
                         .setupOperatorChain(new EmptyOperator())
@@ -462,11 +456,6 @@ public class StreamTaskFinalCheckpointsTest {
                         .modifyStreamConfig(
                                 config -> {
                                     config.setCheckpointingEnabled(true);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
                                 })
                         .setCheckpointResponder(checkpointResponder)
                         .setupOutputForSingletonOperatorChain(
@@ -629,15 +618,7 @@ public class StreamTaskFinalCheckpointsTest {
                             .addInput(BasicTypeInfo.STRING_TYPE_INFO, 1)
                             .addAdditionalOutput(partitionWriters)
                             .setCheckpointResponder(checkpointResponder)
-                            .modifyStreamConfig(
-                                    config -> {
-                                        config.setCheckpointingEnabled(true);
-                                        config.getConfiguration()
-                                                .set(
-                                                        ExecutionCheckpointingOptions
-                                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                        true);
-                                    })
+                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                             .setupOperatorChain(new StatefulOperator())
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {

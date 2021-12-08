@@ -54,7 +54,6 @@ import static org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders
 import static org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders.SIMPLE_GRAPH_BUILDER;
 import static org.apache.flink.runtime.operators.lifecycle.validation.TestJobDataFlowValidator.checkDataFlow;
 import static org.apache.flink.runtime.operators.lifecycle.validation.TestOperatorLifecycleValidator.checkOperatorsLifecycle;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH;
 
 /**
  * A test suite to check that the operator methods are called according to contract when sources are
@@ -142,7 +141,7 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
     private TestJobWithDescription buildJob() throws Exception {
         return graphBuilder.build(
                 sharedObjects,
-                cfg -> cfg.setBoolean(ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true),
+                cfg -> {},
                 env -> {
                     env.setRestartStrategy(fixedDelayRestart(1, 0));
                     // checkpoints can hang (because of not yet fixed bugs and triggering
