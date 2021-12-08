@@ -28,7 +28,7 @@ under the License.
 
 # Text files format
 
-Flink supports reading from text lines from a file using `TextLineInputFormat`. This format uses Java's built-in InputStreamReader to decode the byte stream using various supported charset encodings.
+Flink supports reading from text lines from a file using `TextLineFormat`. This format uses Java's built-in InputStreamReader to decode the byte stream using various supported charset encodings.
 To use the format you need to add the Flink Parquet dependency to your project:
 
 ```xml
@@ -47,7 +47,7 @@ There is no need for a watermark strategy as records do not contain event timest
 
 ```java
 final FileSource<String> source =
-  FileSource.forRecordStreamFormat(new TextLineInputFormat(), /* Flink Path */)
+  FileSource.forRecordStreamFormat(new TextLineFormat(), /* Flink Path */)
   .build();
 final DataStream<String> stream =
   env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
@@ -60,7 +60,7 @@ There is no need for a watermark strategy as records do not contain event timest
 
 ```java
 final FileSource<String> source =
-    FileSource.forRecordStreamFormat(new TextLineInputFormat(), /* Flink Path */)
+    FileSource.forRecordStreamFormat(new TextLineFormat(), /* Flink Path */)
   .monitorContinuously(Duration.ofSeconds(1L))
   .build();
 final DataStream<String> stream =

@@ -129,7 +129,7 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                                         FileSystemConnectorOptions.PARTITION_DEFAULT_NAME
                                                 .defaultValue());
 
-                return OrcColumnarRowInputFormat.createPartitionedFormat(
+                return OrcColumnarRowFileInputFormat.createPartitionedFormat(
                         OrcShim.defaultShim(),
                         conf,
                         tableType,
