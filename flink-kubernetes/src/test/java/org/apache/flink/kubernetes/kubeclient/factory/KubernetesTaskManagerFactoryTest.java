@@ -21,14 +21,20 @@ package org.apache.flink.kubernetes.kubeclient.factory;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.kubernetes.KubernetesTestUtils;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
+import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
+import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
@@ -97,5 +103,38 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
         // The args list is [bash, -c, 'java -classpath $FLINK_CLASSPATH ...'].
         assertEquals(3, resultMainContainer.getArgs().size());
         assertEquals(4, resultMainContainer.getVolumeMounts().size());
+    }
+
+    @Test
+    public void testHadoopConfConfigMap() throws IOException {
+        setHadoopConfDirEnv();
+        generateHadoopConfFileItems();
+
+        FlinkPod flinkPod = new FlinkPod.Builder().build();
+        KubernetesTaskManagerSpecification kubernetesJobManagerSpecification =
+                KubernetesTaskManagerFactory.buildKubernetesTaskManagerSpecification(
+                        flinkPod, kubernetesTaskManagerParameters);
+
+        final ConfigMap resultConfigMap =
+                (ConfigMap)
+                        kubernetesJobManagerSpecification.getAccompanyingResources().stream()
+                                .filter(
+                                        x ->
+                                                x instanceof ConfigMap
+                                                        && x.getMetadata()
+                                                        .getName()
+                                                        .equals(
+                                                                HadoopConfMountDecorator
+                                                                        .getHadoopConfConfigMapName(
+                                                                                CLUSTER_ID)))
+                                .collect(Collectors.toList())
+                                .get(0);
+
+        assertEquals(2, resultConfigMap.getMetadata().getLabels().size());
+
+        final Map<String, String> resultDatas = resultConfigMap.getData();
+        assertEquals(2, resultDatas.size());
+        assertEquals("some data", resultDatas.get("core-site.xml"));
+        assertEquals("some data", resultDatas.get("hdfs-site.xml"));
     }
 }
