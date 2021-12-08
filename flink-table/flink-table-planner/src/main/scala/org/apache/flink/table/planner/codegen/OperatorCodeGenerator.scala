@@ -262,5 +262,13 @@ object OperatorCodeGenerator extends Logging {
     s"$DEFAULT_OPERATOR_COLLECTOR_TERM.collect($OUT_ELEMENT.replace($emit));"
 
   def generateCollectWithTimestamp(emit: String, timestampTerm: String): String =
-    s"$DEFAULT_OPERATOR_COLLECTOR_TERM.collect($OUT_ELEMENT.replace($emit, $timestampTerm));"
+    s"""
+       |if ($timestampTerm == null) {
+       |  $OUT_ELEMENT.eraseTimestamp();
+       |  $DEFAULT_OPERATOR_COLLECTOR_TERM.collect($OUT_ELEMENT.replace($emit));
+       |} else {
+       |  $DEFAULT_OPERATOR_COLLECTOR_TERM.collect(
+       |    $OUT_ELEMENT.replace($emit, $timestampTerm.getMillisecond()));
+       |}
+       |""".stripMargin
 }

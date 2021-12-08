@@ -24,6 +24,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.connector.RuntimeConverter.Context;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -69,14 +70,18 @@ public class OutputConversionOperator extends TableStreamOperator<Object>
     public void processElement(StreamRecord<RowData> element) throws Exception {
         final RowData rowData = element.getValue();
 
+        TimestampData rowtime = null;
         if (consumeRowtimeMetadata) {
             // timestamp is TIMESTAMP_LTZ
-            final long rowtime = rowData.getTimestamp(rowData.getArity() - 1, 3).getMillisecond();
-            outRecord.setTimestamp(rowtime);
+            rowtime = rowData.getTimestamp(rowData.getArity() - 1, 3);
         } else if (rowtimeIndex != -1) {
             // timestamp might be TIMESTAMP or TIMESTAMP_LTZ
-            final long rowtime = rowData.getTimestamp(rowtimeIndex, 3).getMillisecond();
-            outRecord.setTimestamp(rowtime);
+            rowtime = rowData.getTimestamp(rowtimeIndex, 3);
+        }
+        if (rowtime == null) {
+            outRecord.eraseTimestamp();
+        } else {
+            outRecord.setTimestamp(rowtime.getMillisecond());
         }
 
         final Object internalRecord;
