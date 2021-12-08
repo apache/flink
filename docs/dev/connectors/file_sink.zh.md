@@ -458,7 +458,7 @@ String schema = ...;
 Configuration conf = ...;
 Properties writerProperties = new Properties();
 
-writerProps.setProperty("orc.compress", "LZ4");
+writerProperties.setProperty("orc.compress", "LZ4");
 // 其它 ORC 支持的属性也可以类似设置。
 
 final OrcBulkWriterFactory<Person> writerFactory = new OrcBulkWriterFactory<>(
@@ -472,7 +472,7 @@ val schema: String = ...
 val conf: Configuration = ...
 val writerProperties: Properties = new Properties()
 
-writerProps.setProperty("orc.compress", "LZ4")
+writerProperties.setProperty("orc.compress", "LZ4")
 // 其它 ORC 支持的属性也可以类似设置。
 
 val writerFactory = new OrcBulkWriterFactory(
