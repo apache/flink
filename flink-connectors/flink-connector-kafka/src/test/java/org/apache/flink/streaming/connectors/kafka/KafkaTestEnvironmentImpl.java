@@ -350,10 +350,11 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
     @Override
     public int getLeaderToShutDown(String topic) throws Exception {
-        AdminClient client = AdminClient.create(getStandardProperties());
-        TopicDescription result =
-                client.describeTopics(Collections.singleton(topic)).all().get().get(topic);
-        return result.partitions().get(0).leader().id();
+        try (final AdminClient client = AdminClient.create(getStandardProperties())) {
+            TopicDescription result =
+                    client.describeTopics(Collections.singleton(topic)).all().get().get(topic);
+            return result.partitions().get(0).leader().id();
+        }
     }
 
     @Override
