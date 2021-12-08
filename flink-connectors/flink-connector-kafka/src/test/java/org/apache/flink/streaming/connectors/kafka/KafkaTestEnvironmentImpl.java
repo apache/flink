@@ -372,6 +372,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         for (KafkaServer broker : brokers) {
             if (broker != null) {
                 broker.shutdown();
+                broker.awaitShutdown();
             }
         }
         brokers.clear();
