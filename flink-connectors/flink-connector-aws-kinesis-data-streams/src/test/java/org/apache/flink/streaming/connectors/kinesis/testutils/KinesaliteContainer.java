@@ -152,6 +152,12 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
 
         @Override
         protected void waitUntilReady() {
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
             retryUntilSuccessRunner(this::list);
         }
 
