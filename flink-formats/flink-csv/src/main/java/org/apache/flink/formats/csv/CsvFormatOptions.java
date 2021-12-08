@@ -87,5 +87,12 @@ public class CsvFormatOptions {
                             "Optional null literal string that is interpreted as a\n"
                                     + "null value (disabled by default)");
 
+    public static final ConfigOption<Boolean> IGNORE_FIRST_LINE =
+            ConfigOptions.key("ignore-first-line")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional flag to ignore first line when read csv file (false by default).");
+
     private CsvFormatOptions() {}
 }

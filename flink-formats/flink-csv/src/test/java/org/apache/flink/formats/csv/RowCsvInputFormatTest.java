@@ -745,6 +745,58 @@ public class RowCsvInputFormatTest {
         assertEquals(0, result.getField(2));
     }
 
+    @Test
+    public void testIgnoreFirstLine() throws Exception {
+        String fileContent =
+                // head row
+                "num1|num2|num3|num4|num5|num6|num7|num8|num9|num10|\n"
+                        + // first row
+                        "111|222|333|444|555|666|777|888|999|000|\n"
+                        + // second row
+                        "000|999|888|777|666|555|444|333|222|111|";
+        FileInputSplit split = createTempFile(fileContent);
+
+        TypeInformation[] fieldTypes =
+                new TypeInformation[] {
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO
+                };
+
+        RowCsvInputFormat.Builder builder =
+                RowCsvInputFormat.builder(new RowTypeInfo(fieldTypes), PATH)
+                        .setFieldDelimiter('|')
+                        .setIgnoreFirstLine()
+                        .setSelectedFields(new int[] {7, 3, 0});
+
+        RowCsvInputFormat format = builder.build();
+        format.configure(new Configuration());
+        format.open(split);
+
+        Row result = new Row(3);
+
+        // check first row
+        result = format.nextRecord(result);
+        assertNotNull(result);
+        assertEquals(888, result.getField(0));
+        assertEquals(444, result.getField(1));
+        assertEquals(111, result.getField(2));
+
+        // check second row
+        result = format.nextRecord(result);
+        assertNotNull(result);
+        assertEquals(333, result.getField(0));
+        assertEquals(777, result.getField(1));
+        assertEquals(0, result.getField(2));
+    }
+
     private static FileInputSplit createTempFile(String content) throws IOException {
         return createTempFile(content, 0, null);
     }

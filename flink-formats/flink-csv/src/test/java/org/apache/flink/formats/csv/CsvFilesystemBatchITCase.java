@@ -100,4 +100,67 @@ public class CsvFilesystemBatchITCase {
                     Arrays.asList(Row.of("x5", 5, 1, 1), Row.of("x5", 5, 2, 2)));
         }
     }
+
+    /**
+     * Enriched IT cases that including testIgnoreFirstLine for CsvRowDataFilesystem in batch mode.
+     */
+    public static class IgnoreFirstLineCsvFilesystemBatchITCase extends BatchFileSystemITCaseBase {
+
+        @Override
+        public String[] formatProperties() {
+            List<String> ret = new ArrayList<>();
+            ret.add("'format'='csv'");
+            ret.add("'csv.ignore-parse-errors'='true'");
+            ret.add("'csv.ignore-first-line'='true'");
+            ret.add("'csv.escape-character'='\t'");
+            return ret.toArray(new String[0]);
+        }
+
+        @Test
+        public void testIgnoreFirstLine() throws Exception {
+            String path = new URI(resultPath()).getPath();
+            new File(path).mkdirs();
+            File file = new File(path, "test_file");
+            file.createNewFile();
+            FileUtils.writeFileUtf8(file, "x1,x2,y1,y2\n" + "x5,5,1,1\n" + "x5,5,1,1");
+
+            check(
+                    "select * from nonPartitionedTable",
+                    Arrays.asList(Row.of("x5", 5, 1, 1), Row.of("x5", 5, 1, 1)));
+        }
+
+        // ignore the other tests in ITCase.
+        @Override
+        public void testDynamicPartition() {}
+
+        @Override
+        public void testPartialDynamicPartition() {}
+
+        @Override
+        public void testProjectPushDown() {}
+
+        @Override
+        public void testNonPartition() {}
+
+        @Override
+        public void testPartitionWithHiddenFile() {}
+
+        @Override
+        public void testInsertAppend() {}
+
+        @Override
+        public void testFilterPushDown() {}
+
+        @Override
+        public void testInsertOverwrite() {}
+
+        @Override
+        public void testAllStaticPartitions1() {}
+
+        @Override
+        public void testAllStaticPartitions2() {}
+
+        @Override
+        public void testLimitPushDown() {}
+    }
 }
