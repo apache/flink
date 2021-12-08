@@ -497,7 +497,8 @@ class MergeTableLikeUtil {
                     RelDataType oldType = physicalFieldNamesToTypes.put(name, relType);
                     if (oldType != null) {
                         throw new ValidationException(
-                                String.format( "A column named '%s' already exists in the derived table.",
+                                String.format(
+                                        "A column named '%s' already exists in the derived table.",
                                         name));
                     }
                 }
