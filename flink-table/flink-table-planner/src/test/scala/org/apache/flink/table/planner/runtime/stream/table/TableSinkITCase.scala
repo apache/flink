@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime.stream.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -28,6 +29,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullData4, smallTupleData3, tupleData2, tupleData3, tupleData5}
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.util.ExceptionUtils
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.{Rule, Test}
 import org.junit.rules.ExpectedException
@@ -35,6 +37,7 @@ import org.junit.rules.ExpectedException
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.util.concurrent.atomic.AtomicInteger
+
 import scala.collection.JavaConversions._
 import scala.collection.Seq
 import scala.util.{Failure, Success, Try}
@@ -687,16 +690,10 @@ class TableSinkITCase extends StreamingTestBase {
          |  'sink-changelog-mode-enforced' = 'I,D'
          |)
          |""".stripMargin)
+    // source is insert only, it never produce a delete, so we do not require a pk for the sink
     Try(tEnv
       .executeSql(s"INSERT INTO $sinkTableWithoutPkName SELECT * FROM $sourceTableName")
-      .await()) match {
-      case Failure(e) =>
-        val exception = ExceptionUtils
-          .findThrowableWithMessage(
-            e,
-            "a primary key is required")
-        assertTrue(exception.isPresent)
-    }
+      .await()).isSuccess
 
     tEnv.executeSql(
       s"""
@@ -1248,5 +1245,41 @@ class TableSinkITCase extends StreamingTestBase {
       tEnv.from("T3")
     ).execute().await()
     assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResults.toList)
+  }
+
+  @Test
+  def testAppendStreamToSinkWithoutPkForceKeyBy(): Unit = {
+    val t = env.fromCollection(tupleData3)
+        .assignAscendingTimestamps(_._1.toLong)
+        .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+      ExecutionConfigOptions.SinkKeyedShuffle.FORCE)
+
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE sink (
+         |  `t` TIMESTAMP(3),
+         |  `icnt` BIGINT,
+         |  `nsum` BIGINT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false',
+         |  'sink.parallelism' = '4'
+         |)
+         |""".stripMargin)
+
+    val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
+        .groupBy('w)
+        .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
+    table.executeInsert("sink").await()
+
+    val result = TestValuesTableFactory.getResults("sink")
+    val expected = List(
+      "1970-01-01T00:00:00.005,4,8",
+      "1970-01-01T00:00:00.010,5,18",
+      "1970-01-01T00:00:00.015,5,24",
+      "1970-01-01T00:00:00.020,5,29",
+      "1970-01-01T00:00:00.025,2,12")
+    assertEquals(expected.sorted, result.sorted)
   }
 }
