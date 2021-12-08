@@ -296,4 +296,70 @@ class AggregateTest extends TableTestBase {
          |) t
          |""".stripMargin)
   }
+
+  @Test
+  def testGroupKeyNotMatchSinkPk(): Unit = {
+    // test for FLINK-20370
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE sink (
+        | id VARCHAR,
+        | cnt BIGINT,
+        | PRIMARY KEY (cnt) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'values'
+        | ,'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+    util.verifyExplainInsert(
+      """
+        |INSERT INTO sink
+        |SELECT c, COUNT(*) cnt FROM T GROUP BY c
+        |""".stripMargin, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testGroupKeyInSinkPk(): Unit = {
+    // test for FLINK-20370
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE sink (
+        | a INT,
+        | b BIGINT,
+        | cnt BIGINT,
+        | PRIMARY KEY (a, b) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'values'
+        | ,'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+    util.verifyExplainInsert(
+      """
+        |INSERT INTO sink
+        |SELECT a, MAX(b) b, COUNT(*) cnt FROM T GROUP BY a
+        |""".stripMargin, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testGroupResultLostUpsertKeyWithSinkPk(): Unit = {
+    // test for FLINK-20370
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE sink (
+        | id VARCHAR,
+        | cnt BIGINT,
+        | PRIMARY KEY (id) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'values'
+        | ,'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+
+    // verify UB should reserve and add upsertMaterialize if group results lost upsert keys
+    util.verifyExplainInsert(
+      """
+        |INSERT INTO sink
+        |SELECT c, COUNT(*) cnt FROM T GROUP BY a, c
+        |""".stripMargin, ExplainDetail.CHANGELOG_MODE)
+  }
 }
