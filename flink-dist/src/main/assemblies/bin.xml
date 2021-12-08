@@ -79,11 +79,31 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- Table/SQL Uber JAR -->
+		<!-- Table jars -->
 		<file>
-			<source>../flink-table/flink-table-uber/target/flink-table-uber_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-table/flink-table-api-java-uber/target/flink-table-api-java-uber-${project.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
-			<destName>flink-table_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-table-api-java-uber-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>../flink-table/flink-table-runtime/target/flink-table-runtime-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-table-runtime-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>../flink-table/flink-table-planner-loader/target/flink-table-planner-loader-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-table-planner-loader-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- CEP (required for SQL MATCH_RECOGNIZE) -->
+		<file>
+			<source>../flink-libraries/flink-cep/target/flink-cep-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-cep-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 

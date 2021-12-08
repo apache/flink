@@ -39,8 +39,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<dependencies>
-		<!-- Mainly used for calcite-core, it would be relocated
-		     to org.apache.flink.calcite.shaded by the shade plugin -->
+		<!-- Mainly used for calcite-core, relocated in org.apache.flink.calcite.shaded by the shade plugin -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
@@ -49,37 +48,28 @@ under the License.
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>commons-compiler</artifactId>
 		</dependency>
-		<!-- Used for code generation -->
 		<dependency>
+			<!-- Used for code generation -->
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
 		</dependency>
 
-		<!-- core dependencies -->
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-common</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-bridge-base</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
+		<!-- Table API Java dependencies (not included in the uber) -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java-bridge</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+		<!-- Flink Scala (included only in the loader-bundle) -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-scala_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Table SQL Parser dependencies (included in the uber) -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -92,7 +82,6 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-parser-hive</artifactId>
@@ -105,23 +94,15 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Table Runtime (not included in the uber) -->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
+		<!-- Flink dependencies (not included in the uber) -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -130,8 +111,10 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- Used for translation of table programs -->
+		<!-- Other 3rd party dependencies (included in the uber) -->
+
 		<dependency>
+			<!-- Used for translation of table programs -->
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
 			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
@@ -186,6 +169,10 @@ under the License.
 					<artifactId>commons-dbcp2</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-lang3</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>com.fasterxml.jackson.dataformat</groupId>
 					<artifactId>jackson-dataformat-yaml</artifactId>
 				</exclusion>
@@ -205,23 +192,50 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- Tools to unify display format for different languages -->
 		<dependency>
-			<groupId>com.ibm.icu</groupId>
-			<artifactId>icu4j</artifactId>
-			<version>67.1</version>
-		</dependency>
-
-		<!-- For legacy string expressions in Table API -->
-		<dependency>
+			<!-- For legacy string expressions in Table API -->
 			<groupId>org.scala-lang.modules</groupId>
 			<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
 		</dependency>
 
-		<!-- test dependencies -->
+		<dependency>
+			<!-- Utility to scan classpaths -->
+			<groupId>org.reflections</groupId>
+			<artifactId>reflections</artifactId>
+			<version>0.9.10</version>
+			<scope>compile</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.code.findbugs</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- Test dependencies -->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Table API Scala dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-scala_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -235,21 +249,7 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-scala_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- SuccessException used in TestValuesTableFactory -->
-		<dependency>
+			<!-- SuccessException used in TestValuesTableFactory -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-tests</artifactId>
 			<version>${project.version}</version>
@@ -296,30 +296,12 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- For using the filesystem connector in tests -->
 		<dependency>
+			<!-- For using the filesystem connector in tests -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-files</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
-		</dependency>
-
-		<!-- utility to scan classpaths -->
-		<dependency>
-			<groupId>org.reflections</groupId>
-			<artifactId>reflections</artifactId>
-			<version>0.9.10</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.code.findbugs</groupId>
-					<artifactId>annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-			</exclusions>
-			<scope>compile</scope>
 		</dependency>
 	</dependencies>
 
@@ -356,103 +338,130 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
+				<configuration>
+					<!-- Base config -->
+					<createDependencyReducedPom>true</createDependencyReducedPom>
+					<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+					<filters combine.children="append">
+						<filter>
+							<artifact>*:*</artifact>
+							<excludes>
+								<!-- Excluded all these files for a clean flink-table-planner JAR -->
+								<exclude>org-apache-calcite-jdbc.properties</exclude>
+								<exclude>common.proto</exclude>
+								<exclude>requests.proto</exclude>
+								<exclude>responses.proto</exclude>
+								<exclude>codegen/**</exclude>
+								<exclude>META-INF/*.SF</exclude>
+								<exclude>META-INF/*.DSA</exclude>
+								<exclude>META-INF/*.RSA</exclude>
+								<exclude>META-INF/services/java.sql.Driver</exclude>
+								<exclude>META-INF/versions/11/module-info.class</exclude>
+								<!-- com.ibm.icu:icu4j includes a LICENSE file in its root folder -->
+								<exclude>LICENSE</exclude>
+							</excludes>
+						</filter>
+					</filters>
+					<artifactSet>
+						<includes combine.children="append">
+							<include>org.apache.calcite:*</include>
+							<include>org.apache.calcite.avatica:*</include>
+
+							<!-- Calcite's dependencies -->
+							<include>com.esri.geometry:esri-geometry-api</include>
+							<include>com.google.guava:guava</include>
+							<include>com.google.guava:failureaccess</include>
+							<include>commons-codec:commons-codec</include>
+							<include>commons-io:commons-io</include>
+
+							<!-- flink-table-planner dependencies -->
+							<include>org.apache.flink:flink-sql-parser</include>
+							<include>org.apache.flink:flink-sql-parser-hive</include>
+
+							<!-- For legacy string expressions in Table API -->
+							<include>org.scala-lang.modules:scala-parser-combinators_${scala.binary.version}</include>
+
+							<!-- ReflectionsUtil -->
+							<include>org.reflections:reflections</include>
+						</includes>
+					</artifactSet>
+					<relocations>
+						<!-- Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig -->
+						<!--<relocation>
+							<pattern>org.apache.calcite</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.calcite</shadedPattern>
+						</relocation>-->
+
+						<!-- Calcite's dependencies -->
+						<relocation>
+							<pattern>com.google</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>com.jayway</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>com.fasterxml</pattern>
+							<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.apache.commons.codec</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.apache.commons.io</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.io</shadedPattern>
+						</relocation>
+
+						<relocation>
+							<pattern>org.reflections</pattern>
+							<shadedPattern>org.apache.flink.table.shaded.org.reflections</shadedPattern>
+						</relocation>
+
+						<relocation>
+							<!-- icu4j's dependencies -->
+							<pattern>com.ibm.icu</pattern>
+							<shadedPattern>org.apache.flink.table.shaded.com.ibm.icu</shadedPattern>
+						</relocation>
+					</relocations>
+				</configuration>
 				<executions>
+					<!-- The order on these executions matters, as the shade-flink-distribution overwrites the original jar -->
 					<execution>
 						<id>shade-flink</id>
+						<!-- Disabled to enforce shade-loader-bundle to run first -->
+						<phase>none</phase>
+					</execution>
+					<execution>
+						<!-- This configuration is essentially the same as shade-distribution,
+						but it writes another jar to a separate file and it includes scala.
+						This jar is used by flink-table-planner-loader -->
+						<id>shade-loader-bundle</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
 						<configuration>
-							<filters>
-								<filter>
-									<artifact>*:*</artifact>
-									<excludes>
-										<!-- Excluded all these files for a clean flink-table-planner JAR -->
-										<exclude>org-apache-calcite-jdbc.properties</exclude>
-										<exclude>common.proto</exclude>
-										<exclude>requests.proto</exclude>
-										<exclude>responses.proto</exclude>
-										<exclude>codegen/**</exclude>
-										<exclude>META-INF/*.SF</exclude>
-										<exclude>META-INF/*.DSA</exclude>
-										<exclude>META-INF/*.RSA</exclude>
-										<exclude>META-INF/services/java.sql.Driver</exclude>
-										<exclude>META-INF/versions/11/module-info.class</exclude>
-										<!-- com.ibm.icu:icu4j includes a LICENSE file in its root folder -->
-										<exclude>LICENSE</exclude>
-									</excludes>
-								</filter>
-							</filters>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>loader-bundle</shadedClassifierName>
 							<artifactSet>
 								<includes combine.children="append">
-									<include>org.apache.calcite:*</include>
-									<include>org.apache.calcite.avatica:*</include>
-
-									<!-- Calcite's dependencies -->
-									<include>com.esri.geometry:esri-geometry-api</include>
-									<include>com.google.guava:guava</include>
-									<include>com.google.guava:failureaccess</include>
-									<include>commons-codec:commons-codec</include>
-									<include>commons-io:commons-io</include>
-
-									<!-- flink-table-planner dependencies -->
-									<include>org.apache.flink:flink-sql-parser</include>
-									<include>org.apache.flink:flink-sql-parser-hive</include>
-
-									<!-- flink-table-runtime dependencies -->
-									<include>org.codehaus.janino:*</include>
-									<include>org.apache.flink:flink-table-code-splitter</include>
-
-									<!-- Tools to unify display format for different languages -->
-									<include>com.ibm.icu:icu4j</include>
-
-									<!-- For legacy string expressions in Table API -->
-									<include>org.scala-lang.modules:scala-parser-combinators_${scala.binary.version}</include>
-
-									<include>org.reflections:reflections</include>
+									<!-- flink-table-planner scala dependencies -->
+									<include>org.scala-lang:*</include>
+									<include>org.apache.flink:flink-scala_${scala.binary.version}</include>
 								</includes>
 							</artifactSet>
-							<relocations>
-								<!-- Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig -->
-								<!--<relocation>
-									<pattern>org.apache.calcite</pattern>
-									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.calcite</shadedPattern>
-								</relocation>-->
-
-								<!-- Calcite's dependencies -->
-								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
-								</relocation>
-								<relocation>
-									<!-- Packaged in runtime -->
-									<pattern>com.jayway</pattern>
-									<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
-								</relocation>
-								<relocation>
-									<!-- Packaged in runtime -->
-									<pattern>com.fasterxml</pattern>
-									<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.apache.commons.codec</pattern>
-									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.apache.commons.io</pattern>
-									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.io</shadedPattern>
-								</relocation>
-
-								<!-- flink-table-planner dependencies -->
-								<!-- not relocated for now, because we need to change the contents of the properties field otherwise -->
-								<!--<relocation>
-									<pattern>org.codehaus</pattern>
-									<shadedPattern>org.apache.flink.table.shaded.org.codehaus</shadedPattern>
-								</relocation>-->
-
-								<relocation>
-									<pattern>org.reflections</pattern>
-									<shadedPattern>org.apache.flink.table.shaded.org.reflections</shadedPattern>
-								</relocation>
-
-							</relocations>
+						</configuration>
+					</execution>
+					<execution>
+						<id>shade-distribution</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
 						</configuration>
 					</execution>
 				</executions>

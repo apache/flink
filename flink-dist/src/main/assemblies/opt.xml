@@ -31,13 +31,6 @@
 	<files>
 		<!-- CEP -->
 		<file>
-			<source>../flink-libraries/flink-cep/target/flink-cep-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-cep-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
 			<source>../flink-libraries/flink-cep-scala/target/flink-cep-scala_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-cep-scala_${scala.binary.version}-${project.version}.jar</destName>
@@ -59,11 +52,17 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- SQL Client -->
+		<!-- Table/SQL dependencies -->
 		<file>
-			<source>../flink-table/flink-sql-client/target/flink-sql-client_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-table/flink-table-planner/target/flink-table-planner_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-sql-client_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-table-planner_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>../flink-table/flink-sql-client/target/flink-sql-client-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-sql-client-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
