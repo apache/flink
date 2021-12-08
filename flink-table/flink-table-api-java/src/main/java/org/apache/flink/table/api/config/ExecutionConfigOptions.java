@@ -151,21 +151,21 @@ public class ExecutionConfigOptions {
                                     .build());
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-    public static final ConfigOption<SinkShuffleByPk> TABLE_EXEC_SINK_SHUFFLE_BY_PK =
-            key("table.exec.sink.pk-shuffle")
-                    .enumType(SinkShuffleByPk.class)
-                    .defaultValue(SinkShuffleByPk.AUTO)
+    public static final ConfigOption<SinkKeyedShuffle> TABLE_EXEC_SINK_KEYED_SHUFFLE =
+            key("table.exec.sink.keyed-shuffle")
+                    .enumType(SinkKeyedShuffle.class)
+                    .defaultValue(SinkKeyedShuffle.AUTO)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "In order to minimize the distributed disorder problem when writing data into table with primary keys that many users suffers. "
-                                                    + "FLINK will auto add a shuffle by default when the sink's parallelism differs from upstream operator and upstream is append only. "
+                                                    + "FLINK will auto add a keyed shuffle by default when the sink's parallelism differs from upstream operator and upstream is append only. "
                                                     + "This works only when the upstream ensures the multi-records' order on the primary key, if not, the added shuffle can not solve "
                                                     + "the problem (In this situation, a more proper way is to consider the deduplicate operation for the source firstly or use an "
                                                     + "upsert source with primary key definition which truly reflect the records evolution).")
                                     .linebreak()
                                     .text(
-                                            "By default, the shuffle by primary key will be added when the sink's parallelism differs from upstream operator. "
+                                            "By default, the keyed shuffle will be added when the sink's parallelism differs from upstream operator. "
                                                     + "You can set to no shuffle(NONE) or force shuffle(FORCE).")
                                     .build());
 
@@ -484,15 +484,15 @@ public class ExecutionConfigOptions {
 
     /** Shuffle by primary key before sink. */
     @PublicEvolving
-    public enum SinkShuffleByPk {
+    public enum SinkKeyedShuffle {
 
-        /** No shuffle stage will be added for sink. */
+        /** No keyed shuffle will be added for sink. */
         NONE,
 
-        /** Auto add shuffle by pk when the sink's parallelism differs from upstream operator. */
+        /** Auto add keyed shuffle when the sink's parallelism differs from upstream operator. */
         AUTO,
 
-        /** Add shuffle by pk in any case. */
+        /** Add keyed shuffle in any case except single parallelism. */
         FORCE
     }
 

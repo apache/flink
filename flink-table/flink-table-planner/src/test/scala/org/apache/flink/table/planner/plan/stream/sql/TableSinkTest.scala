@@ -504,8 +504,8 @@ class TableSinkTest extends TableTestBase {
 
   @Test def testAppendStreamToSinkWithPkNoKeyBy(): Unit = {
     val tEnv = util.tableEnv
-    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_SHUFFLE_BY_PK,
-      ExecutionConfigOptions.SinkShuffleByPk.NONE)
+    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+      ExecutionConfigOptions.SinkKeyedShuffle.NONE)
     tEnv.executeSql(
       """
         |create table source (
@@ -535,8 +535,8 @@ class TableSinkTest extends TableTestBase {
   @Test def testAppendStreamToSinkWithPkForceKeyBy(): Unit = {
     util.getStreamEnv.setParallelism(4)
     val tEnv = util.tableEnv
-    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_SHUFFLE_BY_PK,
-      ExecutionConfigOptions.SinkShuffleByPk.FORCE)
+    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+      ExecutionConfigOptions.SinkKeyedShuffle.FORCE)
     tEnv.executeSql(
       """
         |create table source (
@@ -552,6 +552,67 @@ class TableSinkTest extends TableTestBase {
         | id varchar,
         | city_name varchar,
         | primary key (id) not enforced
+        |) with (
+        | 'connector' = 'values',
+        | 'sink-insert-only' = 'false',
+        | 'sink.parallelism' = '4'
+        |)""".stripMargin)
+    val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
+    stmtSet.addInsertSql("insert into sink select * from source")
+    // source and sink has same parallelism, but sink shuffle by pk is enforced
+    util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test def testSingleParallelismAppendStreamToSinkWithPkForceKeyBy(): Unit = {
+    util.getStreamEnv.setParallelism(1)
+    val tEnv = util.tableEnv
+    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+      ExecutionConfigOptions.SinkKeyedShuffle.FORCE)
+    tEnv.executeSql(
+      """
+        |create table source (
+        | id varchar,
+        | city_name varchar
+        |) with (
+        | 'connector' = 'test_source'
+        |)""".stripMargin)
+
+    tEnv.executeSql(
+      """
+        |create table sink (
+        | id varchar,
+        | city_name varchar,
+        | primary key (id) not enforced
+        |) with (
+        | 'connector' = 'values',
+        | 'sink-insert-only' = 'false',
+        | 'sink.parallelism' = '1'
+        |)""".stripMargin)
+    val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
+    stmtSet.addInsertSql("insert into sink select * from source")
+    // source and sink has same parallelism, but sink shuffle by pk is enforced
+    util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test def testAppendStreamToSinkWithoutPkForceKeyBy(): Unit = {
+    util.getStreamEnv.setParallelism(4)
+    val tEnv = util.tableEnv
+    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+      ExecutionConfigOptions.SinkKeyedShuffle.FORCE)
+    tEnv.executeSql(
+      """
+        |create table source (
+        | id varchar,
+        | city_name varchar
+        |) with (
+        | 'connector' = 'test_source'
+        |)""".stripMargin)
+
+    tEnv.executeSql(
+      """
+        |create table sink (
+        | id varchar,
+        | city_name varchar
         |) with (
         | 'connector' = 'values',
         | 'sink-insert-only' = 'false',

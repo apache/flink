@@ -128,8 +128,9 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);
         final int inputParallelism = inputTransform.getParallelism();
         final boolean inputInsertOnly = inputChangelogMode.containsOnly(RowKind.INSERT);
+        final boolean hasPk = primaryKeys.length > 0;
 
-        if (!inputInsertOnly && sinkParallelism != inputParallelism && primaryKeys.length == 0) {
+        if (!inputInsertOnly && sinkParallelism != inputParallelism && !hasPk) {
             throw new TableException(
                     String.format(
                             "The sink for table '%s' has a configured parallelism of %s, while the input parallelism is %s. "
@@ -148,15 +149,17 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 applyConstraintValidations(
                         inputTransform, planner.getTableConfig(), physicalRowType);
 
-        sinkTransform =
-                applyKeyBy(
-                        planner.getTableConfig(),
-                        sinkTransform,
-                        primaryKeys,
-                        sinkParallelism,
-                        inputParallelism,
-                        inputInsertOnly,
-                        needMaterialization);
+        if (hasPk) {
+            sinkTransform =
+                    applyKeyBy(
+                            planner.getTableConfig(),
+                            sinkTransform,
+                            primaryKeys,
+                            sinkParallelism,
+                            inputParallelism,
+                            inputInsertOnly,
+                            needMaterialization);
+        }
 
         if (needMaterialization) {
             sinkTransform =
@@ -301,19 +304,18 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             int inputParallelism,
             boolean inputInsertOnly,
             boolean needMaterialize) {
-        boolean sameParallelism = sinkParallelism == inputParallelism;
-        final ExecutionConfigOptions.SinkShuffleByPk sinkShuffleByPk =
-                config.getConfiguration().get(ExecutionConfigOptions.TABLE_EXEC_SINK_SHUFFLE_BY_PK);
+        final ExecutionConfigOptions.SinkKeyedShuffle sinkShuffleByPk =
+                config.getConfiguration().get(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE);
         boolean sinkKeyBy = false;
         switch (sinkShuffleByPk) {
             case NONE:
                 break;
             case AUTO:
-                sinkKeyBy = inputInsertOnly && !sameParallelism;
+                sinkKeyBy = inputInsertOnly && sinkParallelism != inputParallelism;
                 break;
             case FORCE:
                 // single parallelism has no problem
-                sinkKeyBy = !(sinkParallelism == 1 && inputParallelism == 1);
+                sinkKeyBy = sinkParallelism != 1 || inputParallelism != 1;
                 break;
         }
         if (!sinkKeyBy && !needMaterialize) {
