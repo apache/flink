@@ -173,7 +173,7 @@ public class IntermediateResult {
         return consumer.getDistributionPattern();
     }
 
-    boolean isBroadcast() {
+    public boolean isBroadcast() {
         final JobEdge consumer = checkNotNull(intermediateDataSet.getConsumer());
         return consumer.isBroadcast();
     }
