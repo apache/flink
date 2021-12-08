@@ -497,17 +497,13 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private CleanupJobState handleJobManagerRunnerResult(
             JobManagerRunnerResult jobManagerRunnerResult, ExecutionType executionType) {
-        if (jobManagerRunnerResult.isInitializationFailure()) {
-            if (executionType == ExecutionType.RECOVERY) {
-                return jobManagerRunnerFailed(
-                        jobManagerRunnerResult.getExecutionGraphInfo().getJobId(),
-                        jobManagerRunnerResult.getInitializationFailure());
-            } else {
-                return jobReachedTerminalState(jobManagerRunnerResult.getExecutionGraphInfo());
-            }
-        } else {
-            return jobReachedTerminalState(jobManagerRunnerResult.getExecutionGraphInfo());
+        if (jobManagerRunnerResult.isInitializationFailure()
+                && executionType == ExecutionType.RECOVERY) {
+            return jobManagerRunnerFailed(
+                    jobManagerRunnerResult.getExecutionGraphInfo().getJobId(),
+                    jobManagerRunnerResult.getInitializationFailure());
         }
+        return jobReachedTerminalState(jobManagerRunnerResult.getExecutionGraphInfo());
     }
 
     enum CleanupJobState {
