@@ -453,10 +453,7 @@ public class Execution
 
         for (IntermediateResultPartition partition : partitions) {
             PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
-            int maxParallelism =
-                    getPartitionMaxParallelism(
-                            partition,
-                            vertex.getExecutionGraphAccessor()::getExecutionVertexOrThrow);
+            int maxParallelism = getPartitionMaxParallelism(partition);
             CompletableFuture<? extends ShuffleDescriptor> shuffleDescriptorFuture =
                     vertex.getExecutionGraphAccessor()
                             .getShuffleMaster()
@@ -485,13 +482,10 @@ public class Execution
                         });
     }
 
-    private static int getPartitionMaxParallelism(
-            IntermediateResultPartition partition,
-            Function<ExecutionVertexID, ExecutionVertex> getVertexById) {
-        final ConsumerVertexGroup consumerVertexGroup = partition.getConsumerVertexGroup();
-        return getVertexById
-                .apply(consumerVertexGroup.getFirst())
-                .getJobVertex()
+    private static int getPartitionMaxParallelism(IntermediateResultPartition partition) {
+        return partition
+                .getIntermediateResult()
+                .getConsumerExecutionJobVertex()
                 .getMaxParallelism();
     }
 

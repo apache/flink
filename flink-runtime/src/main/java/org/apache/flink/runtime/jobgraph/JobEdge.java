@@ -55,6 +55,8 @@ public class JobEdge implements java.io.Serializable {
      */
     private String shipStrategyName;
 
+    private boolean isBroadcast;
+
     /**
      * Optional name for the pre-processing operation (sort, combining sort, ...), to be displayed
      * in the JSON plan.
@@ -162,6 +164,16 @@ public class JobEdge implements java.io.Serializable {
      */
     public void setShipStrategyName(String shipStrategyName) {
         this.shipStrategyName = shipStrategyName;
+    }
+
+    /** Gets whether the edge is broadcast edge. */
+    public boolean isBroadcast() {
+        return isBroadcast;
+    }
+
+    /** Sets whether the edge is broadcast edge. */
+    public void setBroadcast(boolean broadcast) {
+        isBroadcast = broadcast;
     }
 
     /**

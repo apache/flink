@@ -1537,4 +1537,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     public ExecutionDeploymentListener getExecutionDeploymentListener() {
         return executionDeploymentListener;
     }
+
+    @Override
+    public boolean isDynamic() {
+        return isDynamic;
+    }
 }

@@ -227,7 +227,7 @@ public class ExecutionJobVertexTest {
      * @param defaultMaxParallelism the global default max parallelism
      * @return the computed parallelism store
      */
-    private static VertexParallelismStore computeVertexParallelismStoreForDynamicGraph(
+    static VertexParallelismStore computeVertexParallelismStoreForDynamicGraph(
             Iterable<JobVertex> vertices, int defaultMaxParallelism) {
         // for dynamic graph, there is no need to normalize vertex parallelism. if the max
         // parallelism is not configured and the parallelism is a positive value, max
