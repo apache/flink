@@ -45,6 +45,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -65,6 +66,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /** IT tests for {@link Elasticsearch7DynamicSink}. */
+@Ignore
 public class Elasticsearch7DynamicSinkITCase extends TestLogger {
 
     @ClassRule
