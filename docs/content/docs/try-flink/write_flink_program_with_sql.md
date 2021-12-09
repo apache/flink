@@ -52,7 +52,7 @@ You only need to have basic knowledge of SQL to follow along.
 
 ## Step 1: Start the Flink SQL client 
 
-The [SQL Client](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sqlclient/) is bundled in the regular Flink distribution and runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed (since Flink SQL is a thin abstraction over the Table API). 
+The [SQL Client](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sqlclient/) is bundled in the regular Flink distribution and can be run out-of-the-box. It requires only a running Flink cluster where table programs can be executed (since Flink SQL is a thin abstraction over the Table API). 
 
 There are many ways to set up Flink but you will run it locally for the purpose of this tutorial. [Download Flink](https://nightlies.apache.org/flink/flink-docs-release-1.14/docs/try-flink/local_installation/#downloading-flink) and [start a local cluster](https://nightlies.apache.org/flink/flink-docs-release-1.14/docs/try-flink/local_installation/#starting-and-stopping-a-local-cluster) with one worker (or TaskManager).  
 
