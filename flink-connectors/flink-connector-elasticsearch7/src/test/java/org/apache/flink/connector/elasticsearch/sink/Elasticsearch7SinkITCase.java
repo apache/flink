@@ -21,6 +21,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.elasticsearch.client.RestHighLevelClient;
+import org.junit.jupiter.api.Disabled;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -29,6 +30,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Tests for {@link ElasticsearchSink}. */
 @Testcontainers
+@Disabled
 class Elasticsearch7SinkITCase extends ElasticsearchSinkBaseITCase {
 
     @Container

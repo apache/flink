@@ -25,6 +25,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.search.SearchHits;
+import org.junit.jupiter.api.Disabled;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -36,6 +37,7 @@ import static org.apache.flink.connector.elasticsearch.table.TestContext.context
 
 /** IT tests for {@link ElasticsearchDynamicSink}. */
 @Testcontainers
+@Disabled
 public class Elasticsearch7DynamicSinkITCase extends ElasticsearchDynamicSinkBaseITCase {
 
     @Container

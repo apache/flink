@@ -47,6 +47,7 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.TimeValue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -69,6 +70,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link ElasticsearchWriter}. */
 @Testcontainers
+@Disabled
 @ExtendWith(TestLoggerExtension.class)
 class ElasticsearchWriterITCase {
 
