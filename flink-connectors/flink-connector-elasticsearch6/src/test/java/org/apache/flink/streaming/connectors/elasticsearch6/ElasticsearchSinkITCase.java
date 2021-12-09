@@ -31,6 +31,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -39,6 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** IT cases for the {@link ElasticsearchSink}. */
+@Ignore
 public class ElasticsearchSinkITCase
         extends ElasticsearchSinkTestBase<RestHighLevelClient, HttpHost> {
 
