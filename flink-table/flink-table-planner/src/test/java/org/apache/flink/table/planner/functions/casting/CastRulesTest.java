@@ -998,29 +998,41 @@ class CastRulesTest {
                         .fromCase(DOUBLE(), 0.0d, false)
                         .fromCase(DOUBLE(), -0.12345678d, true),
                 CastTestSpecBuilder.testCastTo(BINARY(2))
-                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
+                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111}, true)
+                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111}, false)
+                        .fromCase(CHAR(1), fromString("f"), new byte[] {102}, false)
+                        .fromCase(CHAR(3), fromString("f"), new byte[] {102}, false)
+                        .fromCase(VARCHAR(5), fromString("Flink"), new byte[] {70, 108}, false)
                         .fromCase(
                                 VARCHAR(5),
                                 fromString("Flink"),
-                                new byte[] {70, 108, 105, 110, 107})
-                        // https://issues.apache.org/jira/browse/FLINK-24419 - not trimmed to 2
-                        // bytes
+                                new byte[] {70, 108, 105, 110, 107},
+                                true)
+                        .fromCase(STRING(), fromString("Apache"), new byte[] {65, 112}, false)
                         .fromCase(
                                 STRING(),
                                 fromString("Apache"),
-                                new byte[] {65, 112, 97, 99, 104, 101}),
+                                new byte[] {65, 112, 97, 99, 104, 101},
+                                true),
                 CastTestSpecBuilder.testCastTo(VARBINARY(4))
-                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
+                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111}, false)
                         .fromCase(
                                 VARCHAR(5),
                                 fromString("Flink"),
-                                new byte[] {70, 108, 105, 110, 107})
-                        // https://issues.apache.org/jira/browse/FLINK-24419 - not trimmed to 2
-                        // bytes
+                                new byte[] {70, 108, 105, 110, 107},
+                                true)
+                        .fromCase(
+                                VARCHAR(5),
+                                fromString("Flink"),
+                                new byte[] {70, 108, 105, 110},
+                                false)
+                        .fromCase(
+                                STRING(), fromString("Apache"), new byte[] {65, 112, 97, 99}, false)
                         .fromCase(
                                 STRING(),
                                 fromString("Apache"),
-                                new byte[] {65, 112, 97, 99, 104, 101}),
+                                new byte[] {65, 112, 97, 99, 104, 101},
+                                true),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
                         .fromCase(

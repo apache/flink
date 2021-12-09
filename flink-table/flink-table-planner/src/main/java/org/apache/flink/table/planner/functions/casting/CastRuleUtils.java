@@ -75,6 +75,10 @@ final class CastRuleUtils {
         return className(clazz) + "." + fieldName;
     }
 
+    static String arrayLength(String instanceTerm) {
+        return instanceTerm + ".length";
+    }
+
     static String ternaryOperator(String condition, String ifTrue, String ifFalse) {
         return "((" + condition + ") ? (" + ifTrue + ") : (" + ifFalse + "))";
     }

@@ -74,6 +74,9 @@ public class CastRuleProvider {
                 .addRule(StringToTimeCastRule.INSTANCE)
                 .addRule(StringToTimestampCastRule.INSTANCE)
                 .addRule(StringToBinaryCastRule.INSTANCE)
+                // To binary rules
+                .addRule(BinaryToBinaryCastRule.INSTANCE)
+                .addRule(RawToBinaryCastRule.INSTANCE)
                 // Collection rules
                 .addRule(ArrayToArrayCastRule.INSTANCE)
                 .addRule(RowToRowCastRule.INSTANCE)

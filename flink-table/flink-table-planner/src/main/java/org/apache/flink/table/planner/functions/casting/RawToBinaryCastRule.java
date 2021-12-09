@@ -26,7 +26,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import java.util.Arrays;
 
 import static org.apache.flink.table.codesplit.CodeSplitUtil.newName;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.accessArrayLength;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.arrayLength;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
@@ -45,6 +45,16 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
 
     /* Example generated code for BINARY(3):
 
+    // legacy behavior
+    isNull$290 = isNull$289;
+    if (!isNull$290) {
+        result$291 = result$289.toBytes(typeSerializer$292);
+        isNull$290 = result$291 == null;
+    } else {
+        result$291 = null;
+    }
+
+    // new behavior
     isNull$290 = isNull$289;
     if (!isNull$290) {
         byte[] deserializedByteArray$76 = result$289.toBytes(typeSerializer$292);
@@ -67,31 +77,37 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        // Get length of target
         final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
 
         // Get serializer for RAW type
         final String typeSerializer = context.declareTypeSerializer(inputLogicalType);
         final String deserializedByteArrayTerm = newName("deserializedByteArray");
 
-        return new CastRuleUtils.CodeWriter()
-                .declStmt(
-                        byte[].class,
-                        deserializedByteArrayTerm,
-                        methodCall(inputTerm, "toBytes", typeSerializer))
-                .ifStmt(
-                        accessArrayLength(deserializedByteArrayTerm) + " <= " + targetLength,
-                        thenWriter ->
-                                thenWriter.assignStmt(returnVariable, deserializedByteArrayTerm),
-                        elseWriter ->
-                                elseWriter.assignStmt(
-                                        returnVariable,
-                                        staticCall(
-                                                Arrays.class,
-                                                "copyOfRange",
-                                                deserializedByteArrayTerm,
-                                                0,
-                                                targetLength)))
-                .toString();
+        if (context.legacyBehaviour()) {
+            return new CastRuleUtils.CodeWriter()
+                    .assignStmt(returnVariable, methodCall(inputTerm, "toBytes", typeSerializer))
+                    .toString();
+        } else {
+            return new CastRuleUtils.CodeWriter()
+                    .declStmt(
+                            byte[].class,
+                            deserializedByteArrayTerm,
+                            methodCall(inputTerm, "toBytes", typeSerializer))
+                    .ifStmt(
+                            arrayLength(deserializedByteArrayTerm) + " <= " + targetLength,
+                            thenWriter ->
+                                    thenWriter.assignStmt(
+                                            returnVariable, deserializedByteArrayTerm),
+                            elseWriter ->
+                                    elseWriter.assignStmt(
+                                            returnVariable,
+                                            staticCall(
+                                                    Arrays.class,
+                                                    "copyOfRange",
+                                                    deserializedByteArrayTerm,
+                                                    0,
+                                                    targetLength)))
+                    .toString();
+        }
     }
 }
