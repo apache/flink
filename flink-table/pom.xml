@@ -36,6 +36,7 @@ under the License.
 		<module>flink-table-common</module>
 		<module>flink-table-api-java</module>
 		<module>flink-table-api-scala</module>
+		<module>flink-table-api-bridge-common</module>
 		<module>flink-table-api-java-bridge</module>
 		<module>flink-table-api-scala-bridge</module>
 		<module>flink-table-planner</module>

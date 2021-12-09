@@ -20,98 +20,91 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.types.DataType;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Describes a relational operation that reads from a {@link DataStream}.
  *
- * <p>It contains all information necessary to perform a stream-to-table conversion.
- *
- * <p>This class needs to be kept in sync with {@code JavaExternalQueryOperation} in the Java
- * bridging module.
- *
- * @param <E> External type of data stream
+ * <p>This operation may expose only part, or change the order of the fields available in a {@link
+ * org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataStream}. The
+ * {@link DataStreamQueryOperation#getFieldIndices()} describes the mapping between fields of the
+ * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
-public final class ScalaExternalQueryOperation<E> implements QueryOperation {
+public class DataStreamQueryOperation<E> implements QueryOperation {
 
-    private final ObjectIdentifier identifier;
+    /**
+     * The table identifier registered under the environment. The identifier might be null when the
+     * it is from {@code StreamTableEnvironment#fromDataStream(DataStream, Expression...)}. But the
+     * identifier should be not null if is from {@code
+     * StreamTableEnvironment#createTemporaryView(String, DataStream)} with a registered name.
+     */
+    @Nullable private final ObjectIdentifier identifier;
 
     private final DataStream<E> dataStream;
-
-    private final DataType physicalDataType;
-
-    private final boolean isTopLevelRecord;
-
-    private final ChangelogMode changelogMode;
-
+    private final int[] fieldIndices;
     private final ResolvedSchema resolvedSchema;
 
-    public ScalaExternalQueryOperation(
+    public DataStreamQueryOperation(
+            DataStream<E> dataStream, int[] fieldIndices, ResolvedSchema resolvedSchema) {
+        this(null, dataStream, fieldIndices, resolvedSchema);
+    }
+
+    public DataStreamQueryOperation(
             ObjectIdentifier identifier,
             DataStream<E> dataStream,
-            DataType physicalDataType,
-            boolean isTopLevelRecord,
-            ChangelogMode changelogMode,
+            int[] fieldIndices,
             ResolvedSchema resolvedSchema) {
         this.identifier = identifier;
         this.dataStream = dataStream;
-        this.physicalDataType = physicalDataType;
-        this.isTopLevelRecord = isTopLevelRecord;
-        this.changelogMode = changelogMode;
         this.resolvedSchema = resolvedSchema;
-    }
-
-    public ObjectIdentifier getIdentifier() {
-        return identifier;
+        this.fieldIndices = fieldIndices;
     }
 
     public DataStream<E> getDataStream() {
         return dataStream;
     }
 
-    public DataType getPhysicalDataType() {
-        return physicalDataType;
+    public Optional<ObjectIdentifier> getIdentifier() {
+        return Optional.ofNullable(identifier);
     }
 
-    public boolean isTopLevelRecord() {
-        return isTopLevelRecord;
-    }
-
-    public ChangelogMode getChangelogMode() {
-        return changelogMode;
-    }
-
-    @Override
-    public String asSummaryString() {
-        Map<String, Object> args = new LinkedHashMap<>();
-        args.put("identifier", identifier);
-        args.put("stream", dataStream.getId());
-        args.put("type", physicalDataType);
-        args.put("isTopLevelRecord", isTopLevelRecord);
-        args.put("changelogMode", changelogMode);
-        args.put("fields", resolvedSchema.getColumnNames());
-
-        return OperationUtils.formatWithChildren(
-                "DataStreamInput", args, getChildren(), Operation::asSummaryString);
-    }
-
-    @Override
-    public List<QueryOperation> getChildren() {
-        return Collections.emptyList();
+    public int[] getFieldIndices() {
+        return fieldIndices;
     }
 
     @Override
     public ResolvedSchema getResolvedSchema() {
         return resolvedSchema;
+    }
+
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> args = new LinkedHashMap<>();
+        if (identifier != null) {
+            args.put("id", identifier.asSummaryString());
+        } else {
+            args.put("id", dataStream.getId());
+        }
+        args.put("fields", resolvedSchema.getColumnNames());
+
+        return OperationUtils.formatWithChildren(
+                "DataStream", args, getChildren(), Operation::asSummaryString);
+    }
+
+    @Override
+    public List<QueryOperation> getChildren() {
+        return Collections.emptyList();
     }
 
     @Override

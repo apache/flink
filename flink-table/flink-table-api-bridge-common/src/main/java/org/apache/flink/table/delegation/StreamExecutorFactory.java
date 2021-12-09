@@ -19,27 +19,19 @@
 package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.factories.Factory;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.TableEnvironment;
 
-/**
- * Factory that creates an {@link Executor} for submitting table programs.
- *
- * <p>The factory is used with Java's Service Provider Interfaces (SPI) for discovering. See {@link
- * Factory} for more information.
- *
- * <p>Usually, there should only be one executor factory in the class path. However, advanced users
- * can implement a custom one for hooking into the submission process.
- *
- * <p><b>Important:</b> In order to support DataStream APIs, implementations of this interface must
- * also implement {@code StreamExecutorFactory} from the {@code flink-table-api-bridge-common}
- * package.
- */
+/** Sub interface of {@link ExecutorFactory} to support {@link DataStream} API. */
 @Internal
-public interface ExecutorFactory extends Factory {
+public interface StreamExecutorFactory extends ExecutorFactory {
 
-    String DEFAULT_IDENTIFIER = "default";
-
-    /** Creates a corresponding {@link Executor}. */
-    Executor create(Configuration configuration);
+    /**
+     * Creates a corresponding {@link Executor}.
+     *
+     * <p>This method will be used when instantiating a {@link TableEnvironment} from one of the
+     * bridging modules which enables conversion from/to {@link DataStream} API.
+     */
+    Executor create(StreamExecutionEnvironment streamExecutionEnvironment);
 }

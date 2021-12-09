@@ -17,16 +17,12 @@
  */
 package org.apache.flink.table.api.bridge.scala.internal
 
-import java.util
-import java.util.{Collections, List => JList}
-import javax.annotation.Nullable
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
-import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala.StreamStatementSet
@@ -34,7 +30,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog.SchemaTranslator.ProducingResult
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner}
+import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, StreamExecutorFactory}
 import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression}
 import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil}
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
@@ -47,6 +43,9 @@ import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
 
+import java.util
+import java.util.{Collections, List => JList}
+import javax.annotation.Nullable
 import scala.collection.JavaConverters._
 
 /**
@@ -158,7 +157,7 @@ class StreamTableEnvironmentImpl (
     val resolvedSchema = schemaTranslationResult.getSchema.resolve(schemaResolver)
 
     val scanOperation =
-      new ScalaExternalQueryOperation(
+      new ExternalQueryOperation(
         objectIdentifier,
         dataStream,
         schemaTranslationResult.getPhysicalDataType,
@@ -435,7 +434,7 @@ class StreamTableEnvironmentImpl (
       }
       fieldsInfo
     }).getOrElse(FieldInfoUtils.getFieldsInfo(streamType))
-    new ScalaDataStreamQueryOperation[T](
+    new DataStreamQueryOperation[T](
       dataStream.javaStream,
       typeInfoSchema.getIndices,
       typeInfoSchema.toResolvedSchema)
@@ -444,8 +443,8 @@ class StreamTableEnvironmentImpl (
   override protected def qualifyQueryOperation(
     identifier: ObjectIdentifier,
     queryOperation: QueryOperation): QueryOperation = queryOperation match {
-    case qo: ScalaDataStreamQueryOperation[Any] =>
-      new ScalaDataStreamQueryOperation[Any](
+    case qo: DataStreamQueryOperation[Any] =>
+      new DataStreamQueryOperation[Any](
         identifier,
         qo.getDataStream,
         qo.getFieldIndices,
@@ -511,22 +510,25 @@ object StreamTableEnvironmentImpl {
       classLoader: ClassLoader,
       executorIdentifier: String,
       executionEnvironment: StreamExecutionEnvironment)
-    :Executor =
+    :Executor = {
+    var executorFactory: ExecutorFactory = null
     try {
-      val executorFactory =
+      executorFactory =
         FactoryUtil.discoverFactory(classLoader, classOf[ExecutorFactory], executorIdentifier)
-      val createMethod = executorFactory
-        .getClass
-        .getMethod("create", classOf[JStreamExecutionEnvironment])
-
-      createMethod
-        .invoke(
-          executorFactory,
-          executionEnvironment.getWrappedStreamExecutionEnvironment)
-        .asInstanceOf[Executor]
     } catch {
       case e: Exception =>
         throw new TableException("Could not instantiate the executor. Make sure a planner module " +
           "is on the classpath", e)
     }
+
+    executorFactory match {
+      case factory: StreamExecutorFactory =>
+        factory.create(
+          executionEnvironment.getWrappedStreamExecutionEnvironment)
+      case _ =>
+        throw new TableException(
+          s"The resolved ExecutorFactory '${executorFactory.getClass}' " +
+            s"doesn't implement StreamExecutorFactory.");
+    }
+  }
 }

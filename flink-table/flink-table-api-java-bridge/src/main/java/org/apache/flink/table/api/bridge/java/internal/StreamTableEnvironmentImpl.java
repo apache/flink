@@ -51,6 +51,7 @@ import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.delegation.StreamExecutorFactory;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -60,9 +61,9 @@ import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.operations.DataStreamQueryOperation;
 import org.apache.flink.table.operations.ExternalModifyOperation;
-import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
-import org.apache.flink.table.operations.JavaExternalQueryOperation;
+import org.apache.flink.table.operations.ExternalQueryOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -78,7 +79,6 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -172,20 +172,23 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
             ClassLoader classLoader,
             String executorIdentifier,
             StreamExecutionEnvironment executionEnvironment) {
+        final ExecutorFactory executorFactory;
         try {
-            final ExecutorFactory executorFactory =
+            executorFactory =
                     FactoryUtil.discoverFactory(
                             classLoader, ExecutorFactory.class, executorIdentifier);
-            final Method createMethod =
-                    executorFactory
-                            .getClass()
-                            .getMethod("create", StreamExecutionEnvironment.class);
-
-            return (Executor) createMethod.invoke(executorFactory, executionEnvironment);
         } catch (Exception e) {
             throw new TableException(
                     "Could not instantiate the executor. Make sure a planner module is on the classpath",
                     e);
+        }
+        if (executorFactory instanceof StreamExecutorFactory) {
+            return ((StreamExecutorFactory) executorFactory).create(executionEnvironment);
+        } else {
+            throw new TableException(
+                    "The resolved ExecutorFactory '"
+                            + executorFactory.getClass()
+                            + "' doesn't implement StreamExecutorFactory.");
         }
     }
 
@@ -299,7 +302,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                 schemaTranslationResult.getSchema().resolve(schemaResolver);
 
         final QueryOperation scanOperation =
-                new JavaExternalQueryOperation<>(
+                new ExternalQueryOperation<>(
                         objectIdentifier,
                         dataStream,
                         schemaTranslationResult.getPhysicalDataType(),
@@ -464,7 +467,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
 
     @Override
     public <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields) {
-        JavaDataStreamQueryOperation<T> queryOperation =
+        DataStreamQueryOperation<T> queryOperation =
                 asQueryOperation(dataStream, Optional.of(Arrays.asList(fields)));
 
         return createTable(queryOperation);
@@ -494,10 +497,9 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
     @Override
     protected QueryOperation qualifyQueryOperation(
             ObjectIdentifier identifier, QueryOperation queryOperation) {
-        if (queryOperation instanceof JavaDataStreamQueryOperation) {
-            JavaDataStreamQueryOperation<?> operation =
-                    (JavaDataStreamQueryOperation) queryOperation;
-            return new JavaDataStreamQueryOperation<>(
+        if (queryOperation instanceof DataStreamQueryOperation) {
+            DataStreamQueryOperation<?> operation = (DataStreamQueryOperation) queryOperation;
+            return new DataStreamQueryOperation<>(
                     identifier,
                     operation.getDataStream(),
                     operation.getFieldIndices(),
@@ -586,7 +588,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         return TypeConversions.fromLegacyInfoToDataType(tupleTypeInfo);
     }
 
-    private <T> JavaDataStreamQueryOperation<T> asQueryOperation(
+    private <T> DataStreamQueryOperation<T> asQueryOperation(
             DataStream<T> dataStream, Optional<List<Expression>> fields) {
         TypeInformation<T> streamType = dataStream.getType();
 
@@ -604,7 +606,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                                 })
                         .orElseGet(() -> FieldInfoUtils.getFieldsInfo(streamType));
 
-        return new JavaDataStreamQueryOperation<>(
+        return new DataStreamQueryOperation<>(
                 dataStream, typeInfoSchema.getIndices(), typeInfoSchema.toResolvedSchema());
     }
 
