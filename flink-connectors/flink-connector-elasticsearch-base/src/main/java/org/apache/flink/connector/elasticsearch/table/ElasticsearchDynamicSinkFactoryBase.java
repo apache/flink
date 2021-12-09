@@ -21,7 +21,9 @@ package org.apache.flink.connector.elasticsearch.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.Projection;
@@ -37,6 +39,7 @@ import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -106,11 +109,22 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
                 context.getPhysicalRowDataType(),
                 capitalize(factoryIdentifier),
                 sinkBuilderSupplier,
-                getDocumentType(config));
+                getDocumentType(config),
+                getLocalTimeZoneId(context.getConfiguration()));
     }
 
     ElasticsearchConfiguration getConfiguration(FactoryUtil.TableFactoryHelper helper) {
         return new ElasticsearchConfiguration(helper.getOptions());
+    }
+
+    ZoneId getLocalTimeZoneId(ReadableConfig readableConfig) {
+        final String zone = readableConfig.get(TableConfigOptions.LOCAL_TIME_ZONE);
+        final ZoneId zoneId =
+                TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
+                        ? ZoneId.systemDefault()
+                        : ZoneId.of(zone);
+
+        return zoneId;
     }
 
     void validateConfiguration(ElasticsearchConfiguration config) {
