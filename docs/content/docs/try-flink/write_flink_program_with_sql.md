@@ -90,7 +90,7 @@ You are ready to start writing your first Flink program with SQL.
 
 For this tutorial, you are going to create a table that models a [Twitch](https://www.twitch.tv) gaming stream. This table will contain the following fields: user_name, game_name,viewer_count, started_at, location, and a timestamp.
 
-Use the [DDL syntax](https://www.geeksforgeeks.org/sql-ddl-dql-dml-dcl-tcl-commands/) `CREATE TABLE` to create this table containing these fields. You will also use the `WITH` clause to display the attributes to connect to external systems (i.e. flink-faker). 
+Use the [DDL syntax](https://www.geeksforgeeks.org/sql-ddl-dql-dml-dcl-tcl-commands/) `CREATE TABLE` to create this table containing these fields. You will also use the `WITH` clause to configure the connector (i.e. flink-faker). 
 
 Execute the following query in the SQL client:
 
