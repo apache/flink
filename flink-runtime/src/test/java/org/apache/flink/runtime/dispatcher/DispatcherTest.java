@@ -398,6 +398,46 @@ public class DispatcherTest extends TestLogger {
     }
 
     @Test
+    public void testNoHistoryServerArchiveCreatedForSuspendedJob() throws Exception {
+        final CompletableFuture<Void> archiveAttemptFuture = new CompletableFuture<>();
+        final CompletableFuture<JobManagerRunnerResult> jobTerminationFuture =
+                new CompletableFuture<>();
+        dispatcher =
+                new TestingDispatcherBuilder()
+                        .setJobManagerRunnerFactory(
+                                new FinishingJobManagerRunnerFactory(
+                                        jobTerminationFuture, () -> {}))
+                        .setHistoryServerArchivist(
+                                executionGraphInfo -> {
+                                    archiveAttemptFuture.complete(null);
+                                    return CompletableFuture.completedFuture(null);
+                                })
+                        .build();
+        dispatcher.start();
+        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        JobID jobId = jobGraph.getJobID();
+
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+        jobTerminationFuture.complete(
+                JobManagerRunnerResult.forSuccess(
+                        new ExecutionGraphInfo(
+                                new ArchivedExecutionGraphBuilder()
+                                        .setJobID(jobId)
+                                        .setState(JobStatus.SUSPENDED)
+                                        .build())));
+
+        // wait for job to finish
+        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+        // sanity check
+        assertThat(
+                dispatcherGateway.requestJobStatus(jobId, TIMEOUT).get(), is(JobStatus.SUSPENDED));
+
+        assertThat(archiveAttemptFuture.isDone(), is(false));
+    }
+
+    @Test
     public void testJobManagerRunnerInitializationFailureFailsJob() throws Exception {
         final TestingJobManagerRunnerFactory testingJobManagerRunnerFactory =
                 new TestingJobManagerRunnerFactory();
@@ -1166,6 +1206,8 @@ public class DispatcherTest extends TestLogger {
 
         private JobGraphWriter jobGraphWriter = NoOpJobGraphWriter.INSTANCE;
 
+        private HistoryServerArchivist historyServerArchivist = VoidHistoryServerArchivist.INSTANCE;
+
         TestingDispatcherBuilder setHeartbeatServices(HeartbeatServices heartbeatServices) {
             this.heartbeatServices = heartbeatServices;
             return this;
@@ -1192,6 +1234,12 @@ public class DispatcherTest extends TestLogger {
             return this;
         }
 
+        public TestingDispatcherBuilder setHistoryServerArchivist(
+                HistoryServerArchivist historyServerArchivist) {
+            this.historyServerArchivist = historyServerArchivist;
+            return this;
+        }
+
         TestingDispatcher build() throws Exception {
             TestingResourceManagerGateway resourceManagerGateway =
                     new TestingResourceManagerGateway();
@@ -1212,7 +1260,7 @@ public class DispatcherTest extends TestLogger {
                             heartbeatServices,
                             executionGraphInfoStore,
                             testingFatalErrorHandlerResource.getFatalErrorHandler(),
-                            VoidHistoryServerArchivist.INSTANCE,
+                            historyServerArchivist,
                             null,
                             UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
                             jobGraphWriter,
@@ -1298,6 +1346,39 @@ public class DispatcherTest extends TestLogger {
                 long initializationTimestamp)
                 throws Exception {
             return resultFutureQueue.remove();
+        }
+    }
+
+    private static class FinishingJobManagerRunnerFactory implements JobManagerRunnerFactory {
+
+        private final CompletableFuture<JobManagerRunnerResult> resultFuture;
+        private final Runnable onClose;
+
+        private FinishingJobManagerRunnerFactory(
+                CompletableFuture<JobManagerRunnerResult> resultFuture, Runnable onClose) {
+            this.resultFuture = resultFuture;
+            this.onClose = onClose;
+        }
+
+        @Override
+        public JobManagerRunner createJobManagerRunner(
+                JobGraph jobGraph,
+                Configuration configuration,
+                RpcService rpcService,
+                HighAvailabilityServices highAvailabilityServices,
+                HeartbeatServices heartbeatServices,
+                JobManagerSharedServices jobManagerServices,
+                JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+                FatalErrorHandler fatalErrorHandler,
+                long initializationTimestamp)
+                throws Exception {
+            final TestingJobManagerRunner runner =
+                    new TestingJobManagerRunner.Builder()
+                            .setJobId(jobGraph.getJobID())
+                            .setResultFuture(resultFuture)
+                            .build();
+            runner.getTerminationFuture().thenRun(onClose::run);
+            return runner;
         }
     }
 
