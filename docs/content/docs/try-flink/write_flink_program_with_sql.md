@@ -28,7 +28,7 @@ under the License.
 
 ## Introduction
 
-Flink features [multiple APIs](https://nightlies.apache.org/flink/flink-docs-master/docs/concepts/overview/) with different levels of abstraction that can be used to develop your streaming application. SQL is the highest level of abstraction and is supported by Flink as a relational unified API for batch and stream processing. This means that you can write the same queries on both unbounded real-time streams and bounded recorded streams and produce the same results. 
+Flink features [multiple APIs](https://nightlies.apache.org/flink/flink-docs-master/docs/concepts/overview/) with different levels of abstraction that can be used to develop your streaming application. SQL is the highest level of abstraction and is supported by Flink as a relational API for batch and stream processing. This means that you can write the same queries on both unbounded real-time streams and bounded recorded streams and produce the same results. 
 
 SQL on Flink is based on [Apache Calcite](https://calcite.apache.org/) (which is based on standard SQL) and is commonly used to ease the process of data analytics, data pipelining, and ETL applications.  It is a great entry way to writing your first Flink application and requires no need for Java or Python. 
 
