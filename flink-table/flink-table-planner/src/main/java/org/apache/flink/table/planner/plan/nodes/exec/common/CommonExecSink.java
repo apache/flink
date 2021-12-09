@@ -117,9 +117,9 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     protected Transformation<Object> createSinkTransformation(
             PlannerBase planner,
             Transformation<RowData> inputTransform,
+            DynamicTableSink tableSink,
             int rowtimeFieldIndex,
             boolean upsertMaterialize) {
-        final DynamicTableSink tableSink = tableSinkSpec.getTableSink(planner.getFlinkContext());
         final ResolvedSchema schema = tableSinkSpec.getCatalogTable().getResolvedSchema();
         final SinkRuntimeProvider runtimeProvider =
                 tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(isBounded));

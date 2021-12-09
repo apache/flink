@@ -49,7 +49,7 @@ import java.util.function.Function;
 
 /** Table sink for {@link TableResult#collect()}. */
 @Internal
-final class CollectDynamicSink implements DynamicTableSink {
+public final class CollectDynamicSink implements DynamicTableSink {
 
     private final ObjectIdentifier tableIdentifier;
     private final DataType consumedDataType;
