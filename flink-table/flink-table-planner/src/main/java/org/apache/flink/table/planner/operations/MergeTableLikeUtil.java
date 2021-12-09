@@ -498,8 +498,7 @@ class MergeTableLikeUtil {
                     if (oldType != null) {
                         throw new ValidationException(
                                 String.format(
-                                        "A column named '%s' already exists in the table.",
-                                        name));
+                                        "A column named '%s' already exists in the table.", name));
                     }
                 }
             }
