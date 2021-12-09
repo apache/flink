@@ -252,7 +252,7 @@ FROM twitch_stream;
 
 ## Summary
 
-In this tutorial, you learned how to use Flink SQL to define a whole continuous data pipeline. While not designed initially with streaming semantics in mind, SQL is a timeless and powerful query language that you can write a full program with. Where Flink SQL differs from traditional database queries is that it works with dynamic tables and is continuously consuming rows as they arrive and producing updates to the tables.
+In this tutorial, you learned how to use Flink SQL to define a whole continuous data pipeline. While not designed initially with streaming semantics in mind, SQL is a timeless and powerful query language that you can write comp;lete programs. Where Flink SQL differs from traditional database queries is that it works with dynamic tables and is continuously consuming rows as they arrive and is continuously producing updates to the result tables.
 
 All Flink SQL programs follow a similar pattern: define a table source, perform manipulations on the data, persist the data to storage.
 
