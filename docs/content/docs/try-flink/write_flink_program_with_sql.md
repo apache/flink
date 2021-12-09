@@ -154,7 +154,7 @@ WHERE TIMESTAMPDIFF(MINUTE, started_at, proctime) < 15;
 You should now see a new table with new datastream results.  
 
 
-Now try a [Top-N](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/topn/) query to find out the top 10 most popular games.
+Now try a [Top-N](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/topn/) query to find the 10 most popular games.
 
 Top-N queries identify the N smallest or largest values ordered by columns and is useful when you need to identify the top N items in a stream, or the bottom N items in a stream. 
 
