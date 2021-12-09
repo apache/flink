@@ -104,4 +104,14 @@ public class DeploymentOptions {
                                             TextElement.text(SHUTDOWN_ON_APPLICATION_FINISH.key()),
                                             TextElement.text(HighAvailabilityOptions.HA_MODE.key()))
                                     .build());
+
+    @Experimental
+    public static final ConfigOption<Boolean> ALLOW_CLIENT_JOB_CONFIGURATIONS =
+            ConfigOptions.key("execution.allow-client-job-configurations")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Determines whether configurations in the user program are "
+                                    + "allowed when running with Application mode. Has no effect for other "
+                                    + "deployment modes.");
 }
