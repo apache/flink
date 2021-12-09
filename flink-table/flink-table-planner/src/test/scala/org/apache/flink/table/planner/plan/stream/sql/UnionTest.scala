@@ -40,7 +40,7 @@ class UnionTest extends TableTestBase {
          |CREATE TABLE t1 (
          |  id int,
          |  ts bigint,
-         |  name varchar(32),
+         |  name string,
          |  timestamp_col timestamp(3),
          |  val bigint,
          |  timestamp_ltz_col as TO_TIMESTAMP_LTZ(ts, 3),
