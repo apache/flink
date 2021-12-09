@@ -223,7 +223,7 @@ Now that you have written a program with Flink SQL to process all that streaming
 
 Flink does not provide its own storage system but instead offers many sink connectors you can use to write table updates to external systems.
 
-To write the table row results to a CSV file, you can use the [FileSystem connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/table/filesystem/) that is built into Flink. This connector supports row-encoded and bulk-encoded formats. Row-encoded formats such as CSV and JSON write each row individually to a file. Bulk-encoded formats collect a batch of rows in memory and organize them in a storage and scan efficient format before writing the data to a file. 
+To write a table to a CSV file, you can use the [FileSystem connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/table/filesystem/) that is built into Flink. This connector supports row-encoded and bulk-encoded formats. Row-encoded formats such as CSV and JSON write one row at a time to a file. Bulk-encoded formats collect a batch of rows in memory and organize them in a storage-and-scan-efficient format before writing out the data. 
 
 To store the results of the last example query (tumble window), you need to create a table that will store the results:
 
