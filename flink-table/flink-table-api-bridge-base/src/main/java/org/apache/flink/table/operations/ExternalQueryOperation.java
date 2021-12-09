@@ -41,7 +41,7 @@ import java.util.Map;
  * @param <E> External type of data stream
  */
 @Internal
-public final class JavaExternalQueryOperation<E> implements QueryOperation {
+public final class ExternalQueryOperation<E> implements QueryOperation {
 
     private final ObjectIdentifier identifier;
 
@@ -55,7 +55,7 @@ public final class JavaExternalQueryOperation<E> implements QueryOperation {
 
     private final ResolvedSchema resolvedSchema;
 
-    public JavaExternalQueryOperation(
+    public ExternalQueryOperation(
             ObjectIdentifier identifier,
             DataStream<E> dataStream,
             DataType physicalDataType,

@@ -37,17 +37,18 @@ import java.util.Optional;
  *
  * <p>This operation may expose only part, or change the order of the fields available in a {@link
  * org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataStream}. The
- * {@link ScalaDataStreamQueryOperation#getFieldIndices()} describes the mapping between fields of
- * the {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
+ * {@link DataStreamQueryOperation#getFieldIndices()} describes the mapping between fields of the
+ * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
-public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
+@Deprecated
+public class DataStreamQueryOperation<E> implements QueryOperation {
 
     /**
      * The table identifier registered under the environment. The identifier might be null when the
-     * it is from {@code StreamTableEnvironment#fromDataStream(DataStream)}. But the identifier
-     * should be not null if is from {@code StreamTableEnvironment#createTemporaryView(String,
-     * DataStream)} with a registered name.
+     * it is from {@code StreamTableEnvironment#fromDataStream(DataStream, Expression...)}. But the
+     * identifier should be not null if is from {@code
+     * StreamTableEnvironment#createTemporaryView(String, DataStream)} with a registered name.
      */
     @Nullable private final ObjectIdentifier identifier;
 
@@ -55,12 +56,12 @@ public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
     private final int[] fieldIndices;
     private final ResolvedSchema resolvedSchema;
 
-    public ScalaDataStreamQueryOperation(
+    public DataStreamQueryOperation(
             DataStream<E> dataStream, int[] fieldIndices, ResolvedSchema resolvedSchema) {
         this(null, dataStream, fieldIndices, resolvedSchema);
     }
 
-    public ScalaDataStreamQueryOperation(
+    public DataStreamQueryOperation(
             ObjectIdentifier identifier,
             DataStream<E> dataStream,
             int[] fieldIndices,
@@ -75,6 +76,10 @@ public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
         return dataStream;
     }
 
+    public Optional<ObjectIdentifier> getIdentifier() {
+        return Optional.ofNullable(identifier);
+    }
+
     public int[] getFieldIndices() {
         return fieldIndices;
     }
@@ -82,10 +87,6 @@ public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
     @Override
     public ResolvedSchema getResolvedSchema() {
         return resolvedSchema;
-    }
-
-    public Optional<ObjectIdentifier> getIdentifier() {
-        return Optional.ofNullable(identifier);
     }
 
     @Override
