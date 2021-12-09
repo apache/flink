@@ -176,7 +176,7 @@ FROM (
 
 Note that Flink uses the combination of an OVER window clause and a filter condition to express a Top-N query in order to filter through unbounded dataset. 
 
-You should now see a new table with these new datastream results.  
+You should now see a new dynamic table with the results from this query.  Notice how the top 10 games are constantly being revised as new data is processed.
 
 
 ## Step 6: Aggregate the data and learn about windowing 
