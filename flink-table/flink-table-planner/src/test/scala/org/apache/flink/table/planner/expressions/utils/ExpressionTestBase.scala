@@ -374,7 +374,7 @@ abstract class ExpressionTestBase {
 
     // generate code
     val resultType = RowType.of(Seq.fill(rexNodes.size)(
-      new VarCharType(VarCharType.MAX_LENGTH)): _*)
+      VarCharType.STRING_TYPE): _*)
 
     val exprs = stringTestExprs.map(exprGenerator.generateExpression)
     val genExpr = exprGenerator.generateResultExpression(exprs, resultType, classOf[BinaryRowData])

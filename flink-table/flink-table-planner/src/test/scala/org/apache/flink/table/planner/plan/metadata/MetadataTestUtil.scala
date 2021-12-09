@@ -198,7 +198,7 @@ object MetadataTestUtil {
     val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
     val fieldTypes = Array[LogicalType](
       new BigIntType(),
-      new VarCharType(VarCharType.MAX_LENGTH),
+      VarCharType.STRING_TYPE,
       new IntType(),
       new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
@@ -217,7 +217,7 @@ object MetadataTestUtil {
     val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
     val fieldTypes = Array[LogicalType](
       new BigIntType(),
-      new VarCharType(VarCharType.MAX_LENGTH),
+      VarCharType.STRING_TYPE,
       new IntType(),
       new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
@@ -238,7 +238,7 @@ object MetadataTestUtil {
     val fieldTypes = Array[LogicalType](
       new IntType(),
       new BigIntType(),
-      new VarCharType(VarCharType.MAX_LENGTH),
+      VarCharType.STRING_TYPE,
       new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
 
