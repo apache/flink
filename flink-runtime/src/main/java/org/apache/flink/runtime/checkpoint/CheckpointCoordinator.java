@@ -1234,9 +1234,20 @@ public class CheckpointCoordinator {
         // the 'min delay between checkpoints'
         lastCheckpointCompletionRelativeTime = clock.relativeTimeMillis();
 
+        logCheckpointInfo(completedCheckpoint);
+
+        // send the "notify complete" call to all vertices, coordinators, etc.
+        sendAcknowledgeMessages(
+                pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),
+                checkpointId,
+                completedCheckpoint.getTimestamp(),
+                extractIdIfDiscardedOnSubsumed(lastSubsumed));
+    }
+
+    private void logCheckpointInfo(CompletedCheckpoint completedCheckpoint) {
         LOG.info(
                 "Completed checkpoint {} for job {} ({} bytes, checkpointDuration={} ms, finalizationTime={} ms).",
-                checkpointId,
+                completedCheckpoint.getCheckpointID(),
                 job,
                 completedCheckpoint.getStateSize(),
                 completedCheckpoint.getCompletionTimestamp() - completedCheckpoint.getTimestamp(),
@@ -1254,13 +1265,6 @@ public class CheckpointCoordinator {
 
             LOG.debug(builder.toString());
         }
-
-        // send the "notify complete" call to all vertices, coordinators, etc.
-        sendAcknowledgeMessages(
-                pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),
-                checkpointId,
-                completedCheckpoint.getTimestamp(),
-                extractIdIfDiscardedOnSubsumed(lastSubsumed));
     }
 
     private CompletedCheckpoint finalizeCheckpoint(PendingCheckpoint pendingCheckpoint)
