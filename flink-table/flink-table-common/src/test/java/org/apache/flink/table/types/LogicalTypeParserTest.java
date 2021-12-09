@@ -91,7 +91,7 @@ public class LogicalTypeParserTest {
                 TestSpec.forString("CHAR(33)").expectType(new CharType(33)),
                 TestSpec.forString("VARCHAR").expectType(new VarCharType()),
                 TestSpec.forString("VARCHAR(33)").expectType(new VarCharType(33)),
-                TestSpec.forString("STRING").expectType(new VarCharType(VarCharType.MAX_LENGTH)),
+                TestSpec.forString("STRING").expectType(VarCharType.STRING_TYPE),
                 TestSpec.forString("BOOLEAN").expectType(new BooleanType()),
                 TestSpec.forString("BINARY").expectType(new BinaryType()),
                 TestSpec.forString("BINARY(33)").expectType(new BinaryType(33)),

@@ -619,8 +619,7 @@ public class DataTypeExtractorTest {
                         new StructuredAttribute("intField", new IntType(true)),
                         new StructuredAttribute("primitiveBooleanField", new BooleanType(false)),
                         new StructuredAttribute("primitiveIntField", new IntType(false)),
-                        new StructuredAttribute(
-                                "stringField", new VarCharType(VarCharType.MAX_LENGTH))));
+                        new StructuredAttribute("stringField", VarCharType.STRING_TYPE)));
         builder.setFinal(true);
         builder.setInstantiable(true);
         final StructuredType structuredType = builder.build();
@@ -641,9 +640,7 @@ public class DataTypeExtractorTest {
         builder.attributes(
                 Arrays.asList(
                         new StructuredAttribute(
-                                "mapField",
-                                new MapType(
-                                        new VarCharType(VarCharType.MAX_LENGTH), new IntType())),
+                                "mapField", new MapType(VarCharType.STRING_TYPE, new IntType())),
                         new StructuredAttribute(
                                 "simplePojoField",
                                 getSimplePojoDataType(simplePojoClass).getLogicalType()),
@@ -700,7 +697,7 @@ public class DataTypeExtractorTest {
         final StructuredType.Builder builder = StructuredType.newBuilder(Tuple2.class);
         builder.attributes(
                 Arrays.asList(
-                        new StructuredAttribute("f0", new VarCharType(VarCharType.MAX_LENGTH)),
+                        new StructuredAttribute("f0", VarCharType.STRING_TYPE),
                         new StructuredAttribute("f1", new BooleanType())));
         builder.setFinal(true);
         builder.setInstantiable(true);
