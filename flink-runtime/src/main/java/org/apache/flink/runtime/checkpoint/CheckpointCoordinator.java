@@ -1210,30 +1210,7 @@ public class CheckpointCoordinator {
         sharedStateRegistry.registerAll(operatorStates.values());
 
         try {
-            try {
-                completedCheckpoint =
-                        pendingCheckpoint.finalizeCheckpoint(
-                                checkpointsCleaner,
-                                this::scheduleTriggerRequest,
-                                executor,
-                                getStatsCallback(pendingCheckpoint));
-
-                failureManager.handleCheckpointSuccess(pendingCheckpoint.getCheckpointId());
-            } catch (Exception e1) {
-                // abort the current pending checkpoint if we fails to finalize the pending
-                // checkpoint.
-                if (!pendingCheckpoint.isDisposed()) {
-                    abortPendingCheckpoint(
-                            pendingCheckpoint,
-                            new CheckpointException(
-                                    CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, e1));
-                }
-
-                throw new CheckpointException(
-                        "Could not finalize the pending checkpoint " + checkpointId + '.',
-                        CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE,
-                        e1);
-            }
+            completedCheckpoint = finalizeCheckpoint(pendingCheckpoint);
 
             // the pending checkpoint must be discarded after the finalization
             Preconditions.checkState(pendingCheckpoint.isDisposed() && completedCheckpoint != null);
@@ -1284,6 +1261,37 @@ public class CheckpointCoordinator {
                 checkpointId,
                 completedCheckpoint.getTimestamp(),
                 extractIdIfDiscardedOnSubsumed(lastSubsumed));
+    }
+
+    private CompletedCheckpoint finalizeCheckpoint(PendingCheckpoint pendingCheckpoint)
+            throws CheckpointException {
+        try {
+            final CompletedCheckpoint completedCheckpoint =
+                    pendingCheckpoint.finalizeCheckpoint(
+                            checkpointsCleaner,
+                            this::scheduleTriggerRequest,
+                            executor,
+                            getStatsCallback(pendingCheckpoint));
+
+            failureManager.handleCheckpointSuccess(pendingCheckpoint.getCheckpointID());
+            return completedCheckpoint;
+        } catch (Exception e1) {
+            // abort the current pending checkpoint if we fails to finalize the pending
+            // checkpoint.
+            if (!pendingCheckpoint.isDisposed()) {
+                abortPendingCheckpoint(
+                        pendingCheckpoint,
+                        new CheckpointException(
+                                CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, e1));
+            }
+
+            throw new CheckpointException(
+                    "Could not finalize the pending checkpoint "
+                            + pendingCheckpoint.getCheckpointID()
+                            + '.',
+                    CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE,
+                    e1);
+        }
     }
 
     private long extractIdIfDiscardedOnSubsumed(CompletedCheckpoint lastSubsumed) {
@@ -1343,7 +1351,6 @@ public class CheckpointCoordinator {
             long completedCheckpointId,
             long completedTimestamp,
             long lastSubsumedCheckpointId) {
-
         // commit tasks
         for (ExecutionVertex ev : tasksToCommit) {
             Execution ee = ev.getCurrentExecutionAttempt();
