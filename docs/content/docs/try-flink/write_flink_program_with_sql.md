@@ -146,9 +146,9 @@ To find out what gaming streams started in the last 15 minutes, try this query:
 SELECT game_name, 
        started_at,
        proctime, 
-       TIMESTAMPDIFF(MINUTE,CAST(started_at AS TIMESTAMP(3)),CAST(proctime as TIMESTAMP(3)))
+       TIMESTAMPDIFF(MINUTE, started_at, proctime)
 FROM twitch_stream
-WHERE TIMESTAMPDIFF(MINUTE,CAST(started_at AS TIMESTAMP(3)),CAST(proctime as TIMESTAMP(3))) < 15;
+WHERE TIMESTAMPDIFF(MINUTE, started_at, proctime) < 15;
 ```
 
 You should now see a new table with new datastream results.  
