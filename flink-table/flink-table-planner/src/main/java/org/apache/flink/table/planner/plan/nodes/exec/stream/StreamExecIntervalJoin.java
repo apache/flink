@@ -18,11 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -47,12 +43,14 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.KeyedCoProcessOperatorWithWatermarkDelay;
 import org.apache.flink.table.runtime.operators.join.OuterJoinPaddingUtil;
+import org.apache.flink.table.runtime.operators.join.interval.FilterAllFlatMapFunction;
 import org.apache.flink.table.runtime.operators.join.interval.IntervalJoinFunction;
+import org.apache.flink.table.runtime.operators.join.interval.PaddingLeftMapFunction;
+import org.apache.flink.table.runtime.operators.join.interval.PaddingRightMapFunction;
 import org.apache.flink.table.runtime.operators.join.interval.ProcTimeIntervalJoin;
 import org.apache.flink.table.runtime.operators.join.interval.RowTimeIntervalJoin;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
@@ -193,73 +191,6 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                                 + " Join between stream "
                                 + "and stream is not supported yet.\nplease re-check "
                                 + "interval join statement according to description above.");
-        }
-    }
-
-    private static class FilterAllFlatMapFunction
-            implements FlatMapFunction<RowData, RowData>, ResultTypeQueryable<RowData> {
-        private static final long serialVersionUID = 1L;
-
-        private final InternalTypeInfo<RowData> outputTypeInfo;
-
-        public FilterAllFlatMapFunction(InternalTypeInfo<RowData> inputTypeInfo) {
-            this.outputTypeInfo = inputTypeInfo;
-        }
-
-        @Override
-        public void flatMap(RowData value, Collector<RowData> out) {}
-
-        @Override
-        public TypeInformation<RowData> getProducedType() {
-            return outputTypeInfo;
-        }
-    }
-
-    private static class PaddingLeftMapFunction
-            implements MapFunction<RowData, RowData>, ResultTypeQueryable<RowData> {
-        private static final long serialVersionUID = 1L;
-
-        private final OuterJoinPaddingUtil paddingUtil;
-        private final InternalTypeInfo<RowData> outputTypeInfo;
-
-        public PaddingLeftMapFunction(
-                OuterJoinPaddingUtil paddingUtil, InternalTypeInfo<RowData> returnType) {
-            this.paddingUtil = paddingUtil;
-            this.outputTypeInfo = returnType;
-        }
-
-        @Override
-        public RowData map(RowData value) {
-            return paddingUtil.padLeft(value);
-        }
-
-        @Override
-        public TypeInformation<RowData> getProducedType() {
-            return outputTypeInfo;
-        }
-    }
-
-    private static class PaddingRightMapFunction
-            implements MapFunction<RowData, RowData>, ResultTypeQueryable<RowData> {
-        private static final long serialVersionUID = 1L;
-
-        private final OuterJoinPaddingUtil paddingUtil;
-        private final InternalTypeInfo<RowData> outputTypeInfo;
-
-        public PaddingRightMapFunction(
-                OuterJoinPaddingUtil paddingUtil, InternalTypeInfo<RowData> returnType) {
-            this.paddingUtil = paddingUtil;
-            this.outputTypeInfo = returnType;
-        }
-
-        @Override
-        public RowData map(RowData value) {
-            return paddingUtil.padRight(value);
-        }
-
-        @Override
-        public TypeInformation<RowData> getProducedType() {
-            return outputTypeInfo;
         }
     }
 

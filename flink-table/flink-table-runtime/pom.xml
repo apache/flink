@@ -84,6 +84,14 @@ under the License.
 			<version>${janino.version}</version>
 		</dependency>
 
+		<!-- Jackson -->
+
+		<dependency>
+			<groupId>com.jayway.jsonpath</groupId>
+			<artifactId>json-path</artifactId>
+			<version>${jsonpath.version}</version>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
@@ -128,6 +136,36 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>com.jayway.jsonpath:json-path</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>com.jayway</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml</pattern>
+									<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

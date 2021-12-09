@@ -17,7 +17,9 @@
  */
 
 package org.apache.flink.table.planner.codegen.calls
+
 import org.apache.calcite.sql.{SqlJsonEmptyOrError, SqlJsonValueEmptyOrErrorBehavior}
+import org.apache.flink.table.api.JsonValueOnEmptyOrError
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_STRING, qualifyEnum, qualifyMethod}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallWithStmtIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
@@ -81,21 +83,28 @@ class JsonValueCallGen extends CallGenerator {
    */
   private def getBehavior(
       operands: Seq[GeneratedExpression],
-      mode: SqlJsonEmptyOrError): (SqlJsonValueEmptyOrErrorBehavior, String) = {
+      mode: SqlJsonEmptyOrError): (JsonValueOnEmptyOrError, String) = {
     operands.indexWhere(expr => expr.literalValue.contains(mode)) match {
-      case -1 => (SqlJsonValueEmptyOrErrorBehavior.NULL, null)
+      case -1 => (JsonValueOnEmptyOrError.NULL, null)
       case modeIndex => operands(modeIndex - 1).literalValue.get match {
         // Case for [NULL | ERROR] ON [EMPTY | ERROR]
-        case behavior: SqlJsonValueEmptyOrErrorBehavior => (behavior, null)
+        case behavior: SqlJsonValueEmptyOrErrorBehavior => (convertCalciteEnum(behavior), null)
         case _ => operands(modeIndex - 2).literalValue.get match {
           // Case for DEFAULT <expr> ON [EMPTY | ERROR]
           case behavior: SqlJsonValueEmptyOrErrorBehavior =>
-            (behavior, operands(modeIndex - 1).resultTerm)
+            (convertCalciteEnum(behavior), operands(modeIndex - 1).resultTerm)
           case _ =>
             throw new CodeGenException("Invalid combination of arguments for JSON_VALUE. "
               + "This is a bug. Please consider filing an issue.")
         }
       }
     }
+  }
+
+  private def convertCalciteEnum(
+      behavior: SqlJsonValueEmptyOrErrorBehavior): JsonValueOnEmptyOrError = behavior match {
+    case SqlJsonValueEmptyOrErrorBehavior.ERROR => JsonValueOnEmptyOrError.ERROR
+    case SqlJsonValueEmptyOrErrorBehavior.NULL => JsonValueOnEmptyOrError.NULL
+    case SqlJsonValueEmptyOrErrorBehavior.DEFAULT => JsonValueOnEmptyOrError.DEFAULT
   }
 }

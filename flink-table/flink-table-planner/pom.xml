@@ -389,10 +389,6 @@ under the License.
 									<include>com.esri.geometry:esri-geometry-api</include>
 									<include>com.google.guava:guava</include>
 									<include>com.google.guava:failureaccess</include>
-									<include>com.jayway.jsonpath:json-path</include>
-									<include>com.fasterxml.jackson.core:jackson-core</include>
-									<include>com.fasterxml.jackson.core:jackson-databind</include>
-									<include>com.fasterxml.jackson.core:jackson-annotations</include>
 									<include>commons-codec:commons-codec</include>
 									<include>commons-io:commons-io</include>
 
@@ -426,12 +422,14 @@ under the License.
 									<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
 								</relocation>
 								<relocation>
+									<!-- Packaged in runtime -->
 									<pattern>com.jayway</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
 								</relocation>
 								<relocation>
+									<!-- Packaged in runtime -->
 									<pattern>com.fasterxml</pattern>
-									<shadedPattern>org.apache.flink.calcite.shaded.com.fasterxml</shadedPattern>
+									<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.commons.codec</pattern>
