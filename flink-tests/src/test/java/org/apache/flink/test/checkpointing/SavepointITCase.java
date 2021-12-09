@@ -36,29 +36,24 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemFactory;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
@@ -124,7 +119,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -136,6 +130,7 @@ import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.apache.flink.util.ExceptionUtils.assertThrowable;
 import static org.apache.flink.util.ExceptionUtils.assertThrowableWithMessage;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -827,15 +822,12 @@ public class SavepointITCase extends TestLogger {
 
     @Test
     public void testStopWithSavepointWithDrainGlobalFailoverIfSavepointAborted() throws Exception {
-        Configuration configuration = new Configuration();
-        configuration.setString(
-                HighAvailabilityOptions.HA_MODE, FailingSyncSavepointHAFactory.class.getName());
         final int parallelism = 2;
+        PathFailingFileSystem.resetFailingPath(savepointDir.getAbsolutePath() + ".*/_metadata");
         MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
                                 .setNumberSlotsPerTaskManager(parallelism)
-                                .setConfiguration(configuration)
                                 .build());
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -855,53 +847,25 @@ public class SavepointITCase extends TestLogger {
             waitUntilAllTasksAreRunning(cluster.getRestClusterClient(), jobGraph.getJobID());
 
             try {
-                client.stopWithSavepoint(jobGraph.getJobID(), true, savepointDir.getAbsolutePath())
+                client.stopWithSavepoint(
+                                jobGraph.getJobID(),
+                                true,
+                                PathFailingFileSystem.SCHEME
+                                        + "://"
+                                        + savepointDir.getAbsolutePath())
                         .get();
                 fail("The future should fail exceptionally.");
-            } catch (ExecutionException ignored) {
+            } catch (ExecutionException ex) {
                 // expected
+                if (!findThrowableWithMessage(ex, "Expected IO exception").isPresent()) {
+                    throw ex;
+                }
             }
 
             // make sure that we restart all tasks after the savepoint failure
             waitUntilAllTasksAreRunning(cluster.getRestClusterClient(), jobGraph.getJobID());
         } finally {
             cluster.after();
-        }
-    }
-
-    private static class FailingSyncSavepointCompletedCheckpointStore
-            extends StandaloneCompletedCheckpointStore {
-        FailingSyncSavepointCompletedCheckpointStore() {
-            super(1);
-        }
-
-        @Override
-        public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
-                CompletedCheckpoint checkpoint,
-                CheckpointsCleaner checkpointsCleaner,
-                Runnable postCleanup)
-                throws Exception {
-            if (checkpoint.getProperties().isSynchronous()) {
-                throw new ExpectedTestException();
-            } else {
-                return super.addCheckpointAndSubsumeOldestOne(
-                        checkpoint, checkpointsCleaner, postCleanup);
-            }
-        }
-    }
-
-    /**
-     * A factory for HA services used to inject {@link
-     * FailingSyncSavepointCompletedCheckpointStore}.
-     */
-    public static class FailingSyncSavepointHAFactory implements HighAvailabilityServicesFactory {
-        @Override
-        public HighAvailabilityServices createHAServices(
-                Configuration configuration, Executor executor) {
-            final CheckpointRecoveryFactory checkpointRecoveryFactory =
-                    PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
-                            maxCheckpoints -> new FailingSyncSavepointCompletedCheckpointStore());
-            return new EmbeddedHaServicesWithLeadershipControl(executor, checkpointRecoveryFactory);
         }
     }
 
@@ -1662,6 +1626,68 @@ public class SavepointITCase extends TestLogger {
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    /** A test file system. It will fail when trying to perform actions on a statically set path. */
+    public static class PathFailingFileSystem extends LocalFileSystem {
+
+        public static final String SCHEME = "failPath";
+
+        private static String failingPathRegex;
+
+        public static void resetFailingPath(String regex) {
+            failingPathRegex = regex;
+        }
+
+        @Override
+        public FSDataInputStream open(org.apache.flink.core.fs.Path f, int bufferSize)
+                throws IOException {
+            failPath(f);
+            return super.open(f, bufferSize);
+        }
+
+        @Override
+        public FSDataInputStream open(org.apache.flink.core.fs.Path f) throws IOException {
+            failPath(f);
+            return super.open(f);
+        }
+
+        @Override
+        public FSDataOutputStream create(
+                final org.apache.flink.core.fs.Path filePath, final WriteMode overwrite)
+                throws IOException {
+            failPath(filePath);
+            return super.create(filePath, overwrite);
+        }
+
+        private void failPath(org.apache.flink.core.fs.Path filePath) throws IOException {
+            if (filePath.getPath().matches(failingPathRegex)) {
+                throw new IOException("Expected IO exception for path: " + failingPathRegex);
+            }
+        }
+
+        @Override
+        public URI getUri() {
+            return URI.create(SCHEME + ":///");
+        }
+    }
+    // ------------------------------------------------------------------------
+
+    /**
+     * A factory for {@link
+     * org.apache.flink.test.checkpointing.SavepointITCase.PathFailingFileSystem}.
+     */
+    public static final class PathFailingFileSystemFactory implements FileSystemFactory {
+
+        @Override
+        public String getScheme() {
+            return PathFailingFileSystem.SCHEME;
+        }
+
+        @Override
+        public FileSystem create(URI fsUri) throws IOException {
+            return new PathFailingFileSystem();
         }
     }
 }

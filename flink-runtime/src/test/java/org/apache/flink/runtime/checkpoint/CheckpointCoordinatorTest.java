@@ -120,6 +120,7 @@ import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.PERIOD
 import static org.apache.flink.runtime.checkpoint.CheckpointStoreUtil.INVALID_CHECKPOINT_ID;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -2018,66 +2019,21 @@ public class CheckpointCoordinatorTest extends TestLogger {
         assertNotNull(savepointFuture.get());
 
         // the now we should have a completed checkpoint
-        assertEquals(1, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
+        // savepoints should not registered as retained checkpoints
+        assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
         assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
 
         // validate that the relevant tasks got a confirmation message
         for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
             ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
             assertEquals(checkpointId, gateway.getOnlyTriggeredCheckpoint(attemptId).checkpointId);
+            assertThat(gateway.getNotifiedCompletedCheckpoints(attemptId)).isEmpty();
         }
 
-        // validate that the shared states are registered
-        {
-            verify(subtaskState1, times(1)).registerSharedStates(any(SharedStateRegistry.class));
-            verify(subtaskState2, times(1)).registerSharedStates(any(SharedStateRegistry.class));
-        }
-
-        CompletedCheckpoint success = checkpointCoordinator.getSuccessfulCheckpoints().get(0);
+        CompletedCheckpoint success = savepointFuture.get();
         assertEquals(graph.getJobID(), success.getJobId());
         assertEquals(pending.getCheckpointId(), success.getCheckpointID());
         assertEquals(2, success.getOperatorStates().size());
-
-        // ---------------
-        // trigger another checkpoint and see that this one replaces the other checkpoint
-        // ---------------
-        gateway.resetCount();
-        savepointFuture = checkpointCoordinator.triggerSavepoint(savepointDir);
-        manuallyTriggeredScheduledExecutor.triggerAll();
-        assertFalse(savepointFuture.isDone());
-
-        long checkpointIdNew =
-                checkpointCoordinator.getPendingCheckpoints().entrySet().iterator().next().getKey();
-        checkpointCoordinator.receiveAcknowledgeMessage(
-                new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, checkpointIdNew),
-                TASK_MANAGER_LOCATION_INFO);
-        checkpointCoordinator.receiveAcknowledgeMessage(
-                new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, checkpointIdNew),
-                TASK_MANAGER_LOCATION_INFO);
-
-        assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
-        assertEquals(1, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
-
-        CompletedCheckpoint successNew = checkpointCoordinator.getSuccessfulCheckpoints().get(0);
-        assertEquals(graph.getJobID(), successNew.getJobId());
-        assertEquals(checkpointIdNew, successNew.getCheckpointID());
-        assertEquals(2, successNew.getOperatorStates().size());
-        assertTrue(successNew.getOperatorStates().values().stream().allMatch(this::hasNoSubState));
-        assertNotNull(savepointFuture.get());
-
-        // validate that the first savepoint does not discard its private states.
-        verify(subtaskState1, never()).discardState();
-        verify(subtaskState2, never()).discardState();
-
-        // validate that the relevant tasks got a confirmation message
-        for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
-            ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
-            assertEquals(
-                    checkpointIdNew, gateway.getOnlyTriggeredCheckpoint(attemptId).checkpointId);
-            assertEquals(
-                    checkpointIdNew,
-                    gateway.getOnlyNotifiedCompletedCheckpoint(attemptId).checkpointId);
-        }
 
         checkpointCoordinator.shutdown();
     }
@@ -2176,7 +2132,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         FutureUtils.throwIfCompletedExceptionally(savepointFuture2);
         assertEquals(3, checkpointCoordinator.getNumberOfPendingCheckpoints());
 
-        // 2nd savepoint should subsume the last checkpoint, but not the 1st savepoint
+        // savepoints should not subsume checkpoints
         checkpointCoordinator.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, savepointId2),
                 TASK_MANAGER_LOCATION_INFO);
@@ -2184,13 +2140,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, savepointId2),
                 TASK_MANAGER_LOCATION_INFO);
 
-        // currently, we do not subsume a checkpoint after a savepoint completed to avoid data lost.
-        verify(checkpointCoordinator, times(1))
-                .sendAcknowledgeMessages(
-                        anyList(), eq(savepointId2), anyLong(), eq(INVALID_CHECKPOINT_ID));
+        // we do not send notify checkpoint complete for savepoints
+        verify(checkpointCoordinator, times(0))
+                .sendAcknowledgeMessages(anyList(), eq(savepointId2), anyLong(), anyLong());
 
-        assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
-        assertEquals(2, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
+        assertEquals(2, checkpointCoordinator.getNumberOfPendingCheckpoints());
+        assertEquals(1, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
 
         assertFalse(checkpointCoordinator.getPendingCheckpoints().get(savepointId1).isDisposed());
 
@@ -2205,13 +2160,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, savepointId1),
                 TASK_MANAGER_LOCATION_INFO);
 
-        // savepoint should not be subsumed.
-        verify(checkpointCoordinator, times(1))
-                .sendAcknowledgeMessages(
-                        anyList(), eq(savepointId1), anyLong(), eq(INVALID_CHECKPOINT_ID));
+        // we do not send notify checkpoint complete for savepoints
+        verify(checkpointCoordinator, times(0))
+                .sendAcknowledgeMessages(anyList(), eq(savepointId1), anyLong(), anyLong());
 
-        assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
-        assertEquals(2, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
+        assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
+        assertEquals(1, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
         assertNotNull(savepointFuture1.get());
 
         CompletableFuture<CompletedCheckpoint> checkpointFuture4 =

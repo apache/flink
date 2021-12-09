@@ -1200,14 +1200,17 @@ public class CheckpointCoordinator {
      */
     private void completePendingCheckpoint(PendingCheckpoint pendingCheckpoint)
             throws CheckpointException {
-        final long checkpointId = pendingCheckpoint.getCheckpointId();
+        final long checkpointId = pendingCheckpoint.getCheckpointID();
         final CompletedCheckpoint completedCheckpoint;
         final CompletedCheckpoint lastSubsumed;
+        final CheckpointProperties props = pendingCheckpoint.getProps();
 
         // As a first step to complete the checkpoint, we register its state with the registry
-        Map<OperatorID, OperatorState> operatorStates = pendingCheckpoint.getOperatorStates();
-        SharedStateRegistry sharedStateRegistry = completedCheckpointStore.getSharedStateRegistry();
-        sharedStateRegistry.registerAll(operatorStates.values());
+        // we do not register savepoints' shared state, as Flink is not in charge of savepoints'
+        // lifecycle
+        if (!props.isSavepoint()) {
+            registerSharedStates(pendingCheckpoint);
+        }
 
         try {
             completedCheckpoint = finalizeCheckpoint(pendingCheckpoint);
@@ -1215,20 +1218,22 @@ public class CheckpointCoordinator {
             // the pending checkpoint must be discarded after the finalization
             Preconditions.checkState(pendingCheckpoint.isDisposed() && completedCheckpoint != null);
 
-            lastSubsumed =
-                    addCompletedCheckpointToStoreAndSubsumeOldest(
-                            checkpointId,
-                            completedCheckpoint,
-                            pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo());
+            if (!props.isSavepoint()) {
+                lastSubsumed =
+                        addCompletedCheckpointToStoreAndSubsumeOldest(
+                                checkpointId,
+                                completedCheckpoint,
+                                pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo());
+            } else {
+                lastSubsumed = null;
+            }
         } finally {
             pendingCheckpoints.remove(checkpointId);
             scheduleTriggerRequest();
         }
 
+        // remember recent checkpoint id for debugging purposes
         rememberRecentCheckpointId(checkpointId);
-
-        // drop those pending checkpoints that are at prior to the completed one
-        dropSubsumedCheckpoints(checkpointId);
 
         // record the time when this was completed, to calculate
         // the 'min delay between checkpoints'
@@ -1236,12 +1241,23 @@ public class CheckpointCoordinator {
 
         logCheckpointInfo(completedCheckpoint);
 
-        // send the "notify complete" call to all vertices, coordinators, etc.
-        sendAcknowledgeMessages(
-                pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),
-                checkpointId,
-                completedCheckpoint.getTimestamp(),
-                extractIdIfDiscardedOnSubsumed(lastSubsumed));
+        if (!props.isSavepoint() || props.isSynchronous()) {
+            // drop those pending checkpoints that are at prior to the completed one
+            dropSubsumedCheckpoints(checkpointId);
+
+            // send the "notify complete" call to all vertices, coordinators, etc.
+            sendAcknowledgeMessages(
+                    pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),
+                    checkpointId,
+                    completedCheckpoint.getTimestamp(),
+                    extractIdIfDiscardedOnSubsumed(lastSubsumed));
+        }
+    }
+
+    private void registerSharedStates(PendingCheckpoint pendingCheckpoint) {
+        Map<OperatorID, OperatorState> operatorStates = pendingCheckpoint.getOperatorStates();
+        SharedStateRegistry sharedStateRegistry = completedCheckpointStore.getSharedStateRegistry();
+        sharedStateRegistry.registerAll(operatorStates.values());
     }
 
     private void logCheckpointInfo(CompletedCheckpoint completedCheckpoint) {

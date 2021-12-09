@@ -41,9 +41,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.util.Collections;
 import java.util.List;
@@ -64,8 +62,6 @@ import static org.mockito.Mockito.when;
 
 /** Tests for failure of checkpoint coordinator. */
 public class CheckpointCoordinatorFailureTest extends TestLogger {
-
-    @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
     /**
      * Tests that a failure while storing a completed checkpoint in the completed checkpoint store
@@ -231,7 +227,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
                         .setCompletedCheckpointStore(completedCheckpointStore)
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .build();
-        checkpointCoordinator.triggerSavepoint(tmpFolder.newFolder().getAbsolutePath());
+        checkpointCoordinator.triggerCheckpoint(false);
         manuallyTriggeredScheduledExecutor.triggerAll();
 
         try {
