@@ -29,6 +29,7 @@ import org.apache.calcite.avatica.util.DateTimeUtils;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.accessStaticField;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
+import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 
 /** {@link LogicalTypeFamily#TIMESTAMP} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
 class TimestampToStringCastRule extends AbstractCharacterFamilyTargetRule<TimestampData> {
@@ -39,7 +40,7 @@ class TimestampToStringCastRule extends AbstractCharacterFamilyTargetRule<Timest
         super(
                 CastRulePredicate.builder()
                         .input(LogicalTypeFamily.TIMESTAMP)
-                        .target(LogicalTypeFamily.CHARACTER_STRING)
+                        .target(STRING_TYPE)
                         .build());
     }
 

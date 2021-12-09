@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.GenericArrayData;
@@ -88,6 +89,7 @@ import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.data.DecimalData.fromBigDecimal;
 import static org.apache.flink.table.data.StringData.fromString;
+import static org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -101,6 +103,8 @@ class CastRulesTest {
 
     private static final CastRule.Context CET_CONTEXT =
             CastRule.Context.create(false, CET, Thread.currentThread().getContextClassLoader());
+    private static final CastRule.Context CET_CONTEXT_LEGACY =
+            CastRule.Context.create(true, CET, Thread.currentThread().getContextClassLoader());
 
     private static final byte DEFAULT_POSITIVE_TINY_INT = (byte) 5;
     private static final byte DEFAULT_NEGATIVE_TINY_INT = (byte) -5;
@@ -606,6 +610,334 @@ class CastRulesTest {
                                                     fromString("c")
                                                 })),
                                 fromString("(10, null, 12:34:56.123, [a, b, c])")),
+                CastTestSpecBuilder.testCastTo(CHAR(6))
+                        .fromCase(STRING(), null, EMPTY_UTF8, false)
+                        .fromCase(STRING(), null, EMPTY_UTF8, true)
+                        .fromCase(CHAR(6), fromString("Apache"), fromString("Apache"), false)
+                        .fromCase(CHAR(6), fromString("Apache"), fromString("Apache"), true)
+                        .fromCase(VARCHAR(5), fromString("Flink"), fromString("Flink "), false)
+                        .fromCase(VARCHAR(5), fromString("Flink"), fromString("Flink"), true)
+                        .fromCase(STRING(), fromString("foo"), fromString("foo   "), false)
+                        .fromCase(STRING(), fromString("foo"), fromString("foo"), true)
+                        .fromCase(BOOLEAN(), true, fromString("true  "), false)
+                        .fromCase(BOOLEAN(), true, fromString("true"), true)
+                        .fromCase(BOOLEAN(), false, fromString("false "), false)
+                        .fromCase(BOOLEAN(), false, fromString("false"), true)
+                        .fromCase(
+                                BINARY(3),
+                                new byte[] {0, 1, 2},
+                                fromString("\u0000\u0001\u0002   "),
+                                false)
+                        .fromCase(
+                                BINARY(3),
+                                new byte[] {0, 1, 2},
+                                fromString("\u0000\u0001\u0002"),
+                                true)
+                        .fromCase(
+                                VARBINARY(4),
+                                new byte[] {0, 1, 2, 3},
+                                fromString("\u0000\u0001\u0002\u0003  "),
+                                false)
+                        .fromCase(
+                                VARBINARY(4),
+                                new byte[] {0, 1, 2, 3},
+                                fromString("\u0000\u0001\u0002\u0003"),
+                                true)
+                        .fromCase(
+                                BYTES(),
+                                new byte[] {0, 1, 2, 3, 4},
+                                fromString("\u0000\u0001\u0002\u0003\u0004 "),
+                                false)
+                        .fromCase(
+                                BYTES(),
+                                new byte[] {0, 1, 2, 3, 4},
+                                fromString("\u0000\u0001\u0002\u0003\u0004"),
+                                true)
+                        .fromCase(TINYINT(), (byte) -125, fromString("-125  "), false)
+                        .fromCase(TINYINT(), (byte) -125, fromString("-125"), true)
+                        .fromCase(SMALLINT(), (short) 32767, fromString("32767 "), false)
+                        .fromCase(SMALLINT(), (short) 32767, fromString("32767"), true)
+                        .fromCase(INT(), -1234, fromString("-1234 "), false)
+                        .fromCase(INT(), -1234, fromString("-1234"), true)
+                        .fromCase(BIGINT(), 12345L, fromString("12345 "), false)
+                        .fromCase(BIGINT(), 12345L, fromString("12345"), true)
+                        .fromCase(FLOAT(), -1.23f, fromString("-1.23 "), false)
+                        .fromCase(FLOAT(), -1.23f, fromString("-1.23"), true)
+                        .fromCase(DOUBLE(), 123.4d, fromString("123.4 "), false)
+                        .fromCase(DOUBLE(), 123.4d, fromString("123.4"), true)
+                        .fromCase(INTERVAL(YEAR()), 84, fromString("+7-00 "), false)
+                        .fromCase(INTERVAL(YEAR()), 84, fromString("+7-00"), true)
+                        .fromCase(INTERVAL(MONTH()), 5, fromString("+0-05 "), false)
+                        .fromCase(INTERVAL(MONTH()), 5, fromString("+0-05"), true),
+                CastTestSpecBuilder.testCastTo(CHAR(12))
+                        .fromCase(
+                                ARRAY(INT()),
+                                new GenericArrayData(new int[] {-1, 2, 3}),
+                                fromString("[-1, 2, 3]  "),
+                                false)
+                        .fromCase(
+                                ARRAY(INT()),
+                                new GenericArrayData(new int[] {-1, 2, 3}),
+                                fromString("[-1, 2, 3]"),
+                                true)
+                        .fromCase(ARRAY(INT()).nullable(), null, EMPTY_UTF8, false)
+                        .fromCase(ARRAY(INT()).nullable(), null, EMPTY_UTF8, true)
+                        .fromCase(
+                                MAP(STRING(), INT()),
+                                mapData(entry(fromString("a"), 1), entry(fromString("b"), 8)),
+                                fromString("{a=1, b=8}  "),
+                                false)
+                        .fromCase(
+                                MAP(STRING(), INT()),
+                                mapData(entry(fromString("a"), 1), entry(fromString("b"), 8)),
+                                fromString("{a=1, b=8}"),
+                                true)
+                        .fromCase(
+                                MAP(STRING(), INTERVAL(MONTH())).nullable(), null, EMPTY_UTF8, true)
+                        .fromCase(
+                                MAP(STRING(), INTERVAL(MONTH())).nullable(),
+                                null,
+                                EMPTY_UTF8,
+                                false)
+                        .fromCase(
+                                MULTISET(STRING()),
+                                mapData(entry(fromString("a"), 1), entry(fromString("b"), 1)),
+                                fromString("{a=1, b=1}  "),
+                                false)
+                        .fromCase(
+                                MULTISET(STRING()),
+                                mapData(entry(fromString("a"), 1), entry(fromString("b"), 1)),
+                                fromString("{a=1, b=1}"),
+                                true)
+                        .fromCase(MULTISET(STRING()).nullable(), null, EMPTY_UTF8, false)
+                        .fromCase(MULTISET(STRING()), null, EMPTY_UTF8, true)
+                        .fromCase(
+                                ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
+                                GenericRowData.of(123, fromString("foo")),
+                                fromString("(123, foo)  "),
+                                false)
+                        .fromCase(
+                                ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
+                                GenericRowData.of(123, fromString("foo")),
+                                fromString("(123,foo)"),
+                                true)
+                        .fromCase(
+                                ROW(FIELD("f0", STRING()), FIELD("f1", STRING())).nullable(),
+                                null,
+                                EMPTY_UTF8,
+                                false)
+                        .fromCase(
+                                ROW(FIELD("f0", STRING()), FIELD("f1", STRING())).nullable(),
+                                null,
+                                EMPTY_UTF8,
+                                true)
+                        .fromCase(
+                                RAW(LocalDate.class, new LocalDateSerializer()),
+                                RawValueData.fromObject(LocalDate.parse("2020-12-09")),
+                                fromString("2020-12-09  "),
+                                false)
+                        .fromCase(
+                                RAW(LocalDate.class, new LocalDateSerializer()),
+                                RawValueData.fromObject(LocalDate.parse("2020-12-09")),
+                                fromString("2020-12-09"),
+                                true)
+                        .fromCase(
+                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
+                                null,
+                                EMPTY_UTF8,
+                                false)
+                        .fromCase(
+                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
+                                null,
+                                EMPTY_UTF8,
+                                true),
+                CastTestSpecBuilder.testCastTo(VARCHAR(3))
+                        .fromCase(STRING(), null, EMPTY_UTF8, false)
+                        .fromCase(STRING(), null, EMPTY_UTF8, true)
+                        .fromCase(CHAR(6), fromString("Apache"), fromString("Apa"), false)
+                        .fromCase(CHAR(6), fromString("Apache"), fromString("Apache"), true)
+                        .fromCase(VARCHAR(5), fromString("Flink"), fromString("Fli"), false)
+                        .fromCase(VARCHAR(5), fromString("Flink"), fromString("Flink"), true)
+                        .fromCase(STRING(), fromString("Apache Flink"), fromString("Apa"), false)
+                        .fromCase(
+                                STRING(),
+                                fromString("Apache Flink"),
+                                fromString("Apache Flink"),
+                                true)
+                        .fromCase(BOOLEAN(), true, fromString("tru"), false)
+                        .fromCase(BOOLEAN(), true, fromString("true"), true)
+                        .fromCase(BOOLEAN(), false, fromString("fal"), false)
+                        .fromCase(BOOLEAN(), false, fromString("false"), true)
+                        .fromCase(
+                                BINARY(5),
+                                new byte[] {0, 1, 2, 3, 4},
+                                fromString("\u0000\u0001\u0002"),
+                                false)
+                        .fromCase(
+                                BINARY(5),
+                                new byte[] {0, 1, 2, 3, 4},
+                                fromString("\u0000\u0001\u0002\u0003\u0004"),
+                                true)
+                        .fromCase(
+                                VARBINARY(5),
+                                new byte[] {0, 1, 2, 3, 4},
+                                fromString("\u0000\u0001\u0002"),
+                                false)
+                        .fromCase(
+                                VARBINARY(5),
+                                new byte[] {0, 1, 2, 3, 4},
+                                fromString("\u0000\u0001\u0002\u0003\u0004"),
+                                true)
+                        .fromCase(
+                                BYTES(),
+                                new byte[] {0, 1, 2, 3, 4},
+                                fromString("\u0000\u0001\u0002"),
+                                false)
+                        .fromCase(
+                                BYTES(),
+                                new byte[] {0, 1, 2, 3, 4},
+                                fromString("\u0000\u0001\u0002\u0003\u0004"),
+                                true)
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                fromBigDecimal(new BigDecimal("9.8765"), 5, 4),
+                                fromString("9.8"),
+                                false)
+                        .fromCase(
+                                DECIMAL(4, 3),
+                                fromBigDecimal(new BigDecimal("9.8765"), 5, 4),
+                                fromString("9.8765"),
+                                true)
+                        .fromCase(TINYINT(), (byte) -125, fromString("-12"), false)
+                        .fromCase(TINYINT(), (byte) -125, fromString("-125"), true)
+                        .fromCase(SMALLINT(), (short) 32767, fromString("327"), false)
+                        .fromCase(SMALLINT(), (short) 32767, fromString("32767"), true)
+                        .fromCase(INT(), -12345678, fromString("-12"), false)
+                        .fromCase(INT(), -12345678, fromString("-12345678"), true)
+                        .fromCase(BIGINT(), 1234567891234L, fromString("123"), false)
+                        .fromCase(BIGINT(), 1234567891234L, fromString("1234567891234"), true)
+                        .fromCase(FLOAT(), -123.456f, fromString("-12"), false)
+                        .fromCase(FLOAT(), -123.456f, fromString("-123.456"), true)
+                        .fromCase(DOUBLE(), 12345.678901d, fromString("123"), false)
+                        .fromCase(DOUBLE(), 12345.678901d, fromString("12345.678901"), true)
+                        .fromCase(FLOAT(), Float.MAX_VALUE, fromString("3.4"), false)
+                        .fromCase(
+                                FLOAT(),
+                                Float.MAX_VALUE,
+                                fromString(String.valueOf(Float.MAX_VALUE)),
+                                true)
+                        .fromCase(DOUBLE(), Double.MAX_VALUE, fromString("1.7"), false)
+                        .fromCase(
+                                DOUBLE(),
+                                Double.MAX_VALUE,
+                                fromString(String.valueOf(Double.MAX_VALUE)),
+                                true)
+                        .fromCase(TIMESTAMP(), TIMESTAMP, fromString("202"), false)
+                        .fromCase(TIMESTAMP(), TIMESTAMP, TIMESTAMP_STRING, true)
+                        .fromCase(TIMESTAMP_LTZ(), CET_CONTEXT, TIMESTAMP, fromString("202"))
+                        .fromCase(
+                                TIMESTAMP_LTZ(),
+                                CET_CONTEXT_LEGACY,
+                                TIMESTAMP,
+                                TIMESTAMP_STRING_CET)
+                        .fromCase(DATE(), DATE, fromString("202"), false)
+                        .fromCase(DATE(), DATE, DATE_STRING, true)
+                        .fromCase(TIME(5), TIME, fromString("12:"), false)
+                        .fromCase(TIME(5), TIME, TIME_STRING, true)
+                        .fromCase(INTERVAL(YEAR()), 84, fromString("+7-"), false)
+                        .fromCase(INTERVAL(YEAR()), 84, fromString("+7-00"), true)
+                        .fromCase(INTERVAL(MONTH()), 5, fromString("+0-"), false)
+                        .fromCase(INTERVAL(MONTH()), 5, fromString("+0-05"), true)
+                        .fromCase(INTERVAL(DAY()), 10L, fromString("+0 "), false)
+                        .fromCase(INTERVAL(DAY()), 10L, fromString("+0 00:00:00.010"), true)
+                        .fromCase(
+                                ARRAY(INT()),
+                                new GenericArrayData(new int[] {-123, 456}),
+                                fromString("[-1"),
+                                false)
+                        .fromCase(
+                                ARRAY(INT()),
+                                new GenericArrayData(new int[] {-123, 456}),
+                                fromString("[-123, 456]"),
+                                true)
+                        .fromCase(ARRAY(INT()).nullable(), null, EMPTY_UTF8, false)
+                        .fromCase(ARRAY(INT()).nullable(), null, EMPTY_UTF8, true)
+                        .fromCase(
+                                MAP(STRING(), INTERVAL(MONTH())),
+                                mapData(entry(fromString("a"), -123), entry(fromString("b"), 123)),
+                                fromString("{a="),
+                                false)
+                        .fromCase(
+                                MAP(STRING(), INTERVAL(MONTH())),
+                                mapData(entry(fromString("a"), -123), entry(fromString("b"), 123)),
+                                fromString("{a=-10-03, b=+10-03}"),
+                                true)
+                        .fromCase(
+                                MAP(STRING(), INTERVAL(MONTH())).nullable(),
+                                null,
+                                EMPTY_UTF8,
+                                false)
+                        .fromCase(
+                                MAP(STRING(), INTERVAL(MONTH())).nullable(), null, EMPTY_UTF8, true)
+                        .fromCase(
+                                MAP(STRING(), INTERVAL(MONTH())).nullable(),
+                                null,
+                                EMPTY_UTF8,
+                                false)
+                        .fromCase(
+                                MULTISET(STRING()),
+                                mapData(entry(fromString("a"), 1), entry(fromString("b"), 1)),
+                                fromString("{a="),
+                                false)
+                        .fromCase(
+                                MULTISET(STRING()),
+                                mapData(entry(fromString("a"), 1), entry(fromString("b"), 1)),
+                                fromString("{a=1, b=1}"),
+                                true)
+                        .fromCase(MULTISET(STRING()).nullable(), null, EMPTY_UTF8, false)
+                        .fromCase(MULTISET(STRING()), null, EMPTY_UTF8, true)
+                        .fromCase(
+                                ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
+                                GenericRowData.of(123, fromString("abc")),
+                                fromString("(12"),
+                                false)
+                        .fromCase(
+                                ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
+                                GenericRowData.of(123, fromString("abc")),
+                                fromString("(123,abc)"),
+                                true)
+                        .fromCase(
+                                ROW(FIELD("f0", STRING()), FIELD("f1", STRING())).nullable(),
+                                null,
+                                EMPTY_UTF8,
+                                false)
+                        .fromCase(
+                                ROW(FIELD("f0", STRING()), FIELD("f1", STRING())).nullable(),
+                                null,
+                                EMPTY_UTF8,
+                                true)
+                        .fromCase(
+                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
+                                RawValueData.fromObject(
+                                        LocalDateTime.parse("2020-11-11T18:08:01.123")),
+                                fromString("202"),
+                                false)
+                        .fromCase(
+                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
+                                RawValueData.fromObject(
+                                        LocalDateTime.parse("2020-11-11T18:08:01.123")),
+                                fromString("2020-11-11T18:08:01.123"),
+                                true)
+                        .fromCase(
+                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
+                                null,
+                                EMPTY_UTF8,
+                                false)
+                        .fromCase(
+                                RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
+                                null,
+                                EMPTY_UTF8,
+                                true),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(BOOLEAN(), null, null)
                         .fail(CHAR(3), fromString("foo"), TableException.class)

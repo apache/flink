@@ -23,6 +23,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.EMPTY_STR_LITERAL;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.stringConcat;
+import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 
 /** {@link LogicalTypeFamily#NUMERIC} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
 class NumericToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> {
@@ -33,7 +34,7 @@ class NumericToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> 
         super(
                 CastRulePredicate.builder()
                         .input(LogicalTypeFamily.NUMERIC)
-                        .target(LogicalTypeFamily.CHARACTER_STRING)
+                        .target(STRING_TYPE)
                         .build());
     }
 
