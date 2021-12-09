@@ -99,7 +99,7 @@ CREATE TEMPORARY TABLE twitch_stream (
   `user_name` VARCHAR(2147483647),
   `game_name` VARCHAR(2147483647),
   `viewer_count` INT,
-  `started_at` TIMESTAMP(6),
+  `started_at` TIMESTAMP_LTZ(3),
   `location` VARCHAR(2147483647),
   proctime AS PROCTIME()
 ) WITH (
