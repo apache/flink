@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.table;
 
+import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.elasticsearch.action.get.GetRequest;
@@ -25,7 +26,8 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.search.SearchHits;
-import org.junit.jupiter.api.Disabled;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -37,12 +39,15 @@ import static org.apache.flink.connector.elasticsearch.table.TestContext.context
 
 /** IT tests for {@link ElasticsearchDynamicSink}. */
 @Testcontainers
-@Disabled
 public class Elasticsearch7DynamicSinkITCase extends ElasticsearchDynamicSinkBaseITCase {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(Elasticsearch7DynamicSinkITCase.class);
 
     @Container
     private static final ElasticsearchContainer ES_CONTAINER =
-            new ElasticsearchContainer(DockerImageVersions.ELASTICSEARCH_7);
+            ElasticsearchUtil.createElasticsearchContainer(
+                    DockerImageVersions.ELASTICSEARCH_7, LOG);
 
     @Override
     String getElasticsearchHttpHostAddress() {
