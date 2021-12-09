@@ -133,7 +133,7 @@ You should see, on the console of the SQL client, a stream of data populating ea
 
 Dynamic tables are the fundamental concept behind Flink's SQL support for streaming data. While SQL makes it seem like you are querying a database (or static tables that represent batch data, the tables in Flink are actually dynamic tables that are defined by queries. So instead of running several different queries on the same set of data, you are continuously running one query on a dataset that keeps changing. 
 
-Under the hood, the SQL client submits queries to Flink's JobManager, which works with the TaskManager to assign and monitor query tasks. Have a look at [Flink's architecture](https://nightlies.apache.org/flink/flink-docs-master/docs/concepts/flink-architecture/) for more detail. 
+Under the hood, the SQL client submits queries to Flink's JobManager, which works with the TaskManager(s) to assign and monitor query tasks. Have a look at [Flink's architecture](https://nightlies.apache.org/flink/flink-docs-master/docs/concepts/flink-architecture/) for more detail. 
 
 
 ## Step 5: Filter the data
