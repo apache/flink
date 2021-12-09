@@ -214,7 +214,7 @@ SELECT window_start,
   GROUP BY window_start, window_end, game_name;
 ```
 
-The results will refresh every minute and calculates the sum of all viewer counts for each game from when you started running this query. 
+Fresh results will appear every minute, showing the sum of the viewer counts for each game.
 
 
 ## Step 7: Write the updated stream to persistant storage
