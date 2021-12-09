@@ -22,6 +22,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
+import org.apache.flink.util.ExceptionUtils;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
@@ -45,12 +46,12 @@ import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.amazonaws.services.kinesis.model.StreamStatus;
-import org.apache.http.conn.ConnectTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -421,7 +422,7 @@ public class KinesisProxy implements KinesisProxyInterface {
     protected boolean isRecoverableSdkClientException(SdkClientException ex) {
         if (ex instanceof AmazonServiceException) {
             return KinesisProxy.isRecoverableException((AmazonServiceException) ex);
-        } else if (ex.getCause() instanceof ConnectTimeoutException) {
+        } else if (ExceptionUtils.findThrowable(ex, SocketTimeoutException.class).isPresent()) {
             return true;
         }
         // customizations may decide to retry other errors, such as read timeouts
