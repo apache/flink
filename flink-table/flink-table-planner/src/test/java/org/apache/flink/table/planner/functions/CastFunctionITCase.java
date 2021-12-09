@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.AbstractDataType;
@@ -70,6 +71,7 @@ import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST}. */
 public class CastFunctionITCase extends BuiltInFunctionTestBase {
@@ -107,7 +109,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     @Override
     protected Configuration configuration() {
-        return super.configuration().set(TableConfigOptions.LOCAL_TIME_ZONE, TEST_TZ.getId());
+        return super.configuration()
+                .set(TableConfigOptions.LOCAL_TIME_ZONE, TEST_TZ.getId())
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
+                        LegacyCastBehaviour.DISABLED);
     }
 
     @Parameterized.Parameters(name = "{index}: {0}")
@@ -125,27 +131,22 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                 CastTestSpecBuilder.testCastTo(CHAR(3))
                         .fromCase(CHAR(5), null, null)
                         .fromCase(CHAR(3), "foo", "foo")
-                        .fromCase(CHAR(4), "foo", "foo ")
-                        .fromCase(CHAR(4), "foo ", "foo ")
                         .fromCase(VARCHAR(3), "foo", "foo")
                         .fromCase(VARCHAR(5), "foo", "foo")
-                        .fromCase(VARCHAR(5), "foo ", "foo ")
-                        // https://issues.apache.org/jira/browse/FLINK-24413 - Trim to precision
-                        // in this case down to 3 chars
-                        .fromCase(STRING(), "abcdef", "abcdef") // "abc"
-                        .fromCase(DATE(), DEFAULT_DATE, "2021-09-24") // "202"
+                        .fromCase(STRING(), "abcdef", "abc")
+                        .fromCase(DATE(), DEFAULT_DATE, "202")
+                        .build(),
+                CastTestSpecBuilder.testCastTo(CHAR(5))
+                        .fromCase(CHAR(5), null, null)
+                        .fromCase(CHAR(3), "foo", "foo  ")
                         .build(),
                 CastTestSpecBuilder.testCastTo(VARCHAR(3))
                         .fromCase(VARCHAR(5), null, null)
                         .fromCase(CHAR(3), "foo", "foo")
-                        .fromCase(CHAR(4), "foo", "foo ")
-                        .fromCase(CHAR(4), "foo ", "foo ")
+                        .fromCase(CHAR(4), "foo", "foo")
                         .fromCase(VARCHAR(3), "foo", "foo")
                         .fromCase(VARCHAR(5), "foo", "foo")
-                        .fromCase(VARCHAR(5), "foo ", "foo ")
-                        // https://issues.apache.org/jira/browse/FLINK-24413 - Trim to precision
-                        // in this case down to 3 chars
-                        .fromCase(STRING(), "abcdef", "abcdef")
+                        .fromCase(STRING(), "abcdef", "abc")
                         .build(),
                 CastTestSpecBuilder.testCastTo(STRING())
                         .fromCase(STRING(), null, null)
