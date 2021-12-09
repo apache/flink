@@ -28,7 +28,7 @@ under the License.
 
 ## Introduction
 
-Flink features [multiple APIs](https://nightlies.apache.org/flink/flink-docs-master/docs/concepts/overview/) with different levels of abstraction that can be used to develop your streaming application. SQL is the highest level of abstraction and is supported by Flink as a relational API for batch and stream processing. This means that you can write the same queries on both unbounded real-time streams and bounded recorded streams and produce the same results. 
+Flink features [multiple APIs]({{< ref "docs/concepts/overview" >}}) with different levels of abstraction that can be used to develop your streaming application. SQL is the highest level of abstraction and is supported by Flink as a relational API for batch and stream processing. This means that you can write the same queries on both unbounded real-time streams and bounded recorded streams and produce the same results. 
 
 SQL on Flink is based on [Apache Calcite](https://calcite.apache.org/) (which is based on standard SQL) and is commonly used to ease the process of implementing data analytics, data pipelining, and ETL applications.  It is a great entryway to writing your first Flink application and requires no Java or Python. 
 
@@ -52,9 +52,9 @@ You only need to have basic knowledge of SQL to follow along.
 
 ## Step 1: Start the Flink SQL client 
 
-The [SQL Client](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sqlclient/) is bundled in the regular Flink distribution and can be run out-of-the-box. It requires only a running Flink cluster where table programs can be executed (since Flink SQL is a thin abstraction over the Table API). 
+The [SQL Client]({{< ref "docs/dev/table/sqlClient" >}}) is bundled in the regular Flink distribution and can be run out-of-the-box. It requires only a running Flink cluster where table programs can be executed (since Flink SQL is a thin abstraction over the Table API). 
 
-There are many ways to set up Flink but you will run it locally for the purpose of this tutorial. [Download Flink](https://nightlies.apache.org/flink/flink-docs-release-1.14/docs/try-flink/local_installation/#downloading-flink) and [start a local cluster](https://nightlies.apache.org/flink/flink-docs-release-1.14/docs/try-flink/local_installation/#starting-and-stopping-a-local-cluster) with one worker (the TaskManager).  
+There are many ways to set up Flink but you will run it locally for the purpose of this tutorial. [Download Flink]({{< ref "docs/try-flink/local_installation#downloading-flink" >}}) and [start a local cluster]({{< ref "docs/try-flink/local_installation#starting-and-stopping-a-local-cluster" >}}) with one worker (the TaskManager).  
 
 The scripts for the SQL client are located in the `/bin` directory of Flink. You can start the client by executing:
 
@@ -69,9 +69,9 @@ You should see something like this:
 
 ## Step 2: Set up a data source with flink-faker
 
-Like with any Flink program, you will need a data source to connect to so that Flink can process it. There are many popular data sources but for the interest of this tutorial, you will be using [flink-faker](https://github.com/knaufk/flink-faker).  This custom [table source](https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/connectors/table/overview/) is based on [Java Faker](https://github.com/DiUS/java-faker) and can generate fake data continuously in memory and in a realistic format. 
+Like with any Flink program, you will need a data source to connect to so that Flink can process it. There are many popular data sources but for the interest of this tutorial, you will be using [flink-faker](https://github.com/knaufk/flink-faker).  This custom [table source]({{< ref "docs/connectors/table/overview" >}}) is based on [Java Faker](https://github.com/DiUS/java-faker) and can generate fake data continuously in memory and in a realistic format. 
 
-Java Faker is a tool for generating this data and flink-faker exposes that as a source in Flink by implementing the [DynamicTableSource interface](https://nightlies.apache.org/flink/flink-docs-release-1.11/api/java/org/apache/flink/table/connector/source/DynamicTableSource.html). The dynamic table source has the logic of how to create a table source (in this case, from flink-faker), and then by adding a factory (https://nightlies.apache.org/flink/flink-docs-master/api/java/org/apache/flink/table/factories/DynamicTableSourceFactory.html) for it you can expose it in the SQL API by referencing it with `"connector" = "faker"`.
+Java Faker is a tool for generating this data and flink-faker exposes that as a source in Flink by implementing the [DynamicTableSource interface](https://nightlies.apache.org/flink/flink-docs-release-1.11/api/java/org/apache/flink/table/connector/source/DynamicTableSource.html). The dynamic table source has the logic of how to create a table source (in this case, from flink-faker), and then by adding a [factory](https://nightlies.apache.org/flink/flink-docs-master/api/java/org/apache/flink/table/factories/DynamicTableSourceFactory.html) for it you can expose it in the SQL API by referencing it with `"connector" = "faker"`.
 
 The next step is to make `flink-faker` discoverable by the Flink SQL client by following these [instructions](https://github.com/knaufk/flink-faker#adding-flink-faker-to-flink-sql-client).
 
@@ -116,9 +116,7 @@ You should hopefully see `[INFO] Execute statement succeed.`
 
 Note that a temporary table does not have a catalog configured and will just be available in this session. 
 
-Let's delve a bit into the notion of time. Within data processing systems, there are typically two types of time to reason about: event time (the time at which events actually occurred) and processing time (the time at whch events are observed in the system). The latter is the [simplest notion of time](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/concepts/time_attributes/#processing-time) and is what you will be using via `PROCTIME()`.
-
-To specify event time in your Flink SQL create statement, the element being used for event time must be of type `TIMESTAMP(3)`, and must be accompanied by a watermark strategy expression. The watermark generation is computed for every record, and handles the order of data accordingly.
+Let's delve a bit into the notion of time. Within data processing systems, there are typically two types of time to reason about: event time (the time at which events actually occurred) and processing time (the time at whch events are observed in the system). The latter is the [simplest notion of time]({{< ref "docs/dev/table/concepts/time_attributes#processing-time" >}}) and is what you will be using via `PROCTIME()`.
 
 
 ## Step 4: Run your first continuous SQL query and learn about dynamic tables
@@ -129,11 +127,11 @@ Now use the DQL syntax `SELECT` to view the streaming data in this table:
 SELECT * FROM twitch_stream;
 ```
 
-You should see, on the console of the SQL client, a stream of data populating each of the defined fields of the twitch_stream table.  Notice that this table contains a stream of data and is what is known as a [dynamic table](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/concepts/dynamic_tables/).  
+You should see, on the console of the SQL client, a stream of data populating each of the defined fields of the twitch_stream table.  Notice that this table contains a stream of data and is what is known as a [dynamic table]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}).  
 
 Dynamic tables are the fundamental concept behind Flink's SQL support for streaming data. While SQL makes it seem like you are querying a database (or static tables that represent batch data, the tables in Flink are actually dynamic tables that are defined by queries. So instead of running several different queries on the same set of data, you are continuously running one query on a dataset that keeps changing. 
 
-Under the hood, the SQL client submits queries to Flink's JobManager, which works with the TaskManager(s) to assign and monitor query tasks. Have a look at [Flink's architecture](https://nightlies.apache.org/flink/flink-docs-master/docs/concepts/flink-architecture/) for more detail. 
+Under the hood, the SQL client submits queries to Flink's JobManager, which works with the TaskManager(s) to assign and monitor query tasks. Have a look at [Flink's architecture]({{< ref "docs/concepts/flink-architecture" >}}) for more detail. 
 
 
 ## Step 5: Filter the data
@@ -154,7 +152,7 @@ WHERE TIMESTAMPDIFF(MINUTE, started_at, proctime) < 15;
 You should now see a new table with new datastream results.  
 
 
-Now try a [Top-N](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/topn/) query to find the 10 most popular games.
+Now try a [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}}) query to find the 10 most popular games.
 
 Top-N queries identify the N smallest or largest values (as ordered by some attribute of the table), and are useful when you need to identify the top (or bottom) N items in a stream. 
 
@@ -197,10 +195,10 @@ You should see a table result of continously changing data that tells you the mo
 For the last example, let's try a very commonly used function in streaming SQL: computing windowed aggregations.
 
 Windows are the fundamental building blocks when it comes to processing infinite streams since they provide a way to split streams into finite chunks. 
-Flink SQL offers several [window functions](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/window-tvf/) that you can use.  
+Flink SQL offers several [window functions]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) that you can use.  
 
 Let's explore how to apply one of these functions! To calculate an aggregation per game of the total viewer count for every 1 minute window, 
-you can use the [tumble](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/window-tvf/#tumble) function.
+you can use the [tumble]({{< ref "docs/dev/table/sql/queries/window-tvf#tumble" >}}) function.
 
 Tumbling windows can be thought of as mini-batches of aggregations over a non-overlapping window of time.
 
@@ -223,7 +221,7 @@ Now that you have written a program with Flink SQL to process all that streaming
 
 Flink does not provide its own storage system but instead offers many sink connectors you can use to write table updates to external systems.
 
-To write a table to a CSV file, you can use the [FileSystem connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/table/filesystem/) that is built into Flink. This connector supports row-encoded and bulk-encoded formats. Row-encoded formats such as CSV and JSON write one row at a time to a file. Bulk-encoded formats collect a batch of rows in memory and organize them in a storage-and-scan-efficient format before writing out the data. 
+To write a table to a CSV file, you can use the [FileSystem connector]({{< ref "docs/connectors/table/filesystem" >}}) that is built into Flink. This connector supports row-encoded and bulk-encoded formats. Row-encoded formats such as CSV and JSON write one row at a time to a file. Bulk-encoded formats collect a batch of rows in memory and organize them in a storage-and-scan-efficient format before writing out the data. 
 
 To store the results of the last example query (tumble window), you need to create a table that will store the results:
 
@@ -252,11 +250,11 @@ FROM twitch_stream;
 
 ## Summary
 
-In this tutorial, you learned how to use Flink SQL to define a whole continuous data pipeline. While not designed initially with streaming semantics in mind, SQL is a timeless and powerful query language that you can write comp;lete programs. Where Flink SQL differs from traditional database queries is that it works with dynamic tables and is continuously consuming rows as they arrive and is continuously producing updates to the result tables.
+In this tutorial, you learned how to use Flink SQL to define a whole continuous data pipeline. While not designed initially with streaming semantics in mind, SQL is a timeless and powerful query language that you can write complete programs. Where Flink SQL differs from traditional database queries is that it works with dynamic tables and is continuously consuming rows as they arrive and is continuously producing updates to the result tables.
 
 All Flink SQL programs follow a similar pattern: define a table source, perform manipulations on the data, persist the data to storage.
 
-Moreover, you were introduced to some fundamental concepts when processing unbounded streams of data. You learned about [time attributes](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/concepts/time_attributes/) such as event time vs. processing time and how to deal with data order.  You also learned about [windows](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/datastream/operators/windows/) and how to apply that with Flink SQL on your data.  Windows are the key to turning neverending streams of data into manageable chunks for computation and are integral to any stream processor. 
+Moreover, you were introduced to some fundamental concepts when processing unbounded streams of data. You learned a bit about [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) and also about [windows]({{< ref "docs/dev/datastream/operators/windows" >}}) and how to apply that with Flink SQL on your data.  Windows are the key to turning neverending streams of data into manageable chunks for computation and are integral to any stream processor. 
 
 
 ## Next steps
