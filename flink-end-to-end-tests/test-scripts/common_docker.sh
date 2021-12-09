@@ -49,8 +49,14 @@ function build_image() {
 
     echo "Preparing Dockeriles"
     retry_times_with_exponential_backoff 5 git clone https://github.com/apache/flink-docker.git --branch dev-master --single-branch
+
+    local java_version=8
+    if [[ ${PROFILE} == *"jdk11"* ]]; then
+        java_version=11
+    fi
+
     cd flink-docker
-    ./add-custom.sh -u ${file_server_address}:9999/flink.tgz -n ${image_name}
+    ./add-custom.sh -u ${file_server_address}:9999/flink.tgz -n ${image_name} -j ${java_version}
 
     echo "Building images"
     run_with_timeout 600 docker build --no-cache --network="host" -t ${image_name} dev/${image_name}-debian
