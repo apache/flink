@@ -18,26 +18,22 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.elasticsearch.client.RestHighLevelClient;
-import org.junit.jupiter.api.Disabled;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /** Tests for {@link ElasticsearchSink}. */
 @Testcontainers
-@Disabled
 class Elasticsearch7SinkITCase extends ElasticsearchSinkBaseITCase {
 
     @Container
     private static final ElasticsearchContainer ES_CONTAINER =
-            new ElasticsearchContainer(DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_7))
-                    .withPassword(ELASTICSEARCH_PASSWORD)
-                    .withLogConsumer(new Slf4jLogConsumer(LOG));
+            ElasticsearchUtil.createElasticsearchContainer(DockerImageVersions.ELASTICSEARCH_7, LOG)
+                    .withPassword(ELASTICSEARCH_PASSWORD);
 
     @Override
     String getElasticsearchHttpHostAddress() {
