@@ -430,8 +430,9 @@ class TableSinkITCase extends StreamingTestBase {
       .select('num, 'w.rowtime as 'rowtime1, 'w.rowtime as 'rowtime2)
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("Found more than one rowtime field: [rowtime1, rowtime2] " +
-      "in the query when insert into 'default_catalog.default_database.sink'")
+    thrown.expectMessage(
+      "The query contains more than one rowtime attribute column [rowtime1, rowtime2] for " +
+        "writing into table 'default_catalog.default_database.sink'.")
     table.executeInsert("sink")
   }
 
