@@ -27,6 +27,7 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -36,17 +37,15 @@ import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-
 import org.apache.curator.test.TestingServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -93,6 +92,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
      * successfully executed.
      */
     @Test
+    @Ignore("FLINK-25235")
     public void testJobExecutionOnClusterWithLeaderChange() throws Exception {
         final int numDispatchers = 3;
         final int numTMs = 2;
@@ -117,7 +117,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
         try (TestingMiniCluster miniCluster =
                         TestingMiniCluster.newBuilder(miniClusterConfiguration).build();
-                final CuratorFramework curatorFramework =
+                final CuratorFrameworkWithUnhandledErrorListener curatorFramework =
                         ZooKeeperUtils.startCuratorFramework(
                                 configuration,
                                 exception -> fail("Fatal error in curator framework."))) {
@@ -125,7 +125,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
             // We need to watch for resource manager leader changes to avoid race conditions.
             final DefaultLeaderRetrievalService resourceManagerLeaderRetrieval =
                     ZooKeeperUtils.createLeaderRetrievalService(
-                            curatorFramework,
+                            curatorFramework.asCuratorFramework(),
                             ZooKeeperUtils.getLeaderPathForResourceManager(),
                             configuration);
             @SuppressWarnings("unchecked")
