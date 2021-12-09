@@ -944,19 +944,23 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                     e);
         }
 
-        final CompletableFuture<Acknowledge> executionGraphFuture =
-                historyServerArchivist.archiveExecutionGraph(executionGraphInfo);
+        // do not create an archive for suspended jobs, as this would eventually lead to multiple
+        // archive attempts which we currently do not support
+        if (executionGraphInfo.getArchivedExecutionGraph().getState().isGloballyTerminalState()) {
+            final CompletableFuture<Acknowledge> executionGraphFuture =
+                    historyServerArchivist.archiveExecutionGraph(executionGraphInfo);
 
-        executionGraphFuture.whenComplete(
-                (Acknowledge ignored, Throwable throwable) -> {
-                    if (throwable != null) {
-                        log.info(
-                                "Could not archive completed job {}({}) to the history server.",
-                                executionGraphInfo.getArchivedExecutionGraph().getJobName(),
-                                executionGraphInfo.getArchivedExecutionGraph().getJobID(),
-                                throwable);
-                    }
-                });
+            executionGraphFuture.whenComplete(
+                    (Acknowledge ignored, Throwable throwable) -> {
+                        if (throwable != null) {
+                            log.info(
+                                    "Could not archive completed job {}({}) to the history server.",
+                                    executionGraphInfo.getArchivedExecutionGraph().getJobName(),
+                                    executionGraphInfo.getArchivedExecutionGraph().getJobID(),
+                                    throwable);
+                        }
+                    });
+        }
     }
 
     private void jobMasterFailed(JobID jobId, Throwable cause) {
