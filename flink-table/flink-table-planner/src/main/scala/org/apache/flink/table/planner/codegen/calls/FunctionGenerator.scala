@@ -402,86 +402,86 @@ class FunctionGenerator private(config: TableConfig) {
 
   addSqlFunction(
     EXTRACT,
-    Seq(RAW, BIGINT),
+    Seq(SYMBOL, BIGINT),
     new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     EXTRACT,
-    Seq(RAW, DATE),
+    Seq(SYMBOL, DATE),
     new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     EXTRACT,
-    Seq(RAW, TIME_WITHOUT_TIME_ZONE),
+    Seq(SYMBOL, TIME_WITHOUT_TIME_ZONE),
     new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     EXTRACT,
-    Seq(RAW, TIMESTAMP_WITHOUT_TIME_ZONE),
+    Seq(SYMBOL, TIMESTAMP_WITHOUT_TIME_ZONE),
     new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     EXTRACT,
-    Seq(RAW, TIMESTAMP_WITH_LOCAL_TIME_ZONE),
+    Seq(SYMBOL, TIMESTAMP_WITH_LOCAL_TIME_ZONE),
     new MethodCallGen(BuiltInMethods.EXTRACT_FROM_TIMESTAMP_TIME_ZONE))
 
   addSqlFunction(
     EXTRACT,
-    Seq(RAW, INTERVAL_DAY_TIME),
+    Seq(SYMBOL, INTERVAL_DAY_TIME),
     new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     EXTRACT,
-    Seq(RAW, INTERVAL_YEAR_MONTH),
+    Seq(SYMBOL, INTERVAL_YEAR_MONTH),
     new ExtractCallGen(BuiltInMethods.UNIX_DATE_EXTRACT))
 
   addSqlFunction(
     TIMESTAMP_DIFF,
     Seq(
-      RAW,
+      SYMBOL,
       TIMESTAMP_WITHOUT_TIME_ZONE,
       TIMESTAMP_WITHOUT_TIME_ZONE),
     new TimestampDiffCallGen)
 
   addSqlFunction(
     TIMESTAMP_DIFF,
-    Seq(RAW, TIMESTAMP_WITHOUT_TIME_ZONE, DATE),
+    Seq(SYMBOL, TIMESTAMP_WITHOUT_TIME_ZONE, DATE),
     new TimestampDiffCallGen)
 
   addSqlFunction(
     TIMESTAMP_DIFF,
-    Seq(RAW, DATE, TIMESTAMP_WITHOUT_TIME_ZONE),
+    Seq(SYMBOL, DATE, TIMESTAMP_WITHOUT_TIME_ZONE),
     new TimestampDiffCallGen)
 
   addSqlFunction(
     TIMESTAMP_DIFF,
-    Seq(RAW, DATE, DATE),
+    Seq(SYMBOL, DATE, DATE),
     new TimestampDiffCallGen)
 
   addSqlFunction(
     FLOOR,
-    Seq(DATE, RAW),
+    Seq(DATE, SYMBOL),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
       Some(BuiltInMethods.UNIX_DATE_FLOOR)))
 
   addSqlFunction(
     FLOOR,
-    Seq(TIME_WITHOUT_TIME_ZONE, RAW),
+    Seq(TIME_WITHOUT_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
       Some(BuiltInMethods.UNIX_DATE_FLOOR)))
 
   addSqlFunction(
     FLOOR,
-    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, RAW),
+    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
       Some(BuiltInMethods.UNIX_TIMESTAMP_FLOOR)))
 
   addSqlFunction(
     FLOOR,
-    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, RAW),
+    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
       Some(BuiltInMethods.TIMESTAMP_FLOOR_TIME_ZONE)))
@@ -490,28 +490,28 @@ class FunctionGenerator private(config: TableConfig) {
   //  https://issues.apache.org/jira/browse/CALCITE-3199
   addSqlFunction(
     CEIL,
-    Seq(DATE, RAW),
+    Seq(DATE, SYMBOL),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
       Some(BuiltInMethods.UNIX_DATE_CEIL)))
 
   addSqlFunction(
     CEIL,
-    Seq(TIME_WITHOUT_TIME_ZONE, RAW),
+    Seq(TIME_WITHOUT_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
       Some(BuiltInMethods.UNIX_DATE_CEIL)))
 
   addSqlFunction(
     CEIL,
-    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, RAW),
+    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
       Some(BuiltInMethods.UNIX_TIMESTAMP_CEIL)))
 
   addSqlFunction(
     CEIL,
-    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, RAW),
+    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
       Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE)))
@@ -802,11 +802,23 @@ class FunctionGenerator private(config: TableConfig) {
 
   addSqlFunctionMethod(JSON_EXISTS, Seq(CHAR, CHAR), BuiltInMethods.JSON_EXISTS)
   addSqlFunctionMethod(JSON_EXISTS, Seq(VARCHAR, CHAR), BuiltInMethods.JSON_EXISTS)
-  addSqlFunctionMethod(JSON_EXISTS, Seq(CHAR, CHAR, RAW), BuiltInMethods.JSON_EXISTS_ON_ERROR)
-  addSqlFunctionMethod(JSON_EXISTS, Seq(VARCHAR, CHAR, RAW), BuiltInMethods.JSON_EXISTS_ON_ERROR)
+  addSqlFunctionMethod(
+    JSON_EXISTS,
+    Seq(CHAR, CHAR, SYMBOL),
+    BuiltInMethods.JSON_EXISTS_ON_ERROR)
+  addSqlFunctionMethod(
+    JSON_EXISTS,
+    Seq(VARCHAR, CHAR, SYMBOL),
+    BuiltInMethods.JSON_EXISTS_ON_ERROR)
 
-  addSqlFunctionMethod(JSON_QUERY, Seq(CHAR, CHAR, RAW, RAW, RAW), BuiltInMethods.JSON_QUERY)
-  addSqlFunctionMethod(JSON_QUERY, Seq(VARCHAR, CHAR, RAW, RAW, RAW), BuiltInMethods.JSON_QUERY)
+  addSqlFunctionMethod(
+    JSON_QUERY,
+    Seq(CHAR, CHAR, SYMBOL, SYMBOL, SYMBOL),
+    BuiltInMethods.JSON_QUERY)
+  addSqlFunctionMethod(
+    JSON_QUERY,
+    Seq(VARCHAR, CHAR, SYMBOL, SYMBOL, SYMBOL),
+    BuiltInMethods.JSON_QUERY)
 
   addSqlFunctionMethod(IS_JSON_VALUE, Seq(CHAR),
     BuiltInMethod.IS_JSON_VALUE.method, argsNullable = true)
