@@ -71,7 +71,9 @@ You should see something like this:
 
 Like with any Flink program, you will need a data source to connect to so that Flink can process it. There are many popular data sources but for the interest of this tutorial, you will be using [flink-faker](https://github.com/knaufk/flink-faker).  This custom [table source]({{< ref "docs/connectors/table/overview" >}}) is based on [Java Faker](https://github.com/DiUS/java-faker) and can generate fake data continuously in memory and in a realistic format. 
 
-Java Faker is a tool for generating this data and flink-faker exposes that as a source in Flink by implementing the [DynamicTableSource interface](https://nightlies.apache.org/flink/flink-docs-release-1.11/api/java/org/apache/flink/table/connector/source/DynamicTableSource.html). The dynamic table source has the logic of how to create a table source (in this case, from flink-faker), and then by adding a [factory](https://nightlies.apache.org/flink/flink-docs-master/api/java/org/apache/flink/table/factories/DynamicTableSourceFactory.html) for it you can expose it in the SQL API by referencing it with `"connector" = "faker"`.
+Java Faker is a tool for generating this data and flink-faker exposes that as a source in Flink by implementing the [DynamicTableSource interface]({{< javadoc file="org/apache/flink/table/connector/source/DynamicTableSource.html" name="DynamicTableSource">}}). The dynamic table source has the logic of how to create a table source (in this case, from flink-faker), and then by adding a [factory]({{< javadoc file="org/apache/flink/table/factories/DynamicTableSourceFactory.html" name="DynamicTableSourceFactory">}}) for it you can expose it in the SQL API by referencing it with `"connector" = "faker"`.
+
+
 
 The next step is to make `flink-faker` discoverable by the Flink SQL client by following these [instructions](https://github.com/knaufk/flink-faker#adding-flink-faker-to-flink-sql-client).
 
@@ -244,7 +246,10 @@ Now insert the streaming SQL results into the file system table:
 ```sql
 INSERT INTO twitch_stream_viewer_count 
 SELECT 
-  TBD
+  `window_start` TIMESTAMP_LTZ(3),
+  `window_end` TIMESTAMP_LTZ(3),
+  `game_name` VARCHAR(2147483647),
+  `TotalViewerCount` INT
 FROM twitch_stream;
 ```
 
