@@ -51,8 +51,6 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
     public static final WorkingDirectoryResource WORKING_DIRECTORY_RESOURCE =
             new WorkingDirectoryResource();
 
-    private static final int TOTAL_FLINK_MEMORY_MB = 1024;
-
     /**
      * This tests that the creation of {@link TaskManagerServices} correctly creates the local state
      * root directory for the {@link TaskExecutorLocalStateStoresManager} with the configured root
