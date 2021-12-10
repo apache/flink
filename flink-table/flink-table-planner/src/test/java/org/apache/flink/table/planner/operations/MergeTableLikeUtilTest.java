@@ -160,7 +160,7 @@ public class MergeTableLikeUtilTest {
                         regularColumn("four", DataTypes.STRING()));
 
         thrown.expect(ValidationException.class);
-        thrown.expectMessage("A column named 'three' already exists in the table.");
+        thrown.expectMessage("A column named 'three' already exists in the base table.");
         util.mergeTables(
                 getDefaultMergingStrategies(),
                 sourceSchema,
