@@ -549,19 +549,19 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(
                                 TINYINT(),
                                 DEFAULT_POSITIVE_TINY_INT,
-                                Integer.valueOf(DEFAULT_POSITIVE_TINY_INT))
+                                (int) DEFAULT_POSITIVE_TINY_INT)
                         .fromCase(
                                 TINYINT(),
                                 DEFAULT_NEGATIVE_TINY_INT,
-                                Integer.valueOf(DEFAULT_NEGATIVE_TINY_INT))
+                                (int) DEFAULT_NEGATIVE_TINY_INT)
                         .fromCase(
                                 SMALLINT(),
                                 DEFAULT_POSITIVE_SMALL_INT,
-                                Integer.valueOf(DEFAULT_POSITIVE_SMALL_INT))
+                                (int) DEFAULT_POSITIVE_SMALL_INT)
                         .fromCase(
                                 SMALLINT(),
                                 DEFAULT_NEGATIVE_SMALL_INT,
-                                Integer.valueOf(DEFAULT_NEGATIVE_SMALL_INT))
+                                (int) DEFAULT_NEGATIVE_SMALL_INT)
                         .fromCase(INT(), DEFAULT_POSITIVE_INT, DEFAULT_POSITIVE_INT)
                         .fromCase(INT(), DEFAULT_NEGATIVE_INT, DEFAULT_NEGATIVE_INT)
                         .fromCase(BIGINT(), 123, 123)
@@ -607,21 +607,21 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(
                                 TINYINT(),
                                 DEFAULT_POSITIVE_TINY_INT,
-                                Long.valueOf(DEFAULT_POSITIVE_TINY_INT))
+                                (long) DEFAULT_POSITIVE_TINY_INT)
                         .fromCase(
                                 TINYINT(),
                                 DEFAULT_NEGATIVE_TINY_INT,
-                                Long.valueOf(DEFAULT_NEGATIVE_TINY_INT))
+                                (long) DEFAULT_NEGATIVE_TINY_INT)
                         .fromCase(
                                 SMALLINT(),
                                 DEFAULT_POSITIVE_SMALL_INT,
-                                Long.valueOf(DEFAULT_POSITIVE_SMALL_INT))
+                                (long) DEFAULT_POSITIVE_SMALL_INT)
                         .fromCase(
                                 SMALLINT(),
                                 DEFAULT_NEGATIVE_SMALL_INT,
-                                Long.valueOf(DEFAULT_NEGATIVE_SMALL_INT))
-                        .fromCase(INT(), DEFAULT_POSITIVE_INT, Long.valueOf(DEFAULT_POSITIVE_INT))
-                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, Long.valueOf(DEFAULT_NEGATIVE_INT))
+                                (long) DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (long) DEFAULT_POSITIVE_INT)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (long) DEFAULT_NEGATIVE_INT)
                         .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, DEFAULT_POSITIVE_BIGINT)
                         .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, DEFAULT_NEGATIVE_BIGINT)
                         .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123L)
@@ -667,29 +667,25 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(
                                 TINYINT(),
                                 DEFAULT_POSITIVE_TINY_INT,
-                                Float.valueOf(DEFAULT_POSITIVE_TINY_INT))
+                                (float) DEFAULT_POSITIVE_TINY_INT)
                         .fromCase(
                                 TINYINT(),
                                 DEFAULT_NEGATIVE_TINY_INT,
-                                Float.valueOf(DEFAULT_NEGATIVE_TINY_INT))
+                                (float) DEFAULT_NEGATIVE_TINY_INT)
                         .fromCase(
                                 SMALLINT(),
                                 DEFAULT_POSITIVE_SMALL_INT,
-                                Float.valueOf(DEFAULT_POSITIVE_SMALL_INT))
+                                (float) DEFAULT_POSITIVE_SMALL_INT)
                         .fromCase(
                                 SMALLINT(),
                                 DEFAULT_NEGATIVE_SMALL_INT,
-                                Float.valueOf(DEFAULT_NEGATIVE_SMALL_INT))
-                        .fromCase(INT(), DEFAULT_POSITIVE_INT, Float.valueOf(DEFAULT_POSITIVE_INT))
-                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, Float.valueOf(DEFAULT_NEGATIVE_INT))
+                                (float) DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (float) DEFAULT_POSITIVE_INT)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (float) DEFAULT_NEGATIVE_INT)
                         .fromCase(
-                                BIGINT(),
-                                DEFAULT_POSITIVE_BIGINT,
-                                Float.valueOf(DEFAULT_POSITIVE_BIGINT))
+                                BIGINT(), DEFAULT_POSITIVE_BIGINT, (float) DEFAULT_POSITIVE_BIGINT)
                         .fromCase(
-                                BIGINT(),
-                                DEFAULT_NEGATIVE_BIGINT,
-                                Float.valueOf(DEFAULT_NEGATIVE_BIGINT))
+                                BIGINT(), DEFAULT_NEGATIVE_BIGINT, (float) DEFAULT_NEGATIVE_BIGINT)
                         .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, DEFAULT_POSITIVE_FLOAT)
                         .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, DEFAULT_NEGATIVE_FLOAT)
                         .fromCase(FLOAT(), 9234567891.12, 9234567891.12f)
@@ -734,29 +730,25 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(
                                 TINYINT(),
                                 DEFAULT_POSITIVE_TINY_INT,
-                                Double.valueOf(DEFAULT_POSITIVE_TINY_INT))
+                                (double) DEFAULT_POSITIVE_TINY_INT)
                         .fromCase(
                                 TINYINT(),
                                 DEFAULT_NEGATIVE_TINY_INT,
-                                Double.valueOf(DEFAULT_NEGATIVE_TINY_INT))
+                                (double) DEFAULT_NEGATIVE_TINY_INT)
                         .fromCase(
                                 SMALLINT(),
                                 DEFAULT_POSITIVE_SMALL_INT,
-                                Double.valueOf(DEFAULT_POSITIVE_SMALL_INT))
+                                (double) DEFAULT_POSITIVE_SMALL_INT)
                         .fromCase(
                                 SMALLINT(),
                                 DEFAULT_NEGATIVE_SMALL_INT,
-                                Double.valueOf(DEFAULT_NEGATIVE_SMALL_INT))
-                        .fromCase(INT(), DEFAULT_POSITIVE_INT, Double.valueOf(DEFAULT_POSITIVE_INT))
-                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, Double.valueOf(DEFAULT_NEGATIVE_INT))
+                                (double) DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (double) DEFAULT_POSITIVE_INT)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (double) DEFAULT_NEGATIVE_INT)
                         .fromCase(
-                                BIGINT(),
-                                DEFAULT_POSITIVE_BIGINT,
-                                Double.valueOf(DEFAULT_POSITIVE_BIGINT))
+                                BIGINT(), DEFAULT_POSITIVE_BIGINT, (double) DEFAULT_POSITIVE_BIGINT)
                         .fromCase(
-                                BIGINT(),
-                                DEFAULT_NEGATIVE_BIGINT,
-                                Double.valueOf(DEFAULT_NEGATIVE_BIGINT))
+                                BIGINT(), DEFAULT_NEGATIVE_BIGINT, (double) DEFAULT_NEGATIVE_BIGINT)
                         .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123.456d)
                         .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123.456)
                         .fromCase(FLOAT(), 9234567891.12, 9234567891.12d)
@@ -1078,6 +1070,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build());
     }
 
+    @SuppressWarnings("NumericOverflow")
     public static List<TestSpec> numericBounds() {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(TINYINT())
