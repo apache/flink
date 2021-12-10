@@ -23,10 +23,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.TransientBlobCache;
+import org.apache.flink.runtime.blob.JobPermanentBlobService;
+import org.apache.flink.runtime.blob.TaskExecutorBlobService;
 import org.apache.flink.runtime.blob.TransientBlobKey;
+import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -196,7 +196,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     /** The fatal error handler to use in case of a fatal error. */
     private final FatalErrorHandler fatalErrorHandler;
 
-    private final BlobCacheService blobCacheService;
+    private final TaskExecutorBlobService taskExecutorBlobService;
 
     private final LibraryCacheManager libraryCacheManager;
 
@@ -281,7 +281,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             HeartbeatServices heartbeatServices,
             TaskManagerMetricGroup taskManagerMetricGroup,
             @Nullable String metricQueryServiceAddress,
-            BlobCacheService blobCacheService,
+            TaskExecutorBlobService taskExecutorBlobService,
             FatalErrorHandler fatalErrorHandler,
             TaskExecutorPartitionTracker partitionTracker) {
 
@@ -297,7 +297,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
         this.partitionTracker = partitionTracker;
         this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
-        this.blobCacheService = checkNotNull(blobCacheService);
+        this.taskExecutorBlobService = checkNotNull(taskExecutorBlobService);
         this.metricQueryServiceAddress = metricQueryServiceAddress;
         this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
 
@@ -424,7 +424,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             fileCache =
                     new FileCache(
                             taskManagerConfiguration.getTmpDirectories(),
-                            blobCacheService.getPermanentBlobService());
+                            taskExecutorBlobService.getPermanentBlobService());
         } catch (Exception e) {
             handleStartTaskExecutorServicesException(e);
         }
@@ -611,7 +611,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
             // re-integrate offloaded data:
             try {
-                tdd.loadBigData(blobCacheService.getPermanentBlobService());
+                tdd.loadBigData(taskExecutorBlobService.getPermanentBlobService());
             } catch (IOException | ClassNotFoundException e) {
                 throw new TaskSubmissionException(
                         "Could not re-integrate offloaded TaskDeploymentDescriptor data.", e);
@@ -1120,7 +1120,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     private TaskExecutorJobServices registerNewJobAndCreateServices(
             JobID jobId, String targetAddress) throws Exception {
         jobLeaderService.addJob(jobId, targetAddress);
-        final PermanentBlobCache permanentBlobService = blobCacheService.getPermanentBlobService();
+        final JobPermanentBlobService permanentBlobService =
+                taskExecutorBlobService.getPermanentBlobService();
         permanentBlobService.registerJob(jobId);
 
         return TaskExecutorJobServices.create(
@@ -1388,7 +1389,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         clusterInformation.getBlobServerHostname(),
                         clusterInformation.getBlobServerPort());
 
-        blobCacheService.setBlobServerAddress(blobServerAddress);
+        taskExecutorBlobService.setBlobServerAddress(blobServerAddress);
 
         establishedResourceManagerConnection =
                 new EstablishedResourceManagerConnection(
@@ -2093,7 +2094,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private CompletableFuture<TransientBlobKey> putTransientBlobStream(
             InputStream inputStream, String fileTag) {
-        final TransientBlobCache transientBlobService = blobCacheService.getTransientBlobService();
+        final TransientBlobService transientBlobService =
+                taskExecutorBlobService.getTransientBlobService();
         final TransientBlobKey transientBlobKey;
 
         try {
