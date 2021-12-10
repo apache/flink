@@ -402,6 +402,11 @@ class MergeTableLikeUtil {
                 final String name = ((SqlTableColumn) derivedColumn).getName().getSimple();
                 final TableColumn column;
                 if (derivedColumn instanceof SqlRegularColumn) {
+                    if (columns.containsKey(name)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "A column named '%s' already exists in the table.", name));
+                    }
                     final LogicalType logicalType =
                             FlinkTypeFactory.toLogicalType(physicalFieldNamesToTypes.get(name));
                     column =
@@ -485,12 +490,7 @@ class MergeTableLikeUtil {
                 } else {
                     throw new ValidationException("Unsupported column type: " + derivedColumn);
                 }
-                TableColumn tableColumn = columns.put(column.getName(), column);
-                if (tableColumn != null) {
-                    throw new ValidationException(
-                            String.format(
-                                    "A column named '%s' already exists in the base table.", name));
-                }
+                columns.put(column.getName(), column);
             }
         }
 
