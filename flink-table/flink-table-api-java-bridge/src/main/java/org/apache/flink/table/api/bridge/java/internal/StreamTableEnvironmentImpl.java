@@ -28,7 +28,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.bridge.internal.BaseStreamTableEnvironmentImpl;
+import org.apache.flink.table.api.bridge.internal.AbstractStreamTableEnvironmentImpl;
 import org.apache.flink.table.api.bridge.java.StreamStatementSet;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -66,7 +66,7 @@ import java.util.Optional;
  * <p>It binds to a given {@link StreamExecutionEnvironment}.
  */
 @Internal
-public final class StreamTableEnvironmentImpl extends BaseStreamTableEnvironmentImpl
+public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnvironmentImpl
         implements StreamTableEnvironment {
 
     public StreamTableEnvironmentImpl(

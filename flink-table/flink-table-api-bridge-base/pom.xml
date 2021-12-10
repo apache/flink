@@ -27,10 +27,10 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table-api-bridge-common</artifactId>
-	<name>Flink : Table : API bridge common</name>
+	<artifactId>flink-table-api-bridge-base</artifactId>
+	<name>Flink : Table : API bridge base</name>
 	<description>
-		This module contains the common code for bridging between Table API and DataStream
+		This module contains the base code for bridging between Table API and DataStream
 	</description>
 
 	<packaging>jar</packaging>

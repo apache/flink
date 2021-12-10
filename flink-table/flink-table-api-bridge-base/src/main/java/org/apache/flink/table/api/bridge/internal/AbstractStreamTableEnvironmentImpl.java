@@ -68,13 +68,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/** Base utilities to implement a {@code StreamTableEnvironment}. */
+/** Abstract class to implement a {@code StreamTableEnvironment}. */
 @Internal
-public abstract class BaseStreamTableEnvironmentImpl extends TableEnvironmentImpl {
+public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmentImpl {
 
     protected final StreamExecutionEnvironment executionEnvironment;
 
-    public BaseStreamTableEnvironmentImpl(
+    public AbstractStreamTableEnvironmentImpl(
             CatalogManager catalogManager,
             ModuleManager moduleManager,
             TableConfig tableConfig,

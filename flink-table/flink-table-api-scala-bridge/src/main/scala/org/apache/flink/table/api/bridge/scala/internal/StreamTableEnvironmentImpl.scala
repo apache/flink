@@ -23,7 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.internal.BaseStreamTableEnvironmentImpl
+import org.apache.flink.table.api.bridge.internal.AbstractStreamTableEnvironmentImpl
 import org.apache.flink.table.api.bridge.scala.{StreamStatementSet, StreamTableEnvironment}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
@@ -57,7 +57,7 @@ class StreamTableEnvironmentImpl (
     executor: Executor,
     isStreaming: Boolean,
     userClassLoader: ClassLoader)
-  extends BaseStreamTableEnvironmentImpl(
+  extends AbstractStreamTableEnvironmentImpl(
     catalogManager,
     moduleManager,
     config,
@@ -204,7 +204,10 @@ class StreamTableEnvironmentImpl (
   override def registerDataStream[T](
       name: String,
       dataStream: DataStream[T],
-      fields: Expression*): Unit = registerTable(name, fromDataStream(dataStream, fields: _*))
+      fields: Expression*)
+    : Unit = {
+    registerTable(name, fromDataStream(dataStream, fields: _*))
+  }
 
   override def toAppendStream[T: TypeInformation](table: Table): DataStream[T] = {
     val returnType = createTypeInformation[T]
@@ -313,7 +316,7 @@ object StreamTableEnvironmentImpl {
 
     val functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager)
 
-    val executor = BaseStreamTableEnvironmentImpl.lookupExecutor(
+    val executor = AbstractStreamTableEnvironmentImpl.lookupExecutor(
       classLoader, settings.getExecutor, executionEnvironment.getWrappedStreamExecutionEnvironment)
 
     val planner = PlannerFactoryUtil.createPlanner(settings.getPlanner, executor, tableConfig,

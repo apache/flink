@@ -41,11 +41,11 @@ import java.util.Map;
  *
  * <p>This operation may expose only part, or change the order of the fields available in a {@link
  * org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataStream}. The
- * {@link DataStreamQueryOperation#getFieldIndices()} describes the mapping between fields of the
- * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
+ * {@link LegacyDataStreamQueryOperation#getFieldIndices()} describes the mapping between fields of
+ * the {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
-public class DataStreamQueryOperation<E> implements QueryOperation {
+public class LegacyDataStreamQueryOperation<E> implements QueryOperation {
 
     private final ObjectIdentifier identifier;
     private final DataStream<E> dataStream;
@@ -55,7 +55,7 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
     private final boolean[] fieldNullables;
     private final FlinkStatistic statistic;
 
-    public DataStreamQueryOperation(
+    public LegacyDataStreamQueryOperation(
             ObjectIdentifier identifier,
             DataStream<E> dataStream,
             int[] fieldIndices,

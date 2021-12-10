@@ -73,6 +73,7 @@ import org.apache.flink.table.planner.expressions.SqlAggFunctionVisitor;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
+import org.apache.flink.table.planner.operations.LegacyDataStreamQueryOperation;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.RichTableSourceQueryOperation;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
@@ -428,11 +429,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         public RelNode visit(QueryOperation other) {
             if (other instanceof PlannerQueryOperation) {
                 return ((PlannerQueryOperation) other).getCalciteTree();
-            } else if (other
-                    instanceof org.apache.flink.table.planner.operations.DataStreamQueryOperation) {
-                return convertToDataStreamScan(
-                        (org.apache.flink.table.planner.operations.DataStreamQueryOperation<?>)
-                                other);
+            } else if (other instanceof LegacyDataStreamQueryOperation) {
+                return convertToDataStreamScan((LegacyDataStreamQueryOperation<?>) other);
             } else if (other instanceof ExternalQueryOperation) {
                 final ExternalQueryOperation<?> externalQueryOperation =
                         (ExternalQueryOperation<?>) other;
@@ -533,8 +531,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                     changelogMode);
         }
 
-        private RelNode convertToDataStreamScan(
-                org.apache.flink.table.planner.operations.DataStreamQueryOperation<?> operation) {
+        private RelNode convertToDataStreamScan(LegacyDataStreamQueryOperation<?> operation) {
             List<String> names;
             ObjectIdentifier identifier = operation.getIdentifier();
             if (identifier != null) {

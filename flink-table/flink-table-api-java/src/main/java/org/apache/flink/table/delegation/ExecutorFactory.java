@@ -32,8 +32,7 @@ import org.apache.flink.table.factories.Factory;
  * can implement a custom one for hooking into the submission process.
  *
  * <p><b>Important:</b> In order to support DataStream APIs, implementations of this interface must
- * also implement {@code StreamExecutorFactory} from the {@code flink-table-api-bridge-common}
- * package.
+ * also implement {@code StreamExecutorFactory} from the {@code flink-table-api-bridge-base} module.
  */
 @Internal
 public interface ExecutorFactory extends Factory {
