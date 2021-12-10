@@ -20,26 +20,37 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
+import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -68,6 +79,77 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
                 serviceProcess.getResultFuture().join().getInitializationFailure();
         assertThat(initializationFailure, containsCause(JobInitializationException.class));
         assertThat(initializationFailure, containsCause(originalCause));
+    }
+
+    @Test
+    public void testInitializationFailureSetsFailureInfoProperly()
+            throws ExecutionException, InterruptedException {
+        final CompletableFuture<JobMasterService> jobMasterServiceFuture =
+                new CompletableFuture<>();
+        DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
+        final RuntimeException originalCause = new RuntimeException("Expected RuntimeException");
+
+        long beforeFailureTimestamp = System.currentTimeMillis();
+        jobMasterServiceFuture.completeExceptionally(originalCause);
+        long afterFailureTimestamp = System.currentTimeMillis();
+
+        final JobManagerRunnerResult result = serviceProcess.getResultFuture().get();
+        final ErrorInfo executionGraphFailure =
+                result.getExecutionGraphInfo().getArchivedExecutionGraph().getFailureInfo();
+
+        assertThat(executionGraphFailure, is(notNullValue()));
+        assertInitializationException(
+                executionGraphFailure.getException(),
+                originalCause,
+                executionGraphFailure.getTimestamp(),
+                beforeFailureTimestamp,
+                afterFailureTimestamp);
+    }
+
+    @Test
+    public void testInitializationFailureSetsExceptionHistoryProperly()
+            throws ExecutionException, InterruptedException {
+        final CompletableFuture<JobMasterService> jobMasterServiceFuture =
+                new CompletableFuture<>();
+        DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
+        final RuntimeException originalCause = new RuntimeException("Expected RuntimeException");
+
+        long beforeFailureTimestamp = System.currentTimeMillis();
+        jobMasterServiceFuture.completeExceptionally(originalCause);
+        long afterFailureTimestamp = System.currentTimeMillis();
+
+        final RootExceptionHistoryEntry entry =
+                Iterables.getOnlyElement(
+                        serviceProcess
+                                .getResultFuture()
+                                .get()
+                                .getExecutionGraphInfo()
+                                .getExceptionHistory());
+
+        assertInitializationException(
+                entry.getException(),
+                originalCause,
+                entry.getTimestamp(),
+                beforeFailureTimestamp,
+                afterFailureTimestamp);
+        assertThat(entry.isGlobal(), is(true));
+    }
+
+    private static void assertInitializationException(
+            SerializedThrowable actualException,
+            Throwable expectedCause,
+            long actualTimestamp,
+            long expectedLowerTimestampThreshold,
+            long expectedUpperTimestampThreshold) {
+        final Throwable deserializedException =
+                actualException.deserializeError(Thread.currentThread().getContextClassLoader());
+
+        assertThat(
+                deserializedException, CoreMatchers.instanceOf(JobInitializationException.class));
+        assertThat(deserializedException, FlinkMatchers.containsCause(expectedCause));
+
+        assertThat(actualTimestamp, greaterThanOrEqualTo(expectedLowerTimestampThreshold));
+        assertThat(actualTimestamp, lessThanOrEqualTo(expectedUpperTimestampThreshold));
     }
 
     @Test
