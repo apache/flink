@@ -27,7 +27,6 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
-import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -644,11 +643,10 @@ public class LogicalTypesTest {
 
     @Test
     public void testSymbolType() {
-        final SymbolType<?> symbolType = new SymbolType<>(TimeIntervalUnit.class);
+        final SymbolType<?> symbolType = new SymbolType<>();
 
         assertThat(symbolType)
-                .satisfies(nonEqualityCheckWithOtherType(new SymbolType<>(TimePointUnit.class)))
-                .hasSummaryString("SYMBOL('" + TimeIntervalUnit.class.getName() + "')")
+                .hasSummaryString("SYMBOL")
                 .satisfies(LogicalTypesTest::nullability)
                 .isJavaSerializable()
                 .satisfies(

@@ -99,8 +99,7 @@ public class ClassDataTypeConverterTest {
                     },
                     {
                         TimeIntervalUnit.class,
-                        new AtomicDataType(new SymbolType<>(TimeIntervalUnit.class))
-                                .bridgedTo(TimeIntervalUnit.class)
+                        new AtomicDataType(new SymbolType<>()).bridgedTo(TimeIntervalUnit.class)
                     },
                     {Row.class, null}
                 });

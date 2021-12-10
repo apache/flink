@@ -599,10 +599,8 @@ object FlinkTypeFactory {
       case NULL =>
         new NullType()
 
-      // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
-      // are represented as Enum
-      case SYMBOL => new TypeInformationRawType[Enum[_]](
-        TypeExtractor.createTypeInfo(classOf[Enum[_]]))
+      case SYMBOL =>
+        new SymbolType()
 
       // extract encapsulated Type
       case ANY if relDataType.isInstanceOf[GenericRelDataType] =>
