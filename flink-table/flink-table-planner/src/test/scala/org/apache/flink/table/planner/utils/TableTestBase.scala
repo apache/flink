@@ -50,7 +50,7 @@ import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOper
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.planner.operations.{LegacyDataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
+import org.apache.flink.table.planner.operations.{InternalDataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
@@ -1619,7 +1619,7 @@ object TableTestUtil {
     }).getOrElse(FieldInfoUtils.getFieldsInfo(streamType))
 
     val fieldCnt = typeInfoSchema.getFieldTypes.length
-    val dataStreamQueryOperation = new LegacyDataStreamQueryOperation(
+    val dataStreamQueryOperation = new InternalDataStreamQueryOperation(
       ObjectIdentifier.of(tEnv.getCurrentCatalog, tEnv.getCurrentDatabase, name),
       dataStream,
       typeInfoSchema.getIndices,

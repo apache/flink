@@ -41,6 +41,7 @@ import java.util.Optional;
  * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
+@Deprecated
 public class DataStreamQueryOperation<E> implements QueryOperation {
 
     /**
