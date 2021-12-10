@@ -926,7 +926,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
         dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
 
-        // run second job, which stays in FINISHED
+        // run second job, which stays in RUNNING
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
         assertOnlyContainsSingleJobWithState(
