@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
@@ -110,9 +111,11 @@ public class BlobUtils {
      * @throws IOException if we could not create the blob storage directory
      */
     public static BlobServer createBlobServer(
-            Configuration configuration, File fallbackStorageDirectory, BlobStore blobStore)
+            Configuration configuration,
+            Reference<File> fallbackStorageDirectory,
+            BlobStore blobStore)
             throws IOException {
-        final File storageDirectory =
+        final Reference<File> storageDirectory =
                 createBlobStorageDirectory(configuration, fallbackStorageDirectory);
         return new BlobServer(configuration, storageDirectory, blobStore);
     }
@@ -130,27 +133,27 @@ public class BlobUtils {
      */
     public static BlobCacheService createBlobCacheService(
             Configuration configuration,
-            File fallbackStorageDirectory,
+            Reference<File> fallbackStorageDirectory,
             BlobView blobView,
             @Nullable InetSocketAddress serverAddress)
             throws IOException {
-        final File storageDirectory =
+        final Reference<File> storageDirectory =
                 createBlobStorageDirectory(configuration, fallbackStorageDirectory);
         return new BlobCacheService(configuration, storageDirectory, blobView, serverAddress);
     }
 
-    static File createBlobStorageDirectory(
-            Configuration configuration, @Nullable File fallbackStorageDirectory)
+    static Reference<File> createBlobStorageDirectory(
+            Configuration configuration, @Nullable Reference<File> fallbackStorageDirectory)
             throws IOException {
         final String basePath = configuration.getString(BlobServerOptions.STORAGE_DIRECTORY);
 
         File baseDir = null;
         if (StringUtils.isNullOrWhitespaceOnly(basePath)) {
             if (fallbackStorageDirectory != null) {
-                baseDir = fallbackStorageDirectory;
+                baseDir = fallbackStorageDirectory.deref();
 
                 if (baseDir.mkdirs() || baseDir.exists()) {
-                    return baseDir;
+                    return fallbackStorageDirectory;
                 }
             }
         } else {
@@ -166,7 +169,7 @@ public class BlobUtils {
                 // Create the storage dir if it doesn't exist. Only return it when the operation was
                 // successful.
                 if (storageDir.mkdirs()) {
-                    return storageDir;
+                    return Reference.owned(storageDir);
                 }
             }
         }

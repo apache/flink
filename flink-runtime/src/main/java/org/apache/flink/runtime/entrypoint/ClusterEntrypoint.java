@@ -71,6 +71,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -345,7 +346,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             blobServer =
                     BlobUtils.createBlobServer(
                             configuration,
-                            workingDirectory.getBlobStorageDirectory(),
+                            Reference.borrowed(workingDirectory.getBlobStorageDirectory()),
                             haServices.createBlobStore());
             blobServer.start();
             heartbeatServices = createHeartbeatServices(configuration);

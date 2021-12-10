@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Reference;
 
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +61,14 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
     /** Timer task to execute the cleanup at regular intervals. */
     private final Timer cleanupTimer;
 
+    @VisibleForTesting
+    public TransientBlobCache(
+            final Configuration blobClientConfig,
+            final File storageDir,
+            @Nullable final InetSocketAddress serverAddress) {
+        this(blobClientConfig, Reference.owned(storageDir), serverAddress);
+    }
+
     /**
      * Instantiates a new BLOB cache.
      *
@@ -72,7 +81,7 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
      */
     public TransientBlobCache(
             final Configuration blobClientConfig,
-            final File storageDir,
+            final Reference<File> storageDir,
             @Nullable final InetSocketAddress serverAddress) {
 
         super(
@@ -88,7 +97,7 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
         this.cleanupInterval = blobClientConfig.getLong(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
         this.cleanupTimer.schedule(
                 new TransientBlobCleanupTask(
-                        blobExpiryTimes, readWriteLock.writeLock(), storageDir, log),
+                        blobExpiryTimes, readWriteLock.writeLock(), storageDir.deref(), log),
                 cleanupInterval,
                 cleanupInterval);
     }
@@ -175,7 +184,8 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
     private boolean deleteInternal(@Nullable JobID jobId, TransientBlobKey key) {
         final File localFile =
                 new File(
-                        BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
+                        BlobUtils.getStorageLocationPath(
+                                storageDir.deref().getAbsolutePath(), jobId, key));
 
         readWriteLock.writeLock().lock();
         try {
@@ -215,7 +225,7 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
      */
     @VisibleForTesting
     public File getStorageLocation(@Nullable JobID jobId, BlobKey key) throws IOException {
-        return BlobUtils.getStorageLocation(storageDir, jobId, key);
+        return BlobUtils.getStorageLocation(storageDir.deref(), jobId, key);
     }
 
     private BlobClient createClient() throws IOException {

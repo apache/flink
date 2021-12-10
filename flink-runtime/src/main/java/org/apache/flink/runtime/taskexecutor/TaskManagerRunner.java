@@ -73,6 +73,7 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TaskManagerExceptionUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -192,7 +193,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
         blobCacheService =
                 BlobUtils.createBlobCacheService(
                         configuration,
-                        workingDirectory.getBlobStorageDirectory(),
+                        Reference.borrowed(workingDirectory.getBlobStorageDirectory()),
                         highAvailabilityServices.createBlobStore(),
                         null);
 

@@ -93,6 +93,7 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
@@ -379,7 +380,7 @@ public class MiniCluster implements AutoCloseableAsync {
                 blobServer =
                         BlobUtils.createBlobServer(
                                 configuration,
-                                workingDirectory.getBlobStorageDirectory(),
+                                Reference.borrowed(workingDirectory.getBlobStorageDirectory()),
                                 haServices.createBlobStore());
                 blobServer.start();
 
@@ -388,7 +389,7 @@ public class MiniCluster implements AutoCloseableAsync {
                 blobCacheService =
                         BlobUtils.createBlobCacheService(
                                 configuration,
-                                workingDirectory.getBlobStorageDirectory(),
+                                Reference.borrowed(workingDirectory.getBlobStorageDirectory()),
                                 haServices.createBlobStore(),
                                 new InetSocketAddress(
                                         InetAddress.getLocalHost(), blobServer.getPort()));

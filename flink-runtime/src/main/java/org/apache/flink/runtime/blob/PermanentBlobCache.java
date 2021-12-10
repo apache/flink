@@ -25,6 +25,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Reference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +83,30 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
 
     private final BlobCacheSizeTracker blobCacheSizeTracker;
 
+    @VisibleForTesting
+    public PermanentBlobCache(
+            final Configuration blobClientConfig,
+            final File storageDir,
+            final BlobView blobView,
+            @Nullable final InetSocketAddress serverAddress) {
+        this(blobClientConfig, Reference.owned(storageDir), blobView, serverAddress);
+    }
+
+    @VisibleForTesting
+    public PermanentBlobCache(
+            final Configuration blobClientConfig,
+            final File storageDir,
+            final BlobView blobView,
+            @Nullable final InetSocketAddress serverAddress,
+            BlobCacheSizeTracker blobCacheSizeTracker) {
+        this(
+                blobClientConfig,
+                Reference.owned(storageDir),
+                blobView,
+                serverAddress,
+                blobCacheSizeTracker);
+    }
+
     /**
      * Instantiates a new cache for permanent BLOBs which are also available in an HA store.
      *
@@ -95,7 +120,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
      */
     public PermanentBlobCache(
             final Configuration blobClientConfig,
-            final File storageDir,
+            final Reference<File> storageDir,
             final BlobView blobView,
             @Nullable final InetSocketAddress serverAddress) {
         this(
@@ -109,7 +134,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
     @VisibleForTesting
     public PermanentBlobCache(
             final Configuration blobClientConfig,
-            final File storageDir,
+            final Reference<File> storageDir,
             final BlobView blobView,
             @Nullable final InetSocketAddress serverAddress,
             BlobCacheSizeTracker blobCacheSizeTracker) {
@@ -237,7 +262,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
         checkNotNull(jobId);
         checkNotNull(blobKey);
 
-        final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
+        final File localFile = BlobUtils.getStorageLocation(storageDir.deref(), jobId, blobKey);
         readWriteLock.readLock().lock();
 
         try {
@@ -340,7 +365,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
         final File localFile =
                 new File(
                         BlobUtils.getStorageLocationPath(
-                                storageDir.getAbsolutePath(), jobId, blobKey));
+                                storageDir.deref().getAbsolutePath(), jobId, blobKey));
         if (!localFile.delete() && localFile.exists()) {
             log.warn(
                     "Failed to delete locally cached BLOB {} at {}",
@@ -362,7 +387,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
     @VisibleForTesting
     public File getStorageLocation(JobID jobId, BlobKey key) throws IOException {
         checkNotNull(jobId);
-        return BlobUtils.getStorageLocation(storageDir, jobId, key);
+        return BlobUtils.getStorageLocation(storageDir.deref(), jobId, key);
     }
 
     /**
@@ -400,7 +425,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
                         final File localFile =
                                 new File(
                                         BlobUtils.getStorageLocationPath(
-                                                storageDir.getAbsolutePath(), jobId));
+                                                storageDir.deref().getAbsolutePath(), jobId));
 
                         /*
                          * NOTE: normally it is not required to acquire the write lock to delete the job's

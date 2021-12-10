@@ -21,6 +21,7 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.util.Reference;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,7 +51,7 @@ public class BlobUtilsTest {
         config.setString(BlobServerOptions.STORAGE_DIRECTORY, blobStorageDir);
         config.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
-        File dir = BlobUtils.createBlobStorageDirectory(config, null);
+        File dir = BlobUtils.createBlobStorageDirectory(config, null).deref();
         assertThat(dir.getAbsolutePath(), startsWith(blobStorageDir));
     }
 
@@ -60,7 +61,9 @@ public class BlobUtilsTest {
         Configuration config = new Configuration();
         final File fallbackDirectory = new File(temporaryFolder.newFolder(), "foobar");
 
-        File dir = BlobUtils.createBlobStorageDirectory(config, fallbackDirectory);
+        File dir =
+                BlobUtils.createBlobStorageDirectory(config, Reference.borrowed(fallbackDirectory))
+                        .deref();
         assertThat(dir, is(equalTo(fallbackDirectory)));
     }
 

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Reference;
 
 import javax.annotation.Nullable;
 
@@ -37,6 +38,14 @@ public class BlobCacheService implements TaskExecutorBlobService {
     /** Store for transient BLOB files. */
     private final TransientBlobCache transientBlobCache;
 
+    public BlobCacheService(
+            final Configuration blobClientConfig,
+            final File storageDir,
+            final BlobView blobView,
+            @Nullable final InetSocketAddress serverAddress) {
+        this(blobClientConfig, Reference.owned(storageDir), blobView, serverAddress);
+    }
+
     /**
      * Instantiates a new BLOB cache.
      *
@@ -50,7 +59,7 @@ public class BlobCacheService implements TaskExecutorBlobService {
      */
     public BlobCacheService(
             final Configuration blobClientConfig,
-            final File storageDir,
+            final Reference<File> storageDir,
             final BlobView blobView,
             @Nullable final InetSocketAddress serverAddress) {
 
