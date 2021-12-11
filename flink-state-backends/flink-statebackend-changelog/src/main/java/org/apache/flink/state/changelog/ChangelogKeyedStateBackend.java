@@ -645,6 +645,8 @@ public class ChangelogKeyedStateBackend<K>
         changelogSnapshotState =
                 new ChangelogSnapshotState(
                         getMaterializedResult(materializedSnapshot), Collections.emptyList(), upTo);
+
+        stateChangelogWriter.truncate(upTo);
     }
 
     // TODO: this method may change after the ownership PR
@@ -781,5 +783,10 @@ public class ChangelogKeyedStateBackend<K>
         public List<ChangelogStateHandle> getRestoredNonMaterialized() {
             return restoredNonMaterialized;
         }
+    }
+
+    @VisibleForTesting
+    StateChangelogWriter<ChangelogStateHandle> getChangelogWriter() {
+        return stateChangelogWriter;
     }
 }

@@ -317,6 +317,11 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         return activeSequenceNumber;
     }
 
+    @VisibleForTesting
+    public SequenceNumber getLowestSequenceNumber() {
+        return lowestSequenceNumber;
+    }
+
     private void ensureCanPersist(SequenceNumber from) throws IOException {
         checkNotNull(from);
         if (highestFailed != null && highestFailed.f0.compareTo(from) >= 0) {

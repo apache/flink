@@ -51,6 +51,9 @@ import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
+import org.apache.flink.runtime.state.changelog.SequenceNumber;
+import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.testutils.statemigration.TestType;
 import org.apache.flink.util.CloseableIterator;
@@ -173,11 +176,7 @@ public class ChangelogStateBackendTestUtils {
             keyedBackend.setCurrentKey(2);
             state.update(new StateBackendTestBase.TestPojo("u2", 2));
 
-            // In this test, every materialization is triggered explicitly by calling
-            // triggerMaterialization.
-            // Automatic/periodic triggering is disabled by NOT starting the
-            // periodicMaterializationManager
-            periodicMaterializationManager.triggerMaterialization();
+            materialize(keyedBackend, periodicMaterializationManager);
 
             keyedBackend.setCurrentKey(2);
             state.update(new StateBackendTestBase.TestPojo("u2", 22));
@@ -185,7 +184,7 @@ public class ChangelogStateBackendTestUtils {
             keyedBackend.setCurrentKey(3);
             state.update(new StateBackendTestBase.TestPojo("u3", 3));
 
-            periodicMaterializationManager.triggerMaterialization();
+            materialize(keyedBackend, periodicMaterializationManager);
 
             keyedBackend.setCurrentKey(4);
             state.update(new StateBackendTestBase.TestPojo("u4", 4));
@@ -237,6 +236,24 @@ public class ChangelogStateBackendTestUtils {
         }
     }
 
+    /**
+     * Explicitly trigger materialization. Materialization is expected to complete before returning
+     * from this method by the use of direct executor when constructing materializer.
+     * Automatic/periodic triggering is disabled by NOT starting the periodicMaterializationManager.
+     *
+     * <p>Additionally, verify changelog truncation happened upon completion.
+     */
+    private static void materialize(
+            ChangelogKeyedStateBackend<Integer> keyedBackend,
+            PeriodicMaterializationManager periodicMaterializationManager) {
+        StateChangelogWriter<ChangelogStateHandle> writer = keyedBackend.getChangelogWriter();
+        SequenceNumber sqnBefore = writer.lastAppendedSequenceNumber();
+        periodicMaterializationManager.triggerMaterialization();
+        assertTrue(
+                "Materialization didn't truncate the changelog",
+                sqnBefore.compareTo(writer.getLowestSequenceNumber()) <= 0);
+    }
+
     public static void testMaterializedRestoreForPriorityQueue(
             StateBackend stateBackend, Environment env, CheckpointStreamFactory streamFactory)
             throws Exception {
@@ -269,12 +286,12 @@ public class ChangelogStateBackendTestUtils {
 
             assertThat(actualList, containsInAnyOrder(elementA100, elementA10, elementA20));
 
-            periodicMaterializationManager.triggerMaterialization();
+            materialize(keyedBackend, periodicMaterializationManager);
 
             TestType elementB9 = new TestType("b", 9);
             assertTrue(priorityQueue.add(elementB9));
 
-            periodicMaterializationManager.triggerMaterialization();
+            materialize(keyedBackend, periodicMaterializationManager);
 
             TestType elementC9 = new TestType("c", 9);
             TestType elementC8 = new TestType("c", 8);
