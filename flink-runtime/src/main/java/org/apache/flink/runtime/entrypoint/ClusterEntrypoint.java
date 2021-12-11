@@ -175,6 +175,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         return terminationFuture;
     }
 
+    /**
+     * 启动集群
+     * @throws ClusterEntrypointException 启动类
+     */
     public void startCluster() throws ClusterEntrypointException {
         LOG.info("Starting {}.", getClass().getSimpleName());
 
@@ -190,6 +194,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             securityContext.runSecured(
                     (Callable<Void>)
                             () -> {
+                                // todo  核心启动方法
                                 runCluster(configuration, pluginManager);
 
                                 return null;
@@ -237,9 +242,16 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         return SecurityUtils.getInstalledContext();
     }
 
+    /**
+     * 启动方法
+     * @param configuration 配置
+     * @param pluginManager 启动管理
+     * @throws Exception
+     */
     private void runCluster(Configuration configuration, PluginManager pluginManager)
             throws Exception {
         synchronized (lock) {
+            // todo  初始化服务
             initializeServices(configuration, pluginManager);
 
             // write host information into configuration
@@ -250,6 +262,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                     dispatcherResourceManagerComponentFactory =
                             createDispatcherResourceManagerComponentFactory(configuration);
 
+            // TODO 创建dispatch，ResourceManager 对象的工厂类
             clusterComponent =
                     dispatcherResourceManagerComponentFactory.create(
                             configuration,
@@ -296,6 +309,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         synchronized (lock) {
             rpcSystem = RpcSystem.load(configuration);
 
+            // todo RPC服务
             commonRpcService =
                     RpcUtils.createRemoteRpcService(
                             rpcSystem,
@@ -614,6 +628,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
         final String clusterEntrypointName = clusterEntrypoint.getClass().getSimpleName();
         try {
+            //  TODO  启动集群
             clusterEntrypoint.startCluster();
         } catch (ClusterEntrypointException e) {
             LOG.error(

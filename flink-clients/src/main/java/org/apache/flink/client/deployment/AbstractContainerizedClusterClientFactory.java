@@ -35,6 +35,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class AbstractContainerizedClusterClientFactory<ClusterID>
         implements ClusterClientFactory<ClusterID> {
 
+    /**
+     * 获取集群的配置参数
+     * @param configuration containing the configuration options relevant for the {@link
+     *     ClusterSpecification}
+     * @return
+     */
     @Override
     public ClusterSpecification getClusterSpecification(Configuration configuration) {
         checkNotNull(configuration);

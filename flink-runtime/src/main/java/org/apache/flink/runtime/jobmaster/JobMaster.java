@@ -382,6 +382,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     // ----------------------------------------------------------------------------------------------
     // Lifecycle management
+    // todo 什么周期管理
     // ----------------------------------------------------------------------------------------------
 
     @Override

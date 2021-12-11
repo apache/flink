@@ -74,6 +74,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
     @Override
     public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+        // todo 流图执行 转化为  job 图
         final JobClient jobClient = executeAsync(streamGraph);
         final List<JobListener> jobListeners = getJobListeners();
 

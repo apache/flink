@@ -1946,6 +1946,7 @@ public class StreamExecutionEnvironment {
      *
      * @return The result of the job execution, containing elapsed time and accumulators.
      * @throws Exception which occurs during job execution.
+     * todo 执行用户的代码入口
      */
     public JobExecutionResult execute() throws Exception {
         return execute(getStreamGraph());
@@ -2091,6 +2092,7 @@ public class StreamExecutionEnvironment {
                 "Cannot find compatible factory for specified execution.target (=%s)",
                 configuration.get(DeploymentOptions.TARGET));
 
+        // todo 执行job 操作, 内部调用 AbstractJobClusterExecutor的 execute 方法
         CompletableFuture<JobClient> jobClientFuture =
                 executorFactory
                         .getExecutor(configuration)

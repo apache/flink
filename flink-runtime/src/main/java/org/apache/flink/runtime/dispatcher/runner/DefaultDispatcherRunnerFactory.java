@@ -40,6 +40,17 @@ public class DefaultDispatcherRunnerFactory implements DispatcherRunnerFactory {
         this.dispatcherLeaderProcessFactoryFactory = dispatcherLeaderProcessFactoryFactory;
     }
 
+    /**
+     * dispatcherRunner
+     * @param leaderElectionService leader选取服务
+     * @param fatalErrorHandler
+     * @param jobGraphStoreFactory
+     * @param ioExecutor
+     * @param rpcService rpc服务
+     * @param partialDispatcherServices
+     * @return
+     * @throws Exception
+     */
     @Override
     public DispatcherRunner createDispatcherRunner(
             LeaderElectionService leaderElectionService,

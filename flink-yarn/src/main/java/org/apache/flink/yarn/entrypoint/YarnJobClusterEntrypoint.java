@@ -62,6 +62,7 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
     // ------------------------------------------------------------------------
     //  The executable entry point for the Yarn Application Master Process
     //  for a single Flink job.
+    // TODO  flink YARN PRE JOB
     // ------------------------------------------------------------------------
 
     public static void main(String[] args) {
@@ -96,6 +97,7 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
         YarnJobClusterEntrypoint yarnJobClusterEntrypoint =
                 new YarnJobClusterEntrypoint(configuration);
 
+        //todo 启动任务类
         ClusterEntrypoint.runClusterEntrypoint(yarnJobClusterEntrypoint);
     }
 }

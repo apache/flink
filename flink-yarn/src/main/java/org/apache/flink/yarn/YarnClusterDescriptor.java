@@ -467,6 +467,16 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
     }
 
+    /**
+     * YarnJobClusterEntrypoint  yarn 集群的入口类
+     * @param clusterSpecification Initial cluster specification with which the Flink cluster is
+     *     launched
+     * @param jobGraph JobGraph with which the job cluster is started
+     * @param detached true if the cluster should be stopped after the job completion without
+     *     serving the result, otherwise false
+     * @return
+     * @throws ClusterDeploymentException
+     */
     @Override
     public ClusterClientProvider<ApplicationId> deployJobCluster(
             ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached)
@@ -603,6 +613,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         flinkConfiguration.setString(
                 ClusterEntrypoint.INTERNAL_CLUSTER_EXECUTION_MODE, executionMode.toString());
 
+        // TODO 启动appMaster
         ApplicationReport report =
                 startAppMaster(
                         flinkConfiguration,
@@ -763,6 +774,18 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
     }
 
+    /**
+     * 启动 应用
+     * @param configuration 配置
+     * @param applicationName 应用名
+     * @param yarnClusterEntrypoint yarnCluster 配置 yarn启动类
+     * @param jobGraph 作业图
+     * @param yarnClient yarn 客户端
+     * @param yarnApplication yarn 应用信息
+     * @param clusterSpecification 集群配置
+     * @return
+     * @throws Exception
+     */
     private ApplicationReport startAppMaster(
             Configuration configuration,
             String applicationName,
@@ -791,14 +814,16 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                             + "specified Hadoop configuration path is wrong and the system is using the default Hadoop configuration values."
                             + "The Flink YARN client needs to store its files in a distributed file system");
         }
-
+        // todo app上下文
         ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
         final List<Path> providedLibDirs =
                 Utils.getQualifiedRemoteSharedPaths(configuration, yarnConfiguration);
 
+        // todo 提交作业的时候，会把相关的jar包和配置信息都上传到这个staging目录下，然后在启动executor之前，会从这里将这些信息下载到计算节点本地
         Path stagingDirPath = getStagingDir(fs);
         FileSystem stagingDirFs = stagingDirPath.getFileSystem(yarnConfiguration);
+        // todo  文件上传器
         final YarnApplicationFileUploader fileUploader =
                 YarnApplicationFileUploader.from(
                         stagingDirFs,
@@ -840,6 +865,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     configuration.getInteger(YarnConfigOptions.APPLICATION_ATTEMPTS.key(), 1));
         }
 
+        // todo 上传用户的jar 包
         final Set<Path> userJarFiles = new HashSet<>();
         if (jobGraph != null) {
             userJarFiles.addAll(
@@ -849,6 +875,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                             .collect(Collectors.toSet()));
         }
 
+        // todo 上传用户 UDF jar
         final List<URI> jarUrls =
                 ConfigUtils.decodeListFromConfig(configuration, PipelineOptions.JARS, URI::create);
         if (jarUrls != null
@@ -1191,6 +1218,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         Thread deploymentFailureHook =
                 new DeploymentFailureHook(yarnApplication, fileUploader.getApplicationDir());
         Runtime.getRuntime().addShutdownHook(deploymentFailureHook);
+        // todo  提交yarn 作业， 集群上提交作业
         LOG.info("Submitting application master " + appId);
         yarnClient.submitApplication(appContext);
 
@@ -1246,9 +1274,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     }
 
     /**
+     * todo 提交作业的时候，会把相关的jar包和配置信息都上传到这个staging目录下，然后在启动executor之前，会从这里将这些信息下载到计算节点本地
      * Returns the configured remote target home directory if set, otherwise returns the default
      * home directory.
-     *
      * @param defaultFileSystem default file system used
      * @return the remote target home directory
      */
@@ -1691,6 +1719,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         pluginsDir.ifPresent(effectiveShipFiles::add);
     }
 
+    /**
+     *
+     * @param yarnClusterEntrypoint 启动类
+     * @param hasKrb5 krb配置
+     * @param processSpec
+     * @return
+     */
     ContainerLaunchContext setupApplicationMasterContainer(
             String yarnClusterEntrypoint, boolean hasKrb5, JobManagerProcessSpec processSpec) {
         // ------------------ Prepare Application Master Container  ------------------------------

@@ -125,6 +125,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
             resourceManagerRetrievalService =
                     highAvailabilityServices.getResourceManagerLeaderRetriever();
 
+            // todo  dispatchGateway
             final LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever =
                     new RpcGatewayRetriever<>(
                             rpcService,
@@ -132,7 +133,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             DispatcherId::fromUuid,
                             new ExponentialBackoffRetryStrategy(
                                     12, Duration.ofMillis(10), Duration.ofMillis(50)));
-
+            // todo  resourceManagerGateway
             final LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever =
                     new RpcGatewayRetriever<>(
                             rpcService,
@@ -174,6 +175,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
 
             final String hostname = RpcUtils.getHostname(rpcService);
 
+            // todo 创建resourceManager
             resourceManagerService =
                     ResourceManagerServiceImpl.create(
                             resourceManagerFactory,
@@ -213,6 +215,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             ioExecutor,
                             dispatcherOperationCaches);
 
+            // todo 启动dispatcher
             log.debug("Starting Dispatcher.");
             dispatcherRunner =
                     dispatcherRunnerFactory.createDispatcherRunner(
@@ -223,6 +226,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             rpcService,
                             partialDispatcherServices);
 
+            // todo 启动resourceManagerService
             log.debug("Starting ResourceManagerService.");
             resourceManagerService.start();
 

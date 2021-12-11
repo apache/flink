@@ -955,6 +955,7 @@ public class ExecutionEnvironment {
      * @throws Exception Thrown, if the program executions fails.
      */
     public JobExecutionResult execute(String jobName) throws Exception {
+        // todo 异步执行任务
         final JobClient jobClient = executeAsync(jobName);
 
         try {

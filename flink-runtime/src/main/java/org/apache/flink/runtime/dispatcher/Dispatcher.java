@@ -216,6 +216,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     @Override
     public void onStart() throws Exception {
         try {
+            // todo  启动dispatcher 服务
             startDispatcherServices();
         } catch (Throwable t) {
             final DispatcherException exception =
@@ -224,7 +225,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             onFatalError(exception);
             throw exception;
         }
-
+        // todo 启动JobMaster
         startRecoveredJobs();
         this.dispatcherBootstrap =
                 this.dispatcherBootstrapFactory.create(
@@ -242,12 +243,17 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     private void startRecoveredJobs() {
+        // todo 遍历恢复job 列表
         for (JobGraph recoveredJob : recoveredJobs) {
             runRecoveredJob(recoveredJob);
         }
         recoveredJobs.clear();
     }
 
+    /**
+     * 启动job
+     * @param recoveredJob 恢复job
+     */
     private void runRecoveredJob(final JobGraph recoveredJob) {
         checkNotNull(recoveredJob);
         try {
@@ -415,9 +421,16 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         runJob(jobGraph, ExecutionType.SUBMISSION);
     }
 
+    /**
+     * 启动job
+     * @param jobGraph job图
+     * @param executionType 执行方式 提交 恢复
+     * @throws Exception
+     */
     private void runJob(JobGraph jobGraph, ExecutionType executionType) throws Exception {
         Preconditions.checkState(!runningJobs.containsKey(jobGraph.getJobID()));
         long initializationTimestamp = System.currentTimeMillis();
+        //todo 创建jobManagerRunner
         JobManagerRunner jobManagerRunner =
                 createJobManagerRunner(jobGraph, initializationTimestamp);
 
@@ -487,6 +500,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     JobManagerRunner createJobManagerRunner(JobGraph jobGraph, long initializationTimestamp)
             throws Exception {
+        // todo 启动rpc服务
         final RpcService rpcService = getRpcService();
 
         JobManagerRunner runner =

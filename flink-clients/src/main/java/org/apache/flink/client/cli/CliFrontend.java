@@ -244,6 +244,7 @@ public class CliFrontend {
 
         LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
 
+        // todo PackagedProgram 生成一个
         try (PackagedProgram program = getPackagedProgram(programOptions, effectiveConfiguration)) {
             executeProgram(effectiveConfiguration, program);
         }
@@ -818,7 +819,7 @@ public class CliFrontend {
      */
     protected void executeProgram(final Configuration configuration, final PackagedProgram program)
             throws ProgramInvocationException {
-        // todo
+        // todo client 执行程序中， 下一步  ExecutionEnvironment execute()
         ClientUtils.executeProgram(
                 new DefaultExecutorServiceLoader(), configuration, program, false, false);
     }
@@ -1141,6 +1142,7 @@ public class CliFrontend {
             final CliFrontend cli = new CliFrontend(configuration, customCommandLines);
 
             SecurityUtils.install(new SecurityConfiguration(cli.configuration));
+            // TODO cli.parseAndRun(args) 这里开始运行
             retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.parseAndRun(args));
         } catch (Throwable t) {
             final Throwable strippedThrowable =

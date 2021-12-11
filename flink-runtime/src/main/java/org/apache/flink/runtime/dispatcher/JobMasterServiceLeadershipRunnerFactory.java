@@ -45,7 +45,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /** Factory which creates a {@link JobMasterServiceLeadershipRunner}. */
 public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerFactory {
     INSTANCE;
-
     @Override
     public JobManagerRunner createJobManagerRunner(
             JobGraph jobGraph,
@@ -69,6 +68,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
         final LeaderElectionService jobManagerLeaderElectionService =
                 highAvailabilityServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
+        // todo SlotPoolService 处理
         final SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
                         configuration, jobGraph.getJobType());

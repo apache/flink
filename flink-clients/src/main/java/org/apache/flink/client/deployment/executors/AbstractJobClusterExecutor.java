@@ -67,16 +67,20 @@ public class AbstractJobClusterExecutor<
             @Nonnull final Configuration configuration,
             @Nonnull final ClassLoader userCodeClassloader)
             throws Exception {
+        // todo  作业流图转化为作业图
         final JobGraph jobGraph = PipelineExecutorUtils.getJobGraph(pipeline, configuration);
 
+        // TODO  ClusterDescriptor
         try (final ClusterDescriptor<ClusterID> clusterDescriptor =
                 clusterClientFactory.createClusterDescriptor(configuration)) {
             final ExecutionConfigAccessor configAccessor =
                     ExecutionConfigAccessor.fromConfiguration(configuration);
 
+            // todo ClusterSpecification 集群基本参数
             final ClusterSpecification clusterSpecification =
                     clusterClientFactory.getClusterSpecification(configuration);
 
+            // TODO 进行jobGraph 部署集群任务
             final ClusterClientProvider<ClusterID> clusterClientProvider =
                     clusterDescriptor.deployJobCluster(
                             clusterSpecification, jobGraph, configAccessor.getDetachedMode());

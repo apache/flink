@@ -109,13 +109,16 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
                             getClass().getSimpleName(),
                             leaderSessionID,
                             DispatcherLeaderProcess.class.getSimpleName());
+                    // todo 开启一个新的 dispatcher 线程
                     startNewDispatcherLeaderProcess(leaderSessionID);
                 });
     }
 
     private void startNewDispatcherLeaderProcess(UUID leaderSessionID) {
+        // todo  stop 老的dispatcherch 程序
         stopDispatcherLeaderProcess();
 
+        // 创建一个新的dispatcher 线程
         dispatcherLeaderProcess = createNewDispatcherLeaderProcess(leaderSessionID);
 
         final DispatcherLeaderProcess newDispatcherLeaderProcess = dispatcherLeaderProcess;

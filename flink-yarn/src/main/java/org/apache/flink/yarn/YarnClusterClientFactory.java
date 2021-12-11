@@ -55,6 +55,7 @@ public class YarnClusterClientFactory
     public YarnClusterDescriptor createClusterDescriptor(Configuration configuration) {
         checkNotNull(configuration);
 
+        // todo 获取配置目录
         final String configurationDirectory = configuration.get(DeploymentOptionsInternal.CONF_DIR);
         YarnLogConfigUtil.setLogConfigFileInConfig(configuration, configurationDirectory);
 
@@ -74,7 +75,13 @@ public class YarnClusterClientFactory
         return Optional.of(YarnDeploymentTarget.APPLICATION.getName());
     }
 
+    /**
+     *  创建yarnClient 启动客户端
+     * @param configuration 配置
+     * @return 集群配置
+     */
     private YarnClusterDescriptor getClusterDescriptor(Configuration configuration) {
+        // todo 创建yarn  client 与 yarn 进行交互
         final YarnClient yarnClient = YarnClient.createYarnClient();
         final YarnConfiguration yarnConfiguration =
                 Utils.getYarnAndHadoopConfiguration(configuration);
