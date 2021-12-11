@@ -23,7 +23,7 @@ import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbConstant;
-import org.apache.flink.formats.protobuf.PbFormatConfig;
+import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 
@@ -33,13 +33,13 @@ import com.google.protobuf.Descriptors;
 public class PbCodegenMapSerializer implements PbCodegenSerializer {
     private final Descriptors.FieldDescriptor fd;
     private final MapType mapType;
-    private final PbFormatConfig formatConfig;
+    private final PbFormatContext formatContext;
 
     public PbCodegenMapSerializer(
-            Descriptors.FieldDescriptor fd, MapType mapType, PbFormatConfig formatConfig) {
+            Descriptors.FieldDescriptor fd, MapType mapType, PbFormatContext formatContext) {
         this.fd = fd;
         this.mapType = mapType;
-        this.formatConfig = formatConfig;
+        this.formatContext = formatContext;
     }
 
     @Override
@@ -55,8 +55,10 @@ public class PbCodegenMapSerializer implements PbCodegenSerializer {
                 fd.getMessageType().findFieldByName(PbConstant.PB_MAP_VALUE_NAME);
 
         PbCodegenAppender appender = new PbCodegenAppender();
-        String keyProtoTypeStr = PbCodegenUtils.getTypeStrFromProto(keyFd, false);
-        String valueProtoTypeStr = PbCodegenUtils.getTypeStrFromProto(valueFd, false);
+        String keyProtoTypeStr =
+                PbCodegenUtils.getTypeStrFromProto(keyFd, false, formatContext.getOuterPrefix());
+        String valueProtoTypeStr =
+                PbCodegenUtils.getTypeStrFromProto(valueFd, false, formatContext.getOuterPrefix());
 
         String keyArrDataVar = "keyArrData" + uid;
         String valueArrDataVar = "valueArrData" + uid;
@@ -94,7 +96,7 @@ public class PbCodegenMapSerializer implements PbCodegenSerializer {
         // process key
         String keyGenCode =
                 PbCodegenUtils.generateArrElementCodeWithDefaultValue(
-                        keyArrDataVar, iVar, keyPbVar, keyDataVar, keyFd, keyType, formatConfig);
+                        keyArrDataVar, iVar, keyPbVar, keyDataVar, keyFd, keyType, formatContext);
         appender.appendSegment(keyGenCode);
 
         // process value
@@ -106,7 +108,7 @@ public class PbCodegenMapSerializer implements PbCodegenSerializer {
                         valueDataVar,
                         valueFd,
                         valueType,
-                        formatConfig);
+                        formatContext);
         appender.appendSegment(valueGenCode);
 
         appender.appendLine(pbMapVar + ".put(" + keyPbVar + ", " + valuePbVar + ")");

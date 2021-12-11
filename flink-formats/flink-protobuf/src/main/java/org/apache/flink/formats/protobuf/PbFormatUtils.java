@@ -21,10 +21,8 @@ package org.apache.flink.formats.protobuf;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import com.google.protobuf.Descriptors;
-import org.apache.commons.lang3.StringUtils;
 
 /** Protobuf function util. */
 public class PbFormatUtils {
@@ -54,68 +52,26 @@ public class PbFormatUtils {
         return result.toString();
     }
 
-    private static String getJavaPackageFromProtoFile(Descriptors.Descriptor descriptor) {
-        boolean hasJavaPackage = descriptor.getFile().getOptions().hasJavaPackage();
-        if (hasJavaPackage) {
-            String javaPackage = descriptor.getFile().getOptions().getJavaPackage();
-            if (StringUtils.isBlank(javaPackage)) {
-                throw new FlinkRuntimeException("java_package cannot be blank string");
-            }
-            return javaPackage;
+    public static String getFullJavaName(Descriptors.Descriptor descriptor, String outerProtoName) {
+        if (null != descriptor.getContainingType()) {
+            // nested type
+            String parentJavaFullName =
+                    getFullJavaName(descriptor.getContainingType(), outerProtoName);
+            return parentJavaFullName + "." + descriptor.getName();
         } else {
-            String packageName = descriptor.getFile().getPackage();
-            if (StringUtils.isBlank(packageName)) {
-                throw new FlinkRuntimeException("package and java_package cannot both be empty");
-            }
-            return packageName;
+            // top level message
+            return outerProtoName + descriptor.getName();
         }
     }
 
-    public static String getFullJavaName(Descriptors.Descriptor descriptor) {
-        String javaPackageName = getJavaPackageFromProtoFile(descriptor);
-        if (descriptor.getFile().getOptions().getJavaMultipleFiles()) {
-            // multiple_files=true
-            if (null != descriptor.getContainingType()) {
-                // nested type
-                String parentJavaFullName = getFullJavaName(descriptor.getContainingType());
-                return parentJavaFullName + "." + descriptor.getName();
-            } else {
-                // top level message
-                return javaPackageName + "." + descriptor.getName();
-            }
-        } else {
-            // multiple_files=false
-            if (null != descriptor.getContainingType()) {
-                // nested type
-                String parentJavaFullName = getFullJavaName(descriptor.getContainingType());
-                return parentJavaFullName + "." + descriptor.getName();
-            } else {
-                // top level message
-                if (!descriptor.getFile().getOptions().hasJavaOuterClassname()) {
-                    // user do not define outer class name in proto file
-                    return javaPackageName
-                            + "."
-                            + descriptor.getName()
-                            + PbConstant.PB_OUTER_CLASS_SUFFIX
-                            + "."
-                            + descriptor.getName();
-
-                } else {
-                    String outerName = descriptor.getFile().getOptions().getJavaOuterClassname();
-                    // user define outer class name in proto file
-                    return javaPackageName + "." + outerName + "." + descriptor.getName();
-                }
-            }
-        }
-    }
-
-    public static String getFullJavaName(Descriptors.EnumDescriptor enumDescriptor) {
+    public static String getFullJavaName(
+            Descriptors.EnumDescriptor enumDescriptor, String outerProtoName) {
         if (null != enumDescriptor.getContainingType()) {
-            return getFullJavaName(enumDescriptor.getContainingType())
+            return getFullJavaName(enumDescriptor.getContainingType(), outerProtoName)
                     + "."
                     + enumDescriptor.getName();
         } else {
-            return enumDescriptor.getFullName();
+            return outerProtoName + enumDescriptor.getName();
         }
     }
 
@@ -142,6 +98,17 @@ public class PbFormatUtils {
             return jsonName.toUpperCase();
         } else {
             return jsonName.substring(0, 1).toUpperCase() + jsonName.substring(1);
+        }
+    }
+
+    public static String getOuterProtoPrefix(String name) {
+        name = name.replace('$', '.');
+        int index = name.lastIndexOf('.');
+        if (index != -1) {
+            // include dot
+            return name.substring(0, index + 1);
+        } else {
+            return "";
         }
     }
 

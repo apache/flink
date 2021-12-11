@@ -22,7 +22,7 @@ import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
-import org.apache.flink.formats.protobuf.PbFormatConfig;
+import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -34,13 +34,13 @@ import com.google.protobuf.Descriptors;
 public class PbCodegenRowSerializer implements PbCodegenSerializer {
     private final Descriptors.Descriptor descriptor;
     private final RowType rowType;
-    private final PbFormatConfig formatConfig;
+    private final PbFormatContext formatContext;
 
     public PbCodegenRowSerializer(
-            Descriptors.Descriptor descriptor, RowType rowType, PbFormatConfig formatConfig) {
+            Descriptors.Descriptor descriptor, RowType rowType, PbFormatContext formatContext) {
         this.rowType = rowType;
         this.descriptor = descriptor;
-        this.formatConfig = formatConfig;
+        this.formatContext = formatContext;
     }
 
     @Override
@@ -50,7 +50,8 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
         int uid = varUid.getAndIncrement();
         PbCodegenAppender appender = new PbCodegenAppender();
         String rowDataVar = "rowData" + uid;
-        String pbMessageTypeStr = PbFormatUtils.getFullJavaName(descriptor);
+        String pbMessageTypeStr =
+                PbFormatUtils.getFullJavaName(descriptor, formatContext.getOuterPrefix());
         String messageBuilderVar = "messageBuilder" + uid;
         appender.appendLine("RowData " + rowDataVar + " = " + internalDataGetStr);
         appender.appendLine(
@@ -68,11 +69,15 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
             String elementPbVar = "elementPbVar" + subUid;
             String elementPbTypeStr;
             if (elementFd.isMapField()) {
-                elementPbTypeStr = PbCodegenUtils.getTypeStrFromProto(elementFd, false);
+                elementPbTypeStr =
+                        PbCodegenUtils.getTypeStrFromProto(
+                                elementFd, false, formatContext.getOuterPrefix());
             } else {
                 elementPbTypeStr =
                         PbCodegenUtils.getTypeStrFromProto(
-                                elementFd, PbFormatUtils.isArrayType(subType));
+                                elementFd,
+                                PbFormatUtils.isArrayType(subType),
+                                formatContext.getOuterPrefix());
             }
             String strongCamelFieldName = PbFormatUtils.getStrongCamelCaseJsonName(fieldName);
 
@@ -84,7 +89,7 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
                     PbCodegenUtils.getContainerDataFieldGetterCodePhrase(
                             rowDataVar, index + "", subType);
             PbCodegenSerializer codegen =
-                    PbCodegenSerializeFactory.getPbCodegenSer(elementFd, subType, formatConfig);
+                    PbCodegenSerializeFactory.getPbCodegenSer(elementFd, subType, formatContext);
             String code = codegen.codegen(elementPbVar, subRowGetCode);
             appender.appendSegment(code);
             if (subType.getTypeRoot() == LogicalTypeRoot.ARRAY) {

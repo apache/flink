@@ -23,7 +23,7 @@ import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbConstant;
-import org.apache.flink.formats.protobuf.PbFormatConfig;
+import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 
@@ -33,13 +33,13 @@ import com.google.protobuf.Descriptors;
 public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
     private final Descriptors.FieldDescriptor fd;
     private final MapType mapType;
-    private final PbFormatConfig formatConfig;
+    private final PbFormatContext formatContext;
 
     public PbCodegenMapDeserializer(
-            Descriptors.FieldDescriptor fd, MapType mapType, PbFormatConfig formatConfig) {
+            Descriptors.FieldDescriptor fd, MapType mapType, PbFormatContext formatContext) {
         this.fd = fd;
         this.mapType = mapType;
-        this.formatConfig = formatConfig;
+        this.formatContext = formatContext;
     }
 
     @Override
@@ -58,8 +58,10 @@ public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
                 fd.getMessageType().findFieldByName(PbConstant.PB_MAP_VALUE_NAME);
 
         PbCodegenAppender appender = new PbCodegenAppender();
-        String pbKeyTypeStr = PbCodegenUtils.getTypeStrFromProto(keyFd, false);
-        String pbValueTypeStr = PbCodegenUtils.getTypeStrFromProto(valueFd, false);
+        String pbKeyTypeStr =
+                PbCodegenUtils.getTypeStrFromProto(keyFd, false, formatContext.getOuterPrefix());
+        String pbValueTypeStr =
+                PbCodegenUtils.getTypeStrFromProto(valueFd, false, formatContext.getOuterPrefix());
         String pbMapVar = "pbMap" + uid;
         String pbMapEntryVar = "pbEntry" + uid;
         String resultDataMapVar = "resultDataMap" + uid;
@@ -90,9 +92,9 @@ public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
         appender.appendLine("Object " + keyDataVar + "= null");
         appender.appendLine("Object " + valueDataVar + "= null");
         PbCodegenDeserializer keyDes =
-                PbCodegenDeserializeFactory.getPbCodegenDes(keyFd, keyType, formatConfig);
+                PbCodegenDeserializeFactory.getPbCodegenDes(keyFd, keyType, formatContext);
         PbCodegenDeserializer valueDes =
-                PbCodegenDeserializeFactory.getPbCodegenDes(valueFd, valueType, formatConfig);
+                PbCodegenDeserializeFactory.getPbCodegenDes(valueFd, valueType, formatContext);
         String keyGenCode =
                 keyDes.codegen(
                         keyDataVar, "((" + pbKeyTypeStr + ")" + pbMapEntryVar + ".getKey())");

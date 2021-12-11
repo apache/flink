@@ -75,7 +75,7 @@ public class PbCodegenUtils {
      * @return The returned code phrase will be used as java type str in codegen sections.
      * @throws PbCodegenException
      */
-    public static String getTypeStrFromProto(FieldDescriptor fd, boolean isList)
+    public static String getTypeStrFromProto(FieldDescriptor fd, boolean isList, String outerPrefix)
             throws PbCodegenException {
         String typeStr;
         switch (fd.getJavaType()) {
@@ -87,12 +87,12 @@ public class PbCodegenUtils {
                     FieldDescriptor valueFd =
                             fd.getMessageType().findFieldByName(PbConstant.PB_MAP_VALUE_NAME);
                     // key and value cannot be repeated
-                    String keyTypeStr = getTypeStrFromProto(keyFd, false);
-                    String valueTypeStr = getTypeStrFromProto(valueFd, false);
+                    String keyTypeStr = getTypeStrFromProto(keyFd, false, outerPrefix);
+                    String valueTypeStr = getTypeStrFromProto(valueFd, false, outerPrefix);
                     typeStr = "Map<" + keyTypeStr + "," + valueTypeStr + ">";
                 } else {
                     // simple message
-                    typeStr = PbFormatUtils.getFullJavaName(fd.getMessageType());
+                    typeStr = PbFormatUtils.getFullJavaName(fd.getMessageType(), outerPrefix);
                 }
                 break;
             case INT:
@@ -105,7 +105,7 @@ public class PbCodegenUtils {
                 typeStr = "String";
                 break;
             case ENUM:
-                typeStr = PbFormatUtils.getFullJavaName(fd.getEnumType());
+                typeStr = PbFormatUtils.getFullJavaName(fd.getEnumType(), outerPrefix);
                 break;
             case FLOAT:
                 typeStr = "Float";
@@ -168,11 +168,14 @@ public class PbCodegenUtils {
      *
      * @return The java code phrase which represents default value calculation.
      */
-    public static String getDefaultPbValue(FieldDescriptor fieldDescriptor, String nullLiteral)
+    public static String getDefaultPbValue(
+            FieldDescriptor fieldDescriptor, PbFormatContext pbFormatContext)
             throws PbCodegenException {
+        String outerPrefix = pbFormatContext.getOuterPrefix();
+        String nullLiteral = pbFormatContext.getPbFormatConfig().getWriteNullStringLiterals();
         switch (fieldDescriptor.getJavaType()) {
             case MESSAGE:
-                return PbFormatUtils.getFullJavaName(fieldDescriptor.getMessageType())
+                return PbFormatUtils.getFullJavaName(fieldDescriptor.getMessageType(), outerPrefix)
                         + ".getDefaultInstance()";
             case INT:
                 return "0";
@@ -181,7 +184,7 @@ public class PbCodegenUtils {
             case STRING:
                 return "\"" + nullLiteral + "\"";
             case ENUM:
-                return PbFormatUtils.getFullJavaName(fieldDescriptor.getEnumType())
+                return PbFormatUtils.getFullJavaName(fieldDescriptor.getEnumType(), outerPrefix)
                         + ".values()[0]";
             case FLOAT:
                 return "0.0f";
@@ -218,18 +221,17 @@ public class PbCodegenUtils {
             String dataVar,
             FieldDescriptor elementPbFd,
             LogicalType elementDataType,
-            PbFormatConfig pbFormatConfig)
+            PbFormatContext pbFormatContext)
             throws PbCodegenException {
         PbCodegenAppender appender = new PbCodegenAppender();
-        String protoTypeStr = PbCodegenUtils.getTypeStrFromProto(elementPbFd, false);
+        String protoTypeStr =
+                PbCodegenUtils.getTypeStrFromProto(
+                        elementPbFd, false, pbFormatContext.getOuterPrefix());
         String dataTypeStr = PbCodegenUtils.getTypeStrFromLogicType(elementDataType);
         appender.appendLine(protoTypeStr + " " + pbVar);
         appender.appendSegment("if(" + arrDataVar + ".isNullAt(" + iVar + ")){");
         appender.appendLine(
-                pbVar
-                        + "="
-                        + PbCodegenUtils.getDefaultPbValue(
-                                elementPbFd, pbFormatConfig.getWriteNullStringLiterals()));
+                pbVar + "=" + PbCodegenUtils.getDefaultPbValue(elementPbFd, pbFormatContext));
         appender.appendSegment("}else{");
         appender.appendLine(dataTypeStr + " " + dataVar);
         String getElementDataCode =
@@ -238,7 +240,7 @@ public class PbCodegenUtils {
         appender.appendLine(dataVar + " = " + getElementDataCode);
         PbCodegenSerializer codegenSer =
                 PbCodegenSerializeFactory.getPbCodegenSer(
-                        elementPbFd, elementDataType, pbFormatConfig);
+                        elementPbFd, elementDataType, pbFormatContext);
         String code = codegenSer.codegen(pbVar, dataVar);
         appender.appendSegment(code);
         appender.appendSegment("}");

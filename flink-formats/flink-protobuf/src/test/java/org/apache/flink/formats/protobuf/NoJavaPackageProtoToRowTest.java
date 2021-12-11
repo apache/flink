@@ -41,10 +41,8 @@ public class NoJavaPackageProtoToRowTest {
         SimpleTestNoJavaPackage simple = SimpleTestNoJavaPackage.newBuilder().build();
 
         RowData row = deserializationSchema.deserialize(simple.toByteArray());
-        row =
-                ProtobufTestHelper.validateRow(
-                        row,
-                        PbRowTypeInformationUtil.generateRowType(
-                                SimpleTestNoJavaPackage.getDescriptor()));
+        ProtobufTestHelper.validateRow(
+                row,
+                PbRowTypeInformationUtil.generateRowType(SimpleTestNoJavaPackage.getDescriptor()));
     }
 }

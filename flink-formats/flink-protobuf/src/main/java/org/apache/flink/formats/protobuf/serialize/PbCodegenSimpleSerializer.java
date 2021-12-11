@@ -20,7 +20,7 @@ package org.apache.flink.formats.protobuf.serialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
-import org.apache.flink.formats.protobuf.PbFormatConfig;
+import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -31,13 +31,13 @@ import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
     private final Descriptors.FieldDescriptor fd;
     private final LogicalType type;
-    private final PbFormatConfig formatConfig;
+    private final PbFormatContext formatContext;
 
     public PbCodegenSimpleSerializer(
-            Descriptors.FieldDescriptor fd, LogicalType type, PbFormatConfig formatConfig) {
+            Descriptors.FieldDescriptor fd, LogicalType type, PbFormatContext formatContext) {
         this.fd = fd;
         this.type = type;
-        this.formatConfig = formatConfig;
+        this.formatContext = formatContext;
     }
 
     /**
@@ -56,7 +56,9 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
                 return returnPbVarName + " = " + internalDataGetStr + ";";
             case INTEGER:
                 if (fd.getJavaType() == JavaType.ENUM) {
-                    String enumTypeStr = PbFormatUtils.getFullJavaName(fd.getEnumType());
+                    String enumTypeStr =
+                            PbFormatUtils.getFullJavaName(
+                                    fd.getEnumType(), formatContext.getOuterPrefix());
                     appender.appendLine(
                             returnPbVarName
                                     + " = "
@@ -80,7 +82,9 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
                 appender.appendLine(fromVar + " = " + internalDataGetStr + ".toString()");
                 if (fd.getJavaType() == JavaType.ENUM) {
                     String enumValueDescVar = "enumValueDesc" + uid;
-                    String enumTypeStr = PbFormatUtils.getFullJavaName(fd.getEnumType());
+                    String enumTypeStr =
+                            PbFormatUtils.getFullJavaName(
+                                    fd.getEnumType(), formatContext.getOuterPrefix());
                     appender.appendLine(
                             "Descriptors.EnumValueDescriptor "
                                     + enumValueDescVar

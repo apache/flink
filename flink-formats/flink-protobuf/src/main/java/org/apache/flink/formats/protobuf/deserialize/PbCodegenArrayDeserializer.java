@@ -22,7 +22,7 @@ import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
-import org.apache.flink.formats.protobuf.PbFormatConfig;
+import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import com.google.protobuf.Descriptors;
@@ -31,13 +31,15 @@ import com.google.protobuf.Descriptors;
 public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
     private final Descriptors.FieldDescriptor fd;
     private final LogicalType elementType;
-    private final PbFormatConfig formatConfig;
+    private final PbFormatContext formatContext;
 
     public PbCodegenArrayDeserializer(
-            Descriptors.FieldDescriptor fd, LogicalType elementType, PbFormatConfig formatConfig) {
+            Descriptors.FieldDescriptor fd,
+            LogicalType elementType,
+            PbFormatContext formatContext) {
         this.fd = fd;
         this.elementType = elementType;
-        this.formatConfig = formatConfig;
+        this.formatContext = formatContext;
     }
 
     @Override
@@ -48,7 +50,8 @@ public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
         PbCodegenAppender appender = new PbCodegenAppender();
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
         int uid = varUid.getAndIncrement();
-        String protoTypeStr = PbCodegenUtils.getTypeStrFromProto(fd, false);
+        String protoTypeStr =
+                PbCodegenUtils.getTypeStrFromProto(fd, false, formatContext.getOuterPrefix());
         String listPbVar = "list" + uid;
         String newArrDataVar = "newArr" + uid;
         String subReturnDataVar = "subReturnVar" + uid;
@@ -73,7 +76,7 @@ public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
                         + iVar
                         + ")");
         PbCodegenDeserializer codegenDes =
-                PbCodegenDeserializeFactory.getPbCodegenDes(fd, elementType, formatConfig);
+                PbCodegenDeserializeFactory.getPbCodegenDes(fd, elementType, formatContext);
         String code = codegenDes.codegen(subReturnDataVar, subPbObjVar);
         appender.appendSegment(code);
         appender.appendLine(newArrDataVar + "[" + iVar + "]=" + subReturnDataVar + "");

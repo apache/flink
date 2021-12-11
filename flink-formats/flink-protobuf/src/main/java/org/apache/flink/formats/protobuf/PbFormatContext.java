@@ -16,23 +16,31 @@
  * limitations under the License.
  */
 
-syntax = "proto2";
-package org.apache.flink.formats.protobuf.proto;
-option java_package = "org.apache.flink.formats.protobuf.testproto";
-option java_outer_classname = "SimpleTestOuterNomultiProto";
+package org.apache.flink.formats.protobuf;
 
-message SimpleTestOuterNomulti {
-    optional int32 a = 1;
-    optional int64 b = 2;
-    optional bool c = 3;
-    optional float d = 4;
-    optional double e = 5;
-    optional string f = 6;
-    optional bytes g = 7;
+/** store config and common information. */
+public class PbFormatContext {
+    private String outerPrefix;
+    private PbFormatConfig pbFormatConfig;
 
-    message InnerMessageTest{
-        optional int32 a =1;
-        optional int64 b =2;
+    public PbFormatContext(String outerPrefix, PbFormatConfig pbFormatConfig) {
+        this.outerPrefix = outerPrefix;
+        this.pbFormatConfig = pbFormatConfig;
+    }
+
+    public String getOuterPrefix() {
+        return outerPrefix;
+    }
+
+    public void setOuterPrefix(String outerPrefix) {
+        this.outerPrefix = outerPrefix;
+    }
+
+    public PbFormatConfig getPbFormatConfig() {
+        return pbFormatConfig;
+    }
+
+    public void setPbFormatConfig(PbFormatConfig pbFormatConfig) {
+        this.pbFormatConfig = pbFormatConfig;
     }
 }
-

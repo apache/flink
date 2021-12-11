@@ -20,7 +20,7 @@ package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.serialize.PbRowDataSerializationSchema;
-import org.apache.flink.formats.protobuf.testproto.SimpleTestNoouterNomultiOuterClass;
+import org.apache.flink.formats.protobuf.testproto.TestSimpleNoouterNomulti;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -43,16 +43,32 @@ public class MetaNoOuterNoMultiProtoToRowTest {
     public void testSimple() {
         RowType rowType =
                 PbRowTypeInformationUtil.generateRowType(
-                        SimpleTestNoouterNomultiOuterClass.SimpleTestNoouterNomulti
-                                .getDescriptor());
+                        TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(
-                        SimpleTestNoouterNomultiOuterClass.SimpleTestNoouterNomulti.class.getName(),
+                        TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.class.getName(),
                         false,
                         false,
                         "");
         new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig);
 
+        new PbRowDataSerializationSchema(rowType, formatConfig);
+        // validation success
+    }
+
+    @Test
+    public void testOuterClassName() {
+        RowType rowType =
+                PbRowTypeInformationUtil.generateRowType(
+                        TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.getDescriptor());
+        PbFormatConfig formatConfig =
+                new PbFormatConfig(
+                        TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.class.getName(),
+                        false,
+                        false,
+                        "");
+        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig);
+        System.out.println(TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.class.getName());
         new PbRowDataSerializationSchema(rowType, formatConfig);
         // validation success
     }

@@ -23,6 +23,7 @@ import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
+import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
@@ -57,9 +58,12 @@ public class ProtoToRowConverter {
     public ProtoToRowConverter(RowType rowType, PbFormatConfig formatConfig)
             throws PbCodegenException {
         try {
+            String outerPrefix =
+                    PbFormatUtils.getOuterProtoPrefix(formatConfig.getMessageClassName());
             Descriptors.Descriptor descriptor =
                     PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
             Class<?> messageClass = Class.forName(formatConfig.getMessageClassName());
+            String fullMessageClassName = PbFormatUtils.getFullJavaName(descriptor, outerPrefix);
             if (descriptor.getFile().getSyntax() == Syntax.PROTO3) {
                 // pb3 always read default values
                 formatConfig =
@@ -70,6 +74,7 @@ public class ProtoToRowConverter {
                                 formatConfig.getWriteNullStringLiterals());
             }
             PbCodegenAppender codegenAppender = new PbCodegenAppender();
+            PbFormatContext pbFormatContext = new PbFormatContext(outerPrefix, formatConfig);
             String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");
             String generatedClassName = "GeneratedProtoToRow_" + uuid;
             String generatedPackageName = ProtoToRowConverter.class.getPackage().getName();
@@ -91,12 +96,12 @@ public class ProtoToRowConverter {
                     "public static RowData "
                             + PbConstant.GENERATED_DECODE_METHOD
                             + "("
-                            + PbFormatUtils.getFullJavaName(descriptor)
+                            + fullMessageClassName
                             + " message){");
             codegenAppender.appendLine("RowData rowData=null");
             PbCodegenDeserializer codegenDes =
                     PbCodegenDeserializeFactory.getPbCodegenTopRowDes(
-                            descriptor, rowType, formatConfig);
+                            descriptor, rowType, pbFormatContext);
             String genCode = codegenDes.codegen("rowData", "message");
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return rowData");
