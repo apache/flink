@@ -65,6 +65,7 @@ public class StreamNode {
     private final Set<ManagedMemoryUseCase> managedMemorySlotScopeUseCases = new HashSet<>();
     private long bufferTimeout;
     private final String operatorName;
+    private String operatorDescription;
     private @Nullable String slotSharingGroup;
     private @Nullable String coLocationGroup;
     private KeySelector<?, ?>[] statePartitioners = new KeySelector[0];
@@ -113,6 +114,7 @@ public class StreamNode {
             Class<? extends TaskInvokable> jobVertexClass) {
         this.id = id;
         this.operatorName = operatorName;
+        this.operatorDescription = operatorName;
         this.operatorFactory = operatorFactory;
         this.jobVertexClass = jobVertexClass;
         this.slotSharingGroup = slotSharingGroup;
@@ -240,6 +242,14 @@ public class StreamNode {
 
     public String getOperatorName() {
         return operatorName;
+    }
+
+    public String getOperatorDescription() {
+        return operatorDescription;
+    }
+
+    public void setOperatorDescription(String operatorDescription) {
+        this.operatorDescription = operatorDescription;
     }
 
     public void setSerializersIn(TypeSerializer<?>... typeSerializersIn) {

@@ -80,7 +80,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
@@ -113,7 +113,7 @@ under the License.
 									<include>org.apache.flink:flink-table-api-java-bridge</include>
 									<include>org.apache.flink:flink-table-api-scala-bridge_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-table-planner_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-table-runtime_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-table-runtime</include>
 									<include>org.apache.flink:flink-cep</include>
 								</includes>
 							</artifactSet>

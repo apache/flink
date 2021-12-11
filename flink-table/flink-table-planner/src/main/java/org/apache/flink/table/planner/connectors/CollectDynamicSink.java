@@ -49,7 +49,7 @@ import java.util.function.Function;
 
 /** Table sink for {@link TableResult#collect()}. */
 @Internal
-final class CollectDynamicSink implements DynamicTableSink {
+public final class CollectDynamicSink implements DynamicTableSink {
 
     private final ObjectIdentifier tableIdentifier;
     private final DataType consumedDataType;
@@ -57,6 +57,7 @@ final class CollectDynamicSink implements DynamicTableSink {
     private final Duration socketTimeout;
     private final ClassLoader classLoader;
     private final ZoneId sessionZoneId;
+    private final boolean legacyCastBehaviour;
 
     // mutable attributes
     private CollectResultIterator<RowData> iterator;
@@ -68,18 +69,21 @@ final class CollectDynamicSink implements DynamicTableSink {
             MemorySize maxBatchSize,
             Duration socketTimeout,
             ClassLoader classLoader,
-            ZoneId sessionZoneId) {
+            ZoneId sessionZoneId,
+            boolean legacyCastBehaviour) {
         this.tableIdentifier = tableIdentifier;
         this.consumedDataType = consumedDataType;
         this.maxBatchSize = maxBatchSize;
         this.socketTimeout = socketTimeout;
         this.classLoader = classLoader;
         this.sessionZoneId = sessionZoneId;
+        this.legacyCastBehaviour = legacyCastBehaviour;
     }
 
     public ResultProvider getSelectResultProvider() {
         return new CollectResultProvider(
-                new RowDataToStringConverterImpl(consumedDataType, sessionZoneId, classLoader));
+                new RowDataToStringConverterImpl(
+                        consumedDataType, sessionZoneId, classLoader, legacyCastBehaviour));
     }
 
     @Override
@@ -132,7 +136,8 @@ final class CollectDynamicSink implements DynamicTableSink {
                 maxBatchSize,
                 socketTimeout,
                 classLoader,
-                sessionZoneId);
+                sessionZoneId,
+                legacyCastBehaviour);
     }
 
     @Override

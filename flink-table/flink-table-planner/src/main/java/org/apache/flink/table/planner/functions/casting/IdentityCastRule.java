@@ -80,6 +80,6 @@ class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Object>
             String inputIsNullTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return new CastCodeBlock("", inputTerm, inputIsNullTerm);
+        return CastCodeBlock.withoutCode(inputTerm, inputIsNullTerm);
     }
 }

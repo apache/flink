@@ -17,22 +17,11 @@
  */
 package org.apache.flink.table.planner.utils
 
-import _root_.java.math.{BigDecimal => JBigDecimal}
-import _root_.java.util
-import java.io.{File, IOException}
-import java.nio.file.{Files, Paths}
-import java.time.Duration
-
-import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.ExecutionOptions
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
@@ -75,9 +64,22 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+
+import org.apache.calcite.avatica.util.TimeUnit
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
+
+import _root_.java.math.{BigDecimal => JBigDecimal}
+import _root_.java.util
+import java.io.{File, IOException}
+import java.nio.file.{Files, Paths}
+import java.time.Duration
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -680,7 +682,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * Verify the explain result for the given [[Table]]. See more about [[Table#explain()]].
    */
   def verifyExplain(table: Table): Unit = {
-    doVerifyExplain(table.explain(), needReplaceEstimatedCost = false)
+    doVerifyExplain(table.explain())
   }
 
   /**
@@ -688,9 +690,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * the extra [[ExplainDetail]]s. See more about [[Table#explain()]].
    */
   def verifyExplain(table: Table, extraDetails: ExplainDetail*): Unit = {
-    doVerifyExplain(
-      table.explain(extraDetails: _*),
-      extraDetails.contains(ExplainDetail.ESTIMATED_COST))
+    doVerifyExplain(table.explain(extraDetails: _*), extraDetails: _*)
   }
 
   /**
@@ -725,7 +725,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * See more about [[StatementSet#explain()]].
    */
   def verifyExplain(stmtSet: StatementSet): Unit = {
-    doVerifyExplain(stmtSet.explain(), needReplaceEstimatedCost = false)
+    doVerifyExplain(stmtSet.explain())
   }
 
   /**
@@ -733,9 +733,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * the extra [[ExplainDetail]]s. See more about [[StatementSet#explain()]].
    */
   def verifyExplain(stmtSet: StatementSet, extraDetails: ExplainDetail*): Unit = {
-    doVerifyExplain(
-      stmtSet.explain(extraDetails: _*),
-      extraDetails.contains(ExplainDetail.ESTIMATED_COST))
+    doVerifyExplain(stmtSet.explain(extraDetails: _*), extraDetails: _*)
   }
 
   /**
@@ -919,13 +917,21 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     }
   }
 
-  private def doVerifyExplain(explainResult: String, needReplaceEstimatedCost: Boolean): Unit = {
-    val actual = if (needReplaceEstimatedCost) {
-      replaceEstimatedCost(explainResult)
-    } else {
-      explainResult
+  private def doVerifyExplain(explainResult: String, extraDetails: ExplainDetail*): Unit = {
+    def replace(result: String, explainDetail: ExplainDetail): String = {
+      val replaced = explainDetail match {
+        case ExplainDetail.ESTIMATED_COST => replaceEstimatedCost(result)
+        case ExplainDetail.JSON_EXECUTION_PLAN => TableTestUtil.replaceStreamNodeId(result)
+        case _ => result
+      }
+      replaced
     }
-    assertEqualsOrExpand("explain", TableTestUtil.replaceStageId(actual), expand = false)
+    var replacedResult = explainResult
+    extraDetails.foreach {
+      detail =>
+        replacedResult = replace(replacedResult, detail)
+    }
+    assertEqualsOrExpand("explain", TableTestUtil.replaceStageId(replacedResult), expand = false)
   }
 
   protected def getOptimizedRelPlan(

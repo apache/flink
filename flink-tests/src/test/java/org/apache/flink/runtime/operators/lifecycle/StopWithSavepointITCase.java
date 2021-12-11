@@ -61,8 +61,7 @@ import static org.apache.flink.runtime.operators.lifecycle.validation.TestOperat
  *         <li>{@link Watermark#MAX_WATERMARK MAX_WATERMARK} (if with drain)
  *         <li>{@link BoundedMultiInput#endInput endInput} (if with drain)
  *         <li>timer service quiesced
- *         <li>{@link StreamOperator#finish() finish} (if with drain; support is planned for
- *             no-drain)
+ *         <li>{@link StreamOperator#finish() finish} (if with drain)
  *         <li>{@link AbstractStreamOperator#snapshotState(StateSnapshotContext) snapshotState} (for
  *             the respective checkpoint)
  *         <li>{@link CheckpointListener#notifyCheckpointComplete notifyCheckpointComplete} (for the
@@ -131,17 +130,13 @@ public class StopWithSavepointITCase extends AbstractTestBase {
                     testJob,
                     sameCheckpointValidator,
                     new DrainingValidator(),
-                    /* Currently (1.14), finish is only called with drain; todo: enable after updating production code */
+                    /* Currently (1.14), finish is only called with drain; */
                     new FinishingValidator());
         } else {
             checkOperatorsLifecycle(testJob, sameCheckpointValidator);
         }
 
-        if (withDrain) {
-            // currently (1.14), sources do not stop before taking a savepoint and continue emission
-            // todo: enable after updating production code
-            checkDataFlow(testJob);
-        }
+        checkDataFlow(testJob, withDrain);
     }
 
     @Parameterized.Parameters(name = "withDrain: {0}, {1}")

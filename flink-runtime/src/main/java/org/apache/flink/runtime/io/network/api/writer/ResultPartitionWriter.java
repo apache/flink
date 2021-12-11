@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
@@ -69,8 +70,11 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
     /**
      * Notifies the downstream tasks that this {@code ResultPartitionWriter} have emitted all the
      * user records.
+     *
+     * @param mode tells if we should flush all records or not (it is false in case of
+     *     stop-with-savepoint (--no-drain))
      */
-    void notifyEndOfData() throws IOException;
+    void notifyEndOfData(StopMode mode) throws IOException;
 
     /**
      * Gets the future indicating whether all the records has been processed by the downstream

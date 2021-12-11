@@ -76,6 +76,6 @@ public class BoundedSourceITCase extends AbstractTestBase {
                 .assertFinishedSuccessfully();
 
         checkOperatorsLifecycle(testJob, new DrainingValidator(), new FinishingValidator());
-        checkDataFlow(testJob);
+        checkDataFlow(testJob, true);
     }
 }

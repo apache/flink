@@ -247,7 +247,10 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> confirmCheckpoint(
-            ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) {
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            long checkpointTimestamp,
+            long lastSubsumedCheckpointId) {
         return confirmCheckpointFunction.apply(
                 executionAttemptID, checkpointId, checkpointTimestamp);
     }

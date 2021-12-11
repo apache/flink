@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.factories;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.ServiceLoader;
 
@@ -26,12 +28,27 @@ import java.util.ServiceLoader;
 class ServiceLoaderUtil {
 
     /**
-     * This method behaves similarly to {@link ServiceLoader#load(Class, ClassLoader)} and it also
-     * wraps the returned {@link Iterator} to iterate safely through the loaded services, eventually
-     * catching load failures like {@link NoClassDefFoundError}.
+     * This method behaves similarly to {@link ServiceLoader#load(Class, ClassLoader)}, but it
+     * returns a list with the results of the iteration, wrapping the iteration failures such as
+     * {@link NoClassDefFoundError}.
      */
-    static <T> Iterator<LoadResult<T>> load(Class<T> clazz, ClassLoader classLoader) {
-        return new SafeIterator<>(ServiceLoader.load(clazz, classLoader).iterator());
+    static <T> List<LoadResult<T>> load(Class<T> clazz, ClassLoader classLoader) {
+        List<LoadResult<T>> loadResults = new ArrayList<>();
+
+        Iterator<T> serviceLoaderIterator = ServiceLoader.load(clazz, classLoader).iterator();
+
+        while (true) {
+            try {
+                T next = serviceLoaderIterator.next();
+                loadResults.add(new LoadResult<>(next));
+            } catch (NoSuchElementException e) {
+                break;
+            } catch (Throwable t) {
+                loadResults.add(new LoadResult<>(t));
+            }
+        }
+
+        return loadResults;
     }
 
     static class LoadResult<T> {
@@ -61,40 +78,6 @@ class ServiceLoaderUtil {
 
         public T getService() {
             return service;
-        }
-    }
-
-    /**
-     * This iterator wraps {@link Iterator#hasNext()} and {@link Iterator#next()} in try-catch, and
-     * returns {@link LoadResult} to handle such failures.
-     */
-    private static class SafeIterator<T> implements Iterator<LoadResult<T>> {
-
-        private final Iterator<T> iterator;
-
-        public SafeIterator(Iterator<T> iterator) {
-            this.iterator = iterator;
-        }
-
-        @Override
-        public boolean hasNext() {
-            try {
-                return iterator.hasNext();
-            } catch (Throwable t) {
-                return true;
-            }
-        }
-
-        @Override
-        public LoadResult<T> next() {
-            try {
-                if (iterator.hasNext()) {
-                    return new LoadResult<>(iterator.next());
-                }
-            } catch (Throwable t) {
-                return new LoadResult<>(t);
-            }
-            throw new NoSuchElementException();
         }
     }
 }

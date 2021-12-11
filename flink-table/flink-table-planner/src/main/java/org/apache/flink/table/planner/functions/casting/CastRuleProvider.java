@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.utils.CastExecutor;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -75,7 +76,9 @@ public class CastRuleProvider {
                 .addRule(StringToBinaryCastRule.INSTANCE)
                 // Collection rules
                 .addRule(ArrayToArrayCastRule.INSTANCE)
+                .addRule(RowToRowCastRule.INSTANCE)
                 // Special rules
+                .addRule(NullToStringCastRule.INSTANCE)
                 .addRule(IdentityCastRule.INSTANCE);
     }
 
@@ -173,7 +176,10 @@ public class CastRuleProvider {
         return this;
     }
 
-    private CastRule<?, ?> internalResolve(LogicalType inputType, LogicalType targetType) {
+    private CastRule<?, ?> internalResolve(LogicalType input, LogicalType target) {
+        LogicalType inputType = unwrapDistinct(input);
+        LogicalType targetType = unwrapDistinct(target);
+
         final Iterator<Object> targetTypeRootFamilyIterator =
                 Stream.<Object>concat(
                                 Stream.of(targetType.getTypeRoot()),
@@ -212,5 +218,12 @@ public class CastRuleProvider {
                                         .test(inputType, targetType))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private LogicalType unwrapDistinct(LogicalType logicalType) {
+        if (logicalType.is(LogicalTypeRoot.DISTINCT_TYPE)) {
+            return unwrapDistinct(((DistinctType) logicalType).getSourceType());
+        }
+        return logicalType;
     }
 }

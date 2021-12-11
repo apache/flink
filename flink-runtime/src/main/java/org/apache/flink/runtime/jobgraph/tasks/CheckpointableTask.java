@@ -88,6 +88,15 @@ public interface CheckpointableTask {
     Future<Void> notifyCheckpointAbortAsync(long checkpointId, long latestCompletedCheckpointId);
 
     /**
+     * Invoked when a checkpoint has been subsumed, i.e., when the checkpoint coordinator has
+     * confirmed one checkpoint has been finished, and try to remove the first previous checkpoint.
+     *
+     * @param checkpointId The ID of the checkpoint that is subsumed.
+     * @return future that completes when the notification has been processed by the task.
+     */
+    Future<Void> notifyCheckpointSubsumedAsync(long checkpointId);
+
+    /**
      * Aborts a checkpoint as the result of receiving possibly some checkpoint barriers, but at
      * least one {@link org.apache.flink.runtime.io.network.api.CancelCheckpointMarker}.
      *

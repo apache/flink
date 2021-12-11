@@ -23,8 +23,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
+import org.apache.flink.runtime.blob.TaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -84,8 +84,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
     private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
     private final TestingRpcService testingRpcService;
-    private final BlobCacheService blobCacheService =
-            new BlobCacheService(new Configuration(), new VoidBlobStore(), null);
+    private final TaskExecutorBlobService taskExecutorBlobService =
+            NoOpTaskExecutorBlobService.INSTANCE;
     private final Time timeout = Time.milliseconds(10000L);
     private final TestingFatalErrorHandler testingFatalErrorHandler =
             new TestingFatalErrorHandler();
@@ -265,7 +265,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                 heartbeatServices,
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 metricQueryServiceAddress,
-                blobCacheService,
+                taskExecutorBlobService,
                 testingFatalErrorHandler,
                 new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
     }
@@ -320,7 +320,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
         timerService.stop();
 
-        blobCacheService.close();
+        taskExecutorBlobService.close();
 
         temporaryFolder.delete();
 

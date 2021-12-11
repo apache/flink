@@ -52,7 +52,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
         TestCompletedCheckpoint checkpoint = createCheckpoint(0, sharedStateRegistry);
         Collection<OperatorState> operatorStates = checkpoint.getOperatorStates().values();
 
-        store.addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
+        store.addCheckpointAndSubsumeOldestOne(checkpoint, new CheckpointsCleaner(), () -> {});
         assertEquals(1, store.getNumberOfRetainedCheckpoints());
         verifyCheckpointRegistered(operatorStates, sharedStateRegistry);
 
@@ -73,7 +73,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
         TestCompletedCheckpoint checkpoint = createCheckpoint(0, sharedStateRegistry);
         Collection<OperatorState> taskStates = checkpoint.getOperatorStates().values();
 
-        store.addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
+        store.addCheckpointAndSubsumeOldestOne(checkpoint, new CheckpointsCleaner(), () -> {});
         assertEquals(1, store.getNumberOfRetainedCheckpoints());
         verifyCheckpointRegistered(taskStates, sharedStateRegistry);
 
@@ -114,7 +114,8 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
                         }
                     };
             // should fail despite the exception
-            store.addCheckpoint(checkpointToAdd, new CheckpointsCleaner(), () -> {});
+            store.addCheckpointAndSubsumeOldestOne(
+                    checkpointToAdd, new CheckpointsCleaner(), () -> {});
         }
         discardAttempted.await();
     }

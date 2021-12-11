@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -625,7 +626,7 @@ public class ResultPartitionTest {
         BufferWritingResultPartition bufferWritingResultPartition =
                 createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
 
-        bufferWritingResultPartition.notifyEndOfData();
+        bufferWritingResultPartition.notifyEndOfData(StopMode.DRAIN);
         CompletableFuture<Void> allRecordsProcessedFuture =
                 bufferWritingResultPartition.getAllDataProcessedFuture();
         assertFalse(allRecordsProcessedFuture.isDone());
@@ -634,7 +635,7 @@ public class ResultPartitionTest {
             Buffer nextBuffer = ((PipelinedSubpartition) resultSubpartition).pollBuffer().buffer();
             assertFalse(nextBuffer.isBuffer());
             assertEquals(
-                    EndOfData.INSTANCE,
+                    new EndOfData(StopMode.DRAIN),
                     EventSerializer.fromBuffer(nextBuffer, getClass().getClassLoader()));
         }
 

@@ -148,6 +148,45 @@ Calc(select=[amount, currency, ts, rowtime, currency0, rate, ts0, CAST(rowtime0)
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testEventTimeTemporalJoinToSinkWithPk">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.rowtime_default_sink], fields=[order_id, currency, amount, order_time, rate, currency_time])
++- LogicalProject(order_id=[$0], currency=[$1], amount=[$3], order_time=[$4], rate=[$7], currency_time=[$8])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2, 4}])
+      :- LogicalWatermarkAssigner(rowtime=[order_time], watermark=[$4])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, orders_rowtime]])
+      +- LogicalFilter(condition=[AND(=($cor0.currency_no, $1), =($cor0.currency, $0))])
+         +- LogicalSnapshot(period=[$cor0.order_time])
+            +- LogicalWatermarkAssigner(rowtime=[currency_time], watermark=[-($3, 10000:INTERVAL SECOND)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, versioned_currency_with_multi_key]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.rowtime_default_sink], fields=[order_id, currency, amount, order_time, rate, currency_time], changelogMode=[NONE])
++- Calc(select=[order_id, currency, amount, order_time, rate, CAST(currency_time) AS currency_time], changelogMode=[I,UB,UA,D])
+   +- TemporalJoin(joinType=[InnerJoin], where=[AND(=(currency_no, currency_no0), =(currency, currency0), __TEMPORAL_JOIN_CONDITION(order_time, currency_time, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0, currency_no0), __TEMPORAL_JOIN_LEFT_KEY(currency_no, currency), __TEMPORAL_JOIN_RIGHT_KEY(currency_no0, currency0)))], select=[order_id, currency, currency_no, amount, order_time, currency0, currency_no0, rate, currency_time], changelogMode=[I,UB,UA,D])
+      :- Exchange(distribution=[hash[currency_no, currency]], changelogMode=[I,UB,UA,D])
+      :  +- WatermarkAssigner(rowtime=[order_time], watermark=[order_time], changelogMode=[I,UB,UA,D])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, orders_rowtime]], fields=[order_id, currency, currency_no, amount, order_time], changelogMode=[I,UB,UA,D])
+      +- Exchange(distribution=[hash[currency_no, currency]], changelogMode=[I,UA,D])
+         +- WatermarkAssigner(rowtime=[currency_time], watermark=[-(currency_time, 10000:INTERVAL SECOND)], changelogMode=[I,UA,D])
+            +- DropUpdateBefore(changelogMode=[I,UA,D])
+               +- TableSourceScan(table=[[default_catalog, default_database, versioned_currency_with_multi_key]], fields=[currency, currency_no, rate, currency_time], changelogMode=[I,UB,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.rowtime_default_sink], fields=[order_id, currency, amount, order_time, rate, currency_time], upsertMaterialize=[true])
++- Calc(select=[order_id, currency, amount, order_time, rate, CAST(currency_time) AS currency_time])
+   +- TemporalJoin(joinType=[InnerJoin], where=[((currency_no = currency_no0) AND (currency = currency0) AND __TEMPORAL_JOIN_CONDITION(order_time, currency_time, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0, currency_no0), __TEMPORAL_JOIN_LEFT_KEY(currency_no, currency), __TEMPORAL_JOIN_RIGHT_KEY(currency_no0, currency0)))], select=[order_id, currency, currency_no, amount, order_time, currency0, currency_no0, rate, currency_time])
+      :- Exchange(distribution=[hash[currency_no, currency]])
+      :  +- WatermarkAssigner(rowtime=[order_time], watermark=[order_time])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, orders_rowtime]], fields=[order_id, currency, currency_no, amount, order_time])
+      +- Exchange(distribution=[hash[currency_no, currency]])
+         +- WatermarkAssigner(rowtime=[currency_time], watermark=[(currency_time - 10000:INTERVAL SECOND)])
+            +- DropUpdateBefore
+               +- TableSourceScan(table=[[default_catalog, default_database, versioned_currency_with_multi_key]], fields=[currency, currency_no, rate, currency_time])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testEventTimeTemporalJoinWithComputedColumnAndPushDown">
     <Resource name="sql">
       <![CDATA[SELECT o.currency, r.currency, rate1 FROM Orders AS o JOIN RatesBinlogWithComputedColumn FOR SYSTEM_TIME AS OF o.rowtime AS r on o.currency = r.currency AND o.amount > 10 AND r.rate < 100]]>

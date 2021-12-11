@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.connectors.CollectDynamicSink;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -113,6 +114,8 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
+        final DynamicTableSink tableSink = tableSinkSpec.getTableSink(planner.getFlinkContext());
+        final boolean isCollectSink = tableSink instanceof CollectDynamicSink;
 
         final List<Integer> rowtimeFieldIndices = new ArrayList<>();
         for (int i = 0; i < inputRowType.getFieldCount(); ++i) {
@@ -121,12 +124,12 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             }
         }
         final int rowtimeFieldIndex;
-        if (rowtimeFieldIndices.size() > 1) {
+        if (rowtimeFieldIndices.size() > 1 && !isCollectSink) {
             throw new TableException(
                     String.format(
-                            "Found more than one rowtime field: [%s] in the query when insert into '%s'.\n"
-                                    + "Please select the rowtime field that should be used as event-time timestamp "
-                                    + "for the DataStream by casting all other fields to TIMESTAMP.",
+                            "The query contains more than one rowtime attribute column [%s] for writing into table '%s'.\n"
+                                    + "Please select the column that should be used as the event-time timestamp "
+                                    + "for the table sink by casting all other columns to regular TIMESTAMP or TIMESTAMP_LTZ.",
                             rowtimeFieldIndices.stream()
                                     .map(i -> inputRowType.getFieldNames().get(i))
                                     .collect(Collectors.joining(", ")),
@@ -138,6 +141,6 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         }
 
         return createSinkTransformation(
-                planner, inputTransform, rowtimeFieldIndex, upsertMaterialize);
+                planner, inputTransform, tableSink, rowtimeFieldIndex, upsertMaterialize);
     }
 }

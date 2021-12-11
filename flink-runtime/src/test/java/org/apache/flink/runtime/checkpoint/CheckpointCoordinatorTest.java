@@ -117,6 +117,7 @@ import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKP
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.IO_EXCEPTION;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN;
+import static org.apache.flink.runtime.checkpoint.CheckpointStoreUtil.INVALID_CHECKPOINT_ID;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
@@ -125,6 +126,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.eq;
@@ -2107,16 +2109,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         // set up the coordinator and validate the initial state
         CheckpointCoordinator checkpointCoordinator =
-                new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(graph)
-                        .setCheckpointCoordinatorConfiguration(
-                                CheckpointCoordinatorConfiguration.builder()
-                                        .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
-                                        .build())
-                        .setCheckpointIDCounter(counter)
-                        .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(10))
-                        .setTimer(manuallyTriggeredScheduledExecutor)
-                        .build();
+                spy(
+                        new CheckpointCoordinatorBuilder()
+                                .setExecutionGraph(graph)
+                                .setCheckpointCoordinatorConfiguration(
+                                        CheckpointCoordinatorConfiguration.builder()
+                                                .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                                                .build())
+                                .setCheckpointIDCounter(counter)
+                                .setCompletedCheckpointStore(
+                                        new StandaloneCompletedCheckpointStore(1))
+                                .setTimer(manuallyTriggeredScheduledExecutor)
+                                .build());
 
         String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
@@ -2148,6 +2152,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
         checkpointCoordinator.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, checkpointId2),
                 TASK_MANAGER_LOCATION_INFO);
+        // no completed checkpoint before checkpointId2.
+        verify(checkpointCoordinator, times(1))
+                .sendAcknowledgeMessages(
+                        anyList(), eq(checkpointId2), anyLong(), eq(INVALID_CHECKPOINT_ID));
 
         assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
         assertEquals(1, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
@@ -2176,6 +2184,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, savepointId2),
                 TASK_MANAGER_LOCATION_INFO);
 
+        // currently, we do not subsume a checkpoint after a savepoint completed to avoid data lost.
+        verify(checkpointCoordinator, times(1))
+                .sendAcknowledgeMessages(
+                        anyList(), eq(savepointId2), anyLong(), eq(INVALID_CHECKPOINT_ID));
+
         assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
         assertEquals(2, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
 
@@ -2192,9 +2205,32 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, savepointId1),
                 TASK_MANAGER_LOCATION_INFO);
 
+        // savepoint should not be subsumed.
+        verify(checkpointCoordinator, times(1))
+                .sendAcknowledgeMessages(
+                        anyList(), eq(savepointId1), anyLong(), eq(INVALID_CHECKPOINT_ID));
+
         assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
-        assertEquals(3, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
+        assertEquals(2, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
         assertNotNull(savepointFuture1.get());
+
+        CompletableFuture<CompletedCheckpoint> checkpointFuture4 =
+                checkpointCoordinator.triggerCheckpoint(false);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        FutureUtils.throwIfCompletedExceptionally(checkpointFuture4);
+        long checkpointId4 = counter.getLast();
+
+        checkpointCoordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, checkpointId4),
+                TASK_MANAGER_LOCATION_INFO);
+        checkpointCoordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, checkpointId4),
+                TASK_MANAGER_LOCATION_INFO);
+
+        // checkpoint2 would be subsumed.
+        verify(checkpointCoordinator, times(1))
+                .sendAcknowledgeMessages(
+                        anyList(), eq(checkpointId4), anyLong(), eq(checkpointId2));
     }
 
     private void testMaxConcurrentAttempts(int maxConcurrentAttempts) {
@@ -2771,7 +2807,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         .setCheckpointStatsTracker(tracker)
                         .build();
 
-        store.addCheckpoint(
+        store.addCheckpointAndSubsumeOldestOne(
                 new CompletedCheckpoint(
                         new JobID(),
                         0,
@@ -2806,21 +2842,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         ExecutionJobVertex jobVertex1 = graph.getJobVertex(jobVertexID1);
 
-        final EmbeddedCompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore(10);
-        final List<SharedStateRegistry> createdSharedStateRegistries = new ArrayList<>(2);
+        List<CompletedCheckpoint> checkpoints = Collections.emptyList();
+        SharedStateRegistry firstInstance =
+                SharedStateRegistry.DEFAULT_FACTORY.create(
+                        org.apache.flink.util.concurrent.Executors.directExecutor(), checkpoints);
+        final EmbeddedCompletedCheckpointStore store =
+                new EmbeddedCompletedCheckpointStore(10, checkpoints, firstInstance);
 
         // set up the coordinator and validate the initial state
         final CheckpointCoordinatorBuilder coordinatorBuilder =
                 new CheckpointCoordinatorBuilder()
                         .setExecutionGraph(graph)
-                        .setTimer(manuallyTriggeredScheduledExecutor)
-                        .setSharedStateRegistryFactory(
-                                deleteExecutor -> {
-                                    SharedStateRegistry instance =
-                                            new SharedStateRegistry(deleteExecutor);
-                                    createdSharedStateRegistries.add(instance);
-                                    return instance;
-                                });
+                        .setTimer(manuallyTriggeredScheduledExecutor);
         final CheckpointCoordinator coordinator =
                 coordinatorBuilder.setCompletedCheckpointStore(store).build();
 
@@ -2852,8 +2885,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 for (OperatorSubtaskState subtaskState : taskState.getStates()) {
                     for (KeyedStateHandle keyedStateHandle : subtaskState.getManagedKeyedState()) {
                         // test we are once registered with the current registry
-                        verify(keyedStateHandle, times(1))
-                                .registerSharedStates(createdSharedStateRegistries.get(0));
+                        verify(keyedStateHandle, times(1)).registerSharedStates(firstInstance);
                         IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
                                 (IncrementalRemoteKeyedStateHandle) keyedStateHandle;
 
@@ -2906,8 +2938,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
         tasks.add(jobVertex1);
 
         assertEquals(JobStatus.SUSPENDED, store.getShutdownStatus().orElse(null));
+        SharedStateRegistry secondInstance =
+                SharedStateRegistry.DEFAULT_FACTORY.create(
+                        org.apache.flink.util.concurrent.Executors.directExecutor(),
+                        store.getAllCheckpoints());
         final EmbeddedCompletedCheckpointStore secondStore =
-                new EmbeddedCompletedCheckpointStore(10, store.getAllCheckpoints());
+                new EmbeddedCompletedCheckpointStore(10, store.getAllCheckpoints(), secondInstance);
         final CheckpointCoordinator secondCoordinator =
                 coordinatorBuilder.setCompletedCheckpointStore(secondStore).build();
         assertTrue(secondCoordinator.restoreLatestCheckpointedStateToAll(tasks, false));
@@ -2928,8 +2964,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
                         // check that all are registered with the new registry
                         verify(keyedStateHandle, verificationMode)
-                                .registerSharedStates(
-                                        Iterables.getLast(createdSharedStateRegistries));
+                                .registerSharedStates(secondInstance);
                     }
                 }
             }

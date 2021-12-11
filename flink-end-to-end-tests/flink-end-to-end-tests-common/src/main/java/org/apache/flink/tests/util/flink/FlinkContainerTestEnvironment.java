@@ -25,6 +25,10 @@ import org.apache.flink.connectors.test.common.environment.TestEnvironment;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.tests.util.flink.container.FlinkContainers;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 
@@ -33,10 +37,12 @@ import static org.apache.flink.configuration.HeartbeatManagerOptions.HEARTBEAT_T
 import static org.apache.flink.configuration.JobManagerOptions.SLOT_REQUEST_TIMEOUT;
 import static org.apache.flink.configuration.TaskManagerOptions.NUM_TASK_SLOTS;
 
-/** Test environment running job on {@link FlinkContainer}. */
+/** Test environment running job on {@link FlinkContainers}. */
 public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterControllable {
 
-    private final FlinkContainer flinkContainer;
+    private static final Logger LOG = LoggerFactory.getLogger(FlinkContainerTestEnvironment.class);
+
+    private final FlinkContainers flinkContainers;
     private final String[] jarPath;
 
     public FlinkContainerTestEnvironment(
@@ -45,47 +51,52 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
         Configuration flinkConfiguration = flinkConfiguration();
         flinkConfiguration.set(NUM_TASK_SLOTS, numSlotsPerTaskManager);
 
-        this.flinkContainer =
-                FlinkContainer.builder()
-                        .numTaskManagers(numTaskManagers)
-                        .withFlinkConfiguration(flinkConfiguration)
+        this.flinkContainers =
+                FlinkContainers.builder()
+                        .setNumTaskManagers(numTaskManagers)
+                        .setConfiguration(flinkConfiguration)
+                        .setLogger(LOG)
+                        .enableZookeeperHA()
                         .build();
         this.jarPath = jarPath;
     }
 
     @Override
-    public void startUp() {
-        if (!flinkContainer.isRunning()) {
-            this.flinkContainer.start();
+    public void startUp() throws Exception {
+        if (!flinkContainers.isStarted()) {
+            this.flinkContainers.start();
         }
     }
 
     @Override
     public void tearDown() {
-        if (flinkContainer.isRunning()) {
-            this.flinkContainer.stop();
+        if (flinkContainers.isStarted()) {
+            this.flinkContainers.stop();
         }
     }
 
     @Override
     public StreamExecutionEnvironment createExecutionEnvironment() {
         return StreamExecutionEnvironment.createRemoteEnvironment(
-                this.flinkContainer.getHost(),
-                this.flinkContainer.getMappedPort(FlinkContainer.JOB_MANAGER_REST_PORT),
+                this.flinkContainers.getJobManagerHost(),
+                this.flinkContainers.getJobManagerPort(),
                 this.jarPath);
     }
 
     @Override
-    public void triggerJobManagerFailover(JobClient jobClient, Runnable afterFailAction) {}
+    public void triggerJobManagerFailover(JobClient jobClient, Runnable afterFailAction)
+            throws Exception {
+        flinkContainers.restartJobManager(afterFailAction::run);
+    }
 
     @Override
     public void triggerTaskManagerFailover(JobClient jobClient, Runnable afterFailAction)
             throws Exception {
-        flinkContainer.restartTaskManager(
+        flinkContainers.restartTaskManager(
                 () -> {
                     CommonTestUtils.waitForNoTaskRunning(
                             () ->
-                                    flinkContainer
+                                    flinkContainers
                                             .getRestClusterClient()
                                             .getJobDetails(jobClient.getJobID())
                                             .get(),
@@ -99,7 +110,7 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
 
     @Override
     public String toString() {
-        return "FlinkContainer";
+        return "FlinkContainers";
     }
 
     /**
@@ -107,8 +118,8 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
      *
      * @return Flink cluster on Testcontainers
      */
-    public FlinkContainer getFlinkContainer() {
-        return this.flinkContainer;
+    public FlinkContainers getFlinkContainers() {
+        return this.flinkContainers;
     }
 
     protected Configuration flinkConfiguration() {

@@ -146,6 +146,24 @@ public class DataStreamSink<T> {
         return this;
     }
 
+    /**
+     * Sets the description for this sink.
+     *
+     * <p>Description is used in json plan and web ui, but not in logging and metrics where only
+     * name is available. Description is expected to provide detailed information about the sink,
+     * while name is expected to be more simple, providing summary information only, so that we can
+     * have more user-friendly logging messages and metric tags without losing useful messages for
+     * debugging.
+     *
+     * @param description The description for this sink.
+     * @return The sink with new description.
+     */
+    @PublicEvolving
+    public DataStreamSink<T> setDescription(String description) {
+        transformation.setDescription(description);
+        return this;
+    }
+
     //	---------------------------------------------------------------------------
     //	 Fine-grained resource profiles are an incomplete work-in-progress feature
     //	 The setters are hence private at this point.

@@ -22,6 +22,7 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -107,9 +108,13 @@ public class TestInputChannel extends InputChannel {
     }
 
     TestInputChannel readEndOfData() throws IOException {
+        return readEndOfData(StopMode.DRAIN);
+    }
+
+    TestInputChannel readEndOfData(StopMode mode) throws IOException {
         addBufferAndAvailability(
                 new BufferAndAvailability(
-                        EventSerializer.toBuffer(EndOfData.INSTANCE, false),
+                        EventSerializer.toBuffer(new EndOfData(mode), false),
                         Buffer.DataType.EVENT_BUFFER,
                         0,
                         sequenceNumber++));
