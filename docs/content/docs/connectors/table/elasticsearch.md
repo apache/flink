@@ -48,7 +48,7 @@ The example below shows how to create an Elasticsearch sink table:
 ```sql
 CREATE TABLE myUserTable (
   user_id STRING,
-  user_name STRING
+  user_name STRING,
   uv BIGINT,
   pv BIGINT,
   PRIMARY KEY (user_id) NOT ENFORCED
