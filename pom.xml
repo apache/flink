@@ -108,7 +108,7 @@ under the License.
 		<akka.version>2.5.21</akka.version>
 		<java.version>1.8</java.version>
 		<slf4j.version>1.7.15</slf4j.version>
-		<log4j.version>2.12.1</log4j.version>
+		<log4j.version>2.15.0</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 Intellij is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
