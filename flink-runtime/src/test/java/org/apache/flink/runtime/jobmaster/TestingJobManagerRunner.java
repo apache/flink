@@ -29,6 +29,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /** Testing implementation of the {@link JobManagerRunner}. */
 public class TestingJobManagerRunner implements JobManagerRunner {
@@ -47,6 +48,8 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
     private final CompletableFuture<JobManagerRunnerResult> resultFuture;
 
+    private final Supplier<JobDetails> jobDetailsFunction;
+
     private final OneShotLatch closeAsyncCalledLatch = new OneShotLatch();
 
     private JobStatus jobStatus = JobStatus.INITIALIZING;
@@ -55,11 +58,13 @@ public class TestingJobManagerRunner implements JobManagerRunner {
             JobID jobId,
             boolean blockingTermination,
             CompletableFuture<JobMasterGateway> jobMasterGatewayFuture,
-            CompletableFuture<JobManagerRunnerResult> resultFuture) {
+            CompletableFuture<JobManagerRunnerResult> resultFuture,
+            Supplier<JobDetails> jobDetailsFunction) {
         this.jobId = jobId;
         this.blockingTermination = blockingTermination;
         this.jobMasterGatewayFuture = jobMasterGatewayFuture;
         this.resultFuture = resultFuture;
+        this.jobDetailsFunction = jobDetailsFunction;
         this.terminationFuture = new CompletableFuture<>();
 
         final ExecutionGraphInfo suspendedExecutionGraphInfo =
@@ -103,7 +108,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
     @Override
     public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
-        throw new UnsupportedOperationException();
+        return CompletableFuture.completedFuture(jobDetailsFunction.get());
     }
 
     @Override
@@ -166,6 +171,10 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         private CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
                 new CompletableFuture<>();
         private CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
+        private Supplier<JobDetails> jobDetailsFunction =
+                () -> {
+                    throw new UnsupportedOperationException();
+                };
 
         private Builder() {
             // No-op.
@@ -194,10 +203,19 @@ public class TestingJobManagerRunner implements JobManagerRunner {
             return this;
         }
 
+        public Builder setJobDetailsFunction(Supplier<JobDetails> jobDetailsFunction) {
+            this.jobDetailsFunction = Preconditions.checkNotNull(jobDetailsFunction);
+            return this;
+        }
+
         public TestingJobManagerRunner build() {
             Preconditions.checkNotNull(jobId);
             return new TestingJobManagerRunner(
-                    jobId, blockingTermination, jobMasterGatewayFuture, resultFuture);
+                    jobId,
+                    blockingTermination,
+                    jobMasterGatewayFuture,
+                    resultFuture,
+                    jobDetailsFunction);
         }
     }
 }
