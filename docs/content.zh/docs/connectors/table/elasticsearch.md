@@ -48,7 +48,7 @@ Elasticsearch 连接器允许将数据写入到 Elasticsearch 引擎的索引中
 ```sql
 CREATE TABLE myUserTable (
   user_id STRING,
-  user_name STRING
+  user_name STRING,
   uv BIGINT,
   pv BIGINT,
   PRIMARY KEY (user_id) NOT ENFORCED
