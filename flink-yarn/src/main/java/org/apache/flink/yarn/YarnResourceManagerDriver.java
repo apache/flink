@@ -60,6 +60,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -117,6 +119,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     private TaskExecutorProcessSpecContainerResourcePriorityAdapter
             taskExecutorProcessSpecContainerResourcePriorityAdapter;
 
+    private String taskManagerNodeLabel;
+
     public YarnResourceManagerDriver(
             Configuration flinkConfig,
             YarnResourceManagerDriverConfiguration configuration,
@@ -147,6 +151,10 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         containerRequestHeartbeatIntervalMillis =
                 flinkConfig.getInteger(
                         YarnConfigOptions.CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS);
+
+        this.taskManagerNodeLabel =
+                flinkConfig.getString(
+                        YarnConfigOptions.TASK_MANAGER_NODE_LABEL);
 
         this.registerApplicationMasterResponseReflector =
                 new RegisterApplicationMasterResponseReflector(log);
@@ -259,7 +267,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         } else {
             final Priority priority = priorityAndResourceOpt.get().getPriority();
             final Resource resource = priorityAndResourceOpt.get().getResource();
-            resourceManagerClient.addContainerRequest(getContainerRequest(resource, priority));
+            resourceManagerClient.addContainerRequest(getContainerRequest(resource, priority, taskManagerNodeLabel));
 
             // make sure we transmit the request fast and receive fast news of granted allocations
             resourceManagerClient.setHeartbeatInterval(containerRequestHeartbeatIntervalMillis);
@@ -550,7 +558,24 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     @Nonnull
     @VisibleForTesting
     static AMRMClient.ContainerRequest getContainerRequest(
-            Resource containerResource, Priority priority) {
+            Resource containerResource, Priority priority, String nodeLabel) {
+        if (nodeLabel != null) {
+            /**
+             * Use reflection to determine whether the Hadoop supports node-label, depending on the Hadoop
+             * version, may or may not be supported. If not, nothing happened.
+             *
+             * The node label mechanism is supported by Hadoop version greater than 2.6.0
+             */
+            try {
+                Class<AMRMClient.ContainerRequest> requestCls = AMRMClient.ContainerRequest.class;
+                Constructor<AMRMClient.ContainerRequest> constructor = requestCls.getDeclaredConstructor(
+                        Resource.class, String[].class, String[].class, Priority.class, boolean.class, String.class
+                );
+                return constructor.newInstance(containerResource, null, null, priority, true, nodeLabel);
+            } catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+                // ignore
+            }
+        }
         return new AMRMClient.ContainerRequest(containerResource, null, null, priority);
     }
 

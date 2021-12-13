@@ -518,7 +518,8 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                                         YarnResourceManagerDriver
                                                                 .getContainerRequest(
                                                                         testingResource,
-                                                                        Priority.UNDEFINED))))
+                                                                        Priority.UNDEFINED,
+                                                                        null))))
                         .setRemoveContainerRequestConsumer(
                                 (request, handler) -> removeContainerRequestFuture.complete(null))
                         .setReleaseAssignedContainerConsumer(
