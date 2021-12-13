@@ -24,7 +24,7 @@ import org.apache.flink.connector.datagen.table.types.RowDataGenerator;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -41,14 +41,14 @@ public class DataGenTableSource implements ScanTableSource {
 
     private final DataGenerator<?>[] fieldGenerators;
     private final String tableName;
-    private final TableSchema schema;
+    private final ResolvedSchema schema;
     private final long rowsPerSecond;
     private final Long numberOfRows;
 
     public DataGenTableSource(
             DataGenerator<?>[] fieldGenerators,
             String tableName,
-            TableSchema schema,
+            ResolvedSchema schema,
             long rowsPerSecond,
             Long numberOfRows) {
         this.fieldGenerators = fieldGenerators;
@@ -67,7 +67,7 @@ public class DataGenTableSource implements ScanTableSource {
     @VisibleForTesting
     public DataGeneratorSource<RowData> createSource() {
         return new DataGeneratorSource<>(
-                new RowDataGenerator(fieldGenerators, schema.getFieldNames()),
+                new RowDataGenerator(fieldGenerators, schema.getColumnNames()),
                 rowsPerSecond,
                 numberOfRows);
     }

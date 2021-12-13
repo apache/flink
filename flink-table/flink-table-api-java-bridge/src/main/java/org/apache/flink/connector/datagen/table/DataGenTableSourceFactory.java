@@ -23,13 +23,12 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -78,14 +77,13 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
         Configuration options = new Configuration();
         context.getCatalogTable().getOptions().forEach(options::setString);
 
-        TableSchema schema =
-                TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
-        DataGenerator<?>[] fieldGenerators = new DataGenerator[schema.getFieldCount()];
+        ResolvedSchema schema = context.getCatalogTable().getResolvedSchema();
+        DataGenerator<?>[] fieldGenerators = new DataGenerator[schema.getColumnCount()];
         Set<ConfigOption<?>> optionalOptions = new HashSet<>();
 
         for (int i = 0; i < fieldGenerators.length; i++) {
-            String name = schema.getFieldNames()[i];
-            DataType type = schema.getFieldDataTypes()[i];
+            String name = schema.getColumnNames().get(i);
+            DataType type = schema.getColumnDataTypes().get(i);
 
             ConfigOption<String> kind =
                     key(DataGenConnectorOptionsUtil.FIELDS
