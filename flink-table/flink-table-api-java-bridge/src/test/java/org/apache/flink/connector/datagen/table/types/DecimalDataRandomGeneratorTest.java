@@ -35,7 +35,7 @@ class DecimalDataRandomGeneratorTest {
             for (int scale = 0; scale <= precision; scale++) {
                 DecimalDataRandomGenerator gen =
                         new DecimalDataRandomGenerator(
-                                precision, scale, Double.MIN_VALUE, Double.MAX_VALUE);
+                                precision, scale, Double.MIN_VALUE, Double.MAX_VALUE, 0f);
 
                 DecimalData value = gen.next();
                 assertThat(value)
@@ -50,7 +50,7 @@ class DecimalDataRandomGeneratorTest {
 
                 if (scale != precision) {
                     // need to account for decimal . and potential leading zeros
-                    assertThat(strRepr.length())
+                    assertThat(strRepr)
                             .as(
                                     "Wrong length for DECIMAL("
                                             + precision
@@ -58,10 +58,10 @@ class DecimalDataRandomGeneratorTest {
                                             + scale
                                             + ") = "
                                             + strRepr)
-                            .isLessThanOrEqualTo(precision + 1);
+                            .hasSizeLessThanOrEqualTo(precision + 1);
                 } else {
                     // need to account for decimal . and potential leading zeros
-                    assertThat(strRepr.length())
+                    assertThat(strRepr)
                             .as(
                                     "Wrong length for DECIMAL("
                                             + precision
@@ -69,11 +69,11 @@ class DecimalDataRandomGeneratorTest {
                                             + scale
                                             + ") = "
                                             + strRepr)
-                            .isLessThanOrEqualTo(precision + 2);
+                            .hasSizeLessThanOrEqualTo(precision + 2);
                 }
                 if (scale != 0) {
                     String decimalPart = strRepr.split("\\.")[1];
-                    assertThat(decimalPart.length())
+                    assertThat(decimalPart)
                             .as(
                                     "Wrong length for DECIMAL("
                                             + precision
@@ -81,7 +81,7 @@ class DecimalDataRandomGeneratorTest {
                                             + scale
                                             + ") = "
                                             + strRepr)
-                            .isEqualTo(scale);
+                            .hasSize(scale);
                 }
             }
         }
@@ -96,7 +96,7 @@ class DecimalDataRandomGeneratorTest {
 
                 DecimalDataRandomGenerator gen =
                         new DecimalDataRandomGenerator(
-                                precision, scale, min.doubleValue(), max.doubleValue());
+                                precision, scale, min.doubleValue(), max.doubleValue(), 0f);
                 DecimalData result = gen.next();
 
                 assertThat(result)
@@ -104,8 +104,7 @@ class DecimalDataRandomGeneratorTest {
                         .isNotNull();
                 assertThat(result.toBigDecimal())
                         .as("value must be greater than or equal to min")
-                        .isGreaterThanOrEqualTo(min);
-                assertThat(result.toBigDecimal())
+                        .isGreaterThanOrEqualTo(min)
                         .as("value must be less than or equal to max")
                         .isLessThanOrEqualTo(max);
             }
