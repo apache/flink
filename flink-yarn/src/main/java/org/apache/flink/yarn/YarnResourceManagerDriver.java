@@ -56,7 +56,6 @@ import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -117,6 +116,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     private TaskExecutorProcessSpecContainerResourcePriorityAdapter
             taskExecutorProcessSpecContainerResourcePriorityAdapter;
 
+    private String taskManagerNodeLabel;
+
     public YarnResourceManagerDriver(
             Configuration flinkConfig,
             YarnResourceManagerDriverConfiguration configuration,
@@ -147,6 +148,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         containerRequestHeartbeatIntervalMillis =
                 flinkConfig.getInteger(
                         YarnConfigOptions.CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS);
+
+        this.taskManagerNodeLabel =
+                flinkConfig.getString(YarnConfigOptions.TASK_MANAGER_NODE_LABEL);
 
         this.registerApplicationMasterResponseReflector =
                 new RegisterApplicationMasterResponseReflector(log);
@@ -259,7 +263,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         } else {
             final Priority priority = priorityAndResourceOpt.get().getPriority();
             final Resource resource = priorityAndResourceOpt.get().getResource();
-            resourceManagerClient.addContainerRequest(getContainerRequest(resource, priority));
+            resourceManagerClient.addContainerRequest(
+                    ContainerRequestReflector.INSTANCE.getContainerRequest(
+                            resource, priority, taskManagerNodeLabel));
 
             // make sure we transmit the request fast and receive fast news of granted allocations
             resourceManagerClient.setHeartbeatInterval(containerRequestHeartbeatIntervalMillis);
@@ -545,13 +551,6 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                     return FinalApplicationStatus.UNDEFINED;
             }
         }
-    }
-
-    @Nonnull
-    @VisibleForTesting
-    static AMRMClient.ContainerRequest getContainerRequest(
-            Resource containerResource, Priority priority) {
-        return new AMRMClient.ContainerRequest(containerResource, null, null, priority);
     }
 
     @VisibleForTesting
