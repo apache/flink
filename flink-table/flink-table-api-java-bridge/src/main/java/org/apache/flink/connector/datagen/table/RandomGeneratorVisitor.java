@@ -348,9 +348,8 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
                         .map(DataGeneratorContainer::getGenerator)
                         .toArray(DataGenerator[]::new);
 
-        String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
-
-        return DataGeneratorContainer.of(new RowDataGenerator(generators, fieldNames), options);
+        return DataGeneratorContainer.of(
+                new RowDataGenerator(generators, rowType.getFieldNames()), options);
     }
 
     @Override
