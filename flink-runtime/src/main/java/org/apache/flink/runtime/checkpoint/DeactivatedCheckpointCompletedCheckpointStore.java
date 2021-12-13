@@ -24,7 +24,7 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import java.util.List;
 
 /**
- * This class represents a {@link CompletedCheckpointStore} if checkpointing has been enabled.
+ * This class represents a {@link CompletedCheckpointStore} if checkpointing has been disabled.
  * Consequently, no component should use methods other than {@link
  * CompletedCheckpointStore#shutdown}.
  */
