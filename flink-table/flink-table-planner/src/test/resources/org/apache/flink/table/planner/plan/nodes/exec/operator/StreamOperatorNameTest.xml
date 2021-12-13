@@ -344,7 +344,7 @@ Calc(select=[a, b, c])
     "type" : "Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])",
     "pact" : "Operator",
     "contents" : "Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -355,7 +355,7 @@ Calc(select=[a, b, c])
     "type" : "Calc(select=[a, b, c])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, b, c])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -439,7 +439,7 @@ Calc(select=[a, b, c])
     "type" : "Deduplicate[]",
     "pact" : "Operator",
     "contents" : "[]:Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -450,7 +450,7 @@ Calc(select=[a, b, c])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, b, c])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -614,7 +614,7 @@ GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])
     "type" : "GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])",
     "pact" : "Operator",
     "contents" : "GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -713,7 +713,7 @@ Calc(select=[window_start, window_end, a, b, c])
     "type" : "WindowDeduplicate[]",
     "pact" : "Operator",
     "contents" : "[]:WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -724,7 +724,7 @@ Calc(select=[window_start, window_end, a, b, c])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[window_start, window_end, a, b, c])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -764,7 +764,7 @@ GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])
     "type" : "GroupAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -822,7 +822,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(*) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])",
     "pact" : "Operator",
     "contents" : "GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(*) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -833,7 +833,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
     "pact" : "Operator",
     "contents" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -891,7 +891,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "GroupWindowAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(*) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -902,7 +902,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[b, w$end AS window_end, EXPR$2])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -985,7 +985,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
     "type" : "IncrementalGroupAggregate(partialAggGrouping=[a, $f2], finalAggGrouping=[a], select=[a, COUNT(distinct$0 count$0) AS count$0])",
     "pact" : "Operator",
     "contents" : "IncrementalGroupAggregate(partialAggGrouping=[a, $f2], finalAggGrouping=[a], select=[a, COUNT(distinct$0 count$0) AS count$0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -996,7 +996,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
     "type" : "GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1])",
     "pact" : "Operator",
     "contents" : "GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -1079,7 +1079,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
     "type" : "IncrementalGroupAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:IncrementalGroupAggregate(partialAggGrouping=[a, $f2], finalAggGrouping=[a], select=[a, COUNT(distinct$0 count$0) AS count$0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -1090,7 +1090,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
     "type" : "GlobalGroupAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -1225,7 +1225,7 @@ Calc(select=[a, b])
     "type" : "IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (proctime >= (proctime0 - 3600000:INTERVAL HOUR)) AND (proctime <= (proctime0 + 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])",
     "pact" : "Operator",
     "contents" : "IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (proctime >= (proctime0 - 3600000:INTERVAL HOUR)) AND (proctime <= (proctime0 + 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -1240,7 +1240,7 @@ Calc(select=[a, b])
     "type" : "Calc(select=[a, b])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1375,7 +1375,7 @@ Calc(select=[a, b])
     "type" : "IntervalJoin[]",
     "pact" : "Operator",
     "contents" : "[]:IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (proctime >= (proctime0 - 3600000:INTERVAL HOUR)) AND (proctime <= (proctime0 + 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -1390,7 +1390,7 @@ Calc(select=[a, b])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1525,7 +1525,7 @@ Calc(select=[a, b])
     "type" : "filter all right input transformation",
     "pact" : "Operator",
     "contents" : "filter all right input transformation",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -1536,7 +1536,7 @@ Calc(select=[a, b])
     "type" : "pad left input transformation",
     "pact" : "Operator",
     "contents" : "pad left input transformation",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -1547,7 +1547,7 @@ Calc(select=[a, b])
     "type" : "Calc(select=[a, b])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1686,7 +1686,7 @@ Calc(select=[a, b])
     "type" : "FilterRight[]",
     "pact" : "Operator",
     "contents" : "[]:filter all right input transformation",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -1697,7 +1697,7 @@ Calc(select=[a, b])
     "type" : "PadLeft[]",
     "pact" : "Operator",
     "contents" : "[]:pad left input transformation",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -1708,7 +1708,7 @@ Calc(select=[a, b])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1764,7 +1764,7 @@ Join(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0]
     "type" : "Join(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])",
     "pact" : "Operator",
     "contents" : "Join(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -1820,7 +1820,7 @@ Join(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0]
     "type" : "Join[]",
     "pact" : "Operator",
     "contents" : "[]:Join(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -2029,7 +2029,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     "type" : "GlobalWindowAggregate(groupBy=[b], window=[TUMBLE(slice_end=[$slice_end], size=[5 s])], select=[b, COUNT(count1$0) AS EXPR$3, SUM(sum$1) AS EXPR$4, start('w$) AS window_start, end('w$) AS window_end])",
     "pact" : "Operator",
     "contents" : "GlobalWindowAggregate(groupBy=[b], window=[TUMBLE(slice_end=[$slice_end], size=[5 s])], select=[b, COUNT(count1$0) AS EXPR$3, SUM(sum$1) AS EXPR$4, start('w$) AS window_start, end('w$) AS window_end])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -2040,7 +2040,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     "type" : "Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])",
     "pact" : "Operator",
     "contents" : "Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -2125,7 +2125,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     "type" : "GlobalWindowAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:GlobalWindowAggregate(groupBy=[b], window=[TUMBLE(slice_end=[$slice_end], size=[5 s])], select=[b, COUNT(count1$0) AS EXPR$3, SUM(sum$1) AS EXPR$4, start('w$) AS window_start, end('w$) AS window_end])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -2136,7 +2136,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -2424,7 +2424,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])",
     "pact" : "Operator",
     "contents" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -2435,7 +2435,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "Calc(select=[b, w0$o0 AS $1])",
     "pact" : "Operator",
     "contents" : "Calc(select=[b, w0$o0 AS $1])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -2491,7 +2491,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "OverAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -2502,7 +2502,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[b, w0$o0 AS $1])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -2558,7 +2558,7 @@ Calc(select=[a, w0$o0])
     "type" : "Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])",
     "pact" : "Operator",
     "contents" : "Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -2569,7 +2569,7 @@ Calc(select=[a, w0$o0])
     "type" : "Calc(select=[a, w0$o0])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, w0$o0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -2625,7 +2625,7 @@ Calc(select=[a, w0$o0])
     "type" : "Rank[]",
     "pact" : "Operator",
     "contents" : "[]:Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -2636,7 +2636,7 @@ Calc(select=[a, w0$o0])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, w0$o0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -2820,7 +2820,7 @@ Calc(select=[(amount * rate) AS EXPR$0])
     "type" : "TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0)) AND (currency = currency0))], select=[amount, currency, rowtime, currency0, rate, rowtime0])",
     "pact" : "Operator",
     "contents" : "TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0)) AND (currency = currency0))], select=[amount, currency, rowtime, currency0, rate, rowtime0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -2835,7 +2835,7 @@ Calc(select=[(amount * rate) AS EXPR$0])
     "type" : "Calc(select=[(amount * rate) AS EXPR$0])",
     "pact" : "Operator",
     "contents" : "Calc(select=[(amount * rate) AS EXPR$0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -2917,7 +2917,7 @@ Calc(select=[(amount * rate) AS EXPR$0])
     "type" : "TemporalJoin[]",
     "pact" : "Operator",
     "contents" : "[]:TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0)) AND (currency = currency0))], select=[amount, currency, rowtime, currency0, rate, rowtime0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -2932,7 +2932,7 @@ Calc(select=[(amount * rate) AS EXPR$0])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[(amount * rate) AS EXPR$0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -3374,7 +3374,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     "type" : "WindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[rowtime], size=[5 s])], select=[b, COUNT(*) AS EXPR$3, SUM(a) AS EXPR$4, start('w$) AS window_start, end('w$) AS window_end])",
     "pact" : "Operator",
     "contents" : "WindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[rowtime], size=[5 s])], select=[b, COUNT(*) AS EXPR$3, SUM(a) AS EXPR$4, start('w$) AS window_start, end('w$) AS window_end])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -3385,7 +3385,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     "type" : "Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])",
     "pact" : "Operator",
     "contents" : "Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -3457,7 +3457,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     "type" : "WindowAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:WindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[rowtime], size=[5 s])], select=[b, COUNT(*) AS EXPR$3, SUM(a) AS EXPR$4, start('w$) AS window_start, end('w$) AS window_end])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -3468,7 +3468,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -3567,7 +3567,7 @@ Calc(select=[window_start, window_end, a, b, c])
     "type" : "WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])",
     "pact" : "Operator",
     "contents" : "WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -3578,7 +3578,7 @@ Calc(select=[window_start, window_end, a, b, c])
     "type" : "Calc(select=[window_start, window_end, a, b, c])",
     "pact" : "Operator",
     "contents" : "Calc(select=[window_start, window_end, a, b, c])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -3681,7 +3681,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])",
     "pact" : "Operator",
     "contents" : "GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -3692,7 +3692,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "Calc(select=[a, window_start, window_end, cnt, uv])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, window_start, window_end, cnt, uv])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -3731,7 +3731,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])",
     "pact" : "Operator",
     "contents" : "GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -3742,7 +3742,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "Calc(select=[a, window_start, window_end, cnt, uv])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, window_start, window_end, cnt, uv])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -3753,7 +3753,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], joinType=[InnerJoin], where=[(a = a0)], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0])",
     "pact" : "Operator",
     "contents" : "WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], joinType=[InnerJoin], where=[(a = a0)], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -3768,7 +3768,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -3871,7 +3871,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "GlobalWindowAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -3882,7 +3882,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, window_start, window_end, cnt, uv])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -3921,7 +3921,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "GlobalWindowAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -3932,7 +3932,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, window_start, window_end, cnt, uv])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -3943,7 +3943,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "WindowJoin[]",
     "pact" : "Operator",
     "contents" : "[]:WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], joinType=[InnerJoin], where=[(a = a0)], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -3958,7 +3958,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -4057,7 +4057,7 @@ Calc(select=[window_start, window_end, a, b, c])
     "type" : "WindowRank[]",
     "pact" : "Operator",
     "contents" : "[]:WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, window_start, window_end])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -4068,7 +4068,7 @@ Calc(select=[window_start, window_end, a, b, c])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[window_start, window_end, a, b, c])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -4167,7 +4167,7 @@ Calc(select=[window_start, window_end, a, b, c])
     "type" : "WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, window_start, window_end])",
     "pact" : "Operator",
     "contents" : "WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, window_start, window_end])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH",
@@ -4178,7 +4178,7 @@ Calc(select=[window_start, window_end, a, b, c])
     "type" : "Calc(select=[window_start, window_end, a, b, c])",
     "pact" : "Operator",
     "contents" : "Calc(select=[window_start, window_end, a, b, c])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",

@@ -50,6 +50,7 @@ public abstract class OperatorNameTestBase extends TableTestBase {
     @Before
     public void setup() {
         util = getTableTestUtil();
+        util.getStreamEnv().setParallelism(2);
         tEnv = util.getTableEnv();
         tEnv.getConfig()
                 .getConfiguration()

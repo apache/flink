@@ -236,7 +236,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])",
     "pact" : "Operator",
     "contents" : "HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[b]",
@@ -247,7 +247,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
     "pact" : "Operator",
     "contents" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -303,7 +303,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "HashWindowAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[b]",
@@ -314,7 +314,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[b, w$end AS window_end, EXPR$2])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -373,7 +373,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
     "pact" : "Operator",
     "contents" : "HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a, b]",
@@ -384,7 +384,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
     "pact" : "Operator",
     "contents" : "LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -395,7 +395,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
     "pact" : "Operator",
     "contents" : "HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a]",
@@ -454,7 +454,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "HashAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a, b]",
@@ -465,7 +465,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "HashAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -476,7 +476,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "HashAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a]",
@@ -528,7 +528,7 @@ HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0,
     "type" : "HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])",
     "pact" : "Operator",
     "contents" : "HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[d]",
@@ -584,7 +584,7 @@ HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0,
     "type" : "HashJoin[]",
     "pact" : "Operator",
     "contents" : "[]:HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[d]",
@@ -1015,7 +1015,7 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
     "type" : "MultipleInput(readOrder=[2,1,0], members=[\\nHashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])\\n:- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])\\n:  :- [#2] Exchange(distribution=[hash[a]])\\n:  +- [#3] Exchange(distribution=[hash[a]])\\n+- [#1] Exchange(distribution=[hash[a]])\\n])",
     "pact" : "Operator",
     "contents" : "MultipleInput(readOrder=[2,1,0], members=[\\nHashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])\\n:- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])\\n:  :- [#2] Exchange(distribution=[hash[a]])\\n:  +- [#3] Exchange(distribution=[hash[a]])\\n+- [#1] Exchange(distribution=[hash[a]])\\n])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a]",
@@ -1088,7 +1088,7 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
     "type" : "MultipleInput[]",
     "pact" : "Operator",
     "contents" : "[]:MultipleInput(readOrder=[2,1,0], members=[\\nHashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])\\n:- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])\\n:  :- [#2] Exchange(distribution=[hash[a]])\\n:  +- [#3] Exchange(distribution=[hash[a]])\\n+- [#1] Exchange(distribution=[hash[a]])\\n])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a]",
@@ -1247,7 +1247,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "Sort(orderBy=[b ASC, rowtime ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[b ASC, rowtime ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[b]",
@@ -1258,7 +1258,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
     "pact" : "Operator",
     "contents" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1269,7 +1269,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "Calc(select=[b, w0$o0 AS $1])",
     "pact" : "Operator",
     "contents" : "Calc(select=[b, w0$o0 AS $1])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1312,7 +1312,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[b ASC, rowtime ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[b]",
@@ -1323,7 +1323,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "OverAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1334,7 +1334,7 @@ Calc(select=[b, w0$o0 AS $1])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[b, w0$o0 AS $1])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1379,7 +1379,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "Sort(orderBy=[b ASC, a ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[b ASC, a ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[b]",
@@ -1390,7 +1390,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
     "pact" : "Operator",
     "contents" : "OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1401,7 +1401,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
     "pact" : "Operator",
     "contents" : "Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1446,7 +1446,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[b ASC, a ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[b]",
@@ -1457,7 +1457,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "OverAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1468,7 +1468,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1546,7 +1546,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort(orderBy=[a ASC, b ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[a ASC, b ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a, b]",
@@ -1557,7 +1557,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
     "pact" : "Operator",
     "contents" : "SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1568,7 +1568,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort(orderBy=[a ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[a ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1579,7 +1579,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
     "pact" : "Operator",
     "contents" : "LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1590,7 +1590,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort(orderBy=[a ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[a ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a]",
@@ -1601,7 +1601,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
     "pact" : "Operator",
     "contents" : "SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1679,7 +1679,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[a ASC, b ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a, b]",
@@ -1690,7 +1690,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "SortAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1701,7 +1701,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[a ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1712,7 +1712,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "SortAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1723,7 +1723,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[a ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a]",
@@ -1734,7 +1734,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "type" : "SortAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1892,7 +1892,7 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0
     "type" : "SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0])",
     "pact" : "Operator",
     "contents" : "SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a]",
@@ -1941,7 +1941,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Sort[]",
     "pact" : "Operator",
     "contents" : "[]:Sort(orderBy=[b ASC, rowtime ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[b]",
@@ -1952,7 +1952,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "SortWindowAggregate[]",
     "pact" : "Operator",
     "contents" : "[]:SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1963,7 +1963,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[b, w$end AS window_end, EXPR$2])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -2015,7 +2015,7 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0
     "type" : "SortMergeJoin[]",
     "pact" : "Operator",
     "contents" : "[]:SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[a]",
@@ -2064,7 +2064,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Sort(orderBy=[b ASC, rowtime ASC])",
     "pact" : "Operator",
     "contents" : "Sort(orderBy=[b ASC, rowtime ASC])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "HASH[b]",
@@ -2075,7 +2075,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
     "pact" : "Operator",
     "contents" : "SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -2086,7 +2086,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "type" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
     "pact" : "Operator",
     "contents" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
-    "parallelism" : 12,
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
