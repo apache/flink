@@ -56,9 +56,12 @@ public class StreamOperatorNameTest extends OperatorNameTestBase {
         util = (StreamTableTestUtil) super.util;
     }
 
-    /** Verify ChangelogNormalize and DropUpdateBefore. */
+    /** Verify DropUpdateBefore. */
     @Test
-    public void testChangelogNormalize() throws Exception {
+    public void testDropUpdateBefore() throws Exception {
+
+        util.getStreamEnv().setParallelism(2);
+
         String srcTableDdl =
                 "CREATE TABLE MyTable (\n"
                         + "  a bigint,\n"
@@ -76,10 +79,47 @@ public class StreamOperatorNameTest extends OperatorNameTestBase {
                 "CREATE TABLE MySink (\n"
                         + "  c varchar,\n"
                         + "  a bigint,\n"
-                        + "  b int not null\n"
+                        + "  b int not null,\n"
+                        + "  primary key(a, b) NOT ENFORCED\n"
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
                         + "  'sink-insert-only' = 'false',\n"
+                        + "  'sink-changelog-mode-enforced' = 'I,UA,D',"
+                        + "  'table-sink-class' = 'DEFAULT')";
+        tEnv.executeSql(sinkTableDdl);
+
+        verifyInsert("insert into MySink select c, a, b from MyTable");
+    }
+
+    /** Verify ChangelogNormalize and SinkMaterialize. */
+    @Test
+    public void testChangelogNormalize() throws Exception {
+
+        util.getStreamEnv().setParallelism(2);
+
+        String srcTableDdl =
+                "CREATE TABLE MyTable (\n"
+                        + "  a bigint,\n"
+                        + "  b int not null,\n"
+                        + "  c varchar,\n"
+                        + "  d bigint not null,\n"
+                        + "  primary key(a, b) NOT ENFORCED\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'changelog-mode' = 'I,UA,D',\n"
+                        + "  'bounded' = 'false')";
+        tEnv.executeSql(srcTableDdl);
+
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + "  c varchar,\n"
+                        + "  a bigint,\n"
+                        + "  b int not null,\n"
+                        + "  primary key(a) NOT ENFORCED\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false',\n"
+                        + "  'sink-changelog-mode-enforced' = 'I,UA,D',"
                         + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(sinkTableDdl);
 

@@ -286,50 +286,52 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> filterAllLeftStream =
                 new OneInputTransformation<>(
                         leftInputTransform,
-                        "Filter",
+                        "FilterLeft",
                         new StreamFlatMap<>(allFilter),
                         returnTypeInfo,
                         leftParallelism);
         filterAllLeftStream.setDescription(
                 getFormattedOperatorDescription("filter all left input transformation", config));
         filterAllLeftStream.setName(
-                getFormattedOperatorName(filterAllLeftStream.getDescription(), "Filter", config));
+                getFormattedOperatorName(
+                        filterAllLeftStream.getDescription(), "FilterLeft", config));
 
         OneInputTransformation<RowData, RowData> filterAllRightStream =
                 new OneInputTransformation<>(
                         rightInputTransform,
-                        "Filter",
+                        "FilterRight",
                         new StreamFlatMap<>(allFilter),
                         returnTypeInfo,
                         rightParallelism);
         filterAllRightStream.setDescription(
                 getFormattedOperatorDescription("filter all right input transformation", config));
         filterAllRightStream.setName(
-                getFormattedOperatorName(filterAllRightStream.getDescription(), "Filter", config));
+                getFormattedOperatorName(
+                        filterAllRightStream.getDescription(), "FilterRight", config));
 
         OneInputTransformation<RowData, RowData> padLeftStream =
                 new OneInputTransformation<>(
                         leftInputTransform,
-                        "Pad",
+                        "PadLeft",
                         new StreamMap<>(leftPadder),
                         returnTypeInfo,
                         leftParallelism);
         padLeftStream.setDescription(
                 getFormattedOperatorDescription("pad left input transformation", config));
         padLeftStream.setName(
-                getFormattedOperatorName(padLeftStream.getDescription(), "Pad", config));
+                getFormattedOperatorName(padLeftStream.getDescription(), "PadLeft", config));
 
         OneInputTransformation<RowData, RowData> padRightStream =
                 new OneInputTransformation<>(
                         rightInputTransform,
-                        "Pad",
+                        "PadRight",
                         new StreamMap<>(rightPadder),
                         returnTypeInfo,
                         rightParallelism);
         padRightStream.setDescription(
                 getFormattedOperatorDescription("pad right input transformation", config));
         padRightStream.setName(
-                getFormattedOperatorName(padRightStream.getDescription(), "Pad", config));
+                getFormattedOperatorName(padRightStream.getDescription(), "PadRight", config));
 
         switch (joinSpec.getJoinType()) {
             case INNER:

@@ -25,11 +25,15 @@ LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
 
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
++- ChangelogNormalize(key=[a, b])
+   +- Exchange(distribution=[hash[a, b]])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMaterialize=[true])
++- ChangelogNormalize(key=[a, b])
+   +- Exchange(distribution=[hash[a, b]])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
 
 == Physical Execution Plan ==
 {
@@ -41,10 +45,21 @@ Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
     "parallelism" : 1
   }, {
     "id" : ,
-    "type" : "ConstraintEnforcer[NotNullEnforcer(fields=[b])]",
+    "type" : "ChangelogNormalize(key=[a, b])",
     "pact" : "Operator",
-    "contents" : "ConstraintEnforcer[NotNullEnforcer(fields=[b])]",
-    "parallelism" : 1,
+    "contents" : "ChangelogNormalize(key=[a, b])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "ConstraintEnforcer[NotNullEnforcer(fields=[a, b])]",
+    "pact" : "Operator",
+    "contents" : "ConstraintEnforcer[NotNullEnforcer(fields=[a, b])]",
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -52,10 +67,21 @@ Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
     } ]
   }, {
     "id" : ,
-    "type" : "Sink: Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])",
+    "type" : "SinkMaterializer(pk=[a])",
+    "pact" : "Operator",
+    "contents" : "SinkMaterializer(pk=[a])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMaterialize=[true])",
     "pact" : "Data Sink",
-    "contents" : "Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])",
-    "parallelism" : 1,
+    "contents" : "Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMaterialize=[true])",
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -74,11 +100,15 @@ LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
 
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
++- ChangelogNormalize(key=[a, b])
+   +- Exchange(distribution=[hash[a, b]])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMaterialize=[true])
++- ChangelogNormalize(key=[a, b])
+   +- Exchange(distribution=[hash[a, b]])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
 
 == Physical Execution Plan ==
 {
@@ -90,10 +120,21 @@ Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
     "parallelism" : 1
   }, {
     "id" : ,
+    "type" : "ChangelogNormalize[]",
+    "pact" : "Operator",
+    "contents" : "[]:ChangelogNormalize(key=[a, b])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
     "type" : "ConstraintEnforcer[]",
     "pact" : "Operator",
-    "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[b])]",
-    "parallelism" : 1,
+    "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[a, b])]",
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -101,10 +142,21 @@ Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
     } ]
   }, {
     "id" : ,
+    "type" : "SinkMaterializer[]",
+    "pact" : "Operator",
+    "contents" : "[]:SinkMaterializer(pk=[a])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
     "type" : "Sink: MySink[]",
     "pact" : "Data Sink",
-    "contents" : "[]:Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])",
-    "parallelism" : 1,
+    "contents" : "[]:Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMaterialize=[true])",
+    "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -399,6 +451,130 @@ Calc(select=[a, b, c])
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, b, c])",
     "parallelism" : 12,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDropUpdateBefore[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
++- LogicalProject(c=[$2], a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
++- DropUpdateBefore
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
++- DropUpdateBefore
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "DropUpdateBefore",
+    "pact" : "Operator",
+    "contents" : "DropUpdateBefore",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "ConstraintEnforcer[NotNullEnforcer(fields=[a, b])]",
+    "pact" : "Operator",
+    "contents" : "ConstraintEnforcer[NotNullEnforcer(fields=[a, b])]",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])",
+    "pact" : "Data Sink",
+    "contents" : "Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDropUpdateBefore[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
++- LogicalProject(c=[$2], a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
++- DropUpdateBefore
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
++- DropUpdateBefore
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "DropUpdateBefore[]",
+    "pact" : "Operator",
+    "contents" : "[]:DropUpdateBefore",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "ConstraintEnforcer[]",
+    "pact" : "Operator",
+    "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[a, b])]",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: MySink[]",
+    "pact" : "Data Sink",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])",
+    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -1507,7 +1683,7 @@ Calc(select=[a, b])
     } ]
   }, {
     "id" : ,
-    "type" : "Filter[]",
+    "type" : "FilterRight[]",
     "pact" : "Operator",
     "contents" : "[]:filter all right input transformation",
     "parallelism" : 12,
@@ -1518,7 +1694,7 @@ Calc(select=[a, b])
     } ]
   }, {
     "id" : ,
-    "type" : "Pad[]",
+    "type" : "PadLeft[]",
     "pact" : "Operator",
     "contents" : "[]:pad left input transformation",
     "parallelism" : 12,
