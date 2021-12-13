@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
@@ -147,7 +148,11 @@ public class CliClientITCase extends AbstractTestBase {
         DefaultContext defaultContext =
                 new DefaultContext(
                         Collections.emptyList(),
-                        new Configuration(miniClusterResource.getClientConfiguration()),
+                        new Configuration(miniClusterResource.getClientConfiguration())
+                                // Make sure we use the new cast behaviour
+                                .set(
+                                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
+                                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED),
                         Collections.singletonList(new DefaultCLI()));
         final Executor executor = new LocalExecutor(defaultContext);
         InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());

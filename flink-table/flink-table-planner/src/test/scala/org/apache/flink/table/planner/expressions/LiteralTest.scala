@@ -57,14 +57,14 @@ class LiteralTest extends ExpressionTestBase {
       true,
       "trUe",
       "trUe",
-      "true"
+      "TRUE"
     )
 
     testAllApis(
       false,
       "FALSE",
       "FALSE",
-      "false"
+      "FALSE"
     )
   }
 
@@ -74,7 +74,7 @@ class LiteralTest extends ExpressionTestBase {
       'f4.like("%测试%"),
       "f4.like('%测试%')",
       "f4 LIKE '%测试%'",
-      "true")
+      "TRUE")
 
     testAllApis(
       "Абвгде" + "谢谢",

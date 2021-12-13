@@ -46,7 +46,7 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
                 dataType,
                 DateTimeUtils.UTC_ZONE.toZoneId(),
                 Thread.currentThread().getContextClassLoader(),
-                true);
+                false);
     }
 
     @SuppressWarnings("unchecked")
