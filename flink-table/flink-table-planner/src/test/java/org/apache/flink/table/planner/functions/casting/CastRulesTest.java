@@ -488,8 +488,10 @@ class CastRulesTest {
                         .fromCase(VARCHAR(5), fromString("Flink"), fromString("Flink"))
                         .fromCase(VARCHAR(10), fromString("Flink"), fromString("Flink"))
                         .fromCase(STRING(), fromString("Apache Flink"), fromString("Apache Flink"))
-                        .fromCase(BOOLEAN(), true, fromString("true"))
-                        .fromCase(BOOLEAN(), false, fromString("false"))
+                        .fromCase(BOOLEAN(), true, fromString("TRUE"))
+                        .fromCase(BOOLEAN(), false, fromString("FALSE"))
+                        .fromCase(BOOLEAN(), true, fromString("true"), true)
+                        .fromCase(BOOLEAN(), false, fromString("false"), true)
                         .fromCase(BINARY(2), new byte[] {0, 1}, fromString("\u0000\u0001"))
                         .fromCase(
                                 VARBINARY(3),
@@ -551,7 +553,12 @@ class CastRulesTest {
                         .fromCase(
                                 ARRAY(INT().nullable()),
                                 new GenericArrayData(new Integer[] {null, 456}),
-                                fromString("[null, 456]"))
+                                fromString("[NULL, 456]"))
+                        .fromCase(
+                                ARRAY(INT().nullable()),
+                                new GenericArrayData(new Integer[] {null, 456}),
+                                fromString("[null, 456]"),
+                                true)
                         .fromCase(
                                 ARRAY(INT()),
                                 new GenericArrayData(new Integer[] {}),
@@ -567,11 +574,16 @@ class CastRulesTest {
                         .fromCase(
                                 MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
                                 mapData(entry(null, -123), entry(fromString("b"), null)),
-                                fromString("{null=-10-03, b=null}"))
+                                fromString("{NULL=-10-03, b=NULL}"))
                         .fromCase(
                                 MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
                                 mapData(entry(null, null)),
-                                fromString("{null=null}"))
+                                fromString("{NULL=NULL}"))
+                        .fromCase(
+                                MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
+                                mapData(entry(null, null)),
+                                fromString("{null=null}"),
+                                true)
                         .fromCase(MAP(STRING(), INTERVAL(MONTH())), mapData(), fromString("{}"))
                         .fromCase(
                                 ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
@@ -590,7 +602,12 @@ class CastRulesTest {
                         .fromCase(
                                 ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
                                 GenericRowData.of(null, fromString("abc")),
-                                fromString("(null, abc)"))
+                                fromString("(NULL, abc)"))
+                        .fromCase(
+                                ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
+                                GenericRowData.of(null, fromString("abc")),
+                                fromString("(null,abc)"),
+                                true)
                         .fromCase(ROW(), GenericRowData.of(), fromString("()"))
                         .fromCase(
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
@@ -609,7 +626,7 @@ class CastRulesTest {
                                                     fromString("b"),
                                                     fromString("c")
                                                 })),
-                                fromString("(10, null, 12:34:56.123, [a, b, c])")),
+                                fromString("(10, NULL, 12:34:56.123, [a, b, c])")),
                 CastTestSpecBuilder.testCastTo(CHAR(6))
                         .fromCase(STRING(), null, EMPTY_UTF8, false)
                         .fromCase(STRING(), null, EMPTY_UTF8, true)

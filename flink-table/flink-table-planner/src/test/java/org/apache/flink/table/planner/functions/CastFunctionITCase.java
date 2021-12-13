@@ -156,7 +156,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(VARCHAR(10), "Flink", "Flink")
                         .fromCase(STRING(), "Apache Flink", "Apache Flink")
                         .fromCase(STRING(), null, null)
-                        .fromCase(BOOLEAN(), true, "true")
+                        .fromCase(BOOLEAN(), true, "TRUE")
                         .fromCase(BINARY(2), DEFAULT_BINARY, "\u0000\u0001")
                         .fromCase(BINARY(3), DEFAULT_BINARY, "\u0000\u0001\u0000")
                         .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "\u0000\u0001\u0002")
