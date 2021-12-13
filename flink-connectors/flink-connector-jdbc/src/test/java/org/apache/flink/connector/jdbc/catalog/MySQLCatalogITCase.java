@@ -240,7 +240,6 @@ public class MySQLCatalogITCase extends MySQLCatalogTestBase {
 
     @Test
     public void testGetTable() throws TableNotExistException {
-        // Test `test`.`t_without_geo_types`
         CatalogBaseTable table = catalog.getTable(new ObjectPath(TEST_DB, TEST_TABLE_ALL_TYPES));
         assertEquals(TABLE_SCHEMA, table.getUnresolvedSchema());
     }
