@@ -31,9 +31,9 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAccess;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.NULL_STR_LITERAL;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.nullLiteral;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 
 /**
@@ -74,7 +74,7 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
             }
             builder$1.append(result$3);
         } else {
-            builder$1.append("null");
+            builder$1.append("NULL");
         }
         builder$1.append(", ");
         org.apache.flink.table.data.binary.BinaryStringData f1Value$5 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
@@ -83,7 +83,7 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
             f1Value$5 = ((org.apache.flink.table.data.binary.BinaryStringData) _myInput.getString(1));
             builder$1.append(f1Value$5);
         } else {
-            builder$1.append("null");
+            builder$1.append("NULL");
         }
         builder$1.append(")");
         java.lang.String resultString$2;
@@ -182,7 +182,10 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
                             elseBodyWriter ->
                                     // If element is null, just write NULL
                                     elseBodyWriter.stmt(
-                                            methodCall(builderTerm, "append", NULL_STR_LITERAL)));
+                                            methodCall(
+                                                    builderTerm,
+                                                    "append",
+                                                    nullLiteral(context.legacyBehaviour()))));
         }
 
         writer.stmt(methodCall(builderTerm, "append", strLiteral(")")));

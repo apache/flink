@@ -29,9 +29,9 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAccess;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.NULL_STR_LITERAL;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.nullLiteral;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 import static org.apache.flink.table.planner.functions.casting.CharVarCharTrimPadCastRule.couldTrim;
 import static org.apache.flink.table.planner.functions.casting.CharVarCharTrimPadCastRule.stringExceedsLength;
@@ -81,7 +81,7 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
                 }
                 builder$1.append(result$3);
             } else {
-                builder$1.append("null");
+                builder$1.append("NULL");
             }
         }
         builder$1.append("]");
@@ -193,7 +193,9 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
                                                                     methodCall(
                                                                             builderTerm,
                                                                             "append",
-                                                                            NULL_STR_LITERAL)));
+                                                                            nullLiteral(
+                                                                                    context
+                                                                                            .legacyBehaviour()))));
                                 })
                         .stmt(methodCall(builderTerm, "append", strLiteral("]")));
         return CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
