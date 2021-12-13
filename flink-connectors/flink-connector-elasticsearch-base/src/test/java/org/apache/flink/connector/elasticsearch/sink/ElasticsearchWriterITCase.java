@@ -248,7 +248,7 @@ class ElasticsearchWriterITCase {
                 flushOnCheckpoint,
                 bulkProcessorConfig,
                 new TestBulkProcessorBuilderFactory(),
-                new NetworkClientConfig(null, null, null),
+                new NetworkClientConfig(null, null, null, null, null, null),
                 metricGroup,
                 new TestMailbox());
     }

@@ -218,6 +218,28 @@ CREATE TABLE myUserTable (
       <td>添加到每个 REST 通信中的前缀字符串，例如，<code>'/v1'</code>。</td>
     </tr>
     <tr>
+      <td><h5>connection.request-timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>从连接管理器请求连接的超时时间。超时时间必须大于或者等于 0，如果设置为 0 则是无限超时。</td>
+    </tr>
+    <tr>
+      <td><h5>connection.timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>建立请求的超时时间 。超时时间必须大于或者等于 0 ，如果设置为 0 则是无限超时。</td>
+    </tr>
+    <tr>
+      <td><h5>socket.timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>等待数据的 socket 的超时时间 (SO_TIMEOUT)。超时时间必须大于或者等于 0，如果设置为 0 则是无限超时。
+      </td>
+    </tr>
+    <tr>
       <td><h5>format</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">json</td>

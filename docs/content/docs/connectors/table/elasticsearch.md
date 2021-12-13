@@ -198,6 +198,37 @@ Connector Options
       <td>Prefix string to be added to every REST communication, e.g., <code>'/v1'</code>.</td>
     </tr>
     <tr>
+      <td><h5>connection.request-timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>The timeout in milliseconds for requesting a connection from the connection manager.
+        The timeout must be larger than or equal to 0.
+        A timeout value of zero is interpreted as an infinite timeout.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>connection.timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>The timeout in milliseconds for establishing a connection.
+        The timeout must be larger than or equal to 0.
+        A timeout value of zero is interpreted as an infinite timeout.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>socket.timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>The socket timeout (SO_TIMEOUT) for waiting for data or, put differently,
+        a maximum period inactivity between two consecutive data packets.
+        The timeout must be larger than or equal to 0.
+        A timeout value of zero is interpreted as an infinite timeout.
+      </td>
+    </tr>
+    <tr>
       <td><h5>format</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">json</td>
