@@ -159,6 +159,23 @@ public class CatalogBaseTableResolutionTest {
     }
 
     @Test
+    public void testManagedPropertyDeSerialization() {
+        Map<String, String> properties = catalogTableAsProperties();
+        properties.put("table-kind", CatalogBaseTable.TableKind.MANAGED.toString());
+
+        final CatalogTable table = CatalogTable.fromProperties(properties);
+
+        final ResolvedCatalogTable resolvedTable =
+                resolveCatalogBaseTable(ResolvedCatalogTable.class, table);
+
+        assertThat(resolvedTable.getTableKind(), equalTo(CatalogBaseTable.TableKind.MANAGED));
+
+        assertThat(resolvedTable.toProperties(), equalTo(properties));
+
+        assertThat(resolvedTable.getResolvedSchema(), equalTo(RESOLVED_TABLE_SCHEMA));
+    }
+
+    @Test
     public void testPropertyDeserializationError() {
         try {
             final Map<String, String> properties = catalogTableAsProperties();

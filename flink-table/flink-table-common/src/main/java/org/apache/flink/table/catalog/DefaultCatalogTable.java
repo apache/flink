@@ -39,16 +39,19 @@ public class DefaultCatalogTable implements CatalogTable {
     private final @Nullable String comment;
     private final List<String> partitionKeys;
     private final Map<String, String> options;
+    private final TableKind tableKind;
 
     protected DefaultCatalogTable(
             Schema schema,
             @Nullable String comment,
             List<String> partitionKeys,
-            Map<String, String> options) {
+            Map<String, String> options,
+            TableKind tableKind) {
         this.schema = checkNotNull(schema, "Schema must not be null.");
         this.comment = comment;
         this.partitionKeys = checkNotNull(partitionKeys, "Partition keys must not be null.");
         this.options = checkNotNull(options, "Options must not be null.");
+        this.tableKind = checkNotNull(tableKind, "Table kind must not be null.");
 
         checkArgument(
                 options.entrySet().stream()
@@ -64,6 +67,11 @@ public class DefaultCatalogTable implements CatalogTable {
     @Override
     public String getComment() {
         return comment != null ? comment : "";
+    }
+
+    @Override
+    public TableKind getTableKind() {
+        return tableKind;
     }
 
     @Override
@@ -83,12 +91,12 @@ public class DefaultCatalogTable implements CatalogTable {
 
     @Override
     public CatalogBaseTable copy() {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options);
+        return new DefaultCatalogTable(schema, comment, partitionKeys, options, tableKind);
     }
 
     @Override
     public CatalogTable copy(Map<String, String> options) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options);
+        return new DefaultCatalogTable(schema, comment, partitionKeys, options, tableKind);
     }
 
     @Override

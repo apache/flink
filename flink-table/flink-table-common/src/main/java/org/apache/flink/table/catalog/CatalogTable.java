@@ -45,7 +45,7 @@ public interface CatalogTable extends CatalogBaseTable {
     /**
      * Creates a basic implementation of this interface.
      *
-     * <p>The signature is similar to a SQL {@code CREATE TABLE} statement.
+     * <p>The signature is similar to an SQL {@code CREATE TABLE} statement.
      *
      * @param schema unresolved schema
      * @param comment optional comment
@@ -57,7 +57,25 @@ public interface CatalogTable extends CatalogBaseTable {
             @Nullable String comment,
             List<String> partitionKeys,
             Map<String, String> options) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options);
+        return new DefaultCatalogTable(schema, comment, partitionKeys, options, TableKind.TABLE);
+    }
+
+    /**
+     * Creates a basic implementation of this interface with managed table kind.
+     *
+     * <p>The signature is similar to an SQL {@code CREATE TABLE} statement.
+     *
+     * @param schema unresolved schema
+     * @param comment optional comment
+     * @param partitionKeys list of partition keys or an empty list if not partitioned
+     * @param options options to configure the connector
+     */
+    static CatalogTable ofManaged(
+            Schema schema,
+            @Nullable String comment,
+            List<String> partitionKeys,
+            Map<String, String> options) {
+        return new DefaultCatalogTable(schema, comment, partitionKeys, options, TableKind.MANAGED);
     }
 
     /**

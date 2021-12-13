@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.Builder;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -79,6 +80,10 @@ public final class CatalogPropertiesUtil {
                 properties.put(COMMENT, comment);
             }
 
+            if (resolvedTable.getTableKind() == TableKind.MANAGED) {
+                properties.put(TABLE_KIND, TableKind.MANAGED.toString());
+            }
+
             serializePartitionKeys(properties, resolvedTable.getPartitionKeys());
 
             properties.putAll(resolvedTable.getOptions());
@@ -102,7 +107,9 @@ public final class CatalogPropertiesUtil {
 
             final Map<String, String> options = deserializeOptions(properties);
 
-            return CatalogTable.of(schema, comment, partitionKeys, options);
+            return TableKind.MANAGED.toString().equals(properties.get(TABLE_KIND))
+                    ? CatalogTable.ofManaged(schema, comment, partitionKeys, options)
+                    : CatalogTable.of(schema, comment, partitionKeys, options);
         } catch (Exception e) {
             throw new CatalogException("Error in deserializing catalog table.", e);
         }
@@ -153,6 +160,8 @@ public final class CatalogPropertiesUtil {
 
     private static final String COMMENT = "comment";
 
+    private static final String TABLE_KIND = "table-kind";
+
     private static Map<String, String> deserializeOptions(Map<String, String> map) {
         return map.entrySet().stream()
                 .filter(
@@ -160,7 +169,8 @@ public final class CatalogPropertiesUtil {
                             final String key = e.getKey();
                             return !key.startsWith(SCHEMA + SEPARATOR)
                                     && !key.startsWith(PARTITION_KEYS + SEPARATOR)
-                                    && !key.equals(COMMENT);
+                                    && !key.equals(COMMENT)
+                                    && !key.equals(TABLE_KIND);
                         })
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
