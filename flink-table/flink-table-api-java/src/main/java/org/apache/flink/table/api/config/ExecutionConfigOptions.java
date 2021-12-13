@@ -120,16 +120,15 @@ public class ExecutionConfigOptions {
                             "Determines how Flink enforces NOT NULL column constraints when inserting null values.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<CharPrecisionEnforcer>
-            TABLE_EXEC_SINK_CHAR_PRECISION_ENFORCER =
-                    key("table.exec.sink.char-precision-enforcer")
-                            .enumType(CharPrecisionEnforcer.class)
-                            .defaultValue(CharPrecisionEnforcer.IGNORE)
-                            .withDescription(
-                                    "Determines whether string values for columns with CHAR(<precision>)/VARCHAR(<precision>) "
-                                            + "types will be trimmed or padded (only for CHAR(<precision>)), so that their "
-                                            + "length will match the one defined by the precision of their respective "
-                                            + "CHAR/VARCHAR column type.");
+    public static final ConfigOption<CharLengthEnforcer> TABLE_EXEC_SINK_CHAR_LENGTH_ENFORCER =
+            key("table.exec.sink.char-length-enforcer")
+                    .enumType(CharLengthEnforcer.class)
+                    .defaultValue(CharLengthEnforcer.IGNORE)
+                    .withDescription(
+                            "Determines whether string values for columns with CHAR(<length>)/VARCHAR(<length>) "
+                                    + "types will be trimmed or padded (only for CHAR(<length>)), so that their "
+                                    + "length will match the one defined by the length of their respective "
+                                    + "CHAR/VARCHAR column type.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_SINK_UPSERT_MATERIALIZE =
@@ -441,23 +440,23 @@ public class ExecutionConfigOptions {
     }
 
     /**
-     * The enforcer to guarantee that precision of CHAR/VARCHAR columns is respected when writing
-     * data into sink.
+     * The enforcer to guarantee that length of CHAR/VARCHAR columns is respected when writing data
+     * into sink.
      */
     @PublicEvolving
-    public enum CharPrecisionEnforcer implements DescribedEnum {
+    public enum CharLengthEnforcer implements DescribedEnum {
         IGNORE(
                 text(
                         "Don't apply any trimming and padding, and instead "
-                                + "ignore the CHAR/VARCHAR precision directive.")),
+                                + "ignore the CHAR/VARCHAR length directive.")),
         TRIM_PAD(
                 text(
                         "Trim and pad string values to match the length "
-                                + "defined by the CHAR/VARCHAR precision."));
+                                + "defined by the CHAR/VARCHAR length."));
 
         private final InlineElement description;
 
-        CharPrecisionEnforcer(InlineElement description) {
+        CharLengthEnforcer(InlineElement description) {
             this.description = description;
         }
 

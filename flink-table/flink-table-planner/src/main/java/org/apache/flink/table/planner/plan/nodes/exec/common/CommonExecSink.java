@@ -203,20 +203,20 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     notNullEnforcer, notNullFieldIndices, notNullFieldNames, fieldNames);
         }
 
-        // Build CHAR/VARCHAR precision enforcer
+        // Build CHAR/VARCHAR length enforcer
         final List<ConstraintEnforcer.CharFieldInfo> charFieldInfo =
                 getCharFieldInfo(physicalRowType);
         if (!charFieldInfo.isEmpty()) {
-            final ExecutionConfigOptions.CharPrecisionEnforcer charPrecisionEnforcer =
+            final ExecutionConfigOptions.CharLengthEnforcer charLengthEnforcer =
                     config.getConfiguration()
-                            .get(ExecutionConfigOptions.TABLE_EXEC_SINK_CHAR_PRECISION_ENFORCER);
+                            .get(ExecutionConfigOptions.TABLE_EXEC_SINK_CHAR_LENGTH_ENFORCER);
             final List<String> charFieldNames =
                     charFieldInfo.stream()
                             .map(cfi -> fieldNames[cfi.fieldIdx()])
                             .collect(Collectors.toList());
 
-            validatorBuilder.addCharPrecisionConstraint(
-                    charPrecisionEnforcer, charFieldInfo, charFieldNames, fieldNames);
+            validatorBuilder.addCharLengthConstraint(
+                    charLengthEnforcer, charFieldInfo, charFieldNames, fieldNames);
         }
 
         ConstraintEnforcer constraintEnforcer = validatorBuilder.build();
