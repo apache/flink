@@ -488,8 +488,10 @@ class CastRulesTest {
                         .fromCase(VARCHAR(5), fromString("Flink"), fromString("Flink"))
                         .fromCase(VARCHAR(10), fromString("Flink"), fromString("Flink"))
                         .fromCase(STRING(), fromString("Apache Flink"), fromString("Apache Flink"))
-                        .fromCase(BOOLEAN(), true, fromString("true"))
-                        .fromCase(BOOLEAN(), false, fromString("false"))
+                        .fromCase(BOOLEAN(), true, fromString("TRUE"))
+                        .fromCase(BOOLEAN(), false, fromString("FALSE"))
+                        .fromCaseLegacy(BOOLEAN(), true, fromString("true"))
+                        .fromCaseLegacy(BOOLEAN(), false, fromString("false"))
                         .fromCase(BINARY(2), new byte[] {0, 1}, fromString("\u0000\u0001"))
                         .fromCase(
                                 VARBINARY(3),
@@ -578,6 +580,10 @@ class CastRulesTest {
                         .fromCase(
                                 ARRAY(INT().nullable()),
                                 new GenericArrayData(new Integer[] {null, 456}),
+                                fromString("[NULL, 456]"))
+                        .fromCaseLegacy(
+                                ARRAY(INT().nullable()),
+                                new GenericArrayData(new Integer[] {null, 456}),
                                 fromString("[null, 456]"))
                         .fromCase(
                                 ARRAY(INT()),
@@ -594,8 +600,12 @@ class CastRulesTest {
                         .fromCase(
                                 MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
                                 mapData(entry(null, -123), entry(fromString("b"), null)),
-                                fromString("{null=-10-03, b=null}"))
+                                fromString("{NULL=-10-03, b=NULL}"))
                         .fromCase(
+                                MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
+                                mapData(entry(null, null)),
+                                fromString("{NULL=NULL}"))
+                        .fromCaseLegacy(
                                 MAP(STRING().nullable(), INTERVAL(MONTH()).nullable()),
                                 mapData(entry(null, null)),
                                 fromString("{null=null}"))
@@ -607,17 +617,19 @@ class CastRulesTest {
                         .fromCase(
                                 ROW(FIELD("f0", STRING()), FIELD("f1", STRING())),
                                 GenericRowData.of(fromString("abc"), fromString("def")),
-                                fromString("(abc, def)"),
-                                false)
-                        .fromCase(
+                                fromString("(abc, def)"))
+                        .fromCaseLegacy(
                                 ROW(FIELD("f0", STRING()), FIELD("f1", STRING())),
                                 GenericRowData.of(fromString("abc"), fromString("def")),
-                                fromString("(abc,def)"),
-                                true)
+                                fromString("(abc,def)"))
                         .fromCase(
                                 ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
                                 GenericRowData.of(null, fromString("abc")),
-                                fromString("(null, abc)"))
+                                fromString("(NULL, abc)"))
+                        .fromCaseLegacy(
+                                ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
+                                GenericRowData.of(null, fromString("abc")),
+                                fromString("(null,abc)"))
                         .fromCase(ROW(), GenericRowData.of(), fromString("()"))
                         .fromCase(
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
@@ -636,335 +648,274 @@ class CastRulesTest {
                                                     fromString("b"),
                                                     fromString("c")
                                                 })),
-                                fromString("(10, null, 12:34:56.123, [a, b, c])")),
+                                fromString("(10, NULL, 12:34:56.123, [a, b, c])")),
                 CastTestSpecBuilder.testCastTo(CHAR(6))
-                        .fromCase(STRING(), null, EMPTY_UTF8, false)
-                        .fromCase(STRING(), null, EMPTY_UTF8, true)
-                        .fromCase(CHAR(6), fromString("Apache"), fromString("Apache"), false)
-                        .fromCase(CHAR(6), fromString("Apache"), fromString("Apache"), true)
-                        .fromCase(VARCHAR(5), fromString("Flink"), fromString("Flink "), false)
-                        .fromCase(VARCHAR(5), fromString("Flink"), fromString("Flink"), true)
-                        .fromCase(STRING(), fromString("foo"), fromString("foo   "), false)
-                        .fromCase(STRING(), fromString("foo"), fromString("foo"), true)
-                        .fromCase(BOOLEAN(), true, fromString("true  "), false)
-                        .fromCase(BOOLEAN(), true, fromString("true"), true)
-                        .fromCase(BOOLEAN(), false, fromString("false "), false)
-                        .fromCase(BOOLEAN(), false, fromString("false"), true)
+                        .fromCase(STRING(), null, EMPTY_UTF8)
+                        .fromCaseLegacy(STRING(), null, EMPTY_UTF8)
+                        .fromCase(CHAR(6), fromString("Apache"), fromString("Apache"))
+                        .fromCaseLegacy(CHAR(6), fromString("Apache"), fromString("Apache"))
+                        .fromCase(VARCHAR(5), fromString("Flink"), fromString("Flink "))
+                        .fromCaseLegacy(VARCHAR(5), fromString("Flink"), fromString("Flink"))
+                        .fromCase(STRING(), fromString("foo"), fromString("foo   "))
+                        .fromCaseLegacy(STRING(), fromString("foo"), fromString("foo"))
+                        .fromCase(BOOLEAN(), true, fromString("TRUE  "))
+                        .fromCaseLegacy(BOOLEAN(), true, fromString("true"))
+                        .fromCase(BOOLEAN(), false, fromString("FALSE "))
+                        .fromCaseLegacy(BOOLEAN(), false, fromString("false"))
                         .fromCase(
                                 BINARY(3),
                                 new byte[] {0, 1, 2},
-                                fromString("\u0000\u0001\u0002   "),
-                                false)
-                        .fromCase(
-                                BINARY(3),
-                                new byte[] {0, 1, 2},
-                                fromString("\u0000\u0001\u0002"),
-                                true)
+                                fromString("\u0000\u0001\u0002   "))
+                        .fromCaseLegacy(
+                                BINARY(3), new byte[] {0, 1, 2}, fromString("\u0000\u0001\u0002"))
                         .fromCase(
                                 VARBINARY(4),
                                 new byte[] {0, 1, 2, 3},
-                                fromString("\u0000\u0001\u0002\u0003  "),
-                                false)
-                        .fromCase(
+                                fromString("\u0000\u0001\u0002\u0003  "))
+                        .fromCaseLegacy(
                                 VARBINARY(4),
                                 new byte[] {0, 1, 2, 3},
-                                fromString("\u0000\u0001\u0002\u0003"),
-                                true)
+                                fromString("\u0000\u0001\u0002\u0003"))
                         .fromCase(
                                 BYTES(),
                                 new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002\u0003\u0004 "),
-                                false)
-                        .fromCase(
+                                fromString("\u0000\u0001\u0002\u0003\u0004 "))
+                        .fromCaseLegacy(
                                 BYTES(),
                                 new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002\u0003\u0004"),
-                                true)
-                        .fromCase(TINYINT(), (byte) -125, fromString("-125  "), false)
-                        .fromCase(TINYINT(), (byte) -125, fromString("-125"), true)
-                        .fromCase(SMALLINT(), (short) 32767, fromString("32767 "), false)
-                        .fromCase(SMALLINT(), (short) 32767, fromString("32767"), true)
-                        .fromCase(INT(), -1234, fromString("-1234 "), false)
-                        .fromCase(INT(), -1234, fromString("-1234"), true)
-                        .fromCase(BIGINT(), 12345L, fromString("12345 "), false)
-                        .fromCase(BIGINT(), 12345L, fromString("12345"), true)
-                        .fromCase(FLOAT(), -1.23f, fromString("-1.23 "), false)
-                        .fromCase(FLOAT(), -1.23f, fromString("-1.23"), true)
-                        .fromCase(DOUBLE(), 123.4d, fromString("123.4 "), false)
-                        .fromCase(DOUBLE(), 123.4d, fromString("123.4"), true)
-                        .fromCase(INTERVAL(YEAR()), 84, fromString("+7-00 "), false)
-                        .fromCase(INTERVAL(YEAR()), 84, fromString("+7-00"), true)
-                        .fromCase(INTERVAL(MONTH()), 5, fromString("+0-05 "), false)
-                        .fromCase(INTERVAL(MONTH()), 5, fromString("+0-05"), true),
+                                fromString("\u0000\u0001\u0002\u0003\u0004"))
+                        .fromCase(TINYINT(), (byte) -125, fromString("-125  "))
+                        .fromCaseLegacy(TINYINT(), (byte) -125, fromString("-125"))
+                        .fromCase(SMALLINT(), (short) 32767, fromString("32767 "))
+                        .fromCaseLegacy(SMALLINT(), (short) 32767, fromString("32767"))
+                        .fromCase(INT(), -1234, fromString("-1234 "))
+                        .fromCaseLegacy(INT(), -1234, fromString("-1234"))
+                        .fromCase(BIGINT(), 12345L, fromString("12345 "))
+                        .fromCaseLegacy(BIGINT(), 12345L, fromString("12345"))
+                        .fromCase(FLOAT(), -1.23f, fromString("-1.23 "))
+                        .fromCaseLegacy(FLOAT(), -1.23f, fromString("-1.23"))
+                        .fromCase(DOUBLE(), 123.4d, fromString("123.4 "))
+                        .fromCaseLegacy(DOUBLE(), 123.4d, fromString("123.4"))
+                        .fromCase(INTERVAL(YEAR()), 84, fromString("+7-00 "))
+                        .fromCaseLegacy(INTERVAL(YEAR()), 84, fromString("+7-00"))
+                        .fromCase(INTERVAL(MONTH()), 5, fromString("+0-05 "))
+                        .fromCaseLegacy(INTERVAL(MONTH()), 5, fromString("+0-05")),
                 CastTestSpecBuilder.testCastTo(CHAR(12))
                         .fromCase(
                                 ARRAY(INT()),
                                 new GenericArrayData(new int[] {-1, 2, 3}),
-                                fromString("[-1, 2, 3]  "),
-                                false)
-                        .fromCase(
+                                fromString("[-1, 2, 3]  "))
+                        .fromCaseLegacy(
                                 ARRAY(INT()),
                                 new GenericArrayData(new int[] {-1, 2, 3}),
-                                fromString("[-1, 2, 3]"),
-                                true)
-                        .fromCase(ARRAY(INT()).nullable(), null, EMPTY_UTF8, false)
-                        .fromCase(ARRAY(INT()).nullable(), null, EMPTY_UTF8, true)
+                                fromString("[-1, 2, 3]"))
+                        .fromCase(ARRAY(INT()).nullable(), null, EMPTY_UTF8)
+                        .fromCaseLegacy(ARRAY(INT()).nullable(), null, EMPTY_UTF8)
                         .fromCase(
                                 MAP(STRING(), INT()),
                                 mapData(entry(fromString("a"), 1), entry(fromString("b"), 8)),
-                                fromString("{a=1, b=8}  "),
-                                false)
-                        .fromCase(
+                                fromString("{a=1, b=8}  "))
+                        .fromCaseLegacy(
                                 MAP(STRING(), INT()),
                                 mapData(entry(fromString("a"), 1), entry(fromString("b"), 8)),
-                                fromString("{a=1, b=8}"),
-                                true)
-                        .fromCase(
-                                MAP(STRING(), INTERVAL(MONTH())).nullable(), null, EMPTY_UTF8, true)
-                        .fromCase(
-                                MAP(STRING(), INTERVAL(MONTH())).nullable(),
-                                null,
-                                EMPTY_UTF8,
-                                false)
+                                fromString("{a=1, b=8}"))
+                        .fromCaseLegacy(
+                                MAP(STRING(), INTERVAL(MONTH())).nullable(), null, EMPTY_UTF8)
+                        .fromCase(MAP(STRING(), INTERVAL(MONTH())).nullable(), null, EMPTY_UTF8)
                         .fromCase(
                                 MULTISET(STRING()),
                                 mapData(entry(fromString("a"), 1), entry(fromString("b"), 1)),
-                                fromString("{a=1, b=1}  "),
-                                false)
-                        .fromCase(
+                                fromString("{a=1, b=1}  "))
+                        .fromCaseLegacy(
                                 MULTISET(STRING()),
                                 mapData(entry(fromString("a"), 1), entry(fromString("b"), 1)),
-                                fromString("{a=1, b=1}"),
-                                true)
-                        .fromCase(MULTISET(STRING()).nullable(), null, EMPTY_UTF8, false)
-                        .fromCase(MULTISET(STRING()), null, EMPTY_UTF8, true)
+                                fromString("{a=1, b=1}"))
+                        .fromCase(MULTISET(STRING()).nullable(), null, EMPTY_UTF8)
+                        .fromCaseLegacy(MULTISET(STRING()), null, EMPTY_UTF8)
                         .fromCase(
                                 ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
                                 GenericRowData.of(123, fromString("foo")),
-                                fromString("(123, foo)  "),
-                                false)
-                        .fromCase(
+                                fromString("(123, foo)  "))
+                        .fromCaseLegacy(
                                 ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
                                 GenericRowData.of(123, fromString("foo")),
-                                fromString("(123,foo)"),
-                                true)
+                                fromString("(123,foo)"))
                         .fromCase(
                                 ROW(FIELD("f0", STRING()), FIELD("f1", STRING())).nullable(),
                                 null,
-                                EMPTY_UTF8,
-                                false)
-                        .fromCase(
+                                EMPTY_UTF8)
+                        .fromCaseLegacy(
                                 ROW(FIELD("f0", STRING()), FIELD("f1", STRING())).nullable(),
                                 null,
-                                EMPTY_UTF8,
-                                true)
+                                EMPTY_UTF8)
                         .fromCase(
                                 RAW(LocalDate.class, new LocalDateSerializer()),
                                 RawValueData.fromObject(LocalDate.parse("2020-12-09")),
-                                fromString("2020-12-09  "),
-                                false)
-                        .fromCase(
+                                fromString("2020-12-09  "))
+                        .fromCaseLegacy(
                                 RAW(LocalDate.class, new LocalDateSerializer()),
                                 RawValueData.fromObject(LocalDate.parse("2020-12-09")),
-                                fromString("2020-12-09"),
-                                true)
+                                fromString("2020-12-09"))
                         .fromCase(
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
                                 null,
-                                EMPTY_UTF8,
-                                false)
-                        .fromCase(
+                                EMPTY_UTF8)
+                        .fromCaseLegacy(
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
                                 null,
-                                EMPTY_UTF8,
-                                true),
+                                EMPTY_UTF8),
                 CastTestSpecBuilder.testCastTo(VARCHAR(3))
-                        .fromCase(STRING(), null, EMPTY_UTF8, false)
-                        .fromCase(STRING(), null, EMPTY_UTF8, true)
-                        .fromCase(CHAR(6), fromString("Apache"), fromString("Apa"), false)
-                        .fromCase(CHAR(6), fromString("Apache"), fromString("Apache"), true)
-                        .fromCase(VARCHAR(5), fromString("Flink"), fromString("Fli"), false)
-                        .fromCase(VARCHAR(5), fromString("Flink"), fromString("Flink"), true)
-                        .fromCase(STRING(), fromString("Apache Flink"), fromString("Apa"), false)
-                        .fromCase(
-                                STRING(),
-                                fromString("Apache Flink"),
-                                fromString("Apache Flink"),
-                                true)
-                        .fromCase(BOOLEAN(), true, fromString("tru"), false)
-                        .fromCase(BOOLEAN(), true, fromString("true"), true)
-                        .fromCase(BOOLEAN(), false, fromString("fal"), false)
-                        .fromCase(BOOLEAN(), false, fromString("false"), true)
+                        .fromCase(STRING(), null, EMPTY_UTF8)
+                        .fromCaseLegacy(STRING(), null, EMPTY_UTF8)
+                        .fromCase(CHAR(6), fromString("Apache"), fromString("Apa"))
+                        .fromCaseLegacy(CHAR(6), fromString("Apache"), fromString("Apache"))
+                        .fromCase(VARCHAR(5), fromString("Flink"), fromString("Fli"))
+                        .fromCaseLegacy(VARCHAR(5), fromString("Flink"), fromString("Flink"))
+                        .fromCase(STRING(), fromString("Apache Flink"), fromString("Apa"))
+                        .fromCaseLegacy(
+                                STRING(), fromString("Apache Flink"), fromString("Apache Flink"))
+                        .fromCase(BOOLEAN(), true, fromString("TRU"))
+                        .fromCaseLegacy(BOOLEAN(), true, fromString("true"))
+                        .fromCase(BOOLEAN(), false, fromString("FAL"))
+                        .fromCaseLegacy(BOOLEAN(), false, fromString("false"))
                         .fromCase(
                                 BINARY(5),
                                 new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002"),
-                                false)
-                        .fromCase(
+                                fromString("\u0000\u0001\u0002"))
+                        .fromCaseLegacy(
                                 BINARY(5),
                                 new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002\u0003\u0004"),
-                                true)
+                                fromString("\u0000\u0001\u0002\u0003\u0004"))
                         .fromCase(
                                 VARBINARY(5),
                                 new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002"),
-                                false)
-                        .fromCase(
+                                fromString("\u0000\u0001\u0002"))
+                        .fromCaseLegacy(
                                 VARBINARY(5),
                                 new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002\u0003\u0004"),
-                                true)
+                                fromString("\u0000\u0001\u0002\u0003\u0004"))
                         .fromCase(
                                 BYTES(),
                                 new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002"),
-                                false)
-                        .fromCase(
+                                fromString("\u0000\u0001\u0002"))
+                        .fromCaseLegacy(
                                 BYTES(),
                                 new byte[] {0, 1, 2, 3, 4},
-                                fromString("\u0000\u0001\u0002\u0003\u0004"),
-                                true)
+                                fromString("\u0000\u0001\u0002\u0003\u0004"))
                         .fromCase(
                                 DECIMAL(4, 3),
                                 fromBigDecimal(new BigDecimal("9.8765"), 5, 4),
-                                fromString("9.8"),
-                                false)
-                        .fromCase(
+                                fromString("9.8"))
+                        .fromCaseLegacy(
                                 DECIMAL(4, 3),
                                 fromBigDecimal(new BigDecimal("9.8765"), 5, 4),
-                                fromString("9.8765"),
-                                true)
-                        .fromCase(TINYINT(), (byte) -125, fromString("-12"), false)
-                        .fromCase(TINYINT(), (byte) -125, fromString("-125"), true)
-                        .fromCase(SMALLINT(), (short) 32767, fromString("327"), false)
-                        .fromCase(SMALLINT(), (short) 32767, fromString("32767"), true)
-                        .fromCase(INT(), -12345678, fromString("-12"), false)
-                        .fromCase(INT(), -12345678, fromString("-12345678"), true)
-                        .fromCase(BIGINT(), 1234567891234L, fromString("123"), false)
-                        .fromCase(BIGINT(), 1234567891234L, fromString("1234567891234"), true)
-                        .fromCase(FLOAT(), -123.456f, fromString("-12"), false)
-                        .fromCase(FLOAT(), -123.456f, fromString("-123.456"), true)
-                        .fromCase(DOUBLE(), 12345.678901d, fromString("123"), false)
-                        .fromCase(DOUBLE(), 12345.678901d, fromString("12345.678901"), true)
-                        .fromCase(FLOAT(), Float.MAX_VALUE, fromString("3.4"), false)
-                        .fromCase(
+                                fromString("9.8765"))
+                        .fromCase(TINYINT(), (byte) -125, fromString("-12"))
+                        .fromCaseLegacy(TINYINT(), (byte) -125, fromString("-125"))
+                        .fromCase(SMALLINT(), (short) 32767, fromString("327"))
+                        .fromCaseLegacy(SMALLINT(), (short) 32767, fromString("32767"))
+                        .fromCase(INT(), -12345678, fromString("-12"))
+                        .fromCaseLegacy(INT(), -12345678, fromString("-12345678"))
+                        .fromCase(BIGINT(), 1234567891234L, fromString("123"))
+                        .fromCaseLegacy(BIGINT(), 1234567891234L, fromString("1234567891234"))
+                        .fromCase(FLOAT(), -123.456f, fromString("-12"))
+                        .fromCaseLegacy(FLOAT(), -123.456f, fromString("-123.456"))
+                        .fromCase(DOUBLE(), 12345.678901d, fromString("123"))
+                        .fromCaseLegacy(DOUBLE(), 12345.678901d, fromString("12345.678901"))
+                        .fromCase(FLOAT(), Float.MAX_VALUE, fromString("3.4"))
+                        .fromCaseLegacy(
                                 FLOAT(),
                                 Float.MAX_VALUE,
-                                fromString(String.valueOf(Float.MAX_VALUE)),
-                                true)
-                        .fromCase(DOUBLE(), Double.MAX_VALUE, fromString("1.7"), false)
-                        .fromCase(
+                                fromString(String.valueOf(Float.MAX_VALUE)))
+                        .fromCase(DOUBLE(), Double.MAX_VALUE, fromString("1.7"))
+                        .fromCaseLegacy(
                                 DOUBLE(),
                                 Double.MAX_VALUE,
-                                fromString(String.valueOf(Double.MAX_VALUE)),
-                                true)
-                        .fromCase(TIMESTAMP(), TIMESTAMP, fromString("202"), false)
-                        .fromCase(TIMESTAMP(), TIMESTAMP, TIMESTAMP_STRING, true)
+                                fromString(String.valueOf(Double.MAX_VALUE)))
+                        .fromCase(TIMESTAMP(), TIMESTAMP, fromString("202"))
+                        .fromCaseLegacy(TIMESTAMP(), TIMESTAMP, TIMESTAMP_STRING)
                         .fromCase(TIMESTAMP_LTZ(), CET_CONTEXT, TIMESTAMP, fromString("202"))
                         .fromCase(
                                 TIMESTAMP_LTZ(),
                                 CET_CONTEXT_LEGACY,
                                 TIMESTAMP,
                                 TIMESTAMP_STRING_CET)
-                        .fromCase(DATE(), DATE, fromString("202"), false)
-                        .fromCase(DATE(), DATE, DATE_STRING, true)
-                        .fromCase(TIME(5), TIME, fromString("12:"), false)
-                        .fromCase(TIME(5), TIME, TIME_STRING, true)
-                        .fromCase(INTERVAL(YEAR()), 84, fromString("+7-"), false)
-                        .fromCase(INTERVAL(YEAR()), 84, fromString("+7-00"), true)
-                        .fromCase(INTERVAL(MONTH()), 5, fromString("+0-"), false)
-                        .fromCase(INTERVAL(MONTH()), 5, fromString("+0-05"), true)
-                        .fromCase(INTERVAL(DAY()), 10L, fromString("+0 "), false)
-                        .fromCase(INTERVAL(DAY()), 10L, fromString("+0 00:00:00.010"), true)
+                        .fromCase(DATE(), DATE, fromString("202"))
+                        .fromCaseLegacy(DATE(), DATE, DATE_STRING)
+                        .fromCase(TIME(5), TIME, fromString("12:"))
+                        .fromCaseLegacy(TIME(5), TIME, TIME_STRING)
+                        .fromCase(INTERVAL(YEAR()), 84, fromString("+7-"))
+                        .fromCaseLegacy(INTERVAL(YEAR()), 84, fromString("+7-00"))
+                        .fromCase(INTERVAL(MONTH()), 5, fromString("+0-"))
+                        .fromCaseLegacy(INTERVAL(MONTH()), 5, fromString("+0-05"))
+                        .fromCase(INTERVAL(DAY()), 10L, fromString("+0 "))
+                        .fromCaseLegacy(INTERVAL(DAY()), 10L, fromString("+0 00:00:00.010"))
                         .fromCase(
                                 ARRAY(INT()),
                                 new GenericArrayData(new int[] {-123, 456}),
-                                fromString("[-1"),
-                                false)
-                        .fromCase(
+                                fromString("[-1"))
+                        .fromCaseLegacy(
                                 ARRAY(INT()),
                                 new GenericArrayData(new int[] {-123, 456}),
-                                fromString("[-123, 456]"),
-                                true)
-                        .fromCase(ARRAY(INT()).nullable(), null, EMPTY_UTF8, false)
-                        .fromCase(ARRAY(INT()).nullable(), null, EMPTY_UTF8, true)
+                                fromString("[-123, 456]"))
+                        .fromCase(ARRAY(INT()).nullable(), null, EMPTY_UTF8)
+                        .fromCaseLegacy(ARRAY(INT()).nullable(), null, EMPTY_UTF8)
                         .fromCase(
                                 MAP(STRING(), INTERVAL(MONTH())),
                                 mapData(entry(fromString("a"), -123), entry(fromString("b"), 123)),
-                                fromString("{a="),
-                                false)
-                        .fromCase(
+                                fromString("{a="))
+                        .fromCaseLegacy(
                                 MAP(STRING(), INTERVAL(MONTH())),
                                 mapData(entry(fromString("a"), -123), entry(fromString("b"), 123)),
-                                fromString("{a=-10-03, b=+10-03}"),
-                                true)
-                        .fromCase(
-                                MAP(STRING(), INTERVAL(MONTH())).nullable(),
-                                null,
-                                EMPTY_UTF8,
-                                false)
-                        .fromCase(
-                                MAP(STRING(), INTERVAL(MONTH())).nullable(), null, EMPTY_UTF8, true)
-                        .fromCase(
-                                MAP(STRING(), INTERVAL(MONTH())).nullable(),
-                                null,
-                                EMPTY_UTF8,
-                                false)
+                                fromString("{a=-10-03, b=+10-03}"))
+                        .fromCase(MAP(STRING(), INTERVAL(MONTH())).nullable(), null, EMPTY_UTF8)
+                        .fromCaseLegacy(
+                                MAP(STRING(), INTERVAL(MONTH())).nullable(), null, EMPTY_UTF8)
+                        .fromCase(MAP(STRING(), INTERVAL(MONTH())).nullable(), null, EMPTY_UTF8)
                         .fromCase(
                                 MULTISET(STRING()),
                                 mapData(entry(fromString("a"), 1), entry(fromString("b"), 1)),
-                                fromString("{a="),
-                                false)
-                        .fromCase(
+                                fromString("{a="))
+                        .fromCaseLegacy(
                                 MULTISET(STRING()),
                                 mapData(entry(fromString("a"), 1), entry(fromString("b"), 1)),
-                                fromString("{a=1, b=1}"),
-                                true)
-                        .fromCase(MULTISET(STRING()).nullable(), null, EMPTY_UTF8, false)
-                        .fromCase(MULTISET(STRING()), null, EMPTY_UTF8, true)
+                                fromString("{a=1, b=1}"))
+                        .fromCase(MULTISET(STRING()).nullable(), null, EMPTY_UTF8)
+                        .fromCaseLegacy(MULTISET(STRING()), null, EMPTY_UTF8)
                         .fromCase(
                                 ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
                                 GenericRowData.of(123, fromString("abc")),
-                                fromString("(12"),
-                                false)
-                        .fromCase(
+                                fromString("(12"))
+                        .fromCaseLegacy(
                                 ROW(FIELD("f0", INT()), FIELD("f1", STRING())),
                                 GenericRowData.of(123, fromString("abc")),
-                                fromString("(123,abc)"),
-                                true)
+                                fromString("(123,abc)"))
                         .fromCase(
                                 ROW(FIELD("f0", STRING()), FIELD("f1", STRING())).nullable(),
                                 null,
-                                EMPTY_UTF8,
-                                false)
-                        .fromCase(
+                                EMPTY_UTF8)
+                        .fromCaseLegacy(
                                 ROW(FIELD("f0", STRING()), FIELD("f1", STRING())).nullable(),
                                 null,
-                                EMPTY_UTF8,
-                                true)
+                                EMPTY_UTF8)
                         .fromCase(
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
                                 RawValueData.fromObject(
                                         LocalDateTime.parse("2020-11-11T18:08:01.123")),
-                                fromString("202"),
-                                false)
-                        .fromCase(
+                                fromString("202"))
+                        .fromCaseLegacy(
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()),
                                 RawValueData.fromObject(
                                         LocalDateTime.parse("2020-11-11T18:08:01.123")),
-                                fromString("2020-11-11T18:08:01.123"),
-                                true)
+                                fromString("2020-11-11T18:08:01.123"))
                         .fromCase(
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
                                 null,
-                                EMPTY_UTF8,
-                                false)
-                        .fromCase(
+                                EMPTY_UTF8)
+                        .fromCaseLegacy(
                                 RAW(LocalDateTime.class, new LocalDateTimeSerializer()).nullable(),
                                 null,
-                                EMPTY_UTF8,
-                                true),
+                                EMPTY_UTF8),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(BOOLEAN(), null, null)
                         .fail(CHAR(3), fromString("foo"), TableException.class)
@@ -1263,16 +1214,23 @@ class CastRulesTest {
             return tsb;
         }
 
-        private CastTestSpecBuilder fromCase(DataType dataType, Object src, Object target) {
-            return fromCase(dataType, src, target, false);
-        }
-
-        private CastTestSpecBuilder fromCase(
-                DataType srcDataType, Object src, Object target, boolean legacyBehaviour) {
+        private CastTestSpecBuilder fromCase(DataType srcDataType, Object src, Object target) {
             return fromCase(
                     srcDataType,
                     CastRule.Context.create(
-                            legacyBehaviour,
+                            false,
+                            DateTimeUtils.UTC_ZONE.toZoneId(),
+                            Thread.currentThread().getContextClassLoader()),
+                    src,
+                    target);
+        }
+
+        private CastTestSpecBuilder fromCaseLegacy(
+                DataType srcDataType, Object src, Object target) {
+            return fromCase(
+                    srcDataType,
+                    CastRule.Context.create(
+                            true,
                             DateTimeUtils.UTC_ZONE.toZoneId(),
                             Thread.currentThread().getContextClassLoader()),
                     src,

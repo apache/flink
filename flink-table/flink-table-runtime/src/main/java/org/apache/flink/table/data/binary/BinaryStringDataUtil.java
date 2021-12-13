@@ -50,6 +50,8 @@ import static org.apache.flink.table.data.binary.BinaryStringData.numBytesForFir
 public class BinaryStringDataUtil {
 
     public static final BinaryStringData NULL_STRING = fromString("NULL");
+    public static final BinaryStringData TRUE_STRING = fromString("TRUE");
+    public static final BinaryStringData FALSE_STRING = fromString("FALSE");
 
     public static final BinaryStringData[] EMPTY_STRING_ARRAY = new BinaryStringData[0];
     private static final List<BinaryStringData> TRUE_STRINGS =
