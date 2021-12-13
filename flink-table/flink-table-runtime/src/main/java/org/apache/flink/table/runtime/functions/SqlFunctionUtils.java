@@ -47,6 +47,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.table.data.DecimalDataUtils.castFrom;
+import static org.apache.flink.table.data.DecimalDataUtils.castToIntegral;
 import static org.apache.flink.table.data.DecimalDataUtils.doubleValue;
 
 /**
@@ -138,6 +139,11 @@ public class SqlFunctionUtils {
     /** Calculates the hyperbolic tangent of a big decimal number. */
     public static double tanh(DecimalData a) {
         return Math.tanh(doubleValue(a));
+    }
+
+    /** SQL <code>COT</code> operator applied to double values. */
+    public static double cot(double b0) {
+        return 1.0d / Math.tan(b0);
     }
 
     public static double cot(DecimalData a) {
@@ -1103,6 +1109,24 @@ public class SqlFunctionUtils {
         return UUID.nameUUIDFromBytes(b).toString();
     }
 
+    /** SQL <code>TRUNCATE</code> operator applied to int values. */
+    public static int struncate(int b0) {
+        return struncate(b0, 0);
+    }
+
+    public static int struncate(int b0, int b1) {
+        return (int) struncate((long) b0, b1);
+    }
+
+    /** SQL <code>TRUNCATE</code> operator applied to long values. */
+    public static long struncate(long b0) {
+        return struncate(b0, 0);
+    }
+
+    public static long struncate(long b0, int b1) {
+        return castToIntegral(struncate(castFrom(b0, 38, 18), b1));
+    }
+
     /** SQL <code>TRUNCATE</code> operator applied to BigDecimal values. */
     public static DecimalData struncate(DecimalData b0) {
         return struncate(b0, 0);
@@ -1137,6 +1161,15 @@ public class SqlFunctionUtils {
         return (float) doubleValue(struncate(castFrom((double) b0, 38, 18), b1));
     }
 
+    /** SQL <code>TRUNCATE</code> operator applied to double values. */
+    public static double struncate(double b0) {
+        return struncate(b0, 0);
+    }
+
+    public static double struncate(double b0, int b1) {
+        return doubleValue(struncate(castFrom(b0, 38, 18), b1));
+    }
+
     /**
      * Compares two byte arrays in lexicographical order.
      *
@@ -1159,5 +1192,42 @@ public class SqlFunctionUtils {
             }
         }
         return array1.length - array2.length;
+    }
+
+    /** SQL INITCAP(string) function. */
+    public static String initcap(String s) {
+        // Assumes Alpha as [A-Za-z0-9]
+        // white space is treated as everything else.
+        final int len = s.length();
+        boolean start = true;
+        final StringBuilder newS = new StringBuilder();
+
+        for (int i = 0; i < len; i++) {
+            char curCh = s.charAt(i);
+            final int c = (int) curCh;
+            if (start) { // curCh is whitespace or first character of word.
+                if (c > 47 && c < 58) { // 0-9
+                    start = false;
+                } else if (c > 64 && c < 91) { // A-Z
+                    start = false;
+                } else if (c > 96 && c < 123) { // a-z
+                    start = false;
+                    curCh = (char) (c - 32); // Uppercase this character
+                }
+                // else {} whitespace
+            } else { // Inside of a word or white space after end of word.
+                if (c > 47 && c < 58) { // 0-9
+                    // noop
+                } else if (c > 64 && c < 91) { // A-Z
+                    curCh = (char) (c + 32); // Lowercase this character
+                } else if (c > 96 && c < 123) { // a-z
+                    // noop
+                } else { // whitespace
+                    start = true;
+                }
+            }
+            newS.append(curCh);
+        } // for each character in s
+        return newS.toString();
     }
 }

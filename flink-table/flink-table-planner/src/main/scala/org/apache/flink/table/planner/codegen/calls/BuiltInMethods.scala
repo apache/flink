@@ -18,14 +18,16 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUtil}
 import org.apache.flink.table.data.{DecimalData, DecimalDataUtils, TimestampData}
+import org.apache.flink.table.functions.SqlLikeUtils
 import org.apache.flink.table.runtime.functions._
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange
+
 import org.apache.calcite.linq4j.tree.Types
-import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
+import org.apache.calcite.runtime.JsonFunctions
 import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
-import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUtil}
 
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
@@ -82,14 +84,13 @@ object BuiltInMethods {
   val POWER_DEC_NUM = Types.lookupMethod(
     classOf[SqlFunctionUtils], "power", classOf[DecimalData], classOf[Double])
 
-
   // TRIGONOMETRIC FUNCTIONS
 
   val LN = Types.lookupMethod(classOf[SqlFunctionUtils], "log", classOf[Double])
 
   val LN_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "log", classOf[DecimalData])
 
-  val ABS = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[Double])
+  val ABS = Types.lookupMethod(classOf[Math], "abs", classOf[Double])
   val ABS_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "abs", classOf[DecimalData])
 
   val FLOOR_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "floor", classOf[DecimalData])
@@ -104,7 +105,7 @@ object BuiltInMethods {
   val TAN = Types.lookupMethod(classOf[Math], "tan", classOf[Double])
   val TAN_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "tan", classOf[DecimalData])
 
-  val COT = Types.lookupMethod(classOf[SqlFunctions], "cot", classOf[Double])
+  val COT = Types.lookupMethod(classOf[SqlFunctionUtils], "cot", classOf[Double])
   val COT_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "cot", classOf[DecimalData])
 
   val ASIN = Types.lookupMethod(classOf[Math], "asin", classOf[Double])
@@ -147,10 +148,12 @@ object BuiltInMethods {
   val SIGN_LONG = Types.lookupMethod(classOf[JLong], "signum", classOf[Long])
   val SIGN_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "sign", classOf[DecimalData])
 
-  val ROUND_DOUBLE = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[Double],
+  val ROUND_DOUBLE = Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Double],
     classOf[Int])
-  val ROUND_INT = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[Int], classOf[Int])
-  val ROUND_LONG = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[Long], classOf[Int])
+  val ROUND_INT = Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Int],
+    classOf[Int])
+  val ROUND_LONG = Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Long],
+    classOf[Int])
   val ROUND_BYTE = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
     classOf[Byte], classOf[Int])
   val ROUND_SHORT = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
@@ -399,24 +402,24 @@ object BuiltInMethods {
   val STRING_TO_TIME = Types.lookupMethod(
     classOf[DateTimeUtils], "parseTime", classOf[String])
 
-  val TRUNCATE_DOUBLE_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_DOUBLE_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Double])
   val TRUNCATE_FLOAT_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Float])
-  val TRUNCATE_INT_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_INT_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Int])
-  val TRUNCATE_LONG_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_LONG_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Long])
   val TRUNCATE_DEC_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[DecimalData])
 
-  val TRUNCATE_DOUBLE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_DOUBLE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Double], classOf[Int])
   val TRUNCATE_FLOAT = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Float], classOf[Int])
-  val TRUNCATE_INT = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_INT = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Int], classOf[Int])
-  val TRUNCATE_LONG = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_LONG = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Long], classOf[Int])
   val TRUNCATE_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[DecimalData], classOf[Int])
@@ -439,10 +442,10 @@ object BuiltInMethods {
   val TRUNCATE_SQL_TIMESTAMP = Types.lookupMethod(classOf[DateTimeUtils], "truncate",
     classOf[TimestampData], classOf[Int])
 
-  val ADD_MONTHS = Types.lookupMethod(classOf[SqlFunctions], "addMonths",
+  val ADD_MONTHS = Types.lookupMethod(classOf[DateTimeUtils], "addMonths",
     classOf[Long], classOf[Int])
 
-  val SUBTRACT_MONTHS = Types.lookupMethod(classOf[SqlFunctions], "subtractMonths",
+  val SUBTRACT_MONTHS = Types.lookupMethod(classOf[DateTimeUtils], "subtractMonths",
     classOf[Long], classOf[Long])
 
   // JSON functions
@@ -521,6 +524,20 @@ object BuiltInMethods {
 
   val STRING_DATA_TO_TIMESTAMP_WITH_ZONE = Types.lookupMethod(
     classOf[BinaryStringDataUtil], "toTimestamp", classOf[BinaryStringData], classOf[TimeZone])
+
+  val STRING_LIKE = Types.lookupMethod(
+    classOf[SqlLikeUtils], "like", classOf[String], classOf[String])
+
+  val STRING_LIKE_WITH_ESCAPE = Types.lookupMethod(
+    classOf[SqlLikeUtils], "like", classOf[String], classOf[String], classOf[String])
+
+  val STRING_SIMILAR = Types.lookupMethod(
+    classOf[SqlLikeUtils], "similar", classOf[String], classOf[String])
+
+  val STRING_SIMILAR_WITH_ESCAPE = Types.lookupMethod(
+    classOf[SqlLikeUtils], "similar", classOf[String], classOf[String], classOf[String])
+
+  val STRING_INITCAP = Types.lookupMethod(classOf[SqlFunctionUtils], "initcap", classOf[String])
 
   // DecimalData functions
 
