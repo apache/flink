@@ -515,10 +515,11 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                 ignored ->
                                         Collections.singletonList(
                                                 Collections.singletonList(
-                                                        YarnResourceManagerDriver
+                                                        ContainerRequestReflector.INSTANCE
                                                                 .getContainerRequest(
                                                                         testingResource,
-                                                                        Priority.UNDEFINED))))
+                                                                        Priority.UNDEFINED,
+                                                                        null))))
                         .setRemoveContainerRequestConsumer(
                                 (request, handler) -> removeContainerRequestFuture.complete(null))
                         .setReleaseAssignedContainerConsumer(
