@@ -311,6 +311,14 @@ public interface Catalog {
     void alterTable(ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
             throws TableNotExistException, CatalogException;
 
+    /**
+     * If return true, the Table without specified connector will be translated to the Flink managed
+     * table. See {@link CatalogBaseTable.TableKind#MANAGED}
+     */
+    default boolean supportsManagedTable() {
+        return false;
+    }
+
     // ------ partitions ------
 
     /**
