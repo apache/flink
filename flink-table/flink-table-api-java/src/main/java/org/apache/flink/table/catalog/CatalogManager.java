@@ -84,8 +84,13 @@ public final class CatalogManager {
 
     private final DataTypeFactory typeFactory;
 
+    private final ManagedTableListener managedTableListener;
+
     private CatalogManager(
-            String defaultCatalogName, Catalog defaultCatalog, DataTypeFactory typeFactory) {
+            String defaultCatalogName,
+            Catalog defaultCatalog,
+            DataTypeFactory typeFactory,
+            ManagedTableListener managedTableListener) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(defaultCatalogName),
                 "Default catalog name cannot be null or empty");
@@ -101,6 +106,7 @@ public final class CatalogManager {
         builtInCatalogName = defaultCatalogName;
 
         this.typeFactory = typeFactory;
+        this.managedTableListener = managedTableListener;
     }
 
     public static Builder newBuilder() {
@@ -147,7 +153,8 @@ public final class CatalogManager {
             return new CatalogManager(
                     defaultCatalogName,
                     defaultCatalog,
-                    new DataTypeFactoryImpl(classLoader, config, executionConfig));
+                    new DataTypeFactoryImpl(classLoader, config, executionConfig),
+                    new ManagedTableListener(classLoader, config));
         }
     }
 
@@ -656,8 +663,16 @@ public final class CatalogManager {
     public void createTable(
             CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
         execute(
-                (catalog, path) ->
-                        catalog.createTable(path, resolveCatalogBaseTable(table), ignoreIfExists),
+                (catalog, path) -> {
+                    ResolvedCatalogBaseTable<?> resolvedTable =
+                            managedTableListener.notifyTableCreation(
+                                    catalog,
+                                    objectIdentifier,
+                                    resolveCatalogBaseTable(table),
+                                    false,
+                                    ignoreIfExists);
+                    catalog.createTable(path, resolvedTable, ignoreIfExists);
+                },
                 objectIdentifier,
                 false,
                 "CreateTable");
@@ -686,7 +701,14 @@ public final class CatalogManager {
                         }
                         return v;
                     } else {
-                        final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
+                        ResolvedCatalogBaseTable<?> resolvedTable =
+                                managedTableListener.notifyTableCreation(
+                                        getCatalog(objectIdentifier.getCatalogName()).orElse(null),
+                                        objectIdentifier,
+                                        resolveCatalogBaseTable(table),
+                                        true,
+                                        ignoreIfExists);
+
                         if (listener.isPresent()) {
                             return listener.get()
                                     .onCreateTemporaryTable(
@@ -729,6 +751,11 @@ public final class CatalogManager {
         if (filter.test(catalogBaseTable)) {
             getTemporaryOperationListener(objectIdentifier)
                     .ifPresent(l -> l.onDropTemporaryTable(objectIdentifier.toObjectPath()));
+            managedTableListener.notifyTableDrop(
+                    objectIdentifier,
+                    resolveCatalogBaseTable(catalogBaseTable),
+                    true,
+                    ignoreIfNotExists);
             temporaryTables.remove(objectIdentifier);
         } else if (!ignoreIfNotExists) {
             throw new ValidationException(
@@ -808,7 +835,14 @@ public final class CatalogManager {
         final Optional<CatalogBaseTable> resultOpt = getUnresolvedTable(objectIdentifier);
         if (resultOpt.isPresent() && filter.test(resultOpt.get())) {
             execute(
-                    (catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),
+                    (catalog, path) -> {
+                        managedTableListener.notifyTableDrop(
+                                objectIdentifier,
+                                resolveCatalogBaseTable(resultOpt.get()),
+                                false,
+                                ignoreIfNotExists);
+                        catalog.dropTable(path, ignoreIfNotExists);
+                    },
                     objectIdentifier,
                     ignoreIfNotExists,
                     "DropTable");

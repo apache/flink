@@ -24,14 +24,22 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.operations.CatalogQueryOperation;
+import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.utils.TableEnvironmentMock;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Optional;
+import java.util.UUID;
 
+import static org.apache.flink.table.api.TestManagedTableFactory.ENRICHED_KEY;
+import static org.apache.flink.table.api.TestManagedTableFactory.ENRICHED_VALUE;
+import static org.apache.flink.table.api.TestManagedTableFactory.MANAGED_TABLES;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link TableEnvironment}. */
@@ -109,5 +117,97 @@ public class TableEnvironmentTest {
         assertTrue(lookupResult.isPresent());
 
         assertEquals("fake", lookupResult.get().getTable().getOptions().get("connector"));
+    }
+
+    @Test
+    public void testCreateManagedTableFromDescriptor() {
+        innerTestCreateManagedTableFromDescriptor(false, false);
+        innerTestCreateManagedTableFromDescriptor(true, false);
+        innerTestCreateManagedTableFromDescriptor(true, true);
+        innerTestCreateManagedTableFromDescriptor(false, true);
+    }
+
+    private void innerTestCreateManagedTableFromDescriptor(
+            boolean ignoreIfExists, boolean isTemporary) {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+        final String catalog = tEnv.getCurrentCatalog();
+        final String database = tEnv.getCurrentDatabase();
+
+        final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
+        final String tableName = UUID.randomUUID().toString();
+        ObjectIdentifier identifier = ObjectIdentifier.of(catalog, database, tableName);
+
+        // create table
+
+        CreateTableOperation createOperation =
+                new CreateTableOperation(
+                        identifier,
+                        TableDescriptor.forManaged()
+                                .schema(schema)
+                                .option("a", "Test")
+                                .build()
+                                .toCatalogTable(),
+                        ignoreIfExists,
+                        isTemporary);
+
+        tEnv.executeInternal(createOperation);
+
+        // test ignore: create again
+        if (ignoreIfExists) {
+            tEnv.executeInternal(createOperation);
+        } else {
+            try {
+                tEnv.executeInternal(createOperation);
+                Assert.fail();
+            } catch (Exception e) {
+                if (isTemporary) {
+                    Assert.assertTrue(e.getMessage().contains("already exists"));
+                } else {
+                    Assert.assertTrue(e.getMessage().contains("Could not execute CreateTable"));
+                }
+            }
+        }
+
+        // lookup table
+
+        boolean isInCatalog =
+                tEnv.getCatalog(catalog)
+                        .orElseThrow(AssertionError::new)
+                        .tableExists(new ObjectPath(database, tableName));
+        if (isTemporary) {
+            assertFalse(isInCatalog);
+        } else {
+            assertTrue(isInCatalog);
+        }
+
+        final Optional<CatalogManager.TableLookupResult> lookupResult =
+                tEnv.getCatalogManager().getTable(identifier);
+        assertTrue(lookupResult.isPresent());
+
+        final CatalogBaseTable catalogTable = lookupResult.get().getTable();
+        assertTrue(catalogTable instanceof CatalogTable);
+        assertEquals(schema, catalogTable.getUnresolvedSchema());
+        assertEquals(CatalogBaseTable.TableKind.MANAGED, catalogTable.getTableKind());
+        assertEquals("Test", catalogTable.getOptions().get("a"));
+        assertEquals(ENRICHED_VALUE, catalogTable.getOptions().get(ENRICHED_KEY));
+        assertEquals("Test", MANAGED_TABLES.get(identifier).get("a"));
+        assertEquals(ENRICHED_VALUE, MANAGED_TABLES.get(identifier).get(ENRICHED_KEY));
+
+        DropTableOperation dropOperation =
+                new DropTableOperation(identifier, ignoreIfExists, isTemporary);
+        tEnv.executeInternal(dropOperation);
+        assertNull(MANAGED_TABLES.get(identifier));
+
+        // test ignore: drop again
+        if (ignoreIfExists) {
+            tEnv.executeInternal(dropOperation);
+        } else {
+            try {
+                tEnv.executeInternal(dropOperation);
+                Assert.fail();
+            } catch (ValidationException e) {
+                Assert.assertTrue(e.getMessage().contains("does not exist"));
+            }
+        }
     }
 }
