@@ -19,7 +19,26 @@
 package org.apache.flink.connector.jdbc.internal.converter;
 
 import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+
+import oracle.sql.BINARY_DOUBLE;
+import oracle.sql.BINARY_FLOAT;
+import oracle.sql.CHAR;
+import oracle.sql.DATE;
+import oracle.sql.NUMBER;
+import oracle.sql.RAW;
+import oracle.sql.TIMESTAMP;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 
 /**
  * Runtime converter that responsible to convert between JDBC object and Flink internal object for
@@ -31,6 +50,103 @@ public class OracleRowConverter extends AbstractJdbcRowConverter {
 
     public OracleRowConverter(RowType rowType) {
         super(rowType);
+    }
+
+    @Override
+    public JdbcDeserializationConverter createInternalConverter(LogicalType type) {
+        // TODO: please consider all Oracle Data Types like oracle.sql.OracleBlob,
+        // oracle.sql.TIMESTAMPTZ and oracle.sql.TIMESTAMPLTZ etc in deserialization.
+        // We can refer io.debezium.connector.oracle.OracleValueConverters here.
+        switch (type.getTypeRoot()) {
+            case NULL:
+                return val -> null;
+            case BOOLEAN:
+                return val -> val instanceof NUMBER ? ((NUMBER) val).booleanValue() : val;
+            case INTERVAL_YEAR_MONTH:
+            case INTERVAL_DAY_TIME:
+                return val -> val instanceof NUMBER ? ((NUMBER) val).intValue() : val;
+            case FLOAT:
+                return val ->
+                        val instanceof NUMBER
+                                ? ((NUMBER) val).floatValue()
+                                : val instanceof BINARY_FLOAT
+                                        ? ((BINARY_FLOAT) val).floatValue()
+                                        : val instanceof BigDecimal
+                                                ? ((BigDecimal) val).floatValue()
+                                                : val;
+            case DOUBLE:
+                return val ->
+                        val instanceof NUMBER
+                                ? ((NUMBER) val).doubleValue()
+                                : val instanceof BINARY_DOUBLE
+                                        ? ((BINARY_DOUBLE) val).doubleValue()
+                                        : val instanceof BigDecimal
+                                                ? ((BigDecimal) val).doubleValue()
+                                                : val;
+            case TINYINT:
+                return val ->
+                        val instanceof NUMBER
+                                ? ((NUMBER) val).byteValue()
+                                : val instanceof BigDecimal ? ((BigDecimal) val).byteValue() : val;
+            case SMALLINT:
+                return val ->
+                        val instanceof NUMBER
+                                ? ((NUMBER) val).shortValue()
+                                : val instanceof BigDecimal ? ((BigDecimal) val).shortValue() : val;
+            case INTEGER:
+                return val ->
+                        val instanceof NUMBER
+                                ? ((NUMBER) val).intValue()
+                                : val instanceof BigDecimal ? ((BigDecimal) val).intValue() : val;
+            case BIGINT:
+                return val ->
+                        val instanceof NUMBER
+                                ? ((NUMBER) val).longValue()
+                                : val instanceof BigDecimal ? ((BigDecimal) val).longValue() : val;
+            case DECIMAL:
+                final int precision = ((DecimalType) type).getPrecision();
+                final int scale = ((DecimalType) type).getScale();
+                return val ->
+                        val instanceof BigInteger
+                                ? DecimalData.fromBigDecimal(
+                                        new BigDecimal((BigInteger) val, 0), precision, scale)
+                                : DecimalData.fromBigDecimal((BigDecimal) val, precision, scale);
+            case DATE:
+                return val ->
+                        val instanceof DATE
+                                ? ((DATE) val).dateValue().toLocalDate().toEpochDay()
+                                : (int) (((Date) val).toLocalDate().toEpochDay());
+            case TIME_WITHOUT_TIME_ZONE:
+                return val ->
+                        val instanceof DATE
+                                ? (int)
+                                        (((DATE) val).timeValue().toLocalTime().toNanoOfDay()
+                                                / 1_000_000L)
+                                : (int) (((Time) val).toLocalTime().toNanoOfDay() / 1_000_000L);
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                return val ->
+                        val instanceof TIMESTAMP
+                                ? TimestampData.fromTimestamp(((TIMESTAMP) val).timestampValue())
+                                : TimestampData.fromTimestamp((Timestamp) val);
+            case CHAR:
+            case VARCHAR:
+                return val ->
+                        (val instanceof CHAR)
+                                ? StringData.fromString(((CHAR) val).getString())
+                                : StringData.fromString((String) val);
+            case BINARY:
+            case VARBINARY:
+                return val -> (val instanceof RAW) ? ((RAW) val).getBytes() : val;
+            case TIMESTAMP_WITH_TIME_ZONE:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            case ARRAY:
+            case ROW:
+            case MAP:
+            case MULTISET:
+            case RAW:
+            default:
+                return super.createInternalConverter(type);
+        }
     }
 
     @Override

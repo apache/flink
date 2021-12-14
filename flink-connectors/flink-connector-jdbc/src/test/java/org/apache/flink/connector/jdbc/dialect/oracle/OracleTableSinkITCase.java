@@ -45,9 +45,7 @@ import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -67,7 +65,7 @@ import static org.apache.flink.connector.jdbc.internal.JdbcTableOutputFormatTest
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 
-/** The ITCase for {@link OracleTableSinkITCase}. */
+/** The Table Sink ITCase for {@link OracleDialect}. */
 public class OracleTableSinkITCase extends AbstractTestBase {
 
     private static final OracleContainer container = new OracleContainer();
@@ -81,18 +79,9 @@ public class OracleTableSinkITCase extends AbstractTestBase {
     public static final String USER_TABLE = "USER_TABLE";
 
     @BeforeClass
-    public static void beforeAll() {
+    public static void beforeAll() throws ClassNotFoundException, SQLException {
         container.start();
         containerUrl = container.getJdbcUrl();
-    }
-
-    @AfterClass
-    public static void afterAll() {
-        container.stop();
-    }
-
-    @Before
-    public void before() throws ClassNotFoundException, SQLException {
         Class.forName(container.getDriverClassName());
         try (Connection conn = DriverManager.getConnection(containerUrl);
                 Statement stat = conn.createStatement()) {
@@ -139,8 +128,8 @@ public class OracleTableSinkITCase extends AbstractTestBase {
         }
     }
 
-    @After
-    public void clearOutputTable() throws Exception {
+    @AfterClass
+    public static void afterAll() throws Exception {
         TestValuesTableFactory.clearAllData();
         Class.forName(container.getDriverClassName());
         try (Connection conn = DriverManager.getConnection(containerUrl);
@@ -152,6 +141,7 @@ public class OracleTableSinkITCase extends AbstractTestBase {
             stat.execute("DROP TABLE " + OUTPUT_TABLE5);
             stat.execute("DROP TABLE " + USER_TABLE);
         }
+        container.stop();
     }
 
     public static DataStream<Tuple4<Integer, Long, String, Timestamp>> get4TupleDataStream(
