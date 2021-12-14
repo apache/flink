@@ -76,7 +76,7 @@ public class TestManagedTableFactory implements ManagedTableFactory {
                 MANAGED_TABLES.remove(
                         context.getObjectIdentifier(), context.getCatalogTable().toProperties());
         if (!remove && !ignoreIfNotExists) {
-            throw new TableException("Table not exists.");
+            throw new TableException("Table does not exist.");
         }
     }
 }
