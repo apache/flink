@@ -49,13 +49,13 @@ if [ "$RELEASE_CANDIDATE" != "none" ]; then
   target_branch=$target_branch-rc$RELEASE_CANDIDATE
 fi
 
-git checkout -b $target_branch
+#git checkout -b $target_branch
 
 #change version in all pom files
 $MVN org.codehaus.mojo:versions-maven-plugin:2.8.1:set -DnewVersion=$NEW_VERSION -DgenerateBackupPoms=false --quiet
 
 pushd tools
-./releasing/update_japicmp_configuration.sh
+#./releasing/update_japicmp_configuration.sh
 popd
 
 #change version of documentation
