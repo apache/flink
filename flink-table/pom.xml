@@ -72,9 +72,11 @@ under the License.
 	</dependencyManagement>
 
 	<properties>
-		<!-- When updating Janino, make sure that Calcite supports it as well. -->
-		<janino.version>3.0.11</janino.version>
 		<calcite.version>1.26.0</calcite.version>
+		<!-- Keep Janino, Jackson and JsonPath in sync with calcite. -->
+		<janino.version>3.0.11</janino.version>
+		<jsonpath.version>2.4.0</jsonpath.version>
+		<jackson.version>2.13.0</jackson.version>
 		<guava.version>29.0-jre</guava.version>
 	</properties>
 </project>

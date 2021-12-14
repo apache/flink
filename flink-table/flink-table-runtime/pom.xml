@@ -84,6 +84,30 @@ under the License.
 			<version>${janino.version}</version>
 		</dependency>
 
+		<!-- Jackson and JsonPath (used by calcite) -->
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<version>${jackson.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>${jackson.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-annotations</artifactId>
+			<version>${jackson.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.jayway.jsonpath</groupId>
+			<artifactId>json-path</artifactId>
+			<version>${jsonpath.version}</version>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
@@ -128,6 +152,39 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>com.jayway.jsonpath:json-path</include>
+									<include>com.fasterxml.jackson.core:jackson-core</include>
+									<include>com.fasterxml.jackson.core:jackson-databind</include>
+									<include>com.fasterxml.jackson.core:jackson-annotations</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>com.jayway</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml</pattern>
+									<shadedPattern>org.apache.flink.shaded.tablejackson.com.fasterxml</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

@@ -1627,19 +1627,20 @@ public class DateTimeUtils {
     // ADD/REMOVE months
     // --------------------------------------------------------------------------------------------
 
-    /** Adds a given number of months to a timestamp, represented as the number
-     * of milliseconds since the epoch. */
+    /**
+     * Adds a given number of months to a timestamp, represented as the number of milliseconds since
+     * the epoch.
+     */
     public static long addMonths(long timestamp, int m) {
-        final long millis =
-                DateTimeUtils.floorMod(timestamp, DateTimeUtils.MILLIS_PER_DAY);
+        final long millis = DateTimeUtils.floorMod(timestamp, DateTimeUtils.MILLIS_PER_DAY);
         timestamp -= millis;
-        final long x =
-                addMonths((int) (timestamp / DateTimeUtils.MILLIS_PER_DAY), m);
+        final long x = addMonths((int) (timestamp / DateTimeUtils.MILLIS_PER_DAY), m);
         return x * DateTimeUtils.MILLIS_PER_DAY + millis;
     }
 
-    /** Adds a given number of months to a date, represented as the number of
-     * days since the epoch. */
+    /**
+     * Adds a given number of months to a date, represented as the number of days since the epoch.
+     */
     public static int addMonths(int date, int m) {
         int y0 = (int) extractFromDate(TimeUnitRange.YEAR, date);
         int m0 = (int) extractFromDate(TimeUnitRange.MONTH, date);
@@ -1663,10 +1664,7 @@ public class DateTimeUtils {
     private static int lastDay(int y, int m) {
         switch (m) {
             case 2:
-                return y % 4 == 0
-                        && (y % 100 != 0
-                        || y % 400 == 0)
-                        ? 29 : 28;
+                return y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) ? 29 : 28;
             case 4:
             case 6:
             case 9:
@@ -1677,8 +1675,10 @@ public class DateTimeUtils {
         }
     }
 
-    /** Finds the number of months between two dates, each represented as the
-     * number of days since the epoch. */
+    /**
+     * Finds the number of months between two dates, each represented as the number of days since
+     * the epoch.
+     */
     public static int subtractMonths(int date0, int date1) {
         if (date0 < date1) {
             return -subtractMonths(date1, date0);
@@ -1686,7 +1686,7 @@ public class DateTimeUtils {
         // Start with an estimate.
         // Since no month has more than 31 days, the estimate is <= the true value.
         int m = (date0 - date1) / 31;
-        for (;;) {
+        while (true) {
             int date2 = addMonths(date1, m);
             if (date2 >= date0) {
                 return m;
@@ -1700,14 +1700,10 @@ public class DateTimeUtils {
     }
 
     public static int subtractMonths(long t0, long t1) {
-        final long millis0 =
-                DateTimeUtils.floorMod(t0, DateTimeUtils.MILLIS_PER_DAY);
-        final int d0 = (int) DateTimeUtils.floorDiv(t0 - millis0,
-                DateTimeUtils.MILLIS_PER_DAY);
-        final long millis1 =
-                DateTimeUtils.floorMod(t1, DateTimeUtils.MILLIS_PER_DAY);
-        final int d1 = (int) DateTimeUtils.floorDiv(t1 - millis1,
-                DateTimeUtils.MILLIS_PER_DAY);
+        final long millis0 = DateTimeUtils.floorMod(t0, DateTimeUtils.MILLIS_PER_DAY);
+        final int d0 = (int) DateTimeUtils.floorDiv(t0 - millis0, DateTimeUtils.MILLIS_PER_DAY);
+        final long millis1 = DateTimeUtils.floorMod(t1, DateTimeUtils.MILLIS_PER_DAY);
+        final int d1 = (int) DateTimeUtils.floorDiv(t1 - millis1, DateTimeUtils.MILLIS_PER_DAY);
         int x = subtractMonths(d0, d1);
         final long d2 = addMonths(d1, x);
         if (d2 == d0 && millis0 < millis1) {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.table.api.{JsonExistsOnError, JsonQueryOnEmptyOrError, JsonQueryWrapper, JsonValueOnEmptyOrError}
 import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUtil}
 import org.apache.flink.table.data.{DecimalData, DecimalDataUtils, TimestampData}
 import org.apache.flink.table.functions.SqlLikeUtils
@@ -26,8 +27,6 @@ import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange
 
 import org.apache.calcite.linq4j.tree.Types
-import org.apache.calcite.runtime.JsonFunctions
-import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
 
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
@@ -456,21 +455,33 @@ object BuiltInMethods {
 
   // JSON functions
 
-  val JSON_EXISTS = Types.lookupMethod(classOf[JsonFunctions], "jsonExists",
+  val JSON_EXISTS = Types.lookupMethod(classOf[SqlJsonUtils], "jsonExists",
     classOf[String], classOf[String])
 
-  val JSON_EXISTS_ON_ERROR = Types.lookupMethod(classOf[JsonFunctions], "jsonExists",
-    classOf[String], classOf[String], classOf[SqlJsonExistsErrorBehavior])
+  val JSON_EXISTS_ON_ERROR = Types.lookupMethod(classOf[SqlJsonUtils], "jsonExists",
+    classOf[String], classOf[String], classOf[JsonExistsOnError])
 
-  val JSON_VALUE = Types.lookupMethod(classOf[JsonFunctions], "jsonValue",
+  val JSON_VALUE = Types.lookupMethod(classOf[SqlJsonUtils], "jsonValue",
     classOf[String], classOf[String],
-    classOf[SqlJsonValueEmptyOrErrorBehavior], classOf[Any],
-    classOf[SqlJsonValueEmptyOrErrorBehavior], classOf[Any]
+    classOf[JsonValueOnEmptyOrError], classOf[Any],
+    classOf[JsonValueOnEmptyOrError], classOf[Any]
   )
 
-  val JSON_QUERY = Types.lookupMethod(classOf[JsonFunctions], "jsonQuery",
-    classOf[String], classOf[String], classOf[SqlJsonQueryWrapperBehavior],
-    classOf[SqlJsonQueryEmptyOrErrorBehavior], classOf[SqlJsonQueryEmptyOrErrorBehavior])
+  val JSON_QUERY = Types.lookupMethod(classOf[SqlJsonUtils], "jsonQuery",
+    classOf[String], classOf[String], classOf[JsonQueryWrapper],
+    classOf[JsonQueryOnEmptyOrError], classOf[JsonQueryOnEmptyOrError])
+
+  val IS_JSON_VALUE = Types.lookupMethod(classOf[SqlJsonUtils], "isJsonValue",
+    classOf[String])
+
+  val IS_JSON_OBJECT = Types.lookupMethod(classOf[SqlJsonUtils], "isJsonObject",
+    classOf[String])
+
+  val IS_JSON_ARRAY = Types.lookupMethod(classOf[SqlJsonUtils], "isJsonArray",
+    classOf[String])
+
+  val IS_JSON_SCALAR = Types.lookupMethod(classOf[SqlJsonUtils], "isJsonScalar",
+    classOf[String])
 
   // STRING functions
 

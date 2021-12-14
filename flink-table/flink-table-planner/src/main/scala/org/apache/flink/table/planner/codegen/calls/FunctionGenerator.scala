@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.calcite.sql.SqlOperator
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.table.api.TableConfig
@@ -26,11 +27,7 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils.isPrimitive
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
 
-import org.apache.calcite.sql.SqlOperator
-import org.apache.calcite.util.BuiltInMethod
-
 import java.lang.reflect.Method
-
 import scala.collection.mutable
 
 class FunctionGenerator private(config: TableConfig) {
@@ -837,44 +834,44 @@ class FunctionGenerator private(config: TableConfig) {
     BuiltInMethods.JSON_QUERY)
 
   addSqlFunctionMethod(IS_JSON_VALUE, Seq(CHAR),
-    BuiltInMethod.IS_JSON_VALUE.method, argsNullable = true)
+    BuiltInMethods.IS_JSON_VALUE, argsNullable = true)
   addSqlFunctionMethod(IS_JSON_VALUE, Seq(VARCHAR),
-    BuiltInMethod.IS_JSON_VALUE.method, argsNullable = true)
+    BuiltInMethods.IS_JSON_VALUE, argsNullable = true)
 
   addSqlFunctionMethod(IS_JSON_OBJECT, Seq(CHAR),
-    BuiltInMethod.IS_JSON_OBJECT.method, argsNullable = true)
+    BuiltInMethods.IS_JSON_OBJECT, argsNullable = true)
   addSqlFunctionMethod(IS_JSON_OBJECT, Seq(VARCHAR),
-    BuiltInMethod.IS_JSON_OBJECT.method, argsNullable = true)
+    BuiltInMethods.IS_JSON_OBJECT, argsNullable = true)
 
   addSqlFunctionMethod(IS_JSON_ARRAY, Seq(CHAR),
-    BuiltInMethod.IS_JSON_ARRAY.method, argsNullable = true)
+    BuiltInMethods.IS_JSON_ARRAY, argsNullable = true)
   addSqlFunctionMethod(IS_JSON_ARRAY, Seq(VARCHAR),
-    BuiltInMethod.IS_JSON_ARRAY.method, argsNullable = true)
+    BuiltInMethods.IS_JSON_ARRAY, argsNullable = true)
 
   addSqlFunctionMethod(IS_JSON_SCALAR, Seq(CHAR),
-    BuiltInMethod.IS_JSON_SCALAR.method, argsNullable = true)
+    BuiltInMethods.IS_JSON_SCALAR, argsNullable = true)
   addSqlFunctionMethod(IS_JSON_SCALAR, Seq(VARCHAR),
-    BuiltInMethod.IS_JSON_SCALAR.method, argsNullable = true)
+    BuiltInMethods.IS_JSON_SCALAR, argsNullable = true)
 
   addSqlFunction(IS_NOT_JSON_VALUE, Seq(CHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethod.IS_JSON_VALUE.method, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_VALUE, argsNullable = true)))
   addSqlFunction(IS_NOT_JSON_VALUE, Seq(VARCHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethod.IS_JSON_VALUE.method, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_VALUE, argsNullable = true)))
 
   addSqlFunction(IS_NOT_JSON_OBJECT, Seq(CHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethod.IS_JSON_OBJECT.method, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_OBJECT, argsNullable = true)))
   addSqlFunction(IS_NOT_JSON_OBJECT, Seq(VARCHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethod.IS_JSON_OBJECT.method, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_OBJECT, argsNullable = true)))
 
   addSqlFunction(IS_NOT_JSON_ARRAY, Seq(CHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethod.IS_JSON_ARRAY.method, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_ARRAY, argsNullable = true)))
   addSqlFunction(IS_NOT_JSON_ARRAY, Seq(VARCHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethod.IS_JSON_ARRAY.method, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_ARRAY, argsNullable = true)))
 
   addSqlFunction(IS_NOT_JSON_SCALAR, Seq(CHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethod.IS_JSON_SCALAR.method, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_SCALAR, argsNullable = true)))
   addSqlFunction(IS_NOT_JSON_SCALAR, Seq(VARCHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethod.IS_JSON_SCALAR.method, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_SCALAR, argsNullable = true)))
 
 
   // ----------------------------------------------------------------------------------------------
