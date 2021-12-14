@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -114,9 +115,13 @@ public final class SchedulingPipelinedRegionComputeUtil {
                     if (!producedResult.getResultType().isReconnectable()) {
                         continue;
                     }
-                    final ConsumerVertexGroup consumerVertexGroup =
+                    final Optional<ConsumerVertexGroup> consumerVertexGroup =
                             producedResult.getConsumerVertexGroup();
-                    for (ExecutionVertexID consumerVertexId : consumerVertexGroup) {
+                    if (!consumerVertexGroup.isPresent()) {
+                        continue;
+                    }
+
+                    for (ExecutionVertexID consumerVertexId : consumerVertexGroup.get()) {
                         SchedulingExecutionVertex consumerVertex =
                                 executionVertexRetriever.apply(consumerVertexId);
                         // Skip the ConsumerVertexGroup if its vertices are outside current

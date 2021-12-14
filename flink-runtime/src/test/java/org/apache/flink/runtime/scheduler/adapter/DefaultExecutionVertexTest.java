@@ -62,7 +62,9 @@ public class DefaultExecutionVertexTest extends TestLogger {
                         new IntermediateDataSetID(),
                         BLOCKING,
                         () -> ResultPartitionState.CREATED,
-                        null,
+                        () -> {
+                            throw new UnsupportedOperationException();
+                        },
                         () -> {
                             throw new UnsupportedOperationException();
                         });
