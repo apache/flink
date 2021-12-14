@@ -210,8 +210,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // seconds are lost
                         .fromCase(TIME(5), DEFAULT_TIME, "12:34:56")
                         .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.123456")
-                        .fromCase(TIMESTAMP(8), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.12345670")
+                        .fromCase(TIMESTAMP(9), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.123456700")
                         .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.1234")
+                        .fromCase(
+                                TIMESTAMP(3),
+                                LocalDateTime.parse("2021-09-24T12:34:56.1"),
+                                "2021-09-24 12:34:56.100")
                         .fromCase(TIMESTAMP(4).nullable(), null, null)
 
                         // https://issues.apache.org/jira/browse/FLINK-20869
@@ -221,6 +225,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 TIMESTAMP_LTZ(5),
                                 DEFAULT_TIMESTAMP_LTZ,
                                 "2021-09-25 07:54:56.12345")
+                        .fromCase(
+                                TIMESTAMP_LTZ(9),
+                                DEFAULT_TIMESTAMP_LTZ,
+                                "2021-09-25 07:54:56.123456700")
+                        .fromCase(
+                                TIMESTAMP_LTZ(3),
+                                fromLocalTZ("2021-09-24T22:34:56.1"),
+                                "2021-09-25 07:54:56.100")
                         .fromCase(INTERVAL(YEAR()), 84, "+7-00")
                         .fromCase(INTERVAL(MONTH()), 5, "+0-05")
                         .fromCase(INTERVAL(MONTH()), 123, "+10-03")

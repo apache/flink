@@ -523,7 +523,34 @@ class CastRulesTest {
                                 fromString(String.valueOf(Double.MAX_VALUE)))
                         .fromCase(STRING(), fromString("Hello"), fromString("Hello"))
                         .fromCase(TIMESTAMP(), TIMESTAMP, TIMESTAMP_STRING)
+                        .fromCase(
+                                TIMESTAMP(9),
+                                TIMESTAMP,
+                                fromString("2021-09-24 12:34:56.123456000"))
+                        .fromCase(
+                                TIMESTAMP(7), TIMESTAMP, fromString("2021-09-24 12:34:56.1234560"))
+                        .fromCase(
+                                TIMESTAMP(3),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.parse("2021-09-24T12:34:56.1")),
+                                fromString("2021-09-24 12:34:56.100"))
                         .fromCase(TIMESTAMP_LTZ(), CET_CONTEXT, TIMESTAMP, TIMESTAMP_STRING_CET)
+                        .fromCase(
+                                TIMESTAMP_LTZ(9),
+                                CET_CONTEXT,
+                                TIMESTAMP,
+                                fromString("2021-09-24 14:34:56.123456000"))
+                        .fromCase(
+                                TIMESTAMP_LTZ(7),
+                                CET_CONTEXT,
+                                TIMESTAMP,
+                                fromString("2021-09-24 14:34:56.1234560"))
+                        .fromCase(
+                                TIMESTAMP_LTZ(3),
+                                CET_CONTEXT,
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.parse("2021-09-24T12:34:56.1")),
+                                fromString("2021-09-24 14:34:56.100"))
                         .fromCase(DATE(), DATE, DATE_STRING)
                         .fromCase(TIME(5), TIME, TIME_STRING)
                         .fromCase(INTERVAL(YEAR()), 84, fromString("+7-00"))
