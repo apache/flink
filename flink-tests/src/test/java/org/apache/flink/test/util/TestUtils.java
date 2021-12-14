@@ -22,12 +22,17 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.ExceptionUtils;
 
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -92,6 +97,18 @@ public class TestUtils {
                 () -> clusterClient.getJobStatus(id).get(),
                 () -> clusterClient.requestJobResult(id).get(),
                 userCodeClassloader);
+    }
+
+    public static CheckpointMetadata loadCheckpointMetadata(String savepointPath)
+            throws IOException {
+        CompletedCheckpointStorageLocation location =
+                AbstractFsCheckpointStorageAccess.resolveCheckpointPointer(savepointPath);
+
+        try (DataInputStream stream =
+                new DataInputStream(location.getMetadataHandle().openInputStream())) {
+            return Checkpoints.loadCheckpointMetadata(
+                    stream, Thread.currentThread().getContextClassLoader(), savepointPath);
+        }
     }
 
     public static File getMostRecentCompletedCheckpoint(File checkpointDir) throws IOException {
