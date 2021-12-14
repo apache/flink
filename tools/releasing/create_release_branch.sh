@@ -54,13 +54,13 @@ if [ "$RELEASE_CANDIDATE" != "none" ]; then
   target_branch=$target_branch-rc$RELEASE_CANDIDATE
 fi
 
-git checkout -b $target_branch
+#git checkout -b $target_branch
 
 #change version in all pom files
 find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>(.*)'$OLD_VERSION'(.*)</version>#<version>${1}'$NEW_VERSION'${2}</version>#' {} \;
 
 pushd tools
-./releasing/update_japicmp_configuration.sh
+#./releasing/update_japicmp_configuration.sh
 popd
 
 #change version of documentation
