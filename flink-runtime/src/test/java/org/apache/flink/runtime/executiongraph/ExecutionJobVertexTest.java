@@ -193,7 +193,7 @@ public class ExecutionJobVertexTest {
         return createDynamicExecutionJobVertex(-1, -1, 1);
     }
 
-    private static ExecutionJobVertex createDynamicExecutionJobVertex(
+    public static ExecutionJobVertex createDynamicExecutionJobVertex(
             int parallelism, int maxParallelism, int defaultMaxParallelism) throws Exception {
         JobVertex jobVertex = new JobVertex("testVertex");
         jobVertex.setInvokableClass(AbstractInvokable.class);
@@ -227,7 +227,7 @@ public class ExecutionJobVertexTest {
      * @param defaultMaxParallelism the global default max parallelism
      * @return the computed parallelism store
      */
-    static VertexParallelismStore computeVertexParallelismStoreForDynamicGraph(
+    public static VertexParallelismStore computeVertexParallelismStoreForDynamicGraph(
             Iterable<JobVertex> vertices, int defaultMaxParallelism) {
         // for dynamic graph, there is no need to normalize vertex parallelism. if the max
         // parallelism is not configured and the parallelism is a positive value, max

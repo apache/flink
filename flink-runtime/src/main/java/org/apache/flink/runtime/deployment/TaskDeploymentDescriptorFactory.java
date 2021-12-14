@@ -128,17 +128,9 @@ public class TaskDeploymentDescriptorFactory {
             IntermediateResultPartition resultPartition =
                     resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
 
-            int numConsumers = resultPartition.getConsumerVertexGroup().size();
             IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();
-            int consumerIndex = subtaskIndex % numConsumers;
-            int numSubpartitions = resultPartition.getNumberOfSubpartitions();
             SubpartitionIndexRange consumedSubpartitionRange =
-                    computeConsumedSubpartitionRange(
-                            consumerIndex,
-                            numConsumers,
-                            numSubpartitions,
-                            consumedIntermediateResult.getProducer().getGraph().isDynamic(),
-                            consumedIntermediateResult.isBroadcast());
+                    computeConsumedSubpartitionRange(resultPartition, subtaskIndex);
 
             IntermediateDataSetID resultId = consumedIntermediateResult.getId();
             ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
@@ -153,6 +145,20 @@ public class TaskDeploymentDescriptorFactory {
         }
 
         return inputGates;
+    }
+
+    public static SubpartitionIndexRange computeConsumedSubpartitionRange(
+            IntermediateResultPartition resultPartition, int consumerSubtaskIndex) {
+        int numConsumers = resultPartition.getConsumerVertexGroup().size();
+        int consumerIndex = consumerSubtaskIndex % numConsumers;
+        IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();
+        int numSubpartitions = resultPartition.getNumberOfSubpartitions();
+        return computeConsumedSubpartitionRange(
+                consumerIndex,
+                numConsumers,
+                numSubpartitions,
+                consumedIntermediateResult.getProducer().getGraph().isDynamic(),
+                consumedIntermediateResult.isBroadcast());
     }
 
     @VisibleForTesting

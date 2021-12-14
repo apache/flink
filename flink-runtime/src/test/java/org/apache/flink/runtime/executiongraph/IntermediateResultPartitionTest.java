@@ -221,7 +221,7 @@ public class IntermediateResultPartitionTest extends TestLogger {
                 equalTo(expectedNumSubpartitions));
     }
 
-    private static ExecutionGraph createExecutionGraph(
+    public static ExecutionGraph createExecutionGraph(
             int producerParallelism,
             int consumerParallelism,
             int consumerMaxParallelism,

@@ -168,7 +168,7 @@ public class IntermediateResult {
         return checkNotNull(getProducer().getGraph().getJobVertex(consumerJobVertexId));
     }
 
-    DistributionPattern getConsumingDistributionPattern() {
+    public DistributionPattern getConsumingDistributionPattern() {
         final JobEdge consumer = checkNotNull(intermediateDataSet.getConsumer());
         return consumer.getDistributionPattern();
     }
