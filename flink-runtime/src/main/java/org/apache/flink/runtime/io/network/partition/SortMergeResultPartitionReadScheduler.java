@@ -289,7 +289,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         }
     }
 
-    SortMergeSubpartitionReader crateSubpartitionReader(
+    SortMergeSubpartitionReader createSubpartitionReader(
             BufferAvailabilityListener availabilityListener,
             int targetSubpartition,
             PartitionedFile resultFile)

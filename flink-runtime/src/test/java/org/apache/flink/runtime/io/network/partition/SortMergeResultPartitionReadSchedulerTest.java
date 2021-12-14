@@ -105,7 +105,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
     @Test
     public void testCreateSubpartitionReader() throws Exception {
         SortMergeSubpartitionReader subpartitionReader =
-                readScheduler.crateSubpartitionReader(
+                readScheduler.createSubpartitionReader(
                         new NoOpBufferAvailablityListener(), 0, partitionedFile);
 
         assertTrue(readScheduler.isRunning());
@@ -128,7 +128,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
     @Test
     public void testOnSubpartitionReaderError() throws Exception {
         SortMergeSubpartitionReader subpartitionReader =
-                readScheduler.crateSubpartitionReader(
+                readScheduler.createSubpartitionReader(
                         new NoOpBufferAvailablityListener(), 0, partitionedFile);
 
         subpartitionReader.releaseAllResources();
@@ -139,7 +139,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
     @Test
     public void testReleaseWhileReading() throws Exception {
         SortMergeSubpartitionReader subpartitionReader =
-                readScheduler.crateSubpartitionReader(
+                readScheduler.createSubpartitionReader(
                         new NoOpBufferAvailablityListener(), 0, partitionedFile);
 
         Thread.sleep(1000);
@@ -158,7 +158,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
     public void testCreateSubpartitionReaderAfterReleased() throws Exception {
         readScheduler.release();
         try {
-            readScheduler.crateSubpartitionReader(
+            readScheduler.createSubpartitionReader(
                     new NoOpBufferAvailablityListener(), 0, partitionedFile);
         } finally {
             assertAllResourcesReleased();
@@ -168,7 +168,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
     @Test
     public void testOnDataReadError() throws Exception {
         SortMergeSubpartitionReader subpartitionReader =
-                readScheduler.crateSubpartitionReader(
+                readScheduler.createSubpartitionReader(
                         new NoOpBufferAvailablityListener(), 0, partitionedFile);
 
         // close file channel to trigger data read exception
@@ -191,7 +191,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
     @Test
     public void testOnReadBufferRequestError() throws Exception {
         SortMergeSubpartitionReader subpartitionReader =
-                readScheduler.crateSubpartitionReader(
+                readScheduler.createSubpartitionReader(
                         new NoOpBufferAvailablityListener(), 0, partitionedFile);
 
         bufferPool.destroy();
@@ -212,7 +212,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
                         bufferPool, executor, this, bufferRequestTimeout);
 
         SortMergeSubpartitionReader subpartitionReader =
-                readScheduler.crateSubpartitionReader(
+                readScheduler.createSubpartitionReader(
                         new NoOpBufferAvailablityListener(), 0, partitionedFile);
 
         PriorityQueue<SortMergeSubpartitionReader> allReaders = new PriorityQueue<>();
