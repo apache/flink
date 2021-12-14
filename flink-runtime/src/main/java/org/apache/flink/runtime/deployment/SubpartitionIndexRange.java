@@ -43,6 +43,10 @@ public class SubpartitionIndexRange implements Serializable {
         return endIndex;
     }
 
+    public int size() {
+        return endIndex - startIndex + 1;
+    }
+
     @Override
     public String toString() {
         return String.format("[%d, %d]", startIndex, endIndex);

@@ -173,8 +173,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 jobGraph.getName(),
                 jobGraph.getJobID());
 
-        enrichResourceProfile();
-
         this.executionFailureHandler =
                 new ExecutionFailureHandler(
                         getSchedulingTopology(), failoverStrategy, restartBackoffTimeStrategy);
@@ -722,14 +720,5 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         public Set<AllocationID> getReservedAllocations() {
             return reservedAllocationRefCounters.keySet();
         }
-    }
-
-    private void enrichResourceProfile() {
-        Set<SlotSharingGroup> ssgs = new HashSet<>();
-        getJobGraph().getVertices().forEach(jv -> ssgs.add(jv.getSlotSharingGroup()));
-        ssgs.forEach(
-                ssg ->
-                        SsgNetworkMemoryCalculationUtils.enrichNetworkMemory(
-                                ssg, this::getExecutionJobVertex, shuffleMaster));
     }
 }
