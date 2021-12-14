@@ -68,6 +68,11 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+						<configuration>
+							<includes>
+								<include>META-INF/services</include>
+							</includes>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** A test {@link ManagedTableFactory}. */
 public class TestManagedTableFactory implements ManagedTableFactory {
@@ -35,7 +36,7 @@ public class TestManagedTableFactory implements ManagedTableFactory {
 
     public static final String ENRICHED_VALUE = "ENRICHED_VALUE";
 
-    public static final Map<ObjectIdentifier, Map<String, String>> MANAGED_TABLES =
+    public static final Map<ObjectIdentifier, AtomicReference<Map<String, String>>> MANAGED_TABLES =
             new ConcurrentHashMap<>();
 
     @Override
@@ -60,23 +61,26 @@ public class TestManagedTableFactory implements ManagedTableFactory {
         MANAGED_TABLES.compute(
                 context.getObjectIdentifier(),
                 (k, v) -> {
-                    if (v == null) {
-                        return context.getCatalogTable().toProperties();
-                    } else if (!ignoreIfExists) {
-                        throw new TableException("Table exists.");
-                    } else {
-                        return v;
+                    if (v != null) {
+                        if (v.get() == null) {
+                            v.set(context.getCatalogTable().toProperties());
+                        } else if (!ignoreIfExists) {
+                            throw new TableException("Table exists.");
+                        }
                     }
+                    return v;
                 });
     }
 
     @Override
     public void onDropTable(Context context, boolean ignoreIfNotExists) {
-        boolean remove =
-                MANAGED_TABLES.remove(
-                        context.getObjectIdentifier(), context.getCatalogTable().toProperties());
-        if (!remove && !ignoreIfNotExists) {
-            throw new TableException("Table does not exist.");
+        AtomicReference<Map<String, String>> reference =
+                MANAGED_TABLES.get(context.getObjectIdentifier());
+        if (reference != null) {
+            Map<String, String> previous = reference.getAndSet(null);
+            if (!context.getCatalogTable().toProperties().equals(previous) && !ignoreIfNotExists) {
+                throw new TableException("Table does not exist.");
+            }
         }
     }
 }

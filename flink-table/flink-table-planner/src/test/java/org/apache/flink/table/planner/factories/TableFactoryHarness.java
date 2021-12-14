@@ -278,8 +278,7 @@ public class TableFactoryHarness {
                     parentTable.getUnresolvedSchema(),
                     parentTable.getComment(),
                     parentTable.getPartitionKeys(),
-                    parentTable.getOptions(),
-                    parentTable.getTableKind());
+                    parentTable.getOptions());
 
             this.source = source;
             this.sink = sink;

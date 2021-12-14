@@ -38,8 +38,17 @@ public interface CatalogBaseTable {
     /** The kind of {@link CatalogBaseTable}. */
     @PublicEvolving
     enum TableKind {
+
+        /** Represents a table which can be expressed in a SQL {@code CREATE TABLE} statement. */
         TABLE,
+
+        /**
+         * Represents a table which can be expressed in a SQL {@code CREATE TABLE} statement without
+         * connector option and with catalog managed table support.
+         */
         MANAGED,
+
+        /** Represents a table which can be expressed in a SQL {@code CREATE VIEW} statement. */
         VIEW
     }
 

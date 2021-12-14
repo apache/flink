@@ -28,19 +28,22 @@ import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.utils.TableEnvironmentMock;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.table.api.TestManagedTableFactory.ENRICHED_KEY;
 import static org.apache.flink.table.api.TestManagedTableFactory.ENRICHED_VALUE;
 import static org.apache.flink.table.api.TestManagedTableFactory.MANAGED_TABLES;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link TableEnvironment}. */
 public class TableEnvironmentTest {
@@ -120,15 +123,26 @@ public class TableEnvironmentTest {
     }
 
     @Test
-    public void testCreateManagedTableFromDescriptor() {
-        innerTestCreateManagedTableFromDescriptor(false, false);
-        innerTestCreateManagedTableFromDescriptor(true, false);
-        innerTestCreateManagedTableFromDescriptor(true, true);
-        innerTestCreateManagedTableFromDescriptor(false, true);
+    public void testManagedTable() {
+        innerTestManagedTableFromDescriptor(false, false);
     }
 
-    private void innerTestCreateManagedTableFromDescriptor(
-            boolean ignoreIfExists, boolean isTemporary) {
+    @Test
+    public void testManagedTableWithIgnoreExists() {
+        innerTestManagedTableFromDescriptor(true, false);
+    }
+
+    @Test
+    public void testTemporaryManagedTableWithIgnoreExists() {
+        innerTestManagedTableFromDescriptor(true, true);
+    }
+
+    @Test
+    public void testTemporaryManagedTable() {
+        innerTestManagedTableFromDescriptor(true, true);
+    }
+
+    private void innerTestManagedTableFromDescriptor(boolean ignoreIfExists, boolean isTemporary) {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
         final String catalog = tEnv.getCurrentCatalog();
         final String database = tEnv.getCurrentDatabase();
@@ -138,7 +152,7 @@ public class TableEnvironmentTest {
         ObjectIdentifier identifier = ObjectIdentifier.of(catalog, database, tableName);
 
         // create table
-
+        MANAGED_TABLES.put(identifier, new AtomicReference<>());
         CreateTableOperation createOperation =
                 new CreateTableOperation(
                         identifier,
@@ -156,16 +170,10 @@ public class TableEnvironmentTest {
         if (ignoreIfExists) {
             tEnv.executeInternal(createOperation);
         } else {
-            try {
-                tEnv.executeInternal(createOperation);
-                Assert.fail();
-            } catch (Exception e) {
-                if (isTemporary) {
-                    Assert.assertTrue(e.getMessage().contains("already exists"));
-                } else {
-                    Assert.assertTrue(e.getMessage().contains("Could not execute CreateTable"));
-                }
-            }
+            Assertions.assertThrows(
+                    Exception.class,
+                    () -> tEnv.executeInternal(createOperation),
+                    isTemporary ? "already exists" : "Could not execute CreateTable");
         }
 
         // lookup table
@@ -190,24 +198,26 @@ public class TableEnvironmentTest {
         assertEquals(CatalogBaseTable.TableKind.MANAGED, catalogTable.getTableKind());
         assertEquals("Test", catalogTable.getOptions().get("a"));
         assertEquals(ENRICHED_VALUE, catalogTable.getOptions().get(ENRICHED_KEY));
-        assertEquals("Test", MANAGED_TABLES.get(identifier).get("a"));
-        assertEquals(ENRICHED_VALUE, MANAGED_TABLES.get(identifier).get(ENRICHED_KEY));
+
+        AtomicReference<Map<String, String>> reference = MANAGED_TABLES.get(identifier);
+        assertNotNull(reference.get());
+        assertEquals("Test", reference.get().get("a"));
+        assertEquals(ENRICHED_VALUE, reference.get().get(ENRICHED_KEY));
 
         DropTableOperation dropOperation =
                 new DropTableOperation(identifier, ignoreIfExists, isTemporary);
         tEnv.executeInternal(dropOperation);
-        assertNull(MANAGED_TABLES.get(identifier));
+        assertNull(MANAGED_TABLES.get(identifier).get());
 
         // test ignore: drop again
         if (ignoreIfExists) {
             tEnv.executeInternal(dropOperation);
         } else {
-            try {
-                tEnv.executeInternal(dropOperation);
-                Assert.fail();
-            } catch (ValidationException e) {
-                Assert.assertTrue(e.getMessage().contains("does not exist"));
-            }
+            Assertions.assertThrows(
+                    ValidationException.class,
+                    () -> tEnv.executeInternal(dropOperation),
+                    "does not exist");
         }
+        MANAGED_TABLES.remove(identifier);
     }
 }

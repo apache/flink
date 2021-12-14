@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.StringUtils;
@@ -31,6 +34,7 @@ import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind.MANAGED;
 import static org.apache.flink.table.factories.ManagedTableFactory.discoverManagedTableFactory;
 
 /** The listener for managed table operations. */
+@Internal
 public class ManagedTableListener {
 
     private final ClassLoader classLoader;
@@ -81,18 +85,39 @@ public class ManagedTableListener {
             // catalog not support managed table
             return false;
         }
+
         if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
             // view is not managed table
             return false;
         }
+
+        if (!StringUtils.isNullOrWhitespaceOnly(
+                table.getOptions().get(ConnectorDescriptorValidator.CONNECTOR_TYPE))) {
+            // legacy connector is not managed table
+            return false;
+        }
+
         if (!StringUtils.isNullOrWhitespaceOnly(
                 table.getOptions().get(FactoryUtil.CONNECTOR.key()))) {
             // with connector is not managed table
             return false;
         }
+
         CatalogBaseTable origin = table.getOrigin();
-        // only DefaultCatalogTable or CatalogTableImpl is managed table
-        return origin instanceof DefaultCatalogTable || origin instanceof CatalogTableImpl;
+
+        if (origin instanceof ConnectorCatalogTable) {
+            // ConnectorCatalogTable is not managed table
+            return false;
+        }
+
+        try {
+            origin.getOptions();
+        } catch (TableException ignore) {
+            // exclude abnormal tables, such as InlineCatalogTable that does not have the options
+            return false;
+        }
+
+        return true;
     }
 
     /** Enrich options for creating managed table. */
