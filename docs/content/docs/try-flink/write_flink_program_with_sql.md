@@ -159,19 +159,16 @@ Now try a [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}}) query to find t
 Top-N queries identify the N smallest or largest values (as ordered by some attribute of the table), and are useful when you need to identify the top (or bottom) N items in a stream. 
 
 ```sql
-SELECT game_name, proctime, viewer_count
+SELECT *
 FROM (
-    SELECT *, ROW_NUMBER() OVER (ORDER BY viewer_count DESC) AS ranking
+    SELECT *, ROW_NUMBER() OVER (ORDER BY cnt DESC) AS ranking
     FROM (
-        SELECT *
-        FROM (
-            SELECT 
-                *,
-                ROW_NUMBER() OVER (PARTITION BY game_name ORDER BY proctime DESC) AS ordering
-            FROM twitch_stream
-        ) WHERE ordering = 1
+        SELECT location, count(*) AS cnt
+        FROM twitch_stream
+        GROUP BY location
     )
-) WHERE ranking <= 10;
+)
+WHERE ranking <= 10;
 ```
 
 Note that Flink uses the combination of an OVER window clause and a filter condition to express a Top-N query in order to filter through unbounded dataset. 
