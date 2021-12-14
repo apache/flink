@@ -27,7 +27,7 @@ import decimal
 import pickle
 from typing import List, Union
 
-from cloudpickle import cloudpickle
+import cloudpickle
 import pyarrow as pa
 
 from pyflink.common import Row, RowKind
