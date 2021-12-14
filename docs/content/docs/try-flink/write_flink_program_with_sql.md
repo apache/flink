@@ -140,16 +140,12 @@ Under the hood, the SQL client submits queries to Flink's JobManager, which work
 
 Now try to perform a filter operation on this data stream to specify a subset of the data by using the `WHERE` keyword.  
 
-To find out what gaming streams started in the last 15 minutes, try this query:
+To find gaming streams for games whose names end with an exclamation mark, try this query:
 
 ```sql
-SELECT game_name, 
-       started_at,
-       proctime, 
-       TIMESTAMPDIFF(MINUTE, started_at, proctime)
+SELECT *
 FROM twitch_stream
-WHERE TIMESTAMPDIFF(MINUTE, started_at, proctime) < 15;
-```
+WHERE game_name LIKE '%!';
 
 You should now see a new table with new datastream results.  
 
