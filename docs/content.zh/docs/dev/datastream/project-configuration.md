@@ -331,7 +331,7 @@ ext {
     flinkVersion = '1.13-SNAPSHOT'
     scalaBinaryVersion = '2.11'
     slf4jVersion = '1.7.15'
-    log4jVersion = '2.15.0'
+    log4jVersion = '2.16.0'
 }
 
 
