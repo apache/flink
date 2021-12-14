@@ -456,7 +456,7 @@ public class SortMergeResultPartition extends ResultPartition {
             checkState(!isReleased(), "Partition released.");
             checkState(isFinished(), "Trying to read unfinished blocking partition.");
 
-            return readScheduler.crateSubpartitionReader(
+            return readScheduler.createSubpartitionReader(
                     availabilityListener, subpartitionIndex, resultFile);
         }
     }
