@@ -122,11 +122,11 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
                                         x ->
                                                 x instanceof ConfigMap
                                                         && x.getMetadata()
-                                                        .getName()
-                                                        .equals(
-                                                                HadoopConfMountDecorator
-                                                                        .getHadoopConfConfigMapName(
-                                                                                CLUSTER_ID)))
+                                                                .getName()
+                                                                .equals(
+                                                                        HadoopConfMountDecorator
+                                                                                .getHadoopConfConfigMapName(
+                                                                                        CLUSTER_ID)))
                                 .collect(Collectors.toList())
                                 .get(0);
 
