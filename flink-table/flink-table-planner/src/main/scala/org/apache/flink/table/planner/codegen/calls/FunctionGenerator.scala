@@ -115,22 +115,22 @@ class FunctionGenerator private(config: TableConfig) {
   addSqlFunction(
     FLOOR,
     Seq(DOUBLE),
-    new FloorCeilCallGen(BuiltInMethod.FLOOR.method))
+    new FloorCeilCallGen(BuiltInMethods.FLOOR))
 
-  addSqlFunction(
+  addSqlFunctionMethod(
     FLOOR,
     Seq(DECIMAL),
-    new FloorCeilCallGen(BuiltInMethods.FLOOR_DEC))
+    BuiltInMethods.FLOOR_DEC)
 
   addSqlFunction(
     CEIL,
     Seq(DOUBLE),
-    new FloorCeilCallGen(BuiltInMethod.CEIL.method))
+    new FloorCeilCallGen(BuiltInMethods.CEIL))
 
-  addSqlFunction(
+  addSqlFunctionMethod(
     CEIL,
     Seq(DECIMAL),
-    new FloorCeilCallGen(BuiltInMethods.CEIL_DEC))
+    BuiltInMethods.CEIL_DEC)
 
   addSqlFunctionMethod(
     SIN,
@@ -462,28 +462,36 @@ class FunctionGenerator private(config: TableConfig) {
     FLOOR,
     Seq(DATE, SYMBOL),
     new FloorCeilCallGen(
-      BuiltInMethod.FLOOR.method,
+      BuiltInMethods.FLOOR,
+      Some(BuiltInMethods.FLOOR_INTEGRAL),
+      Some(BuiltInMethods.FLOOR_DEC),
       Some(BuiltInMethods.UNIX_DATE_FLOOR)))
 
   addSqlFunction(
     FLOOR,
     Seq(TIME_WITHOUT_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
-      BuiltInMethod.FLOOR.method,
+      BuiltInMethods.FLOOR,
+      Some(BuiltInMethods.FLOOR_INTEGRAL),
+      Some(BuiltInMethods.FLOOR_DEC),
       Some(BuiltInMethods.UNIX_DATE_FLOOR)))
 
   addSqlFunction(
     FLOOR,
     Seq(TIMESTAMP_WITHOUT_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
-      BuiltInMethod.FLOOR.method,
+      BuiltInMethods.FLOOR,
+      Some(BuiltInMethods.FLOOR_INTEGRAL),
+      Some(BuiltInMethods.FLOOR_DEC),
       Some(BuiltInMethods.UNIX_TIMESTAMP_FLOOR)))
 
   addSqlFunction(
     FLOOR,
     Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
-      BuiltInMethod.FLOOR.method,
+      BuiltInMethods.FLOOR,
+      Some(BuiltInMethods.FLOOR_INTEGRAL),
+      Some(BuiltInMethods.FLOOR_DEC),
       Some(BuiltInMethods.TIMESTAMP_FLOOR_TIME_ZONE)))
 
   // TODO: fixme if CALCITE-3199 fixed
@@ -492,28 +500,36 @@ class FunctionGenerator private(config: TableConfig) {
     CEIL,
     Seq(DATE, SYMBOL),
     new FloorCeilCallGen(
-      BuiltInMethod.CEIL.method,
+      BuiltInMethods.CEIL,
+      Some(BuiltInMethods.CEIL_INTEGRAL),
+      Some(BuiltInMethods.CEIL_DEC),
       Some(BuiltInMethods.UNIX_DATE_CEIL)))
 
   addSqlFunction(
     CEIL,
     Seq(TIME_WITHOUT_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
-      BuiltInMethod.CEIL.method,
+      BuiltInMethods.CEIL,
+      Some(BuiltInMethods.CEIL_INTEGRAL),
+      Some(BuiltInMethods.CEIL_DEC),
       Some(BuiltInMethods.UNIX_DATE_CEIL)))
 
   addSqlFunction(
     CEIL,
     Seq(TIMESTAMP_WITHOUT_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
-      BuiltInMethod.CEIL.method,
+      BuiltInMethods.CEIL,
+      Some(BuiltInMethods.CEIL_INTEGRAL),
+      Some(BuiltInMethods.CEIL_DEC),
       Some(BuiltInMethods.UNIX_TIMESTAMP_CEIL)))
 
   addSqlFunction(
     CEIL,
     Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, SYMBOL),
     new FloorCeilCallGen(
-      BuiltInMethod.CEIL.method,
+      BuiltInMethods.CEIL,
+      Some(BuiltInMethods.CEIL_INTEGRAL),
+      Some(BuiltInMethods.CEIL_DEC),
       Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE)))
 
   addSqlFunction(

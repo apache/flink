@@ -90,10 +90,16 @@ object BuiltInMethods {
 
   val LN_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "log", classOf[DecimalData])
 
-  val ABS = Types.lookupMethod(classOf[Math], "abs", classOf[Double])
+  val ABS = Types.lookupMethod(classOf[SqlFunctionUtils], "abs", classOf[Double])
   val ABS_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "abs", classOf[DecimalData])
 
+  val FLOOR = Types.lookupMethod(classOf[SqlFunctionUtils], "floor", classOf[Double])
+  val FLOOR_INTEGRAL = Types.lookupMethod(classOf[SqlFunctionUtils], "floor", classOf[Int],
+    classOf[Int])
   val FLOOR_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "floor", classOf[DecimalData])
+  val CEIL = Types.lookupMethod(classOf[SqlFunctionUtils], "ceil", classOf[Double])
+  val CEIL_INTEGRAL = Types.lookupMethod(classOf[SqlFunctionUtils], "ceil", classOf[Int],
+    classOf[Int])
   val CEIL_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "ceil", classOf[DecimalData])
 
   val SIN = Types.lookupMethod(classOf[Math], "sin", classOf[Double])

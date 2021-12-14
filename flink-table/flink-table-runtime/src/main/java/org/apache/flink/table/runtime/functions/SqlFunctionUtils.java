@@ -158,12 +158,90 @@ public class SqlFunctionUtils {
         return Math.toRadians(doubleValue(angdeg));
     }
 
+    /** SQL <code>ABS</code> operator applied to byte values. */
+    public static byte abs(byte b0) {
+        return (byte) Math.abs(b0);
+    }
+
+    /** SQL <code>ABS</code> operator applied to short values. */
+    public static short abs(short b0) {
+        return (short) Math.abs(b0);
+    }
+
+    /** SQL <code>ABS</code> operator applied to int values. */
+    public static int abs(int b0) {
+        return Math.abs(b0);
+    }
+
+    /** SQL <code>ABS</code> operator applied to long values. */
+    public static long abs(long b0) {
+        return Math.abs(b0);
+    }
+
+    /** SQL <code>ABS</code> operator applied to float values. */
+    public static float abs(float b0) {
+        return Math.abs(b0);
+    }
+
+    /** SQL <code>ABS</code> operator applied to double values. */
+    public static double abs(double b0) {
+        return Math.abs(b0);
+    }
+
     public static DecimalData abs(DecimalData a) {
         return DecimalDataUtils.abs(a);
     }
 
+    public static double floor(double b0) {
+        return Math.floor(b0);
+    }
+
+    public static float floor(float b0) {
+        return (float) Math.floor(b0);
+    }
+
+    /** SQL <code>FLOOR</code> operator applied to int values. */
+    public static int floor(int b0, int b1) {
+        int r = b0 % b1;
+        if (r < 0) {
+            r += b1;
+        }
+        return b0 - r;
+    }
+
+    /** SQL <code>FLOOR</code> operator applied to long values. */
+    public static long floor(long b0, long b1) {
+        long r = b0 % b1;
+        if (r < 0) {
+            r += b1;
+        }
+        return b0 - r;
+    }
+
     public static DecimalData floor(DecimalData a) {
         return DecimalDataUtils.floor(a);
+    }
+
+    public static double ceil(double b0) {
+        return Math.ceil(b0);
+    }
+
+    public static float ceil(float b0) {
+        return (float) Math.ceil(b0);
+    }
+
+    /** SQL <code>CEIL</code> operator applied to int values. */
+    public static int ceil(int b0, int b1) {
+        int r = b0 % b1;
+        if (r > 0) {
+            r -= b1;
+        }
+        return b0 - r;
+    }
+
+    /** SQL <code>CEIL</code> operator applied to long values. */
+    public static long ceil(long b0, long b1) {
+        return floor(b0 + b1 - 1, b1);
     }
 
     public static DecimalData ceil(DecimalData a) {
