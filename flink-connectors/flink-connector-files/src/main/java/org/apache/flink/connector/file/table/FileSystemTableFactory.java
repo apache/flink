@@ -23,7 +23,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.connector.file.table.factories.BulkWriterFormatFactory;
-import org.apache.flink.connector.file.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -72,12 +71,11 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         validate(helper);
         return new FileSystemTableSource(
                 context.getObjectIdentifier(),
-                context.getCatalogTable().getResolvedSchema(),
+                context.getPhysicalRowDataType(),
                 context.getCatalogTable().getPartitionKeys(),
                 helper.getOptions(),
                 discoverDecodingFormat(context, BulkReaderFormatFactory.class),
-                discoverDecodingFormat(context, DeserializationFormatFactory.class),
-                discoverFormatFactory(context));
+                discoverDecodingFormat(context, DeserializationFormatFactory.class));
     }
 
     @Override
@@ -86,12 +84,11 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         validate(helper);
         return new FileSystemTableSink(
                 context.getObjectIdentifier(),
-                context.getCatalogTable().getResolvedSchema(),
+                context.getPhysicalRowDataType(),
                 context.getCatalogTable().getPartitionKeys(),
                 helper.getOptions(),
                 discoverDecodingFormat(context, BulkReaderFormatFactory.class),
                 discoverDecodingFormat(context, DeserializationFormatFactory.class),
-                discoverFormatFactory(context),
                 discoverEncodingFormat(context, BulkWriterFormatFactory.class),
                 discoverEncodingFormat(context, SerializationFormatFactory.class));
     }
@@ -182,19 +179,6 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         if (formatFactoryExists(context, formatFactoryClass)) {
             return helper.discoverEncodingFormat(formatFactoryClass, FactoryUtil.FORMAT);
-        } else {
-            return null;
-        }
-    }
-
-    private FileSystemFormatFactory discoverFormatFactory(Context context) {
-        if (formatFactoryExists(context, FileSystemFormatFactory.class)) {
-            Configuration options = Configuration.fromMap(context.getCatalogTable().getOptions());
-            String identifier = options.get(FactoryUtil.FORMAT);
-            return FactoryUtil.discoverFactory(
-                    Thread.currentThread().getContextClassLoader(),
-                    FileSystemFormatFactory.class,
-                    identifier);
         } else {
             return null;
         }

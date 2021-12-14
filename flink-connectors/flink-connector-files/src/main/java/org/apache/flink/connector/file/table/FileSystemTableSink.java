@@ -19,8 +19,6 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.io.FileInputFormat;
-import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -31,12 +29,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
-import org.apache.flink.connector.file.table.factories.FileSystemFormatFactory;
 import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
 import org.apache.flink.connector.file.table.stream.StreamingSink;
 import org.apache.flink.connector.file.table.stream.compact.CompactBulkReader;
 import org.apache.flink.connector.file.table.stream.compact.CompactReader;
-import org.apache.flink.connector.file.table.stream.compact.FileInputFormatCompactReader;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -53,10 +49,8 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -66,12 +60,10 @@ import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.PartitionPathUtils;
-import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
@@ -87,7 +79,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.AUTO_COMPACTION;
@@ -105,7 +96,6 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     // For compaction reading
     @Nullable private final DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat;
     @Nullable private final DecodingFormat<DeserializationSchema<RowData>> deserializationFormat;
-    @Nullable private final FileSystemFormatFactory formatFactory;
 
     // For Writing
     @Nullable private final EncodingFormat<BulkWriter.Factory<RowData>> bulkWriterFormat;
@@ -119,20 +109,17 @@ public class FileSystemTableSink extends AbstractFileSystemTable
 
     FileSystemTableSink(
             ObjectIdentifier tableIdentifier,
-            ResolvedSchema schema,
+            DataType physicalRowDataType,
             List<String> partitionKeys,
             ReadableConfig tableOptions,
             @Nullable DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat,
             @Nullable DecodingFormat<DeserializationSchema<RowData>> deserializationFormat,
-            @Nullable FileSystemFormatFactory formatFactory,
             @Nullable EncodingFormat<BulkWriter.Factory<RowData>> bulkWriterFormat,
             @Nullable EncodingFormat<SerializationSchema<RowData>> serializationFormat) {
-        super(tableIdentifier, schema, partitionKeys, tableOptions);
+        super(tableIdentifier, physicalRowDataType, partitionKeys, tableOptions);
         this.bulkReaderFormat = bulkReaderFormat;
         this.deserializationFormat = deserializationFormat;
-        this.formatFactory = formatFactory;
-        if (Stream.of(bulkWriterFormat, serializationFormat, formatFactory)
-                .allMatch(Objects::isNull)) {
+        if (Stream.of(bulkWriterFormat, serializationFormat).allMatch(Objects::isNull)) {
             String identifier = tableOptions.get(FactoryUtil.FORMAT);
             throw new ValidationException(
                     String.format(
@@ -168,8 +155,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     private RowDataPartitionComputer partitionComputer() {
         return new RowDataPartitionComputer(
                 defaultPartName,
-                DataType.getFieldNames(getPhysicalDataType()).toArray(new String[0]),
-                DataType.getFieldDataTypes(getPhysicalDataType()).toArray(new DataType[0]),
+                DataType.getFieldNames(physicalRowDataType).toArray(new String[0]),
+                DataType.getFieldDataTypes(physicalRowDataType).toArray(new DataType[0]),
                 partitionKeys.toArray(new String[0]));
     }
 
@@ -289,21 +276,9 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     }
 
     private Optional<CompactReader.Factory<RowData>> createCompactReaderFactory(Context context) {
-        // TODO FLINK-19845 old format factory, to be removed soon.
-        if (formatFactory != null) {
-            final InputFormat<RowData, ?> format =
-                    formatFactory.createReader(createReaderContext());
-            if (format instanceof FileInputFormat) {
-                //noinspection unchecked
-                return Optional.of(
-                        FileInputFormatCompactReader.factory((FileInputFormat<RowData>) format));
-            }
-            return Optional.empty();
-        }
-
         // Compute producedDataType (including partition fields) and physicalDataType (excluding
         // partition fields)
-        final DataType producedDataType = getPhysicalDataType();
+        final DataType producedDataType = physicalRowDataType;
         final DataType physicalDataType =
                 DataType.getFields(producedDataType).stream()
                         .filter(field -> !partitionKeys.contains(field.getName()))
@@ -360,50 +335,6 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         };
     }
 
-    private FileSystemFormatFactory.ReaderContext createReaderContext() {
-        return new FileSystemFormatFactory.ReaderContext() {
-            @Override
-            public TableSchema getSchema() {
-                return TableSchemaUtils.getPhysicalSchema(TableSchema.fromResolvedSchema(schema));
-            }
-
-            @Override
-            public ReadableConfig getFormatOptions() {
-                return formatOptions(formatFactory.factoryIdentifier());
-            }
-
-            @Override
-            public List<String> getPartitionKeys() {
-                return partitionKeys;
-            }
-
-            @Override
-            public String getDefaultPartName() {
-                return defaultPartName;
-            }
-
-            @Override
-            public Path[] getPaths() {
-                return new Path[] {path};
-            }
-
-            @Override
-            public int[] getProjectFields() {
-                return IntStream.range(0, DataType.getFieldCount(getPhysicalDataType())).toArray();
-            }
-
-            @Override
-            public long getPushedDownLimit() {
-                return Long.MAX_VALUE;
-            }
-
-            @Override
-            public List<ResolvedExpression> getPushedDownFilters() {
-                return Collections.emptyList();
-            }
-        };
-    }
-
     private Path toStagingPath() {
         Path stagingDir = new Path(path, ".staging_" + System.currentTimeMillis());
         try {
@@ -426,13 +357,17 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     }
 
     private Object createWriter(Context sinkContext) {
+        DataType physicalDataTypeWithoutPartitionColumns =
+                DataType.getFields(physicalRowDataType).stream()
+                        .filter(field -> !partitionKeys.contains(field.getName()))
+                        .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
         if (bulkWriterFormat != null) {
             return bulkWriterFormat.createRuntimeEncoder(
-                    sinkContext, getPhysicalDataTypeWithoutPartitionColumns());
+                    sinkContext, physicalDataTypeWithoutPartitionColumns);
         } else if (serializationFormat != null) {
             return new SerializationSchemaAdapter(
                     serializationFormat.createRuntimeEncoder(
-                            sinkContext, getPhysicalDataTypeWithoutPartitionColumns()));
+                            sinkContext, physicalDataTypeWithoutPartitionColumns));
         } else {
             throw new TableException("Can not find format factory.");
         }
@@ -550,12 +485,11 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         FileSystemTableSink sink =
                 new FileSystemTableSink(
                         tableIdentifier,
-                        schema,
+                        physicalRowDataType,
                         partitionKeys,
                         tableOptions,
                         bulkReaderFormat,
                         deserializationFormat,
-                        formatFactory,
                         bulkWriterFormat,
                         serializationFormat);
         sink.overwrite = overwrite;
