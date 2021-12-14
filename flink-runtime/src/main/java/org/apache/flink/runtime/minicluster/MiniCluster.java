@@ -715,14 +715,14 @@ public class MiniCluster implements AutoCloseableAsync {
         return miniClusterConfiguration.getConfiguration();
     }
 
-    // HACK: temporary hack to make the randomized changelog state backend tests work with forced
+    // HACK: temporary hack to make the changelog state backend tests work with forced
     // full snapshots. This option should be removed once changelog state backend supports forced
     // full snapshots
-    @Internal private boolean overrideRestoreModeForRandomizedChangelogStateBackend;
+    @Internal private boolean overrideRestoreModeForChangelogStateBackend;
 
     @Internal
-    public void overrideRestoreModeForRandomizedChangelogStateBackend() {
-        this.overrideRestoreModeForRandomizedChangelogStateBackend = true;
+    public void overrideRestoreModeForChangelogStateBackend() {
+        this.overrideRestoreModeForChangelogStateBackend = true;
     }
 
     @GuardedBy("lock")
@@ -942,7 +942,7 @@ public class MiniCluster implements AutoCloseableAsync {
         // Dispatcher. This means that any mutations to the JG can affect the Dispatcher behaviour,
         // so we rather clone it to guard against this.
         final JobGraph clonedJobGraph = cloneJobGraph(jobGraph);
-        checkRestoreModeForRandomizedChangelogStateBackend(clonedJobGraph);
+        checkRestoreModeForChangelogStateBackend(clonedJobGraph);
         final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture =
                 getDispatcherGatewayFuture();
         final CompletableFuture<InetSocketAddress> blobServerAddressFuture =
@@ -963,10 +963,10 @@ public class MiniCluster implements AutoCloseableAsync {
     // HACK: temporary hack to make the randomized changelog state backend tests work with forced
     // full snapshots. This option should be removed once changelog state backend supports forced
     // full snapshots
-    private void checkRestoreModeForRandomizedChangelogStateBackend(JobGraph jobGraph) {
+    private void checkRestoreModeForChangelogStateBackend(JobGraph jobGraph) {
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
-        if (overrideRestoreModeForRandomizedChangelogStateBackend
+        if (overrideRestoreModeForChangelogStateBackend
                 && savepointRestoreSettings.getRestoreMode() == RestoreMode.NO_CLAIM) {
             final Configuration conf = new Configuration();
             SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, conf);
