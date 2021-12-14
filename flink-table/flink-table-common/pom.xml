@@ -56,8 +56,6 @@ under the License.
 			<groupId>com.ibm.icu</groupId>
 			<artifactId>icu4j</artifactId>
 			<version>67.1</version>
-			<!-- set provided here, and will package it into planner jar -->
-			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
