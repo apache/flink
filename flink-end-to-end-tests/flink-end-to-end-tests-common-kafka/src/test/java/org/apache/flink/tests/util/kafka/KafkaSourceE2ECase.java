@@ -18,8 +18,8 @@
 
 package org.apache.flink.tests.util.kafka;
 
-import org.apache.flink.connector.kafka.source.testutils.KafkaMultipleTopicExternalContext;
-import org.apache.flink.connector.kafka.source.testutils.KafkaSingleTopicExternalContext;
+import org.apache.flink.connector.kafka.testutils.KafkaMultipleTopicExternalContext;
+import org.apache.flink.connector.kafka.testutils.KafkaSingleTopicExternalContext;
 import org.apache.flink.connectors.test.common.external.DefaultContainerizedExternalSystem;
 import org.apache.flink.connectors.test.common.junit.annotations.ExternalContextFactory;
 import org.apache.flink.connectors.test.common.junit.annotations.ExternalSystem;

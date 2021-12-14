@@ -63,8 +63,8 @@ import java.util.PriorityQueue;
 import java.util.Properties;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.connector.kafka.sink.KafkaUtil.createKafkaContainer;
-import static org.apache.flink.connector.kafka.sink.KafkaUtil.drainAllRecordsFromTopic;
+import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
+import static org.apache.flink.connector.kafka.testutils.KafkaUtil.drainAllRecordsFromTopic;
 import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
