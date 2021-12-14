@@ -312,8 +312,7 @@ public interface Catalog {
             throws TableNotExistException, CatalogException;
 
     /**
-     * If return true, the Table without specified connector will be translated to the Flink managed
-     * table. See {@link CatalogBaseTable.TableKind#MANAGED}
+     * If true, tables which do not specify a connector will be translated to managed tables.
      */
     default boolean supportsManagedTable() {
         return false;
