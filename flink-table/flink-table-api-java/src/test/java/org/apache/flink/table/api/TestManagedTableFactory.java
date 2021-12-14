@@ -52,7 +52,9 @@ public class TestManagedTableFactory implements ManagedTableFactory {
     @Override
     public Map<String, String> enrichOptions(Context context) {
         Map<String, String> newOptions = new HashMap<>(context.getCatalogTable().getOptions());
-        newOptions.put(ENRICHED_KEY, ENRICHED_VALUE);
+        if (MANAGED_TABLES.containsKey(context.getObjectIdentifier())) {
+            newOptions.put(ENRICHED_KEY, ENRICHED_VALUE);
+        }
         return newOptions;
     }
 
