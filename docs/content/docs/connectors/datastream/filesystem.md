@@ -25,6 +25,246 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+# File Source
+
+This section describes the implementation of `File Source` based on the new `Source API`, 
+a unified data source that can handle data reading files in batch mode or stream mode.
+The source supports read a set of files from a FileSystem (POSIX, S3, HDFS; ...)with a Format (e.g., CSV, Parquet, Avro, ORC, ...),
+producing a stream or records (DataStream API).
+A File Source is started by one of the following calls:
+
+```java
+// reads the contents of a file from a file stream. 
+FileSource.forRecordStreamFormat(StreamFormat,Path...)
+        
+// reads batches of records from a file at a time
+FileSource.forBulkFileFormat(BulkFormat,Path...)
+```
+
+This can be done by creating a `FileSourceBuilder` on which all relevant all properties can be configured:
+
+```java
+FileSource.FileSourceBuilder
+```
+
+The source supports bounded/batch and continuous/streaming data input. For the bounded/batch case, the file source processes all files under a given path. In the continuous/flow case, the file source periodically checks for new files in the path and starts reading them.
+When you start creating a file source, created via `FileSource.FileSourceBuilder`, the file source defaults to bounded/batch mode.
+Call `FileSource.FileSourceBuilder.monitorContinuously(Duration)` to put the source into continuous stream mode:
+
+```java
+final FileSource<String> source =
+        FileSource.forRecordStreamFormat(...)
+        .monitorContinuously(Duration.ofMillis(5))  
+        .build();
+```
+## Basic Structure
+
+The Source of a file system is divided into the following two parts: File Split Enumerator and File Source Reader,
+File Split Enumerator (Split is an abstraction of the external file system data splitting)
+It is responsible for discovering the split in the external system and assigning it to the File SourceReader, 
+and it also manages the global water level to ensure that the consumption rate is approximately the same between our different File Source Readers.
+File Source Reader is the part that really interacts with the external system, the community provides `SourceReaderBase`,
+`SourceReaderBase` implementation is divided into two parts, one is to interact with the external system,
+he is composed of one or more SplitReader, each Reader is driven by a Fetcher, multiple Fetcher unified by a Manager for management, 
+SplitReader will pull a batch of data from the external system each time down to the middle of the ElementQueue.
+The other part is to interact with the engine side of Flink, which is driven by the main thread of Task. 
+The main thread of Task uses the lock-free model of MailBox, each time the RecordEmitter will take a batch
+of data from the ElementQueue and send them downstream one by one, while the RecordEmitter will report to 
+output whether there is still new data to be processed and record the state of the split in SplitState.
+
+## Bounded And Unbounded
+
+Bounded File source lists all files (via enumerator, usually recursive directory list, filter hidden files) and reads them all.
+
+Unbounded source is created when configuring the enumerator for periodic file discovery. 
+In that case will enumerate initially like the bounded case, but additionally also enumerate repeatedly in a certain interval.
+For repeated enumerations, filter out previously seen files, and send the new ones to the readers.
+
+### Bounded File Source
+
+The source has the URI/Path of a directory to read, and a Format that defines how to parse the files.
+
+A Split is a file, or a region of a file (if the data format supports splitting the file).
+The SplitEnumerator lists all files under the given directory path. It assigns Splits to the next reader
+that requests a Split. Once all Splits are assigned, it responds to requests with NoMoreSplits.
+The SourceReader requests a Split and reads the assigned Split (file or file region) and parses it using the given Format.
+If it does not get another Split, but a NoMoreSplits message, it finishes.
+
+### Unbounded Streaming File Source
+
+This source works the same way as described above, except that the SplitEnumerator never responds with NoMoreSplits and
+periodically lists the contents under the given URI/Path to check for new files.
+Once it finds new files, it generates new Splits for them and can assign them to the available SourceReaders.
+
+## Format Type
+
+StreamFormat reads the contents of a file from a file stream. It is the simplest
+format to implement, and provides many features out-of-the-box (like checkpointing logic)
+but is limited in the optimizations it can apply (such as object reuse, batching, etc.).
+
+BulkFormat reads batches of records from a file at a time. It is the most "low
+level" format to implement, but offers the greatest flexibility to optimize the
+implementation.
+
+### Stream Format
+
+Reads the contents of a file from a file stream.
+The following are some examples of use:
+
+#### TextLine format
+
+A reader format that text lines from a file.
+The reader uses Java's built-in `InputStreamReader` to decode the byte stream using
+various supported charset encodings.
+This format does not support optimized recovery from checkpoints. On recovery, it will re-read
+and discard the number of lined that were processed before the last checkpoint. That is due to
+the fact that the offsets of lines in the file cannot be tracked through the charset decoders
+with their internal buffering of stream input and charset decoder state.
+
+#### SimpleStreamFormat Abstract Class
+
+A simple version of `StreamFormat` for indivisible formats that are not splittable.
+Custom reads of Array or File can be done by implementing `SimpleStreamFormat`:
+
+```java
+private static final class ArrayReaderFormat extends SimpleStreamFormat<byte[]> {
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public Reader<byte[]> createReader(Configuration config, FSDataInputStream stream)
+            throws IOException {
+        return new ArrayReader(stream);
+    }
+
+    @Override
+    public TypeInformation<byte[]> getProducedType() {
+        return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
+    }
+}
+
+final FileSource<byte[]> source =
+                FileSource.forRecordStreamFormat(new ArrayReaderFormat(), path).build();
+```
+
+### Bulk Format
+
+The BulkFormat reads and decodes batches of records at a time. Examples of bulk formats
+are formats like ORC or Parquet.
+The outer `BulkFormat` class acts mainly as a configuration holder and factory for the
+reader. The actual reading is done by the `BulkFormat.Reader`, which is created in the
+`BulkFormat#createReader(Configuration, FileSourceSplit)` method. If a bulk reader is
+created based on a checkpoint during checkpointed streaming execution, then the reader is
+re-created in the `BulkFormat#restoreReader(Configuration, FileSourceSplit)` method.
+
+## BulkFormat Internals
+
+### Splitting
+
+File splitting means dividing a file into multiple regions that can be read independently.
+Whether a format supports splitting is indicated via the `isSplittable() method.
+
+Splitting has the potential to increase parallelism and performance, but poses additional
+constraints on the format readers: Readers need to be able to find a consistent starting point
+within the file near the offset where the split starts, (like the next record delimiter, or a
+block start or a sync marker). This is not necessarily possible for all formats, which is why
+splitting is optional.
+
+### Checkpointing
+
+The bulk reader returns an iterator per batch that it reads. The iterator produces records
+together with a position. That position is stored in the checkpointed state atomically with the
+processing of the record. That means it must be the position from where the reading can be
+resumed AFTER the record was processed; the position hence points effectively to the record AFTER
+the current record.
+
+The simplest way to return this position information is to store no offset and simply store an
+incrementing count of records to skip after recovery. Given the above contract, the fist record
+would be returned with a records-to-skip count of one, the second one with a record count of two,
+etc.
+
+Formats that have the ability to efficiently seek to a record (or to every n-th record) can
+use the position field to seek to a record directly and avoid having to read and discard many
+records on recovery.
+
+Note on this design: Why do we not make the position point to the current record and always
+skip one record after recovery (the just processed record)? We need to be able to support formats
+where skipping records (even one) is not an option. For example formats that execute (pushed
+down) filters may want to avoid a skip-record-count all together, so that they don't skip the
+wrong records when the filter gets updated around a checkpoint/savepoint.
+
+### Serializable
+
+Like many other API classes in Flink, the outer class is serializable to support sending
+instances to distributed workers for parallel execution. This is purely short-term serialization
+for RPC and no instance of this will be long-term persisted in a serialized form.
+
+### Record Batching
+
+Internally in the file source, the readers pass batches of records from the reading threads
+(that perform the typically blocking I/O operations) to the async mailbox threads that do the
+streaming and batch data processing. Passing records in batches (rather than one-at-a-time) much
+reduce the thread-to-thread handover overhead.
+For the `BulkFormat`, one batch (as returned by `BulkFormat.Reader#readBatch()`)
+is handed over as one.
+
+## Customizing File Enumeration
+
+```java
+/**
+ * A FileEnumerator implementation for hive source, which generates splits based on 
+ * HiveTablePartition.
+ */
+public class HiveSourceFileEnumerator implements FileEnumerator {
+    
+    // reference constructor
+    public HiveSourceFileEnumerator(...) {
+        ...
+    }
+
+    /***
+     * Generates all file splits for the relevant files under the given paths. The {@code
+     * minDesiredSplits} is an optional hint indicating how many splits would be necessary to
+     * exploit parallelism properly.
+     */
+    @Override
+    public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
+            throws IOException {
+        // createInputSplits:splitting files into fragmented collections
+        return new ArrayList<>(createInputSplits(...));
+    }
+
+    ...
+
+    /***
+     * A factory to create HiveSourceFileEnumerator.
+     */
+    public static class Provider implements FileEnumerator.Provider {
+
+        ...
+        @Override
+        public FileEnumerator create() {
+            return new HiveSourceFileEnumerator(...);
+        }
+    }
+}
+// use the customizing file enumeration
+new HiveSource<>(
+        ...,
+        new HiveSourceFileEnumerator.Provider(
+        partitions != null ? partitions : Collections.emptyList(),
+        new JobConfWrapper(jobConf)),
+       ...);
+
+```
+
+## Current Limitations
+
+Watermarking doesn't work particularly well for large backlogs of files, because watermarks eagerly advance within a file, and the next file might contain data later than the watermark again.
+We are looking at ways to generate the watermarks more based on global information.
+
+For Unbounded File Sources, the enumerator currently remembers paths of all already processed files, which is a state that can in come cases grow rather large.
+The future will be planned to add a compressed form of tracking already processed files in the future (for example by keeping modification timestamps lower boundaries).
+
 # File Sink
 
 This connector provides a unified Sink for `BATCH` and `STREAMING` that writes partitioned files to filesystems
@@ -798,321 +1038,3 @@ pending part-files are no longer there and Flink will fail with an exception as 
 
 {{< top >}}
 
-# File Source
-
-This section describes the implementation of `File Source` based on the new `Source API`, a unified data source that can handle data reading files in batch mode or stream mode.
-The source supports all (distributed) file systems and object stores.
-A File Source is started by one of the following calls:
-
-```java
-// Stream mode
-FileSource.forRecordStreamFormat(StreamFormat,Path...)
-        
-// Batch mode
-FileSource.forBulkFileFormat(BulkFormat,Path...)
-```
-
-This can be done by creating a `FileSourceBuilder` on which all relevant all properties can be configured:
-
-```java
-FileSource.FileSourceBuilder
-```
-
-The source supports bounded/batch and continuous/streaming data input. For the bounded/batch case, the file source processes all files under a given path. In the continuous/flow case, the file source periodically checks for new files in the path and starts reading them.
-When you start creating a file source, created via `FileSource.FileSourceBuilder`, the file source defaults to bounded/batch mode.
-Call `FileSource.FileSourceBuilder.monitorContinuously(Duration)` to put the source into continuous stream mode:
-
-```java
-// Create a new file source that will read files from a given set of directories.
-// Each file will be processed as plain text and split based on newlines.
-FileSource.FileSourceBuilder<String> builder=FileSource.forRecordStreamFormat(new TextLineFormat(),params.getInputs().get());
-
-// If a discovery interval is provided, the source will.
-// continuously watch the given directories for new files.
-params.getDiscoveryInterval().ifPresent(builder::monitorContinuously);
-env.fromSource(builder.build(),WatermarkStrategy.noWatermarks(),"file-input");
-```
-
-## Bounded And Unbounded
-
-### Bounded File Source
-
-The source has the URI/Path of a directory to read, and a Format that defines how to parse the files.
-
-A Split is a file, or a region of a file (if the data format supports splitting the file).
-The SplitEnumerator lists all files under the given directory path. It assigns Splits to the next reader 
-that requests a Split. Once all Splits are assigned, it responds to requests with NoMoreSplits.
-The SourceReader requests a Split and reads the assigned Split (file or file region) and parses it using the given Format. 
-If it does not get another Split, but a NoMoreSplits message, it finishes.
-
-### Unbounded Streaming File Source
-
-This source works the same way as described above, except that the SplitEnumerator never responds with NoMoreSplits and 
-periodically lists the contents under the given URI/Path to check for new files. 
-Once it finds new files, it generates new Splits for them and can assign them to the available SourceReaders.
-
-## Format Type
-
-StreamFormat reads the contents of a file from a file stream. It is the simplest
-format to implement, and provides many features out-of-the-box (like checkpointing logic)
-but is limited in the optimizations it can apply (such as object reuse, batching, etc.).
-
-BulkFormat reads batches of records from a file at a time. It is the most "low
-level" format to implement, but offers the greatest flexibility to optimize the
-implementation.
-
-### StreamFormat
-
-Reads the contents of a file from a file stream.
-The following are some examples of use:
-
-#### TextLine format
-
-A reader format that text lines from a file.
-The reader uses Java's built-in `InputStreamReader` to decode the byte stream using
-various supported charset encodings.
-This format does not support optimized recovery from checkpoints. On recovery, it will re-read
-and discard the number of lined that were processed before the last checkpoint. That is due to
-the fact that the offsets of lines in the file cannot be tracked through the charset decoders
-with their internal buffering of stream input and charset decoder state.
-
-```java
-final FileSource<String> source=
-        FileSource.forRecordStreamFormat(new TextLineFormat(),Path.fromLocalFile(testDir))
-        .monitorContinuously(Duration.ofMillis(5))
-        .build();
-final StreamExecutionEnvironment env=StreamExecutionEnvironment.getExecutionEnvironment();
-
-final DataStream<String> stream=
-        env.fromSource(source,WatermarkStrategy.noWatermarks(),"file-source");
-```
-
-#### SimpleStreamFormat Abstract Class
-
-A simple version of `StreamFormat` for indivisible formats that are not splittable.
-Custom reads of Array or File can be done by implementing `SimpleStreamFormat`:
-
-##### ArrayReader Format
-
-```java
-private static final class ArrayReaderFormat extends SimpleStreamFormat<byte[]> {
-    private static final long serialVersionUID = 1L;
-
-    @Override
-    public Reader<byte[]> createReader(Configuration config, FSDataInputStream stream)
-            throws IOException {
-        return new ArrayReader(stream);
-    }
-
-    @Override
-    public TypeInformation<byte[]> getProducedType() {
-        return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
-    }
-}
-
-final FileSource<byte[]> source =
-                FileSource.forRecordStreamFormat(new ArrayReaderFormat(), path).build();
-```
-
-##### File Format
-
-```java
-private static class FileFormat extends SimpleStreamFormat<RowData> {
-
-    @Override
-    public Reader<RowData> createReader(Configuration config, FSDataInputStream stream) {
-        BufferedReader reader =
-                new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
-        return new Reader<RowData>() {
-            @Override
-            public RowData read() throws IOException {
-                String line = reader.readLine();
-                if (line == null) {
-                    return null;
-                }
-                return GenericRowData.of(StringData.fromString(line));
-            }
-
-            @Override
-            public void close() throws IOException {
-                reader.close();
-            }
-        };
-    }
-    
-FileSource<RowData> fileSource =
-                    FileSource.forRecordStreamFormat(new FileFormat(), path).build();
-```
-
-### BulkFormat
-
-The =BulkFormat reads and decodes batches of records at a time. Examples of bulk formats
-are formats like ORC or Parquet.
-The outer `BulkFormat` class acts mainly as a configuration holder and factory for the
-reader. The actual reading is done by the `BulkFormat.Reader`, which is created in the
-`BulkFormat#createReader(Configuration, FileSourceSplit)` method. If a bulk reader is
-created based on a checkpoint during checkpointed streaming execution, then the reader is
-re-created in the `BulkFormat#restoreReader(Configuration, FileSourceSplit)` method.
-
-#### Parquet Format
-
-To use the Parquet batch encoder in your application, you need to add the following dependencies:
-
-{{< artifact flink-parquet withScalaVersion >}}
-
-This example uses a FileSource that will read the Parquet format:
-
-```java
-
-
-```
-
-#### Orc Format
-
-To use the Orc batch encoder in your application, you need to add the following dependencies.
-
-{{< artifact flink-orc withScalaVersion >}}
-
-This example uses a FileSource that will read the orc format:
-
-```java
-protected OrcColumnarRowFileInputFormat<?, FileSourceSplit> createPartitionFormat(
-        RowType tableType, List<String> partitionKeys, int[] selectedFields) {
-        return OrcColumnarRowFileInputFormat.createPartitionedFormat(
-        OrcShim.defaultShim(),
-        new Configuration(),
-        tableType,
-        partitionKeys,
-        PartitionFieldExtractor.forFileSystem(""),
-        selectedFields,
-        new ArrayList<>(),
-        BATCH_SIZE);
-        }
-
-
-RowType tableType =
-                RowType.of(
-                        /* 0 */ DataTypes.INT().getLogicalType(),
-                        /* 1 */ DataTypes.INT().getLogicalType(), // part-1
-                        /* 2 */ DataTypes.STRING().getLogicalType(),
-                        /* 3 */ DataTypes.BIGINT().getLogicalType(), // part-2
-                        /* 4 */ DataTypes.STRING().getLogicalType(),
-                        /* 5 */ DataTypes.STRING().getLogicalType(), // part-3
-                        /* 6 */ DataTypes.STRING().getLogicalType(),
-                        /* 7 */ DataTypes.INT().getLogicalType(),
-                        /* 8 */ DataTypes.DECIMAL(10, 5).getLogicalType(), // part-4
-                        /* 9 */ DataTypes.STRING().getLogicalType(),
-                        /* 11*/ DataTypes.INT().getLogicalType(),
-                        /* 12*/ DataTypes.INT().getLogicalType(),
-                        /* 13*/ DataTypes.STRING().getLogicalType(), // part-5
-                        /* 14*/ DataTypes.INT().getLogicalType());
-
-int[] projectedFields = {8, 1, 3, 0, 5, 2};
-
-OrcColumnarRowFileInputFormat<?, FileSourceSplit> format =createPartitionFormat(tableType, new ArrayList<>(partSpec.keySet()), projectedFields);
-
-final FileSource<String> source=
-        FileSource.forRecordStreamFormat(format,Path.fromLocalFile(testDir))
-        .monitorContinuously(Duration.ofMillis(5))
-        .build();
-final StreamExecutionEnvironment env=StreamExecutionEnvironment.getExecutionEnvironment();
-
-final DataStream<String> stream=
-        env.fromSource(source,WatermarkStrategy.noWatermarks(),"file-source");
-```
-
-## BulkFormat Internals
-
-### Splitting
-
-File splitting means dividing a file into multiple regions that can be read independently.
-Whether a format supports splitting is indicated via the `isSplittable() method.
-
-Splitting has the potential to increase parallelism and performance, but poses additional
-constraints on the format readers: Readers need to be able to find a consistent starting point
-within the file near the offset where the split starts, (like the next record delimiter, or a
-block start or a sync marker). This is not necessarily possible for all formats, which is why
-splitting is optional.
-
-### Checkpointing
-
-The bulk reader returns an iterator per batch that it reads. The iterator produces records
-together with a position. That position is stored in the checkpointed state atomically with the
-processing of the record. That means it must be the position from where the reading can be
-resumed AFTER the record was processed; the position hence points effectively to the record AFTER
-the current record.
-
-The simplest way to return this position information is to store no offset and simply store an
-incrementing count of records to skip after recovery. Given the above contract, the fist record
-would be returned with a records-to-skip count of one, the second one with a record count of two,
-etc.
-
-Formats that have the ability to efficiently seek to a record (or to every n-th record) can 
-use the position field to seek to a record directly and avoid having to read and discard many
-records on recovery.
-
-Note on this design: Why do we not make the position point to the current record and always
-skip one record after recovery (the just processed record)? We need to be able to support formats
-where skipping records (even one) is not an option. For example formats that execute (pushed
-down) filters may want to avoid a skip-record-count all together, so that they don't skip the
-wrong records when the filter gets updated around a checkpoint/savepoint.
-
-### Serializable
-
-Like many other API classes in Flink, the outer class is serializable to support sending
-instances to distributed workers for parallel execution. This is purely short-term serialization
-for RPC and no instance of this will be long-term persisted in a serialized form.
-
-### Record Batching
-
-Internally in the file source, the readers pass batches of records from the reading threads
-(that perform the typically blocking I/O operations) to the async mailbox threads that do the
-streaming and batch data processing. Passing records in batches (rather than one-at-a-time) much
-reduce the thread-to-thread handover overhead.
-For the `BulkFormat`, one batch (as returned by `BulkFormat.Reader#readBatch()`)
-is handed over as one.
-
-## Customizing File Enumeration
-
-```java
-/**
- * A FileEnumerator implementation for hive source, which generates splits based on 
- * HiveTablePartition.
- */
-public class HiveSourceFileEnumerator implements FileEnumerator {
-    ...
-
-    /***
-     * Generates all file splits for the relevant files under the given paths. The {@code
-     * minDesiredSplits} is an optional hint indicating how many splits would be necessary to
-     * exploit parallelism properly.
-     */
-    @Override
-    public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
-            throws IOException {
-        return new ArrayList<>(createInputSplits(minDesiredSplits, partitions, jobConf));
-    }
-
-    ...
-
-    /***
-     * A factory to create HiveSourceFileEnumerator.
-     */
-    public static class Provider implements FileEnumerator.Provider {
-
-        ...
-        @Override
-        public FileEnumerator create() {
-            return new HiveSourceFileEnumerator(partitions, jobConfWrapper.conf());
-        }
-    }
-}
-```
-
-## Current Limitations
-
-Watermarking doesn't work particularly well for large backlogs of files, because watermarks eagerly advance within a file, and the next file might contain data later than the watermark again. 
-We are looking at ways to generate the watermarks more based on global information.
-
-For Unbounded File Sources, the enumerator currently remembers paths of all already processed files, which is a state that can in come cases grow rather large.
-The future will be planned to add a compressed form of tracking already processed files in the future (for example by keeping modification timestamps lower boundaries).
