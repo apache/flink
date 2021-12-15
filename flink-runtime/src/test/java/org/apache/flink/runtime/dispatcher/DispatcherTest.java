@@ -746,7 +746,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         // Track cleanup - ha-services
         final CompletableFuture<JobID> cleanupJobData = new CompletableFuture<>();
-        haServices.setCleanupJobDataFuture(cleanupJobData);
+        haServices.setGlobalCleanupFuture(cleanupJobData);
         cleanupJobData.thenAccept(jobId -> cleanUpEvents.add(CLEANUP_HA_SERVICES));
 
         // Track cleanup - job-graph
@@ -1156,7 +1156,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         // Track cleanup - ha-services
         final CompletableFuture<JobID> cleanupJobData = new CompletableFuture<>();
-        haServices.setCleanupJobDataFuture(cleanupJobData);
+        haServices.setGlobalCleanupFuture(cleanupJobData);
         cleanupJobData.thenAccept(jobId -> cleanUpEvents.add(CLEANUP_HA_SERVICES));
 
         // Track cleanup - job-graph

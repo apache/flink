@@ -905,7 +905,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         jobManagerMetricGroup.removeJob(jobId);
         if (jobGraphRemoved) {
             try {
-                highAvailabilityServices.cleanupJobData(jobId);
+                highAvailabilityServices.globalCleanup(jobId);
             } catch (Exception e) {
                 log.warn(
                         "Could not properly clean data for job {} stored by ha services", jobId, e);
