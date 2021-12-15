@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
@@ -44,24 +43,11 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.Callable;
 
-import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.table.catalog.hive.HiveConfOptions.LOCK_ACQUIRE_TIMEOUT;
+import static org.apache.flink.table.catalog.hive.HiveConfOptions.LOCK_CHECK_MAX_SLEEP;
 
 /** Hive {@link CatalogLock}. */
 public class HiveCatalogLock implements CatalogLock {
-
-    // lock options in hive conf, start with CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX
-
-    public static final ConfigOption<Duration> LOCK_CHECK_MAX_SLEEP =
-            key("flink.hive.lock-check-max-sleep")
-                    .durationType()
-                    .defaultValue(Duration.ofSeconds(8))
-                    .withDescription("the maximum sleep time when retrying to check the lock.");
-
-    public static final ConfigOption<Duration> LOCK_ACQUIRE_TIMEOUT =
-            key("flink.hive.lock-acquire-timeout")
-                    .durationType()
-                    .defaultValue(Duration.ofMinutes(8))
-                    .withDescription("The maximum time to wait for acquiring the lock.");
 
     private final HiveMetastoreClientWrapper client;
     private final long checkMaxSleep;
