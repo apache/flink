@@ -28,8 +28,8 @@ import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.EMPTY_STR_LITERAL;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.accessStaticField;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.stringConcat;
-import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.ternaryOperator;
+import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 
 /** {@link LogicalTypeRoot#BOOLEAN} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
 class BooleanToStringCastRule extends AbstractExpressionCodeGeneratorCastRule<Boolean, StringData> {
