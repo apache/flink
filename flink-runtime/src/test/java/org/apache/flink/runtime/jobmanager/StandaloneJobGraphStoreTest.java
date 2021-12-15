@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Test;
 
@@ -31,7 +32,7 @@ public class StandaloneJobGraphStoreTest {
 
     /** Tests that all operations work and don't change the state. */
     @Test
-    public void testNoOps() {
+    public void testNoOps() throws Exception {
         StandaloneJobGraphStore jobGraphs = new StandaloneJobGraphStore();
 
         JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
@@ -41,7 +42,7 @@ public class StandaloneJobGraphStoreTest {
         jobGraphs.putJobGraph(jobGraph);
         assertEquals(0, jobGraphs.getJobIds().size());
 
-        jobGraphs.removeJobGraph(jobGraph.getJobID());
+        jobGraphs.globalCleanupAsync(jobGraph.getJobID(), Executors.directExecutor()).join();
         assertEquals(0, jobGraphs.getJobIds().size());
 
         assertNull(jobGraphs.recoverJobGraph(new JobID()));

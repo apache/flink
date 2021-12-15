@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.After;
 import org.junit.Before;
@@ -190,7 +191,7 @@ public class DefaultJobGraphStoreTest extends TestLogger {
     }
 
     @Test
-    public void testRemoveJobGraph() throws Exception {
+    public void testGlobalCleanup() throws Exception {
         final CompletableFuture<JobID> removeFuture = new CompletableFuture<>();
         final TestingStateHandleStore<JobGraph> stateHandleStore =
                 builder.setAddFunction((ignore, state) -> jobGraphStorageHelper.store(state))
@@ -200,20 +201,24 @@ public class DefaultJobGraphStoreTest extends TestLogger {
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
 
         jobGraphStore.putJobGraph(testingJobGraph);
-        jobGraphStore.removeJobGraph(testingJobGraph.getJobID());
+        jobGraphStore
+                .globalCleanupAsync(testingJobGraph.getJobID(), Executors.directExecutor())
+                .join();
         final JobID actual = removeFuture.get(timeout, TimeUnit.MILLISECONDS);
         assertThat(actual, is(testingJobGraph.getJobID()));
     }
 
     @Test
-    public void testRemoveJobGraphWithNonExistName() throws Exception {
+    public void testGlobalCleanupWithNonExistName() throws Exception {
         final CompletableFuture<JobID> removeFuture = new CompletableFuture<>();
         final TestingStateHandleStore<JobGraph> stateHandleStore =
                 builder.setRemoveFunction(name -> removeFuture.complete(JobID.fromHexString(name)))
                         .build();
 
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
-        jobGraphStore.removeJobGraph(testingJobGraph.getJobID());
+        jobGraphStore
+                .globalCleanupAsync(testingJobGraph.getJobID(), Executors.directExecutor())
+                .join();
 
         try {
             removeFuture.get(timeout, TimeUnit.MILLISECONDS);
@@ -340,13 +345,15 @@ public class DefaultJobGraphStoreTest extends TestLogger {
     }
 
     @Test
-    public void testReleasingJobGraphShouldReleaseHandle() throws Exception {
+    public void testLocalCleanupShouldReleaseHandle() throws Exception {
         final CompletableFuture<String> releaseFuture = new CompletableFuture<>();
         final TestingStateHandleStore<JobGraph> stateHandleStore =
                 builder.setReleaseConsumer(releaseFuture::complete).build();
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
         jobGraphStore.putJobGraph(testingJobGraph);
-        jobGraphStore.releaseJobGraph(testingJobGraph.getJobID());
+        jobGraphStore
+                .localCleanupAsync(testingJobGraph.getJobID(), Executors.directExecutor())
+                .join();
 
         final String actual = releaseFuture.get();
         assertThat(actual, is(testingJobGraph.getJobID().toString()));
