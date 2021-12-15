@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
-
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.Test;
@@ -33,7 +32,6 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
 
