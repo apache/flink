@@ -258,16 +258,18 @@ class TableEnvironmentTest {
         |  b int,
         |  c varchar
         |) WITH (
-        |  'connector' = 'COLLECTION'
+        |  'connector' = 'filesystem',
+        |  'format' = 'testcsv',
+        |  'path' = '_invalid'
         |)
       """.stripMargin
     tableEnv.executeSql(statement)
 
-    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('connector')"
+    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('format')"
     val tableResult = tableEnv.executeSql(alterTableResetStatement)
     assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
     assertEquals(
-      Map.empty.asJava,
+      Map("connector" -> "filesystem", "path" -> "_invalid").asJava,
       tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
         .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
     expectedException.expect(classOf[ValidationException])
