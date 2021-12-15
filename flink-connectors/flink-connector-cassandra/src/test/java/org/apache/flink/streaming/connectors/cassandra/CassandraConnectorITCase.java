@@ -46,7 +46,6 @@ import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.types.Row;
 
 import com.datastax.driver.core.Cluster;
@@ -61,7 +60,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.testcontainers.containers.CassandraContainer;
 
 import java.net.InetSocketAddress;
@@ -83,8 +81,6 @@ import static org.junit.Assert.assertTrue;
 
 /** IT cases for all cassandra sinks. */
 @SuppressWarnings("serial")
-// TODO assert on failure after migration to testContainers
-@Category(FailsOnJava11.class)
 public class CassandraConnectorITCase
         extends WriteAheadSinkTestBase<
                 Tuple3<String, Integer, Integer>,
