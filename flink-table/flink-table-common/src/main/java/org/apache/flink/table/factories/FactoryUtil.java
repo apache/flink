@@ -41,6 +41,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -469,6 +470,9 @@ public final class FactoryUtil {
                             factoryClass.getName(),
                             foundFactories.stream()
                                     .map(Factory::factoryIdentifier)
+                                    .filter(
+                                            identifier ->
+                                                    !StringUtils.isNullOrWhitespaceOnly(identifier))
                                     .distinct()
                                     .sorted()
                                     .collect(Collectors.joining("\n"))));
