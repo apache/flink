@@ -19,6 +19,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -36,11 +37,14 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.CoreMatchers;
+import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -56,13 +60,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 /** An integration test for various fail-over scenarios of the {@link Dispatcher} component. */
@@ -195,16 +196,19 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         // Run a second dispatcher, that restores our finished job.
         final Dispatcher secondDispatcher = createRecoveredDispatcher(null);
         toTerminate.add(secondDispatcher);
-
-        // new Dispatcher becomes new leader
         leaderElectionService.isLeader(UUID.randomUUID());
 
-        assertThrows(
-                "No JobMaster will be instantiated because of the JobResult is already persisted in the JobResultStore",
-                TimeoutException.class,
-                () ->
-                        connectToLeadingJobMaster(leaderElectionService)
-                                .get(100, TimeUnit.MILLISECONDS));
+        CommonTestUtils.waitUntilCondition(
+                () -> haServices.getJobResultStore().getDirtyResults().isEmpty(),
+                Deadline.fromNow(TimeUtils.toDuration(TIMEOUT)));
+
+        assertThat(
+                "The JobGraph is not stored in the JobGraphStore.",
+                haServices.getJobGraphStore().getJobIds(),
+                IsEmptyCollection.empty());
+        assertTrue(
+                "The JobResultStore has the job listed as clean.",
+                haServices.getJobResultStore().hasJobResultEntry(jobId));
     }
 
     private JobGraph createJobGraph() {
