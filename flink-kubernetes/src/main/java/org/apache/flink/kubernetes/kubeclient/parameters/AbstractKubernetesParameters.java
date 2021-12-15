@@ -202,4 +202,8 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
                 .getOptional(KubernetesConfigOptions.KUBERNETES_ENV_SECRET_KEY_REF)
                 .orElse(Collections.emptyList());
     }
+
+    public boolean isHostNetworkEnabled() {
+        return flinkConfig.getBoolean(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
+    }
 }
