@@ -160,7 +160,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         jobResultStore = new SingleJobResultStore(jobId, clearedJobLatch);
         highAvailabilityServices.setJobResultStore(jobResultStore);
         cleanupJobHADataFuture = new CompletableFuture<>();
-        highAvailabilityServices.setCleanupJobDataFuture(cleanupJobHADataFuture);
+        highAvailabilityServices.setGlobalCleanupFuture(cleanupJobHADataFuture);
 
         storedHABlobFuture = new CompletableFuture<>();
         deleteAllHABlobsFuture = new CompletableFuture<>();

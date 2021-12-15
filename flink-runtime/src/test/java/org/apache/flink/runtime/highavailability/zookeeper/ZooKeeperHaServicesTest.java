@@ -173,7 +173,7 @@ public class ZooKeeperHaServicesTest extends TestLogger {
                 haServices -> {
                     final List<String> childrenBefore = client.getChildren().forPath(path);
 
-                    haServices.cleanupJobData(jobID);
+                    haServices.globalCleanupAsync(jobID, Executors.directExecutor()).join();
 
                     final List<String> childrenAfter = client.getChildren().forPath(path);
 
