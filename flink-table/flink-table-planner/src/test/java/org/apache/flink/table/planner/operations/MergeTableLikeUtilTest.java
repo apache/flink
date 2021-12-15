@@ -160,7 +160,8 @@ public class MergeTableLikeUtilTest {
                         regularColumn("four", DataTypes.STRING()));
 
         thrown.expect(ValidationException.class);
-        thrown.expectMessage("A column named 'three' already exists in the table.");
+        thrown.expectMessage(
+                "A column named 'three' already exists in the table. Duplicate columns exist in the compute column and regular column. ");
         util.mergeTables(
                 getDefaultMergingStrategies(),
                 sourceSchema,
@@ -183,7 +184,7 @@ public class MergeTableLikeUtilTest {
 
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
-                "A field name conflict exists between a field of the regular type and a field of the Metadata type.");
+                "A column named 'two' already exists in the table. Duplicate columns exist in the metadata column and regular column. ");
         util.mergeTables(
                 getDefaultMergingStrategies(),
                 sourceSchema,

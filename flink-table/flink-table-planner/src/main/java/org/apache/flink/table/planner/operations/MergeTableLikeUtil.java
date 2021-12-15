@@ -53,11 +53,9 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -402,11 +400,6 @@ class MergeTableLikeUtil {
                 final String name = ((SqlTableColumn) derivedColumn).getName().getSimple();
                 final TableColumn column;
                 if (derivedColumn instanceof SqlRegularColumn) {
-                    if (columns.containsKey(name)) {
-                        throw new ValidationException(
-                                String.format(
-                                        "A column named '%s' already exists in the table.", name));
-                    }
                     final LogicalType logicalType =
                             FlinkTypeFactory.toLogicalType(physicalFieldNamesToTypes.get(name));
                     column =
@@ -414,6 +407,13 @@ class MergeTableLikeUtil {
                                     name, TypeConversions.fromLogicalToDataType(logicalType));
                 } else if (derivedColumn instanceof SqlComputedColumn) {
                     final SqlComputedColumn computedColumn = (SqlComputedColumn) derivedColumn;
+                    if (physicalFieldNamesToTypes.containsKey(name)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "A column named '%s' already exists in the table. "
+                                                + "Duplicate columns exist in the compute column and regular column. ",
+                                        name));
+                    }
                     if (columns.containsKey(name)) {
                         if (!(columns.get(name) instanceof ComputedColumn)) {
                             throw new ValidationException(
@@ -433,14 +433,6 @@ class MergeTableLikeUtil {
                         }
                     }
 
-                    Set<String> physicalFieldNames = physicalFieldNamesToTypes.keySet();
-                    Set<String> metadataFieldNames = metadataFieldNamesToTypes.keySet();
-                    final Set<String> result = new LinkedHashSet<>(physicalFieldNames);
-                    result.retainAll(metadataFieldNames);
-                    if (!result.isEmpty()) {
-                        throw new ValidationException(
-                                "A field name conflict exists between a field of the regular type and a field of the Metadata type.");
-                    }
                     final Map<String, RelDataType> accessibleFieldNamesToTypes = new HashMap<>();
                     accessibleFieldNamesToTypes.putAll(physicalFieldNamesToTypes);
                     accessibleFieldNamesToTypes.putAll(metadataFieldNamesToTypes);
@@ -458,6 +450,13 @@ class MergeTableLikeUtil {
                     computedFieldNamesToTypes.put(name, validatedType);
                 } else if (derivedColumn instanceof SqlMetadataColumn) {
                     final SqlMetadataColumn metadataColumn = (SqlMetadataColumn) derivedColumn;
+                    if (physicalFieldNamesToTypes.containsKey(name)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "A column named '%s' already exists in the table. "
+                                                + "Duplicate columns exist in the metadata column and regular column. ",
+                                        name));
+                    }
                     if (columns.containsKey(name)) {
                         if (!(columns.get(name) instanceof MetadataColumn)) {
                             throw new ValidationException(
