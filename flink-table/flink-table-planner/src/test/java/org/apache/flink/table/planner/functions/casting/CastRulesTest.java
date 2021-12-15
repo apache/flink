@@ -1131,6 +1131,56 @@ class CastRulesTest {
                                             new GenericArrayData(new Integer[] {3})
                                         }),
                                 NullPointerException.class),
+                CastTestSpecBuilder.testCastTo(MAP(DOUBLE().notNull(), DOUBLE().notNull()))
+                        .fromCase(
+                                MAP(INT().nullable(), INT().nullable()),
+                                mapData(entry(1, 2)),
+                                mapData(entry(1d, 2d))),
+                CastTestSpecBuilder.testCastTo(MAP(BIGINT().nullable(), BIGINT().nullable()))
+                        .fromCase(
+                                MAP(INT().nullable(), INT().nullable()),
+                                mapData(entry(1, 2)),
+                                mapData(entry(1L, 2L))),
+                CastTestSpecBuilder.testCastTo(MAP(BIGINT().nullable(), BIGINT().nullable()))
+                        .fromCase(
+                                MAP(INT().nullable(), INT().nullable()),
+                                mapData(entry(1, 2), entry(null, 3), entry(4, null)),
+                                mapData(entry(1L, 2L), entry(null, 3L), entry(4L, null))),
+                CastTestSpecBuilder.testCastTo(MAP(STRING().nullable(), STRING().nullable()))
+                        .fromCase(
+                                MAP(TIMESTAMP().nullable(), DOUBLE().nullable()),
+                                mapData(entry(TIMESTAMP, 123.456)),
+                                mapData(entry(TIMESTAMP_STRING, fromString("123.456")))),
+                CastTestSpecBuilder.testCastTo(MAP(STRING().notNull(), STRING().nullable()))
+                        .fail(
+                                MAP(INT().nullable(), DOUBLE().nullable()),
+                                mapData(entry(null, 1d)),
+                                NullPointerException.class),
+                CastTestSpecBuilder.testCastTo(MAP(STRING().notNull(), STRING().notNull()))
+                        .fail(
+                                MAP(INT().nullable(), DOUBLE().nullable()),
+                                mapData(entry(123, null)),
+                                NullPointerException.class),
+                CastTestSpecBuilder.testCastTo(MULTISET(DOUBLE().notNull()))
+                        .fromCase(
+                                MULTISET(INT().nullable()),
+                                mapData(entry(1, 1)),
+                                mapData(entry(1d, 1))),
+                CastTestSpecBuilder.testCastTo(MULTISET(STRING().notNull()))
+                        .fromCase(
+                                MULTISET(INT().nullable()),
+                                mapData(entry(1, 1)),
+                                mapData(entry(fromString("1"), 1))),
+                CastTestSpecBuilder.testCastTo(MULTISET(FLOAT().nullable()))
+                        .fromCase(
+                                MULTISET(INT().nullable()),
+                                mapData(entry(null, 1)),
+                                mapData(entry(null, 1))),
+                CastTestSpecBuilder.testCastTo(MULTISET(STRING().notNull()))
+                        .fail(
+                                MULTISET(INT().nullable()),
+                                mapData(entry(null, 1)),
+                                NullPointerException.class),
                 CastTestSpecBuilder.testCastTo(
                                 ROW(BIGINT().notNull(), BIGINT(), STRING(), ARRAY(STRING())))
                         .fromCase(
@@ -1174,6 +1224,15 @@ class CastRulesTest {
                                                     fromString("b"),
                                                     fromString("c")
                                                 }))),
+                CastTestSpecBuilder.testCastTo(
+                                ROW(MAP(BIGINT().notNull(), STRING()), MULTISET(STRING())))
+                        .fromCase(
+                                ROW(MAP(INT().notNull(), INT()), MULTISET(TIMESTAMP())),
+                                GenericRowData.of(
+                                        mapData(entry(1, 2)), mapData(entry(TIMESTAMP, 1))),
+                                GenericRowData.of(
+                                        mapData(entry(1L, fromString("2"))),
+                                        mapData(entry(TIMESTAMP_STRING, 1)))),
                 CastTestSpecBuilder.testCastTo(MY_STRUCTURED_TYPE)
                         .fromCase(
                                 ROW(INT().notNull(), INT(), TIME(5), ARRAY(TIMESTAMP())),

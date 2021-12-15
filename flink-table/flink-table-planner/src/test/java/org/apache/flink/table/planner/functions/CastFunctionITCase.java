@@ -40,10 +40,13 @@ import java.time.LocalTime;
 import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -58,6 +61,7 @@ import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
+import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.MONTH;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SECOND;
@@ -1142,14 +1146,27 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     public static List<TestSpec> constructedTypes() {
         return Arrays.asList(
-                // https://issues.apache.org/jira/browse/FLINK-17321
-                // MULTISET
-                // MAP
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), STRING()))
+                        .fromCase(MAP(FLOAT(), DOUBLE()), null, null)
+                        .fromCase(
+                                MAP(INT(), INT()),
+                                Collections.singletonMap(1, 2),
+                                Collections.singletonMap("1", "2"))
+                        .build(),
+                // https://issues.apache.org/jira/browse/FLINK-25567
+                // CastTestSpecBuilder.testCastTo(MULTISET(STRING()))
+                //        .fromCase(MULTISET(TIMESTAMP()), null, null)
+                //        .fromCase(
+                //                MULTISET(INT()),
+                //                map(entry(1, 2), entry(3, 4)),
+                //                map(entry("1", 2), entry("3", 4)))
+                //        .build(),
                 CastTestSpecBuilder.testCastTo(ARRAY(INT()))
                         .fromCase(ARRAY(INT()), null, null)
-                        // https://issues.apache.org/jira/browse/FLINK-17321
-                        // .fromCase(ARRAY(STRING()), new String[] {'1', '2', '3'}, new Integer[]
-                        // {1, 2, 3})
+                        .fromCase(
+                                ARRAY(STRING()),
+                                new String[] {"1", "2", "3"},
+                                new Integer[] {1, 2, 3})
                         // https://issues.apache.org/jira/browse/FLINK-24425 Cast from corresponding
                         // single type
                         // .fromCase(INT(), DEFAULT_POSITIVE_INT, new int[] {DEFAULT_POSITIVE_INT})
@@ -1313,5 +1330,21 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     private static boolean isTimestampToNumeric(LogicalType srcType, LogicalType trgType) {
         return srcType.is(LogicalTypeFamily.TIMESTAMP) && trgType.is(LogicalTypeFamily.NUMERIC);
+    }
+
+    private static <K, V> Map.Entry<K, V> entry(K k, V v) {
+        return new AbstractMap.SimpleImmutableEntry<>(k, v);
+    }
+
+    @SafeVarargs
+    private static <K, V> Map<K, V> map(Map.Entry<K, V>... entries) {
+        if (entries == null) {
+            return Collections.emptyMap();
+        }
+        Map<K, V> map = new HashMap<>();
+        for (Map.Entry<K, V> entry : entries) {
+            map.put(entry.getKey(), entry.getValue());
+        }
+        return map;
     }
 }
