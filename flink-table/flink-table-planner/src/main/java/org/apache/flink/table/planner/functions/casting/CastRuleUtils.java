@@ -75,6 +75,10 @@ final class CastRuleUtils {
         return className(clazz) + "." + fieldName;
     }
 
+    static String arrayLength(String instanceTerm) {
+        return instanceTerm + ".length";
+    }
+
     static String ternaryOperator(String condition, String ifTrue, String ifFalse) {
         return "((" + condition + ") ? (" + ifTrue + ") : (" + ifFalse + "))";
     }
@@ -142,6 +146,25 @@ final class CastRuleUtils {
                 box(term, ((DistinctType) type).getSourceType());
         }
         return term;
+    }
+
+    static String binaryWriterWriteField(
+            CodeGeneratorCastRule.Context context,
+            String writerTerm,
+            LogicalType logicalType,
+            String indexTerm,
+            String fieldValTerm) {
+        return CodeGenUtils.binaryWriterWriteField(
+                context::declareTypeSerializer,
+                String.valueOf(indexTerm),
+                fieldValTerm,
+                writerTerm,
+                logicalType);
+    }
+
+    static String binaryWriterWriteNull(
+            String writerTerm, LogicalType logicalType, String indexTerm) {
+        return CodeGenUtils.binaryWriterWriteNull(indexTerm, writerTerm, logicalType);
     }
 
     static final class CodeWriter {

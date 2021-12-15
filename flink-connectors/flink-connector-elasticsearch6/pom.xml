@@ -37,7 +37,7 @@ under the License.
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<elasticsearch.version>6.3.1</elasticsearch.version>
+		<elasticsearch.version>6.8.20</elasticsearch.version>
 	</properties>
 
 	<dependencies>
@@ -69,11 +69,12 @@ under the License.
 			<artifactId>flink-connector-elasticsearch-base</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
-				<!-- Elasticsearch Java Client has been moved to a different module in 5.x -->
+				<!-- Exclude the base module elasticsearch -->
 				<exclusion>
 					<groupId>org.elasticsearch</groupId>
 					<artifactId>elasticsearch</artifactId>
 				</exclusion>
+				<!-- Exclude the base module elasticsearch client -->
 				<exclusion>
 					<groupId>org.elasticsearch.client</groupId>
 					<artifactId>elasticsearch-rest-high-level-client</artifactId>

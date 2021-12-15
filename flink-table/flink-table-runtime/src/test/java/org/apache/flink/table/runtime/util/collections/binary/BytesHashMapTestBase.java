@@ -53,7 +53,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
     static final LogicalType[] KEY_TYPES =
             new LogicalType[] {
                 new IntType(),
-                new VarCharType(VarCharType.MAX_LENGTH),
+                VarCharType.STRING_TYPE,
                 new DoubleType(),
                 new BigIntType(),
                 new BooleanType(),

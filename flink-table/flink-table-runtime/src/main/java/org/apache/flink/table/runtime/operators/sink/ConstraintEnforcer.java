@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.NotNullEnforcer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -37,7 +38,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.CharPrecisionEnforcer;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.CharLengthEnforcer;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -46,8 +47,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <ul>
  *   <li>{@code NOT NULL} column constraint of a sink table
- *   <li>{@code CHAR(precision)}/@{code VARCHAR(precision)}: trim string values to comply with the
- *       {@code precision} defined in their corresponding types.
+ *   <li>{@code CHAR(length)}/@{code VARCHAR(length)}: trim string values to comply with the {@code
+ *       length} defined in their corresponding types.
  * </ul>
  */
 @Internal
@@ -60,9 +61,9 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
     private final int[] notNullFieldIndices;
     private final String[] allFieldNames;
 
-    private final CharPrecisionEnforcer charPrecisionEnforcer;
+    private final ExecutionConfigOptions.CharLengthEnforcer charLengthEnforcer;
     private final int[] charFieldIndices;
-    private final int[] charFieldPrecisions;
+    private final int[] charFieldLengths;
     private final BitSet charFieldShouldPad;
 
     private final String operatorName;
@@ -72,17 +73,17 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
     private ConstraintEnforcer(
             NotNullEnforcer notNullEnforcer,
             int[] notNullFieldIndices,
-            CharPrecisionEnforcer charPrecisionEnforcer,
+            ExecutionConfigOptions.CharLengthEnforcer charLengthEnforcer,
             int[] charFieldIndices,
-            int[] charFieldPrecisions,
+            int[] charFieldLengths,
             BitSet charFieldShouldPad,
             String[] allFieldNames,
             String operatorName) {
         this.notNullEnforcer = notNullEnforcer;
         this.notNullFieldIndices = notNullFieldIndices;
-        this.charPrecisionEnforcer = charPrecisionEnforcer;
+        this.charLengthEnforcer = charLengthEnforcer;
         this.charFieldIndices = charFieldIndices;
-        this.charFieldPrecisions = charFieldPrecisions;
+        this.charFieldLengths = charFieldLengths;
         this.charFieldShouldPad = charFieldShouldPad;
         this.allFieldNames = allFieldNames;
         this.operatorName = operatorName;
@@ -105,14 +106,14 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
 
     /**
      * Helper builder, so that the {@link ConstraintEnforcer} can be instantiated with only the NOT
-     * NULL constraint validation, only the CHAR/VARCHAR precision validation, or both.
+     * NULL constraint validation, only the CHAR/VARCHAR length validation, or both.
      */
     public static class Builder {
 
         private NotNullEnforcer notNullEnforcer;
         private int[] notNullFieldIndices;
 
-        private CharPrecisionEnforcer charPrecisionEnforcer;
+        private CharLengthEnforcer charLengthEnforcer;
         private List<CharFieldInfo> charFieldInfo;
         private String[] allFieldNames;
 
@@ -140,13 +141,13 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
             }
         }
 
-        public void addCharPrecisionConstraint(
-                CharPrecisionEnforcer charPrecisionEnforcer,
+        public void addCharLengthConstraint(
+                ExecutionConfigOptions.CharLengthEnforcer charLengthEnforcer,
                 List<CharFieldInfo> charFieldInfo,
                 List<String> charFieldNames,
                 String[] allFieldNames) {
-            this.charPrecisionEnforcer = charPrecisionEnforcer;
-            if (this.charPrecisionEnforcer == CharPrecisionEnforcer.TRIM_PAD) {
+            this.charLengthEnforcer = charLengthEnforcer;
+            if (this.charLengthEnforcer == CharLengthEnforcer.TRIM_PAD) {
                 checkArgument(
                         charFieldInfo.size() > 0,
                         "ConstraintValidator requires that there are CHAR/VARCHAR fields.");
@@ -155,15 +156,14 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
 
                 operatorNames.add(
                         String.format(
-                                "CharPrecisionEnforcer(fields=[%s])",
+                                "CharLengthEnforcer(fields=[%s])",
                                 String.join(", ", charFieldNames)));
                 this.isConfigured = true;
             }
         }
 
         /**
-         * If neither of NOT NULL or CHAR/VARCHAR precision enforcers are configured, null is
-         * returned.
+         * If neither of NOT NULL or CHAR/VARCHAR length enforcers are configured, null is returned.
          */
         public ConstraintEnforcer build() {
             if (isConfigured) {
@@ -172,12 +172,12 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
                 return new ConstraintEnforcer(
                         notNullEnforcer,
                         notNullFieldIndices,
-                        charPrecisionEnforcer,
+                        charLengthEnforcer,
                         charFieldInfo != null
                                 ? charFieldInfo.stream().mapToInt(cfi -> cfi.fieldIdx).toArray()
                                 : null,
                         charFieldInfo != null
-                                ? charFieldInfo.stream().mapToInt(cfi -> cfi.precision).toArray()
+                                ? charFieldInfo.stream().mapToInt(cfi -> cfi.length).toArray()
                                 : null,
                         charFieldInfo != null ? buildShouldPad(charFieldInfo) : null,
                         allFieldNames,
@@ -231,8 +231,8 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
     }
 
     private RowData processCharConstraint(RowData rowData) {
-        if (charPrecisionEnforcer == null
-                || charPrecisionEnforcer == CharPrecisionEnforcer.IGNORE) {
+        if (charLengthEnforcer == null
+                || charLengthEnforcer == ExecutionConfigOptions.CharLengthEnforcer.IGNORE) {
             return rowData;
         }
 
@@ -240,26 +240,26 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
 
         for (int i = 0; i < charFieldIndices.length; i++) {
             final int fieldIdx = charFieldIndices[i];
-            final int precision = charFieldPrecisions[i];
+            final int length = charFieldLengths[i];
             final BinaryStringData stringData = (BinaryStringData) rowData.getString(fieldIdx);
             final int sourceStrLength = stringData.numChars();
 
-            if (charFieldShouldPad.get(i) && sourceStrLength < precision) {
+            if (charFieldShouldPad.get(i) && sourceStrLength < length) {
                 if (updatedRowData == null) {
                     updatedRowData = new UpdatableRowData(rowData, allFieldNames.length);
                 }
                 final int srcSizeInBytes = stringData.getSizeInBytes();
-                final byte[] newString = new byte[srcSizeInBytes + precision - sourceStrLength];
+                final byte[] newString = new byte[srcSizeInBytes + length - sourceStrLength];
                 for (int j = srcSizeInBytes; j < newString.length; j++) {
                     newString[j] = (byte) 32; // space
                 }
                 SegmentsUtil.copyToBytes(stringData.getSegments(), 0, newString, 0, srcSizeInBytes);
                 updatedRowData.setField(fieldIdx, StringData.fromBytes(newString));
-            } else if (sourceStrLength > precision) {
+            } else if (sourceStrLength > length) {
                 if (updatedRowData == null) {
                     updatedRowData = new UpdatableRowData(rowData, allFieldNames.length);
                 }
-                updatedRowData.setField(fieldIdx, stringData.substring(0, precision));
+                updatedRowData.setField(fieldIdx, stringData.substring(0, length));
             }
         }
 
@@ -273,12 +273,12 @@ public class ConstraintEnforcer extends TableStreamOperator<RowData>
     @Internal
     public static class CharFieldInfo {
         private final int fieldIdx;
-        private final Integer precision;
+        private final Integer length;
         private final boolean shouldPad;
 
-        public CharFieldInfo(int fieldIdx, @Nullable Integer precision, boolean shouldPad) {
+        public CharFieldInfo(int fieldIdx, @Nullable Integer length, boolean shouldPad) {
             this.fieldIdx = fieldIdx;
-            this.precision = precision;
+            this.length = length;
             this.shouldPad = shouldPad;
         }
 

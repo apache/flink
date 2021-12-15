@@ -21,12 +21,12 @@ package org.apache.flink.table.planner.connectors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.sink.OutputConversionOperator;
 import org.apache.flink.table.runtime.typeutils.ExternalTypeInfo;
 import org.apache.flink.table.types.DataType;
@@ -86,9 +86,10 @@ final class ExternalDynamicSink implements DynamicTableSink, SupportsWritingMeta
                         atomicFieldGetter = RowData.createFieldGetter(physicalType, 0);
                     }
 
-                    return new OneInputTransformation<>(
+                    return ExecNodeUtil.createOneInputTransformation(
                             input,
                             generateOperatorName(),
+                            generateOperatorDesc(),
                             new OutputConversionOperator(
                                     atomicFieldGetter,
                                     physicalConverter,
@@ -100,6 +101,10 @@ final class ExternalDynamicSink implements DynamicTableSink, SupportsWritingMeta
     }
 
     private String generateOperatorName() {
+        return "TableToDataSteam";
+    }
+
+    private String generateOperatorDesc() {
         return String.format(
                 "TableToDataSteam(type=%s, rowtime=%s)",
                 physicalDataType.toString(), consumeRowtimeMetadata);

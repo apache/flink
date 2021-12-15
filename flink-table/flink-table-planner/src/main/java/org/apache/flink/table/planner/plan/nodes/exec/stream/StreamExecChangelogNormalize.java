@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -146,9 +147,10 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         }
 
         final OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
+                ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getDescription(),
+                        getOperatorName(tableConfig),
+                        getOperatorDescription(tableConfig),
                         operator,
                         rowTypeInfo,
                         inputTransform.getParallelism());

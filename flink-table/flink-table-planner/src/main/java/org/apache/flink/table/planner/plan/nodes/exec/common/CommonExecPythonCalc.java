@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -95,7 +96,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         final Configuration config =
                 CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> ret =
-                createPythonOneInputTransformation(inputTransform, getDescription(), config);
+                createPythonOneInputTransformation(inputTransform, config);
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
             ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
@@ -103,7 +104,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
     }
 
     private OneInputTransformation<RowData, RowData> createPythonOneInputTransformation(
-            Transformation<RowData> inputTransform, String name, Configuration config) {
+            Transformation<RowData> inputTransform, Configuration config) {
         List<RexCall> pythonRexCalls =
                 projection.stream()
                         .filter(x -> x instanceof RexCall)
@@ -152,9 +153,10 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                                                 PythonUtil.containsPythonCall(
                                                         x, PythonFunctionKind.PANDAS)));
 
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                name,
+                getOperatorName(config),
+                getOperatorDescription(config),
                 pythonOperator,
                 pythonOperatorResultTyeInfo,
                 inputTransform.getParallelism());

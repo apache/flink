@@ -435,6 +435,10 @@
         },
         "savepointPath" : {
           "type" : "string"
+        },
+        "restoreMode" : {
+          "type" : "string",
+          "enum" : [ "CLAIM", "LEGACY" ]
         }
       }
     },

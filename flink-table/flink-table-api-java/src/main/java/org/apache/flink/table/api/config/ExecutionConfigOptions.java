@@ -120,16 +120,15 @@ public class ExecutionConfigOptions {
                             "Determines how Flink enforces NOT NULL column constraints when inserting null values.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<CharPrecisionEnforcer>
-            TABLE_EXEC_SINK_CHAR_PRECISION_ENFORCER =
-                    key("table.exec.sink.char-precision-enforcer")
-                            .enumType(CharPrecisionEnforcer.class)
-                            .defaultValue(CharPrecisionEnforcer.IGNORE)
-                            .withDescription(
-                                    "Determines whether string values for columns with CHAR(<precision>)/VARCHAR(<precision>) "
-                                            + "types will be trimmed or padded (only for CHAR(<precision>)), so that their "
-                                            + "length will match the one defined by the precision of their respective "
-                                            + "CHAR/VARCHAR column type.");
+    public static final ConfigOption<CharLengthEnforcer> TABLE_EXEC_SINK_CHAR_LENGTH_ENFORCER =
+            key("table.exec.sink.char-length-enforcer")
+                    .enumType(CharLengthEnforcer.class)
+                    .defaultValue(CharLengthEnforcer.IGNORE)
+                    .withDescription(
+                            "Determines whether string values for columns with CHAR(<length>)/VARCHAR(<length>) "
+                                    + "types will be trimmed or padded (only for CHAR(<length>)), so that their "
+                                    + "length will match the one defined by the length of their respective "
+                                    + "CHAR/VARCHAR column type.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_SINK_UPSERT_MATERIALIZE =
@@ -148,6 +147,25 @@ public class ExecutionConfigOptions {
                                             "By default, the materialize operator will be added when a distributed disorder "
                                                     + "occurs on unique keys. You can also choose no materialization(NONE) "
                                                     + "or force materialization(FORCE).")
+                                    .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<SinkKeyedShuffle> TABLE_EXEC_SINK_KEYED_SHUFFLE =
+            key("table.exec.sink.keyed-shuffle")
+                    .enumType(SinkKeyedShuffle.class)
+                    .defaultValue(SinkKeyedShuffle.AUTO)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "In order to minimize the distributed disorder problem when writing data into table with primary keys that many users suffers. "
+                                                    + "FLINK will auto add a keyed shuffle by default when the sink's parallelism differs from upstream operator and upstream is append only. "
+                                                    + "This works only when the upstream ensures the multi-records' order on the primary key, if not, the added shuffle can not solve "
+                                                    + "the problem (In this situation, a more proper way is to consider the deduplicate operation for the source firstly or use an "
+                                                    + "upsert source with primary key definition which truly reflect the records evolution).")
+                                    .linebreak()
+                                    .text(
+                                            "By default, the keyed shuffle will be added when the sink's parallelism differs from upstream operator. "
+                                                    + "You can set to no shuffle(NONE) or force shuffle(FORCE).")
                                     .build());
 
     // ------------------------------------------------------------------------
@@ -386,6 +404,15 @@ public class ExecutionConfigOptions {
                                                     + "Pipelined shuffle means data will be sent to consumer tasks once produced.")
                                     .build());
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<LegacyCastBehaviour> TABLE_EXEC_LEGACY_CAST_BEHAVIOUR =
+            key("table.exec.sink.legacy-cast-behaviour")
+                    .enumType(LegacyCastBehaviour.class)
+                    .defaultValue(LegacyCastBehaviour.ENABLED)
+                    .withDescription(
+                            "Determines whether CAST will operate following the legacy behaviour "
+                                    + "or the new one that introduces various fixes and improvements.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------
@@ -413,23 +440,23 @@ public class ExecutionConfigOptions {
     }
 
     /**
-     * The enforcer to guarantee that precision of CHAR/VARCHAR columns is respected when writing
-     * data into sink.
+     * The enforcer to guarantee that length of CHAR/VARCHAR columns is respected when writing data
+     * into sink.
      */
     @PublicEvolving
-    public enum CharPrecisionEnforcer implements DescribedEnum {
+    public enum CharLengthEnforcer implements DescribedEnum {
         IGNORE(
                 text(
                         "Don't apply any trimming and padding, and instead "
-                                + "ignore the CHAR/VARCHAR precision directive.")),
+                                + "ignore the CHAR/VARCHAR length directive.")),
         TRIM_PAD(
                 text(
                         "Trim and pad string values to match the length "
-                                + "defined by the CHAR/VARCHAR precision."));
+                                + "defined by the CHAR/VARCHAR length."));
 
         private final InlineElement description;
 
-        CharPrecisionEnforcer(InlineElement description) {
+        CharLengthEnforcer(InlineElement description) {
             this.description = description;
         }
 
@@ -452,5 +479,44 @@ public class ExecutionConfigOptions {
 
         /** Add materialize operator in any case. */
         FORCE
+    }
+
+    /** Shuffle by primary key before sink. */
+    @PublicEvolving
+    public enum SinkKeyedShuffle {
+
+        /** No keyed shuffle will be added for sink. */
+        NONE,
+
+        /** Auto add keyed shuffle when the sink's parallelism differs from upstream operator. */
+        AUTO,
+
+        /** Add keyed shuffle in any case except single parallelism. */
+        FORCE
+    }
+
+    /** Determine if CAST operates using the legacy behaviour or the new one. */
+    @Deprecated
+    public enum LegacyCastBehaviour implements DescribedEnum {
+        ENABLED(true, text("CAST will operate following the legacy behaviour.")),
+        DISABLED(false, text("CAST will operate following the new correct behaviour."));
+
+        private final boolean enabled;
+        private final InlineElement description;
+
+        LegacyCastBehaviour(boolean enabled, InlineElement description) {
+            this.enabled = enabled;
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
     }
 }

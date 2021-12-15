@@ -136,7 +136,7 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
                 .assertFinishedSuccessfully();
 
         checkOperatorsLifecycle(testJob, new DrainingValidator(), new FinishingValidator());
-        checkDataFlow(testJob);
+        checkDataFlow(testJob, true);
     }
 
     private TestJobWithDescription buildJob() throws Exception {

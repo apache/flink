@@ -113,7 +113,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>

@@ -23,6 +23,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
@@ -200,7 +201,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     // ------------------------------------------------------------------------
 
     @Override
-    public void notifyEndOfData() throws IOException {
+    public void notifyEndOfData(StopMode mode) throws IOException {
         throw new UnsupportedOperationException();
     }
 

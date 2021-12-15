@@ -869,7 +869,7 @@ public class JobMasterTest extends TestLogger {
 
         final StandaloneCompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
-        completedCheckpointStore.addCheckpoint(
+        completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 completedCheckpoint, new CheckpointsCleaner(), () -> {});
         final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
                 PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(

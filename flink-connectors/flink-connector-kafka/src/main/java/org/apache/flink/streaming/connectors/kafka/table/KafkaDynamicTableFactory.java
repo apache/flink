@@ -321,7 +321,9 @@ public class KafkaDynamicTableFactory
                 && format.getChangelogMode().containsOnly(RowKind.INSERT)) {
             Configuration configuration = Configuration.fromMap(options);
             String formatName =
-                    configuration.getOptional(FactoryUtil.FORMAT).orElse(options.get(VALUE_FORMAT));
+                    configuration
+                            .getOptional(FactoryUtil.FORMAT)
+                            .orElse(configuration.get(VALUE_FORMAT));
             throw new ValidationException(
                     String.format(
                             "The Kafka table '%s' with '%s' format doesn't support defining PRIMARY KEY constraint"

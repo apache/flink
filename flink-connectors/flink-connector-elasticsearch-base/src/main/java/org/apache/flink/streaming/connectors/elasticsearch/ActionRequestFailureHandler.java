@@ -59,7 +59,10 @@ import java.io.Serializable;
  * exact type could not be retrieved through the older version Java client APIs (thus, the types
  * will be general {@link Exception}s and only differ in the failure message). In this case, it is
  * recommended to match on the provided REST status code.
+ *
+ * @deprecated This has been deprecated and will be removed in the future.
  */
+@Deprecated
 @PublicEvolving
 public interface ActionRequestFailureHandler extends Serializable {
 

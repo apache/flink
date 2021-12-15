@@ -32,7 +32,7 @@ class SortAggCodeGeneratorTest extends BatchAggTestBase {
 
   val localOutputType = RowType.of(
     Array[LogicalType](
-      new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH),
+      VarCharType.STRING_TYPE, VarCharType.STRING_TYPE,
       new BigIntType(), new BigIntType(),
       new DoubleType(), new BigIntType(),
       fromTypeInfoToLogicalType(imperativeAggFunc.getAccumulatorType)),
@@ -95,7 +95,7 @@ class SortAggCodeGeneratorTest extends BatchAggTestBase {
     : (CodeGenOperatorFactory[RowData], RowType, RowType) = {
     val localOutputType = RowType.of(
       Array[LogicalType](
-        new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH),
+        VarCharType.STRING_TYPE, VarCharType.STRING_TYPE,
         new BigIntType(), new BigIntType(),
         new DoubleType(), new BigIntType(),
         fromTypeInfoToLogicalType(imperativeAggFunc.getAccumulatorType)),

@@ -50,6 +50,7 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriverFa
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.RunnableWithException;
@@ -76,6 +77,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
@@ -455,6 +457,8 @@ public class ZooKeeperUtils {
             CuratorFramework client,
             Configuration configuration,
             int maxNumberOfCheckpointsToRetain,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor,
             Executor executor)
             throws Exception {
 
@@ -465,16 +469,17 @@ public class ZooKeeperUtils {
 
         final ZooKeeperStateHandleStore<CompletedCheckpoint> completedCheckpointStateHandleStore =
                 createZooKeeperStateHandleStore(client, getCheckpointsPath(), stateStorage);
+        Collection<CompletedCheckpoint> completedCheckpoints =
+                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                        completedCheckpointStateHandleStore, ZooKeeperCheckpointStoreUtil.INSTANCE);
         final CompletedCheckpointStore zooKeeperCompletedCheckpointStore =
                 new DefaultCompletedCheckpointStore<>(
                         maxNumberOfCheckpointsToRetain,
                         completedCheckpointStateHandleStore,
                         ZooKeeperCheckpointStoreUtil.INSTANCE,
-                        DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
-                                completedCheckpointStateHandleStore,
-                                ZooKeeperCheckpointStoreUtil.INSTANCE),
+                        completedCheckpoints,
+                        sharedStateRegistryFactory.create(ioExecutor, completedCheckpoints),
                         executor);
-
         LOG.info(
                 "Initialized {} in '{}' with {}.",
                 DefaultCompletedCheckpointStore.class.getSimpleName(),

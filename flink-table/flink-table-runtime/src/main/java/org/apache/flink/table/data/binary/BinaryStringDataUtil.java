@@ -49,6 +49,8 @@ import static org.apache.flink.table.data.binary.BinaryStringData.numBytesForFir
 /** Util for {@link BinaryStringData}. */
 public class BinaryStringDataUtil {
 
+    public static final BinaryStringData NULL_STRING = fromString("NULL");
+
     public static final BinaryStringData[] EMPTY_STRING_ARRAY = new BinaryStringData[0];
     private static final List<BinaryStringData> TRUE_STRINGS =
             Stream.of("t", "true", "y", "yes", "1")

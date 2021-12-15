@@ -30,7 +30,7 @@ import java.util.List;
 
 import static org.apache.avro.file.DataFileConstants.NULL_CODEC;
 
-/** ITCase to test avro format for {@link AvroFileSystemFormatFactory} in batch mode. */
+/** ITCase to test avro format for {@link AvroFileFormatFactory} in batch mode. */
 @RunWith(Parameterized.class)
 public class AvroFilesystemITCase extends BatchFileSystemITCaseBase {
 
@@ -43,11 +43,6 @@ public class AvroFilesystemITCase extends BatchFileSystemITCaseBase {
 
     public AvroFilesystemITCase(boolean configure) {
         this.configure = configure;
-    }
-
-    @Override
-    public boolean supportsReadingMetadata() {
-        return false;
     }
 
     @Override

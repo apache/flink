@@ -29,6 +29,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -148,7 +149,7 @@ public class SourceOperatorTest {
         assertEquals(DataInputStatus.NOTHING_AVAILABLE, operator.emitNext(dataOutput));
         assertFalse(operator.isAvailable());
 
-        CompletableFuture<Void> sourceStopped = operator.stop();
+        CompletableFuture<Void> sourceStopped = operator.stop(StopMode.DRAIN);
         assertTrue(operator.isAvailable());
         assertFalse(sourceStopped.isDone());
         assertEquals(DataInputStatus.END_OF_DATA, operator.emitNext(dataOutput));

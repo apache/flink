@@ -765,7 +765,7 @@ object StringCallGen {
       operands: Seq[GeneratedExpression]): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     val t = new MapType(
-      new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH))
+      VarCharType.STRING_TYPE, VarCharType.STRING_TYPE)
     val converter = DataFormatConverters.getConverterForDataType(
       DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()))
     val converterTerm = ctx.addReusableObject(converter, "mapConverter")

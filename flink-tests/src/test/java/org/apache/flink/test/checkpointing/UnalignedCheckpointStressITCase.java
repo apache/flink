@@ -307,7 +307,7 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
         env.getCheckpointConfig().enableUnalignedCheckpoints();
         env.setRestartStrategy(RestartStrategies.noRestart());
         env.getCheckpointConfig()
-                .enableExternalizedCheckpoints(
+                .setExternalizedCheckpointCleanup(
                         ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION);
         return env;
     }

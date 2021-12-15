@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -113,9 +114,10 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                         pythonOperatorOutputRowType,
                         pythonFunctionInfo,
                         pythonUdtfInputOffsets);
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                getOperatorName(config),
+                getOperatorDescription(config),
                 pythonOperator,
                 pythonOperatorOutputRowType,
                 inputTransform.getParallelism());

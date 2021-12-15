@@ -91,7 +91,7 @@ public class RocksDBResource extends ExternalResource {
                         }
 
                         return new DBOptions()
-                                .setIncreaseParallelism(4)
+                                .setMaxBackgroundJobs(4)
                                 .setUseFsync(false)
                                 .setMaxOpenFiles(-1)
                                 .setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)

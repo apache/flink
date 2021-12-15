@@ -34,7 +34,7 @@ import org.junit.{Before, Test}
 class MiniBatchIntervalInferTest extends TableTestBase {
   private val util = streamTestUtil()
 
-  val STRING = new VarCharType(VarCharType.MAX_LENGTH)
+  val STRING = VarCharType.STRING_TYPE
   val LONG = new BigIntType()
   val INT = new IntType()
 

@@ -39,6 +39,7 @@ CREATE TABLE hive_table (
 # list the configured configuration
 set;
 'execution.attached' = 'true'
+'execution.savepoint-restore-mode' = 'LEGACY'
 'execution.savepoint.ignore-unclaimed-state' = 'false'
 'execution.shutdown-on-attached-exit' = 'false'
 'execution.target' = 'remote'
@@ -56,6 +57,7 @@ reset;
 
 set;
 'execution.attached' = 'true'
+'execution.savepoint-restore-mode' = 'LEGACY'
 'execution.savepoint.ignore-unclaimed-state' = 'false'
 'execution.shutdown-on-attached-exit' = 'false'
 'execution.target' = 'remote'
@@ -88,6 +90,7 @@ Was expecting one of:
 
 set;
 'execution.attached' = 'true'
+'execution.savepoint-restore-mode' = 'LEGACY'
 'execution.savepoint.ignore-unclaimed-state' = 'false'
 'execution.shutdown-on-attached-exit' = 'false'
 'execution.target' = 'remote'
@@ -107,6 +110,7 @@ reset 'execution.attached';
 
 set;
 'execution.attached' = 'true'
+'execution.savepoint-restore-mode' = 'LEGACY'
 'execution.savepoint.ignore-unclaimed-state' = 'false'
 'execution.shutdown-on-attached-exit' = 'false'
 'execution.target' = 'remote'
@@ -127,6 +131,7 @@ $VAR_UDF_JAR_PATH
 
 set;
 'execution.attached' = 'true'
+'execution.savepoint-restore-mode' = 'LEGACY'
 'execution.savepoint.ignore-unclaimed-state' = 'false'
 'execution.shutdown-on-attached-exit' = 'false'
 'execution.target' = 'remote'

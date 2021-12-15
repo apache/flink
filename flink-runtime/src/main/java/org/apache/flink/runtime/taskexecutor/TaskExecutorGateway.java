@@ -143,12 +143,16 @@ public interface TaskExecutorGateway
      * and the checkpoint timestamp.
      *
      * @param executionAttemptID identifying the task
-     * @param checkpointId unique id for the checkpoint
-     * @param checkpointTimestamp is the timestamp when the checkpoint has been initiated
+     * @param completedCheckpointId unique id for the completed checkpoint
+     * @param completedCheckpointTimestamp is the timestamp when the checkpoint has been initiated
+     * @param lastSubsumedCheckpointId unique id for the checkpoint to be subsumed
      * @return Future acknowledge if the checkpoint has been successfully confirmed
      */
     CompletableFuture<Acknowledge> confirmCheckpoint(
-            ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
+            ExecutionAttemptID executionAttemptID,
+            long completedCheckpointId,
+            long completedCheckpointTimestamp,
+            long lastSubsumedCheckpointId);
 
     /**
      * Abort a checkpoint for the given task. The checkpoint is identified by the checkpoint ID and

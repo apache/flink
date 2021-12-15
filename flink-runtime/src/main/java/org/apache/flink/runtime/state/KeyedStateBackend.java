@@ -137,7 +137,22 @@ public interface KeyedStateBackend<K>
      */
     boolean deregisterKeySelectionListener(KeySelectionListener<K> listener);
 
+    @Deprecated
     default boolean isStateImmutableInStateBackend(CheckpointType checkpointOptions) {
+        return false;
+    }
+
+    /**
+     * Whether it's safe to reuse key-values from the state-backend, e.g for the purpose of
+     * optimization.
+     *
+     * <p>NOTE: this method should not be used to check for {@link InternalPriorityQueue}, as the
+     * priority queue could be stored on different locations, e.g RocksDB state-backend could store
+     * that on JVM heap if configuring HEAP as the time-service factory.
+     *
+     * @return returns ture if safe to reuse the key-values from the state-backend.
+     */
+    default boolean isSafeToReuseKVState() {
         return false;
     }
 

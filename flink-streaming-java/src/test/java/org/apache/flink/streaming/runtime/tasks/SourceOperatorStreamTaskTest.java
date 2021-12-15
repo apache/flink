@@ -42,6 +42,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
@@ -129,7 +130,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
             Queue<Object> expectedOutput = new LinkedList<>();
             expectedOutput.add(Watermark.MAX_WATERMARK);
-            expectedOutput.add(EndOfData.INSTANCE);
+            expectedOutput.add(new EndOfData(StopMode.DRAIN));
             expectedOutput.add(
                     new CheckpointBarrier(checkpointId, checkpointId, checkpointOptions));
 
@@ -145,7 +146,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
             Queue<Object> expectedOutput = new LinkedList<>();
             expectedOutput.add(Watermark.MAX_WATERMARK);
-            expectedOutput.add(EndOfData.INSTANCE);
+            expectedOutput.add(new EndOfData(StopMode.DRAIN));
             assertThat(testHarness.getOutput().toArray(), equalTo(expectedOutput.toArray()));
         }
     }
@@ -203,8 +204,8 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
                                         output,
                                         new StreamElementSerializer<>(IntSerializer.INSTANCE)) {
                                     @Override
-                                    public void notifyEndOfData() throws IOException {
-                                        broadcastEvent(EndOfData.INSTANCE, false);
+                                    public void notifyEndOfData(StopMode mode) throws IOException {
+                                        broadcastEvent(new EndOfData(mode), false);
                                     }
                                 })
                         .setupOperatorChain(sourceOperatorFactory)
@@ -214,7 +215,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
             testHarness.getStreamTask().invoke();
             testHarness.processAll();
-            assertThat(output, contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
+            assertThat(output, contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN)));
 
             LifeCycleMonitorSourceReader sourceReader =
                     (LifeCycleMonitorSourceReader)

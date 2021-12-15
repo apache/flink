@@ -24,6 +24,7 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -256,7 +257,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 
     private void writeEndOfData(BoundedBlockingSubpartition subpartition) throws IOException {
         try (BufferConsumer eventBufferConsumer =
-                EventSerializer.toBufferConsumer(EndOfData.INSTANCE, false)) {
+                EventSerializer.toBufferConsumer(new EndOfData(StopMode.DRAIN), false)) {
             // Retain the buffer so that it can be recycled by each channel of targetPartition
             subpartition.add(eventBufferConsumer.copy(), 0);
         }

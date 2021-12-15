@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
@@ -127,7 +128,8 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                 createCompletedCheckpointStore(stateHandleStore, numRetain);
 
         for (CompletedCheckpoint c : completed) {
-            completedCheckpointStore.addCheckpoint(c, new CheckpointsCleaner(), () -> {});
+            completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
+                    c, new CheckpointsCleaner(), () -> {});
         }
         assertEquals(expectedRetained, completedCheckpointStore.getAllCheckpoints());
     }
@@ -199,7 +201,8 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
         final long ckpId = 100L;
         final CompletedCheckpoint ckp =
                 CompletedCheckpointStoreTest.createCheckpoint(ckpId, new SharedStateRegistry());
-        completedCheckpointStore.addCheckpoint(ckp, new CheckpointsCleaner(), () -> {});
+        completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
+                ckp, new CheckpointsCleaner(), () -> {});
 
         // We should persist the completed checkpoint to state handle store.
         final CompletedCheckpoint addedCkp = addFuture.get(timeout, TimeUnit.MILLISECONDS);
@@ -233,7 +236,8 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                 CompletedCheckpointStoreTest.createCheckpoint(ckpId, new SharedStateRegistry());
 
         try {
-            completedCheckpointStore.addCheckpoint(ckp, new CheckpointsCleaner(), () -> {});
+            completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
+                    ckp, new CheckpointsCleaner(), () -> {});
             fail("We should get an exception when add checkpoint to failed..");
         } catch (FlinkException ex) {
             assertThat(ex, FlinkMatchers.containsMessage(errMsg));
@@ -313,7 +317,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
             assertThrows(
                     IllegalStateException.class,
                     () ->
-                            completedCheckpointStore.addCheckpoint(
+                            completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                                     CompletedCheckpointStoreTest.createCheckpoint(
                                             0L, new SharedStateRegistry()),
                                     checkpointsCleaner,
@@ -364,6 +368,8 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                 checkpointStoreUtil,
                 DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         stateHandleStore, checkpointStoreUtil),
+                SharedStateRegistry.DEFAULT_FACTORY.create(
+                        org.apache.flink.util.concurrent.Executors.directExecutor(), emptyList()),
                 executorService);
     }
 

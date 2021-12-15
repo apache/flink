@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -112,9 +113,10 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
     }
 
     @Override
-    public void finishOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
+    public void finishOperators(StreamTaskActionExecutor actionExecutor, StopMode stopMode)
+            throws Exception {
         if (firstOperatorWrapper != null) {
-            firstOperatorWrapper.finish(actionExecutor);
+            firstOperatorWrapper.finish(actionExecutor, stopMode);
         }
     }
 
@@ -163,6 +165,19 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
             try {
                 operatorWrapper.getStreamOperator().notifyCheckpointAborted(checkpointId);
+            } catch (Exception e) {
+                previousException = ExceptionUtils.firstOrSuppressed(e, previousException);
+            }
+        }
+        ExceptionUtils.tryRethrowException(previousException);
+    }
+
+    @Override
+    public void notifyCheckpointSubsumed(long checkpointId) throws Exception {
+        Exception previousException = null;
+        for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
+            try {
+                operatorWrapper.notifyCheckpointSubsumed(checkpointId);
             } catch (Exception e) {
                 previousException = ExceptionUtils.firstOrSuppressed(e, previousException);
             }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -43,7 +44,14 @@ public class SharedStateRegistry implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(SharedStateRegistry.class);
 
     /** A singleton object for the default implementation of a {@link SharedStateRegistryFactory} */
-    public static final SharedStateRegistryFactory DEFAULT_FACTORY = SharedStateRegistry::new;
+    public static final SharedStateRegistryFactory DEFAULT_FACTORY =
+            (deleteExecutor, checkpoints) -> {
+                SharedStateRegistry sharedStateRegistry = new SharedStateRegistry(deleteExecutor);
+                for (CompletedCheckpoint checkpoint : checkpoints) {
+                    sharedStateRegistry.registerAll(checkpoint.getOperatorStates().values());
+                }
+                return sharedStateRegistry;
+            };
 
     /** All registered state objects by an artificial key */
     private final Map<SharedStateRegistryKey, SharedStateRegistry.SharedStateEntry>

@@ -152,8 +152,8 @@ class CalcITCase extends StreamingTestBase {
     tEnv.registerTable("MyTableRow", t)
 
     val outputType = InternalTypeInfo.ofFields(
-      new VarCharType(VarCharType.MAX_LENGTH),
-      new VarCharType(VarCharType.MAX_LENGTH),
+      VarCharType.STRING_TYPE,
+      VarCharType.STRING_TYPE,
       new IntType())
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]

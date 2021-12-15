@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -158,9 +159,10 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         namePropertyTypeArray,
                         pythonUdafInputOffsets,
                         pythonFunctionInfos);
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                getOperatorName(config),
+                getOperatorDescription(config),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

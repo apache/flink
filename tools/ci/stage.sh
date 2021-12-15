@@ -61,6 +61,7 @@ flink-table/flink-sql-parser-hive,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\
+flink-table/flink-table-api-bridge-base,\
 flink-table/flink-table-api-java-bridge,\
 flink-table/flink-table-api-scala-bridge,\
 flink-table/flink-sql-client,\
@@ -94,6 +95,7 @@ flink-connectors/flink-connector-hbase-2.2,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors,\
+flink-connectors/flink-connector-files,\
 flink-connectors/flink-connector-jdbc,\
 flink-connectors/flink-connector-cassandra,\
 flink-connectors/flink-connector-elasticsearch6,\

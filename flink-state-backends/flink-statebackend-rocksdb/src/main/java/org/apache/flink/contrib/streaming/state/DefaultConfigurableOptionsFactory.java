@@ -83,7 +83,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
     public DBOptions createDBOptions(
             DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
         if (isOptionConfigured(MAX_BACKGROUND_THREADS)) {
-            currentOptions.setIncreaseParallelism(getMaxBackgroundThreads());
+            currentOptions.setMaxBackgroundJobs(getMaxBackgroundThreads());
         }
 
         if (isOptionConfigured(MAX_OPEN_FILES)) {

@@ -53,8 +53,6 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
-import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -501,11 +499,15 @@ public class CheckpointCoordinatorTestingUtils {
         }
 
         @Override
-        public void notifyCheckpointComplete(
-                ExecutionAttemptID attemptId, JobID jobId, long checkpointId, long timestamp) {
+        public void notifyCheckpointOnComplete(
+                ExecutionAttemptID attemptId,
+                JobID jobId,
+                long completedCheckpointId,
+                long completedTimestamp,
+                long lastSubsumedCheckpointId) {
             notifiedCompletedCheckpoints
                     .computeIfAbsent(attemptId, k -> new ArrayList<>())
-                    .add(new NotifiedCheckpoint(jobId, checkpointId, timestamp));
+                    .add(new NotifiedCheckpoint(jobId, completedCheckpointId, completedTimestamp));
         }
 
         @Override
@@ -717,9 +719,6 @@ public class CheckpointCoordinatorTestingUtils {
 
         private ScheduledExecutor timer = new ManuallyTriggeredScheduledExecutor();
 
-        private SharedStateRegistryFactory sharedStateRegistryFactory =
-                SharedStateRegistry.DEFAULT_FACTORY;
-
         private CheckpointFailureManager failureManager =
                 new CheckpointFailureManager(0, NoOpFailJobCall.INSTANCE);
 
@@ -779,12 +778,6 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
-        public CheckpointCoordinatorBuilder setSharedStateRegistryFactory(
-                SharedStateRegistryFactory sharedStateRegistryFactory) {
-            this.sharedStateRegistryFactory = sharedStateRegistryFactory;
-            return this;
-        }
-
         public CheckpointCoordinatorBuilder setFailureManager(
                 CheckpointFailureManager failureManager) {
             this.failureManager = failureManager;
@@ -833,7 +826,6 @@ public class CheckpointCoordinatorTestingUtils {
                     ioExecutor,
                     checkpointsCleaner,
                     timer,
-                    sharedStateRegistryFactory,
                     failureManager,
                     checkpointPlanCalculator,
                     new ExecutionAttemptMappingProvider(executionGraph.getAllExecutionVertices()),

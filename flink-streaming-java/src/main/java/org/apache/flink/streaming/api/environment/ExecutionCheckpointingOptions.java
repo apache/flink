@@ -91,13 +91,15 @@ public class ExecutionCheckpointingOptions {
             EXTERNALIZED_CHECKPOINT =
                     ConfigOptions.key("execution.checkpointing.externalized-checkpoint-retention")
                             .enumType(CheckpointConfig.ExternalizedCheckpointCleanup.class)
-                            .noDefaultValue()
+                            .defaultValue(
+                                    CheckpointConfig.ExternalizedCheckpointCleanup
+                                            .NO_EXTERNALIZED_CHECKPOINTS)
                             .withDescription(
                                     Description.builder()
                                             .text(
                                                     "Externalized checkpoints write their meta data out to persistent storage and are not "
                                                             + "automatically cleaned up when the owning job fails or is suspended (terminating with job "
-                                                            + "status %s or %s. In this case, you have to manually clean up the checkpoint state, both the "
+                                                            + "status %s or %s). In this case, you have to manually clean up the checkpoint state, both the "
                                                             + "meta data and actual program state.",
                                                     TextElement.code("JobStatus#FAILED"),
                                                     TextElement.code("JobStatus#SUSPENDED"))

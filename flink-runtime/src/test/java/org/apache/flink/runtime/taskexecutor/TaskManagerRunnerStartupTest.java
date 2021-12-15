@@ -24,8 +24,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
@@ -264,7 +263,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
                 highAvailabilityServices,
                 new TestingHeartbeatServices(),
                 metricRegistry,
-                new BlobCacheService(configuration, new VoidBlobStore(), null),
+                NoOpTaskExecutorBlobService.INSTANCE,
                 false,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                 error -> {});

@@ -46,6 +46,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
@@ -232,6 +233,8 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testSavepointSuspendedAborted() throws Exception {
+        thrown.expect(FlinkRuntimeException.class);
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (task, id) ->
                         task.abortCheckpointOnBarrier(
@@ -245,7 +248,7 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testSavepointTerminateAborted() throws Exception {
         thrown.expect(FlinkRuntimeException.class);
-        thrown.expectMessage("Stop-with-savepoint --drain failed.");
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (task, id) ->
                         task.abortCheckpointOnBarrier(
@@ -258,6 +261,8 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testSavepointSuspendAbortedAsync() throws Exception {
+        thrown.expect(FlinkRuntimeException.class);
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
@@ -268,7 +273,7 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testSavepointTerminateAbortedAsync() throws Exception {
         thrown.expect(FlinkRuntimeException.class);
-        thrown.expectMessage("Stop-with-savepoint --drain failed.");
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
@@ -990,7 +995,8 @@ public class StreamTaskTest extends TestLogger {
         assertFalse(ClosingOperator.closed.get());
 
         // close operators directly, so that task is still fully running
-        harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
+        harness.streamTask.operatorChain.finishOperators(
+                harness.streamTask.getActionExecutor(), StopMode.DRAIN);
         harness.streamTask.operatorChain.closeAllOperators();
         harness.streamTask.notifyCheckpointCompleteAsync(2);
         harness.streamTask.runMailboxStep();
@@ -1052,7 +1058,7 @@ public class StreamTaskTest extends TestLogger {
             harness.processElement(new StreamRecord<>(1));
 
             harness.streamTask.operatorChain.finishOperators(
-                    harness.streamTask.getActionExecutor());
+                    harness.streamTask.getActionExecutor(), StopMode.DRAIN);
             harness.streamTask.operatorChain.closeAllOperators();
             assertTrue(ClosingOperator.closed.get());
 

@@ -314,6 +314,18 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @Test
+    public void testIsSafeToReuseState() throws Exception {
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
+        try {
+            Assert.assertEquals(isSafeToReuseKVState(), backend.isSafeToReuseKVState());
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
+    }
+
+    @Test
     public void testKeyGroupedInternalPriorityQueue() throws Exception {
         testKeyGroupedInternalPriorityQueue(false);
     }
@@ -5612,5 +5624,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     protected boolean supportsMetaInfoVerification() {
         return true;
+    }
+
+    /** @return true if state backend is safe to reuse state. */
+    protected boolean isSafeToReuseKVState() {
+        return false;
     }
 }

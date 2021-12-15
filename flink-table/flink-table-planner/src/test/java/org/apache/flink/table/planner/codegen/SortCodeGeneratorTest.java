@@ -105,7 +105,7 @@ public class SortCodeGeneratorTest {
                 new BigIntType(),
                 new FloatType(),
                 new DoubleType(),
-                new VarCharType(VarCharType.MAX_LENGTH),
+                VarCharType.STRING_TYPE,
                 new DecimalType(18, 2),
                 new DecimalType(38, 18),
                 new VarBinaryType(VarBinaryType.MAX_LENGTH),

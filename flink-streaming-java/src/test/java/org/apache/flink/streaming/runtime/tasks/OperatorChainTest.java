@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -80,6 +81,8 @@ public class OperatorChainTest {
             final StreamTask<?, ?> containingTask = new MockStreamTaskBuilder(env).build();
 
             final StreamConfig cfg = new StreamConfig(new Configuration());
+            cfg.setOperatorID(new OperatorID());
+            cfg.setStateKeySerializer(new StringSerializer());
 
             final List<StreamOperatorWrapper<?, ?>> operatorWrappers = new ArrayList<>();
 

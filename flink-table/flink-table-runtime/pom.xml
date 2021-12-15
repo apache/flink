@@ -27,7 +27,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table-runtime_${scala.binary.version}</artifactId>
+	<artifactId>flink-table-runtime</artifactId>
 	<name>Flink : Table : Runtime</name>
 	<description>
 		This module contains classes that are required by a task manager for
@@ -74,14 +74,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-cep</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<!-- Provides the kryo serializer -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>

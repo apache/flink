@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -36,6 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -143,9 +143,10 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
             generatedOperator = windowCodeGenerator.genWithKeys();
         }
 
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                getOperatorName(tableConfig),
+                getOperatorDescription(tableConfig),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

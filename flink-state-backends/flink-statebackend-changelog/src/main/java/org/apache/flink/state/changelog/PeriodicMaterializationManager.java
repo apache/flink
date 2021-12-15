@@ -17,6 +17,7 @@
 
 package org.apache.flink.state.changelog;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -117,6 +118,7 @@ class PeriodicMaterializationManager implements Closeable {
         }
     }
 
+    @VisibleForTesting
     public void triggerMaterialization() {
         mailboxExecutor.execute(
                 () -> {
@@ -238,12 +240,13 @@ class PeriodicMaterializationManager implements Closeable {
 
     // task thread and asyncOperationsThreadPool can access this method
     private synchronized void scheduleNextMaterialization() {
-        LOG.info(
-                "Task {} schedules the next materialization in {} seconds",
-                subtaskName,
-                periodicMaterializeDelay / 1000);
+        if (started && !periodicExecutor.isShutdown()) {
 
-        if (!periodicExecutor.isShutdown()) {
+            LOG.info(
+                    "Task {} schedules the next materialization in {} seconds",
+                    subtaskName,
+                    periodicMaterializeDelay / 1000);
+
             periodicExecutor.schedule(
                     this::triggerMaterialization, periodicMaterializeDelay, TimeUnit.MILLISECONDS);
         }

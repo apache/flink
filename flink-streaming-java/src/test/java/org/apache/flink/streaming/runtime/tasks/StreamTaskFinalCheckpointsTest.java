@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.PipelinedResultPartition;
@@ -62,7 +62,6 @@ import java.util.concurrent.Future;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
-import static org.apache.flink.util.ExceptionUtils.assertThrowable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertArrayEquals;
@@ -86,7 +85,8 @@ public class StreamTaskFinalCheckpointsTest {
         harness.setAutoProcess(false);
         harness.processElement(new StreamRecord<>(1));
 
-        harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
+        harness.streamTask.operatorChain.finishOperators(
+                harness.streamTask.getActionExecutor(), StopMode.DRAIN);
         assertTrue(FinishingOperator.finished);
 
         harness.getTaskStateManager().getWaitForReportLatch().reset();
@@ -155,7 +155,7 @@ public class StreamTaskFinalCheckpointsTest {
                 assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
 
                 // Tests triggering checkpoint after some inputs have received EndOfPartition.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 4);
                 processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
@@ -163,8 +163,8 @@ public class StreamTaskFinalCheckpointsTest {
 
                 // Tests triggering checkpoint after received all the inputs have received
                 // EndOfPartition.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 1);
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 2);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0, 1);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0, 2);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 1);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 2);
                 checkpointFuture = triggerCheckpoint(testHarness, lastCheckpointId);
@@ -400,6 +400,17 @@ public class StreamTaskFinalCheckpointsTest {
     @Test
     public void testTriggerStopWithSavepointWhenWaitingForFinalCheckpointOnSourceTask()
             throws Exception {
+        doTestTriggerStopWithSavepointWhenWaitingForFinalCheckpointOnSourceTask(true);
+    }
+
+    @Test
+    public void testTriggerStopWithSavepointNoDrainWhenWaitingForFinalCheckpointOnSourceTask()
+            throws Exception {
+        doTestTriggerStopWithSavepointWhenWaitingForFinalCheckpointOnSourceTask(false);
+    }
+
+    private void doTestTriggerStopWithSavepointWhenWaitingForFinalCheckpointOnSourceTask(
+            boolean drain) throws Exception {
         int finalCheckpointId = 6;
         int syncSavepointId = 7;
         CompletingCheckpointResponder checkpointResponder =
@@ -468,7 +479,9 @@ public class StreamTaskFinalCheckpointsTest {
 
             // trigger the synchronous savepoint
             CompletableFuture<Boolean> savepointFuture =
-                    triggerStopWithSavepointDrain(testHarness, syncSavepointId);
+                    drain
+                            ? triggerStopWithSavepointDrain(testHarness, syncSavepointId)
+                            : triggerStopWithSavepointNoDrain(testHarness, syncSavepointId);
 
             // The checkpoint 6 would be triggered successfully.
             testHarness.finishProcessing();
@@ -480,130 +493,6 @@ public class StreamTaskFinalCheckpointsTest {
             assertEquals(
                     syncSavepointId,
                     testHarness.getTaskStateManager().getNotifiedCompletedCheckpointId());
-        }
-    }
-
-    @Test
-    public void testTriggerStopWithSavepointNoDrainWhenWaitingForFinalCheckpointOnSourceTask()
-            throws Exception {
-        int finalCheckpointId = 6;
-        int syncSavepointId = 7;
-        CompletingCheckpointResponder checkpointResponder =
-                new CompletingCheckpointResponder() {
-
-                    private CheckpointMetrics metrics;
-                    private TaskStateSnapshot stateSnapshot;
-
-                    @Override
-                    public void acknowledgeCheckpoint(
-                            JobID jobID,
-                            ExecutionAttemptID executionAttemptID,
-                            long checkpointId,
-                            CheckpointMetrics checkpointMetrics,
-                            TaskStateSnapshot subtaskState) {
-                        // do not acknowledge any checkpoints straightaway
-                        if (checkpointId == finalCheckpointId) {
-                            metrics = checkpointMetrics;
-                            stateSnapshot = subtaskState;
-                        }
-                    }
-
-                    @Override
-                    public void declineCheckpoint(
-                            JobID jobID,
-                            ExecutionAttemptID executionAttemptID,
-                            long checkpointId,
-                            CheckpointException checkpointException) {
-                        // acknowledge the last pending checkpoint once the synchronous savepoint is
-                        // declined.
-                        if (syncSavepointId == checkpointId) {
-                            super.acknowledgeCheckpoint(
-                                    jobID,
-                                    executionAttemptID,
-                                    finalCheckpointId,
-                                    metrics,
-                                    stateSnapshot);
-                        }
-                    }
-                };
-
-        try (StreamTaskMailboxTestHarness<String> testHarness =
-                new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
-                                })
-                        .setCheckpointResponder(checkpointResponder)
-                        .setupOutputForSingletonOperatorChain(
-                                new StreamSource<>(new ImmediatelyFinishingSource()))
-                        .build()) {
-            checkpointResponder.setHandlers(
-                    testHarness.streamTask::notifyCheckpointCompleteAsync,
-                    testHarness.streamTask::notifyCheckpointAbortAsync);
-
-            // start task thread
-            testHarness.streamTask.runMailboxLoop();
-
-            // trigger the final checkpoint
-            CompletableFuture<Boolean> checkpointFuture =
-                    triggerCheckpoint(testHarness, finalCheckpointId);
-
-            // trigger the synchronous savepoint w/o drain, which should be declined
-            CompletableFuture<Boolean> savepointFuture =
-                    triggerStopWithSavepointNoDrain(testHarness, syncSavepointId);
-
-            // The checkpoint 6 would be triggered successfully.
-            testHarness.finishProcessing();
-            assertTrue(checkpointFuture.isDone());
-            assertTrue(savepointFuture.isDone());
-            assertFalse(savepointFuture.get());
-            testHarness.getTaskStateManager().getWaitForReportLatch().await();
-            assertEquals(
-                    finalCheckpointId, testHarness.getTaskStateManager().getReportedCheckpointId());
-            assertEquals(
-                    finalCheckpointId,
-                    testHarness.getTaskStateManager().getNotifiedCompletedCheckpointId());
-        }
-    }
-
-    @Test
-    public void testTriggerSourceFinishesWhileStoppingWithSavepointWithoutDrain() throws Exception {
-        try (StreamTaskMailboxTestHarness<String> testHarness =
-                new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
-                                })
-                        .setupOutputForSingletonOperatorChain(
-                                new StreamSource<>(new ImmediatelyFinishingSource()))
-                        .build()) {
-
-            // trigger the synchronous savepoint w/o drain
-            triggerStopWithSavepointNoDrain(testHarness, 1);
-
-            // start task thread
-            testHarness.streamTask.runMailboxLoop();
-        } catch (Exception ex) {
-            assertThrowable(
-                    ex,
-                    (e ->
-                            e.getMessage()
-                                    .equals(
-                                            "We run out of data to process while waiting for a "
-                                                    + "synchronous savepoint to be finished. This "
-                                                    + "can lead to a deadlock waiting for a final "
-                                                    + "checkpoint after a synchronous savepoint, "
-                                                    + "which will never be triggered.")));
         }
     }
 
@@ -664,7 +553,7 @@ public class StreamTaskFinalCheckpointsTest {
                 assertArrayEquals(new int[] {0, 0, 0}, resumedCount);
 
                 // Tests triggering checkpoint after some inputs have received EndOfPartition.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 4, checkpointOptions);
                 processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
@@ -673,8 +562,8 @@ public class StreamTaskFinalCheckpointsTest {
 
                 // Tests triggering checkpoint after received all the inputs have received
                 // EndOfPartition.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 1);
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 2);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0, 1);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0, 2);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 1);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 2);
                 checkpointFuture = triggerCheckpoint(testHarness, 6, checkpointOptions);
@@ -759,7 +648,7 @@ public class StreamTaskFinalCheckpointsTest {
                 // The checkpoint is added to the mailbox and will be processed in the
                 // mailbox loop after call operators' finish method in the afterInvoke()
                 // method.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 4);
                 checkpointFuture.thenAccept(
                         (ignored) -> {
@@ -947,7 +836,7 @@ public class StreamTaskFinalCheckpointsTest {
                                     checkpointMetaData.getTimestamp(),
                                     checkpointOptions),
                             Watermark.MAX_WATERMARK,
-                            EndOfData.INSTANCE));
+                            new EndOfData(StopMode.DRAIN)));
         }
     }
 

@@ -58,7 +58,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.INT;
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_CHAR_PRECISION_ENFORCER;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_CHAR_LENGTH_ENFORCER;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -194,7 +194,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testCharPrecisionEnforcer() throws ExecutionException, InterruptedException {
+    public void testCharLengthEnforcer() throws ExecutionException, InterruptedException {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         final List<Row> rows =
                 Arrays.asList(
@@ -205,7 +205,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
 
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
-                        .schema(schemaForCharPrecisionEnforcer())
+                        .schema(schemaForCharLengthEnforcer())
                         .source(new TestSource(rows))
                         .build();
         tableEnv.createTable("T1", sourceDescriptor);
@@ -218,13 +218,13 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         result.collect().forEachRemaining(results::add);
         assertThat(results, containsInAnyOrder(rows.toArray()));
 
-        // Change config option to "trim", to trim the strings based on their type precision
+        // Change config option to "trim", to trim the strings based on their type length
         try {
             tableEnv.getConfig()
                     .getConfiguration()
                     .setString(
-                            TABLE_EXEC_SINK_CHAR_PRECISION_ENFORCER.key(),
-                            ExecutionConfigOptions.CharPrecisionEnforcer.TRIM_PAD.name());
+                            TABLE_EXEC_SINK_CHAR_LENGTH_ENFORCER.key(),
+                            ExecutionConfigOptions.CharLengthEnforcer.TRIM_PAD.name());
 
             result = tableEnv.executeSql("SELECT * FROM T1");
             result.await();
@@ -243,8 +243,8 @@ public class CommonExecSinkITCase extends AbstractTestBase {
             tableEnv.getConfig()
                     .getConfiguration()
                     .setString(
-                            TABLE_EXEC_SINK_CHAR_PRECISION_ENFORCER.key(),
-                            ExecutionConfigOptions.CharPrecisionEnforcer.IGNORE.name());
+                            TABLE_EXEC_SINK_CHAR_LENGTH_ENFORCER.key(),
+                            ExecutionConfigOptions.CharLengthEnforcer.IGNORE.name());
         }
     }
 
@@ -378,7 +378,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         return builder.build();
     }
 
-    private static Schema schemaForCharPrecisionEnforcer() {
+    private static Schema schemaForCharLengthEnforcer() {
         return Schema.newBuilder()
                 .column("a", "INT")
                 .column("b", "CHAR(8)")

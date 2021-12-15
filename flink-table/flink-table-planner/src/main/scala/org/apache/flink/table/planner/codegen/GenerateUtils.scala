@@ -435,13 +435,8 @@ object GenerateUtils {
       case DISTINCT_TYPE =>
         generateLiteral(ctx, literalType.asInstanceOf[DistinctType].getSourceType, literalValue)
 
-      // Symbol type for special flags e.g. TRIM's BOTH, LEADING, TRAILING
-      case RAW if literalType.asInstanceOf[TypeInformationRawType[_]]
-          .getTypeInformation.getTypeClass.isAssignableFrom(classOf[Enum[_]]) =>
-        generateSymbol(literalValue.asInstanceOf[Enum[_]])
-
       case SYMBOL =>
-        throw new UnsupportedOperationException() // TODO support symbol?
+        generateSymbol(literalValue.asInstanceOf[Enum[_]])
 
       case ARRAY | MULTISET | MAP | ROW | STRUCTURED_TYPE | NULL | UNRESOLVED =>
         throw new CodeGenException(s"Type not supported: $literalType")
@@ -453,8 +448,7 @@ object GenerateUtils {
       qualifyEnum(enum),
       NEVER_NULL,
       NO_CODE,
-      new TypeInformationRawType[AnyRef](new GenericTypeInfo[AnyRef](
-        enum.getDeclaringClass.asInstanceOf[Class[AnyRef]])),
+      new SymbolType(false),
       literalValue = Some(enum))
   }
 

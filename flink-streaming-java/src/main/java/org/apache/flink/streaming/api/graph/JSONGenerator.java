@@ -182,7 +182,7 @@ public class JSONGenerator {
             node.put(PACT, "Operator");
         }
 
-        node.put(CONTENTS, vertex.getOperatorName());
+        node.put(CONTENTS, vertex.getOperatorDescription());
 
         node.put(PARALLELISM, streamGraph.getStreamNode(vertexID).getParallelism());
     }

@@ -118,7 +118,7 @@ public class DataTypesTest {
                         .expectLogicalType(new VarCharType(2))
                         .expectConversionClass(String.class),
                 TestSpec.forDataType(STRING())
-                        .expectLogicalType(new VarCharType(VarCharType.MAX_LENGTH))
+                        .expectLogicalType(VarCharType.STRING_TYPE)
                         .expectConversionClass(String.class),
                 TestSpec.forDataType(BOOLEAN())
                         .expectLogicalType(new BooleanType())
