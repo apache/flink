@@ -84,23 +84,7 @@ under the License.
 			<version>${janino.version}</version>
 		</dependency>
 
-		<!-- Jackson and JsonPath (used by calcite) -->
-
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-core</artifactId>
-			<version>${jackson.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>${jackson.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-annotations</artifactId>
-			<version>${jackson.version}</version>
-		</dependency>
+		<!-- Jackson -->
 
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
@@ -169,9 +153,6 @@ under the License.
 							<artifactSet>
 								<includes combine.children="append">
 									<include>com.jayway.jsonpath:json-path</include>
-									<include>com.fasterxml.jackson.core:jackson-core</include>
-									<include>com.fasterxml.jackson.core:jackson-databind</include>
-									<include>com.fasterxml.jackson.core:jackson-annotations</include>
 								</includes>
 							</artifactSet>
 							<relocations>
@@ -181,7 +162,7 @@ under the License.
 								</relocation>
 								<relocation>
 									<pattern>com.fasterxml</pattern>
-									<shadedPattern>org.apache.flink.shaded.tablejackson.com.fasterxml</shadedPattern>
+									<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

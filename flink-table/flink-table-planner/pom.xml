@@ -429,7 +429,7 @@ under the License.
 								<relocation>
 									<!-- Packaged in runtime -->
 									<pattern>com.fasterxml</pattern>
-									<shadedPattern>org.apache.flink.shaded.tablejackson.com.fasterxml</shadedPattern>
+									<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.commons.codec</pattern>
