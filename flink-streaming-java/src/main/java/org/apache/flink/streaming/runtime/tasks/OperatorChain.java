@@ -427,6 +427,11 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         return (mainOperatorWrapper == null) ? null : mainOperatorWrapper.getStreamOperator();
     }
 
+    @Nullable
+    protected StreamOperator<?> getTailOperator() {
+        return (tailOperatorWrapper == null) ? null : tailOperatorWrapper.getStreamOperator();
+    }
+
     public boolean isClosed() {
         return isClosed;
     }

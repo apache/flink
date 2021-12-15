@@ -45,6 +45,16 @@ public class TestFinishedOnRestoreStreamOperator
 
     protected static final String MESSAGE = "This should never be called";
 
+    private final OperatorID operatorId;
+
+    public TestFinishedOnRestoreStreamOperator() {
+        this.operatorId = new OperatorID();
+    }
+
+    public TestFinishedOnRestoreStreamOperator(OperatorID operatorId) {
+        this.operatorId = operatorId;
+    }
+
     @Override
     public void open() {
         throw new IllegalStateException(MESSAGE);
@@ -122,7 +132,7 @@ public class TestFinishedOnRestoreStreamOperator
 
     @Override
     public OperatorID getOperatorID() {
-        throw new IllegalStateException(MESSAGE);
+        return operatorId;
     }
 
     @Override

@@ -42,8 +42,6 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -139,11 +137,6 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
     @Override
     public void close() throws IOException {
         super.close();
-    }
-
-    @Nullable
-    StreamOperator<?> getTailOperator() {
-        return (tailOperatorWrapper == null) ? null : tailOperatorWrapper.getStreamOperator();
     }
 
     @Override

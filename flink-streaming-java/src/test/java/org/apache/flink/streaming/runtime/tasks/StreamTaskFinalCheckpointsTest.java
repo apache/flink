@@ -21,8 +21,10 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -40,8 +42,10 @@ import org.apache.flink.runtime.io.network.partition.PipelinedResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -56,9 +60,11 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
@@ -837,6 +843,72 @@ public class StreamTaskFinalCheckpointsTest {
                                     checkpointOptions),
                             Watermark.MAX_WATERMARK,
                             new EndOfData(StopMode.DRAIN)));
+        }
+    }
+
+    /**
+     * This test verifies for tasks that finished on restore, when taking unaligned checkpoint the
+     * asynchronous part would wait for the channel states futures get completed, which means the
+     * barriers are aligned.
+     */
+    @Test
+    public void testWaitingForUnalignedChannelStatesIfFinishedOnRestore() throws Exception {
+        OperatorID operatorId = new OperatorID();
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .modifyStreamConfig(
+                                streamConfig -> streamConfig.setUnalignedCheckpointsEnabled(true))
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
+                        .setCollectNetworkEvents()
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
+                        .setupOperatorChain(new TestFinishedOnRestoreStreamOperator())
+                        .chain(
+                                operatorId,
+                                new TestFinishedOnRestoreStreamOperator(operatorId),
+                                StringSerializer.INSTANCE)
+                        .finish()
+                        .build()) {
+            // Finish the restore, including state initialization and open.
+            harness.processAll();
+
+            TestCheckpointResponder checkpointResponder = harness.getCheckpointResponder();
+            checkpointResponder.setAcknowledgeLatch(new OneShotLatch());
+            checkpointResponder.setDeclinedLatch(new OneShotLatch());
+
+            CheckpointBarrier unalignedBarrier =
+                    new CheckpointBarrier(2, 2, CheckpointOptions.unaligned(getDefault()));
+
+            // On first unaligned barrier, the task would take snapshot and start the asynchronous
+            // part. We slightly extend the process to make the asynchronous part start executing
+            // before the other barriers arrived.
+            harness.processEvent(unalignedBarrier, 0, 0);
+            Thread.sleep(1000);
+
+            // Finish the unaligned checkpoint.
+            harness.processEvent(unalignedBarrier, 0, 1);
+            harness.processEvent(unalignedBarrier, 0, 2);
+
+            // Wait till the asynchronous part finished either normally or exceptionally.
+            Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
+            while (deadline.hasTimeLeft()) {
+                if (checkpointResponder.getAcknowledgeLatch().isTriggered()
+                        || checkpointResponder.getDeclinedLatch().isTriggered()) {
+                    break;
+                }
+                Thread.sleep(1000);
+            }
+
+            assertEquals(
+                    Collections.singletonList(2L),
+                    checkpointResponder.getAcknowledgeReports().stream()
+                            .map(TestCheckpointResponder.AbstractReport::getCheckpointId)
+                            .collect(Collectors.toList()));
+            assertEquals(
+                    Collections.emptyList(),
+                    checkpointResponder.getDeclineReports().stream()
+                            .map(TestCheckpointResponder.AbstractReport::getCheckpointId)
+                            .collect(Collectors.toList()));
         }
     }
 
