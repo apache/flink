@@ -26,12 +26,9 @@ import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
-import org.apache.flink.table.data.conversion.DataStructureConverter;
-import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.functions.CastFunctionITCase;
 import org.apache.flink.table.types.DataType;
@@ -90,6 +87,7 @@ import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.data.DecimalData.fromBigDecimal;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
+import static org.apache.flink.table.test.TableAssertions.assertThatGenericDataOfType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -1267,14 +1265,12 @@ class CastRulesTest {
             this.inputTypes.add(srcDataType);
             this.assertionExecutors.add(
                     executor -> {
-                        Object expected = sanitizeTestData(targetType, target);
-
-                        assertThat(sanitizeTestData(targetType, executor.cast(src)))
-                                .isEqualTo(expected);
-                        assertThat(sanitizeTestData(targetType, executor.cast(src)))
+                        assertThatGenericDataOfType(executor.cast(src), targetType)
+                                .isEqualTo(target);
+                        assertThatGenericDataOfType(executor.cast(src), targetType)
                                 .as(
                                         "Error when reusing the rule. Perhaps there is some state that needs to be reset")
-                                .isEqualTo(expected);
+                                .isEqualTo(target);
                     });
             this.descriptions.add("{" + src + " => " + target + "}");
             this.castContexts.add(castContext);
@@ -1318,18 +1314,6 @@ class CastRulesTest {
                                 castContexts.get(i));
             }
             return Arrays.stream(testSpecs);
-        }
-
-        // This method makes sure that we can correctly compare rows
-        private Object sanitizeTestData(DataType dataType, Object value) {
-            if (value instanceof RowData) {
-                // Convert to GenericRowData using the DataStructureConverter
-                DataStructureConverter<Object, Object> converter =
-                        DataStructureConverters.getConverter(dataType);
-                converter.open(Thread.currentThread().getContextClassLoader());
-                return converter.toInternalOrNull(converter.toExternalOrNull(value));
-            }
-            return value;
         }
     }
 }

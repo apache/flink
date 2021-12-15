@@ -68,7 +68,8 @@ flink-table/flink-sql-client,\
 flink-table/flink-table-planner,\
 flink-table/flink-table-planner-loader,\
 flink-table/flink-table-runtime,\
-flink-table/flink-table-code-splitter"
+flink-table/flink-table-code-splitter,\
+flink-table/flink-table-test-utils"
 
 MODULES_CONNECTORS="\
 flink-contrib/flink-connector-wikiedits,\

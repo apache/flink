@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.test;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.assertj.core.api.Condition;
 
 /** Set of conditions to test properties of {@link LogicalType}. */
+@Experimental
 public class LogicalTypeConditions {
 
     private LogicalTypeConditions() {}

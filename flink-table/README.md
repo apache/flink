@@ -59,6 +59,10 @@ If you want to use Table API & SQL, check out the [documentation](https://nightl
 
 * `flink-sql-client`: CLI tool to submit queries to a Flink cluster
 
+### Testing
+
+* `flink-table-test-utils`: Brings in transitively all the dependencies you need to execute Table pipelines and provides some test utilities such as assertions, mocks and test harnesses.
+
 ### Notes
 
 No module except `flink-table-planner` should depend on `flink-table-runtime` in production classpath, 
