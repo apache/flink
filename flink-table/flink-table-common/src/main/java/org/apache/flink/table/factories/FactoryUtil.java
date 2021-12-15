@@ -30,7 +30,6 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -619,24 +618,18 @@ public final class FactoryUtil {
 
     private static <T extends DynamicTableFactory> T discoverTableFactory(
             Class<T> factoryClass, DynamicTableFactory.Context context) {
-        if (context.getCatalogTable().getTableKind() == CatalogBaseTable.TableKind.MANAGED) {
+        final String connectorOption = context.getCatalogTable().getOptions().get(CONNECTOR.key());
+        if (connectorOption == null) {
             ManagedTableFactory factory =
                     ManagedTableFactory.discoverManagedTableFactory(context.getClassLoader());
             if (!factory.getClass().isAssignableFrom(factoryClass)) {
                 throw new ValidationException(
                         String.format(
-                                "Managed table factory '%s' dose not implement '%s'.",
+                                "The managed table factory '%s' dose not implement '%s'.",
                                 factory.getClass().getName(), factoryClass.getName()));
             }
             //noinspection unchecked
             return (T) factory;
-        }
-        final String connectorOption = context.getCatalogTable().getOptions().get(CONNECTOR.key());
-        if (connectorOption == null) {
-            throw new ValidationException(
-                    String.format(
-                            "Table options do not contain an option key '%s' for discovering a connector.",
-                            CONNECTOR.key()));
         }
         try {
             return discoverFactory(context.getClassLoader(), factoryClass, connectorOption);

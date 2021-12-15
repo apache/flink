@@ -35,10 +35,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class DefaultCatalogTable implements CatalogTable {
 
-    protected final Schema schema;
-    protected final @Nullable String comment;
-    protected final List<String> partitionKeys;
-    protected final Map<String, String> options;
+    private final Schema schema;
+    private final @Nullable String comment;
+    private final List<String> partitionKeys;
+    private final Map<String, String> options;
 
     protected DefaultCatalogTable(
             Schema schema,

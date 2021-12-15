@@ -30,7 +30,6 @@ import javax.annotation.Nullable;
 
 import java.util.Map;
 
-import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind.MANAGED;
 import static org.apache.flink.table.factories.ManagedTableFactory.discoverManagedTableFactory;
 
 /** The listener for managed table operations. */
@@ -53,8 +52,8 @@ public class ManagedTableListener {
             ResolvedCatalogBaseTable<?> table,
             boolean isTemporary,
             boolean ignoreIfExists) {
-        if (isNewlyManagedTable(catalog, table)) {
-            ResolvedCatalogTable managedTable = createManagedTable(identifier, table, isTemporary);
+        if (isManagedTable(catalog, table)) {
+            ResolvedCatalogTable managedTable = enrichOptions(identifier, table, isTemporary);
             discoverManagedTableFactory(classLoader)
                     .onCreateTable(
                             createTableFactoryContext(identifier, managedTable, isTemporary),
@@ -66,11 +65,12 @@ public class ManagedTableListener {
 
     /** Notify for dropping managed table. */
     public void notifyTableDrop(
+            @Nullable Catalog catalog,
             ObjectIdentifier identifier,
             ResolvedCatalogBaseTable<?> table,
             boolean isTemporary,
             boolean ignoreIfNotExists) {
-        if (table.getTableKind() == MANAGED) {
+        if (isManagedTable(catalog, table)) {
             discoverManagedTableFactory(classLoader)
                     .onDropTable(
                             createTableFactoryContext(
@@ -79,8 +79,7 @@ public class ManagedTableListener {
         }
     }
 
-    private boolean isNewlyManagedTable(
-            @Nullable Catalog catalog, ResolvedCatalogBaseTable<?> table) {
+    private boolean isManagedTable(@Nullable Catalog catalog, ResolvedCatalogBaseTable<?> table) {
         if (catalog == null || !catalog.supportsManagedTable()) {
             // catalog not support managed table
             return false;
@@ -91,37 +90,31 @@ public class ManagedTableListener {
             return false;
         }
 
-        if (!StringUtils.isNullOrWhitespaceOnly(
-                table.getOptions().get(ConnectorDescriptorValidator.CONNECTOR_TYPE))) {
-            // legacy connector is not managed table
-            return false;
-        }
-
-        if (!StringUtils.isNullOrWhitespaceOnly(
-                table.getOptions().get(FactoryUtil.CONNECTOR.key()))) {
-            // with connector is not managed table
-            return false;
-        }
-
-        CatalogBaseTable origin = table.getOrigin();
-
-        if (origin instanceof ConnectorCatalogTable) {
-            // ConnectorCatalogTable is not managed table
-            return false;
-        }
-
+        Map<String, String> options;
         try {
-            origin.getOptions();
+            options = table.getOptions();
         } catch (TableException ignore) {
             // exclude abnormal tables, such as InlineCatalogTable that does not have the options
             return false;
         }
 
-        return true;
+        if (!StringUtils.isNullOrWhitespaceOnly(
+                options.get(ConnectorDescriptorValidator.CONNECTOR_TYPE))) {
+            // legacy connector is not managed table
+            return false;
+        }
+
+        if (!StringUtils.isNullOrWhitespaceOnly(options.get(FactoryUtil.CONNECTOR.key()))) {
+            // with connector is not managed table
+            return false;
+        }
+
+        // ConnectorCatalogTable is not managed table
+        return !(table.getOrigin() instanceof ConnectorCatalogTable);
     }
 
     /** Enrich options for creating managed table. */
-    private ResolvedCatalogTable createManagedTable(
+    private ResolvedCatalogTable enrichOptions(
             ObjectIdentifier identifier, ResolvedCatalogBaseTable<?> table, boolean isTemporary) {
         if (!(table instanceof ResolvedCatalogTable)) {
             throw new UnsupportedOperationException(
@@ -133,13 +126,7 @@ public class ManagedTableListener {
                 discoverManagedTableFactory(classLoader)
                         .enrichOptions(
                                 createTableFactoryContext(identifier, resolvedTable, isTemporary));
-        CatalogTable newTable =
-                CatalogTable.ofManaged(
-                        table.getUnresolvedSchema(),
-                        table.getComment(),
-                        resolvedTable.getPartitionKeys(),
-                        newOptions);
-        return new ResolvedCatalogTable(newTable, table.getResolvedSchema());
+        return resolvedTable.copy(newOptions);
     }
 
     private DynamicTableFactory.Context createTableFactoryContext(

@@ -68,11 +68,6 @@ public final class ResolvedCatalogTable
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public TableKind getTableKind() {
-        return origin.getTableKind();
-    }
-
-    @Override
     public Map<String, String> getOptions() {
         return origin.getOptions();
     }

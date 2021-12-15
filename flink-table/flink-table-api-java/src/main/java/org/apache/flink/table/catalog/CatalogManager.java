@@ -664,14 +664,16 @@ public final class CatalogManager {
             CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
         execute(
                 (catalog, path) -> {
-                    ResolvedCatalogBaseTable<?> resolvedTable =
+                    ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(table);
+                    ResolvedCatalogBaseTable<?> resolvedListenedTable =
                             managedTableListener.notifyTableCreation(
                                     catalog,
                                     objectIdentifier,
-                                    resolveCatalogBaseTable(table),
+                                    resolvedTable,
                                     false,
                                     ignoreIfExists);
-                    catalog.createTable(path, resolvedTable, ignoreIfExists);
+
+                    catalog.createTable(path, resolvedListenedTable, ignoreIfExists);
                 },
                 objectIdentifier,
                 false,
@@ -701,20 +703,21 @@ public final class CatalogManager {
                         }
                         return v;
                     } else {
-                        ResolvedCatalogBaseTable<?> resolvedTable =
+                        ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(table);
+                        ResolvedCatalogBaseTable<?> resolvedListenedTable =
                                 managedTableListener.notifyTableCreation(
                                         getCatalog(objectIdentifier.getCatalogName()).orElse(null),
                                         objectIdentifier,
-                                        resolveCatalogBaseTable(table),
+                                        resolvedTable,
                                         true,
                                         ignoreIfExists);
 
                         if (listener.isPresent()) {
                             return listener.get()
                                     .onCreateTemporaryTable(
-                                            objectIdentifier.toObjectPath(), resolvedTable);
+                                            objectIdentifier.toObjectPath(), resolvedListenedTable);
                         }
-                        return resolvedTable;
+                        return resolvedListenedTable;
                     }
                 });
     }
@@ -751,11 +754,12 @@ public final class CatalogManager {
         if (filter.test(catalogBaseTable)) {
             getTemporaryOperationListener(objectIdentifier)
                     .ifPresent(l -> l.onDropTemporaryTable(objectIdentifier.toObjectPath()));
+
+            Catalog catalog = catalogs.get(objectIdentifier.getCatalogName());
+            ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(catalogBaseTable);
             managedTableListener.notifyTableDrop(
-                    objectIdentifier,
-                    resolveCatalogBaseTable(catalogBaseTable),
-                    true,
-                    ignoreIfNotExists);
+                    catalog, objectIdentifier, resolvedTable, true, ignoreIfNotExists);
+
             temporaryTables.remove(objectIdentifier);
         } else if (!ignoreIfNotExists) {
             throw new ValidationException(
@@ -836,11 +840,11 @@ public final class CatalogManager {
         if (resultOpt.isPresent() && filter.test(resultOpt.get())) {
             execute(
                     (catalog, path) -> {
+                        ResolvedCatalogBaseTable<?> resolvedTable =
+                                resolveCatalogBaseTable(resultOpt.get());
                         managedTableListener.notifyTableDrop(
-                                objectIdentifier,
-                                resolveCatalogBaseTable(resultOpt.get()),
-                                false,
-                                ignoreIfNotExists);
+                                catalog, objectIdentifier, resolvedTable, false, ignoreIfNotExists);
+
                         catalog.dropTable(path, ignoreIfNotExists);
                     },
                     objectIdentifier,

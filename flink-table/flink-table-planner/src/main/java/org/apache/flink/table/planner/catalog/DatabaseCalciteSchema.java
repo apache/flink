@@ -86,7 +86,6 @@ class DatabaseCalciteSchema extends FlinkSchema {
         final ResolvedCatalogBaseTable<?> resolvedBaseTable = lookupResult.getResolvedTable();
         switch (resolvedBaseTable.getTableKind()) {
             case TABLE:
-            case MANAGED:
                 return FlinkStatistic.builder()
                         .tableStats(extractTableStats(lookupResult, identifier))
                         // this is a temporary solution, FLINK-15123 will resolve this

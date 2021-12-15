@@ -65,7 +65,7 @@ public class TestManagedTableFactory implements ManagedTableFactory {
                 (k, v) -> {
                     if (v != null) {
                         if (v.get() == null) {
-                            v.set(context.getCatalogTable().toProperties());
+                            v.set(context.getCatalogTable().getOptions());
                         } else if (!ignoreIfExists) {
                             throw new TableException("Table exists.");
                         }
@@ -80,7 +80,7 @@ public class TestManagedTableFactory implements ManagedTableFactory {
                 MANAGED_TABLES.get(context.getObjectIdentifier());
         if (reference != null) {
             Map<String, String> previous = reference.getAndSet(null);
-            if (!context.getCatalogTable().toProperties().equals(previous) && !ignoreIfNotExists) {
+            if (!context.getCatalogTable().getOptions().equals(previous) && !ignoreIfNotExists) {
                 throw new TableException("Table does not exist.");
             }
         }

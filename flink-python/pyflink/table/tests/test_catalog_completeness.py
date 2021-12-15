@@ -44,7 +44,8 @@ class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase
             'getFactory',
             'getTableFactory',
             'getFunctionDefinitionFactory',
-            'listPartitionsByFilter'}
+            'listPartitionsByFilter',
+            'supportsManagedTable'}
 
 
 class CatalogDatabaseAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):

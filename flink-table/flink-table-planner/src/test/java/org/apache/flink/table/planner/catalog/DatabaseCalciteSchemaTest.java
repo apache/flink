@@ -24,17 +24,12 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.schema.Table;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
@@ -44,21 +39,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /** Tests for {@link DatabaseCalciteSchema}. */
-@RunWith(Parameterized.class)
 public class DatabaseCalciteSchemaTest {
 
     private static final String TABLE_NAME = "tab";
-
-    private final boolean isManaged;
-
-    public DatabaseCalciteSchemaTest(boolean isManaged) {
-        this.isManaged = isManaged;
-    }
-
-    @Parameterized.Parameters(name = "isManaged-{0}")
-    public static Collection<Boolean[]> parameters() {
-        return Arrays.asList(new Boolean[] {false}, new Boolean[] {true});
-    }
 
     @Test
     public void testPermanentTableWithPrimaryKey() {
@@ -107,10 +90,6 @@ public class DatabaseCalciteSchemaTest {
                         .primaryKey("a", "b")
                         .build();
 
-        HashMap<String, String> options = new HashMap<>();
-        if (!isManaged) {
-            options.put(FactoryUtil.CONNECTOR.key(), "filesystem");
-        }
-        return CatalogTable.of(schema, null, new ArrayList<>(), options);
+        return CatalogTable.of(schema, null, new ArrayList<>(), new HashMap<>());
     }
 }
