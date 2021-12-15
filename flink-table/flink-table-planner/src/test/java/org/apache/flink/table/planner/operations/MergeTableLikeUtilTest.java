@@ -161,7 +161,8 @@ public class MergeTableLikeUtilTest {
 
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
-                "A column named 'three' already exists in the table. Duplicate columns exist in the compute column and regular column. ");
+                "A column named 'three' already exists in the table. "
+                        + "Duplicate columns exist in the compute column and regular column. ");
         util.mergeTables(
                 getDefaultMergingStrategies(),
                 sourceSchema,
@@ -184,7 +185,8 @@ public class MergeTableLikeUtilTest {
 
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
-                "A column named 'two' already exists in the table. Duplicate columns exist in the metadata column and regular column. ");
+                "A column named 'two' already exists in the table. "
+                        + "Duplicate columns exist in the metadata column and regular column. ");
         util.mergeTables(
                 getDefaultMergingStrategies(),
                 sourceSchema,
@@ -445,8 +447,8 @@ public class MergeTableLikeUtilTest {
 
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
-                "A column named 'two' already exists in the base table."
-                        + " Computed columns can only overwrite other computed columns.");
+                "A column named 'two' already exists in the table. "
+                        + "Duplicate columns exist in the compute column and regular column. ");
         util.mergeTables(
                 mergingStrategies, sourceSchema, derivedColumns, Collections.emptyList(), null);
     }
