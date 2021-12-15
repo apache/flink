@@ -65,12 +65,13 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
-import org.testcontainers.shaded.com.google.common.collect.Lists;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
