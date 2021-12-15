@@ -485,6 +485,14 @@ public class KubernetesConfigOptions {
                                     + "It will help to achieve faster recovery. "
                                     + "Notice that high availability should be enabled when starting standby JobManagers.");
 
+    public static final ConfigOption<Boolean> KUBERNETES_HOSTNETWORK_ENABLED =
+            key("kubernetes.hostnetwork.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to enable HostNetwork mode. "
+                                    + "The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.");
+
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
         // Scala.

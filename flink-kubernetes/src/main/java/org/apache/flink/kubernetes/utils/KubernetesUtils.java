@@ -23,6 +23,7 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.highavailability.KubernetesCheckpointStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesJobGraphStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStore;
@@ -499,6 +500,11 @@ public class KubernetesUtils {
                     "Failed to get the pretty print yaml, fallback to {}", kubernetesResource, ex);
             return kubernetesResource.toString();
         }
+    }
+
+    /** Checks if hostNetwork is enabled. */
+    public static boolean isHostNetwork(Configuration configuration) {
+        return configuration.getBoolean(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
     }
 
     /** Cluster components. */

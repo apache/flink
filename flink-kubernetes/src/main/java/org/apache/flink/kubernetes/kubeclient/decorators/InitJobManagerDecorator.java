@@ -43,6 +43,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
+import static org.apache.flink.kubernetes.utils.Constants.DNS_PLOICY_DEFAULT;
+import static org.apache.flink.kubernetes.utils.Constants.DNS_PLOICY_HOSTNETWORK;
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
 import static org.apache.flink.kubernetes.utils.Constants.POD_IP_FIELD_PATH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -80,6 +82,11 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                 .editOrNewSpec()
                 .withServiceAccount(serviceAccountName)
                 .withServiceAccountName(serviceAccountName)
+                .withHostNetwork(kubernetesJobManagerParameters.isHostNetworkEnabled())
+                .withDnsPolicy(
+                        kubernetesJobManagerParameters.isHostNetworkEnabled()
+                                ? DNS_PLOICY_HOSTNETWORK
+                                : DNS_PLOICY_DEFAULT)
                 .endSpec();
 
         // Merge fields
@@ -157,6 +164,9 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
     }
 
     private List<ContainerPort> getContainerPorts() {
+        if (kubernetesJobManagerParameters.isHostNetworkEnabled()) {
+            return Collections.emptyList();
+        }
         return Arrays.asList(
                 new ContainerPortBuilder()
                         .withName(Constants.REST_PORT_NAME)

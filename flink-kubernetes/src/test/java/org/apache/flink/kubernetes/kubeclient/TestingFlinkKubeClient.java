@@ -138,7 +138,8 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public Optional<KubernetesService> getRestService(String clusterId) {
+    public Optional<KubernetesService> getService(
+            KubernetesService.ServiceType serviceType, String clusterId) {
         throw new UnsupportedOperationException();
     }
 
@@ -205,6 +206,15 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 
     @Override
     public KubernetesPod loadPodFromTemplateFile(File file) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CompletableFuture<Void> updateServiceTargetPort(
+            KubernetesService.ServiceType serviceType,
+            String clusterId,
+            String portName,
+            int targetPort) {
         throw new UnsupportedOperationException();
     }
 
