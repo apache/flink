@@ -220,7 +220,7 @@ public class BlobServerCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testBlobServerRetainsJobs() throws IOException {
+    public void testBlobServerRetainsJobs() throws Exception {
         final File storageDirectory = temporaryFolder.newFolder();
 
         final JobID jobId1 = new JobID();
@@ -232,13 +232,16 @@ public class BlobServerCleanupTest extends TestLogger {
         final PermanentBlobKey blobKey2 =
                 TestingBlobUtils.writePermanentBlob(storageDirectory.toPath(), jobId2, fileContent);
 
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
         try (final BlobServer blobServer =
                 new BlobServer(new Configuration(), storageDirectory, new VoidBlobStore())) {
-            blobServer.retainJobs(Collections.singleton(jobId1));
+            blobServer.retainJobs(Collections.singleton(jobId1), executorService);
 
             assertThat(blobServer.getFile(jobId1, blobKey1)).hasBinaryContent(fileContent);
             assertThatThrownBy(() -> blobServer.getFile(jobId2, blobKey2))
                     .isInstanceOf(NoSuchFileException.class);
+        } finally {
+            assertThat(executorService.shutdownNow()).isEmpty();
         }
     }
 
