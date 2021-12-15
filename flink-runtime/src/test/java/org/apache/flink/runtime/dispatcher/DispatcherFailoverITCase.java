@@ -39,6 +39,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.After;
 import org.junit.Before;
@@ -112,8 +113,8 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         final Error jobGraphRemovalError = new Error("Unable to remove job graph.");
         final TestingJobGraphStore jobGraphStore =
                 TestingJobGraphStore.newBuilder()
-                        .setRemoveJobGraphConsumer(
-                                graph -> {
+                        .setGlobalCleanupFunction(
+                                (ignoredJobId, ignoredExecutor) -> {
                                     throw jobGraphRemovalError;
                                 })
                         .build();

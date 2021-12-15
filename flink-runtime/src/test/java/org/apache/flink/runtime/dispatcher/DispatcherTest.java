@@ -88,6 +88,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.assertj.core.api.Assertions;
@@ -751,10 +752,16 @@ public class DispatcherTest extends AbstractDispatcherTest {
         // Track cleanup - job-graph
         final TestingJobGraphStore jobGraphStore =
                 TestingJobGraphStore.newBuilder()
-                        .setReleaseJobGraphConsumer(
-                                jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_RELEASE))
-                        .setRemoveJobGraphConsumer(
-                                jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_REMOVE))
+                        .setLocalCleanupFunction(
+                                (jobId, executor) -> {
+                                    cleanUpEvents.add(CLEANUP_JOB_GRAPH_RELEASE);
+                                    return FutureUtils.completedVoidFuture();
+                                })
+                        .setGlobalCleanupFunction(
+                                (jobId, executor) -> {
+                                    cleanUpEvents.add(CLEANUP_JOB_GRAPH_REMOVE);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .build();
         jobGraphStore.start(null);
         haServices.setJobGraphStore(jobGraphStore);
@@ -909,8 +916,16 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         final TestingJobGraphStore testingJobGraphStore =
                 TestingJobGraphStore.newBuilder()
-                        .setRemoveJobGraphConsumer(removeJobGraphFuture::complete)
-                        .setReleaseJobGraphConsumer(releaseJobGraphFuture::complete)
+                        .setGlobalCleanupFunction(
+                                (jobId, executor) -> {
+                                    removeJobGraphFuture.complete(jobId);
+                                    return FutureUtils.completedVoidFuture();
+                                })
+                        .setLocalCleanupFunction(
+                                (jobId, executor) -> {
+                                    releaseJobGraphFuture.complete(jobId);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .build();
         testingJobGraphStore.start(null);
 
@@ -1147,10 +1162,16 @@ public class DispatcherTest extends AbstractDispatcherTest {
         // Track cleanup - job-graph
         final TestingJobGraphStore jobGraphStore =
                 TestingJobGraphStore.newBuilder()
-                        .setReleaseJobGraphConsumer(
-                                jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_RELEASE))
-                        .setRemoveJobGraphConsumer(
-                                jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_REMOVE))
+                        .setLocalCleanupFunction(
+                                (jobId, executor) -> {
+                                    cleanUpEvents.add(CLEANUP_JOB_GRAPH_RELEASE);
+                                    return FutureUtils.completedVoidFuture();
+                                })
+                        .setGlobalCleanupFunction(
+                                (jobId, executor) -> {
+                                    cleanUpEvents.add(CLEANUP_JOB_GRAPH_REMOVE);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .build();
         jobGraphStore.start(null);
         haServices.setJobGraphStore(jobGraphStore);
