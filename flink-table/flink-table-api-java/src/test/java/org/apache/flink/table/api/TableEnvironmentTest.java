@@ -195,7 +195,6 @@ public class TableEnvironmentTest {
         final CatalogBaseTable catalogTable = lookupResult.get().getTable();
         assertTrue(catalogTable instanceof CatalogTable);
         assertEquals(schema, catalogTable.getUnresolvedSchema());
-        assertEquals(CatalogBaseTable.TableKind.MANAGED, catalogTable.getTableKind());
         assertEquals("Test", catalogTable.getOptions().get("a"));
         assertEquals(ENRICHED_VALUE, catalogTable.getOptions().get(ENRICHED_KEY));
 
