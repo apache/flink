@@ -36,9 +36,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.table.api.TestManagedTableFactory.ENRICHED_KEY;
-import static org.apache.flink.table.api.TestManagedTableFactory.ENRICHED_VALUE;
-import static org.apache.flink.table.api.TestManagedTableFactory.MANAGED_TABLES;
+import static org.apache.flink.table.factories.TestManagedTableFactory.ENRICHED_KEY;
+import static org.apache.flink.table.factories.TestManagedTableFactory.ENRICHED_VALUE;
+import static org.apache.flink.table.factories.TestManagedTableFactory.MANAGED_TABLES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

@@ -16,11 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api;
+package org.apache.flink.table.factories;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.factories.ManagedTableFactory;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** A test {@link ManagedTableFactory}. */
-public class TestManagedTableFactory implements ManagedTableFactory {
+public class TestManagedTableFactory implements DynamicTableSourceFactory, ManagedTableFactory {
 
     public static final String ENRICHED_KEY = "ENRICHED_KEY";
 
@@ -83,6 +86,45 @@ public class TestManagedTableFactory implements ManagedTableFactory {
             if (!context.getCatalogTable().getOptions().equals(previous) && !ignoreIfNotExists) {
                 throw new TableException("Table does not exist.");
             }
+        }
+    }
+
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        return new TestManagedTableSource();
+    }
+
+    /** Managed {@link DynamicTableSource} for testing. */
+    public static class TestManagedTableSource implements ScanTableSource {
+
+        @Override
+        public ChangelogMode getChangelogMode() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public DynamicTableSource copy() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public String asSummaryString() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int hashCode() {
+            throw new UnsupportedOperationException();
         }
     }
 }

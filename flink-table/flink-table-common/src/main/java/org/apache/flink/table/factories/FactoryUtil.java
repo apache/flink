@@ -622,7 +622,7 @@ public final class FactoryUtil {
         if (connectorOption == null) {
             ManagedTableFactory factory =
                     ManagedTableFactory.discoverManagedTableFactory(context.getClassLoader());
-            if (!factory.getClass().isAssignableFrom(factoryClass)) {
+            if (!factoryClass.isAssignableFrom(factory.getClass())) {
                 throw new ValidationException(
                         String.format(
                                 "The managed table factory '%s' dose not implement '%s'.",
