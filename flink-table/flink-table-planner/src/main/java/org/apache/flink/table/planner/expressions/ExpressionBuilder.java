@@ -29,6 +29,7 @@ import org.apache.flink.table.types.DataType;
 
 import java.util.List;
 
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AGG_DECIMAL_MINUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
@@ -102,8 +103,11 @@ public class ExpressionBuilder {
         return call(PLUS, input1, input2);
     }
 
-    // Used only for implementing the SumAggFunction to avoid overriding decimal precision/scale
-    // calculation for sum with the rules applied for the normal plus
+    /**
+     * Used only for implementing SUM/AVG aggregations (with and without retractions) on a Decimal
+     * type to avoid overriding decimal precision/scale calculation for sum/avg with the rules
+     * applied for the normal plus.
+     */
     @Internal
     public static UnresolvedCallExpression aggDecimalPlus(Expression input1, Expression input2) {
         return call(AGG_DECIMAL_PLUS, input1, input2);
@@ -111,6 +115,16 @@ public class ExpressionBuilder {
 
     public static UnresolvedCallExpression minus(Expression input1, Expression input2) {
         return call(MINUS, input1, input2);
+    }
+
+    /**
+     * Used only for implementing SUM/AVG aggregations (with and without retractions) on a Decimal
+     * type to avoid overriding decimal precision/scale calculation for sum/avg with the rules
+     * applied for the normal minus.
+     */
+    @Internal
+    public static UnresolvedCallExpression aggDecimalMinus(Expression input1, Expression input2) {
+        return call(AGG_DECIMAL_MINUS, input1, input2);
     }
 
     public static UnresolvedCallExpression div(Expression input1, Expression input2) {
