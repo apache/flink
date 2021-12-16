@@ -624,16 +624,7 @@ public final class FactoryUtil {
             Class<T> factoryClass, DynamicTableFactory.Context context) {
         final String connectorOption = context.getCatalogTable().getOptions().get(CONNECTOR.key());
         if (connectorOption == null) {
-            ManagedTableFactory factory =
-                    ManagedTableFactory.discoverManagedTableFactory(context.getClassLoader());
-            if (!factoryClass.isAssignableFrom(factory.getClass())) {
-                throw new ValidationException(
-                        String.format(
-                                "The managed table factory '%s' dose not implement '%s'.",
-                                factory.getClass().getName(), factoryClass.getName()));
-            }
-            //noinspection unchecked
-            return (T) factory;
+            return discoverManagedTableFactory(context.getClassLoader(), factoryClass);
         }
         try {
             return discoverFactory(context.getClassLoader(), factoryClass, connectorOption);
@@ -695,6 +686,41 @@ public final class FactoryUtil {
                             sourceFactoryClass.getName(),
                             sinkFactoryClass.getName()));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T extends DynamicTableFactory> T discoverManagedTableFactory(
+            ClassLoader classLoader, Class<T> implementClass) {
+        final List<Factory> factories = discoverFactories(classLoader);
+
+        final List<Factory> foundFactories =
+                factories.stream()
+                        .filter(f -> ManagedTableFactory.class.isAssignableFrom(f.getClass()))
+                        .filter(f -> implementClass.isAssignableFrom(f.getClass()))
+                        .collect(Collectors.toList());
+
+        if (foundFactories.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "Table options do not contain an option key 'connector' for discovering a connector. "
+                                    + "Therefore, Flink assumes a managed table. However, a managed table factory "
+                                    + "that implements %s is not in the classpath.",
+                            implementClass.getName()));
+        }
+
+        if (foundFactories.size() > 1) {
+            throw new ValidationException(
+                    String.format(
+                            "Multiple factories for managed table found in the classpath.\n\n"
+                                    + "Ambiguous factory classes are:\n\n"
+                                    + "%s",
+                            foundFactories.stream()
+                                    .map(f -> f.getClass().getName())
+                                    .sorted()
+                                    .collect(Collectors.joining("\n"))));
+        }
+
+        return (T) foundFactories.get(0);
     }
 
     static List<Factory> discoverFactories(ClassLoader classLoader) {

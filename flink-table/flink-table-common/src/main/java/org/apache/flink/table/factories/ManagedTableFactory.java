@@ -49,6 +49,6 @@ public interface ManagedTableFactory extends DynamicTableFactory {
 
     /** Discovers the unique implementation of {@link ManagedTableFactory} without identifier. */
     static ManagedTableFactory discoverManagedTableFactory(ClassLoader classLoader) {
-        return FactoryUtil.discoverFactory(classLoader, ManagedTableFactory.class, "");
+        return FactoryUtil.discoverManagedTableFactory(classLoader, ManagedTableFactory.class);
     }
 }
