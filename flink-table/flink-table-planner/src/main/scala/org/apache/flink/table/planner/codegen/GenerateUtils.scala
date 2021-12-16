@@ -18,13 +18,8 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.calcite.avatica.util.ByteString
-import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior}
-import org.apache.calcite.util.TimestampString
-import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.api.{JsonExistsOnError, JsonQueryOnEmptyOrError, JsonQueryWrapper}
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.BinaryRowData
@@ -41,8 +36,14 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getFieldTypes}
 
+import org.apache.calcite.avatica.util.ByteString
+import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior}
+import org.apache.calcite.util.TimestampString
+import org.apache.commons.lang3.StringEscapeUtils
+
 import java.math.{BigDecimal => JBigDecimal}
 import java.time.ZoneOffset
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 
