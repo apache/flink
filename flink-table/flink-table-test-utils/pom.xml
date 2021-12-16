@@ -107,6 +107,11 @@ under the License.
 									<includes>
 										<include>org/apache/flink/table/test/**</include>
 									</includes>
+									<excludes>
+										<!-- These are manually overridden by this package -->
+										<exclude>org/apache/flink/table/test/RowDataAssert.Java</exclude>
+										<exclude>org/apache/flink/table/test/RowDataListAssert.Java</exclude>
+									</excludes>
 								</filter>
 							</filters>
 							<artifactSet>

@@ -21,8 +21,11 @@ package org.apache.flink.table.test;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.assertj.core.api.AbstractAssert;
@@ -36,6 +39,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Assertions for {@link RowData}. */
 @Experimental
 public class RowDataAssert extends AbstractAssert<RowDataAssert, RowData> {
+
+    // ------ Note for MAINTAINERS: keep this in sync with the class from table-common! ------
 
     public RowDataAssert(RowData rowData) {
         super(rowData, RowDataAssert.class);
@@ -96,5 +101,16 @@ public class RowDataAssert extends AbstractAssert<RowDataAssert, RowData> {
                             }
                             return Objects.hashCode(x) < Objects.hashCode(y) ? -1 : 1;
                         });
+    }
+
+    // ------ Below the methods exclusive to this implementation of RowDataAssert ------
+    // The reason for these methods to be here (and the reason why we have two RowDataAssert) is
+    // that these methods require flink-table-runtime in classpath
+
+    public RowAssert asRow(DataType dataType) {
+        DataStructureConverter<Object, Object> dataStructureConverter =
+                DataStructureConverters.getConverter(dataType);
+
+        return new RowAssert((Row) dataStructureConverter.toExternalOrNull(this.actual));
     }
 }

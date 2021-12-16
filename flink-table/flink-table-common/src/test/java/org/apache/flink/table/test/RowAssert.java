@@ -19,27 +19,30 @@
 package org.apache.flink.table.test;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.table.data.StringData;
+import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import org.assertj.core.api.AbstractAssert;
-import org.assertj.core.api.ByteArrayAssert;
-import org.assertj.core.api.StringAssert;
 
-/** Assertions for {@link StringData}. */
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** Assertions for {@link Row}. */
 @Experimental
-public class StringDataAssert extends AbstractAssert<StringDataAssert, StringData> {
+public class RowAssert extends AbstractAssert<RowAssert, Row> {
 
-    public StringDataAssert(StringData stringData) {
-        super(stringData, StringDataAssert.class);
+    public RowAssert(Row row) {
+        super(row, RowAssert.class);
     }
 
-    public StringAssert asString() {
+    public RowAssert hasKind(RowKind kind) {
         isNotNull();
-        return new StringAssert(this.actual.toString());
+        assertThat(this.actual.getKind()).isEqualTo(kind);
+        return this;
     }
 
-    public ByteArrayAssert asBytes() {
+    public RowAssert hasArity(int arity) {
         isNotNull();
-        return new ByteArrayAssert(this.actual.toBytes());
+        assertThat(this.actual.getArity()).isEqualTo(arity);
+        return this;
     }
 }
