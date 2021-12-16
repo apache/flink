@@ -31,10 +31,9 @@ import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExt
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
-
-import org.apache.flink.util.OutputTag;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -172,7 +171,7 @@ public class IntervalJoinITCase {
                                 ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
                                 ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
                                 ctx.emitWatermark(new Watermark(3));
-                                ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L); //late data
+                                ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L); // late data
                             }
 
                             @Override
@@ -198,21 +197,25 @@ public class IntervalJoinITCase {
                             }
                         });
 
-        OutputTag<Tuple2<String, Integer>> late = new OutputTag<Tuple2<String, Integer>>("late"){};
+        OutputTag<Tuple2<String, Integer>> late = new OutputTag<Tuple2<String, Integer>>("late") {};
 
-        SingleOutputStreamOperator<String> process = streamOne
-                .keyBy(new Tuple2KeyExtractor())
-                .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                .between(Time.milliseconds(-1), Time.milliseconds(1))
-                .sideOutputLeftLateData(late)
-                .process(new CombineToStringJoinFunction());
+        SingleOutputStreamOperator<String> process =
+                streamOne
+                        .keyBy(new Tuple2KeyExtractor())
+                        .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
+                        .between(Time.milliseconds(-1), Time.milliseconds(1))
+                        .sideOutputLeftLateData(late)
+                        .process(new CombineToStringJoinFunction());
 
-        process.getSideOutput(late).addSink(new SinkFunction<Tuple2<String, Integer>>() {
-            @Override
-            public void invoke(Tuple2<String, Integer> value, Context context) throws Exception {
-                testResults.add(value.toString());
-            }
-        });
+        process.getSideOutput(late)
+                .addSink(
+                        new SinkFunction<Tuple2<String, Integer>>() {
+                            @Override
+                            public void invoke(Tuple2<String, Integer> value, Context context)
+                                    throws Exception {
+                                testResults.add(value.toString());
+                            }
+                        });
         env.execute();
 
         expectInAnyOrder("(key,1)");
@@ -233,7 +236,6 @@ public class IntervalJoinITCase {
                                 ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
                                 ctx.emitWatermark(new Watermark(3));
                                 ctx.collectWithTimestamp(Tuple2.of("key", 4), 4L);
-                 
                             }
 
                             @Override
@@ -250,7 +252,7 @@ public class IntervalJoinITCase {
                                 ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
                                 ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
                                 ctx.emitWatermark(new Watermark(3));
-                                ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L); //late data
+                                ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L); // late data
                             }
 
                             @Override
@@ -259,26 +261,30 @@ public class IntervalJoinITCase {
                             }
                         });
 
-        OutputTag<Tuple2<String, Integer>> late = new OutputTag<Tuple2<String, Integer>>("late"){};
+        OutputTag<Tuple2<String, Integer>> late = new OutputTag<Tuple2<String, Integer>>("late") {};
 
-        SingleOutputStreamOperator<String> process = streamOne
-                .keyBy(new Tuple2KeyExtractor())
-                .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                .between(Time.milliseconds(-1), Time.milliseconds(1))
-                .sideOutputRightLateData(late)
-                .process(new CombineToStringJoinFunction());
+        SingleOutputStreamOperator<String> process =
+                streamOne
+                        .keyBy(new Tuple2KeyExtractor())
+                        .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
+                        .between(Time.milliseconds(-1), Time.milliseconds(1))
+                        .sideOutputRightLateData(late)
+                        .process(new CombineToStringJoinFunction());
 
-        process.getSideOutput(late).addSink(new SinkFunction<Tuple2<String, Integer>>() {
-            @Override
-            public void invoke(Tuple2<String, Integer> value, Context context) throws Exception {
-                testResults.add(value.toString());
-            }
-        });
+        process.getSideOutput(late)
+                .addSink(
+                        new SinkFunction<Tuple2<String, Integer>>() {
+                            @Override
+                            public void invoke(Tuple2<String, Integer> value, Context context)
+                                    throws Exception {
+                                testResults.add(value.toString());
+                            }
+                        });
         env.execute();
 
         expectInAnyOrder("(key,2)");
     }
-    
+
     @Test
     public void testBoundedUnorderedStreamsStillJoinCorrectly() throws Exception {
 

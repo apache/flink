@@ -187,9 +187,9 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
     /**
      * Process a {@link StreamRecord} from the left stream. Whenever an {@link StreamRecord} arrives
-     * at the left stream, it will get added to the left buffer. PossiblntervalJoinITCase join candidates for that
-     * element will be looked up from the right buffer and if the pair lies within the user defined
-     * boundaries, it gets passed to the {@link ProcessJoinFunction}.
+     * at the left stream, it will get added to the left buffer. PossiblntervalJoinITCase join
+     * candidates for that element will be looked up from the right buffer and if the pair lies
+     * within the user defined boundaries, it gets passed to the {@link ProcessJoinFunction}.
      *
      * @param record An incoming record to be joined
      * @throws Exception Can throw an Exception during state access
