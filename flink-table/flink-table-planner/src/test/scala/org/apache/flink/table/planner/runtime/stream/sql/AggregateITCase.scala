@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{Types, _}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
 import org.apache.flink.table.planner.functions.aggfunctions.{ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSumAggFunction
 import org.apache.flink.table.planner.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsAggFunction}
@@ -837,34 +838,53 @@ class AggregateITCase(
 
   @Test
   def testDifferentTypesSumWithRetract(): Unit = {
-    val data = List(
-      (1.toByte, 1.toShort, 1, 1L, 1.0F, 1.0, "a"),
-      (2.toByte, 2.toShort, 2, 2L, 2.0F, 2.0, "a"),
-      (3.toByte, 3.toShort, 3, 3L, 3.0F, 3.0, "a"),
-      (3.toByte, 3.toShort, 3, 3L, 3.0F, 3.0, "a"),
-      (1.toByte, 1.toShort, 1, 1L, 1.0F, 1.0, "b"),
-      (2.toByte, 2.toShort, 2, 2L, 2.0F, 2.0, "b"),
-      (3.toByte, 3.toShort, 3, 3L, 3.0F, 3.0, "c"),
-      (3.toByte, 3.toShort, 3, 3L, 3.0F, 3.0, "c")
-    )
+    val upsertSourceCurrencyData = List(
+      changelogRow("+I", Byte.box(1), Short.box(1), Int.box(1), Long.box(1),
+        Float.box(1.0F), Double.box(1.0), "a"),
+      changelogRow("+I", Byte.box(2), Short.box(2), Int.box(2), Long.box(2),
+        Float.box(2.0F), Double.box(2.0), "a"),
+      changelogRow("-D", Byte.box(1), Short.box(1), Int.box(1), Long.box(1),
+        Float.box(1.0F), Double.box(1.0), "a"),
+      changelogRow("+I", Byte.box(3), Short.box(3), Int.box(3), Long.box(3),
+        Float.box(3.0F), Double.box(3.0), "a"),
+      changelogRow("-D", Byte.box(2), Short.box(2), Int.box(2), Long.box(2),
+        Float.box(2.0F), Double.box(2.0), "a"),
+      changelogRow("+I", Byte.box(1), Short.box(1), Int.box(1), Long.box(1),
+        Float.box(1.0F), Double.box(1.0), "a"),
+      changelogRow("-D", Byte.box(3), Short.box(3), Int.box(3), Long.box(3),
+        Float.box(3.0F), Double.box(3.0), "a"),
+      changelogRow("+I", Byte.box(2), Short.box(2), Int.box(2), Long.box(2),
+        Float.box(2.0F), Double.box(2.0), "a"),
+      changelogRow("+I", Byte.box(3), Short.box(3), Int.box(3), Long.box(3),
+        Float.box(3.0F), Double.box(3.0), "a"))
 
-    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'f, 'g)
-    tEnv.registerTable("T", t)
+    val upsertSourceDataId = registerData(upsertSourceCurrencyData);
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE T (
+         | `a` TINYINT,
+         | `b` SMALLINT,
+         | `c` INT,
+         | `d` BIGINT,
+         | `e` FLOAT,
+         | `f` DOUBLE,
+         | `g` STRING
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '${upsertSourceDataId}',
+         | 'changelog-mode' = 'I,D',
+         | 'failing-source' = 'true'
+         |)
+         |""".stripMargin)
 
-    // We use sub-query + limit here to ensure retraction
-    val sql =
-      """
-        |SELECT sum(a), sum(b), sum(c), sum(d), sum(e), sum(f), sum(h) FROM (
-        |  SELECT *, CAST(c AS DECIMAL(3, 2)) AS h FROM T LIMIT 8
-        |) GROUP BY g
-      """.stripMargin
+    val sql = "SELECT sum(a), sum(b), sum(c), sum(d), sum(e), sum(f) FROM T GROUP BY g"
 
     val sink = new TestingRetractSink
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("9,9,9,9,9.0,9.0,9.00", "3,3,3,3,3.0,3.0,3.00", "6,6,6,6,6.0,6.0,6.00")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    val expected = List("6,6,6,6,6.0,6.0")
+    assertEquals(expected, sink.getRetractResults.sorted)
   }
 
   @Test
