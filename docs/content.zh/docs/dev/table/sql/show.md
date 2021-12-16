@@ -118,7 +118,7 @@ tEnv.executeSql("SHOW CURRENT DATABASE").print();
 // create a table
 tEnv.executeSql("CREATE TABLE my_table (...) WITH (...)");
 // show tables
-tEnv.executeSql("SHOW TABLES").print();
+tEnv.executeSql("SHOW TABLES FROM default_database LIKE 'm%'").print();
 // +------------+
 // | table name |
 // +------------+
@@ -222,7 +222,7 @@ tEnv.executeSql("SHOW DATABASES").print()
 // create a table
 tEnv.executeSql("CREATE TABLE my_table (...) WITH (...)")
 // show tables
-tEnv.executeSql("SHOW TABLES").print()
+tEnv.executeSql("SHOW TABLES FROM default_database LIKE 'm%'").print()
 // +------------+
 // | table name |
 // +------------+
@@ -324,7 +324,7 @@ table_env.execute_sql("SHOW DATABASES").print()
 # create a table
 table_env.execute_sql("CREATE TABLE my_table (...) WITH (...)")
 # show tables
-table_env.execute_sql("SHOW TABLES").print()
+table_env.execute_sql("SHOW TABLES FROM default_database LIKE 'm%'").print()
 # +------------+
 # | table name |
 # +------------+
@@ -414,7 +414,7 @@ default_database
 Flink SQL> CREATE TABLE my_table (...) WITH (...);
 [INFO] Table has been created.
 
-Flink SQL> SHOW TABLES;
+Flink SQL> "SHOW TABLES FROM default_database LIKE 'm%'";
 my_table
 
 Flink SQL> SHOW CREATE TABLE my_table;
@@ -520,10 +520,17 @@ SHOW CURRENT DATABASE
 ## SHOW TABLES
 
 ```sql
-SHOW TABLES
+SHOW TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE regex_pattern ]
 ```
 
-展示当前 catalog 和当前 database 中所有的表。
+展示指定库的所有表，如果没有指定库则展示当前库的所有表。另外返回的结果能被一个可选的匹配字符串过滤。
+
+**LIKE**
+根据可选的 `LIKE` 语句展示给定库中与 `<sql_like_pattern>` 是否模糊相似的所有表。
+
+`LIKE` 子句中 sql 正则式的语法与 `MySQL` 方言中的语法相同。
+* `%` 匹配任意数量的字符, 也包括0数量字符, `\%` 匹配一个 `%` 字符.
+* `_` 只匹配一个字符, `\_` 匹配一个 `_` 字符.
 
 ## SHOW CREATE TABLE
 

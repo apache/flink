@@ -21,8 +21,83 @@ package org.apache.flink.table.operations;
 /** Operation to describe a SHOW TABLES statement. */
 public class ShowTablesOperation implements ShowOperation {
 
+    private final String catalogName;
+    private final String databaseName;
+    private final boolean useLike;
+    private final boolean notLike;
+    private final String likePattern;
+    private final String preposition;
+
+    public ShowTablesOperation() {
+        this.catalogName = null;
+        this.databaseName = null;
+        this.likePattern = null;
+        this.useLike = false;
+        this.notLike = false;
+        this.preposition = null;
+    }
+
+    public ShowTablesOperation(String likePattern, boolean useLike, boolean notLike) {
+        this.catalogName = null;
+        this.databaseName = null;
+        this.likePattern = likePattern;
+        this.useLike = useLike;
+        this.notLike = notLike;
+        this.preposition = null;
+    }
+
+    public ShowTablesOperation(
+            String catalogName,
+            String databaseName,
+            String likePattern,
+            boolean useLike,
+            boolean notLike,
+            String preposition) {
+        this.catalogName = catalogName;
+        this.databaseName = databaseName;
+        this.likePattern = likePattern;
+        this.useLike = useLike;
+        this.notLike = notLike;
+        this.preposition = preposition;
+    }
+
+    public String getLikePattern() {
+        return likePattern;
+    }
+
+    public String getPreposition() {
+        return preposition;
+    }
+
+    public boolean isUseLike() {
+        return useLike;
+    }
+
+    public boolean isNotLike() {
+        return notLike;
+    }
+
+    public String getCatalogName() {
+        return catalogName;
+    }
+
+    public String getDatabaseName() {
+        return databaseName;
+    }
+
     @Override
     public String asSummaryString() {
-        return "SHOW TABLES";
+        StringBuilder builder = new StringBuilder().append("SHOW TABLES");
+        if (this.preposition != null) {
+            builder.append(String.format(" %s %s.%s", preposition, catalogName, databaseName));
+        }
+        if (this.useLike) {
+            if (notLike) {
+                builder.append(String.format(" %s LIKE %s", "NOT", likePattern));
+            } else {
+                builder.append(String.format(" LIKE %s", likePattern));
+            }
+        }
+        return builder.toString();
     }
 }

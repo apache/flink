@@ -798,6 +798,17 @@ public interface TableEnvironment {
     String[] listTables();
 
     /**
+     * Gets the names of all tables available in the given namespace (the given database of the
+     * given catalog). It returns both temporary and permanent tables and views.
+     *
+     * @return A list of the names of all registered tables in the given database of the given
+     *     catalog.
+     * @see #listTemporaryTables()
+     * @see #listTemporaryViews()
+     */
+    String[] listTables(String catalogName, String databaseName);
+
+    /**
      * Gets the names of all views available in the current namespace (the current database of the
      * current catalog). It returns both temporary and permanent views.
      *

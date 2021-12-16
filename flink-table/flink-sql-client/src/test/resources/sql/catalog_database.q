@@ -522,3 +522,76 @@ show tables;
 +------------+
 2 rows in set
 !ok
+
+# ==========================================================================
+# test enhanced show tables
+# ==========================================================================
+
+create catalog catalog1 with ('type'='generic_in_memory');
+[INFO] Execute statement succeed.
+!info
+
+create database catalog1.db1;
+[INFO] Execute statement succeed.
+!info
+
+create table catalog1.db1.person (a int, b string) with ('connector' = 'datagen');
+[INFO] Execute statement succeed.
+!info
+
+create table catalog1.db1.dim (a int, b string) with ('connector' = 'datagen');
+[INFO] Execute statement succeed.
+!info
+
+create table catalog1.db1.address (a int, b string) with ('connector' = 'datagen');
+[INFO] Execute statement succeed.
+!info
+
+create view catalog1.db1.v_person as select * from catalog1.db1.person;
+[INFO] Execute statement succeed.
+!info
+
+show tables from catalog1.db1;
++------------+
+| table name |
++------------+
+|    address |
+|        dim |
+|     person |
+|   v_person |
++------------+
+4 rows in set
+!ok
+
+show tables from catalog1.db1 like '%person%';
++------------+
+| table name |
++------------+
+|     person |
+|   v_person |
++------------+
+2 rows in set
+!ok
+
+show tables in catalog1.db1 not like '%person%';
++------------+
+| table name |
++------------+
+|    address |
+|        dim |
++------------+
+2 rows in set
+!ok
+
+use catalog catalog1;
+[INFO] Execute statement succeed.
+!info
+
+show tables from db1 like 'p_r%';
++------------+
+| table name |
++------------+
+|     person |
++------------+
+1 row in set
+!ok
