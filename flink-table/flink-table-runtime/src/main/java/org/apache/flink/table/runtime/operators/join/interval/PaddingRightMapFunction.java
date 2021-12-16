@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join;
+package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.join.OuterJoinPaddingUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 /** Function performing right padding. */
