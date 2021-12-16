@@ -41,7 +41,7 @@ public final class LastValueWithRetractAggFunction<T>
         extends BuiltInAggregateFunction<
                 T, LastValueWithRetractAggFunction.LastValueWithRetractAccumulator<T>> {
 
-    private transient DataType valueDataType;
+    private final transient DataType valueDataType;
 
     public LastValueWithRetractAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);

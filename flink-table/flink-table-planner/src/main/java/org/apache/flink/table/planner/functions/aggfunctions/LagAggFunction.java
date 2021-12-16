@@ -40,7 +40,6 @@ public class LagAggFunction<T> extends BuiltInAggregateFunction<T, LagAggFunctio
 
     private final transient DataType[] valueDataTypes;
 
-    @SuppressWarnings("unchecked")
     public LagAggFunction(LogicalType[] valueTypes) {
         this.valueDataTypes =
                 Arrays.stream(valueTypes)

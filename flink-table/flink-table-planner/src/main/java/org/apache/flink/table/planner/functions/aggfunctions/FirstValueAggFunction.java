@@ -37,7 +37,7 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataTyp
 @Internal
 public final class FirstValueAggFunction<T> extends BuiltInAggregateFunction<T, RowData> {
 
-    private transient DataType valueDataType;
+    private final transient DataType valueDataType;
 
     public FirstValueAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);
