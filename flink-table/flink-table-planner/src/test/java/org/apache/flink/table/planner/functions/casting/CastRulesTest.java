@@ -949,41 +949,32 @@ class CastRulesTest {
                         .fromCase(DOUBLE(), 0.0d, false)
                         .fromCase(DOUBLE(), -0.12345678d, true),
                 CastTestSpecBuilder.testCastTo(BINARY(2))
-                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111}, true)
-                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111}, false)
-                        .fromCase(CHAR(1), fromString("f"), new byte[] {102}, false)
-                        .fromCase(CHAR(3), fromString("f"), new byte[] {102}, false)
-                        .fromCase(VARCHAR(5), fromString("Flink"), new byte[] {70, 108}, false)
-                        .fromCase(
+                        .fromCaseLegacy(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
+                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111})
+                        .fromCase(CHAR(1), fromString("f"), new byte[] {102})
+                        .fromCase(CHAR(3), fromString("f"), new byte[] {102})
+                        .fromCase(VARCHAR(5), fromString("Flink"), new byte[] {70, 108})
+                        .fromCaseLegacy(
                                 VARCHAR(5),
                                 fromString("Flink"),
-                                new byte[] {70, 108, 105, 110, 107},
-                                true)
-                        .fromCase(STRING(), fromString("Apache"), new byte[] {65, 112}, false)
-                        .fromCase(
+                                new byte[] {70, 108, 105, 110, 107})
+                        .fromCase(STRING(), fromString("Apache"), new byte[] {65, 112})
+                        .fromCaseLegacy(
                                 STRING(),
                                 fromString("Apache"),
-                                new byte[] {65, 112, 97, 99, 104, 101},
-                                true),
+                                new byte[] {65, 112, 97, 99, 104, 101}),
                 CastTestSpecBuilder.testCastTo(VARBINARY(4))
-                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111}, false)
-                        .fromCase(
+                        .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
+                        .fromCaseLegacy(
                                 VARCHAR(5),
                                 fromString("Flink"),
-                                new byte[] {70, 108, 105, 110, 107},
-                                true)
-                        .fromCase(
-                                VARCHAR(5),
-                                fromString("Flink"),
-                                new byte[] {70, 108, 105, 110},
-                                false)
-                        .fromCase(
-                                STRING(), fromString("Apache"), new byte[] {65, 112, 97, 99}, false)
-                        .fromCase(
+                                new byte[] {70, 108, 105, 110, 107})
+                        .fromCase(VARCHAR(5), fromString("Flink"), new byte[] {70, 108, 105, 110})
+                        .fromCase(STRING(), fromString("Apache"), new byte[] {65, 112, 97, 99})
+                        .fromCaseLegacy(
                                 STRING(),
                                 fromString("Apache"),
-                                new byte[] {65, 112, 97, 99, 104, 101},
-                                true),
+                                new byte[] {65, 112, 97, 99, 104, 101}),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(CHAR(3), fromString("foo"), new byte[] {102, 111, 111})
                         .fromCase(
