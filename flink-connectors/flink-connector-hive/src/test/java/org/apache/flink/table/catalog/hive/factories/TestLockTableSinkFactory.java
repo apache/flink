@@ -32,12 +32,12 @@ import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 
-import org.junit.jupiter.api.Assertions;
-
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Factory for testing {@link HiveCatalogLock}. */
 public class TestLockTableSinkFactory implements DynamicTableSinkFactory {
@@ -139,7 +139,7 @@ public class TestLockTableSinkFactory implements DynamicTableSinkFactory {
                     () -> {
                         REFERENCE.set(TestLockSink.this);
                         Thread.sleep(5000);
-                        Assertions.assertSame(TestLockSink.this, REFERENCE.get());
+                        assertThat(REFERENCE.get()).isSameAs(TestLockSink.this);
                         return null;
                     });
         }
