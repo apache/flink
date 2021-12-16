@@ -302,7 +302,7 @@ lookup cache 的主要目的是用于提高时态表关联 JDBC 连接器的性�
 当缓存命中最大缓存行 `lookup.cache.max-rows` 或当行超过最大存活时间 `lookup.cache.ttl` 时，缓存中最老的行将被设置为已过期。
 缓存中的记录可能不是最新的，用户可以将 `lookup.cache.ttl` 设置为一个更小的值以获得更好的刷新数据，但这可能会增加发送到数据库的请求数。所以要做好吞吐量和正确性之间的平衡。
 
-默认情况下，flink 会缓存主键的空查询结果，您可以通过将 `lookup.cache.caching-missing-key` 设置为 false 来切换行为。
+默认情况下，flink 会缓存主键的空查询结果，你可以通过将 `lookup.cache.caching-missing-key` 设置为 false 来切换行为。
 
 <a name="idempotent-writes"></a>
 
