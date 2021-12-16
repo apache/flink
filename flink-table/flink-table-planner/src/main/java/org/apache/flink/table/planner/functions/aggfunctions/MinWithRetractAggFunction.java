@@ -40,7 +40,7 @@ public final class MinWithRetractAggFunction<T extends Comparable<T>>
 
     private static final long serialVersionUID = 4253774292802374843L;
 
-    private transient DataType valueDataType;
+    private final transient DataType valueDataType;
 
     public MinWithRetractAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);

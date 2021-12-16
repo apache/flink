@@ -41,7 +41,7 @@ public final class CollectAggFunction<T>
 
     private static final long serialVersionUID = -5860934997657147836L;
 
-    private transient DataType elementDataType;
+    private final transient DataType elementDataType;
 
     public CollectAggFunction(LogicalType elementType) {
         this.elementDataType = toInternalDataType(elementType);

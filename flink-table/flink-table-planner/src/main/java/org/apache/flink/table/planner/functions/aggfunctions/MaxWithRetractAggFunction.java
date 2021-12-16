@@ -40,7 +40,7 @@ public final class MaxWithRetractAggFunction<T extends Comparable<T>>
 
     private static final long serialVersionUID = -5860934997657147836L;
 
-    private transient DataType valueDataType;
+    private final transient DataType valueDataType;
 
     public MaxWithRetractAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);

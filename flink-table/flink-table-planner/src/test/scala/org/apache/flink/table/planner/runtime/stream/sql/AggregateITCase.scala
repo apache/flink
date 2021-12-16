@@ -399,27 +399,33 @@ class AggregateITCase(
   @Test
   def testPrecisionForSumAggregationOnDecimal(): Unit = {
     var t = tEnv.sqlQuery(
-        "select cast(sum(1.03520274) as DECIMAL(32, 8)), " +
-        "cast(sum(12345.035202748654) AS DECIMAL(30, 20)), " +
-        "cast(sum(12.345678901234567) AS DECIMAL(25, 22))")
+        "select sum(cast(1.03520274 as DECIMAL(32, 8))), " +
+        "sum(cast(12345.035202748654 AS DECIMAL(30, 20))), " +
+        "sum(cast(12.345678901234567 AS DECIMAL(25, 22)))")
     var sink = new TestingRetractSink
     t.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
+
+    // Use the result precision/scale calculated for sum and don't override with the one calculated
+    // for plus(), which "looses" a decimal digit.
     var expected = List("1.03520274,12345.03520274865400000000,12.3456789012345670000000")
     assertEquals(expected, sink.getRetractResults)
 
-    val data = new mutable.MutableList[(Double, Int)]
-    data .+= ((1.11111111, 1))
-    data .+= ((1.11111111, 2))
+    val data = new mutable.MutableList[Double]
+    data .+= (1.11111111)
+    data .+= (1.11111111)
     env.setParallelism(1)
 
-    t = failingDataSource(data).toTable(tEnv, 'a, 'b)
+    t = failingDataSource(data).toTable(tEnv, 'a)
     tEnv.registerTable("T", t)
 
     t = tEnv.sqlQuery("select sum(cast(a as decimal(32, 8))) from T")
     sink = new TestingRetractSink
     t.toRetractStream[Row].addSink(sink)
     env.execute()
+
+    // Use the result precision/scale calculated for sum and don't override with the one calculated
+    // for plus(), which results in loosing a decimal digit.
     expected = List("2.22222222")
     assertEquals(expected, sink.getRetractResults)
   }

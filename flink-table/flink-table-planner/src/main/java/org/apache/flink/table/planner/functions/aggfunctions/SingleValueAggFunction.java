@@ -22,6 +22,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -48,10 +49,10 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
     private static final long serialVersionUID = 8850662568341069949L;
     private static final Expression ZERO = literal(0, DataTypes.INT().notNull());
     private static final Expression ONE = literal(1, DataTypes.INT().notNull());
-    private static final String ERROR_MSG =
-            "SingleValueAggFunction received more than one element.";
-    private UnresolvedReferenceExpression value = unresolvedRef("value");
-    private UnresolvedReferenceExpression count = unresolvedRef("count");
+    private static final ValueLiteralExpression ERROR_MSG =
+            literal("SingleValueAggFunction received more than one element.");
+    private final UnresolvedReferenceExpression value = unresolvedRef("value");
+    private final UnresolvedReferenceExpression count = unresolvedRef("count");
 
     @Override
     public int operandCount() {
@@ -79,10 +80,7 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
     public Expression[] accumulateExpressions() {
         return new Expression[] {
             /* value = count > 0 ? exception : operand(0) */
-            ifThenElse(
-                    greaterThan(count, ZERO),
-                    throwException(ERROR_MSG, getResultType()),
-                    operand(0)),
+            ifThenElse(greaterThan(count, ZERO), throwException(getResultType()), operand(0)),
             /* count = count + 1 */
             plus(count, ONE)
         };
@@ -95,7 +93,7 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
             ifThenElse(
                     or(equalTo(count, ONE), equalTo(count, ZERO)),
                     nullOf(getResultType()),
-                    throwException(ERROR_MSG, getResultType())),
+                    throwException(getResultType())),
             /* count = count - 1 */
             minus(count, ONE)
         };
@@ -106,7 +104,7 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
         return new Expression[] {
             ifThenElse(
                     greaterThan(plus(count, mergeOperand(count)), ONE),
-                    throwException(ERROR_MSG, getResultType()),
+                    throwException(getResultType()),
                     ifThenElse(
                             equalTo(plus(count, mergeOperand(count)), ZERO),
                             ifThenElse(
@@ -127,11 +125,11 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
         return value;
     }
 
-    private static Expression throwException(String msg, DataType type) {
+    private static Expression throwException(DataType type) {
         // it is the internal function without catalog.
         // so it can not be find in any catalog or built-in functions.
         return new CallExpression(
-                THROW_EXCEPTION, Arrays.asList(literal(msg), typeLiteral(type)), type);
+                THROW_EXCEPTION, Arrays.asList(ERROR_MSG, typeLiteral(type)), type);
     }
 
     /** Built-in byte single value aggregate function. */

@@ -415,6 +415,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     results.addSink(sink).setParallelism(1)
     env.execute()
 
+    // Use the result precision/scale calculated for sum and don't override with the one calculated
+    // for plus(), which result in loosing a decimal digit.
     val expected = List("1.03520274,12345.03520274865300000000,12.34567890123456700000,2.22222222")
     assertEquals(expected, sink.getRetractResults)
   }
