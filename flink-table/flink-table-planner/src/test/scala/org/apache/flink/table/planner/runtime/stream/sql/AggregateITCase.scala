@@ -50,6 +50,7 @@ import java.lang.{Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 
 import scala.collection.{Seq, mutable}
+import scala.math.BigDecimal.double2bigDecimal
 import scala.util.Random
 
 @RunWith(classOf[Parameterized])
@@ -428,6 +429,88 @@ class AggregateITCase(
     // Use the result precision/scale calculated for sum and don't override with the one calculated
     // for plus(), which results in loosing a decimal digit.
     expected = List("2.22222222")
+    assertEquals(expected, sink.getRetractResults)
+  }
+
+  @Test
+  def testPrecisionForSumWithRetractAggregationOnDecimal(): Unit = {
+    val upsertSourceCurrencyData = List(
+      changelogRow("+I", 1.03520274.bigDecimal, 12345.035202748654.bigDecimal,
+        12.345678901234567.bigDecimal, "a"),
+      changelogRow("+I", 1.03520274.bigDecimal, 12345.035202748654.bigDecimal,
+        12.345678901234567.bigDecimal, "b"),
+      changelogRow("-D", 1.03520274.bigDecimal, 12345.035202748654.bigDecimal,
+        12.345678901234567.bigDecimal, "b"),
+      changelogRow("+I", 2.13520275.bigDecimal, 21245.542202748654.bigDecimal,
+        242.78594201234567.bigDecimal, "a"),
+      changelogRow("+I", 1.11111111.bigDecimal, 11111.111111111111.bigDecimal,
+        111.11111111111111.bigDecimal, "b"),
+      changelogRow("+I", 1.11111111.bigDecimal, 11111.111111111111.bigDecimal,
+        111.11111111111111.bigDecimal, "a"),
+      changelogRow("-D", 1.11111111.bigDecimal, 11111.111111111111.bigDecimal,
+        111.11111111111111.bigDecimal, "b"),
+      changelogRow("+I", 2.13520275.bigDecimal, 21245.542202748654.bigDecimal,
+        242.78594201234567.bigDecimal, "a"))
+
+    val upsertSourceDataId = registerData(upsertSourceCurrencyData);
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE T (
+         | `a` DECIMAL(32, 8),
+         | `b` DECIMAL(32, 20),
+         | `c` DECIMAL(32, 20),
+         | `d` STRING
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '${upsertSourceDataId}',
+         | 'changelog-mode' = 'I,D',
+         | 'failing-source' = 'true'
+         |)
+         |""".stripMargin)
+
+    val sql = "SELECT sum(a), sum(b), sum(c) FROM T GROUP BY d"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    // Use the result precision/scale calculated for sum and don't override with the one calculated
+    // for plus()/minus(), which results in loosing a decimal digit.
+    val expected = List("6.41671935,65947.23071935707000000000,609.02867403703699700000")
+    assertEquals(expected, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testPrecisionForAvgAggregationOnDecimal(): Unit = {
+    var t = tEnv.sqlQuery(
+      "select avg(cast(1.03520274 as DECIMAL(32, 8))), " +
+        "avg(cast(12345.035202748654 AS DECIMAL(30, 20))), " +
+        "avg(cast(12.345678901234567 AS DECIMAL(25, 22)))")
+    var sink = new TestingRetractSink
+    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    // Use the result precision/scale calculated for AvgAggFunction's SumType and don't override
+    // with the one calculated for plus()/minus(), which results in loosing a decimal digit.
+    var expected = List("1.03520274,12345.03520274865400000000,12.3456789012345670000000")
+    assertEquals(expected, sink.getRetractResults)
+
+    val data = new mutable.MutableList[Double]
+    data .+= (2.22222222)
+    data .+= (3.33333333)
+    env.setParallelism(1)
+
+    t = failingDataSource(data).toTable(tEnv, 'a)
+    tEnv.registerTable("T", t)
+
+    t = tEnv.sqlQuery("select avg(cast(a as decimal(32, 8))) from T")
+    sink = new TestingRetractSink
+    t.toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    // Use the result precision/scale calculated for AvgAggFunction's SumType and don't override
+    // with the one calculated for plus()/minus(), which result in loosing a decimal digit.
+    expected = List("2.77777778")
     assertEquals(expected, sink.getRetractResults)
   }
 
@@ -858,7 +941,7 @@ class AggregateITCase(
       changelogRow("+I", Byte.box(3), Short.box(3), Int.box(3), Long.box(3),
         Float.box(3.0F), Double.box(3.0), "a"))
 
-    val upsertSourceDataId = registerData(upsertSourceCurrencyData);
+    val upsertSourceDataId = registerData(upsertSourceCurrencyData)
     tEnv.executeSql(
       s"""
          |CREATE TABLE T (

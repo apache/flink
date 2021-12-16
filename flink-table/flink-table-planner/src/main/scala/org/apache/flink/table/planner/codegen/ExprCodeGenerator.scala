@@ -831,6 +831,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             val right = operands(1)
             generateBinaryArithmeticOperator(ctx, "+", resultType, left, right)
 
+          case BuiltInFunctionDefinitions.AGG_DECIMAL_MINUS =>
+            val left = operands.head
+            val right = operands(1)
+            generateBinaryArithmeticOperator(ctx, "-", resultType, left, right)
+
           case _ =>
             new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
         }
