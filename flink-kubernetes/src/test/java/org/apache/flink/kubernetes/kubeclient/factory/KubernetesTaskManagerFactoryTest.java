@@ -46,6 +46,8 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 
     private Pod resultPod;
 
+    private KubernetesTaskManagerSpecification kubernetesJobManagerSpecification;
+
     @Override
     protected void setupFlinkConfig() {
         super.setupFlinkConfig();
@@ -69,11 +71,12 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 
         generateKerberosFileItems();
 
-        this.resultPod =
+        this.kubernetesJobManagerSpecification =
                 KubernetesTaskManagerFactory.buildKubernetesTaskManagerSpecification(
-                                new FlinkPod.Builder().build(), kubernetesTaskManagerParameters)
-                        .getKubernetesPod()
-                        .getInternalResource();
+                        new FlinkPod.Builder().build(), kubernetesTaskManagerParameters);
+
+        this.resultPod =
+                this.kubernetesJobManagerSpecification.getKubernetesPod().getInternalResource();
     }
 
     @Test
@@ -107,17 +110,9 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 
     @Test
     public void testHadoopConfConfigMap() throws IOException {
-        setHadoopConfDirEnv();
-        generateHadoopConfFileItems();
-
-        FlinkPod flinkPod = new FlinkPod.Builder().build();
-        KubernetesTaskManagerSpecification kubernetesJobManagerSpecification =
-                KubernetesTaskManagerFactory.buildKubernetesTaskManagerSpecification(
-                        flinkPod, kubernetesTaskManagerParameters);
-
         final ConfigMap resultConfigMap =
                 (ConfigMap)
-                        kubernetesJobManagerSpecification.getAccompanyingResources().stream()
+                        this.kubernetesJobManagerSpecification.getAccompanyingResources().stream()
                                 .filter(
                                         x ->
                                                 x instanceof ConfigMap
