@@ -56,16 +56,16 @@ public class KafkaUtil {
      */
     public static KafkaContainer createKafkaContainer(String dockerImageVersion, Logger logger) {
         String logLevel;
-        if (logger.isErrorEnabled()) {
-            logLevel = "ERROR";
-        } else if (logger.isTraceEnabled()) {
+        if (logger.isTraceEnabled()) {
             logLevel = "TRACE";
         } else if (logger.isDebugEnabled()) {
             logLevel = "DEBUG";
-        } else if (logger.isWarnEnabled()) {
-            logLevel = "WARN";
         } else if (logger.isInfoEnabled()) {
             logLevel = "INFO";
+        } else if (logger.isWarnEnabled()) {
+            logLevel = "WARN";
+        } else if (logger.isErrorEnabled()) {
+            logLevel = "ERROR";
         } else {
             logLevel = "OFF";
         }
