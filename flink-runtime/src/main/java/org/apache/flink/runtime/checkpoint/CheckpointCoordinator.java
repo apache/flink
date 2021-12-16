@@ -1206,7 +1206,8 @@ public class CheckpointCoordinator {
         final CheckpointProperties props = pendingCheckpoint.getProps();
 
         // As a first step to complete the checkpoint, we register its state with the registry
-        // we do not
+        // we do not register savepoints' shared state, as Flink is not in charge of savepoints'
+        // lifecycle
         if (!props.isSavepoint()) {
             registerSharedStates(pendingCheckpoint);
         }
