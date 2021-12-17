@@ -46,42 +46,29 @@ import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.testutils.junit.FailsOnJava11;
-import org.apache.flink.testutils.junit.RetryOnException;
-import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.DockerImageVersions;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
-import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.mapping.Mapper;
-import org.apache.cassandra.service.CassandraDaemon;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
-import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.CassandraContainer;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
-import java.util.Scanner;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -95,38 +82,33 @@ import static org.junit.Assert.assertTrue;
 
 /** IT cases for all cassandra sinks. */
 @SuppressWarnings("serial")
-@Category(FailsOnJava11.class)
-// this test is known to be unstable, but the exact cause is unknown
-@RetryOnException(times = 2, exception = NoHostAvailableException.class)
 public class CassandraConnectorITCase
         extends WriteAheadSinkTestBase<
                 Tuple3<String, Integer, Integer>,
                 CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>>> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorITCase.class);
-
-    @Rule public final RetryRule retryRule = new RetryRule();
-
-    private static final boolean EMBEDDED = true;
-
-    private static EmbeddedCassandraService cassandra;
-
-    private static final String HOST = "127.0.0.1";
+    @ClassRule
+    public static final CassandraContainer CASSANDRA_CONTAINER = createCassandraContainer();
 
     private static final int PORT = 9042;
 
-    private static ClusterBuilder builderForReading =
+    private static Cluster cluster;
+    private static Session session;
+
+    private final ClusterBuilder builderForReading =
             createBuilderWithConsistencyLevel(ConsistencyLevel.ONE);
     // Lower consistency level ANY is only available for writing.
-    private static ClusterBuilder builderForWriting =
+    private final ClusterBuilder builderForWriting =
             createBuilderWithConsistencyLevel(ConsistencyLevel.ANY);
 
-    private static ClusterBuilder createBuilderWithConsistencyLevel(
-            ConsistencyLevel consistencyLevel) {
+    private ClusterBuilder createBuilderWithConsistencyLevel(ConsistencyLevel consistencyLevel) {
         return new ClusterBuilder() {
             @Override
             protected Cluster buildCluster(Cluster.Builder builder) {
-                return builder.addContactPointsWithPorts(new InetSocketAddress(HOST, PORT))
+                return builder.addContactPointsWithPorts(
+                                new InetSocketAddress(
+                                        CASSANDRA_CONTAINER.getHost(),
+                                        CASSANDRA_CONTAINER.getMappedPort(PORT)))
                         .withQueryOptions(
                                 new QueryOptions()
                                         .setConsistencyLevel(consistencyLevel)
@@ -137,9 +119,6 @@ public class CassandraConnectorITCase
             }
         };
     }
-
-    private static Cluster cluster;
-    private static Session session;
 
     private static final String TABLE_NAME_PREFIX = "flink_";
     private static final String TABLE_NAME_VARIABLE = "$TABLE";
@@ -174,70 +153,17 @@ public class CassandraConnectorITCase
         }
     }
 
-    private static class EmbeddedCassandraService {
-        CassandraDaemon cassandraDaemon;
-
-        public void start() throws IOException {
-            this.cassandraDaemon = new CassandraDaemon();
-            this.cassandraDaemon.init(null);
-            this.cassandraDaemon.start();
-        }
-
-        public void stop() {
-            this.cassandraDaemon.stop();
-        }
+    public static CassandraContainer createCassandraContainer() {
+        CassandraContainer cassandra = new CassandraContainer(DockerImageVersions.CASSANDRA_3);
+        cassandra.withJmxReporting(false);
+        return cassandra;
     }
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
-
     @BeforeClass
-    public static void startCassandra() throws IOException {
-
-        ClassLoader classLoader = CassandraConnectorITCase.class.getClassLoader();
-        File file = new File(classLoader.getResource("cassandra.yaml").getFile());
-        File tmp = TEMPORARY_FOLDER.newFile("cassandra.yaml");
-
-        try (BufferedWriter b = new BufferedWriter(new FileWriter(tmp));
-
-                // copy cassandra.yaml; inject absolute paths into cassandra.yaml
-                Scanner scanner = new Scanner(file); ) {
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                line = line.replace("$PATH", "'" + tmp.getParentFile());
-                b.write(line + "\n");
-                b.flush();
-            }
-        }
-
-        // Tell cassandra where the configuration files are.
-        // Use the test configuration file.
-        System.setProperty("cassandra.config", tmp.getAbsoluteFile().toURI().toString());
-
-        if (EMBEDDED) {
-            cassandra = new EmbeddedCassandraService();
-            cassandra.start();
-        }
-
-        // start establishing a connection within 30 seconds
-        long start = System.nanoTime();
-        long deadline = start + 30_000_000_000L;
-        while (true) {
-            try {
-                cluster = builderForReading.getCluster();
-                session = cluster.connect();
-                break;
-            } catch (Exception e) {
-                if (System.nanoTime() > deadline) {
-                    throw e;
-                }
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException ignored) {
-                }
-            }
-        }
-        LOG.debug("Connection established after {}ms.", System.currentTimeMillis() - start);
-
+    public static void startAndInitializeCassandra() {
+        CASSANDRA_CONTAINER.start();
+        cluster = CASSANDRA_CONTAINER.getCluster();
+        session = cluster.connect();
         session.execute(CREATE_KEYSPACE_QUERY);
         session.execute(
                 CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_NAME_PREFIX + "initial"));
@@ -254,14 +180,10 @@ public class CassandraConnectorITCase
         if (session != null) {
             session.close();
         }
-
         if (cluster != null) {
             cluster.close();
         }
-
-        if (cassandra != null) {
-            cassandra.stop();
-        }
+        CASSANDRA_CONTAINER.stop();
     }
 
     // ------------------------------------------------------------------------
