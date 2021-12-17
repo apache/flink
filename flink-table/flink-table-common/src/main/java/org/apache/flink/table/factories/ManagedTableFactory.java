@@ -29,9 +29,12 @@ import java.util.Map;
 @Internal
 public interface ManagedTableFactory extends DynamicTableFactory {
 
+    /** {@link #factoryIdentifier()} for the managed table factory. */
+    String DEFAULT_IDENTIFIER = "default";
+
     @Override
     default String factoryIdentifier() {
-        return "default";
+        return DEFAULT_IDENTIFIER;
     }
 
     /**
