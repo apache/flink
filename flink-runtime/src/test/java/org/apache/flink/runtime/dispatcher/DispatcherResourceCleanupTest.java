@@ -157,7 +157,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         final TestingBlobStore testingBlobStore =
                 new TestingBlobStoreBuilder()
                         .setPutFunction(
-                                putArguments -> storedHABlobFuture.complete(putArguments.f2))
+                                (file, jobId, blobKey) -> storedHABlobFuture.complete(blobKey))
                         .setDeleteAllFunction(deleteAllHABlobsFuture::complete)
                         .createTestingBlobStore();
 
