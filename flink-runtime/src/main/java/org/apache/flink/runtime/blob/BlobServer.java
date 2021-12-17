@@ -175,8 +175,7 @@ public class BlobServer extends Thread
 
         this.cleanupInterval = config.getLong(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
         this.cleanupTimer.schedule(
-                new TransientBlobCleanupTask(
-                        blobExpiryTimes, readWriteLock.writeLock(), storageDir.deref(), LOG),
+                new TransientBlobCleanupTask(blobExpiryTimes, this::deleteInternal, LOG),
                 cleanupInterval,
                 cleanupInterval);
 
