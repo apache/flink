@@ -35,11 +35,12 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * A testing job whith blocks processing until it gets manually {@link #unblock(String) unblocked}.
+ * A testing job which blocks processing until it gets manually {@link #unblock(String) unblocked}.
  */
 public class BlockingJob {
 
-    private static final ConcurrentMap<String, CountDownLatch> BLOCKING = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, CountDownLatch> RUNNING = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, CountDownLatch> BLOCKED = new ConcurrentHashMap<>();
 
     public static PackagedProgram getProgram(String blockId) throws FlinkException {
         try {
@@ -57,8 +58,17 @@ public class BlockingJob {
         }
     }
 
+    public static void cleanUp(String blockId) {
+        RUNNING.remove(blockId);
+        BLOCKED.remove(blockId);
+    }
+
+    public static void awaitRunning(String blockId) throws InterruptedException {
+        RUNNING.computeIfAbsent(blockId, ignored -> new CountDownLatch(1)).await();
+    }
+
     public static void unblock(String blockId) {
-        BLOCKING.computeIfAbsent(blockId, ignored -> new CountDownLatch(1)).countDown();
+        BLOCKED.computeIfAbsent(blockId, ignored -> new CountDownLatch(1)).countDown();
     }
 
     public static void main(String[] args) throws Exception {
@@ -68,7 +78,9 @@ public class BlockingJob {
                 .map(element -> element + 1)
                 .map(
                         element -> {
-                            BLOCKING.computeIfAbsent(blockId, ignored -> new CountDownLatch(1))
+                            RUNNING.computeIfAbsent(blockId, ignored -> new CountDownLatch(1))
+                                    .countDown();
+                            BLOCKED.computeIfAbsent(blockId, ignored -> new CountDownLatch(1))
                                     .await();
                             return element;
                         })
