@@ -146,7 +146,7 @@ public class KafkaDynamicSource
     protected final boolean upsertMode;
 
     protected final String tableIdentifier;
-    protected final Map<TopicPartition, Long> setBounded;
+    protected final Map<KafkaTopicPartition, Long> boundedEndOffsets;
 
     public KafkaDynamicSource(
             DataType physicalDataType,
@@ -162,8 +162,8 @@ public class KafkaDynamicSource
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
             boolean upsertMode,
-            String tableIdentifier,
-            Map<TopicPartition, Long> setBounded) {
+            Map<KafkaTopicPartition, Long> boundedEndOffsets,
+            String tableIdentifier) {
         // Format attributes
         this.physicalDataType =
                 Preconditions.checkNotNull(
@@ -197,7 +197,9 @@ public class KafkaDynamicSource
         this.startupTimestampMillis = startupTimestampMillis;
         this.upsertMode = upsertMode;
         this.tableIdentifier = tableIdentifier;
-        this.setBounded = setBounded;
+        this.boundedEndOffsets =
+                Preconditions.checkNotNull(boundedEndOffsets, "bounded offsets must not be null.");
+        ;
     }
 
     @Override
@@ -307,8 +309,8 @@ public class KafkaDynamicSource
                         specificStartupOffsets,
                         startupTimestampMillis,
                         upsertMode,
-                        tableIdentifier,
-                        setBounded);
+                        boundedEndOffsets,
+                        tableIdentifier);
         copy.producedDataType = producedDataType;
         copy.metadataKeys = metadataKeys;
         copy.watermarkStrategy = watermarkStrategy;
@@ -346,7 +348,7 @@ public class KafkaDynamicSource
                 && Objects.equals(upsertMode, that.upsertMode)
                 && Objects.equals(tableIdentifier, that.tableIdentifier)
                 && Objects.equals(watermarkStrategy, that.watermarkStrategy)
-                && Objects.equals(setBounded, that.setBounded);
+                && Objects.equals(boundedEndOffsets, that.boundedEndOffsets);
     }
 
     @Override
@@ -369,7 +371,7 @@ public class KafkaDynamicSource
                 upsertMode,
                 tableIdentifier,
                 watermarkStrategy,
-                setBounded);
+                boundedEndOffsets);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -415,8 +417,14 @@ public class KafkaDynamicSource
                         OffsetsInitializer.timestamp(startupTimestampMillis));
                 break;
         }
-        if (setBounded != null) {
-            kafkaSourceBuilder.setBounded(OffsetsInitializer.offsets(setBounded));
+
+        if (boundedEndOffsets != null) {
+            Map<TopicPartition, Long> offsets = new HashMap<>();
+            boundedEndOffsets.forEach(
+                    (tp, offset) ->
+                            offsets.put(
+                                    new TopicPartition(tp.getTopic(), tp.getPartition()), offset));
+            kafkaSourceBuilder.setBounded(OffsetsInitializer.offsets(offsets));
         }
 
         kafkaSourceBuilder

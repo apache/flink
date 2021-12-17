@@ -158,6 +158,13 @@ public class KafkaConnectorOptions {
                     .withDescription(
                             "Optional offsets used in case of \"specific-offsets\" startup mode");
 
+    public static final ConfigOption<String> SCAN_END_SPECIFIC_OFFSETS =
+            ConfigOptions.key("scan.end.specific-offsets")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "When all partitions have reached their stop offsets, the source will exit");
+
     public static final ConfigOption<Long> SCAN_STARTUP_TIMESTAMP_MILLIS =
             ConfigOptions.key("scan.startup.timestamp-millis")
                     .longType()
@@ -248,16 +255,6 @@ public class KafkaConnectorOptions {
                             "If the delivery guarantee is configured as "
                                     + DeliveryGuarantee.EXACTLY_ONCE
                                     + " this value is used a prefix for the identifier of all opened Kafka transactions.");
-    // --------------------------------------------------------------------------------------------
-    // Source specific options
-    // --------------------------------------------------------------------------------------------
-
-    public static final ConfigOption<Long> SOURCE_BOUNDED =
-            ConfigOptions.key("source.Bounded")
-                    .longType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "When all partitions have reached their stop offsets, the source will exit");
 
     // --------------------------------------------------------------------------------------------
     // Enums

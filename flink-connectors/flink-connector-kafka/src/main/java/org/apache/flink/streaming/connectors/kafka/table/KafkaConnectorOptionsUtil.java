@@ -58,11 +58,11 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FORMAT;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_END_SPECIFIC_OFFSETS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_MODE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_PARTITIONER;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SOURCE_BOUNDED;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC_PATTERN;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TRANSACTIONAL_ID_PREFIX;
@@ -223,7 +223,6 @@ class KafkaConnectorOptionsUtil {
 
     public static StartupOptions getStartupOptions(ReadableConfig tableOptions) {
         final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
-        final Map<TopicPartition, Long> setBounded = new HashMap<>();
         final StartupMode startupMode =
                 tableOptions
                         .getOptional(SCAN_STARTUP_MODE)
@@ -234,17 +233,11 @@ class KafkaConnectorOptionsUtil {
             // FLINK-18602. We have already checked tableOptions.get(TOPIC) contains one topic in
             // validateScanStartupMode().
             buildSpecificOffsets(tableOptions, tableOptions.get(TOPIC).get(0), specificOffsets);
-            setBounded.put(
-                    new TopicPartition(
-                            tableOptions.get(TOPIC).get(0),
-                            Integer.parseInt(tableOptions.getOptional(TOPIC_PATTERN).get())),
-                    tableOptions.getOptional(SOURCE_BOUNDED).get());
         }
 
         final StartupOptions options = new StartupOptions();
         options.startupMode = startupMode;
         options.specificOffsets = specificOffsets;
-        options.setBounded = setBounded;
         if (startupMode == StartupMode.TIMESTAMP) {
             options.startupTimestampMillis = tableOptions.get(SCAN_STARTUP_TIMESTAMP_MILLIS);
         }
@@ -264,6 +257,20 @@ class KafkaConnectorOptionsUtil {
                             new KafkaTopicPartition(topic, partition);
                     specificOffsets.put(topicPartition, offset);
                 });
+    }
+
+    public static Map<KafkaTopicPartition, Long> buildBoundedOffsets(ReadableConfig tableOptions) {
+        Map<KafkaTopicPartition, Long> boundedOffsets = new HashMap<>();
+        String boundedOffsetsEndOpt = tableOptions.get(SCAN_END_SPECIFIC_OFFSETS);
+        final Map<Integer, Long> offsetMap =
+                parseSpecificOffsets(boundedOffsetsEndOpt, SCAN_END_SPECIFIC_OFFSETS.key());
+        offsetMap.forEach(
+                (partition, offset) -> {
+                    final KafkaTopicPartition topicPartition =
+                            new KafkaTopicPartition(tableOptions.get(TOPIC).get(0), partition);
+                    boundedOffsets.put(topicPartition, offset);
+                });
+        return boundedOffsets;
     }
 
     /**

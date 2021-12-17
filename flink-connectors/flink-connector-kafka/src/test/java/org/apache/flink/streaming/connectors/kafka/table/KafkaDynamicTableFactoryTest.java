@@ -73,7 +73,6 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.TopicPartition;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -118,8 +117,10 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     private static final String DEFAULT_KEY_SUBJECT = TOPIC + "-key";
     private static final int PARTITION_0 = 0;
     private static final long OFFSET_0 = 100L;
+    private static final long END_OFFSET_0 = 200L;
     private static final int PARTITION_1 = 1;
     private static final long OFFSET_1 = 123L;
+    private static final long END_OFFSET_1 = 223L;
     private static final String NAME = "name";
     private static final String COUNT = "count";
     private static final String TIME = "time";
@@ -198,8 +199,9 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), OFFSET_0);
         specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), OFFSET_1);
 
-        final Map<TopicPartition, Long> setBounded = new HashMap<>();
-        setBounded.put(new TopicPartition(TOPIC, PARTITION_0), 100L);
+        final Map<KafkaTopicPartition, Long> boundedEndOffsets = new HashMap<>();
+        boundedEndOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), END_OFFSET_0);
+        specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), END_OFFSET_1);
 
         final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
                 new DecodingFormatMock(",", true);
@@ -219,7 +221,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         StartupMode.SPECIFIC_OFFSETS,
                         specificOffsets,
                         0,
-                        setBounded);
+                        boundedEndOffsets);
         assertEquals(actualKafkaSource, expectedKafkaSource);
 
         ScanTableSource.ScanRuntimeProvider provider =
@@ -901,7 +903,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             StartupMode startupMode,
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
-            Map<TopicPartition, Long> setBounded) {
+            Map<KafkaTopicPartition, Long> boundedEndOffsets) {
         return new KafkaDynamicSource(
                 physicalDataType,
                 keyDecodingFormat,
@@ -916,8 +918,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 specificStartupOffsets,
                 startupTimestampMillis,
                 false,
-                FactoryMocks.IDENTIFIER.asSummaryString(),
-                setBounded);
+                boundedEndOffsets,
+                FactoryMocks.IDENTIFIER.asSummaryString());
     }
 
     private static KafkaDynamicSink createExpectedSink(

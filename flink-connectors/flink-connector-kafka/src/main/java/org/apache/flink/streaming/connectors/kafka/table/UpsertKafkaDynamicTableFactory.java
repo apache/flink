@@ -142,8 +142,8 @@ public class UpsertKafkaDynamicTableFactory
                 Collections.emptyMap(),
                 0,
                 true,
-                context.getObjectIdentifier().asSummaryString(),
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                context.getObjectIdentifier().asSummaryString());
     }
 
     @Override
