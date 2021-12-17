@@ -31,8 +31,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nullable;
 
@@ -65,9 +63,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests how failing GET requests behave in the presence of failures when used with a {@link
@@ -362,27 +357,20 @@ public class BlobServerGetTest extends TestLogger {
     private void testConcurrentGetOperations(
             @Nullable final JobID jobId, final BlobKey.BlobType blobType)
             throws IOException, InterruptedException, ExecutionException {
-        final BlobStore blobStore = mock(BlobStore.class);
+        final byte[] data = {1, 2, 3, 4, 99, 42};
+
+        final BlobStore blobStore =
+                new TestingBlobStoreBuilder()
+                        .setGetFunction(
+                                (jobID, blobKey, file) -> {
+                                    FileUtils.writeByteArrayToFile(file, data);
+                                    return true;
+                                })
+                        .createTestingBlobStore();
 
         final int numberConcurrentGetOperations = 3;
         final List<CompletableFuture<File>> getOperations =
                 new ArrayList<>(numberConcurrentGetOperations);
-
-        final byte[] data = {1, 2, 3, 4, 99, 42};
-
-        doAnswer(
-                        new Answer() {
-                            @Override
-                            public Object answer(InvocationOnMock invocation) throws Throwable {
-                                File targetFile = (File) invocation.getArguments()[2];
-
-                                FileUtils.writeByteArrayToFile(targetFile, data);
-
-                                return null;
-                            }
-                        })
-                .when(blobStore)
-                .get(any(JobID.class), any(BlobKey.class), any(File.class));
 
         final ExecutorService executor =
                 Executors.newFixedThreadPool(numberConcurrentGetOperations);
